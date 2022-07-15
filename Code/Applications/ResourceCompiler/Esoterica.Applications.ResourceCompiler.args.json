@@ -1,0 +1,216 @@
+{
+  "FileVersion": 2,
+  "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
+  "Items": [
+    {
+      "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
+      "Command": "-shipping"
+    },
+    {
+      "Id": "dab7d779-e844-4589-bd58-3d6a7cd54969",
+      "Command": "Entity",
+      "Items": [
+        {
+          "Id": "717b1c8a-50e9-4d28-8342-23cf41389c62",
+          "Command": "-compile data://editor/editormap.map"
+        },
+        {
+          "Id": "0cd1ba0c-fc90-4e98-a81f-9c143eb88bae",
+          "Command": "-compile data://maps/ai_test.map"
+        },
+        {
+          "Id": "a8fe4a3c-fd67-4929-9ae3-66b1e588d828",
+          "Command": "-compile data://player/player.ec"
+        },
+        {
+          "Id": "ad2d1983-6878-4258-afa3-81c0872a7d6b",
+          "Command": "-compile data://ai/ai.ec"
+        },
+        {
+          "Id": "7d8391f1-5e52-4e7e-b49e-8c142d55b97f",
+          "Command": "-compile data://maps/br_full.map"
+        },
+        {
+          "Id": "f70fcfe5-b416-417d-acbe-761d66b29ce2",
+          "Command": "-compile data://maps/br_minimal.map"
+        },
+        {
+          "Id": "3a1d3634-59db-4632-8fab-d445fd8cd13a",
+          "Command": "-compile data://maps/br_nav.map"
+        },
+        {
+          "Id": "b715060d-66f7-4c58-90c0-48e6e05a390f",
+          "Command": "-compile data://maps/animTest_minimal.map"
+        },
+        {
+          "Id": "3e350972-2b51-4550-9e06-be679782a3c3",
+          "Command": "-compile data://maps/SerializationTest.map"
+        },
+        {
+          "Id": "e9351240-7dc9-46e7-ae9d-0b118849b5d2",
+          "Command": "-compile data://maps/ecs_testmap.map"
+        },
+        {
+          "Id": "7dfd4f5c-9619-4a16-a813-483f2911d7cb",
+          "Command": "-compile data://maps/prototype_combat_minimal.map"
+        }
+      ]
+    },
+    {
+      "Id": "41041334-3dbe-4662-bccb-3ad9de1b9edb",
+      "Command": "Physics",
+      "Items": [
+        {
+          "Id": "64a5e0c2-5f6b-47a3-830e-c72791a32202",
+          "Command": "-compile data://physics/physicsmaterials.pmdb"
+        },
+        {
+          "Id": "e09ffa37-b199-4382-8fd4-4d9403e66358",
+          "Command": "-compile data://testscenes/floor/floor.pmsh"
+        },
+        {
+          "Id": "0f518efa-9b58-4db9-942d-ffa488c2273b",
+          "Command": "-compile data://geometry/floor.pmsh"
+        },
+        {
+          "Id": "d35b3fd7-1138-487b-8884-6e0350cb6378",
+          "Command": "-compile data://geometry/convexmesh.pmsh"
+        },
+        {
+          "Id": "032c51fb-7fec-426b-980e-033e95c50370",
+          "Command": "-compile data://Packs/BR/Environment/SM_Env_Grass_Square_01.pmsh"
+        }
+      ]
+    },
+    {
+      "Id": "6d5842b6-fa07-4879-8e0d-f95505d6c16f",
+      "Command": "Render",
+      "Items": [
+        {
+          "Id": "73085163-14ce-4413-8623-ba2c65a3a1cd",
+          "Command": "-compile data://editor/floor/floor.msh"
+        },
+        {
+          "Id": "e6626772-d19b-439c-bd43-5786cbbb2f5c",
+          "Command": "-compile data://packs/br/characters/sk_chr_gothfemale_01.smsh"
+        },
+        {
+          "Id": "d8672111-9c97-460e-a8d2-c8be98b7b7bb",
+          "Command": "-compile data://packs/city/characters/sk_character_businessman_suit.smsh"
+        },
+        {
+          "Id": "241ec993-981d-4c63-a9ec-e618265914c9",
+          "Command": "-compile data://packs/br/vehicles/sm_veh_armored_car_01.msh"
+        },
+        {
+          "Id": "7ffe5c6b-e064-4295-b083-fb850be34067",
+          "Command": "-compile data://ash_fbx.msh"
+        },
+        {
+          "Id": "bb8f2925-7afd-4e3a-a8cf-7070d4da51a8",
+          "Command": "-compile data://testscenes/ClothMesh/cloth_mesh.txtr"
+        },
+        {
+          "Id": "1a480c3c-0ba4-4f13-92fd-65926da38a4a",
+          "Command": "-compile data://testscenes/flighthelmet/flighthelmet.msh"
+        },
+        {
+          "Id": "afa6c43d-eb4c-45c3-bf2a-b277c08570c7",
+          "Command": "-compile data://mannequin.smsh"
+        },
+        {
+          "Id": "051d5c39-342a-467f-8d73-281beba52edb",
+          "Command": "-compile data://ue_mann_anim/run_fwd.smsh"
+        },
+        {
+          "Id": "43330e5f-5d0e-4711-8040-48b47946f12c",
+          "Command": "-compile data://packs/amplify/amplifycharacter.smsh"
+        },
+        {
+          "Id": "2464fa86-53b9-4f1e-832a-21d36c275665",
+          "Command": "-compile data://cubemaps/cubemap.cbmp"
+        },
+        {
+          "Id": "8cd2a9ba-a24d-4549-9a15-9c3a549c7a6e",
+          "Command": "-compile data://packs/br/characters/sk_chr_gothfemale_01.smsh"
+        }
+      ]
+    },
+    {
+      "Id": "c375fed6-8f52-4aa2-9ce9-12b2e4723ce7",
+      "Command": "Animation",
+      "Items": [
+        {
+          "Id": "699d8cbb-3efb-45ad-9d2c-1e605a4adfc3",
+          "Command": "-compile data://player/playergraph.ag"
+        },
+        {
+          "Id": "cfd76197-83f5-462a-ad94-a17857433e4a",
+          "Command": "-compile data://test/ar_walk_fwd.anim"
+        },
+        {
+          "Id": "71618f6d-9aa2-4324-8bb1-6f17b1243534",
+          "Command": "-compile data://test/syntyskel.skel"
+        },
+        {
+          "Id": "21374f48-740a-4048-a7a3-41e6d784c18f",
+          "Command": "-compile data://testanim.anim"
+        },
+        {
+          "Id": "193c9740-984a-41d8-823e-ef810d861cc9",
+          "Command": "-compile data://packs/amplify/run_fwd.anim"
+        },
+        {
+          "Id": "5f1791ee-5758-48e0-8206-8919902f6d7c",
+          "Command": "-compile data://packs/amplify/walk_fwd_v2.anim"
+        },
+        {
+          "Id": "4f10648d-b7d6-4b68-aa3e-915b7809edab",
+          "Command": "-compile data://Packs/Amplify/AssaultRifle/AR_Aim_Crouch_Enter.anim"
+        },
+        {
+          "Id": "25a11b81-2401-4dbe-87b0-fa19b0bcc541",
+          "Command": "-compile data://packs/amplify/assaultrifle/ar_aim_crouch_exit.anim"
+        },
+        {
+          "Id": "fe3f7226-4f1e-44fa-8a8b-974dc399976c",
+          "Command": "-compile data://packs/amplify/amplifyskeleton.skel"
+        },
+        {
+          "Id": "12aa3e43-0ff4-4341-99f7-bc6713c1ab71",
+          "Command": "-compile data://packs/amplify/run/run_fwd.anim"
+        },
+        {
+          "Id": "f1f6abf4-c826-4a41-b7a8-b8536d363744",
+          "Command": "-compile data://Packs/SyntyAnims/Stand_Reaction_Lets_Go.anim"
+        },
+        {
+          "Id": "61986e12-b844-4fe5-85ad-5ba8121cb8ad",
+          "Command": "-compile data://Packs/SyntyAnims/SyntySkeleton.skel"
+        },
+        {
+          "Id": "0b678507-48c0-40c8-a404-d2016c5236d9",
+          "Command": "-compile data://ai/aigraph_default.agv"
+        }
+      ]
+    },
+    {
+      "Id": "cf9c1b2a-f2b5-41c3-9376-3aa89e03c809",
+      "Command": "Navmesh",
+      "Items": [
+        {
+          "Id": "98ebde9b-3986-4ca0-8e41-9037f5720049",
+          "Command": "-compile data://maps/prototype_combat_minimal.nav"
+        },
+        {
+          "Id": "19e93083-4c06-48bc-9521-5bdb67294403",
+          "Command": "-compile data://maps/br_minimal.nav"
+        },
+        {
+          "Id": "e2d7e307-a159-4efd-ad60-a565d13e2985",
+          "Command": "-compile data://maps/prototype_combat_minimal.nav"
+        }
+      ]
+    }
+  ]
+}

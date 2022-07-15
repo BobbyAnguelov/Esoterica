@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(SolutionDir)Code\PropertySheets\Esoterica.Win32.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\EA.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\Imgui.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\SuperLuminal.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\PhysX.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\Navpower.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\Optick.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <EE_ROOT_DIR>$(SolutionDir)</EE_ROOT_DIR>
+    <EE_BUILD_DIR>$(SolutionDir)Build\</EE_BUILD_DIR>
+    <EE_SYSTEM_THIRDPARTY_INCLUDE_DIR>$(SolutionDir)Code\System\ThirdParty\</EE_SYSTEM_THIRDPARTY_INCLUDE_DIR>
+    <OutDir>$(EE_BUILD_DIR)$(Platform)_$(Configuration)\</OutDir>
+    <IntDir>$(EE_BUILD_DIR)_Temp\$(Platform)_$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
+    <CodeAnalysisRuleSet>NativeMinimumRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/Zo /Zc:inline %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(SolutionDir)Code;$(EE_SYSTEM_THIRDPARTY_INCLUDE_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(ProjectName.ToUpper().Replace('.', '_'));_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="$(Platform) == 'x64'">NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="$(Configuration) == 'Debug'">EE_DEBUG=1;EE_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="$(Configuration) == 'Release'">EE_RELEASE=1;EE_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="$(Configuration) == 'Shipping'">EE_SHIPPING=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WholeProgramOptimization Condition="$(Configuration) == 'Debug'">false</WholeProgramOptimization>
+      <WholeProgramOptimization Condition="$(Configuration) == 'Release'">false</WholeProgramOptimization>
+      <WholeProgramOptimization Condition="$(Configuration) == 'Shipping'">true</WholeProgramOptimization>
+      <DisableSpecificWarnings>4505;4251;4100;4127;4189;4101;4201;4577;4464;4668;4710;4820;5052;4619;4625;4626;5026;5027;5045;26495;</DisableSpecificWarnings>
+      <IntrinsicFunctions Condition="$(Configuration) == 'Debug'">true</IntrinsicFunctions>
+      <IntrinsicFunctions Condition="$(Configuration) != 'Debug'">false</IntrinsicFunctions>
+      <FunctionLevelLinking Condition="$(Configuration) == 'Debug'">true</FunctionLevelLinking>
+      <FunctionLevelLinking Condition="$(Configuration) != 'Debug'">true</FunctionLevelLinking>
+      <InlineFunctionExpansion Condition="$(Configuration) == 'Debug'">OnlyExplicitInline</InlineFunctionExpansion>
+      <InlineFunctionExpansion Condition="$(Configuration) != 'Debug'">AnySuitable</InlineFunctionExpansion>
+      <Optimization Condition="$(Configuration) == 'Debug'">Disabled</Optimization>
+      <Optimization Condition="$(Configuration) != 'Debug'">MaxSpeed</Optimization>
+      <MinimalRebuild>false</MinimalRebuild>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <ExceptionHandling>false</ExceptionHandling>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <FloatingPointModel>Fast</FloatingPointModel>
+    </ClCompile>
+    <Link>
+      <LinkIncremental>true</LinkIncremental>
+      <LinkTimeCodeGeneration Condition="$(Configuration) != 'Shipping'">Default</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration Condition="$(Configuration) == 'Shipping'">UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <GenerateDebugInformation Condition="$(Configuration) != 'Shipping'">DebugFull</GenerateDebugInformation>
+      <GenerateDebugInformation Condition="$(Configuration) == 'Shipping'">No</GenerateDebugInformation>
+      <RandomizedBaseAddress Condition="$(Configuration) == 'Debug'">false</RandomizedBaseAddress>
+      <CreateHotPatchableImage Condition="$(Configuration) != 'Shipping'">Enabled</CreateHotPatchableImage>
+      <OptimizeReferences Condition="$(Configuration) != 'Shipping'">false</OptimizeReferences>
+      <OptimizeReferences Condition="$(Configuration) == 'Shipping'">true</OptimizeReferences>
+      <EnableCOMDATFolding Condition="$(Configuration) != 'Shipping'">false</EnableCOMDATFolding>
+      <EnableCOMDATFolding Condition="$(Configuration) == 'Shipping'">true</EnableCOMDATFolding>
+      <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <PreBuildEvent>
+      <Command>taskkill /F /IM EsotericaResourceServer.exe 2&gt;&amp;1 | exit /B 0</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <Target Name="EE_CopyINI" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(SolutionDir)Code\Esoterica.ini" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="EE_CleanINI" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)Esoterica.ini" />
+  </Target>
+</Project>

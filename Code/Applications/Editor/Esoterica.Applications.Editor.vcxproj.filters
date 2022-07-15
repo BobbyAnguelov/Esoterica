@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="EditorUI.cpp" />
+    <ClCompile Include="EditorContext.cpp" />
+    <ClCompile Include="Win32\EditorApplication_Win32.cpp">
+      <Filter>Win32</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="EditorUI.h" />
+    <ClInclude Include="EditorContext.h" />
+    <ClInclude Include="Win32\Resource.h">
+      <Filter>Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32\EditorApplication_Win32.h">
+      <Filter>Win32</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Win32">
+      <UniqueIdentifier>{2f85a086-5782-419d-9cca-aca483a00439}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Win32\Apps.Editor.rc">
+      <Filter>Win32</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Win32\Editor.ico">
+      <Filter>Win32</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

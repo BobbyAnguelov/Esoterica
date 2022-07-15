@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <NAVPOWER_INCLUDED>False</NAVPOWER_INCLUDED>
+    <NAVPOWER_DIR>$(SolutionDir)External\Navpower\</NAVPOWER_DIR>
+    <NAVPOWER_LIB_DIR>$(NAVPOWER_DIR)lib\x64_vs2019\ReleaseMD\</NAVPOWER_LIB_DIR>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="$(NAVPOWER_INCLUDED) == 'True'">$(NAVPOWER_DIR)include\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="$(NAVPOWER_INCLUDED) == 'True'">EE_ENABLE_NAVPOWER;BFXDLL_IMPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories Condition="$(NAVPOWER_INCLUDED) == 'True'">$(NAVPOWER_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="$(NAVPOWER_INCLUDED) == 'True'">AllNavPowerDll_CMT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="Navpower_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" Condition="$(NAVPOWER_INCLUDED) == 'True'" SourceFiles="$(NAVPOWER_LIB_DIR)AllNavPowerDll_CMT.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="Navpower_CleanDLL" BeforeTargets="Clean">
+    <Delete Condition="$(NAVPOWER_INCLUDED) == 'True'" TreatErrorsAsWarnings="True" Files="$(OutDir)AllNavPowerDll_CMT.dll" />
+  </Target>
+</Project>

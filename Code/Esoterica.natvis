@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="EE::StringID">
+    <Expand>
+      <CustomListItems>
+        <Variable Name="buckets" InitialValue="{,,Esoterica.System} EE::StringID::s_pDebuggerInfo->m_pBuckets" />
+        <Variable Name="num_buckets" InitialValue="{,,Esoterica.System} EE::StringID::s_pDebuggerInfo->m_numBuckets" />
+        <Variable Name="start_bucket" InitialValue="m_ID % num_buckets" />
+        <Variable Name="i" InitialValue="start_bucket" />
+        <Variable Name="bucket_item" InitialValue="buckets[i]"/>
+        <Loop>
+          <If Condition="bucket_item == 0">
+            <Item Name="Value">"INVALID_STRING_ID"</Item>
+            <Break />
+          </If>
+          <If Condition="bucket_item->mValue.first == m_ID">
+            <Item Name="Value">bucket_item->mValue.second, na</Item>
+            <Break />
+          </If>
+          <Exec>bucket_item = bucket_item->mpNext</Exec>
+        </Loop>
+      </CustomListItems>
+      <Item Name="ID">m_ID</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::Tag">
+    <Expand>
+      <Item Name="0" Condition="m_c[0].m_ID != 0">m_c[0]</Item>
+      <Item Name="1" Condition="m_c[1].m_ID != 0">m_c[1]</Item>
+      <Item Name="2" Condition="m_c[2].m_ID != 0">m_c[2]</Item>
+      <Item Name="3" Condition="m_c[3].m_ID != 0">m_c[3]</Item>
+    </Expand>
+  </Type>
+  
+  <Type Name="EE::Degrees">
+    <DisplayString>{m_value}</DisplayString>
+    <Expand>
+      <Item Name="Degrees">m_value</Item>
+      <Item Name="Radians">m_value * EE::Math::DegreesToRadians</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::Radians">
+    <DisplayString>{m_value} ({m_value * EE::Math::RadiansToDegrees})</DisplayString>
+    <Expand>
+      <Item Name="Radians">m_value</Item>
+      <Item Name="Degrees">m_value * EE::Math::RadiansToDegrees</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::Float2">
+    <DisplayString>{{x={m_x} y={m_y}}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Float3">
+    <DisplayString>{{x={m_x} y={m_y} z={m_z}}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Float4">
+    <DisplayString>{{x={m_x} y={m_y} z={m_z} w={m_w}}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Vector">
+    <DisplayString>{{x={m_x} y={m_y} z={m_z} w={m_w}}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Quaternion">
+    <DisplayString>{{x={m_x} y={m_y} z={m_z} w={m_w}}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::TypeSystem::TypeID">
+    <DisplayString>Test = {m_ID}</DisplayString>
+  </Type>
+
+  <Type Name="EE::UUID">
+    <DisplayString>{(GUID*)this,na}</DisplayString>
+  </Type>
+
+  <Type Name="EE::AABB">
+    <DisplayString>{{Ctr( {m_center.m_x}, {m_center.m_y}, {m_center.m_z} ), Ext( {m_extents.m_x}, {m_extents.m_y}, {m_extents.m_z} )}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::OBB">
+    <DisplayString>{{Ctr( {m_center.m_x}, {m_center.m_y}, {m_center.m_z} ), Ext( {m_extents.m_x}, {m_extents.m_y}, {m_extents.m_z} ), Rot( {m_orientation} )}}</DisplayString>
+  </Type>
+
+  <Type Name="EE::FileSystem::Path">
+    <DisplayString>{m_fullpath}</DisplayString>
+  </Type>
+
+  <Type Name="EE::ResourcePath">
+    <DisplayString>{m_path}</DisplayString>
+  </Type>
+
+  <Type Name="EE::ResourceTypeID">
+    <DisplayString>{m_ID} - {((char*)&amp;m_ID)[3]}{((char*)&amp;m_ID)[2]}{((char*)&amp;m_ID)[1]}{((char*)&amp;m_ID)[0]}</DisplayString>
+  </Type>
+  
+  <Type Name="EE::ResourceID">
+    <DisplayString>{m_path}, Type: {m_type.m_ID}</DisplayString>
+  </Type>
+
+  <Type Name="EE::TResourcePtr&lt;*&gt;">
+    <DisplayString Condition="m_pResource != 0">{m_resourceID}, Status: {m_pResource->m_loadingStatus}</DisplayString>
+    <DisplayString Condition="m_pResource == 0">{m_resourceID}, Status: Unloaded</DisplayString>
+    <Expand>
+      <Item Name="ID">m_resourceID</Item>
+      <Item Name="Data">($T1*) m_pResource->m_pResource</Item>
+      <Item Name="ResourceRecord">m_pResource</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::Entity">
+    <DisplayString>{m_name} - {m_ID}</DisplayString>
+  </Type>
+
+  <Type Name="EE::EntityComponent">
+    <DisplayString>{m_name} - {m_ID}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Physics::RayCastResults">
+    <DisplayString>Has blocked: {hasBlock} - Touches: {nbTouches}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Physics::ShapeCastResults">
+    <DisplayString>Was blocked: {hasBlock} - Touches: {nbTouches}</DisplayString>
+  </Type>
+
+  <Type Name="EE::Physics::OverlapResults">
+    <DisplayString>Overlaps: {nbTouches}</DisplayString>
+  </Type>
+
+  <Type Name="EE::BitFlags">
+    <DisplayString>{m_flags,x} ({m_flags})</DisplayString>
+    <Expand>
+      <CustomListItems>
+        <Variable Name="bit" InitialValue="0" />
+        <Variable Name="bitValue" InitialValue="false" />
+        <Size>32</Size>
+        <Loop>
+          <Exec>bitValue = ((m_flags >> bit) % 2) != 0 ? true : false</Exec>
+          <Item>bitValue</Item>
+          <Exec>bit++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::TBitFlags&lt;*&gt;">
+    <DisplayString>{m_flags,x} ({m_flags})</DisplayString>
+    <Expand>
+      <CustomListItems>
+        <Variable Name="bit" InitialValue="0" />
+        <Variable Name="bitValue" InitialValue="false" />
+        <Size>32</Size>
+        <Loop>
+          <Exec>bitValue = ((m_flags >> bit) % 2) != 0 ? true : false</Exec>
+          <Item>bitValue</Item>
+          <Exec>bit++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+  
+</AutoVisualizer>

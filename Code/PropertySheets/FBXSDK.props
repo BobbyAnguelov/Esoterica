@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <FBX_SDK_DIR>$(SolutionDir)External\FBXSDK\</FBX_SDK_DIR>
+    <FBX_SDK_LIB_DIR>$(FBX_SDK_DIR)lib\vs2017\x64\release\</FBX_SDK_LIB_DIR>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(FBX_SDK_DIR)include\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(FBX_SDK_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="FBX_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(FBX_SDK_LIB_DIR)libfbxsdk.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="FBX_CleanDLL" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)libfbxsdk.dll" />
+  </Target>
+</Project>

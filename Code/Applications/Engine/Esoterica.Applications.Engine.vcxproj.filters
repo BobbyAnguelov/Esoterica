@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="Win32\EngineApplication_Win32.h" />
+    <ClInclude Include="Win32\Resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Win32\EngineApplication_Win32.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Win32\Apps.Engine.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Win32\Engine.ico" />
+  </ItemGroup>
+</Project>

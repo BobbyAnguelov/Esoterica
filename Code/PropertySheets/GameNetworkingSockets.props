@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <GNS_DIR>$(SolutionDir)External\GameNetworkingSockets\</GNS_DIR>
+    <GNS_LIB_DIR>$(GNS_DIR)lib\</GNS_LIB_DIR>
+    <GNS_BIN_DIR>$(GNS_DIR)bin\</GNS_BIN_DIR>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(GNS_DIR)include\GameNetworkingSockets\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(GNS_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>GameNetworkingSockets.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Lib>
+      <AdditionalLibraryDirectories Condition="$(Configuration) == 'Shipping'">$(GNS_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="$(Configuration) == 'Shipping'">GameNetworkingSockets.lib;</AdditionalDependencies>
+    </Lib>
+  </ItemDefinitionGroup>
+  <Target Name="GNS_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(GNS_BIN_DIR)GameNetworkingSockets.dll;$(GNS_BIN_DIR)libcrypto-1_1-x64.dll;$(GNS_BIN_DIR)libprotobuf.dll;$(GNS_BIN_DIR)libssl-1_1-x64.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="GNS_CleanDLL" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)GameNetworkingSockets.dll;$(OutDir)libcrypto-1_1-x64.dll;$(OutDir)libprotobuf.dll;$(OutDir)libssl-1_1-x64.dll" />
+  </Target>
+</Project>

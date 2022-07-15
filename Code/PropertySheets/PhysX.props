@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <FoundationDir>$(SolutionDir)External\PhysX\pxshared\</FoundationDir>
+    <PhysXDir>$(SolutionDir)External\PhysX\physx\</PhysXDir>
+    <PhysXConfig Condition="$(Configuration) == 'Debug'">checked</PhysXConfig>
+    <PhysXConfig Condition="$(Configuration) == 'Release'">profile</PhysXConfig>
+    <PhysXConfig Condition="$(Configuration) == 'Shipping'">release</PhysXConfig>
+    <PhysXPlatform Condition="$(Platform) == 'x64'">_x64</PhysXPlatform>
+    <PhysxLibDir Condition="$(Platform) == 'x64'">$(PhysXDir)bin\win.x86_64.vc142.md\$(PhysXConfig)\</PhysxLibDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions Condition="$(Configuration) == 'Debug'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="$(Configuration) != 'Debug'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(FoundationDir)Include\;$(PhysXDir)Include\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>LowLevelAABB_static_64.lib;LowLevelDynamics_static_64.lib;LowLevel_static_64.lib;PhysXCharacterKinematic_static_64.lib;PhysXCommon_64.lib;PhysXCooking_64.lib;PhysXExtensions_static_64.lib;PhysXFoundation_64.lib;PhysXPvdSDK_static_64.lib;PhysXTask_static_64.lib;PhysXVehicle_static_64.lib;PhysX_64.lib;SceneQuery_static_64.lib;SimulationController_static_64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(PhysxLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="PhysX_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(PhysxLibDir)PhysX_64.dll;$(PhysxLibDir)PhysXCommon_64.dll;$(PhysxLibDir)PhysXCooking_64.dll;$(PhysxLibDir)PhysXFoundation_64.dll;$(PhysxLibDir)PhysXGpu_64.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="PhysX_CleanDLL" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)PhysX_64.dll;$(OutDir)PhysXCommon_64.dll;$(OutDir)PhysXCooking_64.dll;$(OutDir)PhysXFoundation_64.dll;$(OutDir)PhysXGpu_64.dll" />
+  </Target>
+</Project>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <UseMSBuildResourceManager>false</UseMSBuildResourceManager>
+    <BuildPassReferences>true</BuildPassReferences>
+    <AllowParallelCompileInReferencedProjects>true</AllowParallelCompileInReferencedProjects>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+
+</Project>

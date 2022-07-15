@@ -1,0 +1,18 @@
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define EE_REFLECTION_IGNORE_HEADER
+#define EE_REGISTER_ENUM
+#define EE_REGISTER_TYPE
+#define EE_REGISTER_ENTITY
+#define EE_REGISTER_ENTITY_COMPONENT
+#define EE_REGISTER_SINGLETON_ENTITY_COMPONENT
+#define EXPOSE
+#define EE_REGISTER_INTERFACE
+#define EE_REGISTER_MODULE
+#define EE_FORCE_INLINE
+#define EE_REGISTER_RESOURCE
+#define EE_REGISTER_VIRTUAL_RESOURCE
+#define EE_ASSERT(msg) (!(msg)) ? __debugbreak() : 0
+#define EE_SERIALIZE
+#define EE_SERIALIZE_GRAPHNODESETTINGS

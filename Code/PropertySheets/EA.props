@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <EE_EA_DIR>$(SolutionDir)Code\System\ThirdParty\EA\</EE_EA_DIR>
+    <EE_EABASE_DIR>$(EE_EA_DIR)EABase\</EE_EABASE_DIR>
+    <EE_EASTL_DIR>$(EE_EA_DIR)EASTL\</EE_EASTL_DIR>
+    <EE_EASTL_USER_CONFIG_HEADER>%3C$(EE_EA_DIR)eastl_Esoterica.h%3E</EE_EASTL_USER_CONFIG_HEADER>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(EE_EASTL_DIR)Include\;$(EE_EABASE_DIR)Include\Common\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>EASTL_USER_CONFIG_HEADER=$(EE_EASTL_USER_CONFIG_HEADER);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="$(Configuration) != 'Shipping'">EASTL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

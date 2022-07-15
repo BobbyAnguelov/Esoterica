@@ -1,0 +1,145 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Shipping|x64">
+      <Configuration>Shipping</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{20C5D09A-3DA8-4CEA-9269-65DC6E6CD460}</ProjectGuid>
+    <ProjectName>Esoterica.Game.Runtime</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\PropertySheets\Esoterica.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\PropertySheets\Esoterica.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\PropertySheets\Esoterica.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemGroup>
+    <ClInclude Include="AI\Behaviors\Actions\AIAction_MoveTo.h" />
+    <ClInclude Include="AI\Behaviors\Actions\AIAction_Idle.h" />
+    <ClInclude Include="AI\Behaviors\AIBehavior.h" />
+    <ClInclude Include="AI\AIPhysicsController.h" />
+    <ClInclude Include="AI\Behaviors\AIBehavior_Wander.h" />
+    <ClInclude Include="AI\Behaviors\AIBehavior_CombatPositioning.h" />
+    <ClInclude Include="AI\Components\Component_AI.h" />
+    <ClInclude Include="AI\DebugViews\DebugView_AI.h" />
+    <ClInclude Include="AI\GraphControllers\AIGraphController_Locomotion.h" />
+    <ClInclude Include="AI\AIAnimationController.h" />
+    <ClInclude Include="AI\AIBehaviorSelector.h" />
+    <ClInclude Include="AI\Systems\EntitySystem_AIController.h" />
+    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h" />
+    <ClInclude Include="Cover\Components\Component_CoverVolume.h" />
+    <ClInclude Include="Cover\DebugViews\DebugView_Cover.h" />
+    <ClInclude Include="Cover\Systems\WorldSystem_CoverManager.h" />
+    <ClInclude Include="Player\Actions\PlayerAction_DebugMode.h" />
+    <ClInclude Include="Player\Actions\PlayerAction_Slide.h" />
+    <ClInclude Include="Player\PlayerCameraController.h" />
+    <ClInclude Include="Player\PlayerActionStateMachine.h" />
+    <ClInclude Include="Player\Actions\PlayerAction_Dash.h" />
+    <ClInclude Include="Player\Actions\PlayerAction_Falling.h" />
+    <ClInclude Include="Player\Components\Component_MainPlayer.h" />
+    <ClInclude Include="Player\Actions\PlayerAction_Jump.h" />
+    <ClInclude Include="Player\Actions\PlayerAction_Locomotion.h" />
+    <ClInclude Include="Player\Actions\PlayerAction.h" />
+    <ClInclude Include="Player\Actions\PlayerOverlayAction_Shoot.h" />
+    <ClInclude Include="Player\DebugViews\DebugView_Player.h" />
+    <ClInclude Include="Player\GraphControllers\PlayerGraphController_Locomotion.h" />
+    <ClInclude Include="Player\PlayerAnimationController.h" />
+    <ClInclude Include="Player\PlayerPhysicsController.h" />
+    <ClInclude Include="Player\Systems\EntitySystem_PlayerController.h" />
+    <ClInclude Include="Player\GraphControllers\PlayerGraphController_Ability.h" />
+    <ClInclude Include="Weapon\Components\Ammo.h" />
+    <ClInclude Include="Weapon\Components\BaseWeapon.h" />
+    <ClInclude Include="Weapon\Components\DamageInfoTypes.h" />
+    <ClInclude Include="_Module\API.h" />
+    <ClInclude Include="_Module\GameModule.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AI\Behaviors\Actions\AIAction_MoveTo.cpp" />
+    <ClCompile Include="AI\Behaviors\Actions\AIAction_Idle.cpp" />
+    <ClCompile Include="AI\Behaviors\AIBehavior.cpp" />
+    <ClCompile Include="AI\Behaviors\AIBehavior_Wander.cpp" />
+    <ClCompile Include="AI\Behaviors\AIBehavior_CombatPositioning.cpp" />
+    <ClCompile Include="AI\DebugViews\DebugView_AI.cpp" />
+    <ClCompile Include="AI\GraphControllers\AIGraphController_Locomotion.cpp" />
+    <ClCompile Include="AI\AIAnimationController.cpp" />
+    <ClCompile Include="AI\AIBehaviorSelector.cpp" />
+    <ClCompile Include="AI\AIPhysicsController.cpp" />
+    <ClCompile Include="AI\Systems\EntitySystem_AIController.cpp" />
+    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp" />
+    <ClCompile Include="Cover\Components\Component_CoverVolume.cpp" />
+    <ClCompile Include="Cover\DebugViews\DebugView_Cover.cpp" />
+    <ClCompile Include="Cover\Systems\WorldSystem_CoverManager.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction_Dash.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction_DebugMode.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction_Falling.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction_Jump.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction_Locomotion.cpp" />
+    <ClCompile Include="Player\Actions\PlayerAction_Slide.cpp" />
+    <ClCompile Include="Player\Actions\PlayerOverlayAction_Shoot.cpp" />
+    <ClCompile Include="Player\Components\Component_MainPlayer.cpp" />
+    <ClCompile Include="Player\DebugViews\DebugView_Player.cpp" />
+    <ClCompile Include="Player\GraphControllers\PlayerGraphController_Locomotion.cpp" />
+    <ClCompile Include="Player\PlayerActionStateMachine.cpp" />
+    <ClCompile Include="Player\PlayerAnimationController.cpp" />
+    <ClCompile Include="Player\PlayerPhysicsController.cpp" />
+    <ClCompile Include="Player\PlayerCameraController.cpp" />
+    <ClCompile Include="Player\Systems\EntitySystem_PlayerController.cpp" />
+    <ClCompile Include="Player\GraphControllers\PlayerGraphController_Ability.cpp" />
+    <ClCompile Include="Weapon\Components\Ammo.cpp" />
+    <ClCompile Include="Weapon\Components\BaseWeapon.cpp" />
+    <ClCompile Include="_Module\GameModule.cpp" />
+    <ClCompile Include="_Module\_AutoGenerated\_module.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Engine\Esoterica.Engine.Runtime.vcxproj">
+      <Project>{2cfadbdc-ee40-4484-94d0-62a90206209e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\System\Esoterica.System.vcxproj">
+      <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
