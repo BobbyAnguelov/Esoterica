@@ -26,11 +26,11 @@ namespace EE::Animation::Tasks
     {
         if ( m_pAnimation->IsAdditive() )
         {
-            return String( String::CtorSprintf(), "Sample (Additive): %s, %.2f%%", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100);
+            return String( String::CtorSprintf(), "Sample (Additive): %s, %.2f%%, %.2fF", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
         }
         else
         {
-            return String( String::CtorSprintf(), "Sample: %s, %.2f%%", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100 );
+            return String( String::CtorSprintf(), "Sample: %s, %.2f%%, %.2fF", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
         }
     }
     #endif

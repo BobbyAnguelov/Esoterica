@@ -55,7 +55,8 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        constexpr static float const            s_debugCameraDefaultSpeed = 15.0f; // m/s
+        constexpr static float const            s_debugCameraDefaultSpeedGameWorld = 15.0f; // m/s
+        constexpr static float const            s_debugCameraDefaultSpeedEditorWorld = 5.0f; // m/s
         constexpr static float const            s_debugCameraMinSpeed = 0.5f; // m/s
         constexpr static float const            s_debugCameraMaxSpeed = 100.0f; // m/s
         #endif
@@ -88,7 +89,7 @@ namespace EE
         inline DebugMode GetDebugMode() const { return m_debugMode; }
         inline bool IsDebugCameraEnabled() const { return m_debugMode != DebugMode::None; }
         inline FreeLookCameraComponent* GetDebugCamera() const { return m_pDebugCameraComponent; }
-        inline void ResetDebugCameraSpeed() { m_debugCameraMoveSpeed = s_debugCameraDefaultSpeed; }
+        void ResetDebugCameraSpeed() { m_resetCameraSpeedRequested = true; }
         inline void SetDebugCameraSpeed( float speed ) { m_debugCameraMoveSpeed = FloatRange( s_debugCameraMinSpeed, s_debugCameraMaxSpeed ).GetClampedValue( speed ); }
         inline void SetDebugCameraView( Transform const& cameraTransform );
         inline float GetDebugCameraMoveSpeed() const { return m_debugCameraMoveSpeed; }
@@ -118,12 +119,12 @@ namespace EE
         bool                                        m_registeredPlayerStateChanged = false;
         bool                                        m_isControllerEnabled = true;
 
-
         #if EE_DEVELOPMENT_TOOLS
         FreeLookCameraComponent*                    m_pDebugCameraComponent = nullptr;
-        float                                       m_debugCameraMoveSpeed = s_debugCameraDefaultSpeed;
+        float                                       m_debugCameraMoveSpeed = 0;
         Vector                                      m_directionChangeAccumulator = Vector::Zero;
         DebugMode                                   m_debugMode = DebugMode::None;
+        bool                                        m_resetCameraSpeedRequested = true;
         #endif
     };
 } 

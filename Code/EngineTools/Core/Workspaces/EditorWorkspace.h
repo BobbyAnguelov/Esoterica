@@ -93,6 +93,9 @@ namespace EE
         // Frame update and draw any tool windows needed for the workspace
         virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) = 0;
 
+        // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
+        void SharedUpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
+
         // Drawing Functions
         //-------------------------------------------------------------------------
 

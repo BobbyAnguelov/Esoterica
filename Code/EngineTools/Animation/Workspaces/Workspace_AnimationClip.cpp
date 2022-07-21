@@ -9,7 +9,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
-#include "System/Animation/AnimationPose.h"
+#include "Engine/Animation/AnimationPose.h"
 #include "System/Math/MathStringHelpers.h"
 
 //-------------------------------------------------------------------------
@@ -198,7 +198,8 @@ namespace EE::Animation
 
             if ( m_isRootMotionEnabled )
             {
-                m_characterTransform = m_pResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() );
+                Percentage const animTime = m_pAnimationComponent->GetAnimTime();
+                m_characterTransform = m_pResource->GetRootTransform( animTime );
             }
             else
             {
@@ -268,11 +269,15 @@ namespace EE::Animation
 
         auto PrintAnimDetails = [this] ( Color color )
         {
+            Percentage const currentTime = m_eventEditor.GetPlayheadPositionAsPercentage();
+            uint32_t const numFrames = m_pResource->GetNumFrames();
+            FrameTime const frameTime = m_pResource->GetFrameTime( currentTime );
+
             ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold, color );
             ImGui::Text( "Avg Linear Velocity: %.2f m/s", m_pResource->GetAverageLinearVelocity() );
             ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_pResource->GetAverageAngularVelocity().ToFloat() );
             ImGui::Text( "Distance Covered: %.2fm", m_pResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
-            ImGui::Text( "Frame: %.f/%d", m_eventEditor.GetPlayheadPositionAsPercentage().ToFloat() * m_pResource->GetNumFrames(), m_pResource->GetNumFrames() );
+            ImGui::Text( "Frame: %.2f/%d (%.2f/%d)", frameTime.ToFloat(), numFrames - 1, frameTime.ToFloat() + 1.0f, numFrames ); // Draw offset time too to match DCC timelines that start at 1
             ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetPlayheadPositionAsPercentage().ToFloat() * m_pResource->GetDuration(), m_pResource->GetDuration().ToFloat() );
         };
 

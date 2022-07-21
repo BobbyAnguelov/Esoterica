@@ -4,7 +4,7 @@
 #include "AnimationSyncTrack.h"
 #include "AnimationEvent.h"
 #include "AnimationRootMotion.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "AnimationSkeleton.h"
 #include "System/Resource/ResourcePtr.h"
 #include "System/Math/NumericRange.h"
 #include "System/Time/Time.h"

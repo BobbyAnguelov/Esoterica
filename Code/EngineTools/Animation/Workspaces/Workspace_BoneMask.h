@@ -4,7 +4,7 @@
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "System/Imgui/ImguiX.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 
 //-------------------------------------------------------------------------
 

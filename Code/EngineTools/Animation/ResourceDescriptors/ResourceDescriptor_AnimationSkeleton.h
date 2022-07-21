@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 
 //-------------------------------------------------------------------------

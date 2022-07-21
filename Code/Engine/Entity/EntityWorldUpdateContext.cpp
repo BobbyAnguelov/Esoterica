@@ -18,7 +18,7 @@ namespace EE
         {
             if ( pWorld->IsTimeStepRequested() )
             {
-                m_deltaTime = 1.0f / 60.0f;
+                m_deltaTime = pWorld->GetTimeStepLength();
             }
             else // Set delta time to 0.0f
             {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System/_Module/API.h"
+#include "Engine/_Module/API.h"
 #include "System/Resource/IResource.h"
 #include "System/Types/StringID.h"
 #include "System/Math/Transform.h"
@@ -22,7 +22,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class EE_SYSTEM_API Skeleton : public Resource::IResource
+    class EE_ENGINE_API Skeleton : public Resource::IResource
     {
         EE_REGISTER_RESOURCE( 'skel', "Animation Skeleton" );
         EE_SERIALIZE( m_boneIDs, m_localReferencePose, m_parentIndices, m_boneFlags );
@@ -105,6 +105,6 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    EE_SYSTEM_API void DrawRootBone( Drawing::DrawContext& ctx, Transform const& transform );
+    EE_ENGINE_API void DrawRootBone( Drawing::DrawContext& ctx, Transform const& transform );
     #endif
 }

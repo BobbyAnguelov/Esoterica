@@ -179,13 +179,19 @@ namespace EE
         {
             if ( pMouseState->WasReleased( Input::MouseButton::Middle ) )
             {
-                m_debugCameraMoveSpeed = s_debugCameraDefaultSpeed;
+                ResetDebugCameraSpeed();
             }
             else
             {
                 int32_t const wheelDelta = pMouseState->GetWheelDelta();
                 m_debugCameraMoveSpeed = FloatRange( s_debugCameraMinSpeed, s_debugCameraMaxSpeed ).GetClampedValue( m_debugCameraMoveSpeed + ( wheelDelta * 0.5f ) );
             }
+        }
+
+        if ( m_resetCameraSpeedRequested )
+        {
+            m_debugCameraMoveSpeed = ctx.IsGameWorld() ? s_debugCameraDefaultSpeedGameWorld : s_debugCameraDefaultSpeedEditorWorld;
+            m_resetCameraSpeedRequested = false;
         }
 
         // Position update

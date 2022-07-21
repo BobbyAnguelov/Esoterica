@@ -4,7 +4,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Animation/AnimationPose.h"
+#include "Engine/Animation/AnimationPose.h"
 #include "System/Profiling.h"
 #include "System/Log.h"
 

@@ -54,6 +54,10 @@ namespace EE::Animation::GraphNodes
             float                               m_length = 0;
             WarpEvent::Type                     m_type;
             WarpEvent::TranslationWarpMode      m_translationWarpMode;
+
+            #if EE_DEVELOPMENT_TOOLS
+            mutable Vector                      m_debugPoints[4];
+            #endif
         };
 
         enum class SamplingMode
@@ -114,8 +118,6 @@ namespace EE::Animation::GraphNodes
         RootMotionData                  m_warpedRootMotion;
         TInlineVector<WarpSection, 3>   m_warpSections;
         SamplingMode                    m_samplingMode;
-
-        TVector<Vector>                 m_test;
 
         #if EE_DEVELOPMENT_TOOLS
         Transform                       m_actualStartTransform;

@@ -91,8 +91,6 @@ namespace EE::Animation
         , m_editorContext( *pToolsContext )
         , m_propertyGrid( m_pToolsContext )
     {
-        SetViewportCameraSpeed( 10.0f );
-
         // Load graph from descriptor
         //-------------------------------------------------------------------------
 

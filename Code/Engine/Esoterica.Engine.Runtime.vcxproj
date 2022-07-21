@@ -64,7 +64,9 @@
     <ClCompile Include="Animation\AnimationClip.cpp" />
     <ClCompile Include="Animation\AnimationEvent.cpp" />
     <ClCompile Include="Animation\AnimationFrameTime.cpp" />
+    <ClCompile Include="Animation\AnimationPose.cpp" />
     <ClCompile Include="Animation\AnimationRootMotion.cpp" />
+    <ClCompile Include="Animation\AnimationSkeleton.cpp" />
     <ClCompile Include="Animation\AnimationSyncTrack.cpp" />
     <ClCompile Include="Animation\AnimationTarget.cpp" />
     <ClCompile Include="Animation\Components\Component_AnimationClipPlayer.cpp" />
@@ -204,7 +206,9 @@
     <ClInclude Include="Animation\AnimationClip.h" />
     <ClInclude Include="Animation\AnimationEvent.h" />
     <ClInclude Include="Animation\AnimationFrameTime.h" />
+    <ClInclude Include="Animation\AnimationPose.h" />
     <ClInclude Include="Animation\AnimationRootMotion.h" />
+    <ClInclude Include="Animation\AnimationSkeleton.h" />
     <ClInclude Include="Animation\AnimationSyncTrack.h" />
     <ClInclude Include="Animation\AnimationTarget.h" />
     <ClInclude Include="Animation\Components\Component_AnimationClipPlayer.h" />

@@ -25,9 +25,9 @@ namespace EE::Animation
         EE_ASSERT( numFrames > 0.0f );
         EE_ASSERT( FPS > 0.0f );
 
-        if ( m_timeRange.m_end != (int32_t) numFrames || m_FPS != FPS )
+        if ( m_timeRange.m_end != (int32_t) numFrames - 1 || m_FPS != FPS )
         {
-            SetTimeRange( IntRange( 0, numFrames ) );
+            SetTimeRange( IntRange( 0, numFrames - 1 ) );
 
             m_FPS = FPS;
             UpdateTimelineTrackFPS();
@@ -46,7 +46,8 @@ namespace EE::Animation
         if ( IsPlaying() && pPreviewAnimationComponent->IsPosed() )
         {
             pPreviewAnimationComponent->SetPlayMode( IsLoopingEnabled() ? AnimationClipPlayerComponent::PlayMode::Loop : AnimationClipPlayerComponent::PlayMode::PlayOnce );
-            pPreviewAnimationComponent->SetAnimTime( GetPlayheadPositionAsPercentage() );
+            Percentage const animTime = GetPlayheadPositionAsPercentage();
+            pPreviewAnimationComponent->SetAnimTime( animTime );
         }
         else if ( IsPaused() && !pPreviewAnimationComponent->IsPosed() )
         {
@@ -59,7 +60,8 @@ namespace EE::Animation
         // If we are playing, then update the playhead position
         if ( IsPlaying() )
         {
-            SetPlayheadPositionAsPercentage( pPreviewAnimationComponent->GetAnimTime() );
+            Percentage const animTime = pPreviewAnimationComponent->GetAnimTime();
+            SetPlayheadPositionAsPercentage( animTime );
         }
 
         Draw();
@@ -67,7 +69,8 @@ namespace EE::Animation
         // Is we are paused, then update the animation component pose
         if ( IsPaused() )
         {
-            pPreviewAnimationComponent->SetAnimTime( GetPlayheadPositionAsPercentage() );
+            Percentage const animTime = GetPlayheadPositionAsPercentage();
+            pPreviewAnimationComponent->SetAnimTime( animTime );
         }
     }
 

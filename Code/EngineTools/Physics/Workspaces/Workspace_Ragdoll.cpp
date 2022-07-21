@@ -8,7 +8,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Animation/AnimationPose.h"
+#include "Engine/Animation/AnimationPose.h"
 #include "System/Math/MathStringHelpers.h"
 #include "System/Math/MathHelpers.h"
 #include "Engine/Physics/PhysicsScene.h"
@@ -388,10 +388,6 @@ namespace EE::Physics
         , m_solverSettingsGrid( pToolsContext )
         , m_resourceFilePicker( *pToolsContext )
     {
-        SetViewportCameraSpeed( 5.0f );
-
-        //-------------------------------------------------------------------------
-
         auto OnPreEdit = [this] ( PropertyEditInfo const& info ) 
         {
             PreEdit( info );

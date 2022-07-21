@@ -298,12 +298,6 @@
     <ClCompile Include="Resource\ResourceProviders\PackagedResourceProvider.cpp">
       <Filter>Resource\ResourceProviders</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\AnimationPose.cpp">
-      <Filter>Animation</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\AnimationSkeleton.cpp">
-      <Filter>Animation</Filter>
-    </ClCompile>
     <ClCompile Include="Threading\TaskSystem.cpp">
       <Filter>Threading</Filter>
     </ClCompile>
@@ -340,6 +334,7 @@
     <ClCompile Include="FileSystem\Platform\FileSystem_Win32.cpp">
       <Filter>FileSystem\Platform</Filter>
     </ClCompile>
+    <ClCompile Include="Math\Curves.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Esoterica.h" />
@@ -1689,12 +1684,6 @@
     </ClInclude>
     <ClInclude Include="Resource\ResourceProviders\ResourceNetworkMessages.h">
       <Filter>Resource\ResourceProviders</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\AnimationPose.h">
-      <Filter>Animation</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\AnimationSkeleton.h">
-      <Filter>Animation</Filter>
     </ClInclude>
     <ClInclude Include="Threading\TaskSystem.h">
       <Filter>Threading</Filter>

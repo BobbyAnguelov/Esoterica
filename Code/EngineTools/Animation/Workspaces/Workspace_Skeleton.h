@@ -2,7 +2,7 @@
 
 #include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 #include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------

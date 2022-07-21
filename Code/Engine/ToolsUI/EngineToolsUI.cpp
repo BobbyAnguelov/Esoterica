@@ -318,7 +318,7 @@ namespace EE
                 // Step
                 ImGui::SameLine();
                 ImGui::BeginDisabled( !pGameWorld->IsPaused() );
-                if ( ImGui::Button( EE_ICON_STEP_FORWARD"##StepFrame", buttonSize ) )
+                if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", buttonSize ) )
                 {
                     RequestWorldTimeStep( pGameWorld );
                 }

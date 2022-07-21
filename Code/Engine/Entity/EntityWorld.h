@@ -96,11 +96,19 @@ namespace EE
         // Get the current time scale for this world
         inline void SetTimeScale( float newTimeScale ) { m_timeScale = newTimeScale; }
 
+        #if EE_DEVELOPMENT_TOOLS
         // Request a time step - only applicable to paused worlds
         inline void RequestTimeStep() { EE_ASSERT( IsPaused() ); m_timeStepRequested = true; }
 
         // Has a time-step for a paused world been requested?
         inline bool IsTimeStepRequested() const { return m_timeStepRequested; }
+
+        // How long should each time step be for this world?
+        inline Seconds GetTimeStepLength() const { return m_timeStepLength; }
+
+        // Set the length of each time step for this world
+        inline void SetTimeScale( Seconds newTimeStepLength ) { EE_ASSERT( newTimeStepLength > 0 ); m_timeStepLength = newTimeStepLength; }
+        #endif
 
         //-------------------------------------------------------------------------
         // Viewport
@@ -232,9 +240,8 @@ namespace EE
         EntityModel::ActivationContext                                          m_activationContext;
         TVector<IWorldEntitySystem*>                                            m_worldSystems;
         EntityWorldType                                                         m_worldType = EntityWorldType::Game;
-        Render::Viewport                                                        m_viewport = Render::Viewport( Int2::Zero, Int2( 640, 480 ), Math::ViewVolume( Float2( 640, 480 ), FloatRange( 0.1f, 100.0f ) ) );
         float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused
-        bool                                                                    m_timeStepRequested = false;
+        Render::Viewport                                                        m_viewport = Render::Viewport( Int2::Zero, Int2( 640, 480 ), Math::ViewVolume( Float2( 640, 480 ), FloatRange( 0.1f, 100.0f ) ) );
 
         // Maps
         TInlineVector<EntityModel::EntityMap, 3>                                m_maps;
@@ -249,6 +256,8 @@ namespace EE
         THashMap<TypeSystem::TypeID, TVector<EntityComponent const*>>           m_componentTypeLookup;
         Drawing::DrawingSystem                                                  m_debugDrawingSystem;
         TVector<EntityWorldDebugView*>                                          m_debugViews;
+        Seconds                                                                 m_timeStepLength = 1.0f / 30.0f;
+        bool                                                                    m_timeStepRequested = false;
         #endif
     };
 }

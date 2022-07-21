@@ -2,7 +2,7 @@
 
 #include "Component_RenderMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 
 //-------------------------------------------------------------------------
 

@@ -3,7 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
 #include "Engine/Animation/AnimationBoneMask.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 
 //-------------------------------------------------------------------------
 

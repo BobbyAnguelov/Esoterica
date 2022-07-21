@@ -556,6 +556,7 @@ namespace EE
                 enableInputForWorld = pWorkspace->DrawViewport( context, viewportInfo, &workspaceWindowClass );
             }
 
+            pWorkspace->SharedUpdateWorkspace( context, &workspaceWindowClass, isFocused );
             pWorkspace->UpdateWorkspace( context, &workspaceWindowClass, isFocused );
         }
         else // If the workspace window is hidden suspend world updates
@@ -564,30 +565,6 @@ namespace EE
         }
 
         pWorldManager->SetPlayerEnabled( pWorld, enableInputForWorld );
-
-        // Handle input
-        //-------------------------------------------------------------------------
-
-        if ( isFocused )
-        {
-            auto& IO = ImGui::GetIO();
-            if ( IO.KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_Z ) )
-            {
-                if ( pWorkspace->CanUndo() )
-                {
-                    pWorkspace->Undo();
-                }
-            }
-
-            if ( IO.KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_Y ) )
-            {
-                if ( pWorkspace->CanRedo() )
-                {
-                    pWorkspace->Redo();
-                }
-            }
-        }
-
         return isTabOpen;
     }
 }

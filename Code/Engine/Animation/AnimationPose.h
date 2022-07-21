@@ -1,6 +1,5 @@
-#pragma once 
+#pragma once
 
-#include "System/_Module/API.h"
 #include "AnimationSkeleton.h"
 #include "System/Math/Math.h"
 #include "System/Types/Color.h"
@@ -13,7 +12,7 @@ namespace EE::Drawing { class DrawContext; }
 
 namespace EE::Animation
 {
-    class EE_SYSTEM_API Pose
+    class EE_ENGINE_API Pose
     {
         friend class Blender;
         friend class AnimationClip;

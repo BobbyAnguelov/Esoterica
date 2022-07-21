@@ -406,6 +406,8 @@
     </ClCompile>
     <ClCompile Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
+    <ClCompile Include="Animation\AnimationPose.cpp" />
+    <ClCompile Include="Animation\AnimationSkeleton.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -869,6 +871,8 @@
     </ClInclude>
     <ClInclude Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />
+    <ClInclude Include="Animation\AnimationPose.h" />
+    <ClInclude Include="Animation\AnimationSkeleton.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

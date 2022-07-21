@@ -20,6 +20,8 @@ namespace EE::Animation
 
         inline bool IsValid() const { return !m_transforms.empty(); }
 
+        inline int32_t GetNumFrames() const { return (int32_t) m_transforms.size(); }
+
         void Clear();
 
         // Get the root transform at the given frame time
@@ -118,7 +120,7 @@ namespace EE::Animation
         return displacementTransform;
     }
 
-    inline Transform RootMotionData::GetDeltaNoLooping( Percentage fromTime, Percentage toTime ) const
+    EE_FORCE_INLINE Transform RootMotionData::GetDeltaNoLooping( Percentage fromTime, Percentage toTime ) const
     {
         Transform const startTransform = GetTransform( fromTime );
         Transform const endTransform = GetTransform( toTime );

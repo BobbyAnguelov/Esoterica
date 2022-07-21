@@ -41,13 +41,13 @@ namespace EE
         m_dockspaceID.sprintf( "Dockspace##%u", GetID() );
     }
 
-    //-------------------------------------------------------------------------
-
     void EditorWorkspace::SetDisplayName( String const& name )
     {
         m_displayName = name;
         m_workspaceWindowID.sprintf( "%s###window%u", m_displayName.c_str(), GetID() );
     }
+
+    //-------------------------------------------------------------------------
 
     void EditorWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
     {
@@ -162,7 +162,7 @@ namespace EE
                     {
                         SetWorldPaused( false );
                     }
-                    ImGuiX::ItemTooltip( "Pause" );
+                    ImGuiX::ItemTooltip( "Resume" );
                 }
                 else
                 {
@@ -176,7 +176,7 @@ namespace EE
                 // Step
                 ImGui::SameLine( 0, 0 );
                 ImGui::BeginDisabled( !m_pWorld->IsPaused() );
-                if ( ImGui::Button( EE_ICON_STEP_FORWARD"##StepFrame", ImVec2( 20, 0 ) ) )
+                if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", ImVec2( 20, 0 ) ) )
                 {
                     m_pWorld->RequestTimeStep();
                 }
@@ -467,5 +467,30 @@ namespace EE
             m_pToolsContext->m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
         }
         m_reloadingResources.clear();
+    }
+
+    //-------------------------------------------------------------------------
+
+    void EditorWorkspace::SharedUpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    {
+        if ( isFocused )
+        {
+            auto& IO = ImGui::GetIO();
+            if ( IO.KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_Z ) )
+            {
+                if ( CanUndo() )
+                {
+                    Undo();
+                }
+            }
+
+            if ( IO.KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_Y ) )
+            {
+                if ( CanRedo() )
+                {
+                    Redo();
+                }
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
 #include "Workspace_BoneMask.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationBoneMask.h"
 #include "EngineTools/Core/Widgets/InterfaceHelpers.h"
-#include "System/Animation/AnimationPose.h"
+#include "Engine/Animation/AnimationPose.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
 #include "System/Math/MathStringHelpers.h"

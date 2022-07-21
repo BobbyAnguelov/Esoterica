@@ -15,6 +15,8 @@ namespace EE::EntityModel
     {
         m_gizmo.SetTargetTransform( &m_gizmoTransform );
         SetDisplayName( "Map Editor" );
+
+        SetViewportCameraSpeed( 15.0f );
     }
 
     EntityMapEditor::~EntityMapEditor()

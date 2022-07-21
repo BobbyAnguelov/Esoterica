@@ -158,7 +158,7 @@ namespace EE::Input
         inline Seconds GetHeldDuration( uint32_t buttonIdx ) const
         {
             EE_ASSERT( buttonIdx < numButtons );
-            return m_buttons[buttonIdx].IsHeldDown() ? m_buttons[buttonIdx].GetTimeHeld() : 0.0f;
+            return m_buttons[buttonIdx].IsHeldDown() ? m_buttons[buttonIdx].GetTimeHeld() : Seconds( 0.0f );
         }
 
     protected:

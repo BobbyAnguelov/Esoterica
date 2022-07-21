@@ -19,8 +19,6 @@
     <ClInclude Include="Algorithm\Quantization.h" />
     <ClInclude Include="Algorithm\TopologicalSort.h" />
     <ClInclude Include="Algorithm\Encoding.h" />
-    <ClInclude Include="Animation\AnimationPose.h" />
-    <ClInclude Include="Animation\AnimationSkeleton.h" />
     <ClInclude Include="Fonts\FontData_Lexend.h" />
     <ClInclude Include="Fonts\FontData_MaterialDesign.h" />
     <ClInclude Include="Fonts\FontData_Proggy.h" />
@@ -485,8 +483,6 @@
     <ClCompile Include="Algorithm\Hash.cpp" />
     <ClCompile Include="Algorithm\TopologicalSort.cpp" />
     <ClCompile Include="Algorithm\Encoding.cpp" />
-    <ClCompile Include="Animation\AnimationPose.cpp" />
-    <ClCompile Include="Animation\AnimationSkeleton.cpp" />
     <ClCompile Include="Drawing\DebugDrawingSystem.cpp" />
     <ClCompile Include="FileSystem\Platform\FileSystemUtils_Win32.cpp" />
     <ClCompile Include="FileSystem\Platform\FileSystemPath_Win32.cpp" />
@@ -504,6 +500,7 @@
     <ClCompile Include="Input\InputDevices\Platform\InputDevice_KeyboardMouse_Win32.cpp" />
     <ClCompile Include="Input\InputDevices\Platform\InputDevice_XboxController_Win32.cpp" />
     <ClCompile Include="Input\InputSystem.cpp" />
+    <ClCompile Include="Math\Curves.cpp" />
     <ClCompile Include="Math\FloatCurve.cpp" />
     <ClCompile Include="Math\MathRandom.cpp" />
     <ClCompile Include="Math\MathStringHelpers.cpp" />

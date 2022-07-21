@@ -87,8 +87,6 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            DrawRootBone( ctx, globalTransforms[0] );
-
             for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
             {
                 auto const& parentIdx = m_parentIndices[boneIdx];
@@ -98,6 +96,8 @@ namespace EE::Animation
                 ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), Colors::HotPink, 2.0f );
                 ctx.DrawAxis( boneTransform, 0.03f, 2.0f );
             }
+
+            DrawRootBone( ctx, globalTransforms[0] );
         }
     }
 
@@ -108,11 +108,16 @@ namespace EE::Animation
         Vector const rightDir = worldTransform.GetRightVector();
         
         Vector const charPos = worldTransform.GetTranslation();
+        Vector const offsetCharPos = charPos + Vector( 0, 0, 0.05f );
 
-        ctx.DrawLine( charPos, charPos + fwdDir * 0.25f, Colors::Lime, 4 );
-        ctx.DrawLine( charPos, charPos + upDir * 0.10f, Colors::Blue, 3 );
-        ctx.DrawLine( charPos, charPos + rightDir * 0.10f, Colors::Red, 3 );
-        ctx.DrawPoint( charPos, Colors::Cyan, 9 );
+        static constexpr float const forwardAxisLength = 0.1f;
+        static constexpr float const axisLength = 0.05f;
+
+        ctx.DrawLine( offsetCharPos, charPos, Colors::Yellow, 2 );
+        ctx.DrawArrow( offsetCharPos, offsetCharPos + fwdDir * forwardAxisLength, Colors::Lime, 4 );
+        ctx.DrawLine( offsetCharPos, offsetCharPos + upDir * axisLength, Colors::Blue, 3 );
+        ctx.DrawLine( offsetCharPos, offsetCharPos + rightDir * axisLength, Colors::Red, 3 );
+        ctx.DrawPoint( charPos, Colors::HotPink, 10 );
     }
     #endif
 }

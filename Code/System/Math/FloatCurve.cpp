@@ -45,7 +45,7 @@ namespace EE
                 if ( parameter >= m_points[startIdx].m_parameter && parameter <= m_points[endIdx].m_parameter )
                 {
                     float const T = ( parameter - m_points[startIdx].m_parameter ) / ( m_points[endIdx].m_parameter - m_points[startIdx].m_parameter );
-                    result = Math::CubicHermite::Evaluate( m_points[startIdx].m_value, m_points[startIdx].m_outTangent, m_points[endIdx].m_value, m_points[endIdx].m_inTangent, T );
+                    result = Math::CubicHermite::GetPoint( m_points[startIdx].m_value, m_points[startIdx].m_outTangent, m_points[endIdx].m_value, m_points[endIdx].m_inTangent, T );
                     break;
                 }
             }

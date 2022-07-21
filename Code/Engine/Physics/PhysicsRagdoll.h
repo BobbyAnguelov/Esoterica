@@ -1,7 +1,7 @@
 #pragma once
 
 #include "PhysicsMaterial.h"
-#include "System/Animation/AnimationSkeleton.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 #include "System/Resource/ResourcePtr.h"
 #include "System/Math/Transform.h"
 #include "System/Math/NumericRange.h"
