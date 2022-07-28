@@ -84,6 +84,7 @@ namespace EE::RawAssets
 
                 pRawAnimation->m_start = 0.0f;
                 pRawAnimation->m_end = animationDuration;
+                pRawAnimation->m_duration = animationDuration;
                 pRawAnimation->m_numFrames = (uint32_t) numFrames;
                 pRawAnimation->m_samplingFrameRate = animationDuration / numFrames;
 

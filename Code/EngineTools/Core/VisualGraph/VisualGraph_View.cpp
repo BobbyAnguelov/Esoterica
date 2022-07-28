@@ -20,8 +20,8 @@ namespace EE::VisualGraph
         endPoint = endNodeRect.GetCenter();
         ImVec2 const midPoint = startPoint + ( ( endPoint - startPoint ) / 2 );
 
-        startPoint = ImGuiX::GetClosestPointOnRect( startNodeRect, midPoint );
-        endPoint = ImGuiX::GetClosestPointOnRect( endNodeRect, midPoint );
+        startPoint = ImGuiX::GetClosestPointOnRectBorder( startNodeRect, midPoint );
+        endPoint = ImGuiX::GetClosestPointOnRectBorder( endNodeRect, midPoint );
     }
 
     static bool IsHoveredOverCurve( ImVec2 const& p1, ImVec2 const& p2, ImVec2 const& p3, ImVec2 const& p4, ImVec2 const& mousePosition, float hoverThreshold )

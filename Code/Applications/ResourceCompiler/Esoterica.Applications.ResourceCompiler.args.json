@@ -141,6 +141,10 @@
       "Command": "Animation",
       "Items": [
         {
+          "Id": "18600ef1-5e40-4df8-b32b-d49a781d41ea",
+          "Command": "-compile data://packs/amplify/idle.anim"
+        },
+        {
           "Id": "699d8cbb-3efb-45ad-9d2c-1e605a4adfc3",
           "Command": "-compile data://player/playergraph.ag"
         },

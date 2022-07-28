@@ -36,10 +36,7 @@ namespace EE::Animation
         inline TranslationWarpMode GetTranslationWarpMode() const { return m_translationMode; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual char const* GetEventName() const override { return "Warp"; }
-        virtual InlineString GetDisplayText() const override;
-        virtual InlineString GetDebugText() const override { return GetDisplayText(); }
-        virtual EventType GetEventType() const override { return EventType::Duration; }
+        virtual InlineString GetDebugText() const override;
         #endif
 
     private:

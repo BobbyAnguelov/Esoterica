@@ -119,13 +119,13 @@ namespace EE::Animation
 
         inline bool IsSingleFrameAnimation() const { return m_numFrames == 1; }
         inline bool IsAdditive() const { return m_isAdditive; }
-        inline float GetFPS() const { return ( (float) m_numFrames ) / m_duration; }
+        inline float GetFPS() const { return float( m_numFrames - 1 ) / m_duration; }
         inline uint32_t GetNumFrames() const { return m_numFrames; }
         inline Seconds GetDuration() const { return m_duration; }
         inline Seconds GetTime( uint32_t frame ) const { return Seconds( GetPercentageThrough( frame ).ToFloat() * m_duration ); }
         inline Percentage GetPercentageThrough( uint32_t frame ) const { return Percentage( ( (float) frame ) / m_numFrames ); }
-        FrameTime GetFrameTime( Percentage const percentageThrough ) const;
-        FrameTime GetFrameTime( Seconds const timeThroughAnimation ) const { return GetFrameTime( Percentage( timeThroughAnimation / m_duration ) ); }
+        inline FrameTime GetFrameTime( Percentage const percentageThrough ) const { return FrameTime( percentageThrough, GetNumFrames() ); }
+        inline FrameTime GetFrameTime( Seconds const timeThroughAnimation ) const { return GetFrameTime( Percentage( timeThroughAnimation / m_duration ) ); }
         inline SyncTrack const& GetSyncTrack() const{ return m_syncTrack; }
 
         // Pose
@@ -227,7 +227,7 @@ namespace EE::Animation
 
         uint32_t const frameIdx = frameTime.GetFrameIndex();
         Percentage const percentageThrough = frameTime.GetPercentageThrough();
-        EE_ASSERT( frameIdx < m_numFrames - 1 );
+        EE_ASSERT( frameIdx < GetNumFrames() );
 
         //-------------------------------------------------------------------------
 
@@ -323,7 +323,7 @@ namespace EE::Animation
     inline uint16_t const* AnimationClip::ReadCompressedTrackKeyFrame( uint16_t const* pTrackData, TrackCompressionSettings const& trackSettings, uint32_t frameIdx, Transform& outTransform ) const
     {
         EE_ASSERT( pTrackData != nullptr );
-        EE_ASSERT( frameIdx < m_numFrames );
+        EE_ASSERT( frameIdx < GetNumFrames() );
 
         //-------------------------------------------------------------------------
         // Read rotation

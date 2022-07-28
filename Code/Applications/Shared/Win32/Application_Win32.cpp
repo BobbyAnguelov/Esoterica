@@ -56,11 +56,12 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    Win32Application::Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID )
+    Win32Application::Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID, bool startMinimized )
         : m_pInstance( hInstance )
         , m_applicationName( applicationName )
         , m_applicationNameNoWhitespace( StringUtils::StripWhitespace( applicationName ) )
         , m_applicationIconResourceID( iconResourceID )
+        , m_startMinimized( startMinimized )
     {
         Memory::MemsetZero( &m_message, sizeof( m_message ) );
 
@@ -200,9 +201,22 @@ namespace EE
         long const windowDesiredWidth = Math::Max( m_windowRect.right - m_windowRect.left, 100l );
         long const windowDesiredHeight = Math::Max( m_windowRect.bottom - m_windowRect.top, 40l );
 
+        // Create the window style (taking into account if the application was maximized
+        DWORD windowStyle = WS_OVERLAPPEDWINDOW;
+        if ( m_wasMaximized )
+        {
+            windowStyle |= WS_MAXIMIZE;
+        }
+
+        if ( m_startMinimized )
+        {
+            windowStyle |= WS_MINIMIZE;
+        }
+
+        // Try to create the window
         m_windowHandle = CreateWindow( m_windowClass.lpszClassName,
                                   m_windowClass.lpszClassName,
-                                  WS_OVERLAPPEDWINDOW,
+                                  windowStyle,
                                   m_windowRect.left,
                                   m_windowRect.top,
                                   windowDesiredWidth,
@@ -219,9 +233,13 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        ShowWindow( m_windowHandle, m_wasMaximized ? SW_MAXIMIZE : SW_SHOW );
+        ShowWindow( m_windowHandle, SW_SHOW );
         UpdateWindow( m_windowHandle );
-        GetClientRect( m_windowHandle, &m_windowRect );
+
+        if ( !m_startMinimized )
+        {
+            GetClientRect( m_windowHandle, &m_windowRect );
+        }
 
         return true;
     }

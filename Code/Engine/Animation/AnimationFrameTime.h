@@ -25,17 +25,25 @@ namespace EE::Animation
         inline FrameTime( Percentage percent, uint32_t numFrames )
         {
             EE_ASSERT( numFrames > 0 && percent.ToFloat() >= 0.0f );
-            percent.Clamp( true );
+            uint32_t const lastFrameIdx = numFrames - 1;
 
-            float integerPortion;
-            m_percentageThrough = Percentage( Math::ModF( percent.ToFloat() * numFrames, &integerPortion ) );
-            m_frameIndex = (uint32_t) integerPortion;
-        }
-
-        inline FrameTime( Percentage percent, Seconds animationDuration, Seconds frameLength )
-            : FrameTime( percent, (uint32_t) ( animationDuration / frameLength ) )
-        {
-            EE_ASSERT( Math::IsNearZero( Math::FModF( animationDuration, frameLength ) ) );
+            if ( percent == 0.0f )
+            {
+                m_frameIndex = 0;
+                m_percentageThrough = 0.0f;
+            }
+            else if ( percent == 1.0f )
+            {
+                m_frameIndex = lastFrameIdx;
+                m_percentageThrough = 0.0f;
+            }
+            else
+            {
+                percent.Clamp( true );
+                float integerPortion = 0;
+                m_percentageThrough = Percentage( Math::ModF( percent.ToFloat() * lastFrameIdx, &integerPortion ) );
+                m_frameIndex = (uint32_t) integerPortion;
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -74,8 +82,8 @@ namespace EE::Animation
 
     private:
 
-        uint32_t              m_frameIndex = 0;
-        Percentage          m_percentageThrough = Percentage( 0.0f );
+        uint32_t                m_frameIndex = 0;
+        Percentage              m_percentageThrough = Percentage( 0.0f );
     };
 
     //-------------------------------------------------------------------------

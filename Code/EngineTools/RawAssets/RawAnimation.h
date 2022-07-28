@@ -36,13 +36,13 @@ namespace EE::RawAssets
 
         virtual bool IsValid() const override final { return m_numFrames > 0; }
 
-        inline Seconds GetStartTime() const { return m_start; }
-        inline Seconds GetEndTime() const { return m_end; }
-        inline Seconds GetDuration() const { return m_end - m_start; }
+        inline Seconds GetStartFrameTime() const { return m_start; }
+        inline Seconds GetEndFrameTime() const { return m_end; }
+        inline Seconds GetDuration() const { return m_duration; }
         inline uint32_t GetNumFrames() const { return m_numFrames; }
         inline float GetSamplingFrameRate() const { return m_samplingFrameRate; }
 
-        inline int32_t GetNumBones() const { return m_skeleton.GetNumBones(); }
+        inline uint32_t GetNumBones() const { return m_skeleton.GetNumBones(); }
         inline TVector<TrackData> const& GetTrackData() const { return m_tracks; }
         inline TVector<TrackData>& GetTrackData() { return m_tracks; }
         inline RawSkeleton const& GetSkeleton() const { return m_skeleton; }
@@ -62,6 +62,7 @@ namespace EE::RawAssets
         float                               m_samplingFrameRate = 0;
         Seconds                             m_start = 0;
         Seconds                             m_end = 0;
+        Seconds                             m_duration = 0.0f;
         uint32_t                            m_numFrames = 0;
         TVector<TrackData>                  m_tracks;
         TVector<Transform>                  m_rootPositions;

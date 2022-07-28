@@ -1,9 +1,9 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "TimelineData.h"
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "TimelineTrackContainer.h"
+#include "System/Time/Time.h"
+#include "System/ThirdParty/imgui/imgui_internal.h"
 
 //-------------------------------------------------------------------------
 // Timeline Widget
@@ -66,18 +66,16 @@ namespace EE::Timeline
         // The state for the given open context menu
         struct ContextMenuState
         {
-            char const* GetContextMenuName() const;
             void Reset();
 
             Track*                  m_pTrack = nullptr;
             TrackItem*              m_pItem = nullptr;
             float                   m_playheadTimeForMouse = -1.0f;
-            bool                    m_isOpen = false;
         };
 
     public:
 
-        TimelineEditor( IntRange const& inTimeRange );
+        TimelineEditor( FloatRange const& inTimeRange );
         virtual ~TimelineEditor();
 
         TrackContainer const* GetTrackContainer() const { return &m_trackContainer; }
@@ -96,22 +94,29 @@ namespace EE::Timeline
         inline bool IsFrameSnappingEnabled() const { return m_isFrameSnappingEnabled; }
         inline void SetFrameSnapping( bool enabled ) { m_isFrameSnappingEnabled = enabled; }
 
+        // Update
+        //-------------------------------------------------------------------------
+
+        // Update and draw the timeline
+        void UpdateAndDraw( Seconds deltaTime );
+
         // Allow any users to handle the default keyboard inputs at a global level in their workspace
         void HandleGlobalKeyboardInputs();
 
         // Playhead position
         //-------------------------------------------------------------------------
 
-        // Set the playhead position
-        void SetPlayheadPosition( float inPosition );
+        // Set the playhead time
+        void SetCurrentTime( float inTime );
 
-        // Get the current playhead position
-        inline float GetPlayheadPosition() const { return m_playheadTime; }
+        // Get the current playhead time
+        inline float GetCurrentTime() const { return m_playheadTime; }
 
         // Get the current position as a percentage of the time line
-        inline Percentage GetPlayheadPositionAsPercentage() const { return Percentage( m_playheadTime / m_timeRange.m_end ); }
+        inline Percentage GetCurrentTimeAsPercentage() const { return m_timeRange.GetPercentageThrough( m_playheadTime ); }
 
-        inline IntRange GetTimeRange() const { return m_timeRange; }
+        // Get the current working time range
+        inline FloatRange GetTimeRange() const { return m_timeRange; }
 
         // Selection
         //-------------------------------------------------------------------------
@@ -125,6 +130,7 @@ namespace EE::Timeline
         // Has any modifications been made to the tracks/events?
         virtual bool IsDirty() const { return m_trackContainer.IsDirty(); }
 
+        // Flag the timeline as dirty
         inline void MarkDirty() { m_trackContainer.MarkDirty(); }
 
         // Serialization
@@ -135,15 +141,11 @@ namespace EE::Timeline
 
     protected:
 
-        // This is protected, since most of the time the client will want to provide a custom update function 
-        // that handles the side-effects of the draw e.g. play head position update, track changes, etc...
-        void Draw();
+        // General conversion from seconds to the timeline units so we can update the play state
+        virtual float ConvertSecondsToTimelineUnit( Seconds const inTime ) const { return inTime.ToFloat(); }
 
-        inline FloatRange GetTimeRangeAsFloatRange() const{ return FloatRange( float( m_timeRange.m_begin ), float( m_timeRange.m_end ) ); }
-        inline FloatRange GetViewRangeAsFloatRange() const{ return FloatRange( float( m_viewRange.m_begin ), float( m_viewRange.m_end ) ); }
-
-        inline void SetTimeRange( IntRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_timeRange = inRange; }
-        inline void SetViewRange( IntRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_viewRange = inRange; }
+        inline void SetTimeRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_timeRange = inRange; }
+        inline void SetViewRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_viewRange = inRange; }
 
         // Called whenever the play state is switched
         virtual void OnPlayStateChanged() {}
@@ -228,14 +230,15 @@ namespace EE::Timeline
         TrackContainer              m_trackContainer;
 
         // The total editable time range
-        IntRange                    m_timeRange = IntRange( 0, 0 );
+        FloatRange                  m_timeRange = FloatRange( 0, 0 );
 
         // The current visible time range
-        IntRange                    m_viewRange = IntRange( 0, 0 );
+        FloatRange                  m_viewRange = FloatRange( 0, 0 );
 
         float                       m_pixelsPerFrame = 10.0f;
         float                       m_playheadTime = 0.0f;
         ImRect                      m_timelineRect;
+        ImRect                      m_playheadRect;
 
         PlayState                   m_playState = PlayState::Paused;
         ViewUpdateMode              m_viewUpdateMode = ViewUpdateMode::ShowFullTimeRange;
@@ -250,6 +253,7 @@ namespace EE::Timeline
         TVector<TrackItem*>         m_selectedItems;
         TVector<Track*>             m_selectedTracks;
 
+        bool                        m_isContextMenuRequested = false;
         bool                        m_isFocused = false;
     };
 }

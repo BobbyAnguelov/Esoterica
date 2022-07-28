@@ -64,17 +64,21 @@ namespace EE::RawAssets
                 FbxTakeInfo const* pTakeInfo = sceneCtx.m_pScene->GetTakeInfo( pAnimStack->GetNameWithoutNameSpacePrefix() );
                 if ( pTakeInfo != nullptr )
                 {
+                    duration = pTakeInfo->mLocalTimeSpan.GetDuration();
+
                     pRawAnimation->m_start = (float) pTakeInfo->mLocalTimeSpan.GetStart().GetSecondDouble();
                     pRawAnimation->m_end = (float) pTakeInfo->mLocalTimeSpan.GetStop().GetSecondDouble();
-                    duration = pTakeInfo->mLocalTimeSpan.GetDuration();
+                    pRawAnimation->m_duration = (float) duration.GetSecondDouble();
                 }
                 else // Take the time line value
                 {
                     FbxTimeSpan timeLineSpan;
                     sceneCtx.m_pScene->GetGlobalSettings().GetTimelineDefaultTimeSpan( timeLineSpan );
+                    duration = timeLineSpan.GetDuration();
+
                     pRawAnimation->m_start = (float) timeLineSpan.GetStart().GetSecondDouble();
                     pRawAnimation->m_end = (float) timeLineSpan.GetStop().GetSecondDouble();
-                    duration = timeLineSpan.GetDuration();
+                    pRawAnimation->m_duration = (float) duration.GetSecondDouble();
                 }
 
                 // Calculate frame rate
@@ -84,7 +88,7 @@ namespace EE::RawAssets
                 // Set sampling rate and allocate memory
                 pRawAnimation->m_samplingFrameRate = (float) duration.GetFrameRate( mode );
                 float const samplingTimeStep = 1.0f / pRawAnimation->m_samplingFrameRate;
-                pRawAnimation->m_numFrames = (uint32_t) Math::Floor( pRawAnimation->GetDuration() / samplingTimeStep ) + 1;
+                pRawAnimation->m_numFrames = (uint32_t) Math::Round( pRawAnimation->GetDuration() / samplingTimeStep ) + 1;
 
                 // Read animation data
                 //-------------------------------------------------------------------------
@@ -151,7 +155,7 @@ namespace EE::RawAssets
 
                     // Sample animation data
                     float currentTime = rawAnimation.m_start;
-                    for ( auto frameIdx = 0u; frameIdx < rawAnimation.m_numFrames; frameIdx++, currentTime += samplingTimeStep )
+                    for ( auto frameIdx = 0u; frameIdx < rawAnimation.m_numFrames; frameIdx++ )
                     {
                         FbxAMatrix nodeLocalTransform;
 
@@ -172,12 +176,13 @@ namespace EE::RawAssets
                         Transform localTransform = sceneCtx.ConvertMatrixToTransform( nodeLocalTransform );
                         localTransform.SetTranslation( localTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
                         animTrack.m_localTransforms.emplace_back( localTransform );
+                         
+                        // Step time
+                        currentTime += samplingTimeStep;
                     }
-
-                    // Update the end duration to the actual sampled end time
-                    rawAnimation.m_end = currentTime;
                 }
             }
+
             return true;
         }
     };

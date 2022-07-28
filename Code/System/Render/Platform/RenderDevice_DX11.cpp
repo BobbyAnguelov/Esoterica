@@ -15,6 +15,8 @@ namespace EE::Render
 {
     static bool CreateDepthStencilState( ID3D11Device* pDevice, bool enable, bool writeEnable, ID3D11DepthStencilState** ppState )
     {
+        EE_ASSERT( pDevice != nullptr );
+
         D3D11_DEPTH_STENCIL_DESC desc;
         Memory::MemsetZero( &desc, sizeof( desc ) );
 
@@ -76,8 +78,15 @@ namespace EE::Render
 
     bool RenderDevice::Initialize()
     {
-        CreateDeviceAndSwapchain();
-        CreateDefaultDepthStencilStates();
+        if ( !CreateDeviceAndSwapchain() )
+        {
+            return false;
+        }
+
+        if ( !CreateDefaultDepthStencilStates() )
+        {
+            return false;
+        }
 
         // Set OM default state
         m_immediateContext.SetRenderTarget( m_primaryWindow.m_renderTarget );
@@ -107,6 +116,12 @@ namespace EE::Render
         DXGI_SWAP_CHAIN_DESC swapChainDesc;
         EE::Memory::MemsetZero( &swapChainDesc, sizeof( swapChainDesc ) );
 
+        HWND pActiveWindow = GetActiveWindow();
+        if ( pActiveWindow == nullptr )
+        {
+            return false;
+        }
+
         // Set buffer dimensions and format
         swapChainDesc.BufferCount = 2;
         swapChainDesc.BufferDesc.Width = m_resolution.m_x;
@@ -118,7 +133,7 @@ namespace EE::Render
         swapChainDesc.SampleDesc.Count = 1;
         swapChainDesc.SampleDesc.Quality = 0;
         swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-        swapChainDesc.OutputWindow = GetActiveWindow();
+        swapChainDesc.OutputWindow = pActiveWindow;
         swapChainDesc.Windowed = !m_isFullscreen;
 
         // Set debug flags on D3D device in debug build

@@ -9,6 +9,7 @@
 //-------------------------------------------------------------------------
 // Deterministic numeric ID generated from a string
 // StringIDs are CASE-SENSITIVE!
+// Uses the 32bit default hash
 
 namespace eastl
 {

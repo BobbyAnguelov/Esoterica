@@ -96,7 +96,6 @@ namespace EE
         // Get the current time scale for this world
         inline void SetTimeScale( float newTimeScale ) { m_timeScale = newTimeScale; }
 
-        #if EE_DEVELOPMENT_TOOLS
         // Request a time step - only applicable to paused worlds
         inline void RequestTimeStep() { EE_ASSERT( IsPaused() ); m_timeStepRequested = true; }
 
@@ -107,8 +106,7 @@ namespace EE
         inline Seconds GetTimeStepLength() const { return m_timeStepLength; }
 
         // Set the length of each time step for this world
-        inline void SetTimeScale( Seconds newTimeStepLength ) { EE_ASSERT( newTimeStepLength > 0 ); m_timeStepLength = newTimeStepLength; }
-        #endif
+        inline void SetTimeStepLength( Seconds newTimeStepLength ) { EE_ASSERT( newTimeStepLength > 0 ); m_timeStepLength = newTimeStepLength; }
 
         //-------------------------------------------------------------------------
         // Viewport
@@ -240,7 +238,8 @@ namespace EE
         EntityModel::ActivationContext                                          m_activationContext;
         TVector<IWorldEntitySystem*>                                            m_worldSystems;
         EntityWorldType                                                         m_worldType = EntityWorldType::Game;
-        float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused
+        bool                                                                    m_initialized = false;
+        bool                                                                    m_isSuspended = false;
         Render::Viewport                                                        m_viewport = Render::Viewport( Int2::Zero, Int2( 640, 480 ), Math::ViewVolume( Float2( 640, 480 ), FloatRange( 0.1f, 100.0f ) ) );
 
         // Maps
@@ -249,15 +248,16 @@ namespace EE
         // Entities
         TVector<Entity*>                                                        m_entityUpdateList;
         TVector<IWorldEntitySystem*>                                            m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
-        bool                                                                    m_initialized = false;
-        bool                                                                    m_isSuspended = false;
+
+        // Time Scaling + Pause
+        float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused
+        Seconds                                                                 m_timeStepLength = 1.0f / 30.0f;
+        bool                                                                    m_timeStepRequested = false;
 
         #if EE_DEVELOPMENT_TOOLS
         THashMap<TypeSystem::TypeID, TVector<EntityComponent const*>>           m_componentTypeLookup;
         Drawing::DrawingSystem                                                  m_debugDrawingSystem;
         TVector<EntityWorldDebugView*>                                          m_debugViews;
-        Seconds                                                                 m_timeStepLength = 1.0f / 30.0f;
-        bool                                                                    m_timeStepRequested = false;
         #endif
     };
 }

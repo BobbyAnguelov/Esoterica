@@ -2,6 +2,7 @@
 #include "System/Imgui/ImguiX.h"
 #include "System/Math/Curves.h"
 #include "System/Imgui/ImguiStyle.h"
+#include "../../../System/Math/Rectangle.h"
 
 //-------------------------------------------------------------------------
 
@@ -45,8 +46,6 @@ namespace EE
 
     void CurveEditor::InitializeDrawingState()
     {
-        m_pDrawList = ImGui::GetWindowDrawList();
-
         m_windowPos = ImGui::GetWindowPos();
         m_canvasStart = m_windowPos + Float2( ImGui::GetCursorPos() );
         m_canvasEnd = m_windowPos + Float2( ImGui::GetWindowContentRegionMax() );
@@ -162,15 +161,6 @@ namespace EE
         }
         ImGuiX::ItemTooltip( "Fit curve vertically" );
 
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine( 0, ImGui::GetStyle().ItemSpacing.x );
-        if ( ImGui::Button( EE_ICON_PLAYLIST_EDIT"##OpenCurveEditor" ) )
-        {
-            ImGui::OpenPopup( "CurveEditor" );
-        }
-        ImGuiX::ItemTooltip( "Open Full Curve Editor" );
-
         // Point Editor
         //-------------------------------------------------------------------------
 
@@ -191,17 +181,17 @@ namespace EE
         ImGui::EndDisabled();
     }
 
-    void CurveEditor::DrawGrid()
+    void CurveEditor::DrawGridAndLegend( ImDrawList* pDrawList )
     {
         TInlineString<10> legendString;
-        m_pDrawList->AddRectFilled( m_canvasStart, m_canvasEnd, ImGuiX::Style::s_gridBackgroundColor );
+        pDrawList->AddRectFilled( m_canvasStart, m_canvasEnd, ImGuiX::Style::s_gridBackgroundColor );
 
         int32_t const numVerticalLines = Math::FloorToInt( m_curveCanvasWidth / s_pixelsPerGridBlock );
         for ( auto i = 0; i <= numVerticalLines; i++ )
         {
             Float2 const lineStart( m_canvasStart.m_x + ( i * s_pixelsPerGridBlock ), m_canvasStart.m_y );
             Float2 const lineEnd( lineStart.m_x, m_canvasEnd.m_y - s_gridLegendHeight );
-            m_pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_gridLineColor );
+            pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_gridLineColor );
 
             float const legendValue = m_horizontalViewRange.GetValueForPercentageThrough( ( lineStart.m_x - m_canvasStart.m_x ) / m_curveCanvasWidth );
             legendString.sprintf( "%.2f", legendValue );
@@ -209,7 +199,7 @@ namespace EE
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
                 Float2 const textSize = ImGui::CalcTextSize( legendString.c_str() );
-                m_pDrawList->AddText( ImVec2( lineStart.m_x - ( textSize.m_x / 2 ), lineEnd.m_y ), 0xFFFFFFFF, legendString.c_str() );
+                pDrawList->AddText( ImVec2( lineStart.m_x - ( textSize.m_x / 2 ), lineEnd.m_y ), 0xFFFFFFFF, legendString.c_str() );
             }
         }
 
@@ -218,7 +208,7 @@ namespace EE
         {
             Float2 const lineStart( m_canvasStart.m_x, m_canvasStart.m_y + ( i * s_pixelsPerGridBlock ) );
             Float2 const lineEnd( m_canvasEnd.m_x - s_gridLegendWidth, lineStart.m_y );
-            m_pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_gridLineColor );
+            pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_gridLineColor );
 
             float const legendValue = m_verticalViewRange.GetValueForPercentageThrough( 1.0f - ( ( lineEnd.m_y - m_canvasStart.m_y ) / m_curveCanvasHeight ) );
             legendString.sprintf( "%.2f", legendValue );
@@ -226,12 +216,12 @@ namespace EE
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
                 Float2 const textSize = ImGui::CalcTextSize( legendString.c_str() );
-                m_pDrawList->AddText( ImVec2( lineEnd.m_x, lineEnd.m_y - ( textSize.m_y / 2 ) ), 0xFFFFFFFF, legendString.c_str() );
+                pDrawList->AddText( ImVec2( lineEnd.m_x, lineEnd.m_y - ( textSize.m_y / 2 ) ), 0xFFFFFFFF, legendString.c_str() );
             }
         }
     }
 
-    void CurveEditor::DrawCurve()
+    void CurveEditor::DrawCurve( ImDrawList* pDrawList )
     {
         int32_t const numPointsToDraw = Math::RoundToInt( m_curveCanvasWidth / 2 ) + 1;
         float const stepT = m_horizontalRangeLength / ( numPointsToDraw - 1 );
@@ -246,10 +236,10 @@ namespace EE
             curvePoints.emplace_back( curvePoint );
         }
 
-        m_pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, s_curveColor, 0, 2.0f );
+        pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, s_curveColor, 0, 2.0f );
     }
 
-    bool CurveEditor::DrawInTangentHandle( int32_t pointIdx )
+    bool CurveEditor::DrawInTangentHandle( ImDrawList* pDrawList, int32_t pointIdx )
     {
         EE_ASSERT( pointIdx >= 0 && pointIdx < m_curve.GetNumPoints() );
         FloatCurve::Point const& point = m_curve.GetPoint( pointIdx );
@@ -267,8 +257,8 @@ namespace EE
         tangentHandleCenter.m_y = ( pointCenter.m_y - tangentOffset.m_y );
 
         // Draw visual handle
-        m_pDrawList->AddLine( pointCenter, tangentHandleCenter, s_curveInTangentHandleColor );
-        m_pDrawList->AddCircleFilled( tangentHandleCenter, s_handleRadius, s_curveInTangentHandleColor );
+        pDrawList->AddLine( pointCenter, tangentHandleCenter, s_curveInTangentHandleColor );
+        pDrawList->AddCircleFilled( tangentHandleCenter, s_handleRadius, s_curveInTangentHandleColor );
 
         // Draw handle button
         TInlineString<50> tangentHandleID;
@@ -314,7 +304,7 @@ namespace EE
         return isCurrentlyEditing;
     }
 
-    bool CurveEditor::DrawOutTangentHandle( int32_t pointIdx )
+    bool CurveEditor::DrawOutTangentHandle( ImDrawList* pDrawList, int32_t pointIdx )
     {
         EE_ASSERT( pointIdx >= 0 && pointIdx < m_curve.GetNumPoints() );
         FloatCurve::Point const& point = m_curve.GetPoint( pointIdx );
@@ -332,8 +322,8 @@ namespace EE
         tangentHandleCenter.m_y = ( pointCenter.m_y - tangentOffset.m_y );
 
         // Draw visual handle
-        m_pDrawList->AddLine( pointCenter, tangentHandleCenter, s_curveOutTangentHandleColor );
-        m_pDrawList->AddCircleFilled( tangentHandleCenter, s_handleRadius, s_curveOutTangentHandleColor );
+        pDrawList->AddLine( pointCenter, tangentHandleCenter, s_curveOutTangentHandleColor );
+        pDrawList->AddCircleFilled( tangentHandleCenter, s_handleRadius, s_curveOutTangentHandleColor );
 
         // Draw handle button
         TInlineString<50> tangentHandleID;
@@ -385,11 +375,12 @@ namespace EE
         return isCurrentlyEditing;
     }
 
-    bool CurveEditor::DrawPointHandle( int32_t pointIdx )
+    bool CurveEditor::DrawPointHandle( ImDrawList* pDrawList, int32_t pointIdx )
     {
         FloatCurve::Point const& point = m_curve.GetPoint( pointIdx );
         Float2 const pointCenter = GetScreenPosFromCurvePos( point );
-        m_pDrawList->AddCircleFilled( pointCenter, s_handleRadius, ( pointIdx == m_selectedPointIdx ) ? s_curveSelectedPointHandleColor : s_curvePointHandleColor );
+
+        pDrawList->AddCircleFilled( pointCenter, s_handleRadius, ( pointIdx == m_selectedPointIdx ) ? s_curveSelectedPointHandleColor : s_curvePointHandleColor );
 
         //-------------------------------------------------------------------------
 
@@ -425,8 +416,11 @@ namespace EE
 
             SelectPoint( pointIdx );
 
-            float const updatedParameter = point.m_parameter + ImGui::GetIO().MouseDelta.x / m_pixelsPerUnitHorizontal;
-            float const updatedValue = point.m_value - ImGui::GetIO().MouseDelta.y / m_pixelsPerUnitVertical;
+            ImRect const curveRect = GetCurveRect();
+            ImVec2 const clampedMousePos = ImGuiX::ClampToRect( curveRect, ImGui::GetMousePos() );
+            float const updatedParameter = ( ( clampedMousePos.x - curveRect.Min.x ) / m_pixelsPerUnitHorizontal ) + m_horizontalViewRange.m_begin;
+            float const updatedValue = m_verticalViewRange.GetLength() - ( ( clampedMousePos.y - curveRect.Min.y ) / m_pixelsPerUnitVertical ) + m_verticalViewRange.m_begin;
+
             m_curve.EditPoint( pointIdx, updatedParameter, updatedValue );
             isCurrentlyEditing = true;
         }
@@ -465,15 +459,51 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void CurveEditor::DrawContextMenus()
+    void CurveEditor::DrawContextMenus( bool isMiniView )
     {
         if ( ImGui::BeginPopup( s_gridContextMenuName ) )
         {
-            if ( ImGui::MenuItem( "Create Point" ) )
+            ImGuiX::TextSeparator( "Editing" );
+
+            if ( ImGui::MenuItem( EE_ICON_PLUS" Create Point" ) )
             {
                 Float2 const mouseCurvePos = GetCurvePosFromScreenPos( ImGui::GetWindowPos() );
                 CreatePoint( mouseCurvePos.m_x, mouseCurvePos.m_y );
             }
+
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "Zoom" );
+
+            if ( ImGui::MenuItem( EE_ICON_FIT_TO_PAGE_OUTLINE" Fit entire curve" ) )
+            {
+                ViewEntireCurve();
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_ARROW_EXPAND_HORIZONTAL" Fit curve horizontally" ) )
+            {
+                ViewEntireHorizontalRange();
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_ARROW_EXPAND_VERTICAL" Fit curve vertically" ) )
+            {
+                ViewEntireVerticalRange();
+            }
+
+            //-------------------------------------------------------------------------
+
+            if( isMiniView )
+            {
+                ImGuiX::TextSeparator( "Editing" );
+
+                if ( ImGui::MenuItem( EE_ICON_PLAYLIST_EDIT" Open Full Curve Editor" ) )
+                {
+                    m_requestOpenFullEditor = true;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
             ImGui::EndPopup();
         }
 
@@ -485,9 +515,19 @@ namespace EE
 
             auto const& point = m_curve.GetPoint( m_selectedPointIdx );
 
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::InputFloat2( "##PointEditor", &m_selectedPointValue.m_x, "%.2f" );
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                StartEditing();
+                m_curve.EditPoint( m_selectedPointIdx, m_selectedPointValue.m_x, m_selectedPointValue.m_y );
+                StopEditing();
+                ViewEntireCurve();
+            }
+
             if ( point.m_tangentMode == FloatCurve::Free )
             {
-                if ( ImGui::MenuItem( "Lock Tangents" ) )
+                if ( ImGui::MenuItem( EE_ICON_LOCK" Lock Tangents" ) )
                 {
                     StartEditing();
                     m_curve.SetPointTangentMode( m_selectedPointIdx, FloatCurve::Locked );
@@ -497,7 +537,7 @@ namespace EE
 
             if ( point.m_tangentMode == FloatCurve::Locked )
             {
-                if ( ImGui::MenuItem( "Unlock Tangents" ) )
+                if ( ImGui::MenuItem( EE_ICON_LOCK_OPEN" Unlock Tangents" ) )
                 {
                     StartEditing();
                     m_curve.SetPointTangentMode( m_selectedPointIdx, FloatCurve::Free );
@@ -505,9 +545,7 @@ namespace EE
                 }
             }
 
-            ImGui::Separator();
-
-            if ( ImGui::MenuItem( "Delete Point" ) )
+            if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Point" ) )
             {
                 DeletePoint( m_selectedPointIdx );
             }
@@ -515,7 +553,7 @@ namespace EE
         }
     }
 
-    void CurveEditor::HandleFrameInput()
+    void CurveEditor::HandleFrameInput( bool isMiniView )
     {
         auto const& io = ImGui::GetIO();
         if ( ImGui::IsWindowHovered() )
@@ -580,6 +618,14 @@ namespace EE
                 }
             }
 
+            if ( isMiniView )
+            {
+                if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                {
+                    m_requestOpenFullEditor = true;
+                }
+            }
+
             // Key actions
             //-------------------------------------------------------------------------
 
@@ -627,17 +673,31 @@ namespace EE
         m_wasCurveEdited = false;
 
         // Toolbar has to be drawn first before resetting the frame state since we need to shift the cursor position
-        DrawToolbar();
+        if ( !isMiniView )
+        {
+            DrawToolbar();
+        }
         InitializeDrawingState();
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginChild( "CurveView", m_canvasEnd - m_canvasStart, false, ImGuiWindowFlags_NoScrollbar ) )
+        ImGui::PushStyleColor( ImGuiCol_WindowBg, ImVec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
+        if ( ImGui::BeginChild( "CurveView", m_canvasEnd - m_canvasStart, false, ImGuiWindowFlags_NoScrollbar) )
         {
-            DrawGrid();
-            DrawCurve();
+            auto pDrawList = ImGui::GetWindowDrawList();
 
+            // Draw Grid and legend
             //-------------------------------------------------------------------------
+
+            DrawGridAndLegend( pDrawList );
+
+            // Draw Curve and Points
+            //-------------------------------------------------------------------------
+
+            auto const curveRect = GetCurveRect();
+            pDrawList->PushClipRect( curveRect.Min, curveRect.Max );
+
+            DrawCurve( pDrawList );
 
             bool stillEditing = false;
             int32_t const numPoints = m_curve.GetNumPoints();
@@ -645,15 +705,15 @@ namespace EE
             {
                 if ( i != 0 && m_curve.GetPoint(i).m_tangentMode == FloatCurve::Free )
                 {
-                    stillEditing |= DrawInTangentHandle( i );
+                    stillEditing |= DrawInTangentHandle( pDrawList, i );
                 }
 
                 if ( i != numPoints - 1 )
                 {
-                    stillEditing |= DrawOutTangentHandle( i );
+                    stillEditing |= DrawOutTangentHandle( pDrawList, i );
                 }
                 
-                stillEditing |= DrawPointHandle( i );
+                stillEditing |= DrawPointHandle( pDrawList, i );
             }
 
             // If we completed an edit operation
@@ -662,18 +722,27 @@ namespace EE
                 StopEditing();
             }
 
+            pDrawList->PopClipRect();
+
             //-------------------------------------------------------------------------
 
-            HandleFrameInput();
-            DrawContextMenus();
+            HandleFrameInput( isMiniView );
+            DrawContextMenus( isMiniView );
         }
         ImGui::EndChild();
+        ImGui::PopStyleColor();
 
         //-------------------------------------------------------------------------
 
         // Draw full editor in a modal window
         if ( isMiniView )
         {
+            if ( m_requestOpenFullEditor )
+            {
+                ImGui::OpenPopup( "Curve Editor" );
+                m_requestOpenFullEditor = false;
+            }
+
             bool isOpen = true;
             ImGui::SetNextWindowSize( ImVec2( 800, 600 ), ImGuiCond_FirstUseEver );
             if ( ImGui::BeginPopupModal( "Curve Editor", &isOpen ) )

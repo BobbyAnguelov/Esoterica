@@ -22,7 +22,7 @@
     <ClCompile Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.cpp">
       <Filter>Resource\ResourceBrowser</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Events\AnimationEventData.cpp">
+    <ClCompile Include="Animation\Events\AnimationEventTrack.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Events\AnimationEventEditor.cpp">
@@ -181,10 +181,10 @@
     <ClCompile Include="Core\PropertyGrid\PropertyGrid.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
-    <ClCompile Include="Core\PropertyGrid\PropertyGridEditors.cpp">
+    <ClCompile Include="Core\PropertyGrid\PropertyGridCoreEditors.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
-    <ClCompile Include="Core\TimelineEditor\TimelineData.cpp">
+    <ClCompile Include="Core\TimelineEditor\TimelineTrack.cpp">
       <Filter>Core\TimelineEditor</Filter>
     </ClCompile>
     <ClCompile Include="Core\TimelineEditor\TimelineEditor.cpp">
@@ -336,6 +336,9 @@
     </ClCompile>
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_BoneMask.cpp" />
+    <ClCompile Include="Animation\Events\AnimationEventTracks.cpp" />
+    <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp" />
+    <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource\RawFileInspector.h">
@@ -356,7 +359,7 @@
     <ClInclude Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.h">
       <Filter>Resource\ResourceBrowser</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Events\AnimationEventData.h">
+    <ClInclude Include="Animation\Events\AnimationEventTrack.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Events\AnimationEventEditor.h">
@@ -533,10 +536,10 @@
     <ClInclude Include="Core\PropertyGrid\PropertyGrid.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
-    <ClInclude Include="Core\PropertyGrid\PropertyGridEditors.h">
+    <ClInclude Include="Core\PropertyGrid\PropertyGridCoreEditors.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
-    <ClInclude Include="Core\TimelineEditor\TimelineData.h">
+    <ClInclude Include="Core\TimelineEditor\TimelineTrack.h">
       <Filter>Core\TimelineEditor</Filter>
     </ClInclude>
     <ClInclude Include="Core\TimelineEditor\TimelineEditor.h">
@@ -723,6 +726,9 @@
     <ClInclude Include="Animation\Workspaces\Workspace_BoneMask.h" />
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationBoneMask.h" />
     <ClInclude Include="Core\Helpers\SkeletonHelpers.h" />
+    <ClInclude Include="Animation\Events\AnimationEventTracks.h" />
+    <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
+    <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

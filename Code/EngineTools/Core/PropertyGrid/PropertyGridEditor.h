@@ -1,19 +1,16 @@
 #pragma once
 
-#include "EngineTools/Core/ToolsContext.h"
-#include "System/Esoterica.h"
 #include "System/TypeSystem/CoreTypeIDs.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Resource { class ResourceFilePicker; }
+namespace EE { class ToolsContext; }
 
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem
 {
     class PropertyInfo;
-    class TypeRegistry;
 
     //-------------------------------------------------------------------------
 
@@ -49,8 +46,4 @@ namespace EE::TypeSystem
         uint8_t*                m_pPropertyInstance;
         CoreTypeID const        m_coreType;
     };
-
-    //-------------------------------------------------------------------------
-
-    PropertyEditor* CreatePropertyEditor( ToolsContext const* pToolsContext, Resource::ResourceFilePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* pPropertyInstance );
 }

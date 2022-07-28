@@ -6,26 +6,6 @@
 
 namespace EE::Animation
 {
-    FrameTime AnimationClip::GetFrameTime( Percentage percentageThrough ) const
-    {
-        FrameTime frameTime;
-
-        Percentage const clampedTime = percentageThrough.GetClamped( false );
-        if ( clampedTime == 1.0f )
-        {
-            frameTime = FrameTime( (int32_t) m_numFrames - 1 );
-        }
-        // Find time range in key list
-        else if ( clampedTime != 0.0f )
-        {
-            frameTime = FrameTime( percentageThrough, m_numFrames - 1 );
-        }
-
-        return frameTime;
-    }
-
-    //-------------------------------------------------------------------------
-
     void AnimationClip::GetPose( FrameTime const& frameTime, Pose* pOutPose ) const
     {
         EE_ASSERT( IsValid() );

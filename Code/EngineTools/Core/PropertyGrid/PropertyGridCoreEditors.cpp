@@ -1,4 +1,6 @@
-﻿#include "PropertyGridEditors.h"
+﻿#include "PropertyGridCoreEditors.h"
+#include "PropertyGridEditor.h"
+#include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/Resource/ResourceFilePicker.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/Widgets/CurveEditor.h"
@@ -15,27 +17,6 @@
 namespace EE::TypeSystem
 {
     constexpr static float const g_iconButtonWidth = 26;
-
-    //-------------------------------------------------------------------------
-
-    PropertyEditor::PropertyEditor( ToolsContext const* pToolsContext, PropertyInfo const& propertyInfo, uint8_t* m_pPropertyInstance )
-        : m_pToolsContext( pToolsContext )
-        , m_propertyInfo( propertyInfo )
-        , m_pPropertyInstance( m_pPropertyInstance )
-        , m_coreType( GetCoreType( propertyInfo.m_typeID ) )
-    {
-        EE_ASSERT( m_pPropertyInstance != nullptr );
-    }
-
-    bool PropertyEditor::UpdateAndDraw()
-    {
-        ImGui::PushID( m_pPropertyInstance );
-        HandleExternalUpdate();
-        bool const result = InternalUpdateAndDraw();
-        ImGui::PopID();
-
-        return result;
-    }
 
     //-------------------------------------------------------------------------
     // Core Editors

@@ -45,7 +45,7 @@ namespace EE
 
         Seconds                                     m_deltaTime = 1.0f / 60.0f;
         uint64_t                                    m_frameID = 0;
-        float                                       m_frameRateLimitFPS = 0.0f;
+        float                                       m_frameRateLimitFPS = 144.0f;
         UpdateStage                                 m_stage = UpdateStage::FrameStart;
         SystemRegistry*                             m_pSystemRegistry = nullptr;
     };

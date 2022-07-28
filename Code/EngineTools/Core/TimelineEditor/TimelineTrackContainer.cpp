@@ -1,56 +1,5 @@
-#include "TimelineData.h"
-#include "imgui.h"
+#include "TimelineTrackContainer.h"
 #include "System/Serialization/TypeSerialization.h"
-
-//-------------------------------------------------------------------------
-
-namespace EE::Timeline
-{
-    Track::~Track()
-    {
-        for ( auto pItem : m_items )
-        {
-            EE::Delete( pItem );
-        }
-
-        m_items.clear();
-    }
-
-    void Track::DrawHeader( ImRect const& headerRect )
-    {
-        ImGui::SameLine( 10 );
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( GetLabel() );
-    }
-
-    bool Track::IsDirty() const
-    {
-        if ( m_isDirty )
-        {
-            return true;
-        }
-
-        for ( auto const pItem : m_items )
-        {
-            if ( pItem->IsDirty() )
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    void Track::ClearDirtyFlags()
-    {
-        m_isDirty = false;
-
-        for ( auto pItem : m_items )
-        {
-            pItem->ClearDirtyFlag();
-        }
-    }
-}
 
 //-------------------------------------------------------------------------
 
@@ -71,32 +20,22 @@ namespace EE::Timeline
         m_isDirty = false;
     }
 
-    bool TrackContainer::IsDirty() const
+    Track* TrackContainer::GetTrackForItem( TrackItem const* pItem )
     {
-        if ( m_isDirty )
+        for ( auto pTrack : m_tracks )
         {
-            return true;
-        }
-
-        for ( auto const pTrack : m_tracks )
-        {
-            if ( pTrack->IsDirty() )
+            if ( pTrack->Contains( pItem ) )
             {
-                return true;
+                return pTrack;
             }
         }
 
-        return false;
+        return nullptr;
     }
 
-    void TrackContainer::ClearDirtyFlags()
+    Track const* TrackContainer::GetTrackForItem( TrackItem const* pItem ) const
     {
-        m_isDirty = false;
-
-        for ( auto pTrack : m_tracks )
-        {
-            pTrack->ClearDirtyFlags();
-        }
+        return const_cast<TrackContainer*>( this )->GetTrackForItem( pItem );
     }
 
     bool TrackContainer::Contains( Track const* pTrack ) const
@@ -106,48 +45,22 @@ namespace EE::Timeline
 
     bool TrackContainer::Contains( TrackItem const* pItem ) const
     {
-        for ( auto pTrack : m_tracks )
-        {
-            if ( pTrack->Contains( pItem ) )
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return GetTrackForItem( pItem ) != nullptr;
     }
 
     //-------------------------------------------------------------------------
 
-    void TrackContainer::BeginModification()
+    Track* TrackContainer::CreateTrack( TypeSystem::TypeInfo const* pTrackTypeInfo )
     {
-        if ( m_beginModificationCallCount == 0 )
-        {
-            if ( s_onBeginModification.HasBoundUsers() )
-            {
-                s_onBeginModification.Execute( this );
-            }
-        }
-        m_beginModificationCallCount++;
+        EE_ASSERT( pTrackTypeInfo->IsDerivedFrom( Track::GetStaticTypeID() ) );
+
+        BeginModification();
+        auto pCreatedTrack = Cast<Track>( pTrackTypeInfo->CreateType() );
+        m_tracks.emplace_back( pCreatedTrack );
+        EndModification();
+
+        return pCreatedTrack;
     }
-
-    void TrackContainer::EndModification()
-    {
-        EE_ASSERT( m_beginModificationCallCount > 0 );
-        m_beginModificationCallCount--;
-
-        if ( m_beginModificationCallCount == 0 )
-        {
-            if ( s_onEndModification.HasBoundUsers() )
-            {
-                s_onEndModification.Execute( this );
-            }
-        }
-
-        m_isDirty = true;
-    }
-
-    //-------------------------------------------------------------------------
 
     void TrackContainer::DeleteTrack( Track* pTrack )
     {
@@ -200,6 +113,66 @@ namespace EE::Timeline
 
     //-------------------------------------------------------------------------
 
+    void TrackContainer::BeginModification()
+    {
+        if ( m_beginModificationCallCount == 0 )
+        {
+            if ( s_onBeginModification.HasBoundUsers() )
+            {
+                s_onBeginModification.Execute( this );
+            }
+        }
+        m_beginModificationCallCount++;
+    }
+
+    void TrackContainer::EndModification()
+    {
+        EE_ASSERT( m_beginModificationCallCount > 0 );
+        m_beginModificationCallCount--;
+
+        if ( m_beginModificationCallCount == 0 )
+        {
+            if ( s_onEndModification.HasBoundUsers() )
+            {
+                s_onEndModification.Execute( this );
+            }
+        }
+
+        m_isDirty = true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool TrackContainer::IsDirty() const
+    {
+        if ( m_isDirty )
+        {
+            return true;
+        }
+
+        for ( auto const pTrack : m_tracks )
+        {
+            if ( pTrack->IsDirty() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void TrackContainer::ClearDirtyFlags()
+    {
+        m_isDirty = false;
+
+        for ( auto pTrack : m_tracks )
+        {
+            pTrack->ClearDirtyFlags();
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     bool TrackContainer::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& dataObjectValue )
     {
         auto FreeTrackData = [this] ()
@@ -226,7 +199,7 @@ namespace EE::Timeline
 
         for ( auto const& trackObjectValue : dataObjectValue.GetArray() )
         {
-            auto trackDataIter = trackObjectValue.FindMember( "TrackData" );
+            auto trackDataIter = trackObjectValue.FindMember( "Track" );
             if ( trackDataIter == trackObjectValue.MemberEnd() )
             {
                 failed = true;
@@ -254,10 +227,8 @@ namespace EE::Timeline
             // Deserialize items
             for ( auto const& itemObjectValue : itemArrayIter->value.GetArray() )
             {
-                auto itemDataIter = itemObjectValue.FindMember( "ItemData" );
-                auto startTimeDataIter = itemObjectValue.FindMember( "StartTime" );
-                auto endTimeDataIter = itemObjectValue.FindMember( "EndTime" );
-                if ( itemDataIter == itemObjectValue.MemberEnd() || startTimeDataIter == itemObjectValue.MemberEnd() || endTimeDataIter == itemObjectValue.MemberEnd() )
+                auto itemDataIter = itemObjectValue.FindMember( "Item" );
+                if ( itemDataIter == itemObjectValue.MemberEnd() )
                 {
                     failed = true;
                     break;
@@ -265,16 +236,8 @@ namespace EE::Timeline
 
                 // Create item
                 TrackItem* pItem = Serialization::CreateAndReadNativeType<TrackItem>( typeRegistry, itemDataIter->value );
-                pTrack->m_items.emplace_back( pItem );
-
-                // Custom serialization
                 pItem->SerializeCustom( typeRegistry, itemObjectValue );
-
-                // Set time range
-                FloatRange itemTimeRange;
-                itemTimeRange.m_begin = (float) startTimeDataIter->value.GetDouble();
-                itemTimeRange.m_end = (float) endTimeDataIter->value.GetDouble();
-                pItem->InitializeTimeRange( itemTimeRange );
+                pTrack->m_items.emplace_back( pItem );
             }
 
             if ( failed )
@@ -309,7 +272,7 @@ namespace EE::Timeline
             // Track
             //-------------------------------------------------------------------------
 
-            writer.Key( "TrackData" );
+            writer.Key( "Track" );
             Serialization::WriteNativeType( typeRegistry, pTrack, writer );
 
             pTrack->SerializeCustom( typeRegistry, writer );
@@ -324,16 +287,8 @@ namespace EE::Timeline
                 {
                     writer.StartObject();
                     {
-                        writer.Key( "ItemData" );
+                        writer.Key( "Item" );
                         Serialization::WriteNativeType( typeRegistry, pItem, writer );
-
-                        auto const& itemTimeRange = pItem->GetTimeRange();
-                        writer.Key( "StartTime" );
-                        writer.Double( itemTimeRange.m_begin );
-
-                        writer.Key( "EndTime" );
-                        writer.Double( itemTimeRange.m_end );
-
                         pItem->SerializeCustom( typeRegistry, writer );
                     }
                     writer.EndObject();

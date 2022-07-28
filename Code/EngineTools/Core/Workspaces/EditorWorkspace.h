@@ -157,8 +157,13 @@ namespace EE
         // Hot-reload
         //-------------------------------------------------------------------------
 
+        // Are we actually reloading any of our resources
         inline bool IsHotReloading() const { return !m_reloadingResources.empty(); }
+
+        // Called whenever a hot-reload operation occurs
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded );
+
+        // Called after hot-reloading completes
         virtual void EndHotReload();
 
     protected:

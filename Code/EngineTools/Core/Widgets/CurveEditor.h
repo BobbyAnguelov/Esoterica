@@ -77,13 +77,13 @@ namespace EE
         void InitializeDrawingState();
 
         void DrawToolbar();
-        void DrawGrid();
-        void DrawCurve();
-        bool DrawInTangentHandle( int32_t pointIdx );
-        bool DrawOutTangentHandle( int32_t pointIdx );
-        bool DrawPointHandle( int32_t pointIdx );
-        void DrawContextMenus();
-        void HandleFrameInput();
+        void DrawGridAndLegend( ImDrawList* pDrawList );
+        void DrawCurve( ImDrawList* pDrawList );
+        bool DrawInTangentHandle( ImDrawList* pDrawList, int32_t pointIdx );
+        bool DrawOutTangentHandle( ImDrawList* pDrawList, int32_t pointIdx );
+        bool DrawPointHandle( ImDrawList* pDrawList, int32_t pointIdx );
+        void DrawContextMenus( bool isMiniView );
+        void HandleFrameInput( bool isMiniView );
 
         inline Float2 GetCurvePosFromScreenPos( Float2 const& screenPos ) const
         {
@@ -101,6 +101,11 @@ namespace EE
             screenPos.m_x = m_curveCanvasStart.m_x + ( m_horizontalViewRange.GetPercentageThrough( parameter ) * m_curveCanvasWidth );
             screenPos.m_y = m_curveCanvasEnd.m_y - ( m_verticalViewRange.GetPercentageThrough( value ) * m_curveCanvasHeight );
             return screenPos;
+        }
+
+        inline ImRect GetCurveRect() const
+        {
+            return ImRect( m_canvasStart, m_canvasEnd - Float2( s_gridLegendWidth, s_gridLegendHeight ) );
         }
 
         EE_FORCE_INLINE Float2 GetScreenPosFromCurvePos( Float2 const& curvePos ) const { return GetScreenPosFromCurvePos( curvePos.m_x, curvePos.m_y ); }
@@ -123,9 +128,6 @@ namespace EE
         String                                              m_valueBeforeEdit;
         bool                                                m_isEditing = false;
 
-        // Per Frame State
-        ImDrawList*                                         m_pDrawList = nullptr;
-
         Float2                                              m_windowPos;
         Float2                                              m_canvasStart;
         Float2                                              m_canvasEnd;
@@ -143,5 +145,6 @@ namespace EE
         float                                               m_pixelsPerUnitVertical;
         bool                                                m_wasPointSelected = false;
         bool                                                m_wasCurveEdited = false;
+        bool                                                m_requestOpenFullEditor = false;
     };
 }

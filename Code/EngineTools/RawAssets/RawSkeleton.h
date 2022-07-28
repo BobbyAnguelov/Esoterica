@@ -40,7 +40,7 @@ namespace EE::RawAssets
         inline TVector<BoneData> const& GetBoneData() const { return m_bones; }
         inline BoneData const& GetBoneData( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx]; }
         inline StringID const& GetBoneName( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_name; }
-        inline int32_t GetNumBones() const { return (int32_t) m_bones.size(); }
+        inline uint32_t GetNumBones() const { return (uint32_t) m_bones.size(); }
 
         int32_t GetBoneIndex( StringID const& boneName ) const;
         inline int32_t GetParentBoneIndex( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_parentBoneIdx; }

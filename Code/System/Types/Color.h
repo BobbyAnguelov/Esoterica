@@ -62,6 +62,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        // Get a version with the a different alpha value
         inline Color GetAlphaVersion( uint8_t newAlpha ) const
         {
             Color newColor = *this;
@@ -69,10 +70,27 @@ namespace EE
             return newColor;
         }
 
+        // Get a version with the a different alpha value
         inline Color GetAlphaVersion( float alpha ) const
         {
             float const floatAlpha = Math::Clamp( alpha * 255, 0.0f, 255.0f );
             return GetAlphaVersion( (uint8_t) floatAlpha );
+        }
+
+        // Scale the color values with a multiplier
+        inline void ScaleColor( float multiplier )
+        {
+            m_byteColor.m_r = (uint8_t) Math::Clamp( Math::RoundToInt( float( m_byteColor.m_r ) * multiplier ), 0, 255 );
+            m_byteColor.m_g = (uint8_t) Math::Clamp( Math::RoundToInt( float( m_byteColor.m_g ) * multiplier ), 0, 255 );
+            m_byteColor.m_b = (uint8_t) Math::Clamp( Math::RoundToInt( float( m_byteColor.m_b ) * multiplier ), 0, 255 );
+        }
+
+        // Get a version with color values scaled
+        inline Color GetScaledColor( float multiplier ) const
+        {
+            Color c = *this;
+            c.ScaleColor( multiplier );
+            return c;
         }
 
         //-------------------------------------------------------------------------

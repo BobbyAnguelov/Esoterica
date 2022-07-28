@@ -23,7 +23,15 @@ namespace EE::ImGuiX
         pWindow->DockNode->TabBar->NextSelectedTabId = pWindow->ID;
     }
 
-    ImVec2 const& GetClosestPointOnRect( ImRect const& rect, ImVec2 const& inPoint )
+    ImVec2 ClampToRect( ImRect const& rect, ImVec2 const& inPoint )
+    {
+        ImVec2 clampedPos;
+        clampedPos.x = Math::Clamp( inPoint.x, rect.Min.x, rect.Max.x );
+        clampedPos.y = Math::Clamp( inPoint.y, rect.Min.y, rect.Max.y );
+        return clampedPos;
+    }
+
+    ImVec2 GetClosestPointOnRectBorder( ImRect const& rect, ImVec2 const& inPoint )
     {
         ImVec2 const points[4] =
         {
@@ -195,6 +203,19 @@ namespace EE::ImGuiX
             ImGui::SetTooltipV( fmt, args );
             va_end( args );
         }
+    }
+
+    void TextTooltip( const char* fmt, ... )
+    {
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
+        if ( ImGui::IsItemHovered() )
+        {
+            va_list args;
+            va_start( args, fmt );
+            ImGui::SetTooltipV( fmt, args );
+            va_end( args );
+        }
+        ImGui::PopStyleVar();
     }
 
     bool IconButton( char const* pIcon, char const* pLabel, ImVec4 const& iconColor, ImVec2 const& size_arg )

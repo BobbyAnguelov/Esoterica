@@ -364,7 +364,7 @@ namespace EE::Render
         auto const& boneData = skeleton.GetBoneData();
 
         auto const numBones = skeleton.GetNumBones();
-        for ( auto i = 0; i < numBones; i++ )
+        for ( auto i = 0u; i < numBones; i++ )
         {
             mesh.m_boneIDs.push_back( boneData[i].m_name );
             mesh.m_parentBoneIndices.push_back( boneData[i].m_parentBoneIdx );

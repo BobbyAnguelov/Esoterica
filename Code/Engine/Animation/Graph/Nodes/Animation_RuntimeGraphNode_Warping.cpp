@@ -192,117 +192,84 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetWarpNode::WarpRotation( int32_t sectionIdx, Transform const& sectionStartTransform, Transform const& target )
+    void TargetWarpNode::WarpOrientation( WarpSection const& ws, Transform const& orientationTarget )
     {
+        EE_ASSERT( ws.m_type == WarpEvent::Type::RotationOnly );
+
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
 
         RootMotionData const& originalRM = pAnimation->GetRootMotion();
         EE_ASSERT( originalRM.IsValid() );
 
-        auto const& ws = m_warpSections[sectionIdx];
-        EE_ASSERT( ws.m_type == WarpEvent::Type::RotationOnly );
-        int32_t const numWarpFrames = ws.m_endFrame - ws.m_startFrame;
-
-        // Get the original end transform relative to the new start transform
-        Transform const originalEndTransform = ws.m_deltaTransform * sectionStartTransform;
-
+        // Crete world space warped transforms
         //-------------------------------------------------------------------------
 
-        Vector targetPoint2D;
-        Vector circleOrigin2D;
-        Vector circleToTarget;
-        Vector circleToOriginalEndPoint;
-        Vector originalEndPoint2D;
-        float radius = 0.0f;
-        float distanceToTarget = 0.0f;
+        // Set start transform
+        Transform const sectionStartTransform = m_deltaTransforms[ws.m_startFrame] * m_warpedRootMotion.m_transforms[ws.m_startFrame - 1];
+        m_warpedRootMotion.m_transforms[ws.m_startFrame] = sectionStartTransform;
 
-        // If this section has no motion or we have an invalid target, just rotate in place
-        bool rotateInPlace = ( ws.m_length == 0 );
-        if ( !rotateInPlace )
+        // Calculate all transforms for the section (we'll modify the orientation in a second pass)
+        int32_t const numWarpFrames = ws.m_endFrame - ws.m_startFrame;
+        Transform currentTransform = sectionStartTransform;
+        for ( auto i = 1; i <= numWarpFrames; i++ )
         {
-            targetPoint2D = target.GetTranslation().Get2D();
-            circleOrigin2D = sectionStartTransform.GetTranslation().Get2D();
-
-            circleToTarget = targetPoint2D - circleOrigin2D;
-            distanceToTarget = circleToTarget.GetLength2();
-
-            // This defines the circle radius
-            originalEndPoint2D = originalEndTransform.GetTranslation().Get2D();
-            circleToOriginalEndPoint = originalEndPoint2D - circleOrigin2D;
-            radius = circleToOriginalEndPoint.GetLength2();
-
-            // If the target is inside the circle then we should rotate in place
-            if ( distanceToTarget < radius )
-            {
-                rotateInPlace = true;
-            }
+            int32_t const frameIdx = ws.m_startFrame + i;
+            currentTransform = m_deltaTransforms[frameIdx] * currentTransform;
+            m_warpedRootMotion.m_transforms[frameIdx] = currentTransform;
         }
 
-        // Perform rotation
-        if ( rotateInPlace )
+        // Calculate the segment's end direction
+        //-------------------------------------------------------------------------
+
+        Transform const& sectionEndTransform = m_warpedRootMotion.m_transforms[ws.m_endFrame];
+        Vector const& endPoint = sectionEndTransform.GetTranslation();
+        Vector segmentEndDirection;
+
+        // End movement direction - ideally use the direction of the next segment of the path to try to smooth out the motion
+        if ( size_t( ws.m_endFrame + 1 ) < m_deltaTransforms.size() )
         {
-            Quaternion const desiredDelta = Quaternion::Delta( originalEndTransform.GetRotation(), target.GetRotation() );
-            
-            // Set start transform
-            m_warpedRootMotion.m_transforms[ws.m_startFrame] = sectionStartTransform;
-
-            // Spread out the delta across the entire warp section
-            for ( auto i = 1; i <= numWarpFrames; i++ )
-            {
-                int32_t const frameIdx = ws.m_startFrame + i;
-                m_warpedRootMotion.m_transforms[frameIdx] = m_warpedRootMotion.m_transforms[ws.m_startFrame];
-
-                float const percentage = float( i ) / numWarpFrames;
-                Quaternion const frameDelta = Quaternion::SLerp( Quaternion::Identity, desiredDelta, percentage );
-                m_warpedRootMotion.m_transforms[frameIdx].SetRotation( frameDelta * m_warpedRootMotion.m_transforms[frameIdx].GetRotation() );
-            }
+            Transform const endPlusOne = m_deltaTransforms[ws.m_endFrame + 1] * sectionEndTransform;
+            segmentEndDirection = ( endPlusOne.GetTranslation() - endPoint ).GetNormalized3();
         }
-        else
+        else // This is the last segment so just use in the entry direction
         {
-            // We basically create a circle from the original start position of the section with radius (distance to the end position)
-            // then we rotate the whole section so that the end orientation is in the direction of the target
+            Transform const endMinusOne = m_inverseDeltaTransforms[ws.m_endFrame - 1] * sectionEndTransform;
+            segmentEndDirection = ( endPoint - endMinusOne.GetTranslation() ).GetNormalized3();
+        }
 
-            Vector const originalEndDirection = ( originalEndTransform.GetRotation().RotateVector( Vector::WorldForward ).Get2D() ).GetNormalized2();
-            Vector const originalEndPointToCircleOriginDirection = ( -circleToOriginalEndPoint ).GetNormalized2();
-            Radians const angleBetweenDirAndRadius = Math::GetAngleBetweenNormalizedVectors( originalEndPointToCircleOriginDirection, originalEndDirection );
+        // If this segment has no direction, i.e., no displacement, then just use the character orientation
+        if ( segmentEndDirection.IsNearZero3() )
+        {
+            segmentEndDirection = sectionEndTransform.GetRotation().RotateVector( Vector::WorldForward );
+        }
 
-            // Sine Rule
-            float const sine = distanceToTarget / Math::Sin( angleBetweenDirAndRadius.ToFloat() );
-            float const sineAngleBetweenNewRadiusLineAndTarget = radius / sine;
-            Radians const angleBetweenNewRadiusLineAndTarget( Math::ASin( sineAngleBetweenNewRadiusLineAndTarget ) );
+        // Calculate desired delta rotation
+        //-------------------------------------------------------------------------
 
-            Radians angleBetweenTargetAndRadius = Math::GetYawAngleBetweenVectors( -originalEndPointToCircleOriginDirection, circleToTarget.GetNormalized2() );
-            Radians desiredDeltaAngle;
-            if ( angleBetweenTargetAndRadius > 0 )
-            {
-                desiredDeltaAngle = angleBetweenTargetAndRadius - angleBetweenNewRadiusLineAndTarget;
-            }
-            else
-            {
-                desiredDeltaAngle = angleBetweenTargetAndRadius + angleBetweenNewRadiusLineAndTarget;
-            }
+        Vector const toTarget = ( orientationTarget.GetTranslation() - endPoint ).GetNormalized3();
+        Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenNormalizedVectors( segmentEndDirection, toTarget );
 
-            //-------------------------------------------------------------------------
+        // Warp orientations
+        //-------------------------------------------------------------------------
 
-            Quaternion const deltaRotation( AxisAngle( Vector::WorldUp, desiredDeltaAngle ) );
-
-            Transform adjustedDelta = m_deltaTransforms[ws.m_startFrame];
-            adjustedDelta.SetRotation( deltaRotation * adjustedDelta.GetRotation() );
-            m_warpedRootMotion.m_transforms[ws.m_startFrame] = adjustedDelta * m_warpedRootMotion.m_transforms[ws.m_startFrame -1];
-
-            for ( auto i = 1; i <= numWarpFrames; i++ )
-            {
-                int32_t const frameIdx = ws.m_startFrame + i;
-                m_warpedRootMotion.m_transforms[frameIdx] = m_deltaTransforms[ws.m_startFrame] * m_warpedRootMotion.m_transforms[frameIdx - 1];
-            }
+        // Spread out the delta across the entire warp section
+        for ( auto i = 1; i <= numWarpFrames; i++ )
+        {
+            int32_t const frameIdx = ws.m_startFrame + i;
+            float const percentage = float( i ) / ( numWarpFrames + 1 );
+            Quaternion const frameDelta = Quaternion::SLerp( Quaternion::Identity, desiredOrientationDelta, percentage );
+            Quaternion const adjustedRotation = frameDelta * m_warpedRootMotion.m_transforms[frameIdx].GetRotation();
+            m_warpedRootMotion.m_transforms[frameIdx].SetRotation( adjustedRotation );
         }
     }
 
     //-------------------------------------------------------------------------
 
-    void TargetWarpNode::WarpTranslationBezier( WarpSection const& ws, Transform const& sectionStartTransform, Transform const& sectionEndTransform )
+    void TargetWarpNode::WarpTranslationBezier( WarpSection const& ws, Transform const& sectionEndTransform )
     {
+        EE_ASSERT( ws.m_type == WarpEvent::Type::Full && ws.HasValidFrameRange() );
+
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
 
@@ -312,6 +279,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         // Set start and end transforms
+        Transform const sectionStartTransform = m_deltaTransforms[ws.m_startFrame] * m_warpedRootMotion.m_transforms[ws.m_startFrame - 1];
         m_warpedRootMotion.m_transforms[ws.m_startFrame] = sectionStartTransform;
         m_warpedRootMotion.m_transforms[ws.m_endFrame] = sectionEndTransform;
 
@@ -346,8 +314,10 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TargetWarpNode::WarpTranslationHermite( WarpSection const& ws, Transform const& sectionStartTransform, Transform const& sectionEndTransform )
+    void TargetWarpNode::WarpTranslationHermite( WarpSection const& ws, Transform const& sectionEndTransform )
     {
+        EE_ASSERT( ws.m_type == WarpEvent::Type::Full && ws.HasValidFrameRange() );
+
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
 
@@ -357,6 +327,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         // Set start and end transforms
+        Transform const sectionStartTransform = m_deltaTransforms[ws.m_startFrame] * m_warpedRootMotion.m_transforms[ws.m_startFrame - 1];
         m_warpedRootMotion.m_transforms[ws.m_startFrame] = sectionStartTransform;
         m_warpedRootMotion.m_transforms[ws.m_endFrame] = sectionEndTransform;
 
@@ -389,10 +360,11 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TargetWarpNode::WarpTranslationFeaturePreserving( WarpSection const& ws, Transform const& sectionStartTransform, Transform const& sectionEndTransform )
+    void TargetWarpNode::WarpTranslationFeaturePreserving( WarpSection const& ws, Transform const& sectionEndTransform )
     {
-        int32_t const numWarpFrames = ws.m_endFrame - ws.m_startFrame;
-        EE_ASSERT( numWarpFrames >= 1 );
+        EE_ASSERT( ws.m_type == WarpEvent::Type::Full && ws.HasValidFrameRange() );
+
+        Transform const sectionStartTransform = m_deltaTransforms[ws.m_startFrame] * m_warpedRootMotion.m_transforms[ws.m_startFrame - 1];
 
         // Calculate the straight path that describes the total displacement of this section
         //-------------------------------------------------------------------------
@@ -408,7 +380,7 @@ namespace EE::Animation::GraphNodes
         // If we have no displacement then no matter what we do it's gonna be weird so just use the hermite interp
         if ( Math::IsNearZero( sectionDeltaDistance ) )
         {
-            return WarpTranslationHermite( ws, sectionStartTransform, sectionEndTransform );
+            return WarpTranslationBezier( ws, sectionEndTransform );
         }
 
         // Calculate curve parameters
@@ -450,6 +422,7 @@ namespace EE::Animation::GraphNodes
 
         Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, sectionDeltaDirection );
         Vector const scaledOriginalEndPoint = originalEndPoint * scaleFactor;
+        int32_t const numWarpFrames = ws.m_endFrame - ws.m_startFrame;
 
         Transform currentTransform = sectionStartTransform;
         for ( auto i = 1; i <= numWarpFrames; i++ )
@@ -474,35 +447,16 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TargetWarpNode::WarpMotion( int32_t sectionIdx, Transform const& sectionStartTransform, Transform const& sectionEndTransform )
-    {
-        auto const& ws = m_warpSections[sectionIdx];
-        EE_ASSERT( ws.m_type == WarpEvent::Type::Full );
-
-        //-------------------------------------------------------------------------
-
-        if ( ws.m_translationWarpMode == WarpEvent::TranslationWarpMode::Hermite )
-        {
-            WarpTranslationHermite( ws, sectionStartTransform, sectionEndTransform );
-        }
-        else if ( ws.m_translationWarpMode == WarpEvent::TranslationWarpMode::Bezier )
-        {
-            WarpTranslationBezier( ws, sectionStartTransform, sectionEndTransform );
-        }
-        else // Feature Preserving
-        {
-            WarpTranslationFeaturePreserving( ws, sectionStartTransform, sectionEndTransform );
-        }
-    }
-
     //-------------------------------------------------------------------------
 
     bool TargetWarpNode::CalculateWarpedRootMotion( GraphContext& context, Percentage startTime )
     {
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
+
         int32_t const numFrames = (int32_t) pAnimation->GetNumFrames();
         EE_ASSERT( numFrames > 0 );
+
         RootMotionData const& originalRM = pAnimation->GetRootMotion();
         EE_ASSERT( originalRM.IsValid() );
 
@@ -511,7 +465,6 @@ namespace EE::Animation::GraphNodes
 
         if ( !TryReadTarget( context ) )
         {
-            m_warpedRootMotion.Clear();
             return false;
         }
 
@@ -526,7 +479,7 @@ namespace EE::Animation::GraphNodes
             if ( pWarpEvent != nullptr )
             {
                 WarpSection section;
-                section.m_startFrame = pAnimation->GetFrameTime( pWarpEvent->GetStartTime() ).GetLowerBoundFrameIndex();
+                section.m_startFrame = pAnimation->GetFrameTime( pWarpEvent->GetStartTime() ).GetNearestFrameIndex();
                 section.m_endFrame = Math::Min( pAnimation->GetNumFrames(), pAnimation->GetFrameTime( pWarpEvent->GetEndTime() ).GetUpperBoundFrameIndex() );
                 section.m_type = pWarpEvent->GetWarpAdjustmentType();
                 section.m_translationWarpMode = pWarpEvent->GetTranslationWarpMode();
@@ -540,7 +493,6 @@ namespace EE::Animation::GraphNodes
 
         if ( !motionAdjustmentEventFound )
         {
-            m_warpSections.clear();
             EE_LOG_ERROR( "Animation", "Warp attempted for animation with invalid warp events! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
             return false;
         }
@@ -594,7 +546,7 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        // Calculate deltas
+        // Calculate per-frame root motion deltas
         //-------------------------------------------------------------------------
 
         m_deltaTransforms.reserve( numFrames );
@@ -609,7 +561,7 @@ namespace EE::Animation::GraphNodes
             m_inverseDeltaTransforms.emplace_back( m_deltaTransforms.back().GetInverse() );
         }
 
-        // Calculate section data
+        // Calculate section info
         //-------------------------------------------------------------------------
 
         for ( auto& section : m_warpSections )
@@ -652,30 +604,45 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        // Prepare root motion for warping
+        // Prepare for warping and handle start time
         //-------------------------------------------------------------------------
 
+        // Create storage for warped root motion
+        m_warpedRootMotion.Clear();
+        auto& warpedTransforms = m_warpedRootMotion.m_transforms;
+        warpedTransforms.resize( originalRM.GetNumFrames() );
+
         #if EE_DEVELOPMENT_TOOLS
-        m_actualStartTransform = m_warpStartTransform;
+        m_characterStartTransform = m_warpStartTransform;
         #endif
 
-        // Copy the original root motion into the warped one
-        m_warpedRootMotion = originalRM;
-        auto& warpedTransforms = m_warpedRootMotion.m_transforms;
-        warpedTransforms.back() = m_warpTarget;
-
+        // Handle the case were we dont start the animation from the first frame
         if ( startTime != 0.0f )
         {
             // Offset the warp start transform by the distance we've 'already' covered due to our later start time
-            Transform const expectedStartTransform = m_warpedRootMotion.GetTransform( startTime );
-            m_warpStartTransform = expectedStartTransform.GetInverse() * m_warpStartTransform;
+            Transform const rootTransformAtActualStartTime = originalRM.GetTransform( startTime );
+            m_warpStartTransform = rootTransformAtActualStartTime.GetInverse() * m_warpStartTransform;
+
+            // Offset the first warp section if it overlaps the new start time
+            FrameTime const startFrameTime = pAnimation->GetFrameTime( startTime );
+            if ( m_warpSections[0].m_startFrame <= (int32_t) startFrameTime.GetFrameIndex() )
+            {
+                m_warpSections[0].m_startFrame = startFrameTime.GetFrameIndex() + 1;
+            }
         }
+
+        // Add the unwarped start and end portions of the root motion
+        //-------------------------------------------------------------------------
+
+        // Always set the first and last frames
+        warpedTransforms.front() = m_warpStartTransform;
+        warpedTransforms.back() = m_warpTarget;
 
         // Add start unwarped frames (till the anim start time)
         m_warpedRootMotion.m_transforms[0] = m_warpStartTransform;
 
         // Add start unwarped frames (from anim start time to first warp section)
-        for ( int32_t frameIdx = 1; frameIdx <= m_warpSections[0].m_startFrame; frameIdx++ )
+        for ( int32_t frameIdx = 1; frameIdx < m_warpSections[0].m_startFrame; frameIdx++ )
         {
             warpedTransforms[frameIdx] = m_deltaTransforms[frameIdx] * warpedTransforms[frameIdx - 1];
         }
@@ -687,24 +654,43 @@ namespace EE::Animation::GraphNodes
             warpedTransforms[frameIdx] = m_inverseDeltaTransforms[frameIdx] * warpedTransforms[frameIdx + 1];
         }
 
-        // Set last warp section end transform
-        Transform const lastWarpSectionEndTransform = m_inverseDeltaTransforms[lastWarpSection.m_endFrame] * warpedTransforms[lastWarpSection.m_endFrame + 1];
+        // Calculate the final warp target for the last warp section
+        Transform const finalWarpTarget = m_inverseDeltaTransforms[lastWarpSection.m_endFrame] * warpedTransforms[lastWarpSection.m_endFrame + 1];
 
-        // Calculate first section warp start transform
+        // Orientation Warp
         //-------------------------------------------------------------------------
 
-        Transform const animStartTransform = originalRM.GetTransform( startTime );
-        Transform const& warpSectionStartTranform = originalRM.m_transforms[m_warpSections[0].m_startFrame];
-        Transform const deltaStartTransform = Transform::Delta( animStartTransform, warpSectionStartTranform );
-        Transform const firstSectionStartTransform = deltaStartTransform * m_warpStartTransform;
+        int32_t warpSectionIdx = 0;
+        WarpSection const& firstWarpSection = m_warpSections.front();
+        if ( firstWarpSection.m_type == WarpEvent::Type::RotationOnly )
+        {
+            WarpOrientation( m_warpSections[0], finalWarpTarget );
+            warpSectionIdx++;
+        }
 
-        // Calculate warp section sub-targets
+        // Translation Warp
         //-------------------------------------------------------------------------
 
-        auto const& warpSection = m_warpSections[0];
-        auto startTransform = m_deltaTransforms[warpSection.m_endFrame] * m_warpedRootMotion.m_transforms[warpSection.m_startFrame - 1]; // TODO
-        auto endTransform = m_inverseDeltaTransforms[warpSection.m_endFrame] * m_warpedRootMotion.m_transforms[warpSection.m_endFrame + 1];
-        WarpMotion( 0, startTransform, endTransform );
+        // Fill any gaps between orientation event and the first translation event
+        for ( int32_t frameIdx = m_warpSections[warpSectionIdx-1].m_endFrame + 1; frameIdx < m_warpSections[warpSectionIdx].m_startFrame; frameIdx++ )
+        {
+            warpedTransforms[frameIdx] = m_deltaTransforms[frameIdx] * warpedTransforms[frameIdx - 1];
+        }
+
+        // Translation warp
+        auto const& warpSection = m_warpSections[warpSectionIdx];
+        if ( warpSection.m_translationWarpMode == WarpEvent::TranslationWarpMode::Hermite )
+        {
+            WarpTranslationHermite( warpSection, finalWarpTarget );
+        }
+        else if ( warpSection.m_translationWarpMode == WarpEvent::TranslationWarpMode::Bezier )
+        {
+            WarpTranslationBezier( warpSection, finalWarpTarget );
+        }
+        else // Feature Preserving
+        {
+            WarpTranslationFeaturePreserving( warpSection, finalWarpTarget );
+        }
 
         return true;
     }

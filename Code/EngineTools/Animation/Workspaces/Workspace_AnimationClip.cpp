@@ -1,6 +1,5 @@
 #include "Workspace_AnimationClip.h"
 #include "EngineTools/Animation/Events/AnimationEventEditor.h"
-#include "EngineTools/Animation/Events/AnimationEventData.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Core/Widgets/InterfaceHelpers.h"
@@ -89,13 +88,15 @@ namespace EE::Animation
         m_detailsWindowName.sprintf( "Details##%u", GetID() );
         m_trackDataWindowName.sprintf( "Track Data##%u", GetID() );
 
-        CreatePreviewEntity();
+        if ( m_pDescriptor != nullptr )
+        {
+            CreatePreviewEntity();
+        }
     }
 
     void AnimationClipWorkspace::Shutdown( UpdateContext const& context )
     {
-        EE_ASSERT( m_pPreviewEntity != nullptr );
-
+        // No need to call destroy as the entity will be destroyed as part of the world shutdown
         m_pPreviewEntity = nullptr;
         m_pAnimationComponent = nullptr;
         m_pMeshComponent = nullptr;
@@ -110,6 +111,7 @@ namespace EE::Animation
         // Create animation component
         m_pAnimationComponent = EE::New<AnimationClipPlayerComponent>( StringID( "Animation Component" ) );
         m_pAnimationComponent->SetAnimation( m_pResource.GetResourceID() );
+        m_pAnimationComponent->SetPlayMode( AnimationClipPlayerComponent::PlayMode::Posed );
 
         // Create entity
         m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
@@ -122,6 +124,15 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         AddEntityToWorld( m_pPreviewEntity );
+    }
+
+    void AnimationClipWorkspace::DestroyPreviewEntity()
+    {
+        EE_ASSERT( m_pPreviewEntity != nullptr );
+        DestroyEntityInWorld( m_pPreviewEntity );
+        m_pPreviewEntity = nullptr;
+        m_pAnimationComponent = nullptr;
+        m_pMeshComponent = nullptr;
     }
 
     void AnimationClipWorkspace::CreatePreviewMeshComponent()
@@ -146,6 +157,8 @@ namespace EE::Animation
                 {
                     m_pMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
                 }
+
+                m_pMeshComponent->SetWorldTransform( m_characterTransform );
             }
         }
 
@@ -153,6 +166,13 @@ namespace EE::Animation
         {
             m_pPreviewEntity->AddComponent( m_pMeshComponent );
         }
+    }
+
+    void AnimationClipWorkspace::DestroyPreviewMeshComponent()
+    {
+        EE_ASSERT( m_pPreviewEntity != nullptr && m_pMeshComponent != nullptr );
+        m_pPreviewEntity->DestroyComponent( m_pMeshComponent );
+        m_pMeshComponent = nullptr;
     }
 
     void AnimationClipWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
@@ -163,14 +183,18 @@ namespace EE::Animation
         if ( m_pDescriptor == nullptr )
         {
             m_propertyGrid.SetTypeToEdit( nullptr );
+            if ( m_pPreviewEntity != nullptr )
+            {
+                DestroyPreviewEntity();
+            }
         }
 
+        // If we are actually reloading one of our resources, destroy the mesh component
         if ( IsHotReloading() )
         {
             if ( m_pMeshComponent != nullptr )
             {
-                m_pPreviewEntity->DestroyComponent( m_pMeshComponent );
-                m_pMeshComponent = nullptr;
+                DestroyPreviewMeshComponent();
             }
         }
     }
@@ -179,7 +203,12 @@ namespace EE::Animation
     {
         TResourceWorkspace<AnimationClip>::EndHotReload();
 
-        if ( m_pMeshComponent == nullptr )
+        if ( m_pDescriptor != nullptr && m_pPreviewEntity == nullptr )
+        {
+            CreatePreviewEntity();
+        }
+
+        if ( m_pPreviewEntity != nullptr && m_pMeshComponent == nullptr )
         {
             CreatePreviewMeshComponent();
         }
@@ -191,34 +220,52 @@ namespace EE::Animation
     {
         if ( IsResourceLoaded() )
         {
-            m_eventEditor.SetAnimationLengthAndFPS( m_pResource->GetNumFrames(), m_pResource->GetFPS() );
+            m_eventEditor.SetAnimationInfo( m_pResource->GetNumFrames(), m_pResource->GetFPS() );
+        }
 
-            // Update position
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        bool const isDescriptorWindowFocused = DrawDescriptorEditorWindow( context, pWindowClass );
+        DrawTrackDataWindow( context, pWindowClass );
+        DrawTimelineWindow( context, pWindowClass );
+        bool const isDetailsWindowFocused = DrawDetailsWindow( context, pWindowClass );
+
+        // Enable the global timeline keyboard shortcuts
+        if ( isFocused && !isDescriptorWindowFocused && !isDetailsWindowFocused )
+        {
+            m_eventEditor.HandleGlobalKeyboardInputs();
+        }
+
+        // Update
+        //-------------------------------------------------------------------------
+
+        if ( IsResourceLoaded() )
+        {
+            // Update pose and position
             //-------------------------------------------------------------------------
 
-            if ( m_isRootMotionEnabled )
+            Percentage const percentageThroughAnimation = m_eventEditor.GetCurrentTimeAsPercentage();
+            if ( m_currentAnimTime != percentageThroughAnimation )
             {
-                Percentage const animTime = m_pAnimationComponent->GetAnimTime();
-                m_characterTransform = m_pResource->GetRootTransform( animTime );
-            }
-            else
-            {
-                m_characterTransform = Transform::Identity;
-            }
+                m_currentAnimTime = percentageThroughAnimation;
+                m_pAnimationComponent->SetAnimTime( percentageThroughAnimation );
+                m_characterTransform = m_isRootMotionEnabled ? m_pResource->GetRootTransform( percentageThroughAnimation ) : Transform::Identity;
 
-            // HACK
-            if ( m_pMeshComponent != nullptr )
-            {
-                m_pMeshComponent->SetWorldTransform( m_characterTransform );
+                // Update character preview position
+                if ( m_pMeshComponent != nullptr )
+                {
+                    m_pMeshComponent->SetWorldTransform( m_characterTransform );
+                }
             }
-
-            // Draw in viewport
+            
+            // Draw root motion in viewport
             //-------------------------------------------------------------------------
 
             auto drawingCtx = GetDrawingContext();
             m_pResource->GetRootMotion().DrawDebug( drawingCtx, Transform::Identity );
 
-            if ( m_isPoseDrawingEnabled )
+            if ( m_isPoseDrawingEnabled && m_pAnimationComponent != nullptr )
             {
                 Pose const* pPose = m_pAnimationComponent->GetPose();
                 if ( pPose != nullptr )
@@ -226,32 +273,6 @@ namespace EE::Animation
                     drawingCtx.Draw( *pPose, m_characterTransform );
                 }
             }
-        }
-        //-------------------------------------------------------------------------
-
-        bool const isDescriptorWindowFocused = DrawDescriptorEditorWindow( context, pWindowClass );
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        DrawTrackDataWindow( context );
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        DrawTimelineWindow( context );
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_detailsWindowName.c_str() ) )
-        {
-            m_propertyGrid.DrawGrid();
-        }
-
-        bool const isDetailsWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_RootAndChildWindows );
-        ImGui::End();
-
-        //-------------------------------------------------------------------------
-
-        // Enable the global timeline keyboard shortcuts
-        if ( isFocused && !isDescriptorWindowFocused && !isDetailsWindowFocused )
-        {
-            m_eventEditor.HandleGlobalKeyboardInputs();
         }
     }
 
@@ -269,7 +290,7 @@ namespace EE::Animation
 
         auto PrintAnimDetails = [this] ( Color color )
         {
-            Percentage const currentTime = m_eventEditor.GetPlayheadPositionAsPercentage();
+            Percentage const currentTime = m_eventEditor.GetCurrentTimeAsPercentage();
             uint32_t const numFrames = m_pResource->GetNumFrames();
             FrameTime const frameTime = m_pResource->GetFrameTime( currentTime );
 
@@ -278,7 +299,7 @@ namespace EE::Animation
             ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_pResource->GetAverageAngularVelocity().ToFloat() );
             ImGui::Text( "Distance Covered: %.2fm", m_pResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
             ImGui::Text( "Frame: %.2f/%d (%.2f/%d)", frameTime.ToFloat(), numFrames - 1, frameTime.ToFloat() + 1.0f, numFrames ); // Draw offset time too to match DCC timelines that start at 1
-            ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetPlayheadPositionAsPercentage().ToFloat() * m_pResource->GetDuration(), m_pResource->GetDuration().ToFloat() );
+            ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * m_pResource->GetDuration(), m_pResource->GetDuration().ToFloat() );
         };
 
         ImVec2 const cursorPos = ImGui::GetCursorPos();
@@ -303,12 +324,13 @@ namespace EE::Animation
         }
     }
 
-    void AnimationClipWorkspace::DrawTimelineWindow( UpdateContext const& context )
+    void AnimationClipWorkspace::DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         // Draw timeline window
         //-------------------------------------------------------------------------
 
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
+        ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_timelineWindowName.c_str() ) )
         {
             if ( IsWaitingForResource() )
@@ -326,7 +348,7 @@ namespace EE::Animation
                 // Track editor and property grid
                 //-------------------------------------------------------------------------
 
-                m_eventEditor.UpdateAndDraw( context, m_pAnimationComponent );
+                m_eventEditor.UpdateAndDraw( GetWorld()->GetTimeScale() * context.GetDeltaTime() );
 
                 // Transfer dirty state from property grid
                 if ( m_propertyGrid.IsDirty() )
@@ -338,8 +360,7 @@ namespace EE::Animation
                 auto const& selectedItems = m_eventEditor.GetSelectedItems();
                 if ( !selectedItems.empty() )
                 {
-                    auto pAnimEventItem = static_cast<EventItem*>( selectedItems.back() );
-                    m_propertyGrid.SetTypeToEdit( pAnimEventItem->GetEvent() );
+                    m_propertyGrid.SetTypeToEdit( selectedItems.back()->GetData() );
                 }
                 else // Clear property grid
                 {
@@ -351,8 +372,9 @@ namespace EE::Animation
         ImGui::PopStyleVar();
     }
 
-    void AnimationClipWorkspace::DrawTrackDataWindow( UpdateContext const& context )
+    void AnimationClipWorkspace::DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
+        ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_trackDataWindowName.c_str() ) )
         {
             if ( IsResourceLoaded() )
@@ -399,6 +421,20 @@ namespace EE::Animation
             }
         }
         ImGui::End();
+    }
+
+    bool AnimationClipWorkspace::DrawDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    {
+        ImGui::SetNextWindowClass( pWindowClass );
+        if ( ImGui::Begin( m_detailsWindowName.c_str() ) )
+        {
+            m_propertyGrid.DrawGrid();
+        }
+
+        bool const isDetailsWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_RootAndChildWindows );
+        ImGui::End();
+
+        return isDetailsWindowFocused;
     }
 
     //-------------------------------------------------------------------------

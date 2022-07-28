@@ -16,7 +16,7 @@ namespace EE
 
     public:
 
-        Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID );
+        Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID, bool startMinimized = false );
         virtual ~Win32Application();
 
         int Run( int32_t argc, char** argv );
@@ -74,9 +74,9 @@ namespace EE
     private:
 
         bool                            m_wasMaximized = false; // Read from the layout settings
+        bool                            m_startMinimized = false; // Specifies the initial state of the application
         bool                            m_initialized = false;
         bool                            m_shouldExit = false;
     };
 }
-
 #endif

@@ -51,7 +51,10 @@ namespace EE::ImGuiX
 
     EE_SYSTEM_API void MakeTabVisible( char const* const pWindowName );
 
-    EE_SYSTEM_API ImVec2 const& GetClosestPointOnRect( ImRect const& rect, ImVec2 const& inPoint );
+    EE_SYSTEM_API ImVec2 ClampToRect( ImRect const& rect, ImVec2 const& inPoint );
+
+    // Returns the closest point on the rect border to the specified point
+    EE_SYSTEM_API ImVec2 GetClosestPointOnRectBorder( ImRect const& rect, ImVec2 const& inPoint );
 
     //-------------------------------------------------------------------------
     // Separators
@@ -78,6 +81,9 @@ namespace EE::ImGuiX
 
     // Draw a tooltip with a custom hover delay for the immediately preceding item
     EE_SYSTEM_API void ItemTooltipDelayed( float tooltipDelay, const char* fmt, ... );
+
+    // For use with text widget
+    EE_SYSTEM_API void TextTooltip( const char* fmt, ... );
 
     // Draw a button with an explicit icon
     EE_SYSTEM_API bool IconButton( char const* pIcon, char const* pLabel, ImVec4 const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );

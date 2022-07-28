@@ -1,9 +1,10 @@
 #include "ResourceCompiler_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/Animation/Events/AnimationEventData.h"
+#include "EngineTools/Animation/Events/AnimationEventTrack.h"
 #include "EngineTools/RawAssets/RawAssetReader.h"
 #include "EngineTools/RawAssets/RawAnimation.h"
+#include "EngineTools/Core/TimelineEditor/TimelineTrackContainer.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "System/Resource/ResourcePtr.h"
@@ -237,7 +238,8 @@ namespace EE::Animation
     void AnimationClipCompiler::TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip ) const
     {
         auto const& rawTrackData = rawAnimData.GetTrackData();
-        int32_t const numBones = rawAnimData.GetNumBones();
+        uint32_t const numBones = rawAnimData.GetNumBones();
+        uint32_t const numFrames = rawAnimData.GetNumFrames();
 
         // Transfer basic animation data
         //-------------------------------------------------------------------------
@@ -279,7 +281,7 @@ namespace EE::Animation
 
         static constexpr float const defaultQuantizationRangeLength = 0.1f;
 
-        for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
             TrackCompressionSettings trackSettings;
 
@@ -290,7 +292,7 @@ namespace EE::Animation
             // Rotation
             //-------------------------------------------------------------------------
 
-            for ( uint32_t frameIdx = 0; frameIdx < animClip.m_numFrames; frameIdx++ )
+            for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
             {
                 Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                 Quaternion const rotation = rawBoneTransform.GetRotation();
@@ -349,7 +351,7 @@ namespace EE::Animation
             }
             else // Store all frames
             {
-                for ( uint32_t frameIdx = 0; frameIdx < animClip.m_numFrames; frameIdx++ )
+                for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
                 {
                     Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                     Vector const& translation = rawBoneTransform.GetTranslation();
@@ -412,7 +414,7 @@ namespace EE::Animation
             }
             else // Store all frames
             {
-                for ( uint32_t frameIdx = 0; frameIdx < animClip.m_numFrames; frameIdx++ )
+                for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
                 {
                     Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                     Vector const& scale = rawBoneTransform.GetScale();
@@ -467,10 +469,42 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         int32_t numSyncTracks = 0;
+        float const numIntervals = float( rawAnimData.GetNumFrames() - 1 );
         TVector<Event*> events;
-        FloatRange const animationTimeRange( 0, rawAnimData.GetDuration() );
-        for ( auto pTrack : trackContainer.m_tracks )
+        FloatRange const animationTimeRange( 0, numIntervals );
+        for ( Timeline::Track* pTrack : trackContainer.m_tracks )
         {
+            if ( pTrack->GetStatus() == Timeline::Track::Status::HasErrors )
+            {
+                if ( pTrack->IsRenameable() )
+                {
+                    Warning( "Invalid animation event track (%s - %s) encountered!", pTrack->GetName(), pTrack->GetTypeName() );
+                }
+                else
+                {
+                    Warning( "Invalid animation event track (%s) encountered!", pTrack->GetTypeName() );
+                }
+
+                // Skip invalid tracks
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( pTrack->GetStatus() != Timeline::Track::Status::HasWarnings )
+            {
+                if ( pTrack->IsRenameable() )
+                {
+                    Warning( "Animation event track (Track: %s, Type: %s) has warnings: %s", pTrack->GetName(), pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                }
+                else
+                {
+                    Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
             auto pEventTrack = Cast<EventTrack>( pTrack );
 
             if ( pEventTrack->IsSyncTrack() )
@@ -480,31 +514,32 @@ namespace EE::Animation
 
             for ( auto const pItem : pTrack->GetItems() )
             {
-                auto pEvent = Cast<EventItem>( pItem )->GetEvent();
+                auto pEvent = Cast<Event>( pItem->GetData() );
 
                 // Add event
                 //-------------------------------------------------------------------------
 
+                // Ignore any event entirely outside the animation time range
                 if ( !animationTimeRange.Overlaps( pEvent->GetTimeRange() ) )
                 {
                     Warning( "Event detected outside animation time range, event will be ignored" );
                     continue;
                 }
 
-                // TODO: Clamp event to animation length
+                // Clamp events that extend out of the animation time range to the animation time range
+                FloatRange eventTimeRange = pEvent->GetTimeRange();
                 if ( !animationTimeRange.ContainsInclusive( pEvent->GetTimeRange() ) )
                 {
                     Warning( "Event extend outside the valid animation time range, event will be clamped to animation range" );
 
-                    FloatRange clampedRange = pEvent->GetTimeRange();
-                    clampedRange.m_begin = animationTimeRange.GetClampedValue( clampedRange.m_begin );
-                    clampedRange.m_end = animationTimeRange.GetClampedValue( clampedRange.m_end );
-                    EE_ASSERT( clampedRange.IsSetAndValid() );
-
-                    pEvent->m_startTime = clampedRange.m_begin;
-                    pEvent->m_duration = clampedRange.GetLength();
+                    eventTimeRange.m_begin = animationTimeRange.GetClampedValue( eventTimeRange.m_begin );
+                    eventTimeRange.m_end = animationTimeRange.GetClampedValue( eventTimeRange.m_end );
+                    EE_ASSERT( eventTimeRange.IsSetAndValid() );
                 }
 
+                // Set event time and add new event
+                pEvent->m_startTime = eventTimeRange.m_begin / numIntervals;
+                pEvent->m_duration = eventTimeRange.GetLength() / numIntervals;
                 events.emplace_back( pEvent );
 
                 // Create sync event

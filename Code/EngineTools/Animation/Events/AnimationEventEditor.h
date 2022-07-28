@@ -9,7 +9,6 @@
 
 namespace EE { class UpdateContext; }
 namespace EE::TypeSystem { class TypeRegistry; }
-namespace EE::Animation { class AnimationClipPlayerComponent; }
 
 //-------------------------------------------------------------------------
 
@@ -22,21 +21,19 @@ namespace EE::Animation
         EventEditor( TypeSystem::TypeRegistry const& typeRegistry );
 
         void Reset();
-        void SetAnimationLengthAndFPS( uint32_t numFrames, float FPS );
-        void UpdateAndDraw( UpdateContext const& context, AnimationClipPlayerComponent* pPreviewAnimationComponent );
+        void SetAnimationInfo( uint32_t numFrames, float FPS );
 
         virtual bool Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& objectValue ) override;
 
     private:
 
         virtual void DrawAddTracksMenu() override;
-
-        void UpdateTimelineTrackFPS();
+        virtual float ConvertSecondsToTimelineUnit( Seconds const inTime ) const override { return inTime.ToFloat() * m_FPS; }
 
     private:
 
         FileSystem::Path const                      m_descriptorPath;
         float                                       m_FPS = 0.0f;
-        TVector<TypeSystem::TypeInfo const*>        m_eventTypes;
+        TVector<TypeSystem::TypeInfo const*>        m_eventTrackTypes;
     };
 }

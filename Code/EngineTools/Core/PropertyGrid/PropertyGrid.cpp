@@ -1,5 +1,6 @@
 #include "PropertyGrid.h"
-#include "PropertyGridEditors.h"
+#include "PropertyGridEditor.h"
+#include "PropertyGridCoreEditors.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/TypeSystem/PropertyInfo.h"

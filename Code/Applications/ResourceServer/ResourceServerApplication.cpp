@@ -11,6 +11,7 @@
 #include "LPP_API.h"
 #endif
 #include <shobjidl_core.h>
+#include "System/Platform/PlatformHelpers_Win32.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,7 +22,7 @@ namespace EE
     //-------------------------------------------------------------------------
 
     ResourceServerApplication::ResourceServerApplication( HINSTANCE pInstance )
-        : Win32Application( pInstance, "Esoterica Resource Server", IDI_RESOURCESERVER )
+        : Win32Application( pInstance, "Esoterica Resource Server", IDI_RESOURCESERVER, true )
         , m_resourceServerUI( m_resourceServer )
     {}
 
@@ -69,6 +70,7 @@ namespace EE
             m_pTaskbarInterface->Release();
             m_pTaskbarInterface = nullptr;
         }
+        CoUninitialize();
 
         m_busyOverlaySet = false;
         DestroyIcon( m_busyOverlayIcon );
@@ -99,9 +101,15 @@ namespace EE
     {
         m_busyOverlayIcon = LoadIcon( m_pInstance, MAKEINTRESOURCE( IDI_RESOURCESERVER_BUSYOVERLAY ) );
 
-        if ( CoCreateInstance( CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS( &m_pTaskbarInterface ) ) == S_OK )
+        CoInitialize( nullptr );
+        auto const result = CoCreateInstance( CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS( &m_pTaskbarInterface ) );
+        if ( result == S_OK )
         {
             m_pTaskbarInterface->HrInit();
+        }
+        else
+        {
+            return false;
         }
 
         //-------------------------------------------------------------------------
@@ -188,6 +196,8 @@ namespace EE
 
             // Update task bar
             //-------------------------------------------------------------------------
+
+            EE_ASSERT( m_pTaskbarInterface != nullptr );
 
             // Showing progress bar
             if ( m_busyOverlaySet )

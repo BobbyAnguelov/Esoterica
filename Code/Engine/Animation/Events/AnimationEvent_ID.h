@@ -16,11 +16,7 @@ namespace EE::Animation
         virtual StringID GetSyncEventID() const override { return m_ID; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual char const* GetEventName() const override { return "ID"; }
-        virtual bool AllowMultipleTracks() const override { return true; }
-        virtual InlineString GetDisplayText() const override { return m_ID.IsValid() ? m_ID.c_str() : "Invalid ID"; }
-        virtual InlineString GetDebugText() const override { return GetDisplayText(); }
-        virtual EventType GetEventType() const override { return EventType::Both; }
+        virtual InlineString GetDebugText() const override { return m_ID.IsValid() ? m_ID.c_str() : "Invalid ID"; }
         #endif
 
     private:

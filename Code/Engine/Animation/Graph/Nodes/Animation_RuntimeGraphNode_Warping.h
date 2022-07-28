@@ -47,6 +47,11 @@ namespace EE::Animation::GraphNodes
 
         struct WarpSection
         {
+            // Ensure that the section is at least 3 frames in length (i.e. a single warp frame)
+            inline bool HasValidFrameRange() const{ return m_endFrame > m_startFrame + 1; }
+
+        public:
+
             int32_t                             m_startFrame = 0;
             int32_t                             m_endFrame = 0;
             Transform                           m_deltaTransform;
@@ -95,17 +100,19 @@ namespace EE::Animation::GraphNodes
         bool CalculateWarpedRootMotion( GraphContext& context, Percentage startTime );
         void UpdateWarp( GraphContext& context );
 
-        void WarpRotation( int32_t sectionIdx, Transform const& sectionStartTransform, Transform const& target );
-        void WarpMotion( int32_t sectionIdx, Transform const& startTransform, Transform const& endTransform );
+        // Orientation Warp
+        void WarpOrientation( WarpSection const& ws, Transform const& orientationTarget );
+
+        // Translation Warps
+        void WarpTranslationBezier( WarpSection const& ws, Transform const& sectionEndTransform );
+        void WarpTranslationHermite( WarpSection const& ws, Transform const& sectionEndTransform );
+        void WarpTranslationFeaturePreserving( WarpSection const& ws, Transform const& sectionEndTransform );
+
+        //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
         #endif
-
-        // Translation Warps
-        void WarpTranslationBezier( WarpSection const& ws, Transform const& sectionStartTransform, Transform const& sectionEndTransform );
-        void WarpTranslationHermite( WarpSection const& ws, Transform const& sectionStartTransform, Transform const& sectionEndTransform );
-        void WarpTranslationFeaturePreserving( WarpSection const& ws, Transform const& sectionStartTransform, Transform const& sectionEndTransform );
 
     private:
 
@@ -120,7 +127,7 @@ namespace EE::Animation::GraphNodes
         SamplingMode                    m_samplingMode;
 
         #if EE_DEVELOPMENT_TOOLS
-        Transform                       m_actualStartTransform;
+        Transform                       m_characterStartTransform;
         #endif
     };
 }

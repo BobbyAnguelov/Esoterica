@@ -20,9 +20,10 @@ namespace EE::Animation
 
         inline bool IsValid() const { return !m_transforms.empty(); }
 
-        inline int32_t GetNumFrames() const { return (int32_t) m_transforms.size(); }
-
         void Clear();
+
+        // Get the number of root motion transforms
+        inline int32_t GetNumFrames() const { return (int32_t) m_transforms.size(); }
 
         // Get the root transform at the given frame time
         Transform GetTransform( FrameTime const& frameTime ) const;
@@ -63,7 +64,7 @@ namespace EE::Animation
 
     private:
 
-        inline FrameTime GetFrameTime( Percentage percentageThrough ) const;
+        inline FrameTime GetFrameTime( Percentage percentageThrough ) const { return FrameTime( percentageThrough, GetNumFrames() ); }
 
     public:
 
@@ -74,23 +75,6 @@ namespace EE::Animation
     };
 
     //-------------------------------------------------------------------------
-
-    inline FrameTime RootMotionData::GetFrameTime( Percentage percentageThrough ) const
-    {
-        FrameTime frameTime;
-        int32_t const lastFrameIdx = (int32_t) m_transforms.size() - 1;
-        Percentage const clampedTime = percentageThrough.GetClamped( false );
-        if ( clampedTime == 1.0f )
-        {
-            frameTime = FrameTime( lastFrameIdx );
-        }
-        else if ( clampedTime != 0.0f )
-        {
-            frameTime = FrameTime( percentageThrough, lastFrameIdx );
-        }
-
-        return frameTime;
-    }
 
     inline Transform RootMotionData::GetTransform( FrameTime const& frameTime ) const
     {

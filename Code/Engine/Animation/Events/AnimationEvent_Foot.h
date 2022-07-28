@@ -4,6 +4,13 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE
+{
+    struct Color;
+}
+
+//-------------------------------------------------------------------------
+
 namespace EE::Animation
 {
     class EE_ENGINE_API FootEvent final : public Event
@@ -37,20 +44,22 @@ namespace EE::Animation
             RightPhase = 5, // The whole phase for the right foot down (right foot down + left foot passing)
         };
 
+        #if EE_DEVELOPMENT_TOOLS
+        static char const* GetPhaseName( Phase phase );
+        static Color GetPhaseColor( Phase phase );
+        #endif
+
     public:
 
         inline Phase GetFootPhase() const { return m_phase; }
         virtual StringID GetSyncEventID() const override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual char const* GetEventName() const override { return "Foot"; }
-        virtual InlineString GetDisplayText() const override;
-        virtual InlineString GetDebugText() const override { return GetDisplayText(); }
-        virtual EventType GetEventType() const override { return EventType::Duration; }
+        virtual InlineString GetDebugText() const override { return GetPhaseName( m_phase ); }
         #endif
 
     private:
 
-        EE_EXPOSE Phase         m_phase = Phase::LeftFootDown;
+        EE_EXPOSE Phase     m_phase = Phase::LeftFootDown;
     };
 }

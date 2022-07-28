@@ -45,11 +45,14 @@ namespace EE::Animation
         virtual void SerializeCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) override;
         virtual void SerializeCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) override;
 
-        void DrawTimelineWindow( UpdateContext const& context );
-        void DrawTrackDataWindow( UpdateContext const& context );
+        void DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        bool DrawDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         void CreatePreviewEntity();
+        void DestroyPreviewEntity();
         void CreatePreviewMeshComponent();
+        void DestroyPreviewMeshComponent();
 
     private:
 
@@ -70,6 +73,7 @@ namespace EE::Animation
 
         Transform                       m_characterTransform = Transform::Identity;
         ResourceID                      m_previewMeshOverride;
+        Percentage                      m_currentAnimTime = 0.0f;
         bool                            m_isRootMotionEnabled = true;
         bool                            m_isPoseDrawingEnabled = true;
     };

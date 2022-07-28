@@ -23,19 +23,7 @@ namespace EE::Animation
     {
         EE_REGISTER_TYPE( Event );
 
-        friend struct EventManipulator;
         friend class AnimationClipCompiler;
-
-    public:
-
-        enum class EventType
-        {
-            EE_REGISTER_ENUM
-
-            Immediate,
-            Duration,
-            Both
-        };
 
     public:
 
@@ -54,16 +42,9 @@ namespace EE::Animation
         // Optional: Allow the track to return a specific sync event ID
         virtual StringID GetSyncEventID() const;
 
-        // Event properties
-        //-------------------------------------------------------------------------
-
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDisplayText() const = 0;
+        // Get a string description of the event for use when debugging
         virtual InlineString GetDebugText() const { return GetStaticTypeID().c_str(); }
-        virtual char const* GetEventName() const = 0;
-        virtual bool AllowMultipleTracks() const { return false; }
-        virtual int32_t GetMaxEventsAllowedPerTrack() const { return -1; }
-        virtual EventType GetEventType() const { return EventType::Duration; }
         #endif
 
     protected:

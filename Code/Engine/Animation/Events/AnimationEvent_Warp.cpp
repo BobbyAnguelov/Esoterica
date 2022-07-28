@@ -5,7 +5,7 @@
 namespace EE::Animation
 {
     #if EE_DEVELOPMENT_TOOLS
-    InlineString WarpEvent::GetDisplayText() const
+    InlineString WarpEvent::GetDebugText() const
     {
         if ( m_type == Type::RotationOnly )
         {
