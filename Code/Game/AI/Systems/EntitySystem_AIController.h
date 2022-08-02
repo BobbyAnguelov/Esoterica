@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Game/_Module/API.h"
-#include "Game/AI/AIBehaviorSelector.h"
+#include "Game/AI/Behaviors/AIBehaviorSelector.h"
 #include "Engine/Entity/EntitySystem.h"
 
 //-------------------------------------------------------------------------

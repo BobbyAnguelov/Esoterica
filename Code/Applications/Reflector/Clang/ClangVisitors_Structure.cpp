@@ -302,9 +302,9 @@ namespace EE::TypeSystem::Reflection
                         }
 
                         // Check if this field is a entity type
-                        if ( pPropertyTypeDesc->IsEntity() || pPropertyTypeDesc->IsEntityComponent() || pPropertyTypeDesc->IsEntitySystem() )
+                        if ( pPropertyTypeDesc->IsEntity() || pPropertyTypeDesc->IsEntityComponent() || pPropertyTypeDesc->IsEntitySystem() || pPropertyTypeDesc->IsEntityWorldSystem() )
                         {
-                            pContext->LogError( "Entities may not contain other entities, please use a EntityPtr instead ( property: %s in class: %s )", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
+                            pContext->LogError( "You are not allowed to have ptrs to entity types ( property: %s in class: %s )", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
                             return CXChildVisit_Break;
                         }
                     }
@@ -408,6 +408,7 @@ namespace EE::TypeSystem::Reflection
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntity, ( cursorName == Reflection::Settings::g_baseEntityClassName ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityComponent, ( macro.IsEntityComponentMacro() || cursorName == Reflection::Settings::g_baseEntityComponentClassName ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntitySystem, ( macro.IsEntitySystemMacro() || cursorName == Reflection::Settings::g_baseEntitySystemClassName ) );
+                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityWorldSystem, ( macro.IsEntityWorldSystemMacro() ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsAbstract, pRecordDecl->isAbstract() );
 
                 pContext->m_pCurrentEntry = &classDescriptor;

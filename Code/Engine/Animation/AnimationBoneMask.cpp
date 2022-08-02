@@ -241,14 +241,10 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    BoneMaskPool::~BoneMaskPool()
+    BoneMaskPool::BoneMaskPool( Skeleton const* pSkeleton )
+        : m_firstFreePoolIdx( InvalidIndex )
     {
-        EE_ASSERT( m_pool.empty() && m_firstFreePoolIdx == InvalidIndex );
-    }
-
-    void BoneMaskPool::Initialize( Skeleton const* pSkeleton )
-    {
-        EE_ASSERT( m_pool.empty() );
+        EE_ASSERT( m_pool.empty() && pSkeleton != nullptr );
 
         for ( auto i = 0; i < s_initialPoolSize; i++ )
         {
@@ -258,7 +254,7 @@ namespace EE::Animation
         m_firstFreePoolIdx = 0;
     }
 
-    void BoneMaskPool::Shutdown()
+    BoneMaskPool::~BoneMaskPool()
     {
         for ( auto pMask : m_pool )
         {

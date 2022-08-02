@@ -1,6 +1,6 @@
 #include "Animation_RuntimeGraphNode_Transition.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionRecorder.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_CachedPose.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
@@ -262,7 +262,7 @@ namespace EE::Animation::GraphNodes
         // Update internal time and events
         //-------------------------------------------------------------------------
 
-        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEvents, options.m_sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, options.m_sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
         UpdateLayerContext( context, sourceLayerCtx, targetLayerCtx );
 
         // Pose Caching
@@ -646,7 +646,7 @@ namespace EE::Animation::GraphNodes
         auto const PercentageTimeDelta = Percentage( context.m_deltaTime / m_duration );
         m_previousTime = m_currentTime;
         m_currentTime = m_currentTime + PercentageTimeDelta;
-        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEvents, sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
         UpdateLayerContext( context, sourceLayerCtx, targetLayerCtx );
 
         // Caching
@@ -795,7 +795,7 @@ namespace EE::Animation::GraphNodes
 
         m_previousTime = m_syncTrack.GetPercentageThrough( updateRange.m_startTime );
         m_currentTime = m_syncTrack.GetPercentageThrough( updateRange.m_endTime );
-        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEvents, sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
         UpdateLayerContext( context, sourceLayerCtx, targetLayerCtx );
 
         // Cache the pose if we have any registered tasks

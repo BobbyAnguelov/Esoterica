@@ -822,7 +822,7 @@ namespace EE::Timeline
             {
                 if ( m_trackContainer.Contains( m_contextMenuState.m_pTrack ) )
                 {
-                    if ( ImGui::MenuItem( EE_ICON_PLUS" Add Item" ) )
+                    if ( m_contextMenuState.m_pTrack->CanCreateNewItems() && ImGui::MenuItem( EE_ICON_PLUS" Add Item" ) )
                     {
                         // Calculate the appropriate item start time
                         float itemStartTime = ( m_contextMenuState.m_playheadTimeForMouse < 0.0f ) ? m_playheadTime : m_contextMenuState.m_playheadTimeForMouse;
@@ -1226,7 +1226,10 @@ namespace EE::Timeline
         {
             for ( auto pTrack : m_selectedTracks )
             {
-                m_trackContainer.CreateItem( pTrack, m_playheadTime );
+                if( pTrack->CanCreateNewItems() )
+                {
+                    m_trackContainer.CreateItem( pTrack, m_playheadTime );
+                }
             }
         }
         else  if ( ImGui::IsKeyReleased( ImGuiKey_Delete ) )

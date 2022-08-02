@@ -42,11 +42,48 @@ namespace EE::Animation
         }
     }
 
-    void EventTrack::CreateItemInternal( float itemStartTime )
+    Timeline::TrackItem* EventTrack::CreateItemInternal( float itemStartTime )
     {
         auto pAnimEvent = Cast<Event>( GetEventTypeInfo()->CreateType() );
         float const duration = ( m_eventType == EventType::Duration ) ? 1.0f : 0.0f;
         FloatRange const itemRange( itemStartTime, itemStartTime + duration );
-        m_items.emplace_back( EE::New<Timeline::TrackItem>( itemRange, pAnimEvent ) );
+        auto pCreatedItem = m_items.emplace_back( EE::New<Timeline::TrackItem>( itemRange, pAnimEvent ) );
+        return pCreatedItem;
     };
+
+    Timeline::Track::Status EventTrack::GetValidationStatus() const
+    {
+        bool hasValidEvents = false;
+        bool hasInvalidEvents = false;
+
+        for ( auto pItem : m_items )
+        {
+            auto pAnimEvent = GetAnimEvent<Event>( pItem );
+            if ( pAnimEvent->IsValid() )
+            {
+                hasValidEvents = true;
+            }
+            else
+            {
+                hasInvalidEvents = true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Warning
+        if ( hasInvalidEvents && hasValidEvents )
+        {
+            m_statusMessage = "Track contains invalid events, these events will be ignored";
+            return Status::HasWarnings;
+        }
+        // Error
+        else if ( hasInvalidEvents && !hasValidEvents )
+        {
+            m_statusMessage = "Track doesnt contain any valid events!";
+            return Status::HasErrors;
+        }
+
+        return Status::Valid;
+    }
 }

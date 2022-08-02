@@ -75,6 +75,21 @@ namespace EE::VisualGraph
          GetParentGraph()->DestroyNode( m_ID );
     }
 
+    BaseGraph* BaseNode::GetRootGraph()
+    {
+        BaseGraph* pRootGraph = nullptr;
+
+        auto pParentGraph = GetParentGraph();
+        while ( pParentGraph != nullptr )
+        {
+            pRootGraph = pParentGraph;
+            auto pParentNode = pParentGraph->GetParentNode();
+            pParentGraph = ( pParentNode != nullptr ) ? pParentNode->GetParentGraph() : nullptr;
+        }
+
+        return pRootGraph;
+    }
+
     String BaseNode::GetPathFromRoot() const
     {
         TVector<BaseNode const*> path;

@@ -29,10 +29,7 @@ namespace EE::TypeSystem
 
     enum class TypeInfoMetaData
     {
-        Abstract,
-        Entity,
-        EntitySystem,
-        EntityComponent,
+        Abstract
     };
 
     //-------------------------------------------------------------------------

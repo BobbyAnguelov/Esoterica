@@ -19,6 +19,7 @@ namespace EE::TypeSystem::Reflection
         RegisterEntityComponent,
         RegisterSingletonEntityComponent,
         RegisterEntitySystem,
+        RegisterEntityWorldSystem,
         RegisterProperty,
         ExposeProperty,
 

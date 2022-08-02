@@ -337,28 +337,28 @@ namespace EE::Animation
 
             ImGuiX::TextSeparator( "Root Motion Debug" );
 
-            bool const isRootVisualizationOff = m_rootMotionDebugMode == RootMotionRecorderDebugMode::Off;
+            bool const isRootVisualizationOff = m_rootMotionDebugMode == RootMotionDebugMode::Off;
             if ( ImGui::RadioButton( "No Visualization##Root", isRootVisualizationOff ) )
             {
-                m_rootMotionDebugMode = RootMotionRecorderDebugMode::Off;
+                m_rootMotionDebugMode = RootMotionDebugMode::Off;
             }
 
-            bool const isRootVisualizationOn = m_rootMotionDebugMode == RootMotionRecorderDebugMode::DrawRoot;
+            bool const isRootVisualizationOn = m_rootMotionDebugMode == RootMotionDebugMode::DrawRoot;
             if ( ImGui::RadioButton( "Draw Root", isRootVisualizationOn ) )
             {
-                m_rootMotionDebugMode = RootMotionRecorderDebugMode::DrawRoot;
+                m_rootMotionDebugMode = RootMotionDebugMode::DrawRoot;
             }
 
-            bool const isRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionRecorderDebugMode::DrawRecordedRootMotion;
+            bool const isRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionDebugMode::DrawRecordedRootMotion;
             if ( ImGui::RadioButton( "Draw Recorded Root Motion", isRootMotionRecordingEnabled ) )
             {
-                m_rootMotionDebugMode = RootMotionRecorderDebugMode::DrawRecordedRootMotion;
+                m_rootMotionDebugMode = RootMotionDebugMode::DrawRecordedRootMotion;
             }
 
-            bool const isAdvancedRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionRecorderDebugMode::DrawRecordedRootMotionAdvanced;
+            bool const isAdvancedRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
             if ( ImGui::RadioButton( "Draw Advanced Recorded Root Motion", isAdvancedRootMotionRecordingEnabled ) )
             {
-                m_rootMotionDebugMode = RootMotionRecorderDebugMode::DrawRecordedRootMotionAdvanced;
+                m_rootMotionDebugMode = RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
             }
 
             //-------------------------------------------------------------------------

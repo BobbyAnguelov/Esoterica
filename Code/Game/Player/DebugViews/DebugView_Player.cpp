@@ -9,7 +9,8 @@
 #include "Engine/Physics/Debug/DebugView_Physics.h"
 
 // HACK
-#include "Game/Player/Actions/PlayerAction_Jump.h"
+#include "Game/Player/StateMachine/Actions/PlayerAction_Jump.h"
+#include "Game/Player/StateMachine/Actions/PlayerAction_Interact.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
 
 //-------------------------------------------------------------------------
@@ -303,6 +304,12 @@ namespace EE::Player
         if ( isChargedJumpReady )
         {
             statusString += "Charged Jump Ready";
+        }
+
+        bool const canInteract = static_cast<InteractAction const*>( pController->m_actionStateMachine.m_baseActions[ActionStateMachine::Interact] )->CanInteract();
+        if ( canInteract )
+        {
+            statusString += "Interact";
         }
 
         //-------------------------------------------------------------------------

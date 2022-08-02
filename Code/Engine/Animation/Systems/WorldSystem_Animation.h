@@ -12,14 +12,13 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class AnimationWorldSystem : public IWorldEntitySystem
+    class AnimationWorldSystem : public IEntityWorldSystem
     {
         friend class AnimationDebugView;
 
     public:
 
-        EE_REGISTER_TYPE( AnimationWorldSystem );
-        EE_ENTITY_WORLD_SYSTEM( AnimationWorldSystem );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( AnimationWorldSystem );
 
     private:
 

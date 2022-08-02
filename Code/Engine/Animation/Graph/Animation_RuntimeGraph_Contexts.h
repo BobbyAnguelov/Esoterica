@@ -4,6 +4,7 @@
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "System/Math/Transform.h"
 #include "System/Time/Time.h"
+#include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +14,7 @@ namespace EE::Physics { class Scene; }
 
 namespace EE::Animation
 {
-    class RootMotionRecorder;
+    class RootMotionDebugger;
     class TaskSystem;
     class Pose;
 
@@ -61,30 +62,30 @@ namespace EE::Animation
 
     class GraphContext final
     {
+        friend class GraphInstance;
 
     public:
 
-        GraphContext();
+        GraphContext( uint64_t userID, Skeleton const* pSkeleton );
+        ~GraphContext();
 
-        void Initialize( uint64_t userID, TaskSystem* pTaskSystem, Pose const* pPreviousPose, RootMotionRecorder* pRootMotionRecorder );
+        void Initialize( TaskSystem* pTaskSystem );
         void Shutdown();
 
-        inline bool IsValid() const { return m_pSkeleton != nullptr && m_pTaskSystem != nullptr && m_pPreviousPose != nullptr; }
+        inline bool IsValid() const { return m_pSkeleton != nullptr && m_pTaskSystem != nullptr; }
         void Update( Seconds const deltaTime, Transform const& currentWorldTransform, Physics::Scene* pPhysicsScene );
 
         // Debugging
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+        void SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList );
 
-        // Active nodes
-        inline void TrackActiveNode( int16_t nodeIdx ) { EE_ASSERT( nodeIdx != InvalidIndex ); m_activeNodes.emplace_back( nodeIdx ); }
-        inline TVector<int16_t> const& GetActiveNodes() const { return m_activeNodes; }
+        // Flag a node as active
+        inline void TrackActiveNode( int16_t nodeIdx ) { EE_ASSERT( nodeIdx != InvalidIndex ); m_pActiveNodes->emplace_back( nodeIdx ); }
 
         // Root Motion
-        inline RootMotionRecorder* GetRootMotionActionRecorder() { return m_pRootMotionActionRecorder; }
-        inline RootMotionRecorder const* GetRootMotionActionRecorder() const { return m_pRootMotionActionRecorder; }
-
+        inline RootMotionDebugger* GetRootMotionActionRecorder() { return m_pRootMotionActionRecorder; }
         #endif
 
     private:
@@ -94,27 +95,30 @@ namespace EE::Animation
 
     public:
 
-        uint64_t                                m_graphUserID = 0;
-        TaskSystem* const                       m_pTaskSystem = nullptr;
-        Skeleton const* const                   m_pSkeleton = nullptr;
-        Pose const* const                       m_pPreviousPose = nullptr;
+        // Set at construction
+        uint64_t                                m_graphUserID = 0; // The entity ID that owns this graph.
+        Skeleton const*                         m_pSkeleton = nullptr;
+        SampledEventsBuffer                     m_sampledEventsBuffer;
+        BoneMaskPool                            m_boneMaskPool;
+
+        // Set at initialization time
+        TaskSystem*                             m_pTaskSystem = nullptr;
+        Pose const*                             m_pPreviousPose = nullptr;
+
+        // Runtime Values
         Transform                               m_worldTransform = Transform::Identity;
         Transform                               m_worldTransformInverse = Transform::Identity;
-        SampledEventsBuffer                     m_sampledEvents;
         uint32_t                                m_updateID = 0;
         BranchState                             m_branchState = BranchState::Active;
         Physics::Scene*                         m_pPhysicsScene = nullptr;
-
-        BoneMaskPool                            m_boneMaskPool;
         GraphLayerContext                       m_layerContext;
         Seconds                                 m_deltaTime = 0.0f;
 
     private:
 
         #if EE_DEVELOPMENT_TOOLS
-        RootMotionRecorder* const               m_pRootMotionActionRecorder = nullptr; // Allows nodes to record root motion operations
-        TVector<int16_t>                        m_activeNodes;
+        RootMotionDebugger*                     m_pRootMotionActionRecorder = nullptr; // Allows nodes to record root motion operations
+        TVector<int16_t>*                       m_pActiveNodes = nullptr;
         #endif
     };
-
 }

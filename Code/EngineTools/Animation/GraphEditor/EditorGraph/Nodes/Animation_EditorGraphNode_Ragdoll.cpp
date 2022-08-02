@@ -59,7 +59,7 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIdx = context.RegisterSlotNode( GetID() );
+            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
             pSettings->m_profileID = m_profileID;
             pSettings->m_physicsBlendWeight = m_physicsBlendWeight;
             pSettings->m_isGravityEnabled = m_isGravityEnabled;

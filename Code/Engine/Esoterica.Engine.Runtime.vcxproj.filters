@@ -251,7 +251,7 @@
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Definition.cpp">
       <Filter>Animation\Graph</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_RootMotionRecorder.cpp">
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.cpp">
       <Filter>Animation\Graph</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.cpp">
@@ -408,6 +408,8 @@
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
     <ClCompile Include="Animation\AnimationPose.cpp" />
     <ClCompile Include="Animation\AnimationSkeleton.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
+    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -716,7 +718,7 @@
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Definition.h">
       <Filter>Animation\Graph</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_RootMotionRecorder.h">
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.h">
       <Filter>Animation\Graph</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.h">
@@ -873,6 +875,9 @@
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />
     <ClInclude Include="Animation\AnimationPose.h" />
     <ClInclude Include="Animation\AnimationSkeleton.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
+    <ClInclude Include="AI\Components\Component_AI.h" />
+    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

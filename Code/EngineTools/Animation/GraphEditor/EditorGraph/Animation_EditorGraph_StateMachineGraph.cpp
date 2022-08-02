@@ -44,7 +44,8 @@ namespace EE::Animation::GraphNodes
                     continue;
                 }
 
-                string += events[i].m_ID.c_str();
+                InlineString const eventStr( InlineString::CtorSprintf(), "%s (%.2fs)", events[i].m_ID.c_str(), events[i].m_timeValue.ToFloat() );
+                string += eventStr.c_str();
 
                 if ( i != events.size() - 1 )
                 {

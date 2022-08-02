@@ -21,9 +21,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API IWorldEntitySystem : public IRegisteredType
+    class EE_ENGINE_API IEntityWorldSystem : public IRegisteredType
     {
-        EE_REGISTER_TYPE( IWorldEntitySystem );
+        EE_REGISTER_TYPE( IEntityWorldSystem );
 
         friend class EntityWorld;
 
@@ -55,7 +55,8 @@ namespace EE
 
 //-------------------------------------------------------------------------
 
-#define EE_ENTITY_WORLD_SYSTEM( Type, ... )\
+#define EE_REGISTER_ENTITY_WORLD_SYSTEM( Type, ... )\
+    EE_REGISTER_TYPE( Type );\
     constexpr static uint32_t const s_entitySystemID = Hash::FNV1a::GetHash32( #Type );\
     virtual uint32_t GetSystemID() const override final { return Type::s_entitySystemID; }\
     static UpdatePriorityList const PriorityList;\

@@ -37,7 +37,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::InitializeInternal( context, initialTime );
         m_transitionState = TransitionState::None;
         m_elapsedTimeInState = 0.0f;
-        m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+        m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
 
         if ( m_pChildNode != nullptr )
         {
@@ -72,7 +72,7 @@ namespace EE::Animation::GraphNodes
         // Ensure that we get the exit Events when we destroy the state
         for ( auto const& exitEventID : pStateSettings->m_exitEvents )
         {
-            context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExit, exitEventID );
+            context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExit, exitEventID );
         }
 
         if ( m_pBoneMaskNode != nullptr )
@@ -109,11 +109,12 @@ namespace EE::Animation::GraphNodes
         // Since we update states before we register transitions, we need to ignore all previously sampled state events for this frame
         for ( auto i = m_sampledEventRange.m_startIdx; i < m_sampledEventRange.m_endIdx; i++ )
         {
-            if ( context.m_sampledEvents[i].GetSourceNodeIndex() == GetNodeIndex() )
+            SampledEventsBuffer& eventBuffer = context.m_sampledEventsBuffer;
+            if ( eventBuffer[i].GetSourceNodeIndex() == GetNodeIndex() )
             {
-                if ( context.m_sampledEvents[i].IsStateEvent() )
+                if ( eventBuffer[i].IsStateEvent() )
                 {
-                    context.m_sampledEvents[i].SetFlag( SampledEvent::Flags::Ignored, true );
+                    eventBuffer[i].SetFlag( SampledEvent::Flags::Ignored, true );
                 }
             }
         }
@@ -138,21 +139,21 @@ namespace EE::Animation::GraphNodes
         {
             for ( auto const& entryEventID : pStateSettings->m_entryEvents )
             {
-                context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateEntry, entryEventID );
+                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateEntry, entryEventID );
             }
         }
         else if ( m_transitionState == TransitionState::None && context.m_branchState == BranchState::Active )
         {
             for ( auto const& executeEventID : pStateSettings->m_executeEvents )
             {
-                context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExecute, executeEventID );
+                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExecute, executeEventID );
             }
         }
         else if ( m_transitionState == TransitionState::TransitioningOut || context.m_branchState == BranchState::Inactive )
         {
             for ( auto const& exitEventID : pStateSettings->m_exitEvents )
             {
-                context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExit, exitEventID );
+                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExit, exitEventID );
             }
         }
 
@@ -164,7 +165,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( currentTimeElapsed >= timedEvent.m_timeValue )
             {
-                context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateTimed, timedEvent.m_ID );
+                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateTimed, timedEvent.m_ID );
             }
         }
 
@@ -173,7 +174,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( currentTimeRemaining <= timedEvent.m_timeValue )
             {
-                context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateTimed, timedEvent.m_ID );
+                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateTimed, timedEvent.m_ID );
             }
         }
     }
@@ -231,6 +232,7 @@ namespace EE::Animation::GraphNodes
 
         // Update child
         GraphPoseNodeResult result;
+        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
 
         if ( m_pChildNode != nullptr && m_pChildNode->IsValid() )
         {
@@ -239,17 +241,16 @@ namespace EE::Animation::GraphNodes
             m_previousTime = m_pChildNode->GetPreviousTime();
             m_currentTime = m_pChildNode->GetCurrentTime();
         }
-        else
-        {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
-        }
 
         m_elapsedTimeInState += context.m_deltaTime;
 
         // Sample graph events ( we need to track the sampled range for this node explicitly )
         m_sampledEventRange = result.m_sampledEventRange;
         SampleStateEvents( context );
-        m_sampledEventRange.m_endIdx = context.m_sampledEvents.GetNumEvents();
+        m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
+
+        // Update the result sampled range
+        result.m_sampledEventRange = m_sampledEventRange;
 
         // Update layer context and return
         UpdateLayerContext( context );
@@ -275,7 +276,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         m_elapsedTimeInState += context.m_deltaTime;
@@ -283,7 +284,7 @@ namespace EE::Animation::GraphNodes
         // Sample graph events ( we need to track the sampled range for this node explicitly )
         m_sampledEventRange = result.m_sampledEventRange;
         SampleStateEvents( context );
-        m_sampledEventRange.m_endIdx = context.m_sampledEvents.GetNumEvents();
+        m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
 
         // Update layer context and return
         UpdateLayerContext( context );
@@ -307,14 +308,14 @@ namespace EE::Animation::GraphNodes
             // Update all previously sampled events from this state to be from the inactive branch
             for ( auto i = m_sampledEventRange.m_startIdx; i < m_sampledEventRange.m_endIdx; i++ )
             {
-                context.m_sampledEvents[i].SetFlag( SampledEvent::Flags::FromInactiveBranch, true );
+                context.m_sampledEventsBuffer[i].SetFlag(SampledEvent::Flags::FromInactiveBranch, true);
             }
 
             // Force sample exit events when we are being deactivated (may result in duplicate exit event for a frame)
             auto pStateSettings = GetSettings<StateNode>();
             for ( auto const& exitEventID : pStateSettings->m_exitEvents )
             {
-                context.m_sampledEvents.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExit, exitEventID );
+                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), SampledEvent::Flags::StateExit, exitEventID );
             }
         }
     }

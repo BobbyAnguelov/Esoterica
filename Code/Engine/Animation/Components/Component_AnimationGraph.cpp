@@ -10,13 +10,6 @@
 
 namespace EE::Animation
 {
-    AnimationGraphComponent::~AnimationGraphComponent()
-    {
-        #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( m_pRootMotionActionRecorder == nullptr );
-        #endif
-    }
-
     void AnimationGraphComponent::Initialize()
     {
         EntityComponent::Initialize();
@@ -30,22 +23,8 @@ namespace EE::Animation
 
         EE_ASSERT( m_pGraphVariation.IsLoaded() );
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_pRootMotionActionRecorder = EE::New<RootMotionRecorder>();
-        #endif
-
-        m_pPose = EE::New<Pose>( m_pGraphVariation->GetSkeleton() );
-        m_pPose->CalculateGlobalTransforms();
-
         m_pTaskSystem = EE::New<TaskSystem>( m_pGraphVariation->GetSkeleton() );
-
-        #if EE_DEVELOPMENT_TOOLS
-        m_graphContext.Initialize( GetEntityID().m_ID, m_pTaskSystem, m_pPose, m_pRootMotionActionRecorder );
-        #else
-        m_graphContext.Initialize( GetEntityID().m_ID, m_pTaskSystem, m_pPose, nullptr );
-        #endif
-
-        m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr() );
+        m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_ID );
     }
 
     void AnimationGraphComponent::Shutdown()
@@ -55,18 +34,12 @@ namespace EE::Animation
         {
             if ( m_pGraphInstance->IsInitialized() )
             {
-                m_pGraphInstance->Shutdown( m_graphContext );
+                m_pGraphInstance->Shutdown();
             }
-            m_graphContext.Shutdown();
         }
-
-        #if EE_DEVELOPMENT_TOOLS
-        EE::Delete( m_pRootMotionActionRecorder );
-        #endif
 
         EE::Delete( m_pTaskSystem );
         EE::Delete( m_pGraphInstance );
-        EE::Delete( m_pPose );
 
         EntityComponent::Shutdown();
     }
@@ -76,7 +49,6 @@ namespace EE::Animation
     void AnimationGraphComponent::SetGraphVariation( ResourceID graphResourceID )
     {
         EE_ASSERT( IsUnloaded() );
-
         EE_ASSERT( graphResourceID.IsValid() );
         m_pGraphVariation = graphResourceID;
     }
@@ -88,12 +60,17 @@ namespace EE::Animation
         return ( m_pGraphVariation != nullptr ) ? m_pGraphVariation->GetSkeleton() : nullptr;
     }
 
+    Pose const* AnimationGraphComponent::GetPose() const
+    {
+        return m_pTaskSystem->GetPose();
+    }
+
     void AnimationGraphComponent::ResetGraphState()
     {
         if ( m_pGraphInstance != nullptr )
         {
             EE_ASSERT( m_pGraphInstance->IsInitialized() );
-            m_pGraphInstance->Reset( m_graphContext );
+            m_pGraphInstance->ResetGraphState();
         }
         else
         {
@@ -104,28 +81,23 @@ namespace EE::Animation
     void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene )
     {
         EE_PROFILE_FUNCTION_ANIMATION();
-        m_graphContext.Update( deltaTime, characterWorldTransform, pPhysicsScene );
-
-        // Notify the root motion recorder we're starting an update
-        #if EE_DEVELOPMENT_TOOLS
-        m_pRootMotionActionRecorder->StartCharacterUpdate( characterWorldTransform );
-        #endif
 
         // Initialize graph on the first update
         if ( !m_pGraphInstance->IsInitialized() )
         {
-            m_pGraphInstance->Initialize( m_graphContext );
+            m_pGraphInstance->Initialize( m_pTaskSystem );
         }
 
         // Reset last frame's tasks
         m_pTaskSystem->Reset();
 
-        // Update the graph and record the root motion
-        GraphPoseNodeResult const result = m_pGraphInstance->UpdateGraph( m_graphContext );
+        // Update the graph
+        m_pGraphInstance->StartUpdate( deltaTime, characterWorldTransform, pPhysicsScene );
+        auto const result = m_pGraphInstance->UpdateGraph();
         m_rootMotionDelta = result.m_rootMotionDelta;
     }
 
-    void AnimationGraphComponent::ExecutePrePhysicsTasks( Transform const& characterWorldTransform )
+    void AnimationGraphComponent::ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform )
     {
         EE_PROFILE_FUNCTION_ANIMATION();
 
@@ -134,12 +106,9 @@ namespace EE::Animation
             return;
         }
 
-        // Notify the root motion recorder we're done with the character position update so it can track expected vs actual position
-        #if EE_DEVELOPMENT_TOOLS
-        m_pRootMotionActionRecorder->EndCharacterUpdate( characterWorldTransform );
-        #endif
-
-        m_pTaskSystem->UpdatePrePhysics( m_graphContext.m_deltaTime, characterWorldTransform, characterWorldTransform.GetInverse() );
+        // End graph update and calculate the pose
+        m_pGraphInstance->EndUpdate( characterWorldTransform );
+        m_pTaskSystem->UpdatePrePhysics( deltaTime, characterWorldTransform, characterWorldTransform.GetInverse() );
     }
 
     void AnimationGraphComponent::ExecutePostPhysicsTasks()
@@ -151,7 +120,7 @@ namespace EE::Animation
             return;
         }
 
-        m_pTaskSystem->UpdatePostPhysics( *m_pPose );
+        m_pTaskSystem->UpdatePostPhysics();
     }
 
     //-------------------------------------------------------------------------
@@ -165,15 +134,14 @@ namespace EE::Animation
         }
 
         m_pTaskSystem->DrawDebug( drawingContext );
-        m_pGraphInstance->DrawDebug( m_graphContext, drawingContext );
-        m_graphContext.GetRootMotionActionRecorder()->DrawDebug( drawingContext );
+        m_pGraphInstance->DrawDebug( drawingContext );
     }
 
     void AnimationGraphComponent::SetGraphDebugMode( GraphDebugMode mode )
     {
         if ( m_pGraphInstance != nullptr )
         {
-            m_pGraphInstance->SetDebugMode( mode );
+            m_pGraphInstance->SetGraphDebugMode( mode );
         }
         else
         {
@@ -184,7 +152,7 @@ namespace EE::Animation
     GraphDebugMode AnimationGraphComponent::GetGraphDebugMode() const
     {
         EE_ASSERT( HasGraphInstance() );
-        return m_pGraphInstance->GetDebugMode();
+        return m_pGraphInstance->GetGraphDebugMode();
     }
 
     void AnimationGraphComponent::SetGraphNodeDebugFilterList( TVector<int16_t> const& filterList )
@@ -217,11 +185,11 @@ namespace EE::Animation
         return m_pTaskSystem->GetDebugMode();
     }
 
-    void AnimationGraphComponent::SetRootMotionDebugMode( RootMotionRecorderDebugMode mode )
+    void AnimationGraphComponent::SetRootMotionDebugMode( RootMotionDebugMode mode )
     {
         if ( m_pGraphInstance != nullptr )
         {
-            m_graphContext.GetRootMotionActionRecorder()->SetDebugMode( mode );
+            m_pGraphInstance->SetRootMotionDebugMode( mode );
         }
         else
         {
@@ -229,10 +197,10 @@ namespace EE::Animation
         }
     }
 
-    RootMotionRecorderDebugMode AnimationGraphComponent::GetRootMotionDebugMode() const
+    RootMotionDebugMode AnimationGraphComponent::GetRootMotionDebugMode() const
     {
         EE_ASSERT( HasGraphInstance() );
-        return m_graphContext.GetRootMotionActionRecorder()->GetDebugMode();
+        return m_pGraphInstance->GetRootMotionDebugMode();
     }
     #endif
 }

@@ -16,6 +16,7 @@ namespace EE::TypeSystem::Reflection
         "EE_REGISTER_ENTITY_COMPONENT",
         "EE_REGISTER_SINGLETON_ENTITY_COMPONENT",
         "EE_REGISTER_ENTITY_SYSTEM",
+        "EE_REGISTER_ENTITY_WORLD_SYSTEM",
         "EE_REGISTER",
         "EE_EXPOSE",
     };

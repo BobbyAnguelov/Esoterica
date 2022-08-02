@@ -127,19 +127,37 @@ namespace EE::VisualGraph
         // Graphs
         //-------------------------------------------------------------------------
 
-        // Get the graph that we belong to
+        // Get the root graph
+        BaseGraph* GetRootGraph();
+
+        // Get the root graph
+        inline BaseGraph const* GetRootGraph() const { return const_cast<BaseNode*>( this )->GetRootGraph(); }
+
+        // Get our parent graph (all valid nodes should have a parent graph!)
         inline bool HasParentGraph() const { return m_pParentGraph != nullptr; }
+
+        // Get the graph that we belong to
         inline BaseGraph* GetParentGraph() { return m_pParentGraph; }
+
+        // Get the graph that we belong to
         inline BaseGraph const* GetParentGraph() const { return m_pParentGraph; }
 
         // Does this node represent a graph? e.g. a state machine node
         inline bool HasChildGraph() const { return m_pChildGraph != nullptr; }
+
+        // Get the child graph for this node
         inline BaseGraph const* GetChildGraph() const { return m_pChildGraph; }
+
+        // Get the child graph for this node
         inline BaseGraph* GetChildGraph() { return m_pChildGraph; }
 
         // Does this node have a graph that needs to be displayed in the secondary view? e.g. a condition graph for a selector node
         inline bool HasSecondaryGraph() const { return m_pSecondaryGraph != nullptr; }
+
+        // Get the secondary graph for this node
         inline BaseGraph* GetSecondaryGraph() { return m_pSecondaryGraph; }
+
+        // Get the secondary graph for this node
         inline BaseGraph const* GetSecondaryGraph() const { return m_pSecondaryGraph; }
 
         // Serialization

@@ -339,6 +339,7 @@
     <ClCompile Include="Animation\Events\AnimationEventTracks.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp" />
+    <ClCompile Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ExternalGraph.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource\RawFileInspector.h">
@@ -729,6 +730,7 @@
     <ClInclude Include="Animation\Events\AnimationEventTracks.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
+    <ClInclude Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ExternalGraph.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

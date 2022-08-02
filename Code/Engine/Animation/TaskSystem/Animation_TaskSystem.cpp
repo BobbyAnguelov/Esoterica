@@ -11,8 +11,10 @@ namespace EE::Animation
     TaskSystem::TaskSystem( Skeleton const* pSkeleton )
         : m_posePool( pSkeleton )
         , m_taskContext( m_posePool )
+        , m_finalPose( pSkeleton )
     {
         EE_ASSERT( pSkeleton != nullptr );
+        m_finalPose.CalculateGlobalTransforms();
     }
 
     TaskSystem::~TaskSystem()
@@ -137,7 +139,7 @@ namespace EE::Animation
         }
     }
 
-    void TaskSystem::UpdatePostPhysics( Pose& outPose )
+    void TaskSystem::UpdatePostPhysics()
     {
         m_taskContext.m_updateStage = TaskUpdateStage::PostPhysics;
 
@@ -169,22 +171,22 @@ namespace EE::Animation
             // Always return a non-additive pose
             if ( pResultPose->IsAdditivePose() )
             {
-                outPose.Reset( Pose::Type::ReferencePose );
+                m_finalPose.Reset( Pose::Type::ReferencePose );
                 TBitFlags<PoseBlendOptions> blendOptions( PoseBlendOptions::Additive );
-                Blender::Blend( &outPose, pResultPose, 1.0f, blendOptions, nullptr, &outPose );
+                Blender::Blend( &m_finalPose, pResultPose, 1.0f, blendOptions, nullptr, &m_finalPose );
             }
             else // Just copy the pose
             {
-                outPose.CopyFrom( pResultPoseBuffer->m_pose );
+                m_finalPose.CopyFrom( pResultPoseBuffer->m_pose );
             }
 
             // Calculate the global transforms and release the task pose buffer
-            outPose.CalculateGlobalTransforms();
+            m_finalPose.CalculateGlobalTransforms();
             m_posePool.ReleasePoseBuffer( pFinalTask->GetResultBufferIndex() );
         }
         else
         {
-            outPose.Reset( Pose::Type::ReferencePose, true );
+            m_finalPose.Reset( Pose::Type::ReferencePose, true );
         }
     }
 

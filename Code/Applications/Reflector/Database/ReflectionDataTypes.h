@@ -75,7 +75,8 @@ namespace EE::TypeSystem::Reflection
             IsEnum,
             IsEntity,
             IsEntityComponent,
-            IsEntitySystem
+            IsEntitySystem,
+            IsEntityWorldSystem
         };
 
     public:
@@ -92,6 +93,7 @@ namespace EE::TypeSystem::Reflection
         inline bool IsEntity() const { return m_flags.IsFlagSet( Flags::IsEntity ); }
         inline bool IsEntityComponent() const { return m_flags.IsFlagSet( Flags::IsEntityComponent ); }
         inline bool IsEntitySystem() const { return m_flags.IsFlagSet( Flags::IsEntitySystem ); }
+        inline bool IsEntityWorldSystem() const { return m_flags.IsFlagSet( Flags::IsEntityWorldSystem ); }
 
         // Structure functions
         inline bool IsDerivedType() const { return !m_parents.empty(); }

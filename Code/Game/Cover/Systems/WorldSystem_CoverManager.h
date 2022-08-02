@@ -12,14 +12,13 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_GAME_API CoverManager : public IWorldEntitySystem
+    class EE_GAME_API CoverManager : public IEntityWorldSystem
     {
         friend class CoverDebugView;
 
     public:
 
-        EE_REGISTER_TYPE( CoverManager );
-        EE_ENTITY_WORLD_SYSTEM( CoverManager, RequiresUpdate( UpdateStage::PrePhysics ) );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( CoverManager, RequiresUpdate( UpdateStage::PrePhysics ) );
 
     private:
 

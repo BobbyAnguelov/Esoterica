@@ -292,16 +292,16 @@ namespace EE::Animation
         }
 
         template<typename T>
-        EE_FORCE_INLINE void SetValue( GraphContext& context, T const& outValue )
+        EE_FORCE_INLINE void SetValue( T const& outValue )
         {
             EE_ASSERT( ValueTypeValidation<T>::Type == GetValueType() );
-            SetValueInternal( context, &outValue );
+            SetValueInternal( &outValue );
         }
 
     protected:
 
         virtual void GetValueInternal( GraphContext& context, void* pValue ) = 0;
-        virtual void SetValueInternal( GraphContext& context, void const* pValue ) { EE_ASSERT( false ); };
+        virtual void SetValueInternal( void const* pValue ) { EE_ASSERT( false ); };
     };
 
     //-------------------------------------------------------------------------

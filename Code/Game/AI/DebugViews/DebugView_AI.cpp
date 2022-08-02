@@ -1,5 +1,5 @@
 #include "DebugView_AI.h"
-#include "Game/AI/Systems/WorldSystem_AIManager.h"
+#include "Engine/AI/Systems/WorldSystem_AIManager.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"

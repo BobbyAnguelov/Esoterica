@@ -37,7 +37,7 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API PhysicsWorldSystem final : public IWorldEntitySystem
+    class EE_ENGINE_API PhysicsWorldSystem final : public IEntityWorldSystem
     {
         friend class PhysicsDebugView;
         friend class PhysicsRenderer;
@@ -51,8 +51,7 @@ namespace EE::Physics
 
     public:
 
-        EE_REGISTER_TYPE( PhysicsWorldSystem );
-        EE_ENTITY_WORLD_SYSTEM( PhysicsWorldSystem, RequiresUpdate( UpdateStage::Physics ), RequiresUpdate( UpdateStage::PostPhysics ) );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( PhysicsWorldSystem, RequiresUpdate( UpdateStage::Physics ), RequiresUpdate( UpdateStage::PostPhysics ) );
 
     public:
 

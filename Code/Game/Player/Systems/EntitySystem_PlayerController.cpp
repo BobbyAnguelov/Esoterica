@@ -1,8 +1,8 @@
 #include "EntitySystem_PlayerController.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/PlayerPhysicsController.h"
-#include "Game/Player/PlayerAnimationController.h"
-#include "Game/Player/PlayerCameraController.h"
+#include "Game/Player/Physics/PlayerPhysicsController.h"
+#include "Game/Player/Camera/PlayerCameraController.h"
+#include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Controller.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
@@ -91,6 +91,7 @@ namespace EE::Player
             EE_ASSERT( m_actionContext.m_pCharacterComponent == pCharacterPhysicsComponent );
             m_actionContext.m_pCharacterComponent = nullptr;
 
+            m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pCharacterController );
         }
 
@@ -99,6 +100,7 @@ namespace EE::Player
             EE_ASSERT( m_pCameraComponent == pCameraComponent );
             m_pCameraComponent = nullptr;
 
+            m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pCameraController );
         }
 
@@ -106,6 +108,7 @@ namespace EE::Player
         {
             EE_ASSERT( m_actionContext.m_pPlayerComponent == pPlayerComponent );
             m_actionContext.m_pPlayerComponent = nullptr;
+            m_actionStateMachine.ForceStopAllRunningActions();
         }
 
         else if ( auto pCharacterMeshComponent = TryCast<Render::CharacterMeshComponent>( pComponent ) )
@@ -113,6 +116,7 @@ namespace EE::Player
             EE_ASSERT( m_pCharacterMeshComponent != nullptr );
             m_pCharacterMeshComponent = nullptr;
 
+            m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pAnimationController );
         }
 
@@ -122,6 +126,7 @@ namespace EE::Player
             EE_ASSERT( m_pAnimGraphComponent != nullptr );
             m_pAnimGraphComponent = nullptr;
 
+            m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pAnimationController );
         }
     }
@@ -161,7 +166,9 @@ namespace EE::Player
             m_actionContext.m_pPlayerComponent->UpdateState( m_actionContext.GetDeltaTime() );
 
             // Update animation and get root motion delta (remember that root motion is in character space, so we need to convert the displacement to world space)
+            m_actionContext.m_pAnimationController->PreGraphUpdate( ctx.GetDeltaTime() );
             m_pAnimGraphComponent->EvaluateGraph( ctx.GetDeltaTime(), m_pCharacterMeshComponent->GetWorldTransform(), m_actionContext.m_pPhysicsScene );
+            m_actionContext.m_pAnimationController->PostGraphUpdate( ctx.GetDeltaTime() );
             Vector const& deltaTranslation = m_pCharacterMeshComponent->GetWorldTransform().RotateVector( m_pAnimGraphComponent->GetRootMotionDelta().GetTranslation() );
             Quaternion const& deltaRotation = m_pAnimGraphComponent->GetRootMotionDelta().GetRotation();
 
@@ -169,7 +176,7 @@ namespace EE::Player
             m_actionContext.m_pCharacterController->TryMoveCapsule( ctx, m_actionContext.m_pPhysicsScene, deltaTranslation, deltaRotation );
 
             // Run animation pose tasks
-            m_pAnimGraphComponent->ExecutePrePhysicsTasks( m_pCharacterMeshComponent->GetWorldTransform() );
+            m_pAnimGraphComponent->ExecutePrePhysicsTasks( ctx.GetDeltaTime(), m_pCharacterMeshComponent->GetWorldTransform() );
 
             // Update camera position relative to new character position
             m_actionContext.m_pCameraController->FinalizeCamera();

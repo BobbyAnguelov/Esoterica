@@ -1,6 +1,6 @@
 #include "Animation_RuntimeGraphNode_Layers.h"
 #include "Animation_RuntimeGraphNode_StateMachine.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionRecorder.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
@@ -252,11 +252,11 @@ namespace EE::Animation::GraphNodes
             if ( numLayerEvents > 0 )
             {
                 // Update events and mark them as ignored if requested
-                context.m_sampledEvents.UpdateWeights( layerEventRange, context.m_layerContext.m_layerWeight );
+                context.m_sampledEventsBuffer.UpdateWeights( layerEventRange, context.m_layerContext.m_layerWeight );
 
                 if ( pSettings->m_layerSettings[i].m_ignoreEvents )
                 {
-                    context.m_sampledEvents.SetFlag( layerEventRange, SampledEvent::Flags::Ignored );
+                    context.m_sampledEventsBuffer.SetFlag( layerEventRange, SampledEvent::Flags::Ignored );
                 }
 
                 // Merge layer sampled event into the layer's nodes range

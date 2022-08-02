@@ -105,10 +105,10 @@ namespace EE::Animation::GraphNodes
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numEventIDs );
 
         // Limit event search range to the source state if set (in the context of a transition condition)
-        SampledEventRange searchRange( 0, context.m_sampledEvents.GetNumEvents() );
+        SampledEventRange searchRange( 0, context.m_sampledEventsBuffer.GetNumEvents() );
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
-            auto const& sampledEvent = context.m_sampledEvents[i];
+            auto const& sampledEvent = context.m_sampledEventsBuffer[i];
 
             //-------------------------------------------------------------------------
 
@@ -213,7 +213,7 @@ namespace EE::Animation::GraphNodes
             if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
             {
                 // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEvents.GetNumEvents();
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
             }
             else // Only search the sampled event range for the child node
             {
@@ -223,7 +223,7 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            SampledEvent const* pDominantSampledEvent = GetDominantEvent<IDEvent>( context.m_sampledEvents, searchRange, pSettings->m_preferHighestPercentageThrough );
+            SampledEvent const* pDominantSampledEvent = GetDominantEvent<IDEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
 
             //-------------------------------------------------------------------------
 
@@ -285,7 +285,7 @@ namespace EE::Animation::GraphNodes
             if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
             {
                 // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEvents.GetNumEvents();
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
             }
             else // Only search the sampled event range for the child node
             {
@@ -295,7 +295,7 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            SampledEvent const* pDominantSampledEvent = GetDominantEvent<FootEvent>( context.m_sampledEvents, searchRange, pSettings->m_preferHighestPercentageThrough );
+            SampledEvent const* pDominantSampledEvent = GetDominantEvent<FootEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
 
             // Check event data if the specified event is found
             //-------------------------------------------------------------------------
@@ -381,7 +381,7 @@ namespace EE::Animation::GraphNodes
             if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
             {
                 // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEvents.GetNumEvents();
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
             }
             else // Only search the sampled event range for the child node
             {
@@ -391,7 +391,7 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            SampledEvent const* pDominantSampledEvent = GetDominantEvent<FootEvent>( context.m_sampledEvents, searchRange, pSettings->m_preferHighestPercentageThrough );
+            SampledEvent const* pDominantSampledEvent = GetDominantEvent<FootEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
 
             // Check event data if the specified event is found
             //-------------------------------------------------------------------------

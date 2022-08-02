@@ -191,7 +191,7 @@ namespace EE::Animation
                     }
 
                     // Calculate pose tasks
-                    pAnimComponent->ExecutePrePhysicsTasks( characterWorldTransform );
+                    pAnimComponent->ExecutePrePhysicsTasks( ctx.GetDeltaTime(), characterWorldTransform );
                 }
             }
         }

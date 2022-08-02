@@ -47,14 +47,14 @@ namespace EE::Animation
 
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const = 0;
         virtual bool AllowMultipleTracks() const { return false; }
-        virtual int32_t GetMaxEventsAllowedPerTrack() const { return -1; }
         virtual EventType GetAllowedEventType() const { return EventType::Duration; }
 
     protected:
 
+        virtual Status GetValidationStatus() const override;
         virtual bool HasContextMenu() const override { return true; }
         virtual void DrawContextMenu( TVector<Track*>& tracks, float playheadPosition ) override;
-        virtual void CreateItemInternal( float itemStartTime ) override;
+        virtual Timeline::TrackItem* CreateItemInternal( float itemStartTime ) override;
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) override;
 
     protected:

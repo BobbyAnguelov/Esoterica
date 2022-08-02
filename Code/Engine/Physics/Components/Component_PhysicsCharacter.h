@@ -35,7 +35,7 @@ namespace EE::Physics
         EE_FORCE_INLINE float GetCharacterHeight() const { return ( m_radius + m_cylinderPortionHalfHeight ) * 2; }
 
         // Get the current linear velocity (m/s)
-        EE_FORCE_INLINE Vector const GetCharacterVelocity() const { return m_linearVelocity; }
+        EE_FORCE_INLINE Vector const& GetCharacterVelocity() const { return m_linearVelocity; }
 
         // Clear character velocity
         EE_FORCE_INLINE void ClearCharacterVelocity() { m_linearVelocity = Vector::Zero; }

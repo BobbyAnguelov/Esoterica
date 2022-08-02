@@ -30,6 +30,8 @@ namespace EE::Animation
         Event() = default;
         virtual ~Event() = default;
 
+        virtual bool IsValid() const { return true; }
+
         inline Seconds GetStartTime() const { return m_startTime; }
         inline Seconds GetDuration() const { return m_duration; }
         inline Seconds GetEndTime() const { EE_ASSERT( IsDurationEvent() ); return m_startTime + m_duration; }

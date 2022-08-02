@@ -37,6 +37,7 @@ namespace EE::Animation
         m_graphInstanceRequiredAlignment = alignof( bool );
 
         m_registeredDataSlots.clear();
+        m_registeredExternalGraphSlots.clear();
         m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
         m_transitionDuration = 0;
         m_transitionDurationOverrideIdx = InvalidIndex;
@@ -97,6 +98,7 @@ namespace EE::Animation
         m_runtimeGraph.m_instanceRequiredAlignment = m_context.m_graphInstanceRequiredAlignment;
         m_runtimeGraph.m_numControlParameters = numControlParameters;
         m_runtimeGraph.m_rootNodeIdx = rootNodeIdx;
+        m_runtimeGraph.m_externalGraphSlots = m_context.m_registeredExternalGraphSlots;
 
         for ( uint32_t i = 0; i < numControlParameters; i++ )
         {

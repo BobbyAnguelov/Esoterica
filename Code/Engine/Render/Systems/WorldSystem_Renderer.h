@@ -23,15 +23,14 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API RendererWorldSystem final : public IWorldEntitySystem
+    class EE_ENGINE_API RendererWorldSystem final : public IEntityWorldSystem
     {
         friend class WorldRenderer;
         friend class RenderDebugView;
 
     public:
 
-        EE_REGISTER_TYPE( RendererWorldSystem );
-        EE_ENTITY_WORLD_SYSTEM( RendererWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ), RequiresUpdate( UpdateStage::Paused ) );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( RendererWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ), RequiresUpdate( UpdateStage::Paused ) );
 
         #if EE_DEVELOPMENT_TOOLS
         enum class VisualizationMode : int8_t

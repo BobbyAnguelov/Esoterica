@@ -141,6 +141,10 @@
       "Command": "Animation",
       "Items": [
         {
+          "Id": "6b989043-19e7-4e28-af7d-b52083f606dc",
+          "Command": "-compile data://testgraph_default.agv"
+        },
+        {
           "Id": "18600ef1-5e40-4df8-b32b-d49a781d41ea",
           "Command": "-compile data://packs/amplify/idle.anim"
         },

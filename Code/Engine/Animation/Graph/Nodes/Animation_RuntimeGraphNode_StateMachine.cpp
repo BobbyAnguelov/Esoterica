@@ -279,7 +279,7 @@ namespace EE::Animation::GraphNodes
             m_currentTime = m_pActiveTransition->GetCurrentTime();
         }
 
-        EE_ASSERT( context.m_sampledEvents.IsValidRange( result.m_sampledEventRange ) );
+        EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
 
         // Check for a valid transition, if one exists start it
         if ( context.m_branchState == BranchState::Active )
@@ -319,7 +319,7 @@ namespace EE::Animation::GraphNodes
             m_currentTime = m_pActiveTransition->GetCurrentTime();
         }
 
-        EE_ASSERT( context.m_sampledEvents.IsValidRange( result.m_sampledEventRange ) );
+        EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
 
         // Check for a valid transition, if one exists start it
         if ( context.m_branchState == BranchState::Active )

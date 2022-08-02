@@ -29,16 +29,13 @@ namespace EE::TypeSystem::Reflection
         inline bool IsModuleMacro() const { return m_type == ReflectionMacro::RegisterModule; }
         inline bool IsEnumMacro() const { return m_type == ReflectionMacro::RegisterEnum; }
         inline bool IsEntitySystemMacro() const { return m_type == ReflectionMacro::RegisterEntitySystem; }
-        
-        inline bool IsEntityComponentMacro() const 
-        {
-            return m_type == ReflectionMacro::RegisterEntityComponent || m_type == ReflectionMacro::RegisterSingletonEntityComponent; 
-        }
+        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectionMacro::RegisterEntityWorldSystem; }
+        inline bool IsEntityComponentMacro() const { return m_type == ReflectionMacro::RegisterEntityComponent || m_type == ReflectionMacro::RegisterSingletonEntityComponent; }
 
         // Should be registered as a type
         inline bool IsRegisteredTypeMacro() const 
         { 
-            return m_type == ReflectionMacro::RegisterType || IsEntitySystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacro::RegisterTypeResource; 
+            return m_type == ReflectionMacro::RegisterType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacro::RegisterTypeResource;
         }
         
         // Should be registered as a resource

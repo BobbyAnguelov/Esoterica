@@ -68,7 +68,7 @@ namespace EE
         // Systems
         //-------------------------------------------------------------------------
 
-        IWorldEntitySystem* GetWorldSystem( uint32_t worldSystemID ) const;
+        IEntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
 
         template<typename T>
         inline T* GetWorldSystem() const { return static_cast<T*>( GetWorldSystem( T::s_entitySystemID ) ); }
@@ -236,7 +236,7 @@ namespace EE
         Input::InputState                                                       m_inputState;
         EntityModel::EntityLoadingContext                                       m_loadingContext;
         EntityModel::ActivationContext                                          m_activationContext;
-        TVector<IWorldEntitySystem*>                                            m_worldSystems;
+        TVector<IEntityWorldSystem*>                                            m_worldSystems;
         EntityWorldType                                                         m_worldType = EntityWorldType::Game;
         bool                                                                    m_initialized = false;
         bool                                                                    m_isSuspended = false;
@@ -247,7 +247,7 @@ namespace EE
 
         // Entities
         TVector<Entity*>                                                        m_entityUpdateList;
-        TVector<IWorldEntitySystem*>                                            m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
+        TVector<IEntityWorldSystem*>                                            m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
 
         // Time Scaling + Pause
         float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused

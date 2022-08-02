@@ -3,7 +3,6 @@
 #include "Engine/Entity/EntityComponent.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionRecorder.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
@@ -11,7 +10,7 @@
 namespace EE::Animation
 {
     enum class TaskSystemDebugMode;
-    enum class RootMotionRecorderDebugMode;
+    enum class RootMotionDebugMode;
 
     //-------------------------------------------------------------------------
 
@@ -20,19 +19,19 @@ namespace EE::Animation
         EE_REGISTER_ENTITY_COMPONENT( AnimationGraphComponent );
 
         friend class AnimationDebugView;
+        friend class GraphController;
 
     public:
 
         inline AnimationGraphComponent() = default;
         inline AnimationGraphComponent( StringID name ) : EntityComponent( name ) {}
-        virtual ~AnimationGraphComponent();
 
         //-------------------------------------------------------------------------
 
         inline bool HasGraph() const { return m_pGraphVariation != nullptr; }
         inline bool HasGraphInstance() const { return m_pGraphInstance != nullptr; }
         Skeleton const* GetSkeleton() const;
-        Pose const* GetPose() const { return m_pPose; }
+        Pose const* GetPose() const;
 
         // Does this component require a manual update via a custom entity system?
         inline bool RequiresManualUpdate() const { return m_requiresManualUpdate; }
@@ -60,7 +59,7 @@ namespace EE::Animation
         void EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene );
 
         // This function will execute all pre-physics tasks - it assumes that the character has already been moved in the scene, so expects the final transform for this frame
-        void ExecutePrePhysicsTasks( Transform const& characterWorldTransform );
+        void ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform );
 
         // The function will execute the post-physics tasks (if any)
         void ExecutePostPhysicsTasks();
@@ -72,14 +71,14 @@ namespace EE::Animation
         void SetControlParameterValue( int16_t parameterIdx, ParameterType const& value )
         {
             EE_ASSERT( m_pGraphInstance != nullptr );
-            m_pGraphInstance->SetControlParameterValue( m_graphContext, parameterIdx, value );
+            m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
         }
 
         template<typename ParameterType>
         ParameterType GetControlParameterValue( int16_t parameterIdx ) const
         {
             EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->GetControlParameterValue<ParameterType>( const_cast<GraphContext&>( m_graphContext ), parameterIdx );
+            return m_pGraphInstance->GetControlParameterValue<ParameterType>( parameterIdx );
         }
 
         EE_FORCE_INLINE int16_t GetControlParameterIndex( StringID parameterID ) const
@@ -88,7 +87,7 @@ namespace EE::Animation
             return m_pGraphInstance->GetControlParameterIndex( parameterID );
         }
 
-        EE_FORCE_INLINE GraphValueType GetControlParameterValueType( int16_t parameterIdx ) const
+        EE_FORCE_INLINE GraphValueType GetControlParameterType( int16_t parameterIdx ) const
         {
             EE_ASSERT( m_pGraphInstance != nullptr );
             return m_pGraphInstance->GetControlParameterType( parameterIdx );
@@ -101,20 +100,20 @@ namespace EE::Animation
         inline bool IsNodeActive( int16_t nodeIdx ) const
         {
             EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->IsNodeActive( const_cast<GraphContext&>( m_graphContext ), nodeIdx );
+            return m_pGraphInstance->IsNodeActive( nodeIdx );
         }
 
         inline PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t nodeIdx ) const
         {
             EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->GetPoseNodeDebugInfo( const_cast<GraphContext&>( m_graphContext ), nodeIdx );
+            return m_pGraphInstance->GetPoseNodeDebugInfo( nodeIdx );
         }
 
         template<typename T>
         inline T GetRuntimeNodeValue( int16_t nodeIdx ) const
         {
             EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->GetRuntimeNodeValue<T>( const_cast<GraphContext&>( m_graphContext ), nodeIdx );
+            return m_pGraphInstance->GetRuntimeNodeValue<T>( nodeIdx );
         }
 
         // Graph debug
@@ -127,8 +126,8 @@ namespace EE::Animation
         TaskSystemDebugMode GetTaskSystemDebugMode() const;
 
         // Root motion debug
-        void SetRootMotionDebugMode( RootMotionRecorderDebugMode mode );
-        RootMotionRecorderDebugMode GetRootMotionDebugMode() const;
+        void SetRootMotionDebugMode( RootMotionDebugMode mode );
+        RootMotionDebugMode GetRootMotionDebugMode() const;
 
         // Draw all debug visualizations
         void DrawDebug( Drawing::DrawContext& drawingContext );
@@ -141,19 +140,13 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE TResourcePtr<GraphVariation>                 m_pGraphVariation = nullptr;
+        EE_EXPOSE TResourcePtr<GraphVariation>                  m_pGraphVariation = nullptr;
 
         GraphInstance*                                          m_pGraphInstance = nullptr;
         TaskSystem*                                             m_pTaskSystem = nullptr;
-
+        SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
-        GraphContext                                            m_graphContext;
-        Pose*                                                   m_pPose = nullptr;
-        EE_EXPOSE bool                                         m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?
-        EE_EXPOSE bool                                         m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
-
-        #if EE_DEVELOPMENT_TOOLS
-        RootMotionRecorder*                                     m_pRootMotionActionRecorder = nullptr; // Allows nodes to record root motion operations
-        #endif
+        EE_EXPOSE bool                                          m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?
+        EE_EXPOSE bool                                          m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
     };
 }

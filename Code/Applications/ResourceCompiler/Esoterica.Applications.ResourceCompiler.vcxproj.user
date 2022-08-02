@@ -3,8 +3,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-compile data://packs/amplify/idle.anim</LocalDebuggerCommandArguments>
-    <RemoteDebuggerCommandArguments>-compile data://packs/amplify/idle.anim</RemoteDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-compile data://testgraph_default.agv</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>-compile data://testgraph_default.agv</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>

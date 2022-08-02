@@ -41,9 +41,8 @@ namespace EE::Animation
                 }
             }
 
-            virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( GetColorForValueType( GetValueType() ) ); }
-
-            virtual ImColor GetPinColor( VisualGraph::Flow::Pin const& pin ) const override { return ImGuiX::ConvertColor( GetColorForValueType( (GraphValueType) pin.m_type ) ); }
+            virtual ImColor GetTitleBarColor() const override;
+            virtual ImColor GetPinColor( VisualGraph::Flow::Pin const& pin ) const override;
 
             // Get the types of graphs that this node is allowed to be placed in
             virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const = 0;

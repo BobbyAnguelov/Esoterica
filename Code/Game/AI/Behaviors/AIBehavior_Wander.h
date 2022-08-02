@@ -1,7 +1,7 @@
 #pragma once
 #include "AIBehavior.h"
-#include "Actions/AIAction_MoveTo.h"
-#include "Actions/AIAction_Idle.h"
+#include "Game/AI/Actions/AIAction_MoveTo.h"
+#include "Game/AI/Actions/AIAction_Idle.h"
 
 //-------------------------------------------------------------------------
 

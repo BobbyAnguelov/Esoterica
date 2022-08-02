@@ -1,6 +1,6 @@
 #include "Animation_RuntimeGraphNode_AnimationClip.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionRecorder.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Sample.h"
@@ -154,7 +154,7 @@ namespace EE::Animation::GraphNodes
         auto pSettings = GetSettings<AnimationClipNode>();
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = context.m_sampledEvents.GetNumEvents();
+        result.m_sampledEventRange = context.m_sampledEventsBuffer.GetNumEvents();
 
         // Events
         //-------------------------------------------------------------------------
@@ -193,7 +193,7 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            auto& createdEvent = context.m_sampledEvents.EmplaceAnimEvent( GetNodeIndex(), pEvent, percentageThroughEvent );
+            auto& createdEvent = context.m_sampledEventsBuffer.EmplaceAnimEvent( GetNodeIndex(), pEvent, percentageThroughEvent );
 
             if ( isFromInactiveBranch )
             {
@@ -201,7 +201,7 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        result.m_sampledEventRange.m_endIdx = context.m_sampledEvents.GetNumEvents();
+        result.m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
 
         // Root Motion
         //-------------------------------------------------------------------------

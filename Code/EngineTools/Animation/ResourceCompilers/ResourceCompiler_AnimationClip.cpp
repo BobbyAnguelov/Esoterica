@@ -474,7 +474,7 @@ namespace EE::Animation
         FloatRange const animationTimeRange( 0, numIntervals );
         for ( Timeline::Track* pTrack : trackContainer.m_tracks )
         {
-            if ( pTrack->GetStatus() == Timeline::Track::Status::HasErrors )
+            if ( pTrack->GetValidationStatus() == Timeline::Track::Status::HasErrors )
             {
                 if ( pTrack->IsRenameable() )
                 {
@@ -491,7 +491,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            if ( pTrack->GetStatus() != Timeline::Track::Status::HasWarnings )
+            if ( pTrack->GetValidationStatus() != Timeline::Track::Status::HasWarnings )
             {
                 if ( pTrack->IsRenameable() )
                 {
@@ -515,6 +515,12 @@ namespace EE::Animation
             for ( auto const pItem : pTrack->GetItems() )
             {
                 auto pEvent = Cast<Event>( pItem->GetData() );
+
+                if ( !pEvent->IsValid() )
+                {
+                    Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    continue;
+                }
 
                 // Add event
                 //-------------------------------------------------------------------------

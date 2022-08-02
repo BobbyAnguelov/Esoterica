@@ -13,7 +13,7 @@ namespace EE::Animation
     class AnimationWorldSystem;
     class AnimationGraphComponent;
     class TaskSystem;
-    class RootMotionRecorder;
+    class RootMotionDebugger;
 
     //-------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ namespace EE::Animation
     private:
 
         static void DrawTaskTreeRow( AnimationGraphComponent* pGraphComponent, TaskSystem* pTaskSystem, TaskIndex currentTaskIdx );
-        static void DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionRecorder* pRootMotionRecorder, int16_t currentActionIdx );
+        static void DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx );
 
     public:
 

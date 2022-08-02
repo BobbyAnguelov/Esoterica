@@ -263,6 +263,15 @@ namespace EE::Animation
         EE_FORCE_INLINE SampledEvent& operator[]( uint32_t i ) { EE_ASSERT( i < m_events.size() ); return m_events[i]; }
         EE_FORCE_INLINE SampledEvent const& operator[]( uint32_t i ) const { EE_ASSERT( i < m_events.size() ); return m_events[i]; }
 
+        // Misc
+        //-------------------------------------------------------------------------
+
+        inline void Append( SampledEventsBuffer const& otherBuffer )
+        {
+            m_events.reserve( m_events.size() + otherBuffer.m_events.size() );
+            m_events.insert( m_events.end(), otherBuffer.m_events.begin(), otherBuffer.m_events.end() );
+        }
+
     public:
 
         TVector<SampledEvent>               m_events;

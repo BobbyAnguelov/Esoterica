@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( GraphContext& context, void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override;
 
     private:
 
@@ -45,7 +45,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( GraphContext& context, void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override;
 
     private:
 
@@ -67,7 +67,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( GraphContext& context, void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override;
 
     private:
 
@@ -89,7 +89,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( GraphContext& context, void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override;
 
     private:
 
@@ -111,7 +111,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( GraphContext& context, void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override;
 
     private:
 
@@ -133,7 +133,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( GraphContext& context, void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override;
 
     private:
 

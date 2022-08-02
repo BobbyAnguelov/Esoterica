@@ -68,7 +68,7 @@ namespace EE::Timeline
 
         constexpr static char const* const statusIcons[3] = { EE_ICON_CHECK, EE_ICON_ALERT_RHOMBUS, EE_ICON_ALERT };
         static Color statusColors[3] = { Colors::LimeGreen, Colors::Gold, Colors::Red };
-        auto const status = GetStatus();
+        auto const status = GetValidationStatus();
 
         float const iconWidth = ImGui::CalcTextSize( statusIcons[(int32_t) status] ).x + 2;
         ImGui::PushStyleColor( ImGuiCol_Text, statusColors[(int32_t) status].ToUInt32_ABGR() );
@@ -114,5 +114,27 @@ namespace EE::Timeline
         {
             pItem->ClearDirtyFlag();
         }
+    }
+
+    void Track::CreateItem( float itemStartTime )
+    {
+        auto pCreatedItem = CreateItemInternal( itemStartTime );
+        EE_ASSERT( pCreatedItem != nullptr );
+        PostCreateItem( pCreatedItem );
+        m_isDirty = true;
+    };
+
+    bool Track::DeleteItem( TrackItem* pItem )
+    {
+        auto foundIter = eastl::find( m_items.begin(), m_items.end(), pItem );
+        if ( foundIter != m_items.end() )
+        {
+            EE::Delete( *foundIter );
+            m_items.erase( foundIter );
+            m_isDirty = true;
+            return true;
+        }
+
+        return false;
     }
 }

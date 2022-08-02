@@ -1,7 +1,7 @@
 #include "EntitySystem_AIController.h"
-#include "Game/AI/AIPhysicsController.h"
-#include "Game/AI/AIAnimationController.h"
-#include "Game/AI/Components/Component_AI.h"
+#include "Game/AI/Physics/AIPhysicsController.h"
+#include "Game/AI/Animation/AIAnimationController.h"
+#include "Engine/AI/Components/Component_AI.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
@@ -139,7 +139,7 @@ namespace EE::AI
             m_behaviorContext.m_pCharacterController->TryMoveCapsule( ctx, m_behaviorContext.m_pPhysicsScene, deltaTranslation, deltaRotation );
 
             // Run animation pose tasks
-            m_pAnimGraphComponent->ExecutePrePhysicsTasks( m_pCharacterMeshComponent->GetWorldTransform() );
+            m_pAnimGraphComponent->ExecutePrePhysicsTasks( ctx.GetDeltaTime(), m_pCharacterMeshComponent->GetWorldTransform() );
         }
         else if ( updateStage == UpdateStage::PostPhysics )
         {

@@ -123,7 +123,7 @@ namespace EE::Timeline
         virtual void SetName( String const& newName ) { EE_UNREACHABLE_CODE(); }
 
         // Get the track status
-        virtual Status GetStatus() const { return Status::Valid; }
+        virtual Status GetValidationStatus() const { return Status::Valid; }
 
         // Get the message to show in the status indicator tooltip
         String const& GetStatusMessage() const { return m_statusMessage; }
@@ -161,6 +161,9 @@ namespace EE::Timeline
         // Draw the custom context menu options for this item
         virtual void DrawItemContextMenu( TrackItem* pItem ) {}
 
+        // Can we create new items on this track (certain tracks have restrictions regarding this)
+        virtual bool CanCreateNewItems() const { return true; }
+
         // Serialization
         //-------------------------------------------------------------------------
 
@@ -174,29 +177,16 @@ namespace EE::Timeline
     private:
 
         // Create a new item at the specified start time
-        inline void CreateItem( float itemStartTime )
-        {
-            CreateItemInternal( itemStartTime );
-            m_isDirty = true;
-        };
+        void CreateItem( float itemStartTime );
 
         // Try to delete the item from the track if it exists, return true if the item was found and remove, false otherwise
-        inline bool DeleteItem( TrackItem* pItem )
-        {
-            auto foundIter = eastl::find( m_items.begin(), m_items.end(), pItem );
-            if ( foundIter != m_items.end() )
-            {
-                EE::Delete( *foundIter );
-                m_items.erase( foundIter );
-                m_isDirty = true;
-                return true;
-            }
-
-            return false;
-        }
+        bool DeleteItem( TrackItem* pItem );
 
         // Needs to be implemented by the derived track
-        virtual void CreateItemInternal( float itemStartTime ) = 0;
+        virtual TrackItem* CreateItemInternal( float itemStartTime ) = 0;
+
+        // Optional function called whenever a new item is created
+        virtual void PostCreateItem( TrackItem* pNewItem ) {}
 
         Track( Track const& ) = delete;
         Track& operator=( Track& ) = delete;

@@ -11,12 +11,25 @@ namespace EE::Animation
     class EE_ENGINE_API GraphDefinition : public Resource::IResource
     {
         EE_REGISTER_RESOURCE( 'ag', "Animation Graph" );
-        EE_SERIALIZE( m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_numControlParameters, m_rootNodeIdx, m_controlParameterIDs );
+        EE_SERIALIZE( m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_numControlParameters, m_rootNodeIdx, m_controlParameterIDs, m_externalGraphSlots );
 
         friend class GraphDefinitionCompiler;
         friend class AnimationGraphCompiler;
         friend class GraphLoader;
         friend class GraphInstance;
+
+    public:
+
+        struct ExternalGraphSlot
+        {
+            EE_SERIALIZE( m_nodeIdx, m_slotID );
+
+            ExternalGraphSlot() = default;
+            ExternalGraphSlot( int16_t idx, StringID ID ) : m_nodeIdx( idx ), m_slotID( ID ) { EE_ASSERT( idx != InvalidIndex && ID.IsValid() ); }
+
+            int16_t     m_nodeIdx = InvalidIndex;
+            StringID    m_slotID;
+        };
 
     public:
 
@@ -35,6 +48,7 @@ namespace EE::Animation
         int32_t                                     m_numControlParameters = 0;
         int16_t                                     m_rootNodeIdx = InvalidIndex;
         TVector<StringID>                           m_controlParameterIDs;
+        TVector<ExternalGraphSlot>                  m_externalGraphSlots;
 
         #if EE_DEVELOPMENT_TOOLS
         TVector<String>                             m_nodePaths;

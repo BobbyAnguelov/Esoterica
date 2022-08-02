@@ -152,7 +152,7 @@ namespace EE::Animation
 
     private:
 
-        int8_t                            m_bufferIdx = InvalidIndex;
+        int8_t                          m_bufferIdx = InvalidIndex;
         TaskDependencies                m_dependencies;
         TaskUpdateStage                 m_actualUpdateStage = TaskUpdateStage::Any;
         bool                            m_isComplete = false;

@@ -74,7 +74,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         return result;
@@ -97,7 +97,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         return result;

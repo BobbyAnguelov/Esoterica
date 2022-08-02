@@ -22,7 +22,7 @@ namespace EE::Navmesh
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API NavmeshWorldSystem : public IWorldEntitySystem
+    class EE_ENGINE_API NavmeshWorldSystem : public IEntityWorldSystem
     {
         friend class NavmeshDebugView;
         friend class NavmeshDebugRenderer;
@@ -39,8 +39,7 @@ namespace EE::Navmesh
 
     public:
 
-        EE_REGISTER_TYPE( NavmeshWorldSystem );
-        EE_ENTITY_WORLD_SYSTEM( NavmeshWorldSystem, RequiresUpdate( UpdateStage::Physics ) );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( NavmeshWorldSystem, RequiresUpdate( UpdateStage::Physics ) );
 
     public:
 

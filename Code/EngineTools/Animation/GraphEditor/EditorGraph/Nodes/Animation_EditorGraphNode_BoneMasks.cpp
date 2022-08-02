@@ -19,7 +19,7 @@ namespace EE::Animation::GraphNodes
         if ( state == NodeCompilationState::NeedCompilation )
         {
             pSettings->m_rootMotionWeight = m_rootMotionWeight;
-            pSettings->m_dataSlotIdx = context.RegisterSlotNode( GetID() );
+            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
         }
 
         return pSettings->m_nodeIdx;

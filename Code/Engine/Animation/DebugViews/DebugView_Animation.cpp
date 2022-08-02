@@ -30,7 +30,7 @@ namespace EE::Animation
                 {
                     case GraphValueType::Bool:
                     {
-                        if ( pGraphComponent->m_pGraphInstance->GetControlParameterValue<bool>( pGraphComponent->m_graphContext, i ) )
+                        if ( pGraphComponent->m_pGraphInstance->GetControlParameterValue<bool>( i ) )
                         {
                             stringValue = "True";
                         }
@@ -43,7 +43,7 @@ namespace EE::Animation
 
                     case GraphValueType::ID:
                     {
-                        StringID const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<StringID>( pGraphComponent->m_graphContext, i );
+                        StringID const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<StringID>( i );
                         if ( value.IsValid() )
                         {
                             stringValue.sprintf( "%s", value.c_str() );
@@ -57,26 +57,26 @@ namespace EE::Animation
 
                     case GraphValueType::Int:
                     {
-                        stringValue.sprintf( "%d", pGraphComponent->m_pGraphInstance->GetControlParameterValue<int32_t>( pGraphComponent->m_graphContext, i ) );
+                        stringValue.sprintf( "%d", pGraphComponent->m_pGraphInstance->GetControlParameterValue<int32_t>( i ) );
                     }
                     break;
 
                     case GraphValueType::Float:
                     {
-                        stringValue.sprintf( "%.3f", pGraphComponent->m_pGraphInstance->GetControlParameterValue<float>( pGraphComponent->m_graphContext, i ) );
+                        stringValue.sprintf( "%.3f", pGraphComponent->m_pGraphInstance->GetControlParameterValue<float>( i ) );
                     }
                     break;
 
                     case GraphValueType::Vector:
                     {
-                        Vector const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<Vector>( pGraphComponent->m_graphContext, i );
+                        Vector const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<Vector>( i );
                         stringValue = Math::ToString( value );
                     }
                     break;
 
                     case GraphValueType::Target:
                     {
-                        Target const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<Target>( pGraphComponent->m_graphContext, i );
+                        Target const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<Target>( i );
                         if ( !value.IsTargetSet() )
                         {
                             stringValue = "Unset";
@@ -137,11 +137,11 @@ namespace EE::Animation
         ImGui::PopStyleColor();
     }
 
-    void AnimationDebugView::DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionRecorder* pRootMotionRecorder, int16_t currentActionIdx )
+    void AnimationDebugView::DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx )
     {
         static char const* const actionTypes[] = { "Error", "Sample", "Modify", "Blend" };
 
-        RootMotionRecorder::RecordedAction const* pAction = nullptr;
+        RootMotionDebugger::RecordedAction const* pAction = nullptr;
 
         InlineString rowLabel;
         if ( currentActionIdx != InvalidIndex )
@@ -226,7 +226,7 @@ namespace EE::Animation
         ImGui::NewLine();
         ImGuiX::TextSeparator( "Root Motion" );
 
-        RootMotionRecorder* pRootMotionRecorder = pGraphComponent->m_graphContext.GetRootMotionActionRecorder();
+        RootMotionDebugger const* pRootMotionRecorder = pGraphComponent->m_pGraphInstance->GetRootMotionDebugger();
         if ( pRootMotionRecorder->HasRecordedActions() )
         {
             DrawRootMotionRow( pGraphComponent, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex() );
@@ -259,7 +259,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            auto const& sampledEvents = pGraphComponent->m_graphContext.m_sampledEvents;
+            auto const& sampledEvents = pGraphComponent->m_pGraphInstance->GetSampledEvents();
             for ( auto const& sampledEvent : sampledEvents )
             {
                 ImGui::TableNextRow();
@@ -398,30 +398,30 @@ namespace EE::Animation
 
                 ImGuiX::TextSeparator( "Root Motion debug" );
                 {
-                    RootMotionRecorderDebugMode const debugMode = pGraphComponent->GetRootMotionDebugMode();
+                    RootMotionDebugMode const debugMode = pGraphComponent->GetRootMotionDebugMode();
 
-                    bool const isRootVisualizationOff = debugMode == RootMotionRecorderDebugMode::Off;
+                    bool const isRootVisualizationOff = debugMode == RootMotionDebugMode::Off;
                     if ( ImGui::RadioButton( "No Root Motion Visualization##RootMotion", isRootVisualizationOff ) )
                     {
-                        pGraphComponent->SetRootMotionDebugMode( RootMotionRecorderDebugMode::Off );
+                        pGraphComponent->SetRootMotionDebugMode( RootMotionDebugMode::Off );
                     }
 
-                    bool const isRootVisualizationOn = debugMode == RootMotionRecorderDebugMode::DrawRoot;
+                    bool const isRootVisualizationOn = debugMode == RootMotionDebugMode::DrawRoot;
                     if ( ImGui::RadioButton( "Draw Root", isRootVisualizationOn ) )
                     {
-                        pGraphComponent->SetRootMotionDebugMode( RootMotionRecorderDebugMode::DrawRoot );
+                        pGraphComponent->SetRootMotionDebugMode( RootMotionDebugMode::DrawRoot );
                     }
 
-                    bool const isRootMotionRecordingEnabled = debugMode == RootMotionRecorderDebugMode::DrawRecordedRootMotion;
+                    bool const isRootMotionRecordingEnabled = debugMode == RootMotionDebugMode::DrawRecordedRootMotion;
                     if ( ImGui::RadioButton( "Draw Recorded Root Motion", isRootMotionRecordingEnabled ) )
                     {
-                        pGraphComponent->SetRootMotionDebugMode( RootMotionRecorderDebugMode::DrawRecordedRootMotion );
+                        pGraphComponent->SetRootMotionDebugMode( RootMotionDebugMode::DrawRecordedRootMotion );
                     }
 
-                    bool const isAdvancedRootMotionRecordingEnabled = debugMode == RootMotionRecorderDebugMode::DrawRecordedRootMotionAdvanced;
+                    bool const isAdvancedRootMotionRecordingEnabled = debugMode == RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
                     if ( ImGui::RadioButton( "Draw Advanced Recorded Root Motion", isAdvancedRootMotionRecordingEnabled ) )
                     {
-                        pGraphComponent->SetRootMotionDebugMode( RootMotionRecorderDebugMode::DrawRecordedRootMotionAdvanced );
+                        pGraphComponent->SetRootMotionDebugMode( RootMotionDebugMode::DrawRecordedRootMotionAdvanced );
                     }
                 }
 

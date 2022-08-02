@@ -30,7 +30,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API PlayerManager : public IWorldEntitySystem
+    class EE_ENGINE_API PlayerManager : public IEntityWorldSystem
     {
         struct RegisteredPlayer
         {
@@ -63,8 +63,7 @@ namespace EE
 
     public:
 
-        EE_REGISTER_TYPE( PlayerManager );
-        EE_ENTITY_WORLD_SYSTEM( PlayerManager, RequiresUpdate( UpdateStage::FrameStart, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::Paused ) );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( PlayerManager, RequiresUpdate( UpdateStage::FrameStart, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::Paused ) );
 
         // Camera
         //-------------------------------------------------------------------------

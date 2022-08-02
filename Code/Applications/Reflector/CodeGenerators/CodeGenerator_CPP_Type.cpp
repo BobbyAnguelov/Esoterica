@@ -1143,18 +1143,6 @@ namespace EE::CPP
         {
             file << "                m_metadata.SetFlag( TypeInfoMetaData::Abstract );\n\n";
         }
-        else if ( type.IsEntity() )
-        {
-            file << "                m_metadata.SetFlag( TypeInfoMetaData::Entity );\n\n";
-        }
-        else if ( type.IsEntityComponent() )
-        {
-            file << "                m_metadata.SetFlag( TypeInfoMetaData::EntityComponent );\n\n";
-        }
-        else if ( type.IsEntitySystem() )
-        {
-            file << "                m_metadata.SetFlag( TypeInfoMetaData::EntitySystem );\n\n";
-        }
         else
         {
             file << "\n";

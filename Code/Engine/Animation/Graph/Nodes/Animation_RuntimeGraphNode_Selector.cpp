@@ -123,11 +123,11 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEvents.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         return result;
@@ -147,11 +147,11 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEvents.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         return result;
@@ -284,11 +284,11 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEvents.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         return result;
@@ -308,11 +308,11 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEvents.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEvents.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
         }
 
         return result;

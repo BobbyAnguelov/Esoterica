@@ -6,15 +6,19 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE::Animation
 {
-    class EnergyController;
+    class GraphVariation;
 }
 
 //-------------------------------------------------------------------------
 
 namespace EE::Player
 {
+    class EnergyController;
+
+    //-------------------------------------------------------------------------
+
     class EE_GAME_API MainPlayerComponent : public PlayerComponent
     {
         friend EnergyController;
@@ -32,13 +36,16 @@ namespace EE::Player
 
     public:
 
-        bool                    m_sprintFlag = false;
-        bool                    m_crouchFlag = false;
-        EE_EXPOSE FloatCurve   m_jumpCurve;
-        EE_EXPOSE FloatCurve   m_angularVelocityLimitCurve;
+        bool                                    m_sprintFlag = false;
+        bool                                    m_crouchFlag = false;
+        EE_EXPOSE FloatCurve                    m_jumpCurve;
+        EE_EXPOSE FloatCurve                    m_angularVelocityLimitCurve;
+
+        // HACK!!! - Just to test out the external graph feature for now
+        Animation::GraphVariation const*        m_pAvailableInteraction = nullptr;
 
     private:
 
-        float                   m_energyLevel = 3.0f;
+        float                                   m_energyLevel = 3.0f;
     };
 }

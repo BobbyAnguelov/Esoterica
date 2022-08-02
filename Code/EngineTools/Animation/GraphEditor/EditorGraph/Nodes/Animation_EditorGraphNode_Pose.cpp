@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIndex = context.RegisterSlotNode( GetID() );
+            pSettings->m_dataSlotIndex = context.RegisterDataSlotNode( GetID() );
             pSettings->m_inputTimeRemapRange = m_inputTimeRemapRange;
         }
         return pSettings->m_nodeIdx;

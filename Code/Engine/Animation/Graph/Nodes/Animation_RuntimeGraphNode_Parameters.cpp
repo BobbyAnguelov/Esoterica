@@ -15,7 +15,7 @@ namespace EE::Animation::GraphNodes
         *( (bool*) pOutValue ) = m_value;
     }
 
-    void ControlParameterBoolNode::SetValueInternal( GraphContext& context, void const* pInValue )
+    void ControlParameterBoolNode::SetValueInternal( void const* pInValue )
     {
         m_value = *(bool*) pInValue;
     }
@@ -32,7 +32,7 @@ namespace EE::Animation::GraphNodes
         *( (StringID*) pOutValue ) = m_value;
     }
 
-    void ControlParameterIDNode::SetValueInternal( GraphContext& context, void const* pInValue )
+    void ControlParameterIDNode::SetValueInternal( void const* pInValue )
     {
         m_value = *(StringID*) pInValue;
     }
@@ -49,7 +49,7 @@ namespace EE::Animation::GraphNodes
         *( (int32_t*) pOutValue ) = m_value;
     }
 
-    void ControlParameterIntNode::SetValueInternal( GraphContext& context, void const* pInValue )
+    void ControlParameterIntNode::SetValueInternal( void const* pInValue )
     {
         m_value = *(int32_t*) pInValue;
     }
@@ -66,7 +66,7 @@ namespace EE::Animation::GraphNodes
         *( (float*) pOutValue ) = m_value;
     }
 
-    void ControlParameterFloatNode::SetValueInternal( GraphContext& context, void const* pInValue )
+    void ControlParameterFloatNode::SetValueInternal( void const* pInValue )
     {
         m_value = *(float*) pInValue;
     }
@@ -83,7 +83,7 @@ namespace EE::Animation::GraphNodes
         *( (Vector*) pOutValue ) = m_value;
     }
 
-    void ControlParameterVectorNode::SetValueInternal( GraphContext& context, void const* pInValue )
+    void ControlParameterVectorNode::SetValueInternal( void const* pInValue )
     {
         m_value = *(Vector*) pInValue;
     }
@@ -100,7 +100,7 @@ namespace EE::Animation::GraphNodes
         *( (Target*) pOutValue ) = m_value;
     }
 
-    void ControlParameterTargetNode::SetValueInternal( GraphContext& context, void const* pInValue )
+    void ControlParameterTargetNode::SetValueInternal( void const* pInValue )
     {
         m_value = *(Target*) pInValue;
     }

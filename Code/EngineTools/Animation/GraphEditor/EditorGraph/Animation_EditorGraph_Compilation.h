@@ -95,12 +95,30 @@ namespace EE::Animation
         }
 
         // This will return an index that can be used to look up the data resource at runtime
-        inline int16_t RegisterSlotNode( UUID const& nodeID )
+        inline int16_t RegisterDataSlotNode( UUID const& nodeID )
         {
             EE_ASSERT( !VectorContains( m_registeredDataSlots, nodeID ) );
 
             int16_t slotIdx = (int16_t) m_registeredDataSlots.size();
             m_registeredDataSlots.emplace_back( nodeID );
+            return slotIdx;
+        }
+
+        // Record all compiled external graph nodes
+        inline int16_t RegisterExternalGraphSlotNode( int16_t nodeIdx, StringID slotID )
+        {
+            GraphDefinition::ExternalGraphSlot const newSlot( nodeIdx, slotID );
+
+            EE_ASSERT( nodeIdx != InvalidIndex && slotID.IsValid() );
+
+            for ( auto const& existingSlot : m_registeredExternalGraphSlots )
+            {
+                EE_ASSERT( existingSlot.m_nodeIdx != nodeIdx && existingSlot.m_slotID != slotID );
+            }
+
+            // Add slot
+            int16_t slotIdx = (int16_t) m_registeredExternalGraphSlots.size();
+            m_registeredExternalGraphSlots.emplace_back( newSlot );
             return slotIdx;
         }
 
@@ -164,19 +182,20 @@ namespace EE::Animation
 
     private:
 
-        TVector<NodeCompilationLogEntry>        m_log;
-        THashMap<UUID, int16_t>                 m_nodeIDToIndexMap;
-        TVector<int16_t>                        m_persistentNodeIndices;
-        TVector<String>                         m_compiledNodePaths;
-        TVector<GraphNode::Settings*>           m_nodeSettings;
-        TVector<uint32_t>                       m_nodeMemoryOffsets;
-        uint32_t                                m_currentNodeMemoryOffset = 0;
-        uint32_t                                m_graphInstanceRequiredAlignment = alignof( bool );
+        TVector<NodeCompilationLogEntry>                m_log;
+        THashMap<UUID, int16_t>                         m_nodeIDToIndexMap;
+        TVector<int16_t>                                m_persistentNodeIndices;
+        TVector<String>                                 m_compiledNodePaths;
+        TVector<GraphNode::Settings*>                   m_nodeSettings;
+        TVector<uint32_t>                               m_nodeMemoryOffsets;
+        uint32_t                                        m_currentNodeMemoryOffset = 0;
+        uint32_t                                        m_graphInstanceRequiredAlignment = alignof( bool );
 
-        TVector<UUID>                           m_registeredDataSlots;
-        int16_t                                 m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
-        Seconds                                 m_transitionDuration = 0;
-        int16_t                                 m_transitionDurationOverrideIdx = InvalidIndex;
+        TVector<UUID>                                   m_registeredDataSlots;
+        TVector<GraphDefinition::ExternalGraphSlot>     m_registeredExternalGraphSlots;
+        int16_t                                         m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
+        Seconds                                         m_transitionDuration = 0;
+        int16_t                                         m_transitionDurationOverrideIdx = InvalidIndex;
     };
 }
 

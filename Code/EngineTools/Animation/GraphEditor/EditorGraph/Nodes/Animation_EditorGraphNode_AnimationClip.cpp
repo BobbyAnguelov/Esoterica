@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIdx = context.RegisterSlotNode( GetID() );
+            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
             pSettings->m_sampleRootMotion = m_sampleRootMotion;
             pSettings->m_allowLooping = m_allowLooping;
         }

@@ -136,13 +136,10 @@ namespace EE::Animation
 
     public:
 
-        BoneMaskPool() : m_firstFreePoolIdx( InvalidIndex ) {}
+        BoneMaskPool( Skeleton const* pSkeleton );
         ~BoneMaskPool();
 
         inline bool IsEmpty() const { return m_pool.size() == 0; }
-        void Initialize( Skeleton const* pSkeleton );
-        void Shutdown();
-
         BoneMask* GetBoneMask();
         void Reset() { m_firstFreePoolIdx = 0; }
 

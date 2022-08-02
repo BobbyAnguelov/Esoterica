@@ -41,6 +41,10 @@ namespace EE::TypeSystem::Reflection
         {
             pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterEntitySystem, cr, range ) );
         }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterEntityWorldSystem ) )
+        {
+            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterEntityWorldSystem, cr, range ) );
+        }
         else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterModule ) )
         {
             pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterModule, cr, range ) );

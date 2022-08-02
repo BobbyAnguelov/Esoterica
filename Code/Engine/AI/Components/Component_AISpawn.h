@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Game/_Module/API.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "System/Resource/ResourcePtr.h"

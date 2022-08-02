@@ -60,7 +60,7 @@ namespace EE
         for ( auto pTypeInfo : worldSystemTypeInfos )
         {
             // Create and initialize world system
-            auto pWorldSystem = Cast<IWorldEntitySystem>( pTypeInfo->CreateType() );
+            auto pWorldSystem = Cast<IEntityWorldSystem>( pTypeInfo->CreateType() );
             pWorldSystem->InitializeSystem( systemsRegistry );
             m_worldSystems.push_back( pWorldSystem );
 
@@ -73,7 +73,7 @@ namespace EE
                 }
 
                 // Sort update list
-                auto comparator = [i] ( IWorldEntitySystem* const& pSystemA, IWorldEntitySystem* const& pSystemB )
+                auto comparator = [i] ( IEntityWorldSystem* const& pSystemA, IEntityWorldSystem* const& pSystemB )
                 {
                     uint8_t const A = pSystemA->GetRequiredUpdatePriorities().GetPriorityForStage( (UpdateStage) i );
                     uint8_t const B = pSystemB->GetRequiredUpdatePriorities().GetPriorityForStage( (UpdateStage) i );
@@ -176,9 +176,9 @@ namespace EE
     // Misc
     //-------------------------------------------------------------------------
 
-    IWorldEntitySystem* EntityWorld::GetWorldSystem( uint32_t worldSystemID ) const
+    IEntityWorldSystem* EntityWorld::GetWorldSystem( uint32_t worldSystemID ) const
     {
-        for ( IWorldEntitySystem* pWorldSystem : m_worldSystems )
+        for ( IEntityWorldSystem* pWorldSystem : m_worldSystems )
         {
             if ( pWorldSystem->GetSystemID() == worldSystemID )
             {
@@ -366,7 +366,7 @@ namespace EE
         // Create a task that splits per-system registration across multiple threads
         struct ComponentRegistrationTask : public ITaskSet
         {
-            ComponentRegistrationTask( TVector<IWorldEntitySystem*> const& worldSystems, TVector< TPair<Entity*, EntityComponent*> > const& componentsToRegister, TVector< TPair<Entity*, EntityComponent*> > const& componentsToUnregister )
+            ComponentRegistrationTask( TVector<IEntityWorldSystem*> const& worldSystems, TVector< TPair<Entity*, EntityComponent*> > const& componentsToRegister, TVector< TPair<Entity*, EntityComponent*> > const& componentsToUnregister )
                 : m_worldSystems( worldSystems )
                 , m_componentsToRegister( componentsToRegister )
                 , m_componentsToUnregister( componentsToUnregister )
@@ -414,7 +414,7 @@ namespace EE
 
         private:
 
-            TVector<IWorldEntitySystem*> const&                         m_worldSystems;
+            TVector<IEntityWorldSystem*> const&                         m_worldSystems;
             TVector< TPair<Entity*, EntityComponent*> > const&          m_componentsToRegister;
             TVector< TPair<Entity*, EntityComponent*> > const&          m_componentsToUnregister;
         };

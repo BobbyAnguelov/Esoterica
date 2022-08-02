@@ -33,6 +33,7 @@
     <ClCompile Include="Animation\Events\AnimationEventTracks.cpp" />
     <ClCompile Include="Animation\Events\AnimationEventTrack.cpp" />
     <ClCompile Include="Animation\Events\AnimationEventEditor.cpp" />
+    <ClCompile Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_CompilationLog.cpp" />
     <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_Context.cpp" />
@@ -151,6 +152,7 @@
     <ClInclude Include="Animation\Events\AnimationEventTracks.h" />
     <ClInclude Include="Animation\Events\AnimationEventTrack.h" />
     <ClInclude Include="Animation\Events\AnimationEventEditor.h" />
+    <ClInclude Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.h" />
     <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_CompilationLog.h" />
     <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_Context.h" />

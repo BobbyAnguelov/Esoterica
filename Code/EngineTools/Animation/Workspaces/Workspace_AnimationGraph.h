@@ -103,7 +103,7 @@ namespace EE::Animation
         bool                                m_startPaused = false;
         bool                                m_isPreviewing = false;
         GraphDebugMode                      m_graphDebugMode = GraphDebugMode::On;
-        RootMotionRecorderDebugMode         m_rootMotionDebugMode = RootMotionRecorderDebugMode::Off;
+        RootMotionDebugMode                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
         TaskSystemDebugMode                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
         bool                                m_isFirstPreviewFrame = false;
     };

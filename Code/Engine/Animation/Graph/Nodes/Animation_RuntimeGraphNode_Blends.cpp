@@ -4,7 +4,7 @@
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionRecorder.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
@@ -282,7 +282,7 @@ namespace EE::Animation::GraphNodes
                 m_duration = Math::Lerp( pSource0->GetDuration(), pSource1->GetDuration(), m_blendWeight );
 
                 // Update events
-                result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEvents, sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
+                result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
 
                 // Do we need to blend between the two nodes?
                 if ( sourceResult0.HasRegisteredTasks() && sourceResult1.HasRegisteredTasks() )
@@ -326,7 +326,7 @@ namespace EE::Animation::GraphNodes
                 {
                     auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
                     GraphPoseNodeResult const updateResult = static_cast<PoseNode*>( pSourceNode )->Update( context );
-                    context.m_sampledEvents.UpdateWeights( updateResult.m_sampledEventRange, 0.0f ); // Add ignored flag
+                    context.m_sampledEventsBuffer.UpdateWeights( updateResult.m_sampledEventRange, 0.0f ); // Add ignored flag
                     context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
                 }
             }
@@ -393,7 +393,7 @@ namespace EE::Animation::GraphNodes
                     result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
                 }
 
-                result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEvents, sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
+                result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
             }
 
             // Update internal time and events

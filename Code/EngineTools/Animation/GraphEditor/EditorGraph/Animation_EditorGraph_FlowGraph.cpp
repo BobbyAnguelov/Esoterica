@@ -4,6 +4,7 @@
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Parameters.h"
 #include "System/Imgui/ImguiStyle.h"
+#include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -152,6 +153,16 @@ namespace EE::Animation::GraphNodes
         }
 
         return false;
+    }
+
+    ImColor EditorGraphNode::GetTitleBarColor() const
+    {
+        return ImGuiX::ConvertColor( GetColorForValueType( GetValueType() ) );
+    }
+
+    ImColor EditorGraphNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
+    {
+        return ImGuiX::ConvertColor( GetColorForValueType( (GraphValueType) pin.m_type ) );
     }
 
     //-------------------------------------------------------------------------
