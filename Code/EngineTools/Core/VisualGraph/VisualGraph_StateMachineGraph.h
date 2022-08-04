@@ -19,6 +19,11 @@ namespace EE::VisualGraph
             friend GraphView;
 
             EE_REGISTER_TYPE( Node );
+
+        protected:
+
+            // Override this if you want to provide additional context menu options
+            virtual void DrawExtraContextMenuOptions( DrawContext const& ctx, Float2 const& mouseCanvasPos ) {}
         };
 
         //-------------------------------------------------------------------------

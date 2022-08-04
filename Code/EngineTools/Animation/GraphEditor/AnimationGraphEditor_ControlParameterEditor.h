@@ -14,7 +14,7 @@ namespace EE { class UpdateContext; }
 namespace EE::Animation
 {
     class GraphEditorContext;
-    struct GraphNodeContext;
+    struct EditorGraphNodeContext;
 
     namespace GraphNodes
     {
@@ -40,7 +40,7 @@ namespace EE::Animation
             ParameterPreviewState( GraphNodes::ControlParameterEditorNode* pParameter ) : m_pParameter( pParameter ) { EE_ASSERT( m_pParameter != nullptr ); }
             virtual ~ParameterPreviewState() = default;
 
-            virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) = 0;
+            virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) = 0;
 
         public:
 
@@ -53,7 +53,7 @@ namespace EE::Animation
         ~GraphControlParameterEditor();
 
         // Draw the control parameter editor, returns true if there is a request the calling code needs to fulfill i.e. navigation
-        bool UpdateAndDraw( UpdateContext const& context, GraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
+        bool UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
 
         // Get the virtual parameter graph we want to show
         GraphNodes::VirtualParameterEditorNode* GetVirtualParameterToEdit() { return m_pVirtualParamaterToEdit; }
@@ -61,7 +61,7 @@ namespace EE::Animation
     private:
 
         void DrawParameterList();
-        void DrawParameterPreviewControls( GraphNodeContext* pGraphNodeContext );
+        void DrawParameterPreviewControls( EditorGraphNodeContext* pGraphNodeContext );
         void DrawAddParameterCombo();
 
         void StartParameterRename( UUID const& parameterID );

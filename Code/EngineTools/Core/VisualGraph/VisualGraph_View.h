@@ -216,17 +216,16 @@ namespace EE::VisualGraph
 
         void HandleContextMenu( DrawContext const& ctx );
 
-        // Called when we create a context menu allowing derived views to set custom data
-        virtual void FillContextMenuState();
-
         // Called when we actually draw the context menu, is expected to call the specific draw functions for graphs and nodes
-        virtual void DrawContextMenu();
+        void DrawContextMenu( DrawContext const& ctx );
 
-        // Custom context menu option for the graph
-        virtual void DrawContextMenuForGraph();
+        // Override this to provide global context menu options for all graphs 
+        // Use this only if you need custom data stored in the derived graph editor, else prefer the context menu function on the graphs themselves
+        virtual void DrawExtraGraphContextMenuOptions( DrawContext const& ctx ) {}
 
-        // Custom context menu options for graph nodes
-        virtual void DrawContextMenuForNode();
+        // Override this to provide global context menu options for all nodes
+        // Use this only if you need custom data stored in the derived graph editor, else prefer the context menu function on the nodes themselves
+        virtual void DrawExtraNodeContextMenuOptions( DrawContext const& ctx ) {}
 
         // Input Handling
         //-------------------------------------------------------------------------
@@ -234,8 +233,8 @@ namespace EE::VisualGraph
         void HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx );
 
         virtual void DrawDialogs();
-        virtual void OnGraphDoubleClick( BaseGraph* pGraph ) {}
-        virtual void OnNodeDoubleClick( BaseNode* pNode ) {}
+        virtual void OnGraphDoubleClick( DrawContext const& ctx, BaseGraph* pGraph ) {}
+        virtual void OnNodeDoubleClick( DrawContext const& ctx, BaseNode* pNode ) {}
         virtual void HandleDragAndDrop( ImVec2 const& mouseCanvasPos ) {}
 
     private:

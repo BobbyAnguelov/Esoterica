@@ -18,13 +18,18 @@ namespace EE::Animation
 
     public:
 
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( AnimationWorldSystem );
+        EE_REGISTER_ENTITY_WORLD_SYSTEM( AnimationWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ) );
+
+        #if EE_DEVELOPMENT_TOOLS
+        inline TVector<AnimationGraphComponent*> const& GetRegisteredGraphComponents() const { return m_graphComponents.GetVector(); }
+        #endif
 
     private:
 
         virtual void ShutdownSystem() override final;
         virtual void RegisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
         virtual void UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
+        virtual void UpdateSystem( EntityWorldUpdateContext const& ctx ) override;
 
     private:
 

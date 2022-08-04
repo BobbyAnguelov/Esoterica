@@ -1318,7 +1318,8 @@ namespace EE::VisualGraph
         {
             m_contextMenuState.m_mouseCanvasPos = ctx.m_mouseCanvasPos;
             m_contextMenuState.m_menuOpened = true;
-            FillContextMenuState();
+            m_contextMenuState.m_pNode = m_pHoveredNode;
+            m_contextMenuState.m_pPin = m_pHoveredPin;
 
             // if we are opening a context menu for a node, set that node as selected
             if ( m_contextMenuState.m_pNode != nullptr )
@@ -1337,7 +1338,7 @@ namespace EE::VisualGraph
             ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 4 ) );
             if ( ImGui::BeginPopupContextItem( "GraphContextMenu" ) )
             {
-                DrawContextMenu();
+                DrawContextMenu( ctx );
                 ImGui::EndPopup();
             }
             else
@@ -1349,39 +1350,11 @@ namespace EE::VisualGraph
         }
     }
 
-    void GraphView::DrawContextMenuForNode()
-    {
-        // Do Nothing
-    }
-
-    void GraphView::DrawContextMenuForGraph()
-    {
-        if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )
-        {
-            ResetView();
-        }
-    }
-
-    void GraphView::FillContextMenuState()
-    {
-        EE_ASSERT( m_contextMenuState.m_menuOpened );
-        m_contextMenuState.m_pNode = m_pHoveredNode;
-        m_contextMenuState.m_pPin = m_pHoveredPin;
-    }
-
-    void GraphView::DrawContextMenu()
+    void GraphView::DrawContextMenu( DrawContext const& ctx )
     {
         if ( m_contextMenuState.m_pNode != nullptr )
         {
-            if ( ImGui::BeginMenu( "Node Info" ) )
-            {
-                auto const IDString = m_contextMenuState.m_pNode->GetID().ToString();
-                if ( ImGui::MenuItem( IDString.c_str() ) )
-                {
-                    ImGui::SetClipboardText( IDString.c_str() );
-                }
-                ImGui::EndMenu();
-            }
+            DrawExtraNodeContextMenuOptions( ctx );
 
             //-------------------------------------------------------------------------
 
@@ -1389,6 +1362,8 @@ namespace EE::VisualGraph
             {
                 auto pFlowGraph = GetFlowGraph();
                 auto pFlowNode = m_contextMenuState.GetAsFlowNode();
+
+                // Dynamic Pins
                 if ( pFlowNode->SupportsDynamicInputPins() )
                 {
                     ImGui::Separator();
@@ -1407,11 +1382,21 @@ namespace EE::VisualGraph
                         }
                     }
                 }
+
+                // Connections
+                if ( ImGui::MenuItem( "Break All Connections" ) )
+                {
+                    pFlowGraph->BreakAllConnectionsForNode( pFlowNode );
+                }
+
+                // User Options
+                pFlowNode->DrawExtraContextMenuOptions( ctx, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
             }
-
-            //-------------------------------------------------------------------------
-
-            DrawContextMenuForNode();
+            else
+            {
+                auto pStateMachineNode = m_contextMenuState.GetAsStateMachineNode();
+                pStateMachineNode->DrawExtraContextMenuOptions( ctx, m_contextMenuState.m_mouseCanvasPos );
+            }
 
             //-------------------------------------------------------------------------
 
@@ -1437,9 +1422,16 @@ namespace EE::VisualGraph
                 }
             }
         }
-        else
+        else // Graph Context Menu
         {
-            DrawContextMenuForGraph();
+            if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )
+            {
+                ResetView();
+            }
+
+            DrawExtraGraphContextMenuOptions( ctx );
+
+            m_pGraph->DrawExtraContextMenuOptions( ctx, m_contextMenuState.m_mouseCanvasPos );
         }
     }
 
@@ -1513,11 +1505,11 @@ namespace EE::VisualGraph
         {
             if ( m_pHoveredNode != nullptr )
             {
-                OnNodeDoubleClick( m_pHoveredNode );
+                OnNodeDoubleClick( ctx, m_pHoveredNode );
             }
             else if ( m_isViewHovered )
             {
-                OnGraphDoubleClick( m_pGraph );
+                OnGraphDoubleClick( ctx, m_pGraph );
             }
         }
 

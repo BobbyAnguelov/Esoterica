@@ -58,12 +58,11 @@ namespace EE::Animation
             EE_FORCE_INLINE void CreateInputPin( char const* pPinName, GraphValueType pinType ) { VisualGraph::Flow::Node::CreateInputPin( pPinName, (uint32_t) pinType ); }
             EE_FORCE_INLINE void CreateOutputPin( char const* pPinName, GraphValueType pinType, bool allowMultipleOutputConnections = false ) { VisualGraph::Flow::Node::CreateOutputPin( pPinName, (uint32_t) pinType, allowMultipleOutputConnections ); }
 
-            virtual bool IsActive( VisualGraph::DrawContext const& ctx ) const override;
-
-            virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
-
-            // Draw any extra information about the node
             virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) {}
+
+            virtual bool IsActive( VisualGraph::DrawContext const& ctx ) const override;
+            virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
+            virtual void DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
         };
 
         //-------------------------------------------------------------------------

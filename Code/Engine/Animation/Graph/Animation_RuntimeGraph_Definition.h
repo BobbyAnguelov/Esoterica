@@ -27,8 +27,8 @@ namespace EE::Animation
             ExternalGraphSlot() = default;
             ExternalGraphSlot( int16_t idx, StringID ID ) : m_nodeIdx( idx ), m_slotID( ID ) { EE_ASSERT( idx != InvalidIndex && ID.IsValid() ); }
 
-            int16_t     m_nodeIdx = InvalidIndex;
-            StringID    m_slotID;
+            int16_t                                 m_nodeIdx = InvalidIndex;
+            StringID                                m_slotID;
         };
 
     public:

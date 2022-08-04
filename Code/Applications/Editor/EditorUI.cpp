@@ -213,7 +213,7 @@ namespace EE
     void EditorUI::EndFrame( UpdateContext const& context )
     {
         // Game previewer needs to be drawn at the end of the frames since then all the game simulation data will be correct and all the debug tools will be accurate
-        if ( m_context.IsGamePreviewRunning() )
+        if ( m_context.IsGameRunning() )
         {
             GamePreviewer* pGamePreviewer = m_context.GetGamePreviewWorkspace();
             if ( !DrawWorkspaceWindow( context, pGamePreviewer ) )
@@ -481,7 +481,7 @@ namespace EE
         bool isTabOpen = true;
         bool* pIsTabOpen = m_context.IsMapEditorWorkspace( pWorkspace ) ? nullptr : &isTabOpen;
 
-        ImGuiWindowFlags windowFlags = 0;
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse;
 
         if ( pWorkspace->HasWorkspaceToolbar() )
         {
@@ -543,7 +543,7 @@ namespace EE
 
         if ( shouldDrawWindowContents )
         {
-            if ( !m_context.IsMapEditorWorkspace( pWorkspace ) || !m_context.IsGamePreviewRunning() )
+            if ( !m_context.IsMapEditorWorkspace( pWorkspace ) || !m_context.IsGameRunning() )
             {
                 pWorld->ResumeUpdates();
             }

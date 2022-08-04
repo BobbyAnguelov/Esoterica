@@ -255,6 +255,17 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    GraphInstance const* GraphInstance::GetExternalGraphDebugInstance( StringID slotID ) const
+    {
+        int32_t const connectedGraphIdx = GetConnectedExternalGraphIndex( slotID );
+        if ( connectedGraphIdx == InvalidIndex )
+        {
+            return nullptr;
+        }
+
+        return m_connectedExternalGraphs[connectedGraphIdx].m_pInstance;
+    }
+
     void GraphInstance::DrawDebug( Drawing::DrawContext& drawContext )
     {
         // Graph

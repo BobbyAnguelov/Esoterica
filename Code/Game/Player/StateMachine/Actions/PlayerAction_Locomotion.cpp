@@ -16,8 +16,8 @@ namespace EE::Player
     constexpr static float    g_maxSprintSpeed = 7.5f;                      // meters/second
     constexpr static float    g_maxRunSpeed = 5.0f;                         // meters/second
     constexpr static float    g_maxCrouchSpeed = 3.0f;                      // meters/second
-    static Seconds  g_timeToTriggerSprint = 1.5f;                 // seconds
-    static Seconds  g_timeToTriggerCrouch = 0.5f;                 // seconds
+    constexpr static float    g_timeToTriggerSprint = 1.5f;                 // seconds
+    constexpr static float    g_timeToTriggerCrouch = 0.5f;                 // seconds
     constexpr static float    g_sprintStickAmplitude = 0.8f;                // [0,1]
 
     constexpr static float    g_idle_immediateStartThresholdAngle = Math::DegreesToRadians * 45.0f;
@@ -48,7 +48,7 @@ namespace EE::Player
             ctx.m_pPlayerComponent->m_sprintFlag = true;
         }
 
-        m_desiredHeading = characterVelocity;
+        m_desiredHeading = characterVelocity.Get2D();
         m_desiredFacing = characterWorldTransform.GetForwardVector();
         m_cachedFacing = Vector::Zero;
         m_desiredTurnDirection = Vector::Zero;
@@ -164,10 +164,10 @@ namespace EE::Player
         // Update animation controller
         //-------------------------------------------------------------------------
 
-        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pLocomotionGraphController->SetLocomotionDesires( ctx.GetDeltaTime(), m_desiredHeading, m_desiredFacing );
-        pLocomotionGraphController->SetSliding( isSliding );
-        pLocomotionGraphController->SetCrouch( ctx.m_pPlayerComponent->m_crouchFlag );
+        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
+        pAnimController->SetLocomotionDesires( ctx.GetDeltaTime(), m_desiredHeading, m_desiredFacing );
+        pAnimController->SetSliding( isSliding );
+        pAnimController->SetCrouch( ctx.m_pPlayerComponent->m_crouchFlag );
 
         // Debug drawing
         //-------------------------------------------------------------------------
@@ -198,6 +198,8 @@ namespace EE::Player
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
         Vector const characterForward = characterWorldTransform.GetForwardVector();
+
+        m_desiredHeading = Vector::Zero;
 
         if ( stickAmplitude < g_idle_minimumStickAmplitudeThreshold )
         {

@@ -10,7 +10,7 @@ namespace EE::Animation
         : m_editorContext( editorContext )
     {}
 
-    void GraphCompilationLog::UpdateAndDraw( UpdateContext const& context, GraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
+    void GraphCompilationLog::UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
     {
         int32_t windowFlags = 0;
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );

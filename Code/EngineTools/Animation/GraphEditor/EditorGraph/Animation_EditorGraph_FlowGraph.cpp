@@ -25,7 +25,7 @@ namespace EE::Animation::GraphNodes
 
     void EditorGraphNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
     {
-        auto pGraphNodeContext = reinterpret_cast<GraphNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
         int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
@@ -64,14 +64,14 @@ namespace EE::Animation::GraphNodes
                     {
                         case GraphValueType::Bool:
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeValue<bool>( runtimeNodeIdx );
+                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
                             ImGui::Text( value ? "True" : "False" );
                         }
                         break;
 
                         case GraphValueType::ID:
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeValue<StringID>( runtimeNodeIdx );
+                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
                             if ( value.IsValid() )
                             {
                                 ImGui::Text( value.c_str() );
@@ -85,28 +85,28 @@ namespace EE::Animation::GraphNodes
 
                         case GraphValueType::Int:
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeValue<int32_t>( runtimeNodeIdx );
+                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
                             ImGui::Text( "%d", value );
                         }
                         break;
 
                         case GraphValueType::Float:
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeValue<float>( runtimeNodeIdx );
+                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
                             ImGui::Text( "%.3f", value );
                         }
                         break;
 
                         case GraphValueType::Vector:
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeValue<Vector>( runtimeNodeIdx );
+                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
                             ImGuiX::DisplayVector4( value );
                         }
                         break;
 
                         case GraphValueType::Target:
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeValue<Target>( runtimeNodeIdx );
+                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
                             if ( value.IsBoneTarget() )
                             {
                                 if ( value.GetBoneID().IsValid() )
@@ -141,7 +141,7 @@ namespace EE::Animation::GraphNodes
 
     bool EditorGraphNode::IsActive( VisualGraph::DrawContext const& ctx ) const
     {
-        auto pGraphNodeContext = reinterpret_cast<GraphNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             // Some nodes dont have runtime representations
@@ -163,6 +163,40 @@ namespace EE::Animation::GraphNodes
     ImColor EditorGraphNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
     {
         return ImGuiX::ConvertColor( GetColorForValueType( (GraphValueType) pin.m_type ) );
+    }
+
+    void EditorGraphNode::DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
+    {
+        ImGui::Separator();
+
+        if ( ImGui::BeginMenu( "Node Info" ) )
+        {
+            // UUID
+            auto IDStr = GetID().ToString();
+            InlineString label = InlineString( InlineString::CtorSprintf(), "UUID: %s", IDStr.c_str() );
+            if ( ImGui::MenuItem( label.c_str() ) )
+            {
+                ImGui::SetClipboardText( IDStr.c_str() );
+            }
+
+            // Draw runtime node index
+            auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
+            if ( pGraphNodeContext->HasDebugData() )
+            {
+                int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+                if ( runtimeNodeIdx != InvalidIndex )
+                {
+                    label = InlineString( InlineString::CtorSprintf(), "Runtime Index: %d", runtimeNodeIdx );
+                    if ( ImGui::MenuItem( label.c_str() ) )
+                    {
+                        InlineString const value( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
+                        ImGui::SetClipboardText( value.c_str() );
+                    }
+                }
+            }
+
+            ImGui::EndMenu();
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -350,7 +384,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto pDebugContext = reinterpret_cast<GraphNodeContext*>( ctx.m_pUserContext );
+        auto pDebugContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
         auto pResource = GetOverrideValueForVariation( pDebugContext->m_currentVariationID );
         if ( pResource == nullptr || !pResource->IsValid() )
         {

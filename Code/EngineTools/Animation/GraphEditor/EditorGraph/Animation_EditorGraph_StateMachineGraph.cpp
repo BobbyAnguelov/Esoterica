@@ -108,7 +108,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         bool shouldDrawEmptyDebugInfoBlock = true;
-        auto pGraphNodeContext = reinterpret_cast<GraphNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
@@ -164,6 +164,46 @@ namespace EE::Animation::GraphNodes
         auto dataNodes = GetSecondaryGraph()->FindAllNodesOfType<StateLayerDataEditorNode>();
         EE_ASSERT( dataNodes.size() == 1 );
         return dataNodes[0];
+    }
+
+    void StateEditorNode::DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos )
+    {
+        ImGui::Separator();
+
+        if ( ImGui::MenuItem( "Make Default Entry State" ) )
+        {
+            auto pParentStateMachineGraph = Cast<StateMachineGraph>( GetParentGraph() );
+            pParentStateMachineGraph->SetDefaultEntryState( GetID() );
+        }
+
+        if ( ImGui::BeginMenu( "Node Info" ) )
+        {
+            // UUID
+            auto IDStr = GetID().ToString();
+            InlineString label = InlineString( InlineString::CtorSprintf(), "UUID: %s", IDStr.c_str() );
+            if ( ImGui::MenuItem( label.c_str() ) )
+            {
+                ImGui::SetClipboardText( IDStr.c_str() );
+            }
+
+            // Draw runtime node index
+            auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
+            if ( pGraphNodeContext->HasDebugData() )
+            {
+                int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+                if ( runtimeNodeIdx != InvalidIndex )
+                {
+                    label = InlineString( InlineString::CtorSprintf(), "Runtime Index: %d", runtimeNodeIdx );
+                    if ( ImGui::MenuItem( label.c_str() ) )
+                    {
+                        InlineString const value( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
+                        ImGui::SetClipboardText( value.c_str() );
+                    }
+                }
+            }
+
+            ImGui::EndMenu();
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -364,7 +404,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Is this transition active?
-        auto pGraphNodeContext = reinterpret_cast<GraphNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             bool isActive = false;
@@ -840,7 +880,7 @@ namespace EE::Animation
         UpdateEntryState();
     }
 
-    void StateMachineGraph::CreateNewState( ImVec2 const& mouseCanvasPos )
+    void StateMachineGraph::CreateNewState( Float2 const& mouseCanvasPos )
     {
         VisualGraph::ScopedGraphModification sgm( this );
 
@@ -851,7 +891,7 @@ namespace EE::Animation
         UpdateDependentNodes();
     }
 
-    void StateMachineGraph::CreateNewOffState( ImVec2 const& mouseCanvasPos )
+    void StateMachineGraph::CreateNewOffState( Float2 const& mouseCanvasPos )
     {
         VisualGraph::ScopedGraphModification sgm( this );
 
@@ -973,5 +1013,18 @@ namespace EE::Animation
         VisualGraph::StateMachineGraph::PostPasteNodes( pastedNodes );
         ParameterReferenceEditorNode::RefreshParameterReferences( GetRootGraph() );
         UpdateDependentNodes();
+    }
+
+    void StateMachineGraph::DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos )
+    {
+        if ( ImGui::MenuItem( "Blend Tree State" ) )
+        {
+            CreateNewState( mouseCanvasPos );
+        }
+
+        if ( ImGui::MenuItem( "Off State" ) )
+        {
+            CreateNewOffState( mouseCanvasPos );
+        }
     }
 }

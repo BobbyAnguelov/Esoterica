@@ -42,7 +42,8 @@ namespace EE
         bool IsGamePreviewWorkspace( EditorWorkspace const* pWorkspace ) const;
         inline GamePreviewer* GetGamePreviewWorkspace() const { return m_pGamePreviewer; }
 
-        inline bool IsGamePreviewRunning() const { return m_pGamePreviewer != nullptr; }
+        virtual bool IsGameRunning() const override { return m_pGamePreviewer != nullptr; }
+        virtual EntityWorld const* GetGameWorld() const override;
 
         // Workspaces
         //-------------------------------------------------------------------------

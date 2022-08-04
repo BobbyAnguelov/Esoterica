@@ -5,6 +5,7 @@
 namespace EE
 {
     class ResourceID;
+    class EntityWorld;
     namespace Resource { class ResourceSystem; class ResourceDatabase; }
     namespace TypeSystem { class TypeRegistry; }
     namespace FileSystem { class Path; }
@@ -19,7 +20,12 @@ namespace EE
         FileSystem::Path const& GetRawResourceDirectory() const;
         FileSystem::Path const& GetCompiledResourceDirectory() const;
 
+        // Resources
         virtual void TryOpenResource( ResourceID const& resourceID ) const = 0;
+
+        // Debugging
+        virtual bool IsGameRunning() const { return false; }
+        virtual EntityWorld const* GetGameWorld() const { return nullptr; }
 
     public:
 

@@ -1,5 +1,7 @@
 #include "WorldSystem_Animation.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
+#include "Engine/Entity/EntityWorldUpdateContext.h"
+#include "System/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
@@ -24,5 +26,16 @@ namespace EE::Animation
         {
             m_graphComponents.Remove( pGraphComponent->GetID() );
         }
+    }
+
+    void AnimationWorldSystem::UpdateSystem( EntityWorldUpdateContext const& ctx )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        Drawing::DrawContext drawingCtx = ctx.GetDrawingContext();
+        for ( auto pComponent : m_graphComponents )
+        {
+            pComponent->DrawDebug( drawingCtx );
+        }
+        #endif
     }
 }

@@ -122,7 +122,9 @@ namespace EE
 
         void SetViewportCameraSpeed( float cameraSpeed );
 
-        void SetViewportCameraPosition( Transform const& cameraTransform );
+        void SetViewportCameraTransform( Transform const& cameraTransform );
+
+        Transform GetViewportCameraTransform() const;
 
         void SetWorldPaused( bool isPaused );
 

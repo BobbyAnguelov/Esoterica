@@ -24,7 +24,7 @@ namespace EE
 
         ImGui::SameLine();
 
-        float cameraSpeed = pPlayerManager->GetDebugCameraMoveSpeed();
+        float cameraSpeed = pPlayerManager->GetDebugCameraSpeed();
         ImGui::SetNextItemWidth( 125 );
         if ( ImGui::SliderFloat( "##CameraSpeed", &cameraSpeed, PlayerManager::s_debugCameraMinSpeed, PlayerManager::s_debugCameraMaxSpeed ) )
         {

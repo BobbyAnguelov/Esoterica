@@ -33,6 +33,8 @@ namespace EE::Animation
 
     class EE_ENGINE_API GraphInstance
     {
+    public:
+
         struct ConnectedExternalGraph
         {
             StringID            m_slotID;
@@ -53,6 +55,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline ResourceID const& GetGraphVariationID() const { return m_pGraphVariation->GetResourceID(); }
+        inline ResourceID const& GetGraphDefinitionID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
 
         // Is this a valid instance that has been correctly initialized
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
@@ -170,6 +173,7 @@ namespace EE::Animation
         // Set the root motion debug mode
         inline void SetRootMotionDebugMode( RootMotionDebugMode mode ) { m_rootMotionDebugger.SetDebugMode( mode ); }
 
+        // Get the root motion debugger for this instance
         inline RootMotionDebugger const* GetRootMotionDebugger() const { return &m_rootMotionDebugger; }
 
         // Set the list of the debugs that we wish to explicitly debug. Set an empty list to debug everything!
@@ -184,9 +188,15 @@ namespace EE::Animation
             return pNode->GetDebugInfo();
         }
 
+        // Get the connected external graph instance
+        GraphInstance const* GetExternalGraphDebugInstance( StringID slotID ) const;
+
+        // Get all connected external graphs
+        inline TVector<ConnectedExternalGraph> const& GetConnectedExternalGraphsForDebug() const { return m_connectedExternalGraphs; }
+
         // Get the value of a specified value node
         template<typename T>
-        inline T GetRuntimeNodeValue( int16_t nodeIdx ) const
+        inline T GetRuntimeNodeDebugValue( int16_t nodeIdx ) const
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
             auto pValueNode = static_cast<ValueNode*>( const_cast<GraphNode*>( m_nodes[nodeIdx] ) );

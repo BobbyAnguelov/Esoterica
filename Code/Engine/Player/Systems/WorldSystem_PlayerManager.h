@@ -89,9 +89,12 @@ namespace EE
         inline bool IsDebugCameraEnabled() const { return m_debugMode != DebugMode::None; }
         inline FreeLookCameraComponent* GetDebugCamera() const { return m_pDebugCameraComponent; }
         void ResetDebugCameraSpeed() { m_resetCameraSpeedRequested = true; }
-        inline void SetDebugCameraSpeed( float speed ) { m_debugCameraMoveSpeed = FloatRange( s_debugCameraMinSpeed, s_debugCameraMaxSpeed ).GetClampedValue( speed ); }
+
         inline void SetDebugCameraView( Transform const& cameraTransform );
-        inline float GetDebugCameraMoveSpeed() const { return m_debugCameraMoveSpeed; }
+        Transform GetDebugCameraView() const;
+
+        inline void SetDebugCameraSpeed( float speed ) { m_debugCameraMoveSpeed = FloatRange( s_debugCameraMinSpeed, s_debugCameraMaxSpeed ).GetClampedValue( speed ); }
+        inline float GetDebugCameraSpeed() const { return m_debugCameraMoveSpeed; }
         #endif
 
     private:

@@ -3,7 +3,6 @@
 #include "EditorGraph/Animation_EditorGraph_Definition.h"
 #include "EditorGraph/Nodes/Animation_EditorGraphNode_ControlParameters.h"
 #include "EngineTools/Core/Helpers/CategoryTree.h"
-#include "Engine/Animation/Components/Component_AnimationGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,14 +12,15 @@ namespace EE::Animation
     {
         using ParameterPreviewState::ParameterPreviewState;
 
-        virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) override
+        virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) override
         {
             int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
 
-            auto value = pGraphNodeContext->m_pGraphComponent->GetControlParameterValue<bool>( parameterIdx );
+            auto value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<bool>( parameterIdx );
             if ( ImGui::Checkbox( "##bp", &value ) )
             {
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, value );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
             }
         }
     };
@@ -29,15 +29,16 @@ namespace EE::Animation
     {
         using ParameterPreviewState::ParameterPreviewState;
 
-        virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) override
+        virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) override
         {
             int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
 
-            auto value = pGraphNodeContext->m_pGraphComponent->GetControlParameterValue<int32_t>( parameterIdx );
+            auto value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<int32_t>( parameterIdx );
             ImGui::SetNextItemWidth( -1 );
             if ( ImGui::InputInt( "##ip", &value ) )
             {
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, value );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
             }
         }
     };
@@ -52,10 +53,12 @@ namespace EE::Animation
             m_max = pFloatParameter->GetPreviewRangeMax();
         }
 
-        virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) override
+        virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) override
         {
             int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
-            float value = pGraphNodeContext->m_pGraphComponent->GetControlParameterValue<float>( parameterIdx );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            float value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<float>( parameterIdx );
 
             //-------------------------------------------------------------------------
 
@@ -68,7 +71,7 @@ namespace EE::Animation
 
                 // Clamp the value to the range
                 value = Math::Clamp( value, m_min, m_max );
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, value );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
             };
 
             //-------------------------------------------------------------------------
@@ -85,7 +88,7 @@ namespace EE::Animation
             ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - limitWidth - ImGui::GetStyle().ItemSpacing.x );
             if ( ImGui::SliderFloat( "##fp", &value, m_min, m_max ) )
             {
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, value );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
             }
 
             ImGui::SameLine();
@@ -106,15 +109,16 @@ namespace EE::Animation
     {
         using ParameterPreviewState::ParameterPreviewState;
 
-        virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) override
+        virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) override
         {
             int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
 
-            Vector value = pGraphNodeContext->m_pGraphComponent->GetControlParameterValue<Vector>( parameterIdx );
+            Vector value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
             ImGui::SetNextItemWidth( -1 );
             if ( ImGui::InputFloat4( "##vp", &value.m_x ) )
             {
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, value );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
             }
         }
     };
@@ -123,10 +127,12 @@ namespace EE::Animation
     {
         using ParameterPreviewState::ParameterPreviewState;
 
-        virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) override
+        virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) override
         {
             int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
-            auto value = pGraphNodeContext->m_pGraphComponent->GetControlParameterValue<StringID>( parameterIdx );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            auto value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<StringID>( parameterIdx );
             if ( value.IsValid() )
             {
                 strncpy_s( m_buffer, 255, value.c_str(), strlen( value.c_str() ) );
@@ -139,7 +145,7 @@ namespace EE::Animation
             ImGui::SetNextItemWidth( -1 );
             if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
             {
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
             }
         }
 
@@ -152,10 +158,12 @@ namespace EE::Animation
     {
         using ParameterPreviewState::ParameterPreviewState;
 
-        virtual void DrawPreviewEditor( GraphNodeContext* pGraphNodeContext ) override
+        virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) override
         {
             int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
-            Target value = pGraphNodeContext->m_pGraphComponent->GetControlParameterValue<Target>( parameterIdx );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            Target value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<Target>( parameterIdx );
 
             // Reflect actual state
             //-------------------------------------------------------------------------
@@ -306,7 +314,7 @@ namespace EE::Animation
                     value = Target();
                 }
 
-                pGraphNodeContext->m_pGraphComponent->SetControlParameterValue( parameterIdx, value );
+                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
             }
         }
 
@@ -334,7 +342,7 @@ namespace EE::Animation
         DestroyPreviewStates();
     }
 
-    bool GraphControlParameterEditor::UpdateAndDraw( UpdateContext const& context, GraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
+    bool GraphControlParameterEditor::UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
     {
         m_pVirtualParamaterToEdit = nullptr;
 
@@ -827,7 +835,7 @@ namespace EE::Animation
         }
     }
 
-    void GraphControlParameterEditor::DrawParameterPreviewControls( GraphNodeContext* pGraphNodeContext )
+    void GraphControlParameterEditor::DrawParameterPreviewControls( EditorGraphNodeContext* pGraphNodeContext )
     {
         EE_ASSERT( pGraphNodeContext != nullptr );
 

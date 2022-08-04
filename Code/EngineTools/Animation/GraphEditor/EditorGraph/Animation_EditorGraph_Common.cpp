@@ -12,15 +12,15 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool GraphNodeContext::IsNodeActive( int16_t nodeIdx ) const
+    bool EditorGraphNodeContext::IsNodeActive( int16_t nodeIdx ) const
     {
-        return m_pGraphComponent->IsNodeActive( nodeIdx );
+        return m_pGraphInstance->IsNodeActive( nodeIdx );
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    PoseNodeDebugInfo GraphNodeContext::GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const
+    PoseNodeDebugInfo EditorGraphNodeContext::GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const
     {
-        return m_pGraphComponent->GetPoseNodeDebugInfo( runtimeNodeIdx );
+        return m_pGraphInstance->GetPoseNodeDebugInfo( runtimeNodeIdx );
     }
     #endif
 

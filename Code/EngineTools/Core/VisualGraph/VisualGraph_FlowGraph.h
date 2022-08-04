@@ -178,6 +178,9 @@ namespace EE::VisualGraph
             // Override this if you want custom UI after/before the pin. Returns true if something was drawn, false otherwise
             virtual bool DrawPinControls( Pin const& pin ) { return false; }
 
+            // Override this if you want to provide additional context menu options
+            virtual void DrawExtraContextMenuOptions( DrawContext const& ctx, Float2 const& mouseCanvasPos, Pin* pHoveredPin ) {}
+
             // Create a new dynamic pin
             void CreateDynamicInputPin();
 

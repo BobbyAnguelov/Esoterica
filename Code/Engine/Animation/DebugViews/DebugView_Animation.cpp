@@ -13,7 +13,7 @@ namespace EE::Animation
 {
     void AnimationDebugView::DrawGraphControlParameters( AnimationGraphComponent* pGraphComponent )
     {
-        if ( ImGui::BeginTable( "OverlayActionsTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+        if ( ImGui::BeginTable( "ControlParametersTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
             ImGui::TableSetupColumn( "Parameter", ImGuiTableColumnFlags_WidthStretch, 0.5f );
             ImGui::TableSetupColumn( "Value", ImGuiTableColumnFlags_WidthStretch );
@@ -120,8 +120,6 @@ namespace EE::Animation
 
         auto pTask = pTaskSystem->m_tasks[currentTaskIdx];
         InlineString const rowLabel( InlineString::CtorSprintf(), "%s - %s", stageLabels[(int32_t) pTask->GetActualUpdateStage()], pTask->GetDebugText().c_str() );
-
-        //String const& nodePath = pGraphComponent->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
 
         ImGui::SetNextItemOpen( true );
         ImGui::PushStyleColor( ImGuiCol_Text, pTask->GetDebugColor().ToFloat4() );
@@ -337,7 +335,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    AnimationDebugView::ComponentRuntimeSettings* AnimationDebugView::GetRuntimeSettings( ComponentID ID )
+    AnimationDebugView::ComponentDebugState* AnimationDebugView::GetDebugState( ComponentID ID )
     {
         for ( auto& debuggedComponent : m_componentRuntimeSettings )
         {
@@ -350,7 +348,7 @@ namespace EE::Animation
         return &m_componentRuntimeSettings.emplace_back( ID );
     }
 
-    void AnimationDebugView::DestroyRuntimeSettings( ComponentID ID )
+    void AnimationDebugView::DestroyDebugState( ComponentID ID )
     {
         for ( int32_t i = 0; i < (int32_t) m_componentRuntimeSettings.size(); i++ )
         {
@@ -375,7 +373,7 @@ namespace EE::Animation
             auto pEntity = m_pWorld->FindEntity( entityID );
             EE_ASSERT( pEntity != nullptr );
 
-            auto pRuntimeSettings = GetRuntimeSettings( pGraphComponent->GetID() );
+            auto pRuntimeSettings = GetDebugState( pGraphComponent->GetID() );
 
             //-------------------------------------------------------------------------
 
@@ -555,21 +553,6 @@ namespace EE::Animation
             if ( stopDebug )
             {
                 m_componentRuntimeSettings.erase_unsorted( m_componentRuntimeSettings.begin() + i );
-            }
-        }
-    }
-
-    void AnimationDebugView::DrawOverlayElements( EntityWorldUpdateContext const& context )
-    {
-        auto drawingCtx = context.GetDrawingContext();
-
-        for ( auto const& RuntimeSettings : m_componentRuntimeSettings )
-        {
-            auto ppFoundComponent = m_pAnimationWorldSystem->m_graphComponents.FindItem( RuntimeSettings.m_ID );
-            if ( ppFoundComponent != nullptr )
-            {
-                auto pGraphComponent = *ppFoundComponent;
-                pGraphComponent->DrawDebug( drawingCtx );
             }
         }
     }

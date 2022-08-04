@@ -12,7 +12,7 @@ namespace EE::Resource { class ResourceDatabase; }
 namespace EE::Animation
 {
     class FlowGraph;
-    struct GraphNodeContext;
+    struct EditorGraphNodeContext;
 }
 
 //-------------------------------------------------------------------------
@@ -39,10 +39,9 @@ namespace EE::Animation
 
         private:
 
-            virtual void DrawContextMenuForGraph() override;
-            virtual void DrawContextMenuForNode() override;
-            virtual void OnGraphDoubleClick( VisualGraph::BaseGraph* pGraph ) override;
-            virtual void OnNodeDoubleClick( VisualGraph::BaseNode* pNode ) override;
+            virtual void DrawExtraGraphContextMenuOptions( VisualGraph::DrawContext const& ctx ) override;
+            virtual void OnGraphDoubleClick( VisualGraph::DrawContext const& ctx, VisualGraph::BaseGraph* pGraph ) override;
+            virtual void OnNodeDoubleClick( VisualGraph::DrawContext const& ctx, VisualGraph::BaseNode* pNode ) override;
             virtual void OnSelectionChanged( TVector<VisualGraph::BaseNode*> const& oldSelection, TVector<VisualGraph::BaseNode*> const& newSelection ) { m_selectionChanged = true; }
             virtual void DrawExtraInformation( VisualGraph::DrawContext const& ctx ) override;
             virtual void HandleDragAndDrop( ImVec2 const& mouseCanvasPos ) override;
@@ -62,7 +61,7 @@ namespace EE::Animation
         GraphEditor( GraphEditorContext& editorContext );
 
         // Update
-        void UpdateAndDraw( UpdateContext const& context, GraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
+        void UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
         void OnUndoRedo();
 
         // Navigation

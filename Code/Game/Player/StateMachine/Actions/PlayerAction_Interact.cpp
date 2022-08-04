@@ -13,10 +13,12 @@ namespace EE::Player
 
         using Animation::ExternalGraphController::ExternalGraphController;
 
+        #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetName() const override
         {
             return "Temp";
         }
+        #endif
 
         virtual void PostGraphUpdate( Seconds deltaTime ) override
         {

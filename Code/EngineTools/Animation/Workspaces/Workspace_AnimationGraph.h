@@ -12,10 +12,8 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Physics
-{
-    class PhysicsSystem;
-}
+namespace EE::Render { class SkeletalMeshComponent; }
+namespace EE::Physics { class PhysicsSystem; }
 
 //-------------------------------------------------------------------------
 
@@ -29,6 +27,13 @@ namespace EE::Animation
     class AnimationGraphWorkspace final : public TResourceWorkspace<GraphDefinition>
     {
         friend GraphUndoableAction;
+
+        enum class DebugMode
+        {
+            None,
+            Preview,
+            LiveDebug,
+        };
 
     public:
 
@@ -51,17 +56,23 @@ namespace EE::Animation
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual bool Save() override;
 
-        void GenerateAnimGraphVariationDescriptors();
-
-        // Preview
+        // Debugging
         //-------------------------------------------------------------------------
 
-        inline bool IsPreviewing() const { return m_isPreviewing; }
-        void StartPreview( UpdateContext const& context );
-        void StopPreview();
+        inline bool IsDebugging() const { return m_debugMode != DebugMode::None; }
+        inline bool IsPreviewing() const { return m_debugMode == DebugMode::Preview; }
+        inline bool IsLiveDebugging() const { return m_debugMode == DebugMode::LiveDebug; }
 
-        void SetFirstFrameParameterValues( UpdateContext const& context );
+        // Starts a debugging session. If a target component is provided we assume we are attaching to a live game 
+        void StartDebugging( UpdateContext const& context, AnimationGraphComponent* pTarget, StringID externalGraphSlotID = StringID() );
+
+        // Ends the current debug session
+        void StopDebugging();
+
+        void ReflectInitialPreviewParameterValues( UpdateContext const& context );
+
         void DrawDebuggerWindow( UpdateContext const& context );
+        void DrawLiveDebugTargetsMenu( UpdateContext const& context );
 
     private:
 
@@ -93,18 +104,27 @@ namespace EE::Animation
         StringID                            m_selectedVariationID = GraphVariation::DefaultVariationID;
 
         Transform                           m_gizmoTransform;
+        DebugMode                           m_debugMode = DebugMode::None;
+
+        // Debug
+        AnimationGraphComponent*            m_pDebugGraphComponent = nullptr;
+        Render::SkeletalMeshComponent*      m_pDebugMeshComponent = nullptr;
+        GraphInstance*                      m_pDebugGraphInstance = nullptr;
+        StringID                            m_debugExternalGraphSlotID = StringID();
+        GraphDebugMode                      m_graphDebugMode = GraphDebugMode::On;
+        EditorGraphNodeContext              m_nodeContext;
+        RootMotionDebugMode                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
+        TaskSystemDebugMode                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
 
         // Preview
         Physics::PhysicsSystem*             m_pPhysicsSystem = nullptr;
         Entity*                             m_pPreviewEntity = nullptr;
-        AnimationGraphComponent*            m_pGraphComponent = nullptr;
-        GraphNodeContext                    m_nodeContext;
         Transform                           m_previewStartTransform = Transform::Identity;
+        Transform                           m_characterTransform = Transform::Identity;
+        Transform                           m_cameraOffsetTransform = Transform::Identity;
+        Transform                           m_previousCameraTransform = Transform::Identity;
         bool                                m_startPaused = false;
-        bool                                m_isPreviewing = false;
-        GraphDebugMode                      m_graphDebugMode = GraphDebugMode::On;
-        RootMotionDebugMode                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
-        TaskSystemDebugMode                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
         bool                                m_isFirstPreviewFrame = false;
+        bool                                m_isCameraTrackingEnabled = true;
     };
 }

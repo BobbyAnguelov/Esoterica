@@ -21,9 +21,9 @@ namespace EE::Animation
     {
         EE_REGISTER_TYPE( AnimationDebugView );
 
-        struct ComponentRuntimeSettings
+        struct ComponentDebugState
         {
-            ComponentRuntimeSettings( ComponentID ID )
+            ComponentDebugState( ComponentID ID )
                 : m_ID( ID )
             {}
 
@@ -53,18 +53,16 @@ namespace EE::Animation
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
         virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-        virtual void DrawOverlayElements( EntityWorldUpdateContext const& context ) override;
-
-        ComponentRuntimeSettings* GetRuntimeSettings( ComponentID ID );
-        void DestroyRuntimeSettings( ComponentID ID );
-
         void DrawMenu( EntityWorldUpdateContext const& context );
+
+        ComponentDebugState* GetDebugState( ComponentID ID );
+        void DestroyDebugState( ComponentID ID );
 
     private:
 
         EntityWorld const*                      m_pWorld = nullptr;
         AnimationWorldSystem*                   m_pAnimationWorldSystem = nullptr;
-        TVector<ComponentRuntimeSettings>         m_componentRuntimeSettings;
+        TVector<ComponentDebugState>         m_componentRuntimeSettings;
     };
 }
 #endif

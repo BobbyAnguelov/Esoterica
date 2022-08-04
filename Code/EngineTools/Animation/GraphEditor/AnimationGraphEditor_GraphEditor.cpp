@@ -2,6 +2,7 @@
 #include "AnimationGraphEditor_Context.h"
 #include "EditorGraph/Nodes/Animation_EditorGraphNode_AnimationClip.h"
 #include "EditorGraph/Nodes/Animation_EditorGraphNode_Ragdoll.h"
+#include "EditorGraph/Nodes/Animation_EditorGraphNode_ExternalGraph.h"
 #include "EditorGraph/Animation_EditorGraph_Definition.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
@@ -17,32 +18,15 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void GraphEditor::GraphView::DrawContextMenuForGraph()
+    void GraphEditor::GraphView::DrawExtraGraphContextMenuOptions( VisualGraph::DrawContext const& ctx )
     {
         EE_ASSERT( m_pGraph != nullptr );
-
-        VisualGraph::GraphView::DrawContextMenuForGraph();
 
         //-------------------------------------------------------------------------
 
         ImGui::Separator();
 
-        if ( IsViewingStateMachineGraph() )
-        {
-            EE_ASSERT( m_pGraph != nullptr );
-            auto pStateMachineEditorGraph = static_cast<StateMachineGraph*>( m_pGraph );
-
-            if ( ImGui::MenuItem( "Blend Tree State" ) )
-            {
-                pStateMachineEditorGraph->CreateNewState( m_contextMenuState.m_mouseCanvasPos );
-            }
-
-            if ( ImGui::MenuItem( "Off State" ) )
-            {
-                pStateMachineEditorGraph->CreateNewOffState( m_contextMenuState.m_mouseCanvasPos );
-            }
-        }
-        else // Flow Graph
+        if ( IsViewingFlowGraph() )
         {
             auto& editorContext = m_graphEditor.m_editorContext;
             auto pFlowEditorGraph = static_cast<FlowGraph*>( m_pGraph );
@@ -101,21 +85,6 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             DrawNodeTypeCategoryContextMenu( m_contextMenuState.m_mouseCanvasPos, pFlowEditorGraph, editorContext.GetCategorizedNodeTypes() );
-        }
-    }
-
-    void GraphEditor::GraphView::DrawContextMenuForNode()
-    {
-        if ( IsViewingStateMachineGraph() )
-        {
-            auto pStateNode = TryCast<VisualGraph::SM::State>( m_contextMenuState.m_pNode );
-            if ( pStateNode != nullptr )
-            {
-                if ( ImGui::MenuItem( "Make Default Entry State" ) )
-                {
-                    GetStateMachineGraph()->SetDefaultEntryState(pStateNode->GetID());
-                }
-            }
         }
     }
 
@@ -205,7 +174,7 @@ namespace EE::Animation
         return true;
     }
 
-    void GraphEditor::GraphView::OnGraphDoubleClick( VisualGraph::BaseGraph* pGraph )
+    void GraphEditor::GraphView::OnGraphDoubleClick( VisualGraph::DrawContext const& ctx, VisualGraph::BaseGraph* pGraph )
     {
         EE_ASSERT( pGraph != nullptr );
 
@@ -216,7 +185,7 @@ namespace EE::Animation
         }
     }
 
-    void GraphEditor::GraphView::OnNodeDoubleClick( VisualGraph::BaseNode* pNode )
+    void GraphEditor::GraphView::OnNodeDoubleClick( VisualGraph::DrawContext const& ctx, VisualGraph::BaseNode* pNode )
     {
         EE_ASSERT( pNode != nullptr );
 
@@ -237,6 +206,23 @@ namespace EE::Animation
             if ( resourceID.IsValid() )
             {
                 m_graphEditor.m_resourceViewRequests.emplace_back( resourceID );
+            }
+        }
+        else if ( auto pExternalGraphNode = TryCast<ExternalGraphEditorNode>( pNode ) )
+        {
+            auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
+            if ( pGraphNodeContext->HasDebugData() )
+            {
+                int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( pNode->GetID() );
+                if ( runtimeNodeIdx != InvalidIndex )
+                {
+                    StringID const SlotID( pExternalGraphNode->GetName() );
+                    GraphInstance const* pConnectedGraphInstance = pGraphNodeContext->m_pGraphInstance->GetExternalGraphDebugInstance( SlotID );
+                    if ( pConnectedGraphInstance != nullptr )
+                    {
+                        m_graphEditor.m_resourceViewRequests.emplace_back( pConnectedGraphInstance->GetGraphDefinitionID() );
+                    }
+                }
             }
         }
     }
@@ -481,7 +467,7 @@ namespace EE::Animation
         }
     }
 
-    void GraphEditor::UpdateAndDraw( UpdateContext const& context, GraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
+    void GraphEditor::UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
     {
         m_resourceViewRequests.clear();
         bool isGraphViewFocused = false;

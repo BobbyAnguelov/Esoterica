@@ -253,6 +253,11 @@ namespace EE
         return m_pGamePreviewer == pWorkspace;
     }
 
+    EntityWorld const* EditorContext::GetGameWorld() const
+    {
+        return m_pGamePreviewer->GetWorld();
+    }
+
     void* EditorContext::GetViewportTextureForWorkspace( EditorWorkspace* pWorkspace ) const
     {
         EE_ASSERT( pWorkspace != nullptr );
@@ -296,7 +301,7 @@ namespace EE
 
     void EditorContext::StartGamePreview( UpdateContext const& context )
     {
-        EE_ASSERT( !IsGamePreviewRunning() );
+        EE_ASSERT( !IsGameRunning() );
 
         auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Game );
         m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
@@ -310,7 +315,7 @@ namespace EE
 
     void EditorContext::StopGamePreview( UpdateContext const& context )
     {
-        EE_ASSERT( IsGamePreviewRunning() );
+        EE_ASSERT( IsGameRunning() );
         QueueDestroyWorkspace( m_pGamePreviewer );
     }
 }

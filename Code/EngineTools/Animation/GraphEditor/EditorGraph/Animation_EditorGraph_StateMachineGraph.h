@@ -79,6 +79,7 @@ namespace EE::Animation
         private:
 
             virtual char const* GetTypeName() const override { return "State"; }
+            virtual void DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos ) override;
         };
 
         // An off-state
@@ -279,8 +280,8 @@ namespace EE::Animation
 
     public:
 
-        void CreateNewState( ImVec2 const& mouseCanvasPos );
-        void CreateNewOffState( ImVec2 const& mouseCanvasPos );
+        void CreateNewState( Float2 const& mouseCanvasPos );
+        void CreateNewOffState( Float2 const& mouseCanvasPos );
 
         GraphNodes::GlobalTransitionConduitEditorNode const* GetGlobalTransitionConduit() const { return m_pGlobalTransitionConduit; }
         GraphNodes::GlobalTransitionConduitEditorNode* GetGlobalTransitionConduit() { return m_pGlobalTransitionConduit; }
@@ -301,6 +302,7 @@ namespace EE::Animation
         virtual VisualGraph::SM::TransitionConduit* CreateTransitionNode() const override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
         virtual void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) override;
+        virtual void DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos ) override;
 
     private:
 

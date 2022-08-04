@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
-#include "Engine/Animation/Components/Component_AnimationGraph.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 #include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
@@ -13,7 +13,7 @@ namespace EE::VisualGraph { struct DrawContext; }
 
 namespace EE::Animation
 {
-    class AnimationGraphComponent;
+    class GraphInstance;
 
     // Graph Types
     //-------------------------------------------------------------------------
@@ -30,9 +30,12 @@ namespace EE::Animation
     // Debug
     //-------------------------------------------------------------------------
 
-    struct GraphNodeContext
+    struct EditorGraphNodeContext
     {
-        inline bool HasDebugData() const { return m_pGraphComponent != nullptr && m_pGraphComponent->IsInitialized(); }
+        inline bool HasDebugData() const 
+        {
+            return m_pGraphInstance != nullptr && m_pGraphInstance->IsInitialized(); 
+        }
 
         inline int16_t GetRuntimeGraphNodeIndex( UUID const& nodeID ) const
         {
@@ -51,16 +54,16 @@ namespace EE::Animation
         #endif
 
         template<typename T>
-        inline T GetRuntimeNodeValue( int16_t runtimeNodeIdx ) const
+        inline T GetRuntimeNodeDebugValue( int16_t runtimeNodeIdx ) const
         {
-            return m_pGraphComponent->GetRuntimeNodeValue<T>( runtimeNodeIdx );
+            return m_pGraphInstance->GetRuntimeNodeDebugValue<T>( runtimeNodeIdx );
         }
 
     public:
 
         StringID                            m_currentVariationID;
-        AnimationGraphComponent*            m_pGraphComponent = nullptr;
-        THashMap<UUID, int16_t>   m_nodeIDtoIndexMap;
+        GraphInstance*                      m_pGraphInstance = nullptr;
+        THashMap<UUID, int16_t>             m_nodeIDtoIndexMap;
     };
 
     //-------------------------------------------------------------------------

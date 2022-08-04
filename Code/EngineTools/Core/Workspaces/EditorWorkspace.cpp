@@ -336,11 +336,18 @@ namespace EE
         pPlayerManager->SetDebugCameraSpeed( cameraSpeed );
     }
 
-    void EditorWorkspace::SetViewportCameraPosition( Transform const& cameraTransform )
+    void EditorWorkspace::SetViewportCameraTransform( Transform const& cameraTransform )
     {
         EE_ASSERT( m_pWorld != nullptr );
         auto pPlayerManager = m_pWorld->GetWorldSystem<PlayerManager>();
         pPlayerManager->SetDebugCameraView( cameraTransform );
+    }
+
+    Transform EditorWorkspace::GetViewportCameraTransform() const
+    {
+        EE_ASSERT( m_pWorld != nullptr );
+        auto pPlayerManager = m_pWorld->GetWorldSystem<PlayerManager>();
+        return pPlayerManager->GetDebugCameraView();
     }
 
     void EditorWorkspace::SetWorldPaused( bool newPausedState )

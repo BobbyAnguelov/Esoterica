@@ -27,6 +27,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void PostPaste() override;
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;

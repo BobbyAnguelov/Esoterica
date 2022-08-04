@@ -286,7 +286,14 @@ namespace EE
 
     void PlayerManager::SetDebugCameraView( Transform const& cameraTransform )
     {
+        EE_ASSERT( m_pDebugCameraComponent != nullptr );
         m_pDebugCameraComponent->SetWorldTransform( cameraTransform );
+    }
+
+    Transform PlayerManager::GetDebugCameraView() const
+    {
+        EE_ASSERT( m_pDebugCameraComponent != nullptr );
+        return m_pDebugCameraComponent->GetWorldTransform();
     }
 
     void PlayerManager::SetDebugMode( DebugMode newMode )

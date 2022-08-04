@@ -30,6 +30,7 @@ namespace EE::VisualGraph
     class EE_ENGINETOOLS_API BaseNode : public IRegisteredType
     {
         friend BaseGraph;
+        friend class GraphView;
 
         constexpr static char const* const s_typeDataKey = "TypeData";
         constexpr static char const* const s_childGraphKey = "ChildGraph";
@@ -183,8 +184,8 @@ namespace EE::VisualGraph
 
     protected:
 
-        EE_REGISTER UUID           m_ID;
-        EE_REGISTER Float2         m_canvasPosition = Float2( 0, 0 ); // Updated each frame
+        EE_REGISTER UUID            m_ID;
+        EE_REGISTER Float2          m_canvasPosition = Float2( 0, 0 ); // Updated each frame
         ImVec2                      m_size = ImVec2( 0, 0 ); // Updated each frame
         ImVec2                      m_titleRectSize = ImVec2( 0, 0 ); // Updated each frame
         bool                        m_isHovered = false;
@@ -387,6 +388,9 @@ namespace EE::VisualGraph
 
     protected:
 
+        // Override this if you want to provide additional context menu options
+        virtual void DrawExtraContextMenuOptions( DrawContext const& ctx, Float2 const& mouseCanvasPos ) {}
+
         // Adds a node to this graph - Note: this transfers ownership of the node memory to this graph!
         // Adding of a node must go through this code path as we need to set the parent node ptr
         void AddNode( BaseNode* pNode )
@@ -414,13 +418,13 @@ namespace EE::VisualGraph
 
     protected:
 
-        EE_REGISTER UUID                       m_ID;
+        EE_REGISTER UUID                        m_ID;
         TVector<BaseNode*>                      m_nodes;
 
     private:
         BaseNode*                               m_pParentNode = nullptr; // Private so that we can enforce usage
         int32_t                                 m_beginModificationCallCount = 0;
-        EE_REGISTER Float2                     m_viewOffset = Float2( 0, 0 ); // Updated each frame
+        EE_REGISTER Float2                      m_viewOffset = Float2( 0, 0 ); // Updated each frame
     };
 
     //-------------------------------------------------------------------------

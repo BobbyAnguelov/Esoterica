@@ -1,6 +1,7 @@
 #include "Animation_EditorGraphNode_ExternalGraph.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
 #include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Compilation.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -25,6 +26,54 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( IsRenamable() );
         m_name = GetUniqueSlotName( newName );
+    }
+
+    void ExternalGraphEditorNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    {
+        // Draw separator
+        //-------------------------------------------------------------------------
+
+        float const spacerWidth = Math::Max( GetSize().x, 40.0f );
+        ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton( "S1", ImVec2( spacerWidth, 10 ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+
+        //-------------------------------------------------------------------------
+
+        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
+        {
+            int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+            if ( runtimeNodeIdx != InvalidIndex )
+            {
+                StringID const SlotID( GetName() );
+                GraphInstance const* pConnectedGraphInstance = pGraphNodeContext->m_pGraphInstance->GetExternalGraphDebugInstance( SlotID );
+                if ( pConnectedGraphInstance != nullptr )
+                {
+                    ImGui::Text( EE_ICON_NEEDLE" %s", pConnectedGraphInstance->GetGraphDefinitionID().c_str() + 7 );
+                }
+                else
+                {
+                    ImGui::Text( EE_ICON_NEEDLE_OFF " Empty" );
+                }
+            }
+        }
+        else // Simple label when editing
+        {
+            ImGui::Text( EE_ICON_NEEDLE" External Graph" );
+        }
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+
+        //-------------------------------------------------------------------------
+
+        originalCursorPos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton( "S2", ImVec2( spacerWidth, 10 ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+
+        //-------------------------------------------------------------------------
+
+        EditorGraphNode::DrawExtraControls( ctx );
     }
 
     String ExternalGraphEditorNode::GetUniqueSlotName( String const& desiredName )

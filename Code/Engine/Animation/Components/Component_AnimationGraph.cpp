@@ -126,15 +126,9 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void AnimationGraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
+    Transform AnimationGraphComponent::GetDebugWorldTransform() const
     {
-        if ( !HasGraph() )
-        {
-            return;
-        }
-
-        m_pTaskSystem->DrawDebug( drawingContext );
-        m_pGraphInstance->DrawDebug( drawingContext );
+        return m_pTaskSystem->GetCharacterWorldTransform();
     }
 
     void AnimationGraphComponent::SetGraphDebugMode( GraphDebugMode mode )
@@ -201,6 +195,17 @@ namespace EE::Animation
     {
         EE_ASSERT( HasGraphInstance() );
         return m_pGraphInstance->GetRootMotionDebugMode();
+    }
+
+    void AnimationGraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
+    {
+        if ( !HasGraph() )
+        {
+            return;
+        }
+
+        m_pTaskSystem->DrawDebug( drawingContext );
+        m_pGraphInstance->DrawDebug( drawingContext );
     }
     #endif
 }

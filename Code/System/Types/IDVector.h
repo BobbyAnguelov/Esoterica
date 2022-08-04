@@ -30,7 +30,7 @@ namespace EE
         // Flat array access
         //-------------------------------------------------------------------------
 
-        TVector<ItemType> const& GetVector() { return m_vector; }
+        TVector<ItemType> const& GetVector() const { return m_vector; }
         ItemType& operator[]( int32_t idx ) { return m_vector[idx]; }
         int32_t size() const { return (int32_t) m_vector.size(); }
         bool empty() const { return m_vector.empty(); }

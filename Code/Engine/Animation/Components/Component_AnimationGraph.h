@@ -97,24 +97,11 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        inline bool IsNodeActive( int16_t nodeIdx ) const
-        {
-            EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->IsNodeActive( nodeIdx );
-        }
+        // Get the debug graph instance
+        GraphInstance* GetDebugGraphInstance() const { return m_pGraphInstance; }
 
-        inline PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t nodeIdx ) const
-        {
-            EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->GetPoseNodeDebugInfo( nodeIdx );
-        }
-
-        template<typename T>
-        inline T GetRuntimeNodeValue( int16_t nodeIdx ) const
-        {
-            EE_ASSERT( m_pGraphInstance != nullptr );
-            return m_pGraphInstance->GetRuntimeNodeValue<T>( nodeIdx );
-        }
+        // Get the final character transform provided to the task system
+        Transform GetDebugWorldTransform() const;
 
         // Graph debug
         void SetGraphDebugMode( GraphDebugMode mode );
