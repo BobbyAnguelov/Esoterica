@@ -537,7 +537,7 @@ namespace EE
         // Draw workspace contents
         //-------------------------------------------------------------------------
 
-        bool enableInputForWorld = false;
+        bool enableCameraUpdate = false;
         auto pWorldManager = context.GetSystem<EntityWorldManager>();
         auto pWorld = pWorkspace->GetWorld();
 
@@ -553,7 +553,7 @@ namespace EE
                 EditorWorkspace::ViewportInfo viewportInfo;
                 viewportInfo.m_pViewportRenderTargetTexture = m_context.GetViewportTextureForWorkspace( pWorkspace );
                 viewportInfo.m_retrievePickingID = [this, pWorkspace] ( Int2 const& pixelCoords ) { return m_context.GetViewportPickingID( pWorkspace, pixelCoords ); };
-                enableInputForWorld = pWorkspace->DrawViewport( context, viewportInfo, &workspaceWindowClass );
+                enableCameraUpdate = pWorkspace->DrawViewport( context, viewportInfo, &workspaceWindowClass );
             }
 
             pWorkspace->SharedUpdateWorkspace( context, &workspaceWindowClass, isFocused );
@@ -564,7 +564,8 @@ namespace EE
             pWorld->SuspendUpdates();
         }
 
-        pWorldManager->SetPlayerEnabled( pWorld, enableInputForWorld );
+        pWorkspace->SetCameraUpdateEnabled( enableCameraUpdate );
+
         return isTabOpen;
     }
 }

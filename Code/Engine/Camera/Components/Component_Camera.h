@@ -53,9 +53,9 @@ namespace EE
     protected:
 
         // Initial Camera Settings - These do not change at runtime, if you want the actual settings, query the view volume
-        EE_EXPOSE Degrees              m_FOV = 90.0f;
-        EE_EXPOSE FloatRange           m_depthRange = FloatRange( 0.1f, 500.0f );
-        EE_EXPOSE ProjectionType       m_projectionType = ProjectionType::Perspective;
+        EE_EXPOSE Degrees               m_FOV = 90.0f;
+        EE_EXPOSE FloatRange            m_depthRange = FloatRange( 0.1f, 500.0f );
+        EE_EXPOSE ProjectionType        m_projectionType = ProjectionType::Perspective;
 
         // Runtime Data
         Math::ViewVolume                m_viewVolume;

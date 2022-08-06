@@ -75,6 +75,10 @@ namespace EE::Animation::GraphNodes
         m_previousTime = pRootNode->GetCurrentTime();
         m_currentTime = pRootNode->GetCurrentTime();
         m_duration = pRootNode->GetDuration();
+
+        #if EE_DEVELOPMENT_TOOLS
+        context.GetRootMotionActionRecorder()->RecordSampling( GetNodeIndex(), result.m_rootMotionDelta );
+        #endif
     }
 
     //-------------------------------------------------------------------------

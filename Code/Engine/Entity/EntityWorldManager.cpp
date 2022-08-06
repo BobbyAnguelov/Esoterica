@@ -2,6 +2,7 @@
 #include "EntityWorld.h"
 #include "EntityWorldDebugView.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
+#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_Camera.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "Engine/UpdateContext.h"
@@ -71,7 +72,7 @@ namespace EE
 
     void EntityWorldManager::EndFrame()
     {
-
+        // Do Nothing
     }
 
     //-------------------------------------------------------------------------
@@ -115,11 +116,6 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         pNewWorld->InitializeDebugViews( *m_pSystemsRegistry, m_debugViewTypeInfos );
-        
-        if ( !pNewWorld->IsGameWorld() )
-        {
-            pNewWorld->GetWorldSystem<PlayerManager>()->SetDebugMode( PlayerManager::DebugMode::OnlyDebugCamera );
-        }
         #endif
 
         return pNewWorld;
@@ -208,10 +204,10 @@ namespace EE
             if ( context.GetUpdateStage() == UpdateStage::PostPhysics && pWorld->GetViewport() != nullptr )
             {
                 auto pViewport = pWorld->GetViewport();
-                auto pPlayerManager = pWorld->GetWorldSystem<PlayerManager>();
-                if ( pPlayerManager->HasActiveCamera() )
+                auto pCameraManager = pWorld->GetWorldSystem<CameraManager>();
+                if ( pCameraManager->HasActiveCamera() )
                 {
-                    auto pActiveCamera = pPlayerManager->GetActiveCamera();
+                    auto pActiveCamera = pCameraManager->GetActiveCamera();
 
                     // Update camera view dimensions if needed
                     if ( pViewport->GetDimensions() != pActiveCamera->GetViewVolume().GetViewDimensions() )
@@ -229,12 +225,6 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void EntityWorldManager::SetPlayerEnabled( EntityWorld* pWorld, bool isPlayerEnabled )
-    {
-        auto pPlayerManagerSystem = pWorld->GetWorldSystem<PlayerManager>();
-        pPlayerManagerSystem->SetPlayerControllerState( isPlayerEnabled );
-    }
-
     void EntityWorldManager::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload )
     {
         for ( auto const& pWorld : m_worlds )

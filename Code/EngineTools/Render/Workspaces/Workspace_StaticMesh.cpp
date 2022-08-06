@@ -141,6 +141,11 @@ namespace EE::Render
 
         DrawDescriptorEditorWindow( context, pWindowClass );
 
+        if ( m_pPreviewEntity != nullptr && ImGui::IsKeyPressed( ImGuiKey_Backspace ) )
+        {
+            FocusCameraView( m_pPreviewEntity );
+        }
+
         //-------------------------------------------------------------------------
 
         if ( IsResourceLoaded() && ( m_showVertices || m_showNormals ) )

@@ -124,9 +124,12 @@
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Ragdoll.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.cpp" />
     <ClCompile Include="Camera\Components\Component_Camera.cpp" />
+    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp" />
     <ClCompile Include="Camera\Components\Component_FreeLookCamera.cpp" />
     <ClCompile Include="Camera\Components\Component_OrbitCamera.cpp" />
+    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp" />
     <ClCompile Include="Component_SerializationTest.cpp" />
+    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
     <ClCompile Include="Render\RenderViewport.cpp" />
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp" />
     <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp" />
@@ -269,9 +272,12 @@
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Ragdoll.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.h" />
     <ClInclude Include="Camera\Components\Component_Camera.h" />
+    <ClInclude Include="Camera\Components\Component_DebugCamera.h" />
     <ClInclude Include="Camera\Components\Component_FreeLookCamera.h" />
     <ClInclude Include="Camera\Components\Component_OrbitCamera.h" />
+    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h" />
     <ClInclude Include="Component_SerializationTest.h" />
+    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
     <ClInclude Include="Render\RenderViewport.h" />
     <ClInclude Include="Volumes\Components\Component_Volumes.h" />
     <ClInclude Include="Camera\DebugViews\DebugView_Camera.h" />

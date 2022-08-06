@@ -34,6 +34,7 @@ namespace EE::Animation
         {
             Unknown = 0,
             Sample,
+            ExternalGraph,
             Modification,
             Blend,
         };
@@ -81,6 +82,14 @@ namespace EE::Animation
             EE_ASSERT( nodeIdx != InvalidIndex );
             int16_t const idx = (int16_t) m_recordedActions.size();
             m_recordedActions.emplace_back( nodeIdx, ActionType::Sample, rootMotionDelta);
+            return idx;
+        }
+
+        EE_FORCE_INLINE int16_t RecordExternalGraphSource( int16_t nodeIdx, Transform const& rootMotionDelta )
+        {
+            EE_ASSERT( nodeIdx != InvalidIndex );
+            int16_t const idx = (int16_t) m_recordedActions.size();
+            m_recordedActions.emplace_back( nodeIdx, ActionType::ExternalGraph, rootMotionDelta );
             return idx;
         }
 

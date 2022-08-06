@@ -51,6 +51,8 @@ namespace EE
         void ResetWorldTimeScale( EntityWorld* pGameWorld );
         void RequestWorldTimeStep( EntityWorld* pGameWorld );
 
+        void DrawPlayerDebugOptionsMenu( UpdateContext const& context, EntityWorld* pGameWorld );
+
     protected:
 
         EntityWorldManager*                                 m_pWorldManager = nullptr;

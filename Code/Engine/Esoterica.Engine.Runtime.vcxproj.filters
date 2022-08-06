@@ -410,6 +410,9 @@
     <ClCompile Include="Animation\AnimationSkeleton.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp" />
+    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp" />
+    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp" />
+    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -878,6 +881,9 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
     <ClInclude Include="AI\Components\Component_AI.h" />
     <ClInclude Include="AI\Systems\WorldSystem_AIManager.h" />
+    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h" />
+    <ClInclude Include="Camera\Components\Component_DebugCamera.h" />
+    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

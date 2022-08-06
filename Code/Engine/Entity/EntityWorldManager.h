@@ -67,14 +67,6 @@ namespace EE
         // Run the world update - updates all entities, systems and camera
         void UpdateWorlds( UpdateContext const& context );
 
-        // Editor
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        // Enable or disable the player for the specified world
-        void SetPlayerEnabled( EntityWorld* pWorld, bool isPlayerEnabled );
-        #endif
-
         // Hot Reload
         //-------------------------------------------------------------------------
 

@@ -137,7 +137,7 @@ namespace EE::Animation
 
     void AnimationDebugView::DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx )
     {
-        static char const* const actionTypes[] = { "Error", "Sample", "Modify", "Blend" };
+        static char const* const actionTypes[] = { "Error", "Sample", "External Graph", "Modify", "Blend" };
 
         RootMotionDebugger::RecordedAction const* pAction = nullptr;
 

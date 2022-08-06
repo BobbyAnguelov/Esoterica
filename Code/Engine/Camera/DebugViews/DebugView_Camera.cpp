@@ -1,7 +1,7 @@
 #include "DebugView_Camera.h"
 #include "System/Imgui/ImguiX.h"
-#include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
-#include "Engine/Camera/Components/Component_FreeLookCamera.h"
+#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
+#include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Camera/Components/Component_OrbitCamera.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
@@ -17,23 +17,32 @@ namespace EE
     void CameraDebugView::DrawDebugCameraOptions( EntityWorld const* pWorld )
     {
         EE_ASSERT( pWorld != nullptr );
-        auto pPlayerManager = pWorld->GetWorldSystem<PlayerManager>();
+        auto pCameraManager = pWorld->GetWorldSystem<CameraManager>();
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text( "Speed:" );
 
         ImGui::SameLine();
 
-        float cameraSpeed = pPlayerManager->GetDebugCameraSpeed();
-        ImGui::SetNextItemWidth( 125 );
-        if ( ImGui::SliderFloat( "##CameraSpeed", &cameraSpeed, PlayerManager::s_debugCameraMinSpeed, PlayerManager::s_debugCameraMaxSpeed ) )
+        DebugCameraComponent* pDebugCamera = pCameraManager->GetDebugCamera();
+        if ( pDebugCamera != nullptr )
         {
-            pPlayerManager->SetDebugCameraSpeed( cameraSpeed );
-        }
+            float cameraSpeed = pDebugCamera->GetMoveSpeed();
+            ImGui::SetNextItemWidth( 125 );
+            if ( ImGui::SliderFloat( "##CameraSpeed", &cameraSpeed, DebugCameraComponent::s_minSpeed, DebugCameraComponent::s_maxSpeed ) )
+            {
+                pDebugCamera->SetMoveSpeed( cameraSpeed );
+            }
 
-        if ( ImGui::Button( "Reset Camera Speed", ImVec2( -1, 0 ) ) )
-        {
-            pPlayerManager->ResetDebugCameraSpeed();
+            if ( ImGui::MenuItem( EE_ICON_RUN_FAST" Reset Camera Speed" ) )
+            {
+                pDebugCamera->ResetMoveSpeed();
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_EYE_REFRESH_OUTLINE" Reset View" ) )
+            {
+                pDebugCamera->ResetView();
+            }
         }
     }
 
@@ -41,18 +50,18 @@ namespace EE
 
     CameraDebugView::CameraDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Player", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Camera", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void CameraDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
         EntityWorldDebugView::Initialize( systemRegistry, pWorld );
-        m_pPlayerManager = pWorld->GetWorldSystem<PlayerManager>();
+        m_pCameraManager = pWorld->GetWorldSystem<CameraManager>();
     }
 
     void CameraDebugView::Shutdown()
     {
-        m_pPlayerManager = nullptr;
+        m_pCameraManager = nullptr;
         EntityWorldDebugView::Shutdown();
     }
 
@@ -117,26 +126,29 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        if ( m_pPlayerManager->HasPlayer() )
+        if ( m_pCameraManager->HasActiveCamera() )
         {
             ImGui::PushFont( ImGuiX::GetFont( ImGuiX::Font::Large ) );
-            ImGui::Text( "Game Camera" );
+            ImGui::Text( "Active Camera" );
             ImGui::Separator();
             ImGui::PopFont();
 
-            CameraComponent* pCamera = m_pPlayerManager->GetPlayerCamera();
+            CameraComponent* pCamera = m_pCameraManager->GetActiveCamera();
             DrawCameraDetails( pCamera );
         }
 
         //-------------------------------------------------------------------------
 
-        ImGui::NewLine();
+        if ( m_pCameraManager->HasDebugCamera() && m_pCameraManager->GetActiveCamera() != m_pCameraManager->GetDebugCamera() )
+        {
+            ImGui::NewLine();
 
-        ImGui::PushFont( ImGuiX::GetFont( ImGuiX::Font::Large ) );
-        ImGui::Text( "Debug Camera" );
-        ImGui::Separator();
-        ImGui::PopFont();
-        DrawCameraDetails( m_pPlayerManager->GetDebugCamera() );
+            ImGui::PushFont( ImGuiX::GetFont( ImGuiX::Font::Large ) );
+            ImGui::Text( "Debug Camera" );
+            ImGui::Separator();
+            ImGui::PopFont();
+            DrawCameraDetails( m_pCameraManager->GetDebugCamera() );
+        }
     }
 }
 #endif

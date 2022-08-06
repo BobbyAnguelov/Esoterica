@@ -4,14 +4,15 @@
 #include "EngineTools/Animation/GraphEditor/EditorGraph/Nodes/Animation_EditorGraphNode_ControlParameters.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
+#include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
+#include "Engine/Animation/Systems/WorldSystem_Animation.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Animation/DebugViews/DebugView_Animation.h"
-#include "../../../Engine/Animation/Systems/WorldSystem_Animation.h"
 
 //-------------------------------------------------------------------------
 
@@ -449,7 +450,7 @@ namespace EE::Animation
             {
                 if ( m_isCameraTrackingEnabled && IsDebugging() )
                 {
-                    m_cameraOffsetTransform = GetViewportCameraTransform() * m_pDebugMeshComponent->GetWorldTransform().GetInverse();
+                    CalculateCameraOffset();
                 }
             }
 
@@ -857,19 +858,23 @@ namespace EE::Animation
         else
         {
             m_debugMode = DebugMode::LiveDebug;
-            m_characterTransform = m_pDebugMeshComponent->GetWorldTransform();
+            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
         }
-
-        //-------------------------------------------------------------------------
 
         if ( m_pDebugMeshComponent != nullptr )
         {
             m_pDebugMeshComponent->SetWorldTransform( m_characterTransform );
         }
 
+        // Adjust Camera
+        //-------------------------------------------------------------------------
+
+        OBB const bounds = OBB( m_characterTransform.GetTranslation(), Vector::One );
+        m_pCamera->FocusOn( bounds );
+
         if ( m_isCameraTrackingEnabled )
         {
-            m_cameraOffsetTransform = GetViewportCameraTransform() * m_characterTransform.GetInverse();
+            CalculateCameraOffset();
         }
     }
 
@@ -910,6 +915,8 @@ namespace EE::Animation
         SetViewportCameraTransform( m_cameraOffsetTransform );
         m_previousCameraTransform = m_cameraOffsetTransform;
         m_debugMode = DebugMode::None;
+
+        ResetCameraView();
     }
 
     void AnimationGraphWorkspace::ReflectInitialPreviewParameterValues( UpdateContext const& context )
@@ -1038,5 +1045,11 @@ namespace EE::Animation
         {
             ImGui::Text( "No debug targets" );
         }
+    }
+
+    void AnimationGraphWorkspace::CalculateCameraOffset()
+    {
+        m_previousCameraTransform = GetViewportCameraTransform();
+        m_cameraOffsetTransform = m_previousCameraTransform * m_characterTransform.GetInverse();
     }
 }

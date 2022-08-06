@@ -23,8 +23,25 @@ namespace EE
         // Perform local adjustments to the camera's heading and pitch
         void AdjustPitchAndYaw( Radians headingDelta, Radians pitchDelta );
 
+        // Reset the camera view to the default
+        void ResetView();
+
+        // Focus the camera to the specified bounds
+        void FocusOn( OBB const& bounds );
+
         // Set the camera world position and world look at target
-        void SetPositionAndLookatTarget( Vector const& cameraPosition, Vector const& lookatTarget );
+        void SetPositionAndLookAtTarget( Vector const& cameraPosition, Vector const& lookatTarget );
+
+        // Set the camera world position and view direction
+        void SetPositionAndLookAtDirection( Vector const& cameraPosition, Vector const& lookatDir );
+
+    private:
+
+        virtual void Initialize() override;
+        virtual void OnWorldTransformUpdated() override;
+
+        // Called whenever we explicitly set the camera position (so that derived classes can clear any buffered data)
+        virtual void OnTeleport() {}
 
     protected:
 

@@ -74,6 +74,9 @@ namespace EE::Animation
         void DrawDebuggerWindow( UpdateContext const& context );
         void DrawLiveDebugTargetsMenu( UpdateContext const& context );
 
+        // Calculate the offset at which to place the camera when tracking
+        void CalculateCameraOffset();
+
     private:
 
         String                              m_controlParametersWindowName;

@@ -58,11 +58,4 @@ namespace EE::Weapon
 
         return true;
     }
-
-    #if EE_DEVELOPMENT_TOOLS
-    Drawing::DrawContext AmmoContext::GetDrawingContext() const
-    {
-        return m_pEntityWorldUpdateContext->GetDrawingContext();
-    }
-    #endif
 }

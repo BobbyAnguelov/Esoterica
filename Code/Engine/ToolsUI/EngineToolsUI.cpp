@@ -4,6 +4,8 @@
 #include "Engine/Entity/EntityWorldDebugger.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
+#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
+#include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/DebugViews/DebugView_RuntimeSettings.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Input/InputSystem.h"
@@ -183,31 +185,20 @@ namespace EE
                 ImGui::EndMenu();
             }
 
-            // Draw world debuggers
+            // Draw Debug Views
             //-------------------------------------------------------------------------
 
             m_pWorldDebugger->DrawMenu( context );
 
-            // Camera controls
+            // Debug Options
             //-------------------------------------------------------------------------
 
             ImGui::SameLine( debugCameraOffset, 0 );
 
-            auto pPlayerManager = pGameWorld->GetWorldSystem<PlayerManager>();
-            bool const debugCamEnabled = pPlayerManager->GetDebugMode() == PlayerManager::DebugMode::OnlyDebugCamera;
-            if ( debugCamEnabled )
+            if ( ImGui::BeginMenu( EE_ICON_CONTROLLER_CLASSIC "##PlayerDebugOptions") )
             {
-                if ( ImGuiX::FlatButton( EE_ICON_CCTV"##DisableDebugCam" ) )
-                {
-                    pPlayerManager->SetDebugMode( PlayerManager::DebugMode::PlayerWithDebugCamera );
-                }
-            }
-            else
-            {
-                if ( ImGuiX::FlatButton( EE_ICON_CCTV_OFF"##EnableDebugCam") )
-                {
-                    pPlayerManager->SetDebugMode( PlayerManager::DebugMode::OnlyDebugCamera );
-                }
+                DrawPlayerDebugOptionsMenu( context, pGameWorld );
+                ImGui::EndMenu();
             }
 
             ImGui::SameLine( frameLimiterOffset, 0 );
@@ -347,6 +338,46 @@ namespace EE
         }
     }
 
+    void EngineToolsUI::DrawPlayerDebugOptionsMenu( UpdateContext const& context, EntityWorld* pGameWorld )
+    {
+        auto pPlayerManager = pGameWorld->GetWorldSystem<PlayerManager>();
+        auto pCameraManager = pGameWorld->GetWorldSystem<CameraManager>();
+
+        bool const hasValidPlayer = pPlayerManager->HasPlayer();
+
+        //-------------------------------------------------------------------------
+
+        ImGui::BeginDisabled( !hasValidPlayer );
+
+        bool isControllerEnabled = hasValidPlayer ? pPlayerManager->IsPlayerEnabled() : false;
+        if ( ImGui::Checkbox( EE_ICON_MICROSOFT_XBOX_CONTROLLER " Enable Player Controller", &isControllerEnabled ) )
+        {
+            pPlayerManager->SetPlayerControllerState( isControllerEnabled );
+        }
+
+        //-------------------------------------------------------------------------
+
+        DebugCameraComponent* pDebugCamera = pCameraManager->GetDebugCamera();
+
+        bool isDebugCameraEnabled = pCameraManager->GetActiveCamera() == pDebugCamera;
+        if ( ImGui::Checkbox( EE_ICON_CCTV " Enable Debug Camera", &isDebugCameraEnabled ) )
+        {
+            CameraComponent const* pPlayerCamera = pPlayerManager->GetPlayerCamera();
+
+            if ( isDebugCameraEnabled )
+            {
+                pDebugCamera->SetPositionAndLookAtDirection( pPlayerCamera->GetPosition(), pPlayerCamera->GetForwardVector() );
+                pCameraManager->SetActiveCamera( pDebugCamera );
+            }
+            else
+            {
+                pCameraManager->SetActiveCamera( pPlayerCamera );
+            }
+        }
+
+        ImGui::EndDisabled();
+    }
+
     //-------------------------------------------------------------------------
 
     void EngineToolsUI::HandleUserInput( UpdateContext const& context, EntityWorld* pGameWorld )
@@ -361,9 +392,6 @@ namespace EE
         if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_Tilde ) )
         {
             m_debugOverlayEnabled = !m_debugOverlayEnabled;
-
-            auto pPlayerManager = pGameWorld->GetWorldSystem<PlayerManager>();
-            pPlayerManager->SetDebugMode( m_debugOverlayEnabled ? PlayerManager::DebugMode::OnlyDebugCamera : PlayerManager::DebugMode::None );
         }
 
         // Time Controls

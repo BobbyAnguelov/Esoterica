@@ -7,7 +7,7 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
-    class PlayerManager;
+    class CameraManager;
 
     //-------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ namespace EE
 
     private:
 
-        PlayerManager const*            m_pPlayerManager = nullptr;
+        CameraManager const*            m_pCameraManager = nullptr;
         bool                            m_isCameraDebugWindowOpen = false;
     };
 }

@@ -1,7 +1,8 @@
 #include "EditorWorkspace.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
-#include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/Camera/DebugViews/DebugView_Camera.h"
+#include "Engine/Camera/Components/Component_DebugCamera.h"
+#include "Engine/Camera/Systems/EntitySystem_DebugCameraController.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "System/Imgui/ImguiStyle.h"
@@ -26,6 +27,18 @@ namespace EE
     {
         EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
+
+        // Spawn Camera
+        //-------------------------------------------------------------------------
+
+        m_pCamera = EE::New<DebugCameraComponent>( StringID( "Camera Component" ) );
+        m_pCamera->SetDefaultMoveSpeed( 5.0f );
+        m_pCamera->ResetMoveSpeed();
+
+        auto pEntity = EE::New<Entity>( StringID( "Camera" ) );
+        pEntity->AddComponent( m_pCamera );
+        pEntity->CreateSystem<DebugCameraController>();
+        m_pWorld->GetPersistentMap()->AddEntity( pEntity );
     }
 
     EditorWorkspace::~EditorWorkspace()
@@ -329,26 +342,49 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
+    void EditorWorkspace::SetCameraUpdateEnabled( bool isEnabled )
+    {
+        m_pCamera->SetEnabled( isEnabled );
+    }
+
+    void EditorWorkspace::ResetCameraView()
+    {
+        EE_ASSERT( m_pCamera != nullptr );
+        m_pCamera->ResetView();
+    }
+
+    void EditorWorkspace::FocusCameraView( Entity* pTarget )
+    {
+        if( !pTarget->IsSpatialEntity() )
+        {
+            ResetCameraView();
+            return;
+        }
+
+        EE_ASSERT( m_pCamera != nullptr );
+        OBB const worldBounds = pTarget->GetCombinedWorldBounds();
+        m_pCamera->FocusOn( worldBounds );
+    }
+
     void EditorWorkspace::SetViewportCameraSpeed( float cameraSpeed )
     {
-        EE_ASSERT( m_pWorld != nullptr );
-        auto pPlayerManager = m_pWorld->GetWorldSystem<PlayerManager>();
-        pPlayerManager->SetDebugCameraSpeed( cameraSpeed );
+        EE_ASSERT( m_pCamera != nullptr );
+        m_pCamera->SetMoveSpeed( cameraSpeed );
     }
 
     void EditorWorkspace::SetViewportCameraTransform( Transform const& cameraTransform )
     {
-        EE_ASSERT( m_pWorld != nullptr );
-        auto pPlayerManager = m_pWorld->GetWorldSystem<PlayerManager>();
-        pPlayerManager->SetDebugCameraView( cameraTransform );
+        EE_ASSERT( m_pCamera != nullptr );
+        m_pCamera->SetWorldTransform( cameraTransform );
     }
 
     Transform EditorWorkspace::GetViewportCameraTransform() const
     {
-        EE_ASSERT( m_pWorld != nullptr );
-        auto pPlayerManager = m_pWorld->GetWorldSystem<PlayerManager>();
-        return pPlayerManager->GetDebugCameraView();
+        EE_ASSERT( m_pCamera != nullptr );
+        return m_pCamera->GetWorldTransform();
     }
+
+    //-------------------------------------------------------------------------
 
     void EditorWorkspace::SetWorldPaused( bool newPausedState )
     {

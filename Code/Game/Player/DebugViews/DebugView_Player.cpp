@@ -12,6 +12,7 @@
 #include "Game/Player/StateMachine/Actions/PlayerAction_Jump.h"
 #include "Game/Player/StateMachine/Actions/PlayerAction_Interact.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
+#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 
 //-------------------------------------------------------------------------
 
@@ -290,7 +291,9 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        if ( !m_pPlayerManager->IsDebugCameraEnabled() )
+        // Draw fake hud when using the player camera
+        auto pCameraManager = m_pWorld->GetWorldSystem<CameraManager>();
+        if ( m_pPlayerManager->GetPlayerCamera() == pCameraManager->GetActiveCamera() )
         {
             HACK_DrawPlayerHUD( context, pPlayerController );
         }

@@ -28,10 +28,6 @@ namespace EE::Weapon
         template<typename T> inline T* GetSystem() const { return m_pEntityWorldUpdateContext->GetSystem<T>(); }
         template<typename T> inline T* GetAnimSubGraphController() const { return m_pAnimationController->GetSubGraphController<T>(); }
 
-        #if EE_DEVELOPMENT_TOOLS
-        Drawing::DrawContext GetDrawingContext() const;
-        #endif
-
     public:
 
         EntityWorldUpdateContext const* m_pEntityWorldUpdateContext = nullptr;

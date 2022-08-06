@@ -18,6 +18,7 @@ namespace EE
     class Entity;
     class EntityWorld;
     class EntityWorldUpdateContext;
+    class DebugCameraComponent;
     namespace Render { class Viewport; }
 }
 
@@ -114,17 +115,26 @@ namespace EE
         // Draw the viewport toolbar
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) {}
 
-        // Draw the viewport for this workspace
+        // Draw the viewport for this workspace - returns true if this viewport is currently focused
         bool DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass );
 
-        // Preview World Functions
+        // Camera
         //-------------------------------------------------------------------------
+
+        void SetCameraUpdateEnabled( bool isEnabled );
+
+        void ResetCameraView();
+
+        void FocusCameraView( Entity* pTarget );
 
         void SetViewportCameraSpeed( float cameraSpeed );
 
         void SetViewportCameraTransform( Transform const& cameraTransform );
 
         Transform GetViewportCameraTransform() const;
+
+        // Preview World Functions
+        //-------------------------------------------------------------------------
 
         void SetWorldPaused( bool isPaused );
 
@@ -241,6 +251,8 @@ namespace EE
 
         EntityWorld*                                m_pWorld = nullptr;
         ToolsContext const*                         m_pToolsContext = nullptr;
+
+        DebugCameraComponent*                       m_pCamera = nullptr;
 
         UndoStack                                   m_undoStack;
         String                                      m_displayName;
