@@ -561,7 +561,7 @@ namespace EE::TypeSystem::Conversion
                     {
                         if ( !ResourceID::IsValidResourceIDString( str ) )
                         {
-                            EE_LOG_WARNING( "TypeSystem", "Invalid resource ID string encountered: %s", str.c_str() );
+                            EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Invalid resource ID string encountered: %s", str.c_str());
                             return false;
                         }
                         ResourceID const ID( str );
@@ -580,7 +580,7 @@ namespace EE::TypeSystem::Conversion
                     {
                         if ( !ResourceID::IsValidResourceIDString( str ) )
                         {
-                            EE_LOG_WARNING( "TypeSystem", "Invalid resource ID string encountered: %s", str.c_str() );
+                            EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Invalid resource ID string encountered: %s", str.c_str() );
                             return false;
                         }
                         *reinterpret_cast<ResourceID*>( pValue ) = ResourceID( str );
@@ -599,13 +599,13 @@ namespace EE::TypeSystem::Conversion
                     EnumInfo const* pEnumInfo = typeRegistry.GetEnumInfo( templateArgumentTypeID );
                     if ( pEnumInfo == nullptr )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
 
                     if ( !ConvertStringToBitFlags( *pEnumInfo, str, *reinterpret_cast<BitFlags*>( pValue ) ) )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Failed to convert string (%s) into valid TBitFlags<%s>", str.c_str(), templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Failed to convert string (%s) into valid TBitFlags<%s>", str.c_str(), templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
                 }
@@ -980,13 +980,13 @@ namespace EE::TypeSystem::Conversion
                     EnumInfo const* pEnumInfo = typeRegistry.GetEnumInfo( templateArgumentTypeID );
                     if ( pEnumInfo == nullptr )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
 
                     if ( !ConvertBitFlagsToString( *pEnumInfo, *reinterpret_cast<BitFlags const*>( pValue ), strValue ) )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Failed to convert string (%s) into valid TBitFlags<%s>", strValue.c_str(), templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Failed to convert string (%s) into valid TBitFlags<%s>", strValue.c_str(), templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
                 }

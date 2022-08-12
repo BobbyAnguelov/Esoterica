@@ -182,7 +182,7 @@ namespace EE::Navmesh
         {
             va_list args;
             va_start( args, pFormat );
-            Log::AddEntryVarArgs( Log::Severity::Error, "Navmesh Generator", __FILE__, __LINE__, pFormat, args );
+            Log::AddEntryVarArgs( Log::Severity::Error, "Navmesh", "Generation", __FILE__, __LINE__, pFormat, args );
             va_end( args );
             return false;
         };
@@ -229,8 +229,8 @@ namespace EE::Navmesh
 
             RawAssets::ReaderContext readerCtx = 
             { 
-                [this] ( char const* pString ) { EE_LOG_WARNING( "Navmesh Generator", pString ); },
-                [this] ( char const* pString ) { EE_LOG_ERROR( "Navmesh Generator", pString ); }
+                [this] ( char const* pString ) { EE_LOG_WARNING( "Navmesh", "Generation", pString ); },
+                [this] ( char const* pString ) { EE_LOG_ERROR( "Navmesh", "Generation", pString ); }
             };
 
             TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshName );

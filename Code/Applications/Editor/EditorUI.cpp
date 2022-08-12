@@ -6,7 +6,6 @@
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/DebugViews/DebugView_Resource.h"
-#include "Engine/DebugViews/DebugView_RuntimeSettings.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
@@ -146,12 +145,6 @@ namespace EE
         {
             ImGui::SetNextWindowClass( &m_editorWindowClass );
             m_isSystemLogWindowOpen = m_systemLogView.Draw( context );
-        }
-
-        if ( m_isRuntimeSettingsWindowOpen )
-        {
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            m_isRuntimeSettingsWindowOpen = RuntimeSettingsDebugView::DrawRuntimeSettingsView( context );
         }
 
         if ( m_isPhysicsMaterialDatabaseWindowOpen )
@@ -428,7 +421,6 @@ namespace EE
 
         if ( ImGui::BeginMenu( "System" ) )
         {
-            ImGui::MenuItem( "Debug Settings", nullptr, &m_isRuntimeSettingsWindowOpen );
             ImGui::MenuItem( "System Log", nullptr, &m_isSystemLogWindowOpen );
 
             ImGui::Separator();

@@ -1,5 +1,5 @@
 #include "EntitySpatialComponent.h"
-#include "System/Log.h"
+#include "EntityLog.h"
 
 //-------------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ namespace EE
         // Log warning only when we are loaded/initialized
         if ( m_status == EntityComponent::Status::Loaded || m_status == EntityComponent::Status::Initialized )
         {
-            EE_LOG_WARNING( "Entity", "Failed to find socket %s on component %s (%u)", socketID.c_str(), GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_WARNING( this, "Entity", "Failed to find socket %s on component %s (%u)", socketID.c_str(), GetName().c_str(), GetID() );
         }
 
         // Fallback to the world transform

@@ -33,7 +33,7 @@ namespace EE::Render
 
         if ( pTextureResource->m_rawData.empty() )
         {
-            EE_LOG_ERROR( "Resource", "Failed to load texture resource: %s, compiled resource has no data", resID.ToString().c_str() );
+            EE_LOG_ERROR( "Render", "Texture Loader", "Failed to load texture resource: %s, compiled resource has no data", resID.ToString().c_str());
             return false;
         }
 

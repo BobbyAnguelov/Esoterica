@@ -1,10 +1,9 @@
 #include "Component_AnimationGraph.h"
+#include "Engine/Entity/EntityLog.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Physics/PhysicsScene.h"
-#include "System/Profiling.h"
-#include "System/Log.h"
 
 //-------------------------------------------------------------------------
 
@@ -74,14 +73,12 @@ namespace EE::Animation
         }
         else
         {
-            EE_LOG_ERROR( "Animation", "Trying to reset graph state on a animgraph component that has no state!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "TODO", "Trying to reset graph state on a animgraph component that has no state!" );
         }
     }
 
     void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
-
         // Initialize graph on the first update
         if ( !m_pGraphInstance->IsInitialized() )
         {
@@ -99,8 +96,6 @@ namespace EE::Animation
 
     void AnimationGraphComponent::ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
-
         if ( !HasGraph() )
         {
             return;
@@ -113,8 +108,6 @@ namespace EE::Animation
 
     void AnimationGraphComponent::ExecutePostPhysicsTasks()
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
-
         if ( !HasGraph() )
         {
             return;
@@ -139,7 +132,7 @@ namespace EE::Animation
         }
         else
         {
-            EE_LOG_ERROR( "Animation", "Trying to set debug state on a animgraph component that has no state!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Trying to set debug state on a animgraph component that has no state!" );
         }
     }
 
@@ -157,7 +150,7 @@ namespace EE::Animation
         }
         else
         {
-            EE_LOG_ERROR( "Animation", "Trying to set debug state on a animgraph component that has no state!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Trying to set debug state on a animgraph component that has no state!" );
         }
     }
 
@@ -169,7 +162,7 @@ namespace EE::Animation
         }
         else
         {
-            EE_LOG_ERROR( "Animation", "Trying to set debug state on a animgraph component that has no state!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Trying to set debug state on a animgraph component that has no state!" );
         }
     }
 
@@ -187,7 +180,7 @@ namespace EE::Animation
         }
         else
         {
-            EE_LOG_ERROR( "Animation", "Trying to set debug state on a animgraph component that has no state!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Trying to set debug state on a animgraph component that has no state!" );
         }
     }
 

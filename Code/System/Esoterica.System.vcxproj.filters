@@ -76,9 +76,6 @@
     <ClCompile Include="ThirdParty\iniparser\iniparser.c">
       <Filter>ThirdParty\iniparser</Filter>
     </ClCompile>
-    <ClCompile Include="IniFile.cpp">
-      <Filter>ThirdParty\iniparser</Filter>
-    </ClCompile>
     <ClCompile Include="Serialization\BinarySerialization.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
@@ -335,6 +332,7 @@
       <Filter>FileSystem\Platform</Filter>
     </ClCompile>
     <ClCompile Include="Math\Curves.cpp" />
+    <ClCompile Include="IniFile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Esoterica.h" />
@@ -1319,9 +1317,6 @@
     <ClInclude Include="ThirdParty\iniparser\iniparser.h">
       <Filter>ThirdParty\iniparser</Filter>
     </ClInclude>
-    <ClInclude Include="IniFile.h">
-      <Filter>ThirdParty\iniparser</Filter>
-    </ClInclude>
     <ClInclude Include="ThirdParty\concurrentqueue\blockingconcurrentqueue.h">
       <Filter>ThirdParty\concurrentqueue</Filter>
     </ClInclude>
@@ -1716,6 +1711,7 @@
       <Filter>FileSystem</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\enkits\TaskScheduler_Esoterica.h" />
+    <ClInclude Include="IniFile.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\EA\EABase\doc\EABase.html">

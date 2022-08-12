@@ -1,7 +1,7 @@
 #include "WorldSystem_Renderer.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "Engine/RuntimeSettings/RuntimeSettings.h"
+#include "Engine/Entity/EntityLog.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Render/Components/Component_Lights.h"
@@ -17,15 +17,6 @@
 
 namespace EE::Render
 {
-    #if EE_DEVELOPMENT_TOOLS
-    static RuntimeSettingBool g_showStaticMeshBounds( "ShowStaticMeshBounds", "Rendering/Static Meshes", "", false );
-    static RuntimeSettingBool g_showSkeletalMeshBounds( "ShowSkeletalMeshBounds", "Rendering/Skeletal Meshes", "", false );
-    static RuntimeSettingBool g_showSkeletalMeshBones( "ShowSkeletalMeshBones", "Rendering/Skeletal Meshes", "", false );
-    static RuntimeSettingBool g_showSkeletalMeshBindPoses( "ShowSkeletalMeshBindPoses", "Rendering/Skeletal Meshes", "", false );
-    #endif
-
-    //-------------------------------------------------------------------------
-
     void RendererWorldSystem::InitializeSystem( SystemRegistry const& systemRegistry )
     {
         m_staticMeshMobilityChangedEventBinding = StaticMeshComponent::OnMobilityChanged().Bind( [this] ( StaticMeshComponent* pMeshComponent ) { OnStaticMeshMobilityUpdated( pMeshComponent ); } );
@@ -289,7 +280,7 @@ namespace EE::Render
         {
             if ( ctx.IsGameWorld() )
             {
-                EE_LOG_ERROR( "Render", "Someone moved a mesh with static mobility: %s with entity ID %u. This should not be done!", pMeshComponent->GetName().c_str(), pMeshComponent->GetEntityID().m_ID );
+                EE_LOG_ENTITY_ERROR( pMeshComponent, "Render", "Someone moved a mesh with static mobility: %s with entity ID %u. This should not be done!", pMeshComponent->GetName().c_str(), pMeshComponent->GetEntityID().m_ID );
             }
 
             m_staticMobilityTree.RemoveBox( pMeshComponent );
@@ -344,7 +335,7 @@ namespace EE::Render
         #if EE_DEVELOPMENT_TOOLS
         Drawing::DrawContext drawCtx = ctx.GetDrawingContext();
 
-        if ( g_showStaticMeshBounds )
+        if ( m_showStaticMeshBounds )
         {
             for ( auto const& pMeshComponent : m_registeredStaticMeshComponents )
             {
@@ -355,18 +346,18 @@ namespace EE::Render
 
         for ( auto const& pMeshComponent : m_registeredSkeletalMeshComponents )
         {
-            if ( g_showSkeletalMeshBounds )
+            if ( m_showSkeletalMeshBounds )
             {
                 drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan );
                 drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen );
             }
 
-            if ( g_showSkeletalMeshBones )
+            if ( m_showSkeletalMeshBones )
             {
                 pMeshComponent->DrawPose( drawCtx );
             }
 
-            if ( g_showSkeletalMeshBindPoses )
+            if ( m_showSkeletalMeshBindPoses )
             {
                 pMeshComponent->GetMesh()->DrawBindPose( drawCtx, pMeshComponent->GetWorldTransform() );
             }

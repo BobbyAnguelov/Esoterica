@@ -13,7 +13,7 @@ namespace EE
 {
     CoverDebugView::CoverDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Gameplay/Covers", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Game/Covers", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void CoverDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

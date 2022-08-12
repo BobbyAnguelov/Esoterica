@@ -100,7 +100,7 @@ namespace EE::Render
 
     void SkeletalMeshComponent::SetPose( Animation::Pose const* pPose )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        EE_PROFILE_FUNCTION_RENDER();
         EE_ASSERT( IsInitialized() );
         EE_ASSERT( HasMeshResourceSet() && HasSkeletonResourceSet() );
         EE_ASSERT( !m_animToMeshBoneMap.empty() );

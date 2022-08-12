@@ -85,7 +85,7 @@ namespace EE::ImGuiX
         {
             if ( !m_options.IsFlagSet( Options::AllowScale ) )
             {
-                EE_LOG_WARNING( "Tools", "Trying to switch a gizmo to scale mode but it is disabled!" );
+                EE_LOG_WARNING( "Tools", "Gizmo", "Trying to switch a gizmo to scale mode but it is disabled!" );
                 return;
             }
         }
@@ -104,7 +104,7 @@ namespace EE::ImGuiX
     {
         if ( !m_options.IsFlagSet( Options::AllowCoordinateSpaceSwitching ) )
         {
-            EE_LOG_WARNING( "Tools", "Trying to switch a gizmo's coordinate system, but this is disabled!" );
+            EE_LOG_WARNING( "Tools", "Gizmo", "Trying to switch a gizmo's coordinate system, but this is disabled!" );
             return;
         }
 

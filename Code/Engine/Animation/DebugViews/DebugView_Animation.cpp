@@ -318,7 +318,7 @@ namespace EE::Animation
 
     AnimationDebugView::AnimationDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Animation", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/Animation", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void AnimationDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

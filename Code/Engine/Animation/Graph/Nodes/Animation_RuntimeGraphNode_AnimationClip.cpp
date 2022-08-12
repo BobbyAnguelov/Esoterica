@@ -126,7 +126,7 @@ namespace EE::Animation::GraphNodes
         #if EE_DEVELOPMENT_TOOLS
         if ( m_pPlayInReverseValueNode != nullptr || m_shouldPlayInReverse )
         {
-            EE_LOG_WARNING( "Animation", "'Play reversed' has no effect when used with time synchronization!" );
+            EE_LOG_WARNING( "Animation", "TODO", "'Play reversed' has no effect when used with time synchronization!" );
         }
         #endif
 

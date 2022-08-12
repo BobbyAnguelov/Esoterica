@@ -18,7 +18,7 @@ namespace EE::FileSystem
         if ( !m_filestream.is_open() )
         {
             String const msg = "Error opening file ( " + (String) filePath + " ) for reading - " + strerror( errno );
-            EE_LOG_WARNING( "IO", msg.c_str() );
+            EE_LOG_WARNING( "FileSystem", "Input File", msg.c_str() );
         }
     }
 
@@ -31,7 +31,7 @@ namespace EE::FileSystem
         if ( !m_filestream.is_open() )
         {
             String const msg = "Error opening file ( " + (String) filePath + " ) for writing- " + strerror( errno );
-            EE_LOG_WARNING( "IO", msg.c_str() );
+            EE_LOG_WARNING( "FileSystem", "Output File", msg.c_str() );
         }
     }
 }

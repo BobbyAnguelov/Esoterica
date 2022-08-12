@@ -2,6 +2,7 @@
 #include "Engine/Camera/Components/Component_OrbitCamera.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "System/Input/InputSystem.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,6 +16,8 @@ namespace EE::Player
 
     void CameraController::UpdateCamera( EntityWorldUpdateContext const& ctx )
     {
+        EE_PROFILE_FUNCTION_GAMEPLAY();
+
         auto pInputSystem = ctx.GetSystem<Input::InputSystem>();
         auto const pControllerState = pInputSystem->GetControllerState();
 
@@ -36,6 +39,7 @@ namespace EE::Player
 
     void CameraController::FinalizeCamera()
     {
+        EE_PROFILE_FUNCTION_GAMEPLAY();
         m_pCamera->FinalizeCameraPosition();
     }
 

@@ -67,10 +67,10 @@ namespace EE::Animation
         void StartUpdate( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene );
 
         // Run the graph logic - returns the root motion delta for the update
-        inline GraphPoseNodeResult UpdateGraph() { return m_pRootNode->Update( m_graphContext ); }
+        GraphPoseNodeResult UpdateGraph();
 
         // Run the graph logic synchronized (needed for external graph support) - returns the root motion delta for the update
-        inline GraphPoseNodeResult UpdateGraph( SyncTrackTimeRange const& updateRange ) { return m_pRootNode->Update( m_graphContext, updateRange ); }
+        GraphPoseNodeResult UpdateGraph( SyncTrackTimeRange const& updateRange );
 
         // Called to finalize the graph update with the final position of the character
         void EndUpdate( Transform const& endWorldTransform );

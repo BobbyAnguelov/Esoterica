@@ -57,6 +57,7 @@ namespace EE
     void EditorWorkspace::SetDisplayName( String const& name )
     {
         m_displayName = name;
+        m_pWorld->SetDebugName( m_displayName.c_str() );
         m_workspaceWindowID.sprintf( "%s###window%u", m_displayName.c_str(), GetID() );
     }
 

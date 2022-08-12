@@ -182,7 +182,7 @@ namespace EE::Player
         {
             if ( !m_isFirstUpdate )
             {
-                EE_LOG_ERROR( "Player", "Ended up with no state, starting default state!" );
+                EE_LOG_ERROR( "Player", "State Machine", "Ended up with no state, starting default state!" );
             }
 
             m_activeBaseActionID = DefaultAction;

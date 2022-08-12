@@ -1,7 +1,6 @@
 #include "EntityWorld.h"
 #include "EntityWorldUpdateContext.h"
 #include "EntityWorldDebugView.h"
-#include "Engine/RuntimeSettings/RuntimeSettings.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/Profiling.h"
 #include "System/TypeSystem/TypeRegistry.h"
@@ -11,15 +10,6 @@
 
 namespace EE
 {
-    namespace Settings
-    {
-        #if EE_DEVELOPMENT_TOOLS
-        static RuntimeSettingBool g_showEntityWorldLoadErrors( "ShowEntityWorldLoadErrors", "Entity/World", "", false );
-        #endif
-    }
-
-    //-------------------------------------------------------------------------
-
     EntityWorld::~EntityWorld()
     {
         EE_ASSERT( m_maps.empty());
@@ -148,7 +138,6 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-
     void EntityWorld::InitializeDebugViews( SystemRegistry const& systemsRegistry, TVector<TypeSystem::TypeInfo const*> debugViewTypeInfos )
     {
         for ( auto pTypeInfo : debugViewTypeInfos )
@@ -196,7 +185,7 @@ namespace EE
 
     void EntityWorld::UpdateLoading()
     {
-        EE_PROFILE_SCOPE_SCENE( "World Loading" );
+        EE_PROFILE_SCOPE_ENTITY( "World Loading" );
 
         // Update all maps internal loading state
         //-------------------------------------------------------------------------
@@ -265,12 +254,12 @@ namespace EE
 
                     if ( pEntity->HasAttachedEntities() )
                     {
-                        EE_PROFILE_SCOPE_SCENE( "Update Entity Chain" );
+                        EE_PROFILE_SCOPE_ENTITY( "Update Entity Chain" );
                         RecursiveEntityUpdate( pEntity );
                     }
                     else // Direct entity update
                     {
-                        EE_PROFILE_SCOPE_SCENE( "Update Entity" );
+                        EE_PROFILE_SCOPE_ENTITY( "Update Entity" );
                         pEntity->UpdateSystems( m_context );
                     }
                 }
@@ -318,7 +307,7 @@ namespace EE
 
         for ( auto pSystem : m_systemUpdateLists[(int8_t) updateStage] )
         {
-            EE_PROFILE_SCOPE_SCENE( "Update World Systems" );
+            EE_PROFILE_SCOPE_ENTITY( "Update World Systems" );
             EE_ASSERT( pSystem->GetRequiredUpdatePriorities().IsStageEnabled( updateStage ) );
             pSystem->UpdateSystem( entityWorldUpdateContext );
         }
@@ -334,7 +323,7 @@ namespace EE
     void EntityWorld::ProcessEntityRegistrationRequests()
     {
         {
-            EE_PROFILE_SCOPE_SCENE( "Entity Unregistration" );
+            EE_PROFILE_SCOPE_ENTITY( "Entity Unregistration" );
 
             Entity* pEntityToUnregister = nullptr;
             while ( m_activationContext.m_unregisterForEntityUpdate.try_dequeue( pEntityToUnregister ) )
@@ -348,7 +337,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         {
-            EE_PROFILE_SCOPE_SCENE( "Entity Registration" );
+            EE_PROFILE_SCOPE_ENTITY( "Entity Registration" );
 
             Entity* pEntityToRegister = nullptr;
             while ( m_activationContext.m_registerForEntityUpdate.try_dequeue( pEntityToRegister ) )
@@ -376,7 +365,7 @@ namespace EE
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
             {
-                EE_PROFILE_SCOPE_SCENE( "Component World Registration Task" );
+                EE_PROFILE_SCOPE_ENTITY( "Component World Registration Task" );
 
                 for ( uint64_t i = range.start; i < range.end; ++i )
                 {
@@ -422,7 +411,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         {
-            EE_PROFILE_SCOPE_SCENE( "Component World Registration" );
+            EE_PROFILE_SCOPE_ENTITY( "Component World Registration" );
 
             // Get Components to register/unregister
             //-------------------------------------------------------------------------
@@ -446,9 +435,12 @@ namespace EE
             // Run registration task
             //-------------------------------------------------------------------------
 
-            ComponentRegistrationTask componentRegistrationTask( m_worldSystems, componentsToRegister, componentsToUnregister );
-            m_loadingContext.m_pTaskSystem->ScheduleTask( &componentRegistrationTask );
-            m_loadingContext.m_pTaskSystem->WaitForTask( &componentRegistrationTask );
+            if ( ( numComponentsToUnregister + numComponentsToRegister ) > 0 )
+            {
+                ComponentRegistrationTask componentRegistrationTask( m_worldSystems, componentsToRegister, componentsToUnregister );
+                m_loadingContext.m_pTaskSystem->ScheduleTask( &componentRegistrationTask );
+                m_loadingContext.m_pTaskSystem->WaitForTask( &componentRegistrationTask );
+            }
 
             // Finalize component registration
             //-------------------------------------------------------------------------

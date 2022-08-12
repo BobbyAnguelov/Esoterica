@@ -23,7 +23,7 @@ namespace EE
     enum class EntityWorldType : uint8_t
     {
         Game,
-        Editor
+        Tools
     };
 
     //-------------------------------------------------------------------------
@@ -205,6 +205,10 @@ namespace EE
         void InitializeDebugViews( SystemRegistry const& systemsRegistry, TVector<TypeSystem::TypeInfo const*> debugViewTypeInfos );
         void ShutdownDebugViews();
 
+        inline String const& GetDebugName() const { return m_debugName; }
+        inline void SetDebugName( String const& newName ) { m_debugName = newName; }
+        inline void SetDebugName( char const* pName ) { EE_ASSERT( pName != nullptr ); m_debugName = pName; }
+
         inline Drawing::DrawingSystem* GetDebugDrawingSystem() { return &m_debugDrawingSystem; }
         inline void ResetDebugDrawingSystem() { m_debugDrawingSystem.Reset(); }
         #endif
@@ -258,6 +262,7 @@ namespace EE
         THashMap<TypeSystem::TypeID, TVector<EntityComponent const*>>           m_componentTypeLookup;
         Drawing::DrawingSystem                                                  m_debugDrawingSystem;
         TVector<EntityWorldDebugView*>                                          m_debugViews;
+        String                                                                  m_debugName;
         #endif
     };
 }

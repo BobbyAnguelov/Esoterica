@@ -1,4 +1,5 @@
 #include "Component_PhysicsCapsule.h"
+#include "Engine/Entity/EntityLog.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,13 +19,13 @@ namespace EE::Physics
     {
         if ( m_radius <= 0 || m_cylinderPortionHalfHeight <= 0 )
         {
-            EE_LOG_ERROR( "Physics", "Invalid radius or half height on Physics Capsule Component: %s (%u). Negative or zero values are not allowed!", GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius or half height on Physics Capsule Component: %s (%u). Negative or zero values are not allowed!", GetName().c_str(), GetID() );
             return false;
         }
 
         if ( !m_materialID.IsValid() )
         {
-            EE_LOG_ERROR( "Physics", "Invalid physical material setup on Physics Component: %s (%u)", GetName().c_str() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid physical material setup on Physics Component: %s (%u)", GetName().c_str() );
             return false;
         }
 

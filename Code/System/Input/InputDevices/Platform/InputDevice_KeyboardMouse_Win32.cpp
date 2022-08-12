@@ -238,7 +238,7 @@ namespace EE
 
             if ( !RegisterRawInputDevices( inputDevices, 1, sizeof( RAWINPUTDEVICE ) ) )
             {
-                EE_LOG_ERROR( "Input", "Raw input device registration failed" );
+                EE_LOG_ERROR( "Input", nullptr, "Raw input device registration failed" );
             }
 
             WindowsKeyMap::Initialize();

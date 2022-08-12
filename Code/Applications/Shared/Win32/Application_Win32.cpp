@@ -1,9 +1,9 @@
 #ifdef _WIN32
 #include "Application_Win32.h"
 #include "System/IniFile.h"
+#include "System/Platform/PlatformHelpers_Win32.h"
+#include "System/FileSystem/FileSystemPath.h"
 #include "System/Log.h"
-
-#include "../Platform/PlatformHelpers_Win32.h"
 
 //-------------------------------------------------------------------------
 

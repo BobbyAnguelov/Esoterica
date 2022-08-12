@@ -82,7 +82,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult SpeedScaleNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
-        EE_LOG_WARNING( "Animation", "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
+        EE_LOG_WARNING( "Animation", "TODO", "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
         m_blendWeight = ( Math::IsNearZero( GetSettings<SpeedScaleNode>()->m_blendTime ) ) ? 1.0f : 0.0f;
         return PassthroughNode::Update( context, updateRange );
     }
@@ -169,7 +169,7 @@ namespace EE::Animation::GraphNodes
                 }
                 else
                 {
-                    EE_LOG_WARNING( "Animation", "Requesting a negative velocity is not supported!" );
+                    EE_LOG_WARNING( "Animation", "TODO", "Requesting a negative velocity is not supported!" );
                 }
 
                 //-------------------------------------------------------------------------

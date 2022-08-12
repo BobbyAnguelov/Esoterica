@@ -146,7 +146,7 @@ namespace EE
         Serialization::JsonArchiveReader archive;
         if ( !archive.ReadFromFile( m_descriptorPath ) )
         {
-            EE_LOG_ERROR( "Editor", "Failed to read resource descriptor file: %s", m_descriptorPath.c_str() );
+            EE_LOG_ERROR( "Tools", "Resource Workspace", "Failed to read resource descriptor file: %s", m_descriptorPath.c_str() );
             return;
         }
 

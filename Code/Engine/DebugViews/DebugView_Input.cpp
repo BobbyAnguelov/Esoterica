@@ -226,7 +226,7 @@ namespace EE::Input
 
     InputDebugView::InputDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Player/Input", [this] ( EntityWorldUpdateContext const& context ) { DrawControllerMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/Input", [this] ( EntityWorldUpdateContext const& context ) { DrawControllerMenu( context ); } ) );
     }
 
     void InputDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

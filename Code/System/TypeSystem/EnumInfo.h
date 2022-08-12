@@ -44,7 +44,7 @@ namespace EE::TypeSystem
             }
             else // Flag error and return first valid value
             {
-                EE_LOG_ERROR( "Serialization", "Invalid enum constant value (%s) for enum (%s)", label.c_str(), m_ID.c_str() );
+                EE_LOG_ERROR( "Type System", "Serialization", "Invalid enum constant value (%s) for enum (%s)", label.c_str(), m_ID.c_str() );
                 return m_constants.begin()->second.m_value;
             }
         }

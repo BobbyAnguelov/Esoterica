@@ -97,7 +97,7 @@ namespace EE::Physics
 
     PhysicsDebugView::PhysicsDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Physics", [this] ( EntityWorldUpdateContext const& context ) { DrawPhysicsMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/Physics", [this] ( EntityWorldUpdateContext const& context ) { DrawPhysicsMenu( context ); } ) );
     }
 
     void PhysicsDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

@@ -35,7 +35,7 @@ namespace EE::Render
 
     RenderDebugView::RenderDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Render", [this] ( EntityWorldUpdateContext const& context ) { DrawRenderMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/Render", [this] ( EntityWorldUpdateContext const& context ) { DrawRenderMenu( context ); } ) );
     }
 
     void RenderDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
@@ -52,7 +52,19 @@ namespace EE::Render
 
     void RenderDebugView::DrawRenderMenu( EntityWorldUpdateContext const& context )
     {
+        ImGuiX::TextSeparator( "Visualization" );
+
         DrawRenderVisualizationModesMenu( m_pWorld );
+
+        ImGuiX::TextSeparator( "Static Meshes" );
+
+        ImGui::Checkbox( "Show Static Mesh Bounds", &m_pWorldRendererSystem->m_showStaticMeshBounds );
+
+        ImGuiX::TextSeparator( "Skeletal Meshes" );
+
+        ImGui::Checkbox( "Show Skeletal Mesh Bounds", &m_pWorldRendererSystem->m_showSkeletalMeshBounds );
+        ImGui::Checkbox( "Show Skeletal Mesh Bones", &m_pWorldRendererSystem->m_showSkeletalMeshBones );
+        ImGui::Checkbox( "Show Skeletal Bind Poses", &m_pWorldRendererSystem->m_showSkeletalMeshBindPoses );
     }
 
     void RenderDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )

@@ -49,7 +49,7 @@ namespace EE::Resource
         // Raw resource failed to load
         if ( filePath.empty() )
         {
-            EE_LOG_ERROR( "Resource", "Failed to find/compile resource file (%s)", m_pResourceRecord->GetResourceID().c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Request", "Failed to find/compile resource file (%s)", m_pResourceRecord->GetResourceID().c_str() );
             m_stage = ResourceRequest::Stage::Complete;
             m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
         }
@@ -284,7 +284,7 @@ namespace EE::Resource
 
             if ( !FileSystem::LoadFile( m_rawResourcePath, m_rawResourceData ) )
             {
-                EE_LOG_ERROR( "Resource", "Failed to load resource file (%s)", m_pResourceRecord->GetResourceID().c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load resource file (%s)", m_pResourceRecord->GetResourceID().c_str() );
                 m_stage = ResourceRequest::Stage::Complete;
                 m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
                 return;
@@ -312,7 +312,7 @@ namespace EE::Resource
 
             if ( !m_pResourceLoader->Load( GetResourceID(), m_rawResourceData, m_pResourceRecord ) )
             {
-                EE_LOG_ERROR( "Resource", "Failed to load compiled resource data (%s)", m_pResourceRecord->GetResourceID().c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load compiled resource data (%s)", m_pResourceRecord->GetResourceID().c_str() );
                 m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
                 m_pResourceLoader->Unload( GetResourceID(), m_pResourceRecord );
                 m_stage = ResourceRequest::Stage::Complete;
@@ -366,7 +366,7 @@ namespace EE::Resource
         {
             if ( m_pendingInstallDependencies[i].HasLoadingFailed() )
             {
-                EE_LOG_ERROR( "Resource", "Failed to load install dependency: %s", m_pendingInstallDependencies[i].GetResourceID().ToString().c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load install dependency: %s", m_pendingInstallDependencies[i].GetResourceID().ToString().c_str() );
                 status = InstallStatus::ShouldFail;
                 break;
             }
@@ -388,7 +388,7 @@ namespace EE::Resource
         // If dependency has failed, the resource has failed to load so immediately unload and set status to failed
         if ( status == InstallStatus::ShouldFail )
         {
-            EE_LOG_ERROR( "Resource", "Failed to load resource file due to failed dependency (%s)", m_pResourceRecord->GetResourceID().c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load resource file due to failed dependency (%s)", m_pResourceRecord->GetResourceID().c_str() );
 
             // Do not use the user ID for install dependencies! Since they are not explicitly loaded by a specific user!
             // Instead we create a ResourceRequesterID from the depending resource's resourceID
@@ -464,7 +464,7 @@ namespace EE::Resource
                 // Install operation failed, unload resource and set status to failed
                 case InstallResult::Failed:
                 {
-                    EE_LOG_ERROR( "Resource", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
+                    EE_LOG_ERROR( "Resource", "Resource Request", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
 
                     m_stage = ResourceRequest::Stage::UnloadResource;
                     UnloadResource( requestContext );
@@ -510,7 +510,7 @@ namespace EE::Resource
             // Install operation failed, unload resource and set status to failed
             case InstallResult::Failed:
             {
-                EE_LOG_ERROR( "Resource", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
 
                 m_stage = ResourceRequest::Stage::UnloadResource;
                 UnloadResource( requestContext );

@@ -51,7 +51,7 @@ namespace EE::Render
 
         if ( !pMaterial->IsValid() )
         {
-            EE_LOG_ERROR( "Resource", "Failed to install resource: %s", resID.ToString().c_str() );
+            EE_LOG_ERROR( "Render", "Material Loader", "Failed to install resource: %s", resID.ToString().c_str());
             return Resource::InstallResult::Failed;
         }
         else

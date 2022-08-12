@@ -38,7 +38,7 @@ namespace EE
         m_pWorldManager->DestroyWorld( m_pWorldManager->GetWorlds()[0] );
 
         // Create the map editor world
-        auto pMapEditorWorld = m_pWorldManager->CreateWorld( EntityWorldType::Editor );
+        auto pMapEditorWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
         m_pRenderingSystem->CreateCustomRenderTargetForViewport( pMapEditorWorld->GetViewport(), true );
         m_pMapEditor = EE::New<EntityModel::EntityMapEditor>( this, pMapEditorWorld );
         m_pMapEditor->Initialize( context );
@@ -115,7 +115,7 @@ namespace EE
         else if ( resourceTypeID == EntityModel::EntityCollectionDescriptor::GetStaticResourceTypeID() )
         {
             // Create preview world
-            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Editor );
+            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
             pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
             m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
 
@@ -134,7 +134,7 @@ namespace EE
         if ( pExistingWorkspace == nullptr )
         {
             // Create preview world
-            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Editor );
+            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
             pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
             m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
 

@@ -86,6 +86,7 @@
     <ClInclude Include="Serialization\JsonSerialization.h" />
     <ClInclude Include="Drawing\DebugDrawingCommands.h" />
     <ClInclude Include="Drawing\DebugDrawing.h" />
+    <ClInclude Include="IniFile.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\blockingconcurrentqueue.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\concurrentqueue.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\lightweightsemaphore.h" />
@@ -453,7 +454,6 @@
     <ClInclude Include="ThirdParty\EA\eastl_Esoterica.h" />
     <ClInclude Include="ThirdParty\iniparser\dictionary.h" />
     <ClInclude Include="ThirdParty\iniparser\iniparser.h" />
-    <ClInclude Include="IniFile.h" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_extras.hpp" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_random.hpp" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_uint128.hpp" />
@@ -549,6 +549,7 @@
     <ClCompile Include="Profiling.cpp" />
     <ClCompile Include="Serialization\BinarySerialization.cpp" />
     <ClCompile Include="Serialization\JsonSerialization.cpp" />
+    <ClCompile Include="IniFile.cpp" />
     <ClCompile Include="Systems.cpp" />
     <ClCompile Include="ThirdParty\EA\EASTL\Source\allocator_eastl.cpp" />
     <ClCompile Include="ThirdParty\EA\EASTL\Source\assert.cpp" />
@@ -573,7 +574,6 @@
     <ClCompile Include="ThirdParty\EA\eastl_Esoterica.cpp" />
     <ClCompile Include="ThirdParty\iniparser\dictionary.c" />
     <ClCompile Include="ThirdParty\iniparser\iniparser.c" />
-    <ClCompile Include="IniFile.cpp" />
     <ClCompile Include="ThirdParty\rpmalloc\rpmalloc.c" />
     <ClCompile Include="ThirdParty\xxhash\xxhash.c" />
     <ClCompile Include="Threading\Threading.cpp" />

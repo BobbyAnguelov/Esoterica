@@ -3,7 +3,10 @@
 #include "System/_Module/API.h"
 #include "System/Types/String.h"
 #include "System/Types/Arrays.h"
-#include "System/FileSystem/FileSystemPath.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::FileSystem { class Path; }
 
 //-------------------------------------------------------------------------
 
@@ -20,10 +23,11 @@ namespace EE::Log
     struct LogEntry
     {
         String      m_timestamp;
+        String      m_category;
+        String      m_sourceInfo; // Extra optional information about the source of the log
         String      m_message;
-        String      m_channel;
         String      m_filename;
-        uint32_t      m_lineNumber;
+        uint32_t    m_lineNumber;
         Severity    m_severity;
     };
 
@@ -37,8 +41,8 @@ namespace EE::Log
     // Logging
     //-------------------------------------------------------------------------
 
-    EE_SYSTEM_API void AddEntry( Severity severity, char const* pChannel, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
-    EE_SYSTEM_API void AddEntryVarArgs( Severity severity, char const* pChannel, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
+    EE_SYSTEM_API void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
+    EE_SYSTEM_API void AddEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
     EE_SYSTEM_API TVector<LogEntry> const& GetLogEntries();
     EE_SYSTEM_API int32_t GetNumWarnings();
     EE_SYSTEM_API int32_t GetNumErrors();
@@ -61,7 +65,7 @@ namespace EE::Log
 
 //-------------------------------------------------------------------------
 
-#define EE_LOG_MESSAGE( CHANNEL, ... ) EE::Log::AddEntry( EE::Log::Severity::Message, CHANNEL, __FILE__, __LINE__, __VA_ARGS__ )
-#define EE_LOG_WARNING( CHANNEL, ... ) EE::Log::AddEntry( EE::Log::Severity::Warning, CHANNEL, __FILE__, __LINE__, __VA_ARGS__ )
-#define EE_LOG_ERROR( CHANNEL, ... ) EE::Log::AddEntry( EE::Log::Severity::Error, CHANNEL, __FILE__, __LINE__, __VA_ARGS__ )
-#define EE_LOG_FATAL_ERROR( CHANNEL, ... ) EE::Log::AddEntry( EE::Log::Severity::FatalError, CHANNEL, __FILE__, __LINE__, __VA_ARGS__ ); EE_HALT()
+#define EE_LOG_MESSAGE( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Message, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_WARNING( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Warning, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_ERROR( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Error, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_FATAL_ERROR( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::FatalError, category, source, __FILE__, __LINE__, __VA_ARGS__ ); EE_HALT()

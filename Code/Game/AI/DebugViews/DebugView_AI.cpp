@@ -13,7 +13,7 @@ namespace EE::AI
 {
     AIDebugView::AIDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "AI", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Game/AI", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void AIDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

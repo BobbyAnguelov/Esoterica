@@ -27,14 +27,14 @@ namespace EE::Serialization
                 if ( arrayValue[i].IsArray() )
                 {
                     // We dont support arrays of arrays
-                    EE_LOG_ERROR( "TypeSystem", "We dont support arrays of arrays" );
+                    EE_LOG_ERROR( "TypeSystem", "Serialization", "We dont support arrays of arrays" );
                     return false;
                 }
                 else if ( arrayValue[i].IsObject() )
                 {
                     if ( CoreTypeRegistry::IsCoreType( pArrayPropertyInfo->m_typeID ) )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Malformed json detected, object declared for core type property: %s", pArrayPropertyInfo->m_ID.c_str() );
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, object declared for core type property: %s", pArrayPropertyInfo->m_ID.c_str() );
                         return false;
                     }
 
@@ -49,13 +49,13 @@ namespace EE::Serialization
                 {
                     if ( !CoreTypeRegistry::IsCoreType( pArrayPropertyInfo->m_typeID ) )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Malformed json detected, only core type properties are allowed to be directly declared: %s", pArrayPropertyInfo->m_ID.c_str() );
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, only core type properties are allowed to be directly declared: %s", pArrayPropertyInfo->m_ID.c_str() );
                         return false;
                     }
 
                     if ( !arrayValue[i].IsString() )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Malformed json detected, Core type values must be strings, property (%s) has invalid value: %s", pArrayPropertyInfo->m_ID.c_str(), arrayValue[i].GetString() );
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, Core type values must be strings, property (%s) has invalid value: %s", pArrayPropertyInfo->m_ID.c_str(), arrayValue[i].GetString() );
                         return false;
                     }
 
@@ -94,7 +94,7 @@ namespace EE::Serialization
                 {
                     if ( CoreTypeRegistry::IsCoreType( pPropertyInfo->m_typeID ) )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Malformed json detected, object declared for core type property: %s", itr->name.GetString() );
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, object declared for core type property: %s", itr->name.GetString() );
                         return false;
                     }
                     
@@ -109,13 +109,13 @@ namespace EE::Serialization
                 {
                     if ( !CoreTypeRegistry::IsCoreType( pPropertyInfo->m_typeID ) && !pPropertyInfo->IsEnumProperty() )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Malformed json detected, only core type properties are allowed to be directly declared: %s", itr->name.GetString() );
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, only core type properties are allowed to be directly declared: %s", itr->name.GetString() );
                         return false;
                     }
 
                     if ( !itr->value.IsString() )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Malformed json detected, Core type values must be strings, invalid value detected: %s", itr->name.GetString() );
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, Core type values must be strings, invalid value detected: %s", itr->name.GetString() );
                         return false;
                     }
 
@@ -137,7 +137,7 @@ namespace EE::Serialization
     {
         if ( !typeObjectValue.IsObject() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Supplied json value is not an object" );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Supplied json value is not an object" );
             return false;
         }
 
@@ -147,7 +147,7 @@ namespace EE::Serialization
         auto const typeIDIter = typeObjectValue.FindMember( s_typeIDKey );
         if ( typeIDIter == typeObjectValue.MemberEnd() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Missing typeID for object" );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID for object" );
             return false;
         }
 
@@ -155,7 +155,7 @@ namespace EE::Serialization
         auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
         if ( pTypeInfo == nullptr )
         {
-            EE_LOG_ERROR( "TypeSystem", "Unknown type encountered: %s", typeID.c_str() );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", typeID.c_str() );
             return false;
         }
 
@@ -266,7 +266,7 @@ namespace EE::Serialization
                 }
                 else // Invalid JSON data encountered
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Invalid JSON file encountered" );
+                    EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid JSON file encountered" );
                     return false;
                 }
             }
@@ -282,13 +282,13 @@ namespace EE::Serialization
                 }
                 else // Invalid JSON data encountered
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Invalid JSON file encountered" );
+                    EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid JSON file encountered" );
                     return false;
                 }
             }
             else // Invalid JSON data encountered
             {
-                EE_LOG_ERROR( "TypeSystem", "Invalid JSON file encountered" );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid JSON file encountered" );
                 return false;
             }
 
@@ -304,7 +304,7 @@ namespace EE::Serialization
             auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
             if ( pTypeInfo == nullptr )
             {
-                EE_LOG_ERROR( "TypeSystem", "Unknown type encountered: %s", typeID.c_str() );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", typeID.c_str() );
                 return false;
             }
 
@@ -316,7 +316,7 @@ namespace EE::Serialization
             // If you hit this the type in the JSON file and the type you are trying to deserialize do not match
             if ( typeID != actualTypeID && !typeRegistry.IsTypeDerivedFrom( actualTypeID, typeID ) )
             {
-                EE_LOG_ERROR( "TypeSystem", "Type mismatch, expected %s, encountered %s", typeID.c_str(), actualTypeID.c_str() );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Type mismatch, expected %s, encountered %s", typeID.c_str(), actualTypeID.c_str() );
                 return false;
             }
 
@@ -345,7 +345,7 @@ namespace EE::Serialization
                     {
                         if ( propInfo.m_arraySize < numJSONArrayElements )
                         {
-                            EE_LOG_ERROR( "TypeSystem", "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, (int32_t) numJSONArrayElements );
+                            EE_LOG_ERROR( "TypeSystem", "Serialization", "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, (int32_t) numJSONArrayElements );
                             return false;
                         }
 
@@ -417,13 +417,13 @@ namespace EE::Serialization
     {
         if ( !typeObjectValue.IsObject() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Supplied json value is not an object" );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Supplied json value is not an object" );
             return false;
         }
 
         if ( !typeObjectValue.HasMember( s_typeIDKey ) )
         {
-            EE_LOG_ERROR( "TypeSystem", "Missing typeID for object" );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID for object" );
             return false;
         }
 
@@ -554,7 +554,7 @@ namespace EE::Serialization
         auto const typeIDIter = typeObjectValue.FindMember( s_typeIDKey );
         if ( typeIDIter == typeObjectValue.MemberEnd() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Missing typeID for object" );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID for object" );
             return nullptr;
         }
 
@@ -562,7 +562,7 @@ namespace EE::Serialization
         auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
         if ( pTypeInfo == nullptr )
         {
-            EE_LOG_ERROR( "TypeSystem", "Unknown type encountered: %s", typeID.c_str() );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", typeID.c_str() );
             return nullptr;
         }
 

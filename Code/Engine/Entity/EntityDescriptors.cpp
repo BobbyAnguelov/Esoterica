@@ -101,7 +101,7 @@ namespace EE::EntityModel
 
     TVector<Entity*> EntityCollectionDescriptor::InstantiateCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry ) const
     {
-        EE_PROFILE_SCOPE_SCENE( "Instantiate Entity Collection" );
+        EE_PROFILE_SCOPE_ENTITY( "Instantiate Entity Collection" );
 
         int32_t const numEntitiesToCreate = (int32_t) m_entityDescriptors.size();
         TVector<Entity*> createdEntities;
@@ -132,7 +132,7 @@ namespace EE::EntityModel
 
                 virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
                 {
-                    EE_PROFILE_SCOPE_SCENE( "Entity Creation Task" );
+                    EE_PROFILE_SCOPE_ENTITY( "Entity Creation Task" );
                     for ( uint64_t i = range.start; i < range.end; ++i )
                     {
                         m_createdEntities[i] = Entity::CreateFromDescriptor( m_typeRegistry, m_descriptors[i] );
@@ -158,7 +158,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         {
-            EE_PROFILE_SCOPE_SCENE( "Resolve spatial connections" );
+            EE_PROFILE_SCOPE_ENTITY( "Resolve spatial connections" );
 
             for ( auto const& entityAttachmentInfo : m_entitySpatialAttachmentInfo )
             {

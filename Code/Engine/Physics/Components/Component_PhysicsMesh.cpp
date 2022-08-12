@@ -1,4 +1,5 @@
 #include "Component_PhysicsMesh.h"
+#include "Engine/Entity/EntityLog.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,7 +16,7 @@ namespace EE::Physics
 
         if ( !m_pPhysicsMesh->IsValid() )
         {
-            EE_LOG_ERROR( "Physics", "Invalid collision mesh on Physics Mesh Component: %s (%u)", GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid collision mesh on Physics Mesh Component: %s (%u)", GetName().c_str(), GetID() );
             return false;
         }
 

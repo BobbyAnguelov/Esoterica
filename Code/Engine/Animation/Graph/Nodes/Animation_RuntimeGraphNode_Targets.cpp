@@ -222,7 +222,7 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                EE_LOG_WARNING( "Animation", "Trying to set an offset on an unset node!" );
+                EE_LOG_WARNING( "Animation", "TODO", "Trying to set an offset on an unset node!" );
             }
         }
 

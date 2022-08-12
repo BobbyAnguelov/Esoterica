@@ -332,7 +332,7 @@ namespace EE::TypeSystem::Reflection
         }
     }
 
-    EE::TypeSystem::Reflection::ReflectedProperty const* ReflectionDatabase::GetPropertyTypeDescriptor( TypeID typeID, PropertyPath const& pathID ) const
+    ReflectedProperty const* ReflectionDatabase::GetPropertyTypeDescriptor( TypeID typeID, PropertyPath const& pathID ) const
     {
         ReflectedProperty const* pResolvedPropertyTypeDesc = nullptr;
 
@@ -360,7 +360,7 @@ namespace EE::TypeSystem::Reflection
                 pCurrentTypeDesc = GetType( pResolvedPropertyTypeDesc->m_typeID );
                 if ( pCurrentTypeDesc == nullptr )
                 {
-                    EE_LOG_ERROR( "Reflection::ReflectionDatabase", "Cant resolve property path since it contains an unknown type" );
+                    EE_LOG_ERROR( "Type System", "ReflectionDatabase", "Cant resolve property path since it contains an unknown type" );
                     return nullptr;
                 }
             }

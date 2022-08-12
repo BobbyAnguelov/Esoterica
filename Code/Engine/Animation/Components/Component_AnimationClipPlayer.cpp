@@ -1,6 +1,7 @@
 #include "Component_AnimationClipPlayer.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Entity/EntityLog.h"
 #include "System/Profiling.h"
 #include "System/Log.h"
 
@@ -30,13 +31,13 @@ namespace EE::Animation
     {
         if ( !IsInitialized() )
         {
-            EE_LOG_ERROR( "Animation", "Anim Clip Player - Try to set anim time on an uninitialized component!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Anim Clip Player", "Trying to set anim time on an uninitialized component!" );
             return;
         }
 
         if ( m_pAnimation == nullptr )
         {
-            EE_LOG_ERROR( "Animation", "Anim Clip Player - Try to set anim time on a player with no animation set!" );
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Anim Clip Player", "Trying to set anim time on a player with no animation set!" );
             return;
         }
 

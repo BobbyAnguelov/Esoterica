@@ -20,7 +20,7 @@ namespace EE::EntityModel::Serializer
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Error, "Entity Collection Reader", __FILE__, __LINE__, pFormat, args );
+        Log::AddEntryVarArgs( Log::Severity::Error, "Entity", "Serializer", __FILE__, __LINE__, pFormat, args);
         va_end( args );
         return false;
     }
@@ -128,8 +128,7 @@ namespace EE::EntityModel::Serializer
             auto typeIDIter = componentTypeDataObject.FindMember( Serialization::s_typeIDKey );
             if ( typeIDIter == componentTypeDataObject.MemberEnd() || !typeIDIter->value.IsString() )
             {
-                Error( "Invalid type data found for component: '%s' on entity %s!", nameIter->value.GetString(), ctx.m_parsingContextName.c_str() );
-                return false;
+                return Error( "Invalid type data found for component: '%s' on entity %s!", nameIter->value.GetString(), ctx.m_parsingContextName.c_str() );
             }
 
             outComponentDesc.m_typeID = StringID( typeIDIter->value.GetString() );
@@ -194,8 +193,7 @@ namespace EE::EntityModel::Serializer
 
             if ( ctx.DoesComponentExist( outComponentDesc.m_name ) )
             {
-                Error( "Duplicate component UUID detected: '%s' on entity %s!", outComponentDesc.m_name.c_str(), ctx.m_parsingContextName.c_str() );
-                return false;
+                return Error( "Duplicate component UUID detected: '%s' on entity %s!", outComponentDesc.m_name.c_str(), ctx.m_parsingContextName.c_str() );
             }
             else
             {

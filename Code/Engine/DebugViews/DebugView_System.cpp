@@ -71,7 +71,7 @@ namespace EE
     {
         bool isLogWindowOpen = true;
 
-        if ( ImGui::Begin( "System Log", &isLogWindowOpen ) )
+        if ( ImGui::Begin( "Log", &isLogWindowOpen ) )
         {
             ImGui::AlignTextToFramePadding();
             ImGui::Text( "Filter:" );
@@ -94,11 +94,13 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            if ( ImGui::BeginTable( "System Log Table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+            if ( ImGui::BeginTable( "System Log Table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
             {
-                ImGui::TableSetupColumn( "Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 55 );
-                ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 55 );
+                ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 14 );
+                ImGui::TableSetupColumn( "Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 36 );
                 ImGui::TableSetupColumn( "Channel", ImGuiTableColumnFlags_WidthFixed, 60 );
+                ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthFixed, 120 );
                 ImGui::TableSetupColumn( "Message", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupScrollFreeze( 0, 1 );
 
@@ -149,34 +151,46 @@ namespace EE
                         //-------------------------------------------------------------------------
 
                         ImGui::TableSetColumnIndex( 0 );
+                        ImGui::AlignTextToFramePadding();
+                        switch ( entry.m_severity )
+                        {
+                            case Log::Severity::Message:
+                            ImGui::Text( EE_ICON_MESSAGE );
+                            break;
+
+                            case Log::Severity::Warning:
+                            ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_ALERT );
+                            break;
+
+                            case Log::Severity::Error:
+                            ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT_CIRCLE_OUTLINE );
+                            break;
+                        }
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableSetColumnIndex( 1 );
                         ImGui::Text( entry.m_timestamp.c_str() );
 
                         //-------------------------------------------------------------------------
 
-                        ImGui::TableSetColumnIndex( 1 );
-                        switch ( entry.m_severity )
-                        {
-                            case Log::Severity::Warning:
-                            ImGui::TextColored( Colors::Yellow.ToFloat4(), "Warning" );
-                            break;
-
-                            case Log::Severity::Error:
-                            ImGui::TextColored( Colors::Red.ToFloat4(), "Error" );
-                            break;
-
-                            case Log::Severity::Message:
-                            ImGui::Text( "Message" );
-                            break;
-                        }
-
-                        //-------------------------------------------------------------------------
-
                         ImGui::TableSetColumnIndex( 2 );
-                        ImGui::Text( entry.m_channel.c_str() );
+                        ImGui::Text( entry.m_category.c_str() );
 
                         //-------------------------------------------------------------------------
 
                         ImGui::TableSetColumnIndex( 3 );
+                        if ( !entry.m_sourceInfo.empty() )
+                        {
+                            ImGui::SetNextItemWidth( -1 );
+                            ImGui::PushID( i );
+                            ImGui::InputText( "##RO", const_cast<char*>( entry.m_sourceInfo.c_str() ), entry.m_sourceInfo.size(), ImGuiInputTextFlags_ReadOnly );
+                            ImGuiX::ItemTooltip( entry.m_sourceInfo.c_str() );
+                            ImGui::PopID();
+                        }
+
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableSetColumnIndex( 4 );
                         ImGui::Text( entry.m_message.c_str() );
                     }
                 }

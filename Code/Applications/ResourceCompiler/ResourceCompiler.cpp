@@ -47,7 +47,7 @@ namespace EE
                     }
                     else
                     {
-                        EE_LOG_ERROR( "ResourceCompiler", "Invalid compile request: %s\n", m_resourceID.ToString().c_str() );
+                        EE_LOG_ERROR( "Resource", "Resource Compiler", "Invalid compile request: %s\n", m_resourceID.ToString().c_str() );
                     }
 
                     return;
@@ -81,14 +81,14 @@ int main( int argc, char* argv[] )
     IniFile iniFile( iniFilePath );
     if ( !iniFile.IsValid() )
     {
-        EE_LOG_ERROR( "ResourceCompiler", "Failed to read INI file: %s", iniFilePath.c_str() );
+        EE_LOG_ERROR( "Resource", "Resource Compiler", "Failed to read INI file: %s", iniFilePath.c_str() );
         return 1;
     }
 
     Resource::ResourceSettings settings;
     if ( !settings.ReadSettings( iniFile ) )
     {
-        EE_LOG_ERROR( "ResourceCompiler", "Failed to read settings from INI file: %s", iniFilePath.c_str() );
+        EE_LOG_ERROR( "Resource", "Resource Compiler", "Failed to read settings from INI file: %s", iniFilePath.c_str() );
         return false;
     }
 
@@ -104,7 +104,7 @@ int main( int argc, char* argv[] )
 
     if ( !argParser.IsValid() )
     {
-        EE_LOG_ERROR( "ResourceCompiler", "Invalid command line arguments" );
+        EE_LOG_ERROR( "Resource", "Resource Compiler", "Invalid command line arguments" );
         return 1;
     }
 
@@ -150,14 +150,14 @@ int main( int argc, char* argv[] )
         auto pCompiler = compilerRegistry.GetCompilerForResourceType( compileContext.m_resourceID.GetResourceTypeID() );
         if ( pCompiler == nullptr )
         {
-            EE_LOG_ERROR( "ResourceCompiler", "Cant find appropriate resource compiler for type: %u", compileContext.m_resourceID.GetResourceTypeID() );
+            EE_LOG_ERROR( "Resource", "Resource Compiler", "Cant find appropriate resource compiler for type: %u", compileContext.m_resourceID.GetResourceTypeID() );
             return -1;
         }
 
         // Validate input path
         if ( pCompiler->IsInputFileRequired() && !FileSystem::Exists( compileContext.m_inputFilePath ) )
         {
-            EE_LOG_ERROR( "ResourceCompiler", "Source file for data path ('%s') does not exist: '%s'\n", settings.m_rawResourcePath.c_str(), compileContext.m_inputFilePath.c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Compiler", "Source file for data path ('%s') does not exist: '%s'\n", settings.m_rawResourcePath.c_str(), compileContext.m_inputFilePath.c_str() );
             return -1;
         }
 

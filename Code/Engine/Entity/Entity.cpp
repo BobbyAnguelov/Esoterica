@@ -4,6 +4,7 @@
 #include "EntityActivationContext.h"
 #include "EntityLoadingContext.h"
 #include "EntityDescriptors.h"
+#include "EntityLog.h"
 #include "System/Resource/ResourceRequesterID.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include <eastl/sort.h>
@@ -219,7 +220,7 @@ namespace EE
             if ( VectorContains( entityComponentList, componentDesc.m_name ) )
             {
                 // Duplicate name detected!!
-                EE_LOG_ERROR( "Entity Model", "Failed to create entity descriptor, duplicate component name detected: %s on entity %s", pComponent->GetName().c_str(), m_name.c_str() );
+                EE_LOG_ENTITY_ERROR( this, "Entity", "Failed to create entity descriptor, duplicate component name detected: %s on entity %s", pComponent->GetName().c_str(), m_name.c_str() );
                 return false;
             }
             else
@@ -693,7 +694,7 @@ namespace EE
             }
             else
             {
-                EE_LOG_WARNING( "Entity", "Could not find attachment socket '%s' on entity '%s' (%u)", m_parentAttachmentSocketID.c_str(), pParentEntity->GetName().c_str(), pParentEntity->GetID() );
+                EE_LOG_ENTITY_WARNING( this, "Entity", "Could not find attachment socket '%s' on entity '%s' (%u)", m_parentAttachmentSocketID.c_str(), pParentEntity->GetName().c_str(), pParentEntity->GetID() );
             }
         }
 

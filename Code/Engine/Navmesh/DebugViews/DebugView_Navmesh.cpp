@@ -99,7 +99,7 @@ namespace EE::Navmesh
 
     NavmeshDebugView::NavmeshDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Navmesh", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/Navmesh", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void NavmeshDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

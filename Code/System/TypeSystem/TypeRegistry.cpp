@@ -78,7 +78,7 @@ namespace EE::TypeSystem
                 // If this occurs, we have an invalid path as each element must contain other properties
                 if ( CoreTypeRegistry::IsCoreType( pFoundPropertyInfo->m_typeID ) && !pFoundPropertyInfo->IsArrayProperty() )
                 {
-                    EE_LOG_WARNING( "TypeSystem", "Cant resolve malformed property path" );
+                    EE_LOG_WARNING( "TypeSystem", "Type Registry", "Cant resolve malformed property path" );
                     pFoundPropertyInfo = nullptr;
                     break;
                 }
@@ -87,7 +87,7 @@ namespace EE::TypeSystem
                 pParentTypeInfo = GetTypeInfo( pFoundPropertyInfo->m_typeID );
                 if ( pParentTypeInfo == nullptr )
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Cant resolve property path since it contains an unknown type" );
+                    EE_LOG_ERROR( "TypeSystem", "Type Registry", "Cant resolve property path since it contains an unknown type" );
                     pFoundPropertyInfo = nullptr;
                 }
             }

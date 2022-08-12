@@ -1,9 +1,9 @@
 #pragma once
 
 #include "System/Memory/Memory.h"
-#include <EASTL/vector.h>
-#include <EASTL/fixed_vector.h>
-#include <EASTL/array.h>
+#include "EASTL/vector.h"
+#include "EASTL/fixed_vector.h"
+#include "EASTL/array.h"
 
 //-------------------------------------------------------------------------
 

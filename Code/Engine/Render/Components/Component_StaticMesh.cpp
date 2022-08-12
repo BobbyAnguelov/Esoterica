@@ -1,4 +1,5 @@
 #include "Component_StaticMesh.h"
+#include "Engine/Entity/EntityLog.h"
 
 //-------------------------------------------------------------------------
 

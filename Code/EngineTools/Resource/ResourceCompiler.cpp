@@ -46,7 +46,7 @@ namespace EE::Resource
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Error, m_name.c_str(), __FILE__, __LINE__, pFormat, args );
+        Log::AddEntryVarArgs( Log::Severity::Error, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args);
         va_end( args );
         return CompilationResult::Failure;
     }
@@ -55,7 +55,7 @@ namespace EE::Resource
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Warning, m_name.c_str(), __FILE__, __LINE__, pFormat, args );
+        Log::AddEntryVarArgs( Log::Severity::Warning, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
         va_end( args );
         return CompilationResult::SuccessWithWarnings;
     }
@@ -64,7 +64,7 @@ namespace EE::Resource
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Message, m_name.c_str(), __FILE__, __LINE__, pFormat, args );
+        Log::AddEntryVarArgs( Log::Severity::Message, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
         va_end( args );
         return CompilationResult::Success;
     }

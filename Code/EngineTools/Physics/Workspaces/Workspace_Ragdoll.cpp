@@ -2624,7 +2624,7 @@ namespace EE::Physics
 
             if ( killPreview )
             {
-                EE_LOG_WARNING( "Physics", "Ragdoll destabilized" );
+                EE_LOG_WARNING( "Physics", "Ragdoll", "Ragdoll destabilized" );
                 StopPreview();
             }
         }

@@ -21,7 +21,7 @@ namespace EE::Resource
         m_address = String( String::CtorSprintf(), "%s:%d", m_settings.m_resourceServerNetworkAddress.c_str(), m_settings.m_resourceServerPort );
         if ( !Network::NetworkSystem::StartClientConnection( &m_networkClient, m_address.c_str() ) )
         {
-            EE_LOG_ERROR( "Resource Provider", "Failed to connect to the resource server (%s)!", m_address.c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Provider", "Failed to connect to the resource server (%s)!", m_address.c_str() );
             return false;
         }
 
@@ -81,7 +81,7 @@ namespace EE::Resource
         {
             if ( !m_networkFailureDetected )
             {
-                EE_LOG_FATAL_ERROR( "Resource", "Lost connection to resource server" );
+                EE_LOG_FATAL_ERROR( "Resource", "Network Resource Provider", "Lost connection to resource server" );
                 m_networkFailureDetected = true;
             }
             return;

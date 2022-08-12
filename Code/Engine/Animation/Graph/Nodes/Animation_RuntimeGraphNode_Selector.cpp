@@ -92,7 +92,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            EE_LOG_WARNING( "Animation", "Failed to select a valid option!" );
+            EE_LOG_WARNING( "Animation", "TODO", "Failed to select a valid option!" );
         }
     }
 
@@ -253,7 +253,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            EE_LOG_WARNING( "Animation", "Failed to select a valid option!" );
+            EE_LOG_WARNING( "Animation", "TODO", "Failed to select a valid option!" );
         }
     }
 

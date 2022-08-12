@@ -2,6 +2,7 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
+#include "Engine/Entity/EntityLog.h"
 #include "System/Algorithm/Hash.h"
 #include "System/Types/StringID.h"
 #include "System/Log.h"
@@ -227,13 +228,13 @@ namespace EE::Animation
 
             if ( !m_pGraphInstance->IsValidExternalGraphSlotID( slotID ) )
             {
-                EE_LOG_ERROR( "Animation", "Invalid slot ID (%s) - Component (%s) on Entity (%ul)!", slotID.c_str(), m_pGraphComponent->GetName().c_str(), m_pGraphComponent->GetEntityID().m_ID );
+                EE_LOG_ENTITY_ERROR( m_pGraphComponent, "Animation", "Invalid slot ID (%s) - Component (%s) on Entity (%ul)!", slotID.c_str(), m_pGraphComponent->GetName().c_str(), m_pGraphComponent->GetEntityID().m_ID );
                 return nullptr;
             }
 
             if ( m_pGraphInstance->IsExternalGraphSlotFilled( slotID ) )
             {
-                EE_LOG_ERROR( "Animation", "External graph slot (%s) is filled! - Component (%s) on Entity (%ul)", slotID.c_str(), m_pGraphComponent->GetName().c_str(), m_pGraphComponent->GetEntityID().m_ID );
+                EE_LOG_ENTITY_ERROR( m_pGraphComponent, "Animation", "External graph slot (%s) is filled! - Component (%s) on Entity (%ul)", slotID.c_str(), m_pGraphComponent->GetName().c_str(), m_pGraphComponent->GetEntityID().m_ID );
                 return nullptr;
             }
 

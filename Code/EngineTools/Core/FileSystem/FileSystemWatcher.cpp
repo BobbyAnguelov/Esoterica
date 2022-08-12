@@ -65,7 +65,7 @@ namespace EE::FileSystem
 
         if ( m_pDirectoryHandle == INVALID_HANDLE_VALUE )
         {
-            EE_LOG_ERROR( "FileSystem", "Failed to open handle to directory (%s), error: %s", m_directoryToWatch.c_str(), Platform::Win32::GetLastErrorMessage().c_str() );
+            EE_LOG_ERROR( "FileSystem", "File System Watcher", "Failed to open handle to directory (%s), error: %s", m_directoryToWatch.c_str(), Platform::Win32::GetLastErrorMessage().c_str() );
             m_pDirectoryHandle = nullptr;
             return false;
         }
@@ -77,7 +77,7 @@ namespace EE::FileSystem
         pOverlappedEvent->hEvent = CreateEvent( NULL, TRUE, FALSE, NULL );
         if ( pOverlappedEvent->hEvent == nullptr )
         {
-            EE_LOG_ERROR( "FileSystem", "Failed to create overlapped event: %s", Platform::Win32::GetLastErrorMessage().c_str() );
+            EE_LOG_ERROR( "FileSystem", "File System Watcher", "Failed to create overlapped event: %s", Platform::Win32::GetLastErrorMessage().c_str() );
             CloseHandle( m_pDirectoryHandle );
             m_pDirectoryHandle = nullptr;
             return false;
@@ -159,7 +159,7 @@ namespace EE::FileSystem
             {
                 if ( GetLastError() != ERROR_IO_INCOMPLETE )
                 {
-                    EE_LOG_FATAL_ERROR( "FileSystem", "FileSystemWatcher failed to get overlapped results: %s", Platform::Win32::GetLastErrorMessage().c_str() );
+                    EE_LOG_FATAL_ERROR( "FileSystem", "FileSystemWatcher", "Failed to get overlapped results: %s", Platform::Win32::GetLastErrorMessage().c_str() );
                     EE_HALT();
                 }
             }

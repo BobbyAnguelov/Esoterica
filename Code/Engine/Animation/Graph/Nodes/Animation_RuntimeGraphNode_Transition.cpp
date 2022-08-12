@@ -714,7 +714,7 @@ namespace EE::Animation::GraphNodes
             m_transitionProgress = 1.0f;
 
             #if EE_DEVELOPMENT_TOOLS
-            EE_LOG_ERROR( "Animation", "Transition to state terminated due to synchronous update, this may indicate a bad graph setup!" );
+            EE_LOG_ERROR( "Animation", "TODO", "Transition to state terminated due to synchronous update, this may indicate a bad graph setup!" );
             #endif
         }
 

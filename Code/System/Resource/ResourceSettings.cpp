@@ -22,7 +22,7 @@ namespace EE::Resource
             m_compiledResourcePath = m_workingDirectoryPath + compiledResourceDirectoryName;
             if ( !m_compiledResourcePath.IsValid() )
             {
-                EE_LOG_ERROR( "Engine", "Invalid compiled data path: %s", m_compiledResourcePath.c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid compiled data path: %s", m_compiledResourcePath.c_str());
                 return false;
             }
 
@@ -30,7 +30,7 @@ namespace EE::Resource
         }
         else
         {
-            EE_LOG_ERROR( "Engine", "Failed to read compiled data path from ini file" );
+            EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read compiled data path from ini file" );
             return false;
         }
 
@@ -47,13 +47,13 @@ namespace EE::Resource
                 m_rawResourcePath = m_workingDirectoryPath + tmp;
                 if ( !m_rawResourcePath.IsValid() )
                 {
-                    EE_LOG_ERROR( "Engine", "Invalid source data path: %s", m_compiledResourcePath.c_str() );
+                    EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid source data path: %s", m_compiledResourcePath.c_str() );
                     return false;
                 }
             }
             else
             {
-                EE_LOG_ERROR( "Engine", "Failed to read source data path from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read source data path from ini file" );
                 return false;
             }
 
@@ -61,7 +61,7 @@ namespace EE::Resource
             {
                 if ( tmp.empty() )
                 {
-                    EE_LOG_ERROR( "Engine", "Invalid packaged build relative path: %s", tmp.c_str() );
+                    EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid packaged build relative path: %s", tmp.c_str() );
                     return false;
                 }
                 else
@@ -75,7 +75,7 @@ namespace EE::Resource
             }
             else
             {
-                EE_LOG_ERROR( "Engine", "Failed to read packaged build path from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read packaged build path from ini file" );
                 return false;
             }
 
@@ -87,13 +87,13 @@ namespace EE::Resource
                 m_compiledResourceDatabasePath = m_workingDirectoryPath + tmp;
                 if ( !m_compiledResourceDatabasePath.IsValid() )
                 {
-                    EE_LOG_ERROR( "Engine", "Invalid compiled resource database path: %s", m_compiledResourceDatabasePath.c_str() );
+                    EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid compiled resource database path: %s", m_compiledResourceDatabasePath.c_str() );
                     return false;
                 }
             }
             else
             {
-                EE_LOG_ERROR( "Engine", "Failed to read compiled resource database path from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read compiled resource database path from ini file" );
                 return false;
             }
 
@@ -105,13 +105,13 @@ namespace EE::Resource
                 m_resourceCompilerExecutablePath = m_workingDirectoryPath + tmp;
                 if ( !m_resourceCompilerExecutablePath.IsValid() )
                 {
-                    EE_LOG_ERROR( "Engine", "Invalid resource compiler path: %s", m_resourceCompilerExecutablePath.c_str() );
+                    EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid resource compiler path: %s", m_resourceCompilerExecutablePath.c_str() );
                     return false;
                 }
             }
             else
             {
-                EE_LOG_ERROR( "Engine", "Failed to read resource compiler exe path from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read resource compiler exe path from ini file" );
                 return false;
             }
 
@@ -123,19 +123,19 @@ namespace EE::Resource
                 m_resourceServerExecutablePath = m_workingDirectoryPath + tmp;
                 if ( !m_resourceServerExecutablePath.IsValid() )
                 {
-                    EE_LOG_ERROR( "Engine", "Invalid resource server path: %s", m_resourceServerExecutablePath.c_str() );
+                    EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid resource server path: %s", m_resourceServerExecutablePath.c_str() );
                     return false;
                 }
             }
             else
             {
-                EE_LOG_ERROR( "Engine", "Failed to read resource server exe path from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read resource server exe path from ini file" );
                 return false;
             }
 
             if ( !ini.TryGetString( "Resource:ResourceServerAddress", m_resourceServerNetworkAddress ) )
             {
-                EE_LOG_ERROR( "Engine", "Failed to read ResourceServerAddress from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read ResourceServerAddress from ini file" );
                 return false;
             }
 
@@ -146,7 +146,7 @@ namespace EE::Resource
             }
             else
             {
-                EE_LOG_ERROR( "Engine", "Failed to read ResourceServerPort from ini file" );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Failed to read ResourceServerPort from ini file" );
                 return false;
             }
         }

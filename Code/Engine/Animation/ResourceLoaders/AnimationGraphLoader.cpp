@@ -83,7 +83,7 @@ namespace EE::Animation
 
             if ( !pDataSet->IsValid() )
             {
-                EE_LOG_ERROR( "Animation", "Failed to install skeleton for graph data set resource: %s", resID.ToString().c_str() );
+                EE_LOG_ERROR( "Animation", "Graph Loader", "Failed to install skeleton for graph data set resource: %s", resID.ToString().c_str() );
                 return Resource::InstallResult::Failed;
             }
 

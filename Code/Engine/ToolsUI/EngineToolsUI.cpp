@@ -6,7 +6,6 @@
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
-#include "Engine/DebugViews/DebugView_RuntimeSettings.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Input/InputSystem.h"
 
@@ -148,7 +147,7 @@ namespace EE
             float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
 
             TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", Log::GetNumWarnings() );
-            TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT_OCTAGON" %d", Log::GetNumErrors() );
+            TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT_CIRCLE_OUTLINE" %d", Log::GetNumErrors() );
             TInlineString<40> const perfStatsStr( TInlineString<40>::CtorSprintf(), "FPS: %3.0f", currentFPS );
             TInlineString<40> const memStatsStr( TInlineString<40>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
 
@@ -172,14 +171,55 @@ namespace EE
             ImGui::PopStyleColor();
             if ( drawDebugMenu )
             {
-                if ( ImGui::MenuItem( EE_ICON_TUNE" Show Debug Settings", nullptr, &m_isRuntimeSettingsWindowOpen ) )
+                ImGuiX::TextSeparator( EE_ICON_CLOCK" Time Controls" );
                 {
-                    m_isRuntimeSettingsWindowOpen = true;
-                }
+                    ImVec2 const buttonSize( 24, 0 );
 
-                if ( ImGui::MenuItem( EE_ICON_CLOCK" Show Time Controls", nullptr, &m_isTimeControlWindowOpen ) )
-                {
-                    m_isTimeControlWindowOpen = true;
+                    // Play/Pause
+                    if ( pGameWorld->IsPaused() )
+                    {
+                        if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", buttonSize ) )
+                        {
+                            ToggleWorldPause( pGameWorld );
+                        }
+                        ImGuiX::ItemTooltip( "Resume" );
+                    }
+                    else
+                    {
+                        if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", buttonSize ) )
+                        {
+                            ToggleWorldPause( pGameWorld );
+                        }
+                        ImGuiX::ItemTooltip( "Pause" );
+                    }
+
+                    // Step
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled( !pGameWorld->IsPaused() );
+                    if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", buttonSize ) )
+                    {
+                        RequestWorldTimeStep( pGameWorld );
+                    }
+                    ImGuiX::ItemTooltip( "Step Frame" );
+                    ImGui::EndDisabled();
+
+                    // Slider
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth( 100 );
+                    float currentTimeScale = m_timeScale;
+                    if ( ImGui::SliderFloat( "##TimeScale", &currentTimeScale, g_minTimeScaleValue, g_maxTimeScaleValue, "%.2f", ImGuiSliderFlags_NoInput ) )
+                    {
+                        SetWorldTimeScale( pGameWorld, currentTimeScale );
+                    }
+                    ImGuiX::ItemTooltip( "Time Scale" );
+
+                    // Reset
+                    ImGui::SameLine();
+                    if ( ImGui::Button( EE_ICON_UNDO"##ResetTimeScale", buttonSize ) )
+                    {
+                        ResetWorldTimeScale( pGameWorld );
+                    }
+                    ImGuiX::ItemTooltip( "Reset TimeScale" );
                 }
 
                 ImGui::EndMenu();
@@ -270,71 +310,6 @@ namespace EE
         {
             ImGui::SetNextWindowBgAlpha( 0.75f );
             m_isLogWindowOpen = m_systemLogView.Draw( context );
-        }
-
-        if ( m_isRuntimeSettingsWindowOpen )
-        {
-            ImGui::SetNextWindowBgAlpha( 0.75f );
-            m_isRuntimeSettingsWindowOpen = RuntimeSettingsDebugView::DrawRuntimeSettingsView( context );
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( m_isTimeControlWindowOpen )
-        {
-            ImGui::SetNextWindowSizeConstraints( ImVec2( 100, 54 ), ImVec2( FLT_MAX, 54 ) );
-            ImGui::SetNextWindowBgAlpha( 0.75f );
-            if ( ImGui::Begin( "Time Controls", &m_isTimeControlWindowOpen, ImGuiWindowFlags_NoScrollbar ) )
-            {
-                ImVec2 const buttonSize( 24, 0 );
-
-                // Play/Pause
-                if ( pGameWorld->IsPaused() )
-                {
-                    if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", buttonSize ) )
-                    {
-                        ToggleWorldPause( pGameWorld );
-                    }
-                    ImGuiX::ItemTooltip( "Resume" );
-                }
-                else
-                {
-                    if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", buttonSize ) )
-                    {
-                        ToggleWorldPause( pGameWorld );
-                    }
-                    ImGuiX::ItemTooltip( "Pause" );
-                }
-
-                // Step
-                ImGui::SameLine();
-                ImGui::BeginDisabled( !pGameWorld->IsPaused() );
-                if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", buttonSize ) )
-                {
-                    RequestWorldTimeStep( pGameWorld );
-                }
-                ImGuiX::ItemTooltip( "Step Frame" );
-                ImGui::EndDisabled();
-
-                // Slider
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - buttonSize.x - ImGui::GetStyle().ItemSpacing.x );
-                float currentTimeScale = m_timeScale;
-                if ( ImGui::SliderFloat( "##TimeScale", &currentTimeScale, g_minTimeScaleValue, g_maxTimeScaleValue, "%.2f", ImGuiSliderFlags_NoInput ) )
-                {
-                    SetWorldTimeScale( pGameWorld, currentTimeScale );
-                }
-                ImGuiX::ItemTooltip( "Time Scale" );
-
-                // Reset
-                ImGui::SameLine();
-                if ( ImGui::Button( EE_ICON_UNDO"##ResetTimeScale", buttonSize ) )
-                {
-                    ResetWorldTimeScale( pGameWorld );
-                }
-                ImGuiX::ItemTooltip( "Reset TimeScale" );
-            }
-            ImGui::End();
         }
     }
 

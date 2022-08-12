@@ -1,6 +1,7 @@
 #include "EntityWorldManager.h"
 #include "EntityWorld.h"
 #include "EntityWorldDebugView.h"
+#include "EntityLog.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_Camera.h"
@@ -116,6 +117,15 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         pNewWorld->InitializeDebugViews( *m_pSystemsRegistry, m_debugViewTypeInfos );
+
+        if ( worldType == EntityWorldType::Game )
+        {
+            pNewWorld->SetDebugName( "Game" );
+        }
+        else
+        {
+            pNewWorld->SetDebugName( "Workspace" );
+        }
         #endif
 
         return pNewWorld;
@@ -166,6 +176,10 @@ namespace EE
 
     void EntityWorldManager::UpdateWorlds( UpdateContext const& context )
     {
+        //-------------------------------------------------------------------------
+        // World Update
+        //-------------------------------------------------------------------------
+
         for ( auto const& pWorld : m_worlds )
         {
             if ( pWorld->IsSuspended() )
@@ -220,6 +234,61 @@ namespace EE
                 }
             }
         }
+
+        //-------------------------------------------------------------------------
+        // Handle Entity Log
+        //-------------------------------------------------------------------------
+
+        if ( context.GetUpdateStage() == UpdateStage::FrameEnd )
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            auto queuedLogRequests = EntityModel::RetrieveQueuedLogRequests();
+            for ( auto const& request : queuedLogRequests )
+            {
+                // Resolve all IDs
+                //-------------------------------------------------------------------------
+
+                EntityWorld const* pFoundWorld = nullptr;
+                Entity const* pFoundEntity = nullptr;
+                EntityComponent const* pFoundComponent = nullptr;
+
+                for ( auto pWorld : m_worlds )
+                {
+                    pFoundEntity = pWorld->FindEntity( request.m_entityID );
+                    if ( pFoundEntity != nullptr )
+                    {
+                        pFoundWorld = pWorld;
+                        if ( request.m_componentID != 0 )
+                        {
+                            pFoundComponent = pFoundEntity->FindComponent( request.m_componentID );
+                        }
+                        break;
+                    }
+                }
+
+                EE_ASSERT( pFoundWorld != nullptr );
+
+                // Create source info
+                //-------------------------------------------------------------------------
+
+                InlineString sourceInfoStr;
+
+                if ( pFoundComponent == nullptr )
+                {
+                    sourceInfoStr.sprintf( "W: %s, E: %s", pFoundWorld->GetDebugName().c_str(), pFoundEntity->GetName().c_str() );
+                }
+                else
+                {
+                    sourceInfoStr.sprintf( "W: %s, E: %s, C: %s", pFoundWorld->GetDebugName().c_str(), pFoundEntity->GetName().c_str(), pFoundComponent->GetName().c_str() );
+                }
+
+                // Add Log
+                //-------------------------------------------------------------------------
+
+                Log::AddEntry( request.m_severity, request.m_category.c_str(), sourceInfoStr.c_str(), request.m_filename.c_str(), request.m_lineNumber, request.m_message.c_str());
+            }
+            #endif
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -241,4 +310,4 @@ namespace EE
         }
     }
     #endif
-}
+} 

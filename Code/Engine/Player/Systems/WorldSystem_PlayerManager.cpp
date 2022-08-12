@@ -29,7 +29,7 @@ namespace EE
         {
             if ( m_player.m_entityID.IsValid() )
             {
-                EE_LOG_ERROR( "Player", "Multiple players spawned! this is not supported" );
+                EE_LOG_ERROR( "Player", nullptr, "Multiple players spawned! this is not supported" );
             }
             else
             {

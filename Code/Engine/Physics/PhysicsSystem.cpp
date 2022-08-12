@@ -284,7 +284,7 @@ namespace EE::Physics
             return foundMaterialPairIter->second.m_pMaterial;
         }
 
-        EE_LOG_WARNING( "Physics", "Failed to find physic material with ID: %s", materialID.c_str() );
+        EE_LOG_WARNING( "Physics", "Physics System", "Failed to find physic material with ID: %s", materialID.c_str() );
         return nullptr;
     }
 }

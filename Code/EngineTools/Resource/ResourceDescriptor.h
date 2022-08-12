@@ -25,7 +25,7 @@ namespace EE::Resource
             Serialization::TypeArchiveReader typeReader( typeRegistry );
             if ( !typeReader.ReadFromFile( descriptorPath ) )
             {
-                EE_LOG_ERROR( "Resource", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
                 return false;
             }
 

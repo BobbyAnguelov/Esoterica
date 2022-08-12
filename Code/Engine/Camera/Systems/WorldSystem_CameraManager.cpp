@@ -15,6 +15,7 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         m_pDebugCamera = nullptr;
+        m_debugCameraSpawned = false;
         #endif
     }
 
@@ -96,17 +97,7 @@ namespace EE
     void CameraManager::UpdateSystem( EntityWorldUpdateContext const& ctx )
     {
         #if EE_DEVELOPMENT_TOOLS
-        // Spawn debug camera in game worlds when we have debug tools enabled
-        if( ctx.IsGameWorld() )
-        {
-            auto pDebugCamera = EE::New<DebugCameraComponent>( StringID( "Debug Camera Component" ) );
-            pDebugCamera->SetEnabled( false );
-
-            auto pEntity = EE::New<Entity>( StringID( "Debug Camera" ) );
-            pEntity->AddComponent( pDebugCamera );
-            pEntity->CreateSystem<DebugCameraController>();
-            ctx.GetPersistentMap()->AddEntity( pEntity );
-        }
+        TrySpawnDebugCamera( ctx );
         #endif
     }
 
@@ -118,6 +109,30 @@ namespace EE
     }
 
     #if EE_DEVELOPMENT_TOOLS
+    bool CameraManager::TrySpawnDebugCamera( EntityWorldUpdateContext const& ctx )
+    {
+        if ( !ctx.IsGameWorld() )
+        {
+            return false;
+        }
+
+        if ( m_debugCameraSpawned )
+        {
+            return false;
+        }
+
+        auto pDebugCamera = EE::New<DebugCameraComponent>( StringID( "Debug Camera Component" ) );
+        pDebugCamera->SetEnabled( false );
+
+        auto pEntity = EE::New<Entity>( StringID( "Debug Camera" ) );
+        pEntity->AddComponent( pDebugCamera );
+        pEntity->CreateSystem<DebugCameraController>();
+        ctx.GetPersistentMap()->AddEntity( pEntity );
+
+        m_debugCameraSpawned = true;
+        return m_debugCameraSpawned;
+    }
+
     bool CameraManager::IsDebugCameraEnabled() const
     {
         return m_pDebugCamera != nullptr && m_pDebugCamera->IsEnabled();

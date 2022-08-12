@@ -69,7 +69,7 @@ namespace EE::Render
 
         if ( m_resolution.m_x < 0 || m_resolution.m_y < 0 || m_refreshRate < 0 )
         {
-            EE_LOG_ERROR( "Render", "Invalid render settings read from ini file." );
+            EE_LOG_ERROR( "Render", "Render Device", "Invalid render settings read from ini file." );
             return false;
         }
 
@@ -163,7 +163,7 @@ namespace EE::Render
                 pSwapChain->Release();
             }
 
-            EE_LOG_ERROR( "Rendering", "Device Creation Failed" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Device Creation Failed" );
             return false;
         }
 
@@ -241,19 +241,19 @@ namespace EE::Render
         // Create the three depth testing modes
         if ( !CreateDepthStencilState( m_pDevice, true, true, &RenderContext::s_pDepthTestingOn ) )
         {
-            EE_LOG_ERROR( "Rendering", "Depth stencil state creation failed" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Depth stencil state creation failed" );
             return false;
         }
 
         if ( !CreateDepthStencilState( m_pDevice, false, false, &RenderContext::s_pDepthTestingOff ) )
         {
-            EE_LOG_ERROR( "Rendering", "Depth stencil state creation failed" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Depth stencil state creation failed" );
             return false;
         }
 
         if ( !CreateDepthStencilState( m_pDevice, true, false, &RenderContext::s_pDepthTestingReadOnly ) )
         {
-            EE_LOG_ERROR( "Rendering", "Depth stencil state creation failed" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Depth stencil state creation failed" );
             return false;
         }
 
@@ -364,7 +364,7 @@ namespace EE::Render
         ID3D11Texture2D* pBackBuffer = nullptr;
         if ( FAILED( reinterpret_cast<IDXGISwapChain*>( window.m_pSwapChain )->GetBuffer( 0, __uuidof( ID3D11Texture2D ), (LPVOID*) &pBackBuffer ) ) )
         {
-            EE_LOG_ERROR( "Rendering", "Failed to get back buffer texture resource" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Failed to get back buffer texture resource" );
             return false;
         }
 
@@ -373,7 +373,7 @@ namespace EE::Render
 
         if ( FAILED( result ) )
         {
-            EE_LOG_ERROR( "Rendering", "Failed to create render target" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Failed to create render target" );
             return false;
         }
 
@@ -400,13 +400,13 @@ namespace EE::Render
         // Update buffer sizes
         if ( FAILED( reinterpret_cast<IDXGISwapChain*>( window.m_pSwapChain )->ResizeBuffers( 2, dimensions.m_x, dimensions.m_y, DXGI_FORMAT_UNKNOWN, 0 ) ) )
         {
-            EE_LOG_ERROR( "Rendering", "Failed to resize swap chain buffers" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Failed to resize swap chain buffers" );
             EE_HALT();
         }
 
         if ( !CreateWindowRenderTarget( window, dimensions ) )
         {
-            EE_LOG_ERROR( "Rendering", "Failed to create render targets/depth stencil view" );
+            EE_LOG_ERROR( "Rendering", "Render Device", "Failed to create render targets/depth stencil view" );
             EE_HALT();
         }
     }

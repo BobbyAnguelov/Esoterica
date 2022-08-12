@@ -14,7 +14,7 @@ namespace EE
 {
     EntityDebugView::EntityDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "World", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/World", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void EntityDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )

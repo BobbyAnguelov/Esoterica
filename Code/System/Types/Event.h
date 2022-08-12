@@ -64,7 +64,7 @@ namespace EE
         {
             if ( HasBoundUsers() )
             {
-                EE_LOG_ERROR( "Core", "Event still has bound users at destruction" );
+                EE_LOG_ERROR( "System", nullptr, "Event still has bound users at destruction" );
                 EE_HALT();
             }
         }

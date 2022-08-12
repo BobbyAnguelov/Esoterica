@@ -3,8 +3,7 @@
 #include "API.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
-#include "Engine/ResourceLoaders/ResourceLoader_EntityCollection.h"
-#include "Engine/RuntimeSettings/RuntimeSettings.h"
+#include "Engine/Entity/ResourceLoaders/ResourceLoader_EntityCollection.h"
 #include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Physics/PhysicsMaterial.h"
 #include "Engine/Physics/Debug/PhysicsDebugRenderer.h"
@@ -82,7 +81,6 @@ namespace EE
         bool                                            m_moduleInitialized = false;
 
         // System
-        SettingsRegistry                                m_settingsRegistry;
         TaskSystem                                      m_taskSystem;
         TypeSystem::TypeRegistry                        m_typeRegistry;
         SystemRegistry                                  m_systemRegistry;

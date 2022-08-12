@@ -9,6 +9,7 @@
 #include "Engine/Physics/PhysX.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
+#include "Engine/Entity/EntityLog.h"
 #include "System/Math/BoundingVolumes.h"
 #include "System/Profiling.h"
 #include "System/Drawing/DebugDrawing.h"
@@ -130,7 +131,7 @@ namespace EE::Physics
 
             if ( !CreateActorAndShape( pPhysicsComponent ) )
             {
-                EE_LOG_ERROR( "Physics", "Failed to create physics actor/shape for shape component %s (%u)!", pPhysicsComponent->GetName().c_str(), pPhysicsComponent->GetID() );
+                EE_LOG_ENTITY_ERROR( pPhysicsComponent, "Physics", "Failed to create physics actor/shape for shape component %s (%u)!", pPhysicsComponent->GetName().c_str(), pPhysicsComponent->GetID() );
             }
         }
 
@@ -141,7 +142,7 @@ namespace EE::Physics
             m_characterComponents.Add( pCharacterComponent );
             if ( !CreateCharacterActorAndShape( pCharacterComponent ) )
             {
-                EE_LOG_ERROR( "Physics", "Failed to create physics actor/shape for character %s (%u)!", pCharacterComponent->GetName().c_str(), pCharacterComponent->GetID() );
+                EE_LOG_ENTITY_ERROR( pCharacterComponent, "Physics", "Failed to create physics actor/shape for character %s (%u)!", pCharacterComponent->GetName().c_str(), pCharacterComponent->GetID() );
             }
         }
     }
@@ -176,7 +177,7 @@ namespace EE::Physics
     {
         if ( !pComponent->HasValidPhysicsSetup() )
         {
-            EE_LOG_WARNING( "Physics", "Invalid physics setup set for component: %s (%u), no physics actors will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_WARNING( pComponent, "Physics", "Invalid physics setup set for component: %s (%u), no physics actors will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
             return false;
         }
 
@@ -187,14 +188,14 @@ namespace EE::Physics
         PxRigidActor* pPhysicsActor = CreateActor( pComponent );
         if ( pPhysicsActor == nullptr )
         {
-            EE_LOG_ERROR( "Physics", "Failed to create physics actor for component %s (%u)!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics actor for component %s (%u)!", pComponent->GetName().c_str(), pComponent->GetID() );
             return false;
         }
 
         PxShape* pShape = CreateShape( pComponent, pPhysicsActor );
         if ( pShape == nullptr )
         {
-            EE_LOG_ERROR( "Physics", "Failed to create physics shape for component %s (%u)!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics shape for component %s (%u)!", pComponent->GetName().c_str(), pComponent->GetID() );
             return false;
         }
 
@@ -286,7 +287,7 @@ namespace EE::Physics
 
         if ( physicsMaterials.empty() )
         {
-            EE_LOG_ERROR( "Physics", "No physics materials set for component %s (%u). No shapes will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "No physics materials set for component %s (%u). No shapes will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
             return false;
         }
 
@@ -596,7 +597,7 @@ namespace EE::Physics
                 {
                     if ( ctx.IsGameWorld() )
                     {
-                        EE_LOG_ERROR( "Physics", "Someone moved a static physics actor: %s with entity ID %u. This should not be done!", pShapeComponent->GetName().c_str(), pShapeComponent->GetEntityID().m_ID );
+                        EE_LOG_ENTITY_ERROR( pShapeComponent, "Physics", "Someone moved a static physics actor: %s with entity ID %u. This should not be done!", pShapeComponent->GetName().c_str(), pShapeComponent->GetEntityID().m_ID );
                     }
 
                     UpdateStaticActorAndShape( pShapeComponent );

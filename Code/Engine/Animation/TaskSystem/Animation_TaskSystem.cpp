@@ -3,6 +3,7 @@
 #include "Engine/Animation/AnimationBlender.h"
 #include "System/Log.h"
 #include "System/Drawing/DebugDrawing.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -83,6 +84,8 @@ namespace EE::Animation
 
     void TaskSystem::UpdatePrePhysics( float deltaTime, Transform const& worldTransform, Transform const& worldTransformInverse )
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Anim Pre-Physics Tasks" );
+
         m_taskContext.m_deltaTime = deltaTime;
         m_taskContext.m_worldTransform = worldTransform;
         m_taskContext.m_worldTransformInverse = worldTransformInverse;
@@ -113,7 +116,7 @@ namespace EE::Animation
             // If we've detected a co-dependent physics task, ignore all registered tasks by just pushing a new task and immediately executing it
             if ( m_hasCodependentPhysicsTasks )
             {
-                EE_LOG_WARNING( "Animation", "Co-dependent physics tasks detected!" );
+                EE_LOG_WARNING( "Animation", "TODO", "Co-dependent physics tasks detected!" );
                 RegisterTask<Tasks::DefaultPoseTask>( (int16_t) InvalidIndex, Pose::Type::ReferencePose );
                 m_tasks.back()->Execute( m_taskContext );
             }
@@ -141,6 +144,8 @@ namespace EE::Animation
 
     void TaskSystem::UpdatePostPhysics()
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Anim Post-Physics Tasks" );
+
         m_taskContext.m_updateStage = TaskUpdateStage::PostPhysics;
 
         // If we detected co-dependent tasks in the pre-physics update, there's nothing to do here

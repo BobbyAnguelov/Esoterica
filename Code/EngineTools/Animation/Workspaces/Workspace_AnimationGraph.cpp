@@ -111,7 +111,7 @@ namespace EE::Animation
             // Try to load the graph from the file
             if ( !m_editorContext.LoadGraph( archive.GetDocument() ) )
             {
-                EE_LOG_ERROR( "Animation", "Failed to load graph definition: %s", m_graphFilePath.c_str() );
+                EE_LOG_ERROR( "Animation", "Graph Editor", "Failed to load graph definition: %s", m_graphFilePath.c_str() );
             }
 
             m_graphEditor.NavigateTo( m_editorContext.GetRootGraph() );

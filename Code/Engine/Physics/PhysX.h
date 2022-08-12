@@ -191,7 +191,7 @@ namespace EE::Physics
     {
         virtual void reportError( physx::PxErrorCode::Enum code, const char* message, const char* file, int line ) override
         {
-            Log::AddEntry( Log::Severity::Error, "Physics", file, line, message );
+            Log::AddEntry( Log::Severity::Error, "Physics", "PhysX Error", file, line, message );
         }
     };
 

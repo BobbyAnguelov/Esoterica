@@ -50,7 +50,7 @@ namespace EE
 
     CameraDebugView::CameraDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Camera", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "Engine/Camera", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
     }
 
     void CameraDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

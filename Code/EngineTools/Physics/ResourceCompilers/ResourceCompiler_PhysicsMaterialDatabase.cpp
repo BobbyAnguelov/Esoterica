@@ -46,8 +46,7 @@ namespace EE::Physics
                 int32_t const numSerializedTypes = typeReader.GetNumSerializedTypes();
                 if ( numSerializedTypes == 0 )
                 {
-                    EE_LOG_ERROR( "ResourceCompiler", "Empty physics material library encountered: %s", libraryFilePath.c_str() );
-                    return CompilationFailed( ctx );
+                    return Error( "Empty physics material library encountered: %s", libraryFilePath.c_str() );
                 }
 
                 for ( auto i = 0; i < numSerializedTypes; i++ )
@@ -58,8 +57,7 @@ namespace EE::Physics
                     // Validity check
                     if ( !material.IsValid() )
                     {
-                        EE_LOG_ERROR( "ResourceCompiler", "Invalid physics material encountered in library: %s", libraryFilePath.c_str() );
-                        return CompilationFailed( ctx );
+                        return Error( "Invalid physics material encountered in library: %s", libraryFilePath.c_str() );
                     }
 
                     // Duplicate check
@@ -70,8 +68,7 @@ namespace EE::Physics
 
                     if ( eastl::find( materialSettings.begin(), materialSettings.end(), material.m_ID, DuplicateCheck ) != materialSettings.end() )
                     {
-                        EE_LOG_ERROR( "ResourceCompiler", "Duplicate physics material ID '%s' detected", material.m_ID.c_str() );
-                        return CompilationFailed( ctx );
+                        return Error( "ResourceCompiler", "Duplicate physics material ID '%s' detected", material.m_ID.c_str() );
                     }
 
                     // Add valid material
@@ -80,8 +77,7 @@ namespace EE::Physics
             }
             else
             {
-                EE_LOG_ERROR( "ResourceCompiler", "Failed to read physics material library file: %s", libraryFilePath.c_str() );
-                return CompilationFailed( ctx );
+                return Error( "ResourceCompiler", "Failed to read physics material library file: %s", libraryFilePath.c_str() );
             }
         }
 

@@ -1,4 +1,5 @@
 #include "EntityMap.h"
+#include "EntityLog.h"
 #include "EntityActivationContext.h"
 #include "Engine/Entity/Entity.h"
 #include "System/Resource/ResourceSystem.h"
@@ -65,7 +66,7 @@ namespace EE::EntityModel
             // Check for unique names
             if ( VectorContains( entityNameList, pEntity->GetName() ) )
             {
-                EE_LOG_ERROR( "Entity Model", "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetName().c_str() );
+                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetName().c_str() );
                 return false;
             }
             else
@@ -360,7 +361,7 @@ namespace EE::EntityModel
 
     void EntityMap::Activate( EntityModel::ActivationContext& activationContext )
     {
-        EE_PROFILE_SCOPE_SCENE( "Map Activation" );
+        EE_PROFILE_SCOPE_ENTITY( "Map Activation" );
         EE_ASSERT( m_status == Status::Loaded );
 
         //-------------------------------------------------------------------------
@@ -376,7 +377,7 @@ namespace EE::EntityModel
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
             {
-                EE_PROFILE_SCOPE_SCENE( "Activate Entities Task" );
+                EE_PROFILE_SCOPE_ENTITY( "Activate Entities Task" );
 
                 for ( uint64_t i = range.start; i < range.end; ++i )
                 {
@@ -411,7 +412,7 @@ namespace EE::EntityModel
 
     void EntityMap::Deactivate( EntityModel::ActivationContext& activationContext )
     {
-        EE_PROFILE_SCOPE_SCENE( "Map Deactivation" );
+        EE_PROFILE_SCOPE_ENTITY( "Map Deactivation" );
         EE_ASSERT( m_status == Status::Activated );
 
         //-------------------------------------------------------------------------
@@ -427,7 +428,7 @@ namespace EE::EntityModel
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
             {
-                EE_PROFILE_SCOPE_SCENE( "Deactivate Entities Task" );
+                EE_PROFILE_SCOPE_ENTITY( "Deactivate Entities Task" );
 
                 for ( uint64_t i = range.start; i < range.end; ++i )
                 {
@@ -484,6 +485,7 @@ namespace EE::EntityModel
 
     bool EntityMap::ProcessMapUnloadRequest( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext )
     {
+        EE_PROFILE_SCOPE_ENTITY( "Map Unload" );
         EE_ASSERT( m_isUnloadRequested );
 
         //-------------------------------------------------------------------------
@@ -540,6 +542,7 @@ namespace EE::EntityModel
 
     bool EntityMap::ProcessMapLoading( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext )
     {
+        EE_PROFILE_SCOPE_ENTITY( "Map Loading" );
         EE_ASSERT( m_status == Status::MapDescriptorLoading );
         EE_ASSERT( !m_isTransientMap );
 
@@ -588,6 +591,8 @@ namespace EE::EntityModel
 
     void EntityMap::ProcessEntityAdditionAndRemoval( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext )
     {
+        EE_PROFILE_SCOPE_ENTITY( "Entity Addition/Removal" );
+
         // Edited Entities
         //-------------------------------------------------------------------------
 
@@ -667,6 +672,10 @@ namespace EE::EntityModel
 
     bool EntityMap::ProcessEntityLoadingAndActivation( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext )
     {
+        EE_PROFILE_SCOPE_ENTITY( "Entity Loading/Activation" );
+
+        //-------------------------------------------------------------------------
+
         struct EntityLoadingTask : public ITaskSet
         {
             EntityLoadingTask( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext, TVector<Entity*>& entitiesToLoad, bool isActivated )
@@ -680,7 +689,7 @@ namespace EE::EntityModel
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
             {
-                EE_PROFILE_SCOPE_SCENE( "Load and Activate Entities Task" );
+                EE_PROFILE_SCOPE_ENTITY( "Load and Activate Entities Task" );
 
                 for ( uint32_t i = range.start; i < range.end; ++i )
                 {
@@ -725,11 +734,8 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
+        if ( !m_entitiesCurrentlyLoading.empty() )
         {
-            EE_PROFILE_SCOPE_SCENE( "Load and Activate Entities" );
-
-            //-------------------------------------------------------------------------
-
             EntityLoadingTask loadingTask( loadingContext, activationContext, m_entitiesCurrentlyLoading, IsActivated() );
             loadingContext.m_pTaskSystem->ScheduleTask( &loadingTask );
             loadingContext.m_pTaskSystem->WaitForTask( &loadingTask );
@@ -761,7 +767,7 @@ namespace EE::EntityModel
 
     bool EntityMap::UpdateState( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext )
     {
-        EE_PROFILE_SCOPE_SCENE( "Map Loading" );
+        EE_PROFILE_SCOPE_ENTITY( "Map State Update" );
         EE_ASSERT( Threading::IsMainThread() && loadingContext.IsValid() );
 
         #if EE_DEVELOPMENT_TOOLS

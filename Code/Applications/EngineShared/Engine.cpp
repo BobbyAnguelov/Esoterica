@@ -32,7 +32,7 @@ namespace EE
 
     bool Engine::Initialize( String const& applicationName, Int2 const& windowDimensions )
     {
-        EE_LOG_MESSAGE( "System", "Engine Application Startup" );
+        EE_LOG_MESSAGE( "System", nullptr, "Engine Application Startup" );
 
         //-------------------------------------------------------------------------
         // Read INI file
@@ -153,7 +153,7 @@ namespace EE
 
     bool Engine::Shutdown()
     {
-        EE_LOG_MESSAGE( "System", "Engine Application Shutdown Started" );
+        EE_LOG_MESSAGE( "System", nullptr, "Engine Application Shutdown Started" );
 
         if ( m_pTaskSystem != nullptr )
         {
@@ -291,7 +291,7 @@ namespace EE
             // Frame Start
             //-------------------------------------------------------------------------
             {
-                EE_PROFILE_SCOPE_SCENE( "Frame Start" );
+                EE_PROFILE_SCOPE_ENTITY( "Frame Start" );
                 m_updateContext.m_stage = UpdateStage::FrameStart;
 
                 //-------------------------------------------------------------------------
@@ -353,7 +353,7 @@ namespace EE
             // Pre-Physics
             //-------------------------------------------------------------------------
             {
-                EE_PROFILE_SCOPE_SCENE( "Pre-Physics Update" );
+                EE_PROFILE_SCOPE_ENTITY( "Pre-Physics Update" );
                 m_updateContext.m_stage = UpdateStage::PrePhysics;
 
                 #if EE_DEVELOPMENT_TOOLS
@@ -366,7 +366,7 @@ namespace EE
             // Physics
             //-------------------------------------------------------------------------
             {
-                EE_PROFILE_SCOPE_SCENE( "Physics Update" );
+                EE_PROFILE_SCOPE_ENTITY( "Physics Update" );
                 m_updateContext.m_stage = UpdateStage::Physics;
 
                 #if EE_DEVELOPMENT_TOOLS
@@ -383,7 +383,7 @@ namespace EE
             // Post-Physics
             //-------------------------------------------------------------------------
             {
-                EE_PROFILE_SCOPE_SCENE( "Post-Physics Update" );
+                EE_PROFILE_SCOPE_ENTITY( "Post-Physics Update" );
                 m_updateContext.m_stage = UpdateStage::PostPhysics;
 
                 #if EE_DEVELOPMENT_TOOLS
@@ -397,7 +397,7 @@ namespace EE
             //-------------------------------------------------------------------------
             // This is an optional update that's only run when a world is "paused"
             {
-                EE_PROFILE_SCOPE_SCENE( "Paused Update" );
+                EE_PROFILE_SCOPE_ENTITY( "Paused Update" );
                 m_updateContext.m_stage = UpdateStage::Paused;
 
                 #if EE_DEVELOPMENT_TOOLS
@@ -410,7 +410,7 @@ namespace EE
             // Frame End
             //-------------------------------------------------------------------------
             {
-                EE_PROFILE_SCOPE_SCENE( "Frame End" );
+                EE_PROFILE_SCOPE_ENTITY( "Frame End" );
                 m_updateContext.m_stage = UpdateStage::FrameEnd;
 
                 #if EE_DEVELOPMENT_TOOLS

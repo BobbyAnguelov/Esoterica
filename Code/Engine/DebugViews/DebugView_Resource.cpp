@@ -10,7 +10,7 @@ namespace EE::Resource
 {
     ResourceDebugView::ResourceDebugView()
     {
-        m_menus.emplace_back( DebugMenu( "Resource", [this] ( EntityWorldUpdateContext const& context ) { DrawResourceMenu( context ); } ) );
+        m_menus.emplace_back( DebugMenu( "System/Resource", [this] ( EntityWorldUpdateContext const& context ) { DrawResourceMenu( context ); } ) );
     }
 
     void ResourceDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )

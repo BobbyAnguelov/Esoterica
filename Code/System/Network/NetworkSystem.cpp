@@ -245,14 +245,14 @@ namespace EE::Network
         m_socketHandle = pInterface->CreateListenSocketIP( serverLocalAddr, 1, &opt );
         if ( m_socketHandle == k_HSteamListenSocket_Invalid )
         {
-            EE_LOG_ERROR( "Network", "Failed to listen on port %d", portNumber );
+            EE_LOG_ERROR( "Network", "Server Connection", "Failed to listen on port %d", portNumber );
             return false;
         }
 
         m_pollingGroupHandle = pInterface->CreatePollGroup();
         if ( m_pollingGroupHandle == k_HSteamNetPollGroup_Invalid )
         {
-            EE_LOG_ERROR( "Network", "Failed to listen on port %d", portNumber );
+            EE_LOG_ERROR( "Network", "Server Connection", "Failed to listen on port %d", portNumber );
             return false;
         }
 
@@ -356,13 +356,13 @@ namespace EE::Network
         SteamNetworkingIPAddr serverAddr;
         if ( !serverAddr.ParseString( m_address.c_str() ) )
         {
-            EE_LOG_ERROR( "Network", "Invalid client IP address provided: %s", m_address.c_str() );
+            EE_LOG_ERROR( "Network", "Client Connection", "Invalid client IP address provided: %s", m_address.c_str() );
             return false;
         }
 
         if ( serverAddr.m_port == 0 )
         {
-            EE_LOG_ERROR( "Network", "No port for client address provided: %s", m_address.c_str() );
+            EE_LOG_ERROR( "Network", "Client Connection", "No port for client address provided: %s", m_address.c_str() );
             return false;
         }
 
@@ -376,7 +376,7 @@ namespace EE::Network
         m_connectionHandle = pInterface->ConnectByIPAddress( serverAddr, 1, &opt );
         if ( m_connectionHandle == k_HSteamNetConnection_Invalid )
         {
-            EE_LOG_ERROR( "Network", "Failed to create connection" );
+            EE_LOG_ERROR( "Network", "Client Connection", "Failed to create connection" );
             return false;
         }
 
@@ -407,7 +407,7 @@ namespace EE::Network
         SteamDatagramErrMsg errMsg;
         if ( !GameNetworkingSockets_Init( nullptr, errMsg ) )
         {
-            EE_LOG_ERROR( "Network", "Failed to initialize network system: %s", errMsg );
+            EE_LOG_ERROR( "Network", nullptr, "Failed to initialize network system: %s", errMsg );
             return false;
         }
 

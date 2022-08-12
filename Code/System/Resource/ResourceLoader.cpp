@@ -26,7 +26,7 @@ namespace EE::Resource
         // Perform resource load
         if ( !LoadInternal( resourceID, pResourceRecord, archive ) )
         {
-            EE_LOG_ERROR( "Resource", "Resource loader failed to load resource: %s", resourceID.c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Loader", "Failed to load resource: %s", resourceID.c_str() );
             return false;
         }
 

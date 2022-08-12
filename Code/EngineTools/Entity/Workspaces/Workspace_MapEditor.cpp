@@ -304,7 +304,7 @@ namespace EE::EntityModel
         auto const& navmeshComponents = m_pWorld->GetAllRegisteredComponentsOfType<Navmesh::NavmeshComponent>();
         if ( navmeshComponents.size() > 1 )
         {
-            EE_LOG_WARNING( "Map Editor", "Multiple navmesh components found in the map! This is not supported!" );
+            EE_LOG_WARNING( "Entity", "Map Editor", "Multiple navmesh components found in the map! This is not supported!" );
         }
 
         Navmesh::NavmeshComponent const* pNavmeshComponent = navmeshComponents.back();

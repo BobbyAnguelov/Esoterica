@@ -112,7 +112,7 @@ namespace EE::Render
 
         // Skeletal meshes
         TIDVector<ComponentID, SkeletalMeshComponent*>                  m_registeredSkeletalMeshComponents;
-        TIDVector<uint32_t, SkeletalMeshGroup>                            m_skeletalMeshGroups;
+        TIDVector<uint32_t, SkeletalMeshGroup>                          m_skeletalMeshGroups;
         TVector<SkeletalMeshComponent const*>                           m_visibleSkeletalMeshComponents;
 
         // Lights
@@ -124,6 +124,10 @@ namespace EE::Render
 
         #if EE_DEVELOPMENT_TOOLS
         VisualizationMode                                               m_visualizationMode = VisualizationMode::Lighting;
+        bool                                                            m_showStaticMeshBounds = false;
+        bool                                                            m_showSkeletalMeshBounds = false;
+        bool                                                            m_showSkeletalMeshBones = false;
+        bool                                                            m_showSkeletalMeshBindPoses = false;
         #endif
     };
 }

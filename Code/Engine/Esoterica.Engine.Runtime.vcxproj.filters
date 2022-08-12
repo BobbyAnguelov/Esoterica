@@ -392,17 +392,11 @@
     <ClCompile Include="DebugViews\DebugView_Resource.cpp">
       <Filter>DebugViews</Filter>
     </ClCompile>
-    <ClCompile Include="DebugViews\DebugView_RuntimeSettings.cpp">
-      <Filter>DebugViews</Filter>
-    </ClCompile>
     <ClCompile Include="DebugViews\DebugView_System.cpp">
       <Filter>DebugViews</Filter>
     </ClCompile>
-    <ClCompile Include="ResourceLoaders\ResourceLoader_EntityCollection.cpp">
+    <ClCompile Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.cpp">
       <Filter>ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="RuntimeSettings\RuntimeSettings.cpp">
-      <Filter>RuntimeSettings</Filter>
     </ClCompile>
     <ClCompile Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
@@ -413,6 +407,7 @@
     <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp" />
     <ClCompile Include="Camera\Components\Component_DebugCamera.cpp" />
     <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
+    <ClCompile Include="Entity\EntityLog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -862,17 +857,11 @@
     <ClInclude Include="DebugViews\DebugView_Resource.h">
       <Filter>DebugViews</Filter>
     </ClInclude>
-    <ClInclude Include="DebugViews\DebugView_RuntimeSettings.h">
-      <Filter>DebugViews</Filter>
-    </ClInclude>
     <ClInclude Include="DebugViews\DebugView_System.h">
       <Filter>DebugViews</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceLoaders\ResourceLoader_EntityCollection.h">
+    <ClInclude Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.h">
       <Filter>ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="RuntimeSettings\RuntimeSettings.h">
-      <Filter>RuntimeSettings</Filter>
     </ClInclude>
     <ClInclude Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />
@@ -884,6 +873,7 @@
     <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h" />
     <ClInclude Include="Camera\Components\Component_DebugCamera.h" />
     <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
+    <ClInclude Include="Entity\EntityLog.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

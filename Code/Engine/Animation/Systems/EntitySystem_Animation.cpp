@@ -74,7 +74,7 @@ namespace EE::Animation
 
     void AnimationSystem::Update( EntityWorldUpdateContext const& ctx )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        EE_PROFILE_SCOPE_ANIMATION( "Animation System");
 
         if ( m_animPlayers.empty() && m_animGraphs.empty() )
         {
@@ -100,14 +100,17 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        for ( auto pMeshComponent : m_meshComponents )
+        if ( ctx.GetUpdateStage() == UpdateStage::PostPhysics )
         {
-            if ( !pMeshComponent->HasMeshResourceSet() )
+            for ( auto pMeshComponent : m_meshComponents )
             {
-                continue;
-            }
+                if ( !pMeshComponent->HasMeshResourceSet() )
+                {
+                    continue;
+                }
 
-            pMeshComponent->FinalizePose();
+                pMeshComponent->FinalizePose();
+            }
         }
     }
 

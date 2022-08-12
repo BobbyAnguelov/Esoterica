@@ -125,13 +125,13 @@ namespace EE::Timeline
         auto const& eventDataValueObject = trackDataIter->value;
         if ( !eventDataValueObject.IsArray() )
         {
-            EE_LOG_ERROR( "Timeline Editor", "Malformed track data" );
+            EE_LOG_ERROR( "Tools", "Timeline Editor", "Malformed track data" );
             return false;
         }
 
         if ( !m_trackContainer.Serialize( typeRegistry, eventDataValueObject ) )
         {
-            EE_LOG_ERROR( "Timeline Editor", "Failed to read track data" );
+            EE_LOG_ERROR( "Tools", "Timeline Editor", "Failed to read track data" );
             return false;
         }
 

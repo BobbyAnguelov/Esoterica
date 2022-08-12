@@ -176,13 +176,13 @@ namespace EE::Animation::GraphNodes
         Target const warpTarget = m_pTargetValueNode->GetValue<Target>( context );
         if ( !warpTarget.IsTargetSet() )
         {
-            EE_LOG_ERROR( "Animation", "Invalid target detected for warp node!" );
+            EE_LOG_ERROR( "Animation", "TODO", "Invalid target detected for warp node!" );
             return false;
         }
 
         if ( warpTarget.IsBoneTarget() )
         {
-            EE_LOG_ERROR( "Animation", "Invalid target detected for warp node!" );
+            EE_LOG_ERROR( "Animation", "TODO", "Invalid target detected for warp node!" );
             return false;
         }
 
@@ -493,7 +493,7 @@ namespace EE::Animation::GraphNodes
 
         if ( !motionAdjustmentEventFound )
         {
-            EE_LOG_ERROR( "Animation", "Warp attempted for animation with invalid warp events! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
+            EE_LOG_ERROR( "Animation", "TODO", "Warp attempted for animation with invalid warp events! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
             return false;
         }
 
@@ -517,7 +517,7 @@ namespace EE::Animation::GraphNodes
 
             if ( startWarpSectionIdx == InvalidIndex )
             {
-                EE_LOG_ERROR( "Animation", "Warp failed since we started the animation after all the warp events! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
+                EE_LOG_ERROR( "Animation", "TODO", "Warp failed since we started the animation after all the warp events! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
                 return false;
             }
 
@@ -535,7 +535,7 @@ namespace EE::Animation::GraphNodes
 
             if ( !motionAdjustmentEventFound )
             {
-                EE_LOG_ERROR( "Animation", "Warp failed since we started the animation at a later point and dont have the necessary events to perform the warp! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
+                EE_LOG_ERROR( "Animation", "TODO", "Warp failed since we started the animation at a later point and dont have the necessary events to perform the warp! %s", m_pClipReferenceNode->GetAnimation()->GetResourceID().c_str() );
                 return false;
             }
 

@@ -3,6 +3,7 @@
 #include "Animation_RuntimeGraph_Contexts.h"
 #include "Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
 #include "System/Log.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -67,6 +68,8 @@ namespace EE::Animation
 
     void GraphInstance::Initialize( TaskSystem* pTaskSystem )
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Init" );
+
         // Initialize context
         m_graphContext.Initialize( pTaskSystem );
         EE_ASSERT( m_graphContext.IsValid() );
@@ -85,6 +88,7 @@ namespace EE::Animation
 
     void GraphInstance::Shutdown()
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Init" );
         EE_ASSERT( m_graphContext.IsValid() );
 
         // Shutdown persistent graph nodes
@@ -150,9 +154,12 @@ namespace EE::Animation
 
     GraphInstance* GraphInstance::ConnectExternalGraph( StringID slotID, GraphVariation const* pExternalGraphVariation )
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Connect External Graph" );
+
         if ( pExternalGraphVariation->GetSkeleton() != m_pGraphVariation->GetSkeleton() )
         {
-            EE_LOG_ERROR( "Animation", "Cannot insert extrenal graph since skeletons dont match! Expected: %s, supplied: %s", m_pGraphVariation->GetSkeleton()->GetResourceID().c_str(), pExternalGraphVariation->GetSkeleton()->GetResourceID().c_str() );
+            // TODO: switch to internal error tracking
+            EE_LOG_ERROR( "Animation", "Graph Instance", "Cannot insert extrenal graph since skeletons dont match! Expected: %s, supplied: %s", m_pGraphVariation->GetSkeleton()->GetResourceID().c_str(), pExternalGraphVariation->GetSkeleton()->GetResourceID().c_str() );
             return nullptr;
         }
 
@@ -191,6 +198,8 @@ namespace EE::Animation
 
     void GraphInstance::DisconnectExternalGraph( StringID slotID )
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Disconnect External Graph" );
+
         // Ensure we have a graph connected for this slot
         int32_t connectedGraphIdx = GetConnectedExternalGraphIndex( slotID );
         EE_ASSERT( connectedGraphIdx != InvalidIndex );
@@ -225,6 +234,8 @@ namespace EE::Animation
 
     void GraphInstance::StartUpdate( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene )
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Start Update" );
+
         #if EE_DEVELOPMENT_TOOLS
         m_activeNodes.clear();
         m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
@@ -239,8 +250,22 @@ namespace EE::Animation
         }
     }
 
+    GraphPoseNodeResult GraphInstance::UpdateGraph()
+    {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Update Graph" );
+        return m_pRootNode->Update( m_graphContext );
+    }
+
+    GraphPoseNodeResult GraphInstance::UpdateGraph( SyncTrackTimeRange const& updateRange )
+    {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Update Graph" );
+        return m_pRootNode->Update( m_graphContext, updateRange );
+    }
+
     void GraphInstance::EndUpdate( Transform const& endWorldTransform )
     {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - End Update" );
+
         #if EE_DEVELOPMENT_TOOLS
         m_rootMotionDebugger.EndCharacterUpdate( endWorldTransform );
         #endif
@@ -296,5 +321,8 @@ namespace EE::Animation
 
         m_rootMotionDebugger.DrawDebug( drawContext );
     }
+
+    
+
     #endif
 }

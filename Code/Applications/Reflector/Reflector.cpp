@@ -795,7 +795,7 @@ int main( int argc, char *argv[] )
 
     if ( !cmdParser.run() )
     {
-        EE_LOG_ERROR( "Reflector", "Invalid commandline arguments" );
+        EE_LOG_ERROR( "Type System", "Reflector", "Invalid commandline arguments" );
         return 1;
     }
 

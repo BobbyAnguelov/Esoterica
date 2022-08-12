@@ -46,6 +46,10 @@ namespace EE
         virtual void UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
         virtual void UpdateSystem( EntityWorldUpdateContext const& ctx ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        bool TrySpawnDebugCamera( EntityWorldUpdateContext const& ctx );
+        #endif
+
     private:
 
         TVector<CameraComponent*>                   m_cameras;
@@ -53,6 +57,7 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         DebugCameraComponent*                       m_pDebugCamera = nullptr;
+        bool                                        m_debugCameraSpawned = false;
         #endif
     };
 } 

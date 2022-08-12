@@ -65,8 +65,6 @@ namespace EE
 
         SystemLogView                                       m_systemLogView;
         bool                                                m_isLogWindowOpen = false;
-        bool                                                m_isRuntimeSettingsWindowOpen = false;
-        bool                                                m_isTimeControlWindowOpen = false;
     };
 }
 #endif

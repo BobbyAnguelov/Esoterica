@@ -207,7 +207,7 @@ namespace EE::TypeSystem
             auto resolvedPath = ResolvePropertyPath( typeRegistry, pTypeInfo, (uint8_t*) pTypeInstance, propertyValue.m_path );
             if ( !resolvedPath.IsValid() )
             {
-                EE_LOG_ERROR( "TypeSystem", "Tried to set the value for an invalid property (%s) for type (%s)", propertyValue.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
+                EE_LOG_ERROR( "TypeSystem", "Type Descriptor", "Tried to set the value for an invalid property (%s) for type (%s)", propertyValue.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
                 continue;
             }
 

@@ -2,6 +2,7 @@
 #include "System/Resource/ResourceProviders/NetworkResourceProvider.h"
 #include "System/Resource/ResourceProviders/PackagedResourceProvider.h"
 #include "System/Network/NetworkSystem.h"
+#include "Engine/Entity/EntityLog.h"
 
 //-------------------------------------------------------------------------
 
@@ -77,9 +78,13 @@ namespace EE
 
     bool EngineModule::InitializeCoreSystems( String const& applicationName, IniFile const& iniFile )
     {
+        #if EE_DEVELOPMENT_TOOLS
+        EntityModel::InitializeLogQueue();
+        #endif
+
         if ( !Network::NetworkSystem::Initialize() )
         {
-            EE_LOG_ERROR( "Render", "Failed to initialize network system" );
+            EE_LOG_ERROR( "Render", nullptr, "Failed to initialize network system" );
             return false;
         }
 
@@ -89,7 +94,7 @@ namespace EE
         Resource::ResourceSettings settings;
         if ( !settings.ReadSettings( iniFile ) )
         {
-            EE_LOG_ERROR( "Resource Provider", "Failed to read resource settings from ini file!" );
+            EE_LOG_ERROR( "Resource Provider", nullptr, "Failed to read resource settings from ini file!" );
             return false;
         }
 
@@ -97,7 +102,7 @@ namespace EE
         {
             if ( !EnsureResourceServerIsRunning( settings.m_resourceServerExecutablePath ) )
             {
-                EE_LOG_ERROR( "Resource Provider", "Couldn't start resource server (%s)!", settings.m_resourceServerExecutablePath.c_str() );
+                EE_LOG_ERROR( "Resource Provider", nullptr, "Couldn't start resource server (%s)!", settings.m_resourceServerExecutablePath.c_str() );
                 return false;
             }
 
@@ -111,13 +116,13 @@ namespace EE
 
         if ( m_pResourceProvider == nullptr )
         {
-            EE_LOG_ERROR( "Resource", "Failed to create resource provider" );
+            EE_LOG_ERROR( "Resource", nullptr, "Failed to create resource provider" );
             return false;
         }
 
         if ( !m_pResourceProvider->Initialize() )
         {
-            EE_LOG_ERROR( "Resource", "Failed to intialize resource provider" );
+            EE_LOG_ERROR( "Resource", nullptr, "Failed to intialize resource provider" );
             EE::Delete( m_pResourceProvider );
             return false;
         }
@@ -128,7 +133,7 @@ namespace EE
         m_pRenderDevice = EE::New<Render::RenderDevice>();
         if ( !m_pRenderDevice->Initialize( iniFile ) )
         {
-            EE_LOG_ERROR( "Render", "Failed to create render device" );
+            EE_LOG_ERROR( "Render", nullptr, "Failed to create render device" );
             EE::Delete( m_pRenderDevice );
             return false;
         }
@@ -154,7 +159,7 @@ namespace EE
         }
         else
         {
-            EE_LOG_ERROR( "Render", "Failed to initialize world renderer" );
+            EE_LOG_ERROR( "Render", nullptr, "Failed to initialize world renderer" );
             return false;
         }
 
@@ -165,7 +170,7 @@ namespace EE
         }
         else
         {
-            EE_LOG_ERROR( "Render", "Failed to initialize debug renderer" );
+            EE_LOG_ERROR( "Render", nullptr, "Failed to initialize debug renderer" );
             return false;
         }
 
@@ -175,7 +180,7 @@ namespace EE
         }
         else
         {
-            EE_LOG_ERROR( "Render", "Failed to initialize imgui renderer" );
+            EE_LOG_ERROR( "Render", nullptr, "Failed to initialize imgui renderer" );
             return false;
         }
 
@@ -185,7 +190,7 @@ namespace EE
         }
         else
         {
-            EE_LOG_ERROR( "Render", "Failed to initialize physics renderer" );
+            EE_LOG_ERROR( "Render", nullptr, "Failed to initialize physics renderer" );
             return false;
         }
         #endif
@@ -262,6 +267,10 @@ namespace EE
         }
 
         Network::NetworkSystem::Shutdown();
+
+        #if EE_DEVELOPMENT_TOOLS
+        EntityModel::ShutdownLogQueue();
+        #endif
     }
 
     //-------------------------------------------------------------------------
@@ -273,7 +282,6 @@ namespace EE
         // Register systems
         //-------------------------------------------------------------------------
 
-        m_systemRegistry.RegisterSystem( &m_settingsRegistry );
         m_systemRegistry.RegisterSystem( &m_typeRegistry );
         m_systemRegistry.RegisterSystem( &m_taskSystem );
         m_systemRegistry.RegisterSystem( &m_resourceSystem );
@@ -389,7 +397,6 @@ namespace EE
         m_systemRegistry.UnregisterSystem( &m_resourceSystem );
         m_systemRegistry.UnregisterSystem( &m_taskSystem );
         m_systemRegistry.UnregisterSystem( &m_typeRegistry );
-        m_systemRegistry.UnregisterSystem( &m_settingsRegistry );
         m_systemRegistry.UnregisterSystem( &m_physicsSystem );
 
         #if EE_ENABLE_NAVPOWER

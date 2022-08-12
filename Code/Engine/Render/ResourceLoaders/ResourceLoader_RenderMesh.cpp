@@ -78,7 +78,7 @@ namespace EE::Render
             pMaterial = GetInstallDependency( installDependencies, pMaterial.GetResourceID() );
             if ( !pMaterial->IsValid() )
             {
-                EE_LOG_ERROR( "Resource", "Failed to install resource: %s", resourceID.ToString().c_str() );
+                EE_LOG_ERROR( "Render", "Mesh Loader", "Failed to get dependent material: %s", resourceID.ToString().c_str() );
                 return Resource::InstallResult::Failed;
             }
         }
@@ -103,7 +103,6 @@ namespace EE::Render
 
     Resource::InstallResult MeshLoader::UpdateInstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
-        // TODO: implement when moving to theforge
         EE_UNIMPLEMENTED_FUNCTION();
         return Resource::InstallResult::Failed;
     }
