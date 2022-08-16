@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_value );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             bool m_value;
         };
@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( IDValueNode::Settings, m_value );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             StringID m_value;
         };
@@ -56,7 +56,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( IntValueNode::Settings, m_value );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int32_t m_value;
         };
@@ -77,7 +77,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_value );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             float m_value;
         };
@@ -98,7 +98,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_value );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             Vector m_value;
         };
@@ -119,7 +119,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( TargetValueNode::Settings, m_value );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             Target m_value;
         };

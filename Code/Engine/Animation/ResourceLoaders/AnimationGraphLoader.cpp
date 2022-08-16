@@ -25,6 +25,21 @@ namespace EE::Animation
             archive << *pGraphDef;
             pResourceRecord->SetResourceData( pGraphDef );
 
+            // Create parameter lookup map
+            //-------------------------------------------------------------------------
+
+            auto const numControlParameters = (int32_t) pGraphDef->m_controlParameterIDs.size();
+            for ( int16_t i = 0; i < numControlParameters; i++ )
+            {
+                pGraphDef->m_parameterLookupMap.insert( TPair<StringID, int16_t>( pGraphDef->m_controlParameterIDs[i], i ) );
+            }
+
+            auto const numVirtualParameters = (int32_t) pGraphDef->m_virtualParameterNodeIndices.size();
+            for ( int16_t i = 0; i < numVirtualParameters; i++ )
+            {
+                pGraphDef->m_parameterLookupMap.insert( TPair<StringID, int16_t>( pGraphDef->m_virtualParameterIDs[i], pGraphDef->m_virtualParameterNodeIndices[i] ) );
+            }
+
             // Deserialize debug node paths
             //-------------------------------------------------------------------------
 

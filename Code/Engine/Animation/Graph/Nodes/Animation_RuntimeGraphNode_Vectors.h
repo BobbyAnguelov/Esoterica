@@ -32,7 +32,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_desiredInfo );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                   m_inputValueNodeIdx = InvalidIndex;
             Info                        m_desiredInfo = Info::X;
@@ -61,7 +61,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_inputValueNodeIdx );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                   m_inputValueNodeIdx = InvalidIndex;
         };

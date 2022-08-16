@@ -1,7 +1,7 @@
 #include "ResourceCompiler_Navmesh.h"
+#include "EngineTools/Entity/EntitySerializationTools.h"
 #include "EngineTools/Navmesh/NavmeshGenerator.h"
 #include "Engine/Navmesh/NavmeshData.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "System/FileSystem/FileSystem.h"
@@ -55,13 +55,13 @@ namespace EE::Navmesh
             return Resource::CompilationResult::Failure;
         }
 
-        EntityModel::EntityMapDescriptor mapDesc;
+        EntityModel::SerializedEntityMap serializedMap;
 
         Milliseconds elapsedTime = 0.0f;
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );
 
-            if ( !EntityModel::Serializer::ReadEntityCollectionFromFile( *m_pTypeRegistry, mapPath, mapDesc ) )
+            if ( !EntityModel::ReadSerializedEntityMapFromFile( *m_pTypeRegistry, mapPath, serializedMap ) )
             {
                 Error( "Entity map file (%s) is malformed!", mapPath.c_str() );
                 return Resource::CompilationResult::Failure;
@@ -74,7 +74,7 @@ namespace EE::Navmesh
         //-------------------------------------------------------------------------
 
         bool hasWarning = false;
-        auto const navmeshComponents = mapDesc.GetComponentsOfType<NavmeshComponent>( *m_pTypeRegistry, false );
+        auto const navmeshComponents = serializedMap.GetComponentsOfType<NavmeshComponent>( *m_pTypeRegistry, false );
         if ( navmeshComponents.empty() )
         {
             Error( "Requesting navmesh for a map without a navmesh component! This is an invalid operation!" );
@@ -96,7 +96,7 @@ namespace EE::Navmesh
         //-------------------------------------------------------------------------
 
         #if EE_ENABLE_NAVPOWER
-        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_rawResourceDirectoryPath, ctx.m_outputFilePath, mapDesc, buildSettings );
+        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_rawResourceDirectoryPath, ctx.m_outputFilePath, serializedMap, buildSettings );
 
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );

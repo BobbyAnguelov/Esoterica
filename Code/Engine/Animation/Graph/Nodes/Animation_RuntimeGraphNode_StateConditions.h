@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_transitionDurationOverrideNodeIdx, m_transitionDuration );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
@@ -74,7 +74,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_comparand, m_inputValueNodeIdx, m_type, m_operator );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 

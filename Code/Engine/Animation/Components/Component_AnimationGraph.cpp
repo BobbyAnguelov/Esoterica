@@ -21,25 +21,12 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         EE_ASSERT( m_pGraphVariation.IsLoaded() );
-
-        m_pTaskSystem = EE::New<TaskSystem>( m_pGraphVariation->GetSkeleton() );
         m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_ID );
     }
 
     void AnimationGraphComponent::Shutdown()
     {
-        // If we actually instantiated a graph
-        if ( m_pGraphInstance != nullptr )
-        {
-            if ( m_pGraphInstance->IsInitialized() )
-            {
-                m_pGraphInstance->Shutdown();
-            }
-        }
-
-        EE::Delete( m_pTaskSystem );
         EE::Delete( m_pGraphInstance );
-
         EntityComponent::Shutdown();
     }
 
@@ -61,7 +48,7 @@ namespace EE::Animation
 
     Pose const* AnimationGraphComponent::GetPose() const
     {
-        return m_pTaskSystem->GetPose();
+        return m_pGraphInstance->GetPose();
     }
 
     void AnimationGraphComponent::ResetGraphState()
@@ -79,41 +66,21 @@ namespace EE::Animation
 
     void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene )
     {
-        // Initialize graph on the first update
-        if ( !m_pGraphInstance->IsInitialized() )
-        {
-            m_pGraphInstance->Initialize( m_pTaskSystem );
-        }
-
-        // Reset last frame's tasks
-        m_pTaskSystem->Reset();
-
-        // Update the graph
-        m_pGraphInstance->StartUpdate( deltaTime, characterWorldTransform, pPhysicsScene );
-        auto const result = m_pGraphInstance->UpdateGraph();
+        EE_ASSERT( HasGraph() );
+        auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsScene );
         m_rootMotionDelta = result.m_rootMotionDelta;
     }
 
     void AnimationGraphComponent::ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform )
     {
-        if ( !HasGraph() )
-        {
-            return;
-        }
-
-        // End graph update and calculate the pose
-        m_pGraphInstance->EndUpdate( characterWorldTransform );
-        m_pTaskSystem->UpdatePrePhysics( deltaTime, characterWorldTransform, characterWorldTransform.GetInverse() );
+        EE_ASSERT( HasGraph() );
+        m_pGraphInstance->ExecutePrePhysicsPoseTasks( characterWorldTransform );
     }
 
     void AnimationGraphComponent::ExecutePostPhysicsTasks()
     {
-        if ( !HasGraph() )
-        {
-            return;
-        }
-
-        m_pTaskSystem->UpdatePostPhysics();
+        EE_ASSERT( HasGraph() );
+        m_pGraphInstance->ExecutePostPhysicsPoseTasks();
     }
 
     //-------------------------------------------------------------------------
@@ -121,7 +88,7 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     Transform AnimationGraphComponent::GetDebugWorldTransform() const
     {
-        return m_pTaskSystem->GetCharacterWorldTransform();
+        return m_pGraphInstance->GetTaskSystemDebugWorldTransform();
     }
 
     void AnimationGraphComponent::SetGraphDebugMode( GraphDebugMode mode )
@@ -158,7 +125,7 @@ namespace EE::Animation
     {
         if ( m_pGraphInstance != nullptr )
         {
-            m_pTaskSystem->SetDebugMode( mode );
+            m_pGraphInstance->SetTaskSystemDebugMode( mode );
         }
         else
         {
@@ -169,7 +136,7 @@ namespace EE::Animation
     TaskSystemDebugMode AnimationGraphComponent::GetTaskSystemDebugMode() const
     {
         EE_ASSERT( HasGraphInstance() );
-        return m_pTaskSystem->GetDebugMode();
+        return m_pGraphInstance->GetTaskSystemDebugMode();
     }
 
     void AnimationGraphComponent::SetRootMotionDebugMode( RootMotionDebugMode mode )
@@ -197,7 +164,6 @@ namespace EE::Animation
             return;
         }
 
-        m_pTaskSystem->DrawDebug( drawingContext );
         m_pGraphInstance->DrawDebug( drawingContext );
     }
     #endif

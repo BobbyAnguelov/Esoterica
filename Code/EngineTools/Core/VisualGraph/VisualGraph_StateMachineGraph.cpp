@@ -127,6 +127,11 @@ namespace EE::VisualGraph
             }
         }
 
+        // Update entry state ID
+        //-------------------------------------------------------------------------
+
+        m_entryStateID = IDMapping.at( m_entryStateID );
+
         return originalID;
     }
 

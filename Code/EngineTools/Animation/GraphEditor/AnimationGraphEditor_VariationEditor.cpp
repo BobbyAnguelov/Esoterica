@@ -15,6 +15,33 @@ namespace EE::Animation
         , m_resourcePicker( *editorContext.GetToolsContext() )
     {}
 
+    //-------------------------------------------------------------------------
+
+    void GraphVariationEditor::StartCreate( StringID variationID )
+    {
+        EE_ASSERT( variationID.IsValid() );
+        m_activeOperationVariationID = variationID;
+        m_activeOperation = OperationType::Create;
+        strncpy_s( m_buffer, "NewChildVariation", 255 );
+    }
+
+    void GraphVariationEditor::StartRename( StringID variationID )
+    {
+        EE_ASSERT( variationID.IsValid() );
+        m_activeOperationVariationID = variationID;
+        m_activeOperation = OperationType::Rename;
+        strncpy_s( m_buffer, variationID.c_str(), 255 );
+    }
+
+    void GraphVariationEditor::StartDelete( StringID variationID )
+    {
+        EE_ASSERT( variationID.IsValid() );
+        m_activeOperationVariationID = variationID;
+        m_activeOperation = OperationType::Delete;
+    }
+
+    //-------------------------------------------------------------------------
+
     void GraphVariationEditor::UpdateAndDraw( UpdateContext const& context, ImGuiWindowClass* pWindowClass, char const* pWindowName )
     {
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
@@ -41,7 +68,7 @@ namespace EE::Animation
 
             if ( m_activeOperation != OperationType::None )
             {
-                DrawActiveOperationUI();
+                DrawDialogs();
             }
         }
         ImGui::End();
@@ -52,22 +79,27 @@ namespace EE::Animation
     {
         ImGui::PushID( variationID.GetID() );
 
-        // Open Tree Node
-        //-------------------------------------------------------------------------
-
+        auto const childVariations = variationHierarchy.GetChildVariations( variationID );
         bool const isSelected = m_editorContext.GetSelectedVariationID() == variationID;
 
-        ImGuiX::PushFontAndColor( isSelected ? ImGuiX::Font::SmallBold : ImGuiX::Font::Small, isSelected ? ImGuiX::ConvertColor( Colors::LimeGreen ) : ImGui::GetStyle().Colors[ImGuiCol_Text] );
-        bool const isTreeNodeOpen = ImGui::TreeNode( variationID.c_str() );
-        ImGui::PopFont();
-        ImGui::PopStyleColor();
-
-        // Click Handler
+        // Draw Tree Node
         //-------------------------------------------------------------------------
 
-        if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+        bool isTreeNodeOpen = false;
         {
-            m_editorContext.SetSelectedVariation( variationID );
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::SmallBold : ImGuiX::Font::Small, isSelected ? ImGuiX::ConvertColor( Colors::LimeGreen ) : ImGui::GetStyle().Colors[ImGuiCol_Text] );
+
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
+            if ( childVariations.empty() )
+            {
+                flags |= ( ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet );
+            }
+
+            isTreeNodeOpen = ImGui::TreeNodeEx( variationID.c_str(), flags );
+            if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+            {
+                m_editorContext.SetSelectedVariation( variationID );
+            }
         }
 
         // Context Menu
@@ -75,12 +107,19 @@ namespace EE::Animation
 
         if ( ImGui::BeginPopupContextItem( variationID.c_str() ) )
         {
-            if ( ImGui::MenuItem( "Create Child" ) )
+            if ( ImGui::MenuItem( "Set Active" ) )
+            {
+                m_editorContext.SetSelectedVariation( variationID );
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::MenuItem( "Create Child Variation" ) )
             {
                 StartCreate( variationID );
             }
 
-            if ( variationID != GraphVariation::DefaultVariationID )
+            if ( variationID != Variation::s_defaultVariationID )
             {
                 ImGui::Separator();
 
@@ -103,7 +142,6 @@ namespace EE::Animation
 
         if( isTreeNodeOpen )
         {
-            auto const childVariations = variationHierarchy.GetChildVariations( variationID );
             for ( StringID const& childVariationID : childVariations )
             {
                 DrawVariationTreeNode( variationHierarchy, childVariationID );
@@ -117,7 +155,7 @@ namespace EE::Animation
 
     void GraphVariationEditor::DrawVariationTree()
     {
-        DrawVariationTreeNode( m_editorContext.GetVariationHierarchy(), GraphVariation::DefaultVariationID );
+        DrawVariationTreeNode( m_editorContext.GetVariationHierarchy(), Variation::s_defaultVariationID );
     }
 
     void GraphVariationEditor::DrawOverridesTable()
@@ -128,14 +166,13 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto c = ImGui::GetContentRegionAvail();
         ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Skeleton: " );
-        ImGui::SameLine( 0, 4 );
+        ImGui::Text( "Skeleton:" );
+        ImGui::SameLine( 0, 0 );
 
         auto pVariation = m_editorContext.GetVariation( m_editorContext.GetSelectedVariationID() );
         ResourceID resourceID = pVariation->m_pSkeleton.GetResourceID();
-        if ( m_resourcePicker.DrawResourcePicker( Skeleton::GetStaticResourceTypeID(), &resourceID ) )
+        if ( m_resourcePicker.DrawResourcePicker( Skeleton::GetStaticResourceTypeID(), &resourceID, true ) )
         {
             VisualGraph::ScopedGraphModification sgm( pRootGraph );
 
@@ -191,7 +228,7 @@ namespace EE::Animation
                 if ( isDefaultVariationSelected )
                 {
                     ResourceID* pResourceID = pDataSlotNode->GetOverrideValueForVariation( currentVariationID );
-                    if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), pResourceID) )
+                    if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), pResourceID, true ) )
                     {
                         VisualGraph::ScopedGraphModification sgm( pRootGraph );
                         *pResourceID = m_resourcePicker.GetSelectedResourceID();
@@ -203,7 +240,7 @@ namespace EE::Animation
                     if ( pDataSlotNode->HasOverrideForVariation( currentVariationID ) )
                     {
                         ResourceID* pResourceID = pDataSlotNode->GetOverrideValueForVariation( currentVariationID );
-                        if ( m_resourcePicker.DrawResourcePicker( AnimationClip::GetStaticResourceTypeID(), pResourceID ) )
+                        if ( m_resourcePicker.DrawResourcePicker( AnimationClip::GetStaticResourceTypeID(), pResourceID, true ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( pRootGraph );
 
@@ -254,78 +291,39 @@ namespace EE::Animation
         }
     }
 
-    //-------------------------------------------------------------------------
-
-    void GraphVariationEditor::StartCreate( StringID variationID )
-    {
-        EE_ASSERT( variationID.IsValid() );
-        m_activeOperationVariationID = variationID;
-        m_activeOperation = OperationType::Create;
-        strncpy_s( m_buffer, "New Child Variation", 255 );
-    }
-
-    void GraphVariationEditor::StartRename( StringID variationID )
-    {
-        EE_ASSERT( variationID.IsValid() );
-        m_activeOperationVariationID = variationID;
-        m_activeOperation = OperationType::Rename;
-        strncpy_s( m_buffer, variationID.c_str(), 255 );
-    }
-
-    void GraphVariationEditor::StartDelete( StringID variationID )
-    {
-        EE_ASSERT( variationID.IsValid() );
-        m_activeOperationVariationID = variationID;
-        m_activeOperation = OperationType::Delete;
-    }
-
-    void GraphVariationEditor::DrawActiveOperationUI()
+    void GraphVariationEditor::DrawDialogs()
     {
         auto pRootGraph = m_editorContext.GetRootGraph();
-
         bool isDialogOpen = m_activeOperation != OperationType::None;
+
+        // Creation
+        //-------------------------------------------------------------------------
 
         if ( m_activeOperation == OperationType::Create )
         {
             ImGui::OpenPopup( "Create" );
             if ( ImGui::BeginPopupModal( "Create", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
             {
-                bool nameChangeConfirmed = false;
-
-                ImGui::PushStyleColor( ImGuiCol_Text, m_editorContext.IsValidVariation( StringID( m_buffer ) ) ? ImGuiX::ConvertColor( Colors::Red ).Value : ImGui::GetStyle().Colors[ImGuiCol_Text] );
-                if ( ImGui::InputText( "##VariationName", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
-                {
-                    nameChangeConfirmed = true;
-                }
-                ImGui::PopStyleColor();
-                ImGui::NewLine();
-
-                float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
-                ImGui::SameLine( 0, dialogWidth - 104 );
-
-                if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || nameChangeConfirmed )
+                if ( DrawVariationNameEditUI() )
                 {
                     // Only allow creations of unique variation names
                     StringID newVariationID( m_buffer );
-                    if ( !m_editorContext.IsValidVariation( newVariationID ) )
-                    {
-                        m_editorContext.CreateVariation( newVariationID, m_activeOperationVariationID );
-                        m_activeOperationVariationID = StringID();
-                        m_activeOperation = OperationType::None;
-                    }
-                }
+                    EE_ASSERT( !m_editorContext.IsValidVariation( newVariationID ) );
 
-                ImGui::SameLine( 0, 4 );
-
-                if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
-                {
+                    // Create new variation
+                    m_editorContext.CreateVariation( newVariationID, m_activeOperationVariationID );
+                    m_activeOperationVariationID = StringID();
                     m_activeOperation = OperationType::None;
+
+                    // Switch to the new variation
+                    m_editorContext.SetSelectedVariation( newVariationID );
                 }
 
                 ImGui::EndPopup();
             }
         }
 
+        // Rename
         //-------------------------------------------------------------------------
 
         if ( m_activeOperation == OperationType::Rename )
@@ -333,50 +331,31 @@ namespace EE::Animation
             ImGui::OpenPopup( "Rename" );
             if ( ImGui::BeginPopupModal( "Rename", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
             {
-                bool nameChangeConfirmed = false;
-
-                ImGui::PushStyleColor( ImGuiCol_Text, m_editorContext.IsValidVariation( StringID( m_buffer ) ) ? ImGuiX::ConvertColor( Colors::Red ).Value : ImGui::GetStyle().Colors[ImGuiCol_Text] );
-                if ( ImGui::InputText( "##VariationName", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+                if ( DrawVariationNameEditUI() )
                 {
-                    nameChangeConfirmed = true;
-                }
-                ImGui::PopStyleColor();
-                ImGui::NewLine();
+                    bool const isRenamingCurrentlySelectedVariation = ( m_activeOperationVariationID == m_editorContext.GetSelectedVariationID() );
 
-                float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
-                ImGui::SameLine( 0, dialogWidth - 104 );
-
-                if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || nameChangeConfirmed )
-                {
                     // Only allow rename to unique variation names
                     StringID newVariationID( m_buffer );
-                    if ( !m_editorContext.IsValidVariation( newVariationID ) )
-                    {
-                        bool const isRenamingSelectedVariation = m_activeOperationVariationID == m_editorContext.GetSelectedVariationID();
+                    EE_ASSERT( !m_editorContext.IsValidVariation( newVariationID ) );
 
-                        m_editorContext.RenameVariation( m_activeOperationVariationID, newVariationID );
-                        m_activeOperationVariationID = StringID();
-                        m_activeOperation = OperationType::None;
-
-                        // Set the selected variation to the renamed variation
-                        if ( isRenamingSelectedVariation )
-                        {
-                            m_editorContext.SetSelectedVariation( newVariationID );
-                        }
-                    }
-                }
-
-                ImGui::SameLine( 0, 4 );
-
-                if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
-                {
+                    // Perform rename
+                    m_editorContext.RenameVariation( m_activeOperationVariationID, newVariationID );
+                    m_activeOperationVariationID = StringID();
                     m_activeOperation = OperationType::None;
+
+                    // Set the selected variation to the renamed variation
+                    if ( isRenamingCurrentlySelectedVariation )
+                    {
+                        m_editorContext.SetSelectedVariation( newVariationID );
+                    }
                 }
 
                 ImGui::EndPopup();
             }
         }
 
+        // Deletion
         //-------------------------------------------------------------------------
 
         if ( m_activeOperation == OperationType::Delete )
@@ -392,7 +371,7 @@ namespace EE::Animation
 
                 if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
                 {
-                    EE_ASSERT( m_activeOperationVariationID != GraphVariation::DefaultVariationID );
+                    EE_ASSERT( m_activeOperationVariationID != Variation::s_defaultVariationID );
 
                     // Update selection
                     auto const pVariation = m_editorContext.GetVariation( m_activeOperationVariationID );
@@ -421,5 +400,108 @@ namespace EE::Animation
         {
             m_activeOperation = OperationType::None;
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    static bool IsValidVariationNameChar( ImWchar c )
+    {
+        return isalnum( c ) || c == '_';
+    }
+
+    static int FilterVariationNameChars( ImGuiInputTextCallbackData* data )
+    {
+        if ( IsValidVariationNameChar( data->EventChar ) )
+        {
+            return 0;
+        }
+        return 1;
+    }
+
+    bool GraphVariationEditor::DrawVariationNameEditUI()
+    {
+        bool const isRenameOp = ( m_activeOperation == OperationType::Rename );
+        bool nameChangeConfirmed = false;
+
+        // Validate current buffer
+        //-------------------------------------------------------------------------
+
+        auto ValidateVariationName = [this, isRenameOp] ()
+        {
+            size_t const bufferLen = strlen( m_buffer );
+
+            if ( bufferLen == 0 )
+            {
+                return false;
+            }
+
+            // Check for invalid chars
+            for ( auto i  = 0; i < bufferLen; i++ )
+            {
+                if ( !IsValidVariationNameChar( m_buffer[i] ) )
+                {
+                    return false;
+                }
+            }
+
+            // Check for existing variations with the same name but different casing
+            String newVariationName( m_buffer );
+            for ( auto const& variation : m_editorContext.GetVariationHierarchy().GetAllVariations() )
+            {
+                int32_t const result = newVariationName.comparei( variation.m_ID.c_str() );
+                if ( result == 0 )
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        // Input Field
+        //-------------------------------------------------------------------------
+
+        bool isValidVariationName = ValidateVariationName();
+        ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImGuiX::ConvertColor(Colors::Red).Value );
+        if ( ImGui::InputText( "##VariationName", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, FilterVariationNameChars ) )
+        {
+            nameChangeConfirmed = true;
+        }
+        ImGui::PopStyleColor();
+        ImGui::NewLine();
+
+        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        ImGui::SameLine( 0, dialogWidth - 104 );
+
+        // Buttons
+        //-------------------------------------------------------------------------
+
+        ImGui::BeginDisabled( !isValidVariationName );
+        if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) )
+        {
+            nameChangeConfirmed = true;
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine( 0, 4 );
+
+        if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
+        {
+            m_activeOperation = OperationType::None;
+            nameChangeConfirmed = false;
+        }
+
+        // Final validation
+        //-------------------------------------------------------------------------
+
+        if ( nameChangeConfirmed )
+        {
+            if ( !ValidateVariationName() )
+            {
+                nameChangeConfirmed = false;
+            }
+        }
+
+        return nameChangeConfirmed;
     }
 }

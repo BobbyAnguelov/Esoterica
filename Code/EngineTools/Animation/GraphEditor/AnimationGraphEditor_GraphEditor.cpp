@@ -189,6 +189,10 @@ namespace EE::Animation
     {
         EE_ASSERT( pNode != nullptr );
 
+        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
+
+        //-------------------------------------------------------------------------
+
         if ( pNode->HasChildGraph() )
         {
             m_graphEditor.NavigateTo( pNode->GetChildGraph() );
@@ -210,7 +214,6 @@ namespace EE::Animation
         }
         else if ( auto pExternalGraphNode = TryCast<ExternalGraphEditorNode>( pNode ) )
         {
-            auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
             if ( pGraphNodeContext->HasDebugData() )
             {
                 int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( pNode->GetID() );

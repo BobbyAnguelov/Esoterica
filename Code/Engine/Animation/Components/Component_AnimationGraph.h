@@ -3,7 +3,6 @@
 #include "Engine/Entity/EntityComponent.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
@@ -130,7 +129,6 @@ namespace EE::Animation
         EE_EXPOSE TResourcePtr<GraphVariation>                  m_pGraphVariation = nullptr;
 
         GraphInstance*                                          m_pGraphInstance = nullptr;
-        TaskSystem*                                             m_pTaskSystem = nullptr;
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
         EE_EXPOSE bool                                          m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?

@@ -14,8 +14,9 @@ namespace EE
 
         friend class Entity;
         friend class EntityDebugView;
-        friend class EntityModel::EntityMapEditor;
-        friend class EntityModel::EntityCollection;
+        friend EntityModel::Serializer;
+        friend EntityModel::EntityMapEditor;
+        friend EntityModel::EntityCollection;
 
         struct AttachmentSocketTransformResult
         {

@@ -550,7 +550,7 @@ namespace EE
 
     EntityModel::EntityMap const* EntityWorld::GetMap( ResourceID const& mapResourceID ) const
     {
-        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
         auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const& map, ResourceID const& mapResourceID ) { return map.GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
         return foundMapIter;
@@ -566,7 +566,7 @@ namespace EE
 
     void EntityWorld::LoadMap( ResourceID const& mapResourceID )
     {
-        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
 
         EE_ASSERT( !HasMap( mapResourceID ) );
         auto& map = m_maps.emplace_back( EntityModel::EntityMap( mapResourceID ) );
@@ -575,7 +575,7 @@ namespace EE
 
     void EntityWorld::UnloadMap( ResourceID const& mapResourceID )
     {
-        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
 
         auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const& map, ResourceID const& mapResourceID ) { return map.GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );

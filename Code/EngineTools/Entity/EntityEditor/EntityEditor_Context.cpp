@@ -1,5 +1,6 @@
 #include "EntityEditor_Context.h"
 #include "Engine/Entity/EntitySystem.h"
+#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Volumes/Components/Component_Volumes.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Log.h"
@@ -46,7 +47,7 @@ namespace EE::EntityModel
             for ( auto pEntity : createdEntities )
             {
                 EE_ASSERT( pEntity != nullptr );
-                bool const result = pEntity->CreateDescriptor( m_typeRegistry, m_createdEntities.emplace_back() );
+                bool const result = Serializer::SerializeEntity( m_typeRegistry, pEntity, m_createdEntities.emplace_back() );
                 EE_ASSERT( result );
             }
         }
@@ -58,7 +59,7 @@ namespace EE::EntityModel
             for ( auto pEntity : entitiesToDelete )
             {
                 EE_ASSERT( pEntity != nullptr && pEntity->GetMapID() == m_pMap->GetID() );
-                bool const result = pEntity->CreateDescriptor( m_typeRegistry, m_deletedEntities.emplace_back() );
+                bool const result = Serializer::SerializeEntity( m_typeRegistry, pEntity, m_deletedEntities.emplace_back() );
                 EE_ASSERT( result );
             }
         }
@@ -75,7 +76,7 @@ namespace EE::EntityModel
             {
                 EE_ASSERT( pEntity != nullptr );
                 EE_ASSERT( wereEntitiesDuplicated ? true : pEntity->GetMapID() == m_pMap->GetID() );
-                bool const result = pEntity->CreateDescriptor( m_typeRegistry, m_entityDescPreModification.emplace_back() );
+                bool const result = Serializer::SerializeEntity( m_typeRegistry, pEntity, m_entityDescPreModification.emplace_back() );
                 EE_ASSERT( result );
             }
         }
@@ -88,7 +89,7 @@ namespace EE::EntityModel
             for ( auto pEntity : m_editedEntities )
             {
                 EE_ASSERT( pEntity != nullptr && pEntity->GetMapID() == m_pMap->GetID() );
-                bool const result = pEntity->CreateDescriptor( m_typeRegistry, m_entityDescPostModification.emplace_back() );
+                bool const result = Serializer::SerializeEntity( m_typeRegistry, pEntity, m_entityDescPostModification.emplace_back() );
                 EE_ASSERT( result );
             }
 
@@ -115,7 +116,7 @@ namespace EE::EntityModel
                 {
                     for ( auto const& entityDesc : m_deletedEntities )
                     {
-                        auto pEntity = Entity::CreateFromDescriptor( m_typeRegistry, entityDesc );
+                        auto pEntity = Serializer::CreateEntity( m_typeRegistry, entityDesc );
                         m_pMap->AddEntity( pEntity );
                     }
                 }
@@ -138,7 +139,7 @@ namespace EE::EntityModel
                         // Only recreate the entities if they werent duplicated, if they were duplicate, then deleting them was enough to undo the action
                         if ( !m_entitiesWereDuplicated )
                         {
-                            auto pNewEntity = Entity::CreateFromDescriptor( m_typeRegistry, m_entityDescPreModification[i] );
+                            auto pNewEntity = Serializer::CreateEntity( m_typeRegistry, m_entityDescPreModification[i] );
                             m_pMap->AddEntity( pNewEntity );
                         }
                     }
@@ -165,7 +166,7 @@ namespace EE::EntityModel
                 {
                     for ( auto const& entityDesc : m_createdEntities )
                     {
-                        auto pEntity = Entity::CreateFromDescriptor( m_typeRegistry, entityDesc );
+                        auto pEntity = Serializer::CreateEntity( m_typeRegistry, entityDesc );
                         m_pMap->AddEntity( pEntity );
                     }
                 }
@@ -198,7 +199,7 @@ namespace EE::EntityModel
 
                         //-------------------------------------------------------------------------
 
-                        auto pNewEntity = Entity::CreateFromDescriptor( m_typeRegistry, m_entityDescPostModification[i] );
+                        auto pNewEntity = Serializer::CreateEntity( m_typeRegistry, m_entityDescPostModification[i] );
                         m_pMap->AddEntity( pNewEntity );
                     }
                 }
@@ -218,25 +219,25 @@ namespace EE::EntityModel
 
     private:
 
-        TypeSystem::TypeRegistry const&     m_typeRegistry;
-        EntityMap*                          m_pMap = nullptr;
-        Type                                m_actionType = Invalid;
+        TypeSystem::TypeRegistry const&         m_typeRegistry;
+        EntityMap*                              m_pMap = nullptr;
+        Type                                    m_actionType = Invalid;
 
         // Data: Create
-        TVector<EntityDescriptor>           m_createdEntities;
+        TVector<SerializedEntityDescriptor>     m_createdEntities;
 
         // Data: Delete
-        TVector<EntityDescriptor>           m_deletedEntities;
+        TVector<SerializedEntityDescriptor>     m_deletedEntities;
 
         // Data: Modify
-        TVector<Entity*>                    m_editedEntities; // Temporary storage that is only valid between a Begin and End call
-        TVector<EntityDescriptor>           m_entityDescPreModification;
-        TVector<EntityDescriptor>           m_entityDescPostModification;
-        bool                                m_entitiesWereDuplicated = false;
+        TVector<Entity*>                        m_editedEntities; // Temporary storage that is only valid between a Begin and End call
+        TVector<SerializedEntityDescriptor>     m_entityDescPreModification;
+        TVector<SerializedEntityDescriptor>     m_entityDescPostModification;
+        bool                                    m_entitiesWereDuplicated = false;
 
         // Data: Move
-        TVector<SpatialState>               m_componentSpatialStatePreMove;
-        TVector<SpatialState>               m_componentSpatialStatePostMove;
+        TVector<SpatialState>                   m_componentSpatialStatePreMove;
+        TVector<SpatialState>                   m_componentSpatialStatePostMove;
     };
 }
 
@@ -787,10 +788,10 @@ namespace EE::EntityModel
         TVector<Entity*> duplicatedEntities;
         for ( auto pEntity : m_selectedEntities )
         {
-            EntityDescriptor entityDesc;
-            if ( pEntity->CreateDescriptor( *m_pToolsContext->m_pTypeRegistry, entityDesc ) )
+            SerializedEntityDescriptor entityDesc;
+            if ( Serializer::SerializeEntity( *m_pToolsContext->m_pTypeRegistry, pEntity, entityDesc ) )
             {
-                auto pDuplicatedEntity = Entity::CreateFromDescriptor( *m_pToolsContext->m_pTypeRegistry, entityDesc );
+                auto pDuplicatedEntity = Serializer::CreateEntity( *m_pToolsContext->m_pTypeRegistry, entityDesc );
                 duplicatedEntities.emplace_back( pDuplicatedEntity );
                 m_pMap->AddEntity( pDuplicatedEntity );
             }

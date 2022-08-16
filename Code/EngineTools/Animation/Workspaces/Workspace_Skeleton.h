@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "System/Imgui/ImguiX.h"
@@ -14,11 +14,11 @@ namespace EE::Render
 
 namespace EE::Animation
 {
-    class SkeletonWorkspace final : public TResourceWorkspace<Skeleton>
+    class SkeletonWorkspace final : public TWorkspace<Skeleton>
     {
     public:
 
-        using TResourceWorkspace::TResourceWorkspace;
+        using TWorkspace::TWorkspace;
         virtual ~SkeletonWorkspace();
 
     private:
@@ -28,7 +28,7 @@ namespace EE::Animation
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
         virtual void EndHotReload() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
         void DrawDetailsWindow( UpdateContext const& context );
         void DrawSkeletonHierarchyWindow( UpdateContext const& context );

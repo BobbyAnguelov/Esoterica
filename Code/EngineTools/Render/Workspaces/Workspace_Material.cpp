@@ -15,7 +15,7 @@ namespace EE::Render
     {
         EE_ASSERT( m_pPreviewComponent == nullptr );
 
-        TResourceWorkspace<Material>::Initialize( context );
+        TWorkspace<Material>::Initialize( context );
 
         m_materialDetailsWindowName.sprintf( "Material Properties##%u", GetID() );
 
@@ -35,7 +35,7 @@ namespace EE::Render
     void MaterialWorkspace::Shutdown( UpdateContext const& context )
     {
         m_pPreviewComponent = nullptr;
-        TResourceWorkspace<Material>::Shutdown( context );
+        TWorkspace<Material>::Shutdown( context );
     }
 
     void MaterialWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
@@ -49,7 +49,7 @@ namespace EE::Render
         ImGui::DockBuilderDockWindow( m_materialDetailsWindowName.c_str(), bottomDockID );
     }
 
-    void MaterialWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void MaterialWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_materialDetailsWindowName.c_str() ) )
@@ -69,7 +69,7 @@ namespace EE::Render
             {
                 if ( m_pDescriptor != nullptr )
                 {
-                    m_descriptorPropertyGrid.DrawGrid();
+                    m_pDescriptorPropertyGrid->DrawGrid();
                 }
             }
         }

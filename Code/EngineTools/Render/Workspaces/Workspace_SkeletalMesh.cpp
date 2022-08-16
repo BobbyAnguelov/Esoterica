@@ -20,7 +20,7 @@ namespace EE::Render
 
     void SkeletalMeshWorkspace::Initialize( UpdateContext const& context )
     {
-        TResourceWorkspace<SkeletalMesh>::Initialize( context );
+        TWorkspace<SkeletalMesh>::Initialize( context );
 
         //-------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ namespace EE::Render
     void SkeletalMeshWorkspace::Shutdown( UpdateContext const& context )
     {
         DestroySkeletonTree();
-        TResourceWorkspace<SkeletalMesh>::Shutdown( context );
+        TWorkspace<SkeletalMesh>::Shutdown( context );
     }
 
     void SkeletalMeshWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
@@ -81,7 +81,7 @@ namespace EE::Render
         }
     }
 
-    void SkeletalMeshWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void SkeletalMeshWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         if ( IsResourceLoaded() )
         {

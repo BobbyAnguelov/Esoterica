@@ -7,7 +7,7 @@
 namespace EE
 {
     GamePreviewer::GamePreviewer( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EditorWorkspace( pToolsContext, pWorld )
+        : Workspace( pToolsContext, pWorld, String( "Game Preview" ) )
     {}
 
     void GamePreviewer::LoadMapToPreview( ResourceID mapResourceID )
@@ -29,7 +29,7 @@ namespace EE
 
     void GamePreviewer::Initialize( UpdateContext const& context )
     {
-        EditorWorkspace::Initialize( context );
+        Workspace::Initialize( context );
         m_engineToolsUI.Initialize( context );
         m_engineToolsUI.LockToWindow( GetViewportWindowID() );
     }
@@ -40,7 +40,7 @@ namespace EE
         m_pWorld->UnloadMap( m_loadedMap );
 
         m_engineToolsUI.Shutdown( context );
-        EditorWorkspace::Shutdown( context );
+        Workspace::Shutdown( context );
     }
 
     bool GamePreviewer::HasWorkspaceToolbar() const
@@ -61,7 +61,7 @@ namespace EE
         ImGui::DockBuilderDockWindow( GetViewportWindowID(), topDockID );
     }
 
-    void GamePreviewer::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void GamePreviewer::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
         m_engineToolsUI.HandleUserInput( context, m_pWorld );

@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_desiredHeadingVelocityNodeIdx, m_desiredFacingDirectionNodeIdx, m_linearVelocityLimitNodeIdx, m_angularVelocityLimitNodeIdx, m_maxLinearVelocity, m_maxAngularVelocity, m_overrideFlags );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                        m_desiredHeadingVelocityNodeIdx = InvalidIndex;
             int16_t                        m_desiredFacingDirectionNodeIdx = InvalidIndex;

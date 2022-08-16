@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_Ragdoll.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"
@@ -12,13 +11,13 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void PoweredRagdollNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void PoweredRagdollNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<PoweredRagdollNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_physicsBlendWeightNodeIdx, pNode->m_pBlendWeightValueNode );
-        PassthroughNode::Settings::InstantiateNode( nodePtrs, pDataSet, GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
+        auto pNode = CreateNode<PoweredRagdollNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_physicsBlendWeightNodeIdx, pNode->m_pBlendWeightValueNode );
+        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
 
-        pNode->m_pRagdollDefinition = pDataSet->GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
+        pNode->m_pRagdollDefinition = context.GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
     }
 
     bool PoweredRagdollNode::IsValid() const

@@ -35,14 +35,15 @@ namespace EE::Animation
 
     private:
 
-        void DrawVariationTree();
-        void DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID );
-        void DrawOverridesTable();
-
         void StartCreate( StringID variationID );
         void StartRename( StringID variationID );
         void StartDelete( StringID variationID );
-        void DrawActiveOperationUI();
+
+        void DrawVariationTree();
+        void DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID );
+        void DrawOverridesTable();
+        void DrawDialogs();
+        bool DrawVariationNameEditUI();
 
     private:
 

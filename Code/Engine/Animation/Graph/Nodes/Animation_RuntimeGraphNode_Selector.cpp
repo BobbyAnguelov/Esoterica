@@ -1,23 +1,22 @@
 #include "Animation_RuntimeGraphNode_Selector.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "System/Log.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void SelectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void SelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<SelectorNode>( nodePtrs, options );
+        auto pNode = CreateNode<SelectorNode>( context, options );
 
         for ( auto nodeIdx : m_optionNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, nodeIdx, pNode->m_optionNodes.emplace_back() );
+            context.SetNodePtrFromIndex( nodeIdx, pNode->m_optionNodes.emplace_back() );
         }
 
         for ( auto nodeIdx : m_conditionNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, nodeIdx, pNode->m_conditions.emplace_back() );
+            context.SetNodePtrFromIndex( nodeIdx, pNode->m_conditions.emplace_back() );
         }
     }
 
@@ -168,18 +167,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipSelectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void AnimationClipSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<AnimationClipSelectorNode>( nodePtrs, options );
+        auto pNode = CreateNode<AnimationClipSelectorNode>( context, options );
 
         for ( auto nodeIdx : m_optionNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, nodeIdx, pNode->m_optionNodes.emplace_back() );
+            context.SetNodePtrFromIndex( nodeIdx, pNode->m_optionNodes.emplace_back() );
         }
 
         for ( auto nodeIdx : m_conditionNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, nodeIdx, pNode->m_conditions.emplace_back() );
+            context.SetNodePtrFromIndex( nodeIdx, pNode->m_conditions.emplace_back() );
         }
     }
 

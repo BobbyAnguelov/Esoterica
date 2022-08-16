@@ -105,7 +105,7 @@ namespace EE::Animation
     void EditorGraphDefinition::SaveToJson( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const
     {
         writer.StartObject();
-        writer.Key( "TypeID" );
+        writer.Key( Serialization::s_typeIDKey );
         writer.String( GraphResourceDescriptor::GetStaticTypeID().c_str() );
 
         writer.Key( "GraphDefinition" );

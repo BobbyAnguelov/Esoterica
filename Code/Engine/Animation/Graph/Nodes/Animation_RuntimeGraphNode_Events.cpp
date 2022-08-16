@@ -1,6 +1,5 @@
 #include "Animation_RuntimeGraphNode_Events.h"
 #include "Animation_RuntimeGraphNode_State.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/Events/AnimationEvent_ID.h"
 
 //-------------------------------------------------------------------------
@@ -60,10 +59,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void GenericEventConditionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void GenericEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<GenericEventConditionNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<GenericEventConditionNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void GenericEventConditionNode::InitializeInternal( GraphContext& context )
@@ -172,10 +171,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void GenericEventPercentageThroughNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void GenericEventPercentageThroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<GenericEventPercentageThroughNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<GenericEventPercentageThroughNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void GenericEventPercentageThroughNode::InitializeInternal( GraphContext& context )
@@ -244,10 +243,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootEventConditionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FootEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FootEventConditionNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<FootEventConditionNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void FootEventConditionNode::InitializeInternal( GraphContext& context )
@@ -340,10 +339,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootstepEventPercentageThroughNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FootstepEventPercentageThroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FootstepEventPercentageThroughNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<FootstepEventPercentageThroughNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void FootstepEventPercentageThroughNode::InitializeInternal( GraphContext& context )
@@ -464,10 +463,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void SyncEventConditionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void SyncEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<SyncEventConditionNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<SyncEventConditionNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void SyncEventConditionNode::InitializeInternal( GraphContext& context )
@@ -518,10 +517,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CurrentSyncEventNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CurrentSyncEventNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<CurrentSyncEventNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void CurrentSyncEventNode::InitializeInternal( GraphContext& context )

@@ -769,13 +769,13 @@ namespace EE::Resource
 
     void ResourceServer::AddMapToPackagingList( ResourceID mapResourceID )
     {
-        EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
         VectorEmplaceBackUnique( m_mapsToBePackaged, mapResourceID );
     }
 
     void ResourceServer::RemoveMapFromPackagingList( ResourceID mapResourceID )
     {
-        EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
         m_mapsToBePackaged.erase_first_unsorted( mapResourceID );
     }
 

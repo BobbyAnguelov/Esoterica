@@ -8,7 +8,7 @@
 
 namespace EE { class ToolsContext; class UpdateContext; }
 namespace EE::TypeSystem { class TypeRegistry; }
-namespace EE::EntityModel { class EntityCollectionDescriptor; }
+namespace EE::EntityModel { class SerializedEntityCollection; }
 
 //-------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ namespace EE::Navmesh
 
     public:
 
-        NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::EntityCollectionDescriptor const& entityCollectionDesc, FileSystem::Path const& navmeshOutputPath );
+        NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::SerializedEntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath );
         ~NavmeshGeneratorDialog();
 
         bool UpdateAndDrawDialog( UpdateContext const& ctx );
@@ -35,7 +35,7 @@ namespace EE::Navmesh
 
         ToolsContext const*                                 m_pToolsContext = nullptr;
         NavmeshBuildSettings                                m_buildSettings;
-        EntityModel::EntityCollectionDescriptor const       m_entityCollectionDesc;
+        EntityModel::SerializedEntityCollection const       m_entityCollection;
         FileSystem::Path const                              m_navmeshOutputPath;
         PropertyGrid                                        m_propertyGrid;
         NavmeshGenerator*                                   m_pGenerator = nullptr;

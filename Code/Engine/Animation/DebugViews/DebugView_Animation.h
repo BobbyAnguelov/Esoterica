@@ -11,7 +11,7 @@
 namespace EE::Animation
 {
     class AnimationWorldSystem;
-    class AnimationGraphComponent;
+    class GraphInstance;
     class TaskSystem;
     class RootMotionDebugger;
 
@@ -35,14 +35,15 @@ namespace EE::Animation
 
     public:
 
-        static void DrawGraphControlParameters( AnimationGraphComponent* pGraphComponent );
-        static void DrawGraphActiveTasksDebugView( AnimationGraphComponent* pGraphComponent );
-        static void DrawGraphSampledEventsView( AnimationGraphComponent* pGraphComponent );
+        static void DrawGraphControlParameters( GraphInstance* pGraphInstance );
+        static void DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance );
+        static void DrawRootMotionDebugView( GraphInstance* pGraphInstance );
+        static void DrawGraphSampledEventsView( GraphInstance* pGraphInstance );
 
     private:
 
-        static void DrawTaskTreeRow( AnimationGraphComponent* pGraphComponent, TaskSystem* pTaskSystem, TaskIndex currentTaskIdx );
-        static void DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx );
+        static void DrawTaskTreeRow( TaskSystem* pTaskSystem, TaskIndex currentTaskIdx );
+        static void DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx );
 
     public:
 

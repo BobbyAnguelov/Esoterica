@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_physicsBlendWeightNodeIdx, m_physicsBlendWeight, m_profileID, m_dataSlotIdx, m_isGravityEnabled );
 
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                 m_physicsBlendWeightNodeIdx = InvalidIndex;
             int16_t                 m_dataSlotIdx = InvalidIndex;

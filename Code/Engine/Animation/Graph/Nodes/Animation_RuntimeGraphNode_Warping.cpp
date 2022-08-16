@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_Warping.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
@@ -14,11 +13,11 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void OrientationWarpNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void OrientationWarpNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<OrientationWarpNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
-        SetNodePtrFromIndex( nodePtrs, m_angleOffsetValueNodeIdx, pNode->m_pAngleOffsetValueNode );
+        auto pNode = CreateNode<OrientationWarpNode>( context, options );
+        context.SetNodePtrFromIndex( m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
+        context.SetNodePtrFromIndex( m_angleOffsetValueNodeIdx, pNode->m_pAngleOffsetValueNode );
     }
 
     void OrientationWarpNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -119,11 +118,11 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetWarpNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void TargetWarpNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<TargetWarpNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
-        SetNodePtrFromIndex( nodePtrs, m_targetValueNodeIdx, pNode->m_pTargetValueNode );
+        auto pNode = CreateNode<TargetWarpNode>( context, options );
+        context.SetNodePtrFromIndex( m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
+        context.SetNodePtrFromIndex( m_targetValueNodeIdx, pNode->m_pTargetValueNode );
     }
 
     void TargetWarpNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )

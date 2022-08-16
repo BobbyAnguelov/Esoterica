@@ -1,23 +1,22 @@
 #include "Animation_RuntimeGraphNode_BoneMasks.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void BoneMaskNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void BoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<BoneMaskNode>( nodePtrs, options );
+        auto pNode = CreateNode<BoneMaskNode>( context, options );
 
-        auto const pBoneWeights = pDataSet->GetResource<BoneMaskDefinition>( m_dataSlotIdx );
+        auto const pBoneWeights = context.GetResource<BoneMaskDefinition>( m_dataSlotIdx );
         if ( pBoneWeights != nullptr )
         {
-            pNode->m_boneMask = BoneMask( pDataSet->GetSkeleton(), *pBoneWeights, m_rootMotionWeight );
+            pNode->m_boneMask = BoneMask( context.m_pDataSet->GetSkeleton(), *pBoneWeights, m_rootMotionWeight );
         }
         else // No bone mask set
         {
-            pNode->m_boneMask = BoneMask( pDataSet->GetSkeleton(), 1.0f, m_rootMotionWeight );
+            pNode->m_boneMask = BoneMask( context.m_pDataSet->GetSkeleton(), 1.0f, m_rootMotionWeight );
         }
     }
 
@@ -34,12 +33,12 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void BoneMaskBlendNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void BoneMaskBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<BoneMaskBlendNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_sourceMaskNodeIdx, pNode->m_pSourceBoneMask );
-        SetNodePtrFromIndex( nodePtrs, m_targetMaskNodeIdx, pNode->m_pTargetBoneMask );
-        SetNodePtrFromIndex( nodePtrs, m_blendWeightValueNodeIdx, pNode->m_pBlendWeightValueNode );
+        auto pNode = CreateNode<BoneMaskBlendNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceMaskNodeIdx, pNode->m_pSourceBoneMask );
+        context.SetNodePtrFromIndex( m_targetMaskNodeIdx, pNode->m_pTargetBoneMask );
+        context.SetNodePtrFromIndex( m_blendWeightValueNodeIdx, pNode->m_pBlendWeightValueNode );
     }
 
     void BoneMaskBlendNode::InitializeInternal( GraphContext& context )
@@ -97,17 +96,17 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void BoneMaskSelectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void BoneMaskSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<BoneMaskSelectorNode>( nodePtrs, options );
+        auto pNode = CreateNode<BoneMaskSelectorNode>( context, options );
 
         for ( int16_t const maskNodeIdx : m_maskNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, maskNodeIdx, pNode->m_boneMaskOptionNodes.emplace_back() );
+            context.SetNodePtrFromIndex( maskNodeIdx, pNode->m_boneMaskOptionNodes.emplace_back() );
         }
 
-        SetNodePtrFromIndex( nodePtrs, m_defaultMaskNodeIdx, pNode->m_pDefaultMaskValueNode );
-        SetNodePtrFromIndex( nodePtrs, m_parameterValueNodeIdx, pNode->m_pParameterValueNode );
+        context.SetNodePtrFromIndex( m_defaultMaskNodeIdx, pNode->m_pDefaultMaskValueNode );
+        context.SetNodePtrFromIndex( m_parameterValueNodeIdx, pNode->m_pParameterValueNode );
     }
 
     void BoneMaskSelectorNode::InitializeInternal( GraphContext& context )

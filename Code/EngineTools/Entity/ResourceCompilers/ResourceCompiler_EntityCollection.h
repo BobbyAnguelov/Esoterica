@@ -6,10 +6,6 @@
 
 namespace EE::EntityModel
 {
-    class EntityMapDescriptor;
-
-    //-------------------------------------------------------------------------
-
     class EntityCollectionCompiler final : public Resource::Compiler
     {
         EE_REGISTER_TYPE( EntityCollectionCompiler );

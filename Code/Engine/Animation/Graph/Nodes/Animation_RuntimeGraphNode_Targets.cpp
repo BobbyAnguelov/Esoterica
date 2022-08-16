@@ -1,15 +1,14 @@
 #include "Animation_RuntimeGraphNode_Targets.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "System/Log.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void IsTargetSetNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void IsTargetSetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<IsTargetSetNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<IsTargetSetNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void IsTargetSetNode::InitializeInternal( GraphContext& context )
@@ -43,10 +42,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetInfoNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void TargetInfoNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<TargetInfoNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pTargetNode );
+        auto pNode = CreateNode<TargetInfoNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pTargetNode );
     }
 
     void TargetInfoNode::InitializeInternal( GraphContext& context )
@@ -187,10 +186,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetOffsetNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void TargetOffsetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<TargetOffsetNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<TargetOffsetNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void TargetOffsetNode::InitializeInternal( GraphContext& context )

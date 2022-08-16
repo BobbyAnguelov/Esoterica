@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_State.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "System/Types/ScopedValue.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 
@@ -7,12 +6,12 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void StateNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void StateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<StateNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_layerBoneMaskNodeIdx, pNode->m_pBoneMaskNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_layerWeightNodeIdx, pNode->m_pLayerWeightNode );
+        auto pNode = CreateNode<StateNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
+        context.SetOptionalNodePtrFromIndex( m_layerBoneMaskNodeIdx, pNode->m_pBoneMaskNode );
+        context.SetOptionalNodePtrFromIndex( m_layerWeightNodeIdx, pNode->m_pLayerWeightNode );
     }
 
     //-------------------------------------------------------------------------

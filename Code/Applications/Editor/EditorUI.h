@@ -24,7 +24,7 @@ namespace EE
     private:
 
         void DrawMainMenu( UpdateContext const& context );
-        bool DrawWorkspaceWindow( UpdateContext const& context, EditorWorkspace* pWorkspace );
+        bool DrawWorkspaceWindow( UpdateContext const& context, Workspace* pWorkspace );
 
         virtual void StartFrame( UpdateContext const& context ) override final;
         virtual void EndFrame( UpdateContext const& context ) override final;

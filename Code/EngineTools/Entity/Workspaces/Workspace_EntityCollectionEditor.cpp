@@ -1,14 +1,15 @@
 #include "Workspace_EntityCollectionEditor.h"
+#include "EngineTools/Entity/EntitySerializationTools.h"
+#include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntitySerialization.h"
 #include "System/Threading/TaskSystem.h"
-#include "Engine/UpdateContext.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::EntityModel
 {
     EntityCollectionEditor::EntityCollectionEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& collectionResourceID )
-        : EntityEditorBaseWorkspace( pToolsContext, pWorld )
+        : EntityEditorBaseWorkspace( pToolsContext, pWorld, collectionResourceID )
         , m_collection( collectionResourceID )
     {
         SetDisplayName( collectionResourceID.GetFileNameWithoutExtension() );
@@ -45,19 +46,19 @@ namespace EE::EntityModel
             return false;
         }
 
-        EntityCollectionDescriptor ecd;
-        if ( !pEditedMap->CreateDescriptor( m_context.GetTypeRegistry(), ecd) )
+        SerializedEntityMap sem;
+        if ( !Serializer::SerializeEntityMap( m_context.GetTypeRegistry(), pEditedMap, sem ) )
         {
             return false;
         }
 
         FileSystem::Path const filePath = GetFileSystemPath( m_collection.GetResourcePath() );
-        return Serializer::WriteEntityCollectionToFile( m_context.GetTypeRegistry(), ecd, filePath);
+        return WriteSerializedEntityCollectionToFile( m_context.GetTypeRegistry(), sem, filePath );
     }
 
     //-------------------------------------------------------------------------
 
-    void EntityCollectionEditor::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void EntityCollectionEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         if ( !m_collectionInstantiated )
         {
@@ -76,6 +77,6 @@ namespace EE::EntityModel
             }
         }
 
-        EntityEditorBaseWorkspace::UpdateWorkspace( context, pWindowClass, isFocused );
+        EntityEditorBaseWorkspace::Update( context, pWindowClass, isFocused );
     }
 }

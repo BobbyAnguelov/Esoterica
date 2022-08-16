@@ -16,10 +16,10 @@ namespace EE::AI
 
         inline AISpawnComponent() = default;
 
-        inline EntityModel::EntityCollectionDescriptor const* GetEntityCollectionDesc() const { return m_pAIEntityDesc.GetPtr(); }
+        inline EntityModel::SerializedEntityCollection const* GetEntityCollectionDesc() const { return m_pAIEntityDesc.GetPtr(); }
 
     private:
 
-        EE_EXPOSE TResourcePtr<EntityModel::EntityCollectionDescriptor>    m_pAIEntityDesc = nullptr;
+        EE_EXPOSE TResourcePtr<EntityModel::SerializedEntityCollection>    m_pAIEntityDesc = nullptr;
     };
 }

@@ -91,9 +91,14 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline bool IsValidVariation( StringID variationID ) const { return m_editorGraph.IsValidVariation( variationID ); }
-        inline bool IsDefaultVariationSelected() const { return m_selectedVariationID == GraphVariation::DefaultVariationID; }
+        inline bool IsDefaultVariationSelected() const { return m_selectedVariationID == Variation::s_defaultVariationID; }
         inline StringID GetSelectedVariationID() const { return m_selectedVariationID; }
+
+        // Sets the current selected variation. Assumes a valid variation ID!
         inline void SetSelectedVariation( StringID variationID ) { EE_ASSERT( IsValidVariation( variationID ) ); m_selectedVariationID = variationID; }
+        
+        // Tries to case-insensitively match a supplied variation name to the various variations we have
+        void TrySetSelectedVariation( String const& variationName );
 
         Variation const* GetVariation( StringID variationID ) const { return m_editorGraph.GetVariation( variationID ); }
         Variation* GetVariation( StringID variationID ) { return m_editorGraph.GetVariation( variationID ); }
@@ -133,7 +138,7 @@ namespace EE::Animation
         TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
         CategoryTree<TypeSystem::TypeInfo const*>                       m_categorizedNodeTypes;
         TVector<VisualGraph::SelectedNode>                              m_selectedNodes;
-        StringID                                                        m_selectedVariationID = GraphVariation::DefaultVariationID;
+        StringID                                                        m_selectedVariationID = Variation::s_defaultVariationID;
         TInlineVector<GraphNodes::ControlParameterEditorNode*, 20>      m_controlParameters;
         TInlineVector<GraphNodes::VirtualParameterEditorNode*, 20>      m_virtualParameters;
         TEvent<VisualGraph::BaseNode*>                                  m_onNavigateToNode;

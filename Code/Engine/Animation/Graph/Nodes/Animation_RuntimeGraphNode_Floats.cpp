@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_Floats.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "System/Log.h"
 #include "System/Math/MathHelpers.h"
 
@@ -7,12 +6,12 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void FloatSwitchNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatSwitchNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatSwitchNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_switchValueNodeIdx, pNode->m_pSwitchValueNode );
-        SetNodePtrFromIndex( nodePtrs, m_trueValueNodeIdx, pNode->m_pTrueValueNode );
-        SetNodePtrFromIndex( nodePtrs, m_falseValueNodeIdx, pNode->m_pFalseValueNode );
+        auto pNode = CreateNode<FloatSwitchNode>( context, options );
+        context.SetNodePtrFromIndex( m_switchValueNodeIdx, pNode->m_pSwitchValueNode );
+        context.SetNodePtrFromIndex( m_trueValueNodeIdx, pNode->m_pTrueValueNode );
+        context.SetNodePtrFromIndex( m_falseValueNodeIdx, pNode->m_pFalseValueNode );
     }
 
     void FloatSwitchNode::InitializeInternal( GraphContext& context )
@@ -52,10 +51,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatRemapNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatRemapNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatRemapNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatRemapNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatRemapNode::InitializeInternal( GraphContext& context )
@@ -89,10 +88,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatClampNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatClampNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatClampNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatClampNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatClampNode::InitializeInternal( GraphContext& context )
@@ -126,10 +125,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatAbsNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatAbsNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatAbsNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatAbsNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatAbsNode::InitializeInternal( GraphContext& context )
@@ -163,10 +162,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatEaseNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatEaseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatEaseNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatEaseNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatEaseNode::InitializeInternal( GraphContext& context )
@@ -231,10 +230,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatCurveNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatCurveNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatCurveNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatCurveNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatCurveNode::InitializeInternal( GraphContext& context )
@@ -269,11 +268,11 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatMathNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatMathNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatMathNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdxA, pNode->m_pValueNodeA );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdxB, pNode->m_pValueNodeB );
+        auto pNode = CreateNode<FloatMathNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdxA, pNode->m_pValueNodeA );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdxB, pNode->m_pValueNodeB );
     }
 
     void FloatMathNode::InitializeInternal( GraphContext& context )
@@ -372,11 +371,11 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatComparisonNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatComparisonNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatComparisonNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_comparandValueNodeIdx, pNode->m_pComparandValueNode );
+        auto pNode = CreateNode<FloatComparisonNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        context.SetOptionalNodePtrFromIndex( m_comparandValueNodeIdx, pNode->m_pComparandValueNode );
     }
 
     void FloatComparisonNode::InitializeInternal( GraphContext& context )
@@ -448,10 +447,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatRangeComparisonNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatRangeComparisonNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatRangeComparisonNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatRangeComparisonNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatRangeComparisonNode::InitializeInternal( GraphContext& context )
@@ -486,10 +485,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatReverseDirectionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void FloatReverseDirectionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatReverseDirectionNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<FloatReverseDirectionNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void FloatReverseDirectionNode::InitializeInternal( GraphContext& context )

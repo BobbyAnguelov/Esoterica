@@ -478,6 +478,7 @@ namespace EE::Animation
         if ( m_activeOperation == OperationType::Rename )
         {
             ImGui::OpenPopup( "Rename Dialog" );
+            ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
             if ( ImGui::BeginPopupModal( "Rename Dialog", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
             {
                 EE_ASSERT( m_activeOperation == OperationType::Rename );

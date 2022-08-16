@@ -12,7 +12,7 @@
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem { class TypeRegistry; }
-namespace EE::EntityModel { class EntityCollectionDescriptor; }
+namespace EE::EntityModel { class SerializedEntityCollection; }
 
 //-------------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ namespace EE::Navmesh
 
     public:
 
-        NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::EntityCollectionDescriptor const& entityCollectionDesc, NavmeshBuildSettings const& buildSettings );
+        NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::SerializedEntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings );
         ~NavmeshGenerator();
 
         inline char const* GetProgressMessage() const { return m_progressMessage; }
@@ -76,7 +76,7 @@ namespace EE::Navmesh
         FileSystem::Path const                          m_rawResourceDirectoryPath;
         FileSystem::Path const                          m_outputPath;
         TypeSystem::TypeRegistry const&                 m_typeRegistry;
-        EntityModel::EntityCollectionDescriptor const&  m_entityCollectionDesc;
+        EntityModel::SerializedEntityCollection const&  m_entityCollection;
         NavmeshBuildSettings const&                     m_buildSettings;
         
         // Build transient data

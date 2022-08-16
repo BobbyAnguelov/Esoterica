@@ -41,7 +41,9 @@ namespace EE::Resource
         FileSystem::Path const& GetRawResourceDirectoryPath() const;
 
         // Draws the resource field - returns true if the value is changed
-        bool DrawResourcePicker( ResourceTypeID resourceTypeID, ResourceID const* pResourceID );
+        // The force flag is to be used when we reused the same class to draw multiple pickers
+        // TODO: clean this up, this is not a elegant approach.
+        bool DrawResourcePicker( ResourceTypeID resourceTypeID, ResourceID const* pResourceID, bool forceRefreshValidity = false );
 
         // Draws a generic path picker
         bool DrawPathPicker( ResourcePath* pResourcePath );

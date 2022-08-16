@@ -6,7 +6,7 @@
 #include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_VariationEditor.h"
 #include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_CompilationLog.h"
 #include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Common.h"
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 
@@ -24,7 +24,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class AnimationGraphWorkspace final : public TResourceWorkspace<GraphDefinition>
+    class AnimationGraphWorkspace final : public TWorkspace<GraphDefinition>
     {
         friend GraphUndoableAction;
 
@@ -33,6 +33,24 @@ namespace EE::Animation
             None,
             Preview,
             LiveDebug,
+        };
+
+        enum class DebugTargetType
+        {
+            None,
+            MainGraph,
+            ChildGraph,
+            ExternalGraph
+        };
+
+        struct DebugTarget
+        {
+            bool IsValid() const;
+
+            DebugTargetType                 m_type = DebugTargetType::None;
+            AnimationGraphComponent*        m_pComponentToDebug = nullptr;
+            int16_t                         m_childGraphNodeIdx = InvalidIndex;
+            StringID                        m_externalSlotID;
         };
 
     public:
@@ -44,12 +62,12 @@ namespace EE::Animation
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
+        virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void PreUndoRedo( UndoStack::Operation operation ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual bool IsDirty() const override;
@@ -64,7 +82,7 @@ namespace EE::Animation
         inline bool IsLiveDebugging() const { return m_debugMode == DebugMode::LiveDebug; }
 
         // Starts a debugging session. If a target component is provided we assume we are attaching to a live game 
-        void StartDebugging( UpdateContext const& context, AnimationGraphComponent* pTarget, StringID externalGraphSlotID = StringID() );
+        void StartDebugging( UpdateContext const& context, DebugTarget target );
 
         // Ends the current debug session
         void StopDebugging();
@@ -104,12 +122,14 @@ namespace EE::Animation
         UUID                                m_selectedNodePreUndoRedo;
 
         FileSystem::Path                    m_graphFilePath;
-        StringID                            m_selectedVariationID = GraphVariation::DefaultVariationID;
+        StringID                            m_selectedVariationID = Variation::s_defaultVariationID;
 
         Transform                           m_gizmoTransform;
         DebugMode                           m_debugMode = DebugMode::None;
 
         // Debug
+        EntityID                            m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
+        ComponentID                         m_debuggedComponentID;
         AnimationGraphComponent*            m_pDebugGraphComponent = nullptr;
         Render::SkeletalMeshComponent*      m_pDebugMeshComponent = nullptr;
         GraphInstance*                      m_pDebugGraphInstance = nullptr;

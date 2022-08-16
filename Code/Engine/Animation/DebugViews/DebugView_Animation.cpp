@@ -1,5 +1,6 @@
 #include "DebugView_Animation.h"
 #include "Engine/Animation/Systems/WorldSystem_Animation.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -11,7 +12,7 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Animation
 {
-    void AnimationDebugView::DrawGraphControlParameters( AnimationGraphComponent* pGraphComponent )
+    void AnimationDebugView::DrawGraphControlParameters( GraphInstance* pGraphInstance )
     {
         if ( ImGui::BeginTable( "ControlParametersTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
@@ -19,18 +20,18 @@ namespace EE::Animation
             ImGui::TableSetupColumn( "Value", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableHeadersRow();
 
-            int32_t const numControlParameters = pGraphComponent->m_pGraphInstance->GetNumControlParameters();
+            int32_t const numControlParameters = pGraphInstance->GetNumControlParameters();
             for ( int16_t i = 0; i < numControlParameters; i++ )
             {
-                StringID const nodeID = pGraphComponent->m_pGraphInstance->GetControlParameterID( i );
-                GraphValueType const valueType = pGraphComponent->m_pGraphInstance->GetControlParameterType( i );
+                StringID const nodeID = pGraphInstance->GetControlParameterID( i );
+                GraphValueType const valueType = pGraphInstance->GetControlParameterType( i );
 
                 InlineString stringValue;
                 switch ( valueType )
                 {
                     case GraphValueType::Bool:
                     {
-                        if ( pGraphComponent->m_pGraphInstance->GetControlParameterValue<bool>( i ) )
+                        if ( pGraphInstance->GetControlParameterValue<bool>( i ) )
                         {
                             stringValue = "True";
                         }
@@ -43,7 +44,7 @@ namespace EE::Animation
 
                     case GraphValueType::ID:
                     {
-                        StringID const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<StringID>( i );
+                        StringID const value = pGraphInstance->GetControlParameterValue<StringID>( i );
                         if ( value.IsValid() )
                         {
                             stringValue.sprintf( "%s", value.c_str() );
@@ -57,26 +58,26 @@ namespace EE::Animation
 
                     case GraphValueType::Int:
                     {
-                        stringValue.sprintf( "%d", pGraphComponent->m_pGraphInstance->GetControlParameterValue<int32_t>( i ) );
+                        stringValue.sprintf( "%d", pGraphInstance->GetControlParameterValue<int32_t>( i ) );
                     }
                     break;
 
                     case GraphValueType::Float:
                     {
-                        stringValue.sprintf( "%.3f", pGraphComponent->m_pGraphInstance->GetControlParameterValue<float>( i ) );
+                        stringValue.sprintf( "%.3f", pGraphInstance->GetControlParameterValue<float>( i ) );
                     }
                     break;
 
                     case GraphValueType::Vector:
                     {
-                        Vector const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<Vector>( i );
+                        Vector const value = pGraphInstance->GetControlParameterValue<Vector>( i );
                         stringValue = Math::ToString( value );
                     }
                     break;
 
                     case GraphValueType::Target:
                     {
-                        Target const value = pGraphComponent->m_pGraphInstance->GetControlParameterValue<Target>( i );
+                        Target const value = pGraphInstance->GetControlParameterValue<Target>( i );
                         if ( !value.IsTargetSet() )
                         {
                             stringValue = "Unset";
@@ -114,7 +115,9 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawTaskTreeRow( AnimationGraphComponent* pGraphComponent, TaskSystem* pTaskSystem, TaskIndex currentTaskIdx )
+    //-------------------------------------------------------------------------
+
+    void AnimationDebugView::DrawTaskTreeRow( TaskSystem* pTaskSystem, TaskIndex currentTaskIdx )
     {
         static const char* const stageLabels[] = { "ERROR!", "Pre-Physics", "Post-Physics" };
 
@@ -127,7 +130,7 @@ namespace EE::Animation
         {
             for ( auto taskIdx : pTask->GetDependencyIndices() )
             {
-                DrawTaskTreeRow( pGraphComponent, pTaskSystem, taskIdx );
+                DrawTaskTreeRow( pTaskSystem, taskIdx );
             }
 
             ImGui::TreePop();
@@ -135,7 +138,29 @@ namespace EE::Animation
         ImGui::PopStyleColor();
     }
 
-    void AnimationDebugView::DrawRootMotionRow( AnimationGraphComponent* pGraphComponent, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx )
+    void AnimationDebugView::DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance )
+    {
+        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        {
+            ImGui::Text( "No animation task debug to Show!" );
+            return;
+        }
+
+        // Always use the task system from the context as this is guaranteed to be set
+        auto pTaskSystem = pGraphInstance->m_graphContext.m_pTaskSystem;
+        if ( !pTaskSystem->HasTasks() )
+        {
+            ImGui::Text( "No Active Tasks" );
+            return;
+        }
+
+        TaskIndex const finalTask = (TaskIndex) pTaskSystem->m_tasks.size() - 1;
+        DrawTaskTreeRow( pTaskSystem, finalTask );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void AnimationDebugView::DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx )
     {
         static char const* const actionTypes[] = { "Error", "Sample", "External Graph", "Modify", "Blend" };
 
@@ -145,7 +170,7 @@ namespace EE::Animation
         if ( currentActionIdx != InvalidIndex )
         {
             pAction = &pRootMotionRecorder->GetRecordedActions()[currentActionIdx];
-            String const& nodePath = pGraphComponent->m_pGraphVariation->GetDefinition()->GetNodePath( pAction->m_nodeIdx );
+            String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( pAction->m_nodeIdx );
             rowLabel.sprintf( "%s - %s", actionTypes[(int32_t) pAction->m_actionType], nodePath.c_str() );
         }
         else
@@ -187,7 +212,7 @@ namespace EE::Animation
             {
                 for ( auto taskIdx : pAction->m_dependencies )
                 {
-                    DrawRootMotionRow( pGraphComponent, pRootMotionRecorder, taskIdx );
+                    DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, taskIdx );
                 }
             }
 
@@ -195,39 +220,18 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawGraphActiveTasksDebugView( AnimationGraphComponent* pGraphComponent )
+    void AnimationDebugView::DrawRootMotionDebugView( GraphInstance* pGraphInstance )
     {
-        if ( !pGraphComponent->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
         {
-            ImGui::Text( "Uninitialized Graph Component" );
+            ImGui::Text( "No root motion debug to Show!" );
             return;
         }
 
-        auto pTaskSystem = pGraphComponent->m_pTaskSystem;
-        if ( !pTaskSystem->HasTasks() )
-        {
-            ImGui::Text( "No Active Tasks" );
-            return;
-        }
-
-        // Tasks
-        //-------------------------------------------------------------------------
-
-        ImGuiX::TextSeparator( "Animation Tasks" );
-
-        TaskIndex const finalTask = (TaskIndex) pTaskSystem->m_tasks.size() - 1;
-        DrawTaskTreeRow( pGraphComponent, pTaskSystem, finalTask );
-
-        // Root Motion
-        //-------------------------------------------------------------------------
-        
-        ImGui::NewLine();
-        ImGuiX::TextSeparator( "Root Motion" );
-
-        RootMotionDebugger const* pRootMotionRecorder = pGraphComponent->m_pGraphInstance->GetRootMotionDebugger();
+        RootMotionDebugger const* pRootMotionRecorder = pGraphInstance->GetRootMotionDebugger();
         if ( pRootMotionRecorder->HasRecordedActions() )
         {
-            DrawRootMotionRow( pGraphComponent, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex() );
+            DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex() );
         }
         else
         {
@@ -235,11 +239,13 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawGraphSampledEventsView( AnimationGraphComponent* pGraphComponent )
+    //-------------------------------------------------------------------------
+
+    void AnimationDebugView::DrawGraphSampledEventsView( GraphInstance* pGraphInstance )
     {
-        if ( !pGraphComponent->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
         {
-            ImGui::Text( "Uninitialized Graph Component" );
+            ImGui::Text( "Nothing to Show!" );
             return;
         }
 
@@ -257,7 +263,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            auto const& sampledEvents = pGraphComponent->m_pGraphInstance->GetSampledEvents();
+            auto const& sampledEvents = pGraphInstance->GetSampledEvents();
             for ( auto const& sampledEvent : sampledEvents )
             {
                 ImGui::TableNextRow();
@@ -300,7 +306,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                String const& nodePath = pGraphComponent->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
+                String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
                 ImGui::Text( nodePath.c_str() );
 
                 ImGui::TableNextColumn();
@@ -495,7 +501,7 @@ namespace EE::Animation
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings) )
                     {
-                        DrawGraphControlParameters( pGraphComponent );
+                        DrawGraphControlParameters( pGraphComponent->m_pGraphInstance );
                     }
                     ImGui::End();
 
@@ -514,7 +520,7 @@ namespace EE::Animation
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {
-                        DrawGraphActiveTasksDebugView( pGraphComponent );
+                        DrawGraphActiveTasksDebugView( pGraphComponent->m_pGraphInstance );
                     }
                     ImGui::End();
 
@@ -533,7 +539,7 @@ namespace EE::Animation
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {
-                        DrawGraphSampledEventsView( pGraphComponent );
+                        DrawGraphSampledEventsView( pGraphComponent->m_pGraphInstance );
                     }
                     ImGui::End();
 

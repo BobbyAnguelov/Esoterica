@@ -1,12 +1,12 @@
 #include "EntityEditor_BaseWorkspace.h"
 
+#include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Navmesh/DebugViews/DebugView_Navmesh.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/PhysicsScene.h"
 #include "Engine/Physics/PhysicsLayers.h"
 #include "Engine/Physics/PhysicsMesh.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Entity/EntitySystem.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/FileSystem/FileSystem.h"
@@ -24,8 +24,8 @@
 
 namespace EE::EntityModel
 {
-    EntityEditorBaseWorkspace::EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EditorWorkspace( pToolsContext, pWorld )
+    EntityEditorBaseWorkspace::EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
+        : Workspace( pToolsContext, pWorld, resourceID )
         , m_context( pToolsContext, pWorld, m_undoStack )
         , m_entityOutliner( m_context )
         , m_entityInspector( m_context )
@@ -38,7 +38,7 @@ namespace EE::EntityModel
 
     void EntityEditorBaseWorkspace::Initialize( UpdateContext const& context )
     {
-        EditorWorkspace::Initialize( context );
+        Workspace::Initialize( context );
 
         m_volumeTypes = context.GetSystem<TypeSystem::TypeRegistry>()->GetAllDerivedTypes( VolumeComponent::GetStaticTypeID(), false, false, true );
 
@@ -49,7 +49,7 @@ namespace EE::EntityModel
 
     void EntityEditorBaseWorkspace::Shutdown( UpdateContext const& context )
     {
-        EditorWorkspace::Shutdown( context );
+        Workspace::Shutdown( context );
     }
 
     void EntityEditorBaseWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
@@ -119,11 +119,11 @@ namespace EE::EntityModel
             // Try add resource to map
             //-------------------------------------------------------------------------
 
-            DropResourceInMap( resourceID, worldPosition );
+            DropResourceInViewport( resourceID, worldPosition );
         }
     }
 
-    void EntityEditorBaseWorkspace::DropResourceInMap( ResourceID const& resourceID, Vector const& worldPosition )
+    void EntityEditorBaseWorkspace::DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition )
     {
         // Static Mesh Resource
         //-------------------------------------------------------------------------
@@ -460,7 +460,7 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityEditorBaseWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void EntityEditorBaseWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         m_context.Update( context );
 

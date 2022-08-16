@@ -1,13 +1,11 @@
 #pragma once
 
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
-{
-    class GraphVariation;
+{;
     class GraphInstance;
 }
 
@@ -22,7 +20,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const override;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 
     public:
@@ -39,10 +37,10 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        void TransferExternalData( GraphContext& context, GraphPoseNodeResult& result );
+        void TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result );
 
     private:
 
-        GraphInstance*          m_pExternalInstance = nullptr;
+        GraphInstance*          m_pGraphInstance = nullptr;
     };
 }

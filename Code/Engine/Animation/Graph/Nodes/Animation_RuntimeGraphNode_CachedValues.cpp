@@ -1,14 +1,13 @@
 #include "Animation_RuntimeGraphNode_CachedValues.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void CachedBoolNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CachedBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CachedBoolNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<CachedBoolNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void CachedBoolNode::InitializeInternal( GraphContext& context )
@@ -56,10 +55,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedIDNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CachedIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CachedIDNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<CachedIDNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void CachedIDNode::InitializeInternal( GraphContext& context )
@@ -107,10 +106,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedIntNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CachedIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CachedIntNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<CachedIntNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void CachedIntNode::InitializeInternal( GraphContext& context )
@@ -158,10 +157,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedFloatNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CachedFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CachedFloatNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<CachedFloatNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void CachedFloatNode::InitializeInternal( GraphContext& context )
@@ -219,10 +218,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedVectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CachedVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CachedVectorNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<CachedVectorNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void CachedVectorNode::InitializeInternal( GraphContext& context )
@@ -270,10 +269,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedTargetNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void CachedTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CachedTargetNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<CachedTargetNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void CachedTargetNode::InitializeInternal( GraphContext& context )

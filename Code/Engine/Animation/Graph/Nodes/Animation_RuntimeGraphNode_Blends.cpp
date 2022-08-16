@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_Blends.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Animation_RuntimeGraphNode_AnimationClip.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
@@ -69,17 +68,17 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ParameterizedBlendNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ParameterizedBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        EE_ASSERT( options == GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
+        EE_ASSERT( options == InstantiationOptions::NodeAlreadyCreated );
 
-        auto pNode = static_cast<ParameterizedBlendNode*>( nodePtrs[m_nodeIdx] );
-        SetNodePtrFromIndex( nodePtrs, m_inputParameterValueNodeIdx, pNode->m_pInputParameterValueNode );
+        auto pNode = static_cast<ParameterizedBlendNode*>( context.m_nodePtrs[m_nodeIdx] );
+        context.SetNodePtrFromIndex( m_inputParameterValueNodeIdx, pNode->m_pInputParameterValueNode );
 
         pNode->m_sourceNodes.reserve( m_sourceNodeIndices.size() );
         for ( auto sourceIdx : m_sourceNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, sourceIdx, pNode->m_sourceNodes.emplace_back() );
+            context.SetNodePtrFromIndex( sourceIdx, pNode->m_sourceNodes.emplace_back() );
         }
     }
 
@@ -269,13 +268,13 @@ namespace EE::Animation::GraphNodes
                 // Update Source 0
                 GraphPoseNodeResult const sourceResult0 = pSource0->Update( context );
                 #if EE_DEVELOPMENT_TOOLS
-                int16_t const rootMotionActionIdxSource0 = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+                int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
                 #endif
 
                 // Update Source 1
                 GraphPoseNodeResult const sourceResult1 = pSource1->Update( context );
                 #if EE_DEVELOPMENT_TOOLS
-                int16_t const rootMotionActionIdxSource1 = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+                int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
                 #endif
 
                 // Update internal time
@@ -291,7 +290,7 @@ namespace EE::Animation::GraphNodes
                     result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_blendWeight);
 
                     #if EE_DEVELOPMENT_TOOLS
-                    context.GetRootMotionActionRecorder()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
+                    context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
                     #endif
                 }
                 else // Keep the result that has a pose
@@ -370,13 +369,13 @@ namespace EE::Animation::GraphNodes
                 // Update Source 0
                 GraphPoseNodeResult const sourceResult0 = pSource0->Update( context, updateRange );
                 #if EE_DEVELOPMENT_TOOLS
-                int16_t const rootMotionActionIdxSource0 = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+                int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
                 #endif
 
                 // Update Source 1
                 GraphPoseNodeResult const sourceResult1 = pSource1->Update( context, updateRange );
                 #if EE_DEVELOPMENT_TOOLS
-                int16_t const rootMotionActionIdxSource1 = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+                int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
                 #endif
 
                 if ( sourceResult0.HasRegisteredTasks() && sourceResult1.HasRegisteredTasks() )
@@ -385,7 +384,7 @@ namespace EE::Animation::GraphNodes
                     result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_blendWeight );
 
                     #if EE_DEVELOPMENT_TOOLS
-                    context.GetRootMotionActionRecorder()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
+                    context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
                     #endif
                 }
                 else
@@ -410,18 +409,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void RangedBlendNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void RangedBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<RangedBlendNode>( nodePtrs, options );
-        ParameterizedBlendNode::Settings::InstantiateNode( nodePtrs, pDataSet, GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
+        auto pNode = CreateNode<RangedBlendNode>( context, options );
+        ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     //-------------------------------------------------------------------------
 
-    void VelocityBlendNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VelocityBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VelocityBlendNode>( nodePtrs, options );
-        ParameterizedBlendNode::Settings::InstantiateNode( nodePtrs, pDataSet, GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
+        auto pNode = CreateNode<VelocityBlendNode>( context, options );
+        ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void VelocityBlendNode::InitializeParameterization( GraphContext& context )

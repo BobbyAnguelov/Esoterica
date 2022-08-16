@@ -215,6 +215,7 @@ namespace EE::Animation
             inline String const& GetParameterName() const { return m_name; }
             void Rename( String const& name, String const& category );
 
+            inline StringID GetParameterID() const { return StringID( m_name ); }
             inline String const& GetParameterCategory() const { return m_parameterCategory; }
 
             virtual void Initialize( VisualGraph::BaseGraph* pParentGraph ) override;

@@ -148,7 +148,7 @@ namespace EE::Animation
             return CompilationFailed( ctx );
         }
 
-        StringID const variationID = resourceDescriptor.m_variationID.IsValid() ? resourceDescriptor.m_variationID : GraphVariation::DefaultVariationID;
+        StringID const variationID = resourceDescriptor.m_variationID.IsValid() ? resourceDescriptor.m_variationID : Variation::s_defaultVariationID;
         if ( !editorGraph.IsValidVariation( variationID ) )
         {
             return Error( "Invalid variation requested: %s", variationID.c_str() );
@@ -223,7 +223,7 @@ namespace EE::Animation
                 return false;
             }
 
-            StringID const variationID = resourceDescriptor.m_variationID.IsValid() ? resourceDescriptor.m_variationID : GraphVariation::DefaultVariationID;
+            StringID const variationID = resourceDescriptor.m_variationID.IsValid() ? resourceDescriptor.m_variationID : Variation::s_defaultVariationID;
             if ( !editorGraph.IsValidVariation( variationID ) )
             {
                 Error( "Invalid variation requested: %s", variationID.c_str() );
@@ -345,6 +345,12 @@ namespace EE::Animation
         {
             if ( dataRecord.IsValid() )
             {
+                if ( dataRecord.GetResourceID() == ctx.m_resourceID )
+                {
+                    Error( "Cyclic resource dependency detected!" );
+                    return false;
+                }
+
                 hdr.AddInstallDependency( dataRecord.GetResourceID() );
             }
         }

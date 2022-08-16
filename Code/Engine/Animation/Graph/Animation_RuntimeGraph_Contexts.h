@@ -17,21 +17,86 @@ namespace EE::Animation
     class RootMotionDebugger;
     class TaskSystem;
     class Pose;
+    class GraphNode;
+    class GraphDataSet;
+    class GraphInstance;
 
     //-------------------------------------------------------------------------
+    // Instantiation Context
+    //-------------------------------------------------------------------------
 
-    // Used to signify if a node or node output is coming from an active state (i.e. a state we are not transitioning away from)
-    enum class BranchState
+    enum class InstantiationOptions
     {
-        Active,
-        Inactive,
+        CreateNode,                 // Instruct the instantiate function to actually create the node
+        NodeAlreadyCreated          // Informs the instantiate function that the node has been created (via derived class) and so it should only get it's ptrs set
+    };
+
+    struct InstantiationContext final
+    {
+        template<typename T>
+        EE_FORCE_INLINE void SetNodePtrFromIndex( int16_t nodeIdx, T*& pTargetPtr ) const
+        {
+            EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+            pTargetPtr = static_cast<T*>( m_nodePtrs[nodeIdx] );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void SetNodePtrFromIndex( int16_t nodeIdx, T const*& pTargetPtr ) const
+        {
+            EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+            pTargetPtr = static_cast<T const*>( m_nodePtrs[nodeIdx] );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void SetOptionalNodePtrFromIndex( int16_t nodeIdx, T*& pTargetPtr ) const
+        {
+            if ( nodeIdx == InvalidIndex )
+            {
+                pTargetPtr = nullptr;
+            }
+            else
+            {
+                EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+                pTargetPtr = static_cast<T*>( m_nodePtrs[nodeIdx] );
+            }
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void SetOptionalNodePtrFromIndex( int16_t nodeIdx, T const*& pTargetPtr ) const
+        {
+            if ( nodeIdx == InvalidIndex )
+            {
+                pTargetPtr = nullptr;
+            }
+            else
+            {
+                EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+                pTargetPtr = static_cast<T const*>( m_nodePtrs[nodeIdx] );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        template<typename T>
+        EE_FORCE_INLINE T const* GetResource( int16_t const& ID ) const
+        {
+            return m_pDataSet->GetResource<T>( ID );
+        }
+
+    public:
+
+        TVector<GraphNode*> const&                  m_nodePtrs;
+        TInlineVector<GraphInstance*, 20> const&    m_childGraphInstances;
+        THashMap<StringID, int16_t> const&          m_parameterLookupMap;
+        GraphDataSet const*                         m_pDataSet;
+        uint64_t                                    m_userID;
     };
 
     //-------------------------------------------------------------------------
     // Layer Context
     //-------------------------------------------------------------------------
 
-    struct GraphLayerContext
+    struct GraphLayerContext final
     {
         EE_FORCE_INLINE bool IsSet() const { return m_isCurrentlyInLayer; }
 
@@ -60,6 +125,13 @@ namespace EE::Animation
     // Graph Context
     //-------------------------------------------------------------------------
 
+    // Used to signify if a node or node output is coming from an active state (i.e. a state we are not transitioning away from)
+    enum class BranchState
+    {
+        Active,
+        Inactive,
+    };
+
     class GraphContext final
     {
         friend class GraphInstance;
@@ -79,19 +151,21 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList );
-
         // Flag a node as active
         inline void TrackActiveNode( int16_t nodeIdx ) { EE_ASSERT( nodeIdx != InvalidIndex ); m_pActiveNodes->emplace_back( nodeIdx ); }
 
         // Root Motion
-        inline RootMotionDebugger* GetRootMotionActionRecorder() { return m_pRootMotionActionRecorder; }
+        inline RootMotionDebugger* GetRootMotionDebugger() { return m_pRootMotionDebugger; }
         #endif
 
     private:
 
         GraphContext( GraphContext const& ) = delete;
         GraphContext& operator=( GraphContext& ) = delete;
+
+        #if EE_DEVELOPMENT_TOOLS
+        void SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList );
+        #endif
 
     public:
 
@@ -117,7 +191,7 @@ namespace EE::Animation
     private:
 
         #if EE_DEVELOPMENT_TOOLS
-        RootMotionDebugger*                     m_pRootMotionActionRecorder = nullptr; // Allows nodes to record root motion operations
+        RootMotionDebugger*                     m_pRootMotionDebugger = nullptr; // Allows nodes to record root motion operations
         TVector<int16_t>*                       m_pActiveNodes = nullptr;
         #endif
     };

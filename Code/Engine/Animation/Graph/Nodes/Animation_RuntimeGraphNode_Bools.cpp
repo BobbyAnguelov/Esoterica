@@ -1,18 +1,17 @@
 #include "Animation_RuntimeGraphNode_Bools.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void AndNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void AndNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<AndNode>( nodePtrs, options );
+        auto pNode = CreateNode<AndNode>( context, options );
 
         pNode->m_conditionNodes.reserve( m_conditionNodeIndices.size() );
         for ( auto conditionNodeIdx : m_conditionNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, conditionNodeIdx, pNode->m_conditionNodes.emplace_back( nullptr ) );
+            context.SetNodePtrFromIndex( conditionNodeIdx, pNode->m_conditionNodes.emplace_back( nullptr ) );
         }
     }
 
@@ -66,14 +65,14 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void OrNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void OrNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<OrNode>( nodePtrs, options );
+        auto pNode = CreateNode<OrNode>( context, options );
 
         pNode->m_conditionNodes.reserve( m_conditionNodeIndices.size() );
         for ( auto conditionNodeIdx : m_conditionNodeIndices )
         {
-            SetNodePtrFromIndex( nodePtrs, conditionNodeIdx, pNode->m_conditionNodes.emplace_back( nullptr ) );
+            context.SetNodePtrFromIndex( conditionNodeIdx, pNode->m_conditionNodes.emplace_back( nullptr ) );
         }
     }
 
@@ -127,10 +126,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void NotNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void NotNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<NotNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_inputValueNodeIdx, pNode->m_pInputValueNode );
+        auto pNode = CreateNode<NotNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void NotNode::InitializeInternal( GraphContext& context )

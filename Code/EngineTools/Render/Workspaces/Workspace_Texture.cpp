@@ -12,7 +12,7 @@ namespace EE::Render
 
     void TextureWorkspace::Initialize( UpdateContext const& context )
     {
-        TResourceWorkspace<Texture>::Initialize( context );
+        TWorkspace<Texture>::Initialize( context );
         m_previewWindowName.sprintf( "Preview##%u", GetID() );
         m_infoWindowName.sprintf( "Info##%u", GetID() );
     }
@@ -28,7 +28,7 @@ namespace EE::Render
         ImGui::DockBuilderDockWindow( m_infoWindowName.c_str(), bottomDockID );
     }
 
-    void TextureWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void TextureWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_previewWindowName.c_str() ) )

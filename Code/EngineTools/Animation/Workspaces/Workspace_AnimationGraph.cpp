@@ -18,19 +18,8 @@
 
 namespace EE::Animation
 {
-    EE_RESOURCE_WORKSPACE_FACTORY( AnimationGraphEditorFactory, GraphDefinition, AnimationGraphWorkspace );
-
-    //-------------------------------------------------------------------------
-
-    static InlineString GenerateFilePathForVariation( FileSystem::Path const& graphPath, StringID variationID )
-    {
-        FileSystem::Path const parentDirectory = graphPath.GetParentDirectory();
-        String const filenameNoExtension = graphPath.GetFileNameWithoutExtension();
-
-        InlineString variationPathStr;
-        variationPathStr.sprintf( "%s%s_%s.agv", parentDirectory.c_str(), filenameNoExtension.c_str(), variationID.c_str() );
-        return variationPathStr;
-    }
+    EE_RESOURCE_WORKSPACE_FACTORY( AnimationGraphWorkspaceFactory, GraphDefinition, AnimationGraphWorkspace );
+    EE_RESOURCE_WORKSPACE_FACTORY( AnimationGraphVariationWorkspaceFactory, GraphVariation, AnimationGraphWorkspace );
 
     //-------------------------------------------------------------------------
 
@@ -88,15 +77,43 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    bool AnimationGraphWorkspace::DebugTarget::IsValid() const
+    {
+        switch ( m_type )
+        {
+            case DebugTargetType::MainGraph:
+            {
+                return m_pComponentToDebug != nullptr;
+            }
+            break;
+
+            case DebugTargetType::ChildGraph:
+            {
+                return m_pComponentToDebug != nullptr && m_childGraphNodeIdx != InvalidIndex;
+            }
+            break;
+
+            case DebugTargetType::ExternalGraph:
+            {
+                return m_pComponentToDebug != nullptr && m_externalSlotID.IsValid();
+            }
+            break;
+
+            default: return true; break;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     AnimationGraphWorkspace::AnimationGraphWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : TResourceWorkspace<GraphDefinition>( pToolsContext, pWorld, resourceID, false )
+        : TWorkspace<GraphDefinition>( pToolsContext, pWorld, Variation::GetGraphResourceID( resourceID ), false)
         , m_editorContext( *pToolsContext )
         , m_propertyGrid( m_pToolsContext )
     {
         // Load graph from descriptor
         //-------------------------------------------------------------------------
 
-        m_graphFilePath = GetFileSystemPath( resourceID.GetResourcePath() );
+        m_graphFilePath = GetFileSystemPath( m_pResource.GetResourcePath() );
         if ( m_graphFilePath.IsValid() )
         {
             bool graphLoadFailed = false;
@@ -168,6 +185,13 @@ namespace EE::Animation
 
         m_navigateToNodeEventBindingID = m_editorContext.OnNavigateToNode().Bind( [this] ( VisualGraph::BaseNode* pNode ) { m_graphEditor.NavigateTo( pNode ); } );
         m_navigateToGraphEventBindingID = m_editorContext.OnNavigateToGraph().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { m_graphEditor.NavigateTo( pGraph ); } );
+
+        //-------------------------------------------------------------------------
+
+        if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
+        {
+            m_editorContext.TrySetSelectedVariation( Variation::GetVariationNameFromResourceID( resourceID ) );
+        }
     }
 
     AnimationGraphWorkspace::~AnimationGraphWorkspace()
@@ -189,7 +213,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::Initialize( UpdateContext const& context )
     {
-        TResourceWorkspace<GraphDefinition>::Initialize( context );
+        TWorkspace<GraphDefinition>::Initialize( context );
 
         m_controlParametersWindowName.sprintf( "Control Parameters##%u", GetID() );
         m_graphViewWindowName.sprintf( "Graph View##%u", GetID() );
@@ -218,7 +242,7 @@ namespace EE::Animation
         ImGui::DockBuilderDockWindow( m_compilationLogWindowName.c_str(), bottomLeftDockID );
     }
 
-    void AnimationGraphWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void AnimationGraphWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         m_nodeContext.m_currentVariationID = m_selectedVariationID;
 
@@ -311,7 +335,7 @@ namespace EE::Animation
         {
             if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Graph", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
             {
-                StartDebugging( context, nullptr );
+                StartDebugging( context, DebugTarget() );
             }
         }
 
@@ -328,7 +352,7 @@ namespace EE::Animation
         // Live Game Debugging
         //-------------------------------------------------------------------------
 
-        ImGui::BeginDisabled( !m_pToolsContext->IsGameRunning() || IsDebugging() );
+        ImGui::BeginDisabled( IsDebugging() );
 
         ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::LimeGreen ).Value );
         bool const drawMenu = ImGui::BeginMenu( EE_ICON_CONNECTION"##DebugTargetsMenu" );
@@ -468,7 +492,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        TResourceWorkspace<GraphDefinition>::DrawViewportOverlayElements( context, pViewport );
+        TWorkspace<GraphDefinition>::DrawViewportOverlayElements( context, pViewport );
 
         // Check if we have a target parameter selected
         GraphNodes::TargetControlParameterEditorNode* pSelectedTargetControlParameter = nullptr;
@@ -598,7 +622,7 @@ namespace EE::Animation
                 resourceDesc.m_graphPath = GetResourcePath( m_graphFilePath );
                 resourceDesc.m_variationID = variation.m_ID;
 
-                InlineString const variationPathStr = GenerateFilePathForVariation( m_graphFilePath, variation.m_ID );
+                String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID );
                 FileSystem::Path const variationPath( variationPathStr.c_str() );
 
                 Resource::ResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, variationPath, &resourceDesc );
@@ -618,7 +642,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::PreUndoRedo( UndoStack::Operation operation )
     {
-        TResourceWorkspace<GraphDefinition>::PreUndoRedo( operation );
+        TWorkspace<GraphDefinition>::PreUndoRedo( operation );
 
         auto pSelectedNode = TryCast<VisualGraph::BaseNode>( m_propertyGrid.GetEditedType() );
         if ( pSelectedNode != nullptr )
@@ -642,12 +666,12 @@ namespace EE::Animation
 
         m_graphEditor.OnUndoRedo();
 
-        TResourceWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
+        TWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
     }
 
     //-------------------------------------------------------------------------
 
-    void AnimationGraphWorkspace::UpdateWorld( EntityWorldUpdateContext const& updateContext )
+    void AnimationGraphWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
     {
         if ( IsPreviewing() )
         {
@@ -683,8 +707,23 @@ namespace EE::Animation
         }
         else if ( IsLiveDebugging() )
         {
-            // Check if the game we are connected to is still running
-            if ( !m_pToolsContext->IsGameRunning() )
+            // Check if the entity we are debugging still exists
+            auto pDebuggedEntity = m_pToolsContext->TryFindEntityInAllWorlds( m_debuggedEntityID );
+            if ( pDebuggedEntity == nullptr )
+            {
+                StopDebugging();
+                return;
+            }
+
+            // Check that the component still exists on the entity
+            if ( pDebuggedEntity->FindComponent( m_debuggedComponentID ) == nullptr )
+            {
+                StopDebugging();
+                return;
+            }
+
+            // Ensure we still have a valid graph instance
+            if ( !m_pDebugGraphComponent->HasGraphInstance() )
             {
                 StopDebugging();
                 return;
@@ -742,14 +781,17 @@ namespace EE::Animation
     }
 
     //-------------------------------------------------------------------------
+    // Debugging
+    //-------------------------------------------------------------------------
 
-    void AnimationGraphWorkspace::StartDebugging( UpdateContext const& context, AnimationGraphComponent* pTargetDebugComponent, StringID externalGraphSlotID )
+    void AnimationGraphWorkspace::StartDebugging( UpdateContext const& context, DebugTarget target )
     {
         EE_ASSERT( !IsDebugging() );
         EE_ASSERT( m_pPreviewEntity == nullptr );
         EE_ASSERT( m_pDebugGraphComponent == nullptr && m_pDebugGraphInstance == nullptr );
+        EE_ASSERT( target.IsValid() );
 
-        bool const isPreviewDebugSessionRequested = pTargetDebugComponent == nullptr;
+        bool const isPreviewDebugSessionRequested = ( target.m_type == DebugTargetType::None );
 
         // Try to compile the graph
         //-------------------------------------------------------------------------
@@ -765,38 +807,10 @@ namespace EE::Animation
             return;
         }
 
-        // Optional: Create preview graph component
+        // Create preview entity
         //-------------------------------------------------------------------------
 
-        if ( isPreviewDebugSessionRequested )
-        {
-            // Save the graph changes
-            // Ensure that we save the graph and re-generate the dataset on preview
-            Save();
-
-            // Create Preview Graph Component
-            InlineString const variationPathStr = GenerateFilePathForVariation( m_graphFilePath, m_selectedVariationID );
-            ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
-
-            m_pDebugGraphComponent = EE::New<AnimationGraphComponent>( StringID( "Animation Component" ) );
-            m_pDebugGraphComponent->SetGraphVariation( graphVariationResourceID );
-            m_pDebugGraphInstance = nullptr; // This will be set later when the component initializes
-        }
-        else // Use the supplied component
-        {
-            m_pDebugGraphComponent = pTargetDebugComponent;
-            if ( externalGraphSlotID.IsValid() )
-            {
-                m_debugExternalGraphSlotID = externalGraphSlotID;
-                auto pPrimaryInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                m_pDebugGraphInstance = const_cast<GraphInstance*>( pPrimaryInstance->GetExternalGraphDebugInstance( externalGraphSlotID ) );
-                EE_ASSERT( m_pDebugGraphInstance != nullptr );
-            }
-            else
-            {
-                m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-            }
-        }
+        m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
 
         // Try Create Preview Mesh Component
         //-------------------------------------------------------------------------
@@ -814,21 +828,75 @@ namespace EE::Animation
                 m_pDebugMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
                 m_pDebugMeshComponent->SetSkeleton( pVariation->m_pSkeleton.GetResourceID() );
                 m_pDebugMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
+                m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
             }
         }
 
-        // Create preview entity
+        // Set debug component data
         //-------------------------------------------------------------------------
 
-        // Add additional components/systems needed when previewing
-        m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
-        m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
-
+        // If previewing, create the component
         if ( isPreviewDebugSessionRequested )
         {
+            // Save the graph changes
+            // Ensure that we save the graph and re-generate the dataset on preview
+            Save();
+
+            // Create Preview Graph Component
+            String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, m_selectedVariationID );
+            ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
+
+            m_pDebugGraphComponent = EE::New<AnimationGraphComponent>( StringID( "Animation Component" ) );
+            m_pDebugGraphComponent->SetGraphVariation( graphVariationResourceID );
+            m_pDebugGraphInstance = nullptr; // This will be set later when the component initializes
+
             m_pPreviewEntity->AddComponent( m_pDebugGraphComponent );
             m_pPreviewEntity->CreateSystem<AnimationSystem>();
+
+            m_debuggedEntityID = m_pPreviewEntity->GetID();
+            m_debuggedComponentID = m_pDebugGraphComponent->GetID();
         }
+        else // Use the supplied target
+        {
+            m_pDebugGraphComponent = target.m_pComponentToDebug;
+            m_debuggedEntityID = m_pDebugGraphComponent->GetEntityID();
+            m_debuggedComponentID = m_pDebugGraphComponent->GetID();
+
+            switch ( target.m_type )
+            {
+                case DebugTargetType::MainGraph:
+                {
+                    m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                }
+                break;
+
+                case DebugTargetType::ChildGraph:
+                {
+                    auto pPrimaryInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( pPrimaryInstance->GetChildGraphDebugInstance( target.m_childGraphNodeIdx ) );
+                    EE_ASSERT( m_pDebugGraphInstance != nullptr );
+                }
+                break;
+
+                case DebugTargetType::ExternalGraph:
+                {
+                    m_debugExternalGraphSlotID = target.m_externalSlotID;
+                    auto pPrimaryInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( pPrimaryInstance->GetExternalGraphDebugInstance( m_debugExternalGraphSlotID ) );
+                    EE_ASSERT( m_pDebugGraphInstance != nullptr );
+                }
+                break;
+
+                default: 
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+        }
+
+        // Add preview entity to the World
+        //-------------------------------------------------------------------------
 
         AddEntityToWorld( m_pPreviewEntity );
 
@@ -981,13 +1049,18 @@ namespace EE::Animation
     {
         if ( ImGui::Begin( m_debuggerWindowName.c_str() ) )
         {
-            if ( IsDebugging() && m_pDebugGraphComponent->IsInitialized() )
+            if ( IsDebugging() && m_pDebugGraphInstance != nullptr && m_pDebugGraphInstance->IsInitialized() )
             {
-                AnimationDebugView::DrawGraphActiveTasksDebugView( m_pDebugGraphComponent );
+                ImGuiX::TextSeparator( "Pose Tasks" );
+                AnimationDebugView::DrawGraphActiveTasksDebugView( m_pDebugGraphInstance );
+
+                ImGui::NewLine();
+                ImGuiX::TextSeparator( "Root Motion" );
+                AnimationDebugView::DrawRootMotionDebugView( m_pDebugGraphInstance );
 
                 ImGui::NewLine();
                 ImGuiX::TextSeparator( "Events" );
-                AnimationDebugView::DrawGraphSampledEventsView( m_pDebugGraphComponent );
+                AnimationDebugView::DrawGraphSampledEventsView( m_pDebugGraphInstance );
             }
             else
             {
@@ -999,44 +1072,72 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawLiveDebugTargetsMenu( UpdateContext const& context )
     {
-        EE_ASSERT( m_pToolsContext->IsGameRunning() );
-
-        auto pGameWorld = m_pToolsContext->GetGameWorld();
-        auto pWorldSystem = pGameWorld->GetWorldSystem<AnimationWorldSystem>();
-        auto const& graphComponents = pWorldSystem->GetRegisteredGraphComponents();
-
         bool hasTargets = false;
-
-        for ( AnimationGraphComponent* pGraphComponent : graphComponents )
+        auto const debugWorlds = m_pToolsContext->GetAllWorlds();
+        for ( auto pWorld : m_pToolsContext->GetAllWorlds() )
         {
-            // Check main instance
-            GraphInstance const* pGraphInstance = pGraphComponent->GetDebugGraphInstance();
-            if ( pGraphInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
-            {
-                Entity const* pEntity = pGameWorld->FindEntity( pGraphComponent->GetEntityID() );
-                InlineString const targetName( InlineString::CtorSprintf(), "Component: '%s' on Entity: '%s'", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
-                if ( ImGui::MenuItem( targetName.c_str() ) )
-                {
-                    StartDebugging( context, pGraphComponent );
-                }
+            auto pWorldSystem = pWorld->GetWorldSystem<AnimationWorldSystem>();
+            auto const& graphComponents = pWorldSystem->GetRegisteredGraphComponents();
 
-                hasTargets = true;
-            }
-
-            // Check external graph instances
-            auto const& connectedExternalGraphs = pGraphInstance->GetConnectedExternalGraphsForDebug();
-            for ( auto const& connectedExternalGraph : connectedExternalGraphs )
+            for ( AnimationGraphComponent* pGraphComponent : graphComponents )
             {
-                if ( connectedExternalGraph.m_pInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
+                // Check main instance
+                GraphInstance const* pGraphInstance = pGraphComponent->GetDebugGraphInstance();
+                if ( pGraphInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
                 {
-                    Entity const* pEntity = pGameWorld->FindEntity( pGraphComponent->GetEntityID() );
-                    InlineString const targetName( InlineString::CtorSprintf(), "Slot '%s' on Component: '%s' on Entity: '%s'", connectedExternalGraph.m_slotID.c_str(), pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                    Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
+                    InlineString const targetName( InlineString::CtorSprintf(), "Component: '%s' on Entity: '%s'", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
                     if ( ImGui::MenuItem( targetName.c_str() ) )
                     {
-                        StartDebugging( context, pGraphComponent, connectedExternalGraph.m_slotID );
+                        DebugTarget target;
+                        target.m_type = DebugTargetType::MainGraph;
+                        target.m_pComponentToDebug = pGraphComponent;
+                        StartDebugging( context, target );
                     }
 
                     hasTargets = true;
+                }
+
+                // Check child graph instances
+                auto const& childGraphs = pGraphInstance->GetChildGraphsForDebug();
+                for ( auto const& childGraph : childGraphs )
+                {
+                    if ( childGraph.m_pInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
+                    {
+                        Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "Component: '%s' on Entity: '%s'", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                        if ( ImGui::MenuItem( targetName.c_str() ) )
+                        {
+                            DebugTarget target;
+                            target.m_type = DebugTargetType::ChildGraph;
+                            target.m_pComponentToDebug = pGraphComponent;
+                            target.m_childGraphNodeIdx = childGraph.m_nodeIdx;
+                            StartDebugging( context, target );
+                        }
+
+                        hasTargets = true;
+                    }
+                }
+
+                // Check external graph instances
+                auto const& externalGraphs = pGraphInstance->GetExternalGraphsForDebug();
+                for ( auto const& externalGraph : externalGraphs )
+                {
+                    if ( externalGraph.m_pInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
+                    {
+                        Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "Slot '%s' on Component: '%s' on Entity: '%s'", externalGraph.m_slotID.c_str(), pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                        if ( ImGui::MenuItem( targetName.c_str() ) )
+                        {
+                            DebugTarget target;
+                            target.m_type = DebugTargetType::ExternalGraph;
+                            target.m_pComponentToDebug = pGraphComponent;
+                            target.m_externalSlotID = externalGraph.m_slotID;
+                            StartDebugging( context, target );
+                        }
+
+                        hasTargets = true;
+                    }
                 }
             }
         }

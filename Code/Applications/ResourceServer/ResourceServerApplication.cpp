@@ -4,14 +4,14 @@
 #include "System/Time/Timers.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/Imgui/Platform/ImguiPlatform_win32.h"
+#include "System/Platform/PlatformHelpers_Win32.h"
 #include "System/IniFile.h"
 #include <tchar.h>
+#include <shobjidl_core.h>
 
 #if EE_ENABLE_LPP
-#include "LPP_API.h"
+#include "LPP_API_x64_CPP.h"
 #endif
-#include <shobjidl_core.h>
-#include "System/Platform/PlatformHelpers_Win32.h"
 
 //-------------------------------------------------------------------------
 
@@ -264,8 +264,8 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
     //-------------------------------------------------------------------------
 
     #if EE_ENABLE_LPP
-    //HMODULE livePP = lpp::lppLoadAndRegister( L"../../External/LivePP", "Quickstart" );
-    //lpp::lppEnableAllCallingModulesSync( livePP );
+    //auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"" );
+    //lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_NONE );
     #endif
 
     //-------------------------------------------------------------------------
@@ -278,5 +278,12 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
 
     ReleaseMutex( pSingletonMutex );
     CloseHandle( pSingletonMutex );
+
+    //-------------------------------------------------------------------------
+
+    #if EE_ENABLE_LPP
+    //lpp::LppDestroyDefaultAgent( &lppAgent );
+    #endif
+
     return result;
 }

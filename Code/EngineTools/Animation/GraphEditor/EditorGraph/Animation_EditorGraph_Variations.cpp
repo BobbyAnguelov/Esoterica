@@ -6,6 +6,44 @@
 
 namespace EE::Animation
 {
+    EE::StringID const Variation::s_defaultVariationID( "Default" );
+
+    //-------------------------------------------------------------------------
+
+    String Variation::GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID )
+    {
+        FileSystem::Path const parentDirectory = graphPath.GetParentDirectory();
+        String const filenameNoExtension = graphPath.GetFileNameWithoutExtension();
+        return String( String::CtorSprintf(), "%s%s%c%s.agv", parentDirectory.c_str(), filenameNoExtension.c_str(), s_graphPathDelimiter, variationID.c_str() );
+    }
+
+    String Variation::GetVariationNameFromResourceID( ResourceID const& resourceID )
+    {
+        EE_ASSERT( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+        String const name = resourceID.GetResourcePath().GetFileNameWithoutExtension();
+        size_t const delimiterIdx = name.find_last_of( s_graphPathDelimiter );
+        EE_ASSERT( delimiterIdx != String::npos );
+        return name.substr( delimiterIdx + 1 );
+    }
+
+    ResourceID Variation::GetGraphResourceID( ResourceID const& resourceID )
+    {
+        if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
+        {
+            String const name = resourceID.GetResourcePath().GetFileNameWithoutExtension();
+            size_t const delimiterIdx = name.find_last_of( s_graphPathDelimiter );
+            EE_ASSERT( delimiterIdx != String::npos );
+            String const newResourcePath( String::CtorSprintf(), "%s%s.%s", resourceID.GetResourcePath().GetParentDirectory().c_str(), name.substr( 0, delimiterIdx ).c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
+            return ResourceID( newResourcePath );
+        }
+        else
+        {
+            return resourceID;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     VariationHierarchy::VariationHierarchy()
     {
         Reset();
@@ -16,7 +54,7 @@ namespace EE::Animation
         m_variations.clear();
 
         auto& defaultVariation = m_variations.emplace_back();
-        defaultVariation.m_ID = GraphVariation::DefaultVariationID;
+        defaultVariation.m_ID = Variation::s_defaultVariationID;
     }
 
     Variation* VariationHierarchy::GetVariation( StringID variationID )
@@ -40,7 +78,7 @@ namespace EE::Animation
         StringID const parentID = m_variations[variationIdx].m_parentID;
         if ( !parentID.IsValid() )
         {
-            EE_ASSERT( variationID == GraphVariation::DefaultVariationID );
+            EE_ASSERT( variationID == Variation::s_defaultVariationID );
         }
 
         return parentID;
@@ -78,7 +116,7 @@ namespace EE::Animation
     void VariationHierarchy::RenameVariation( StringID oldVariationID, StringID newVariationID )
     {
         EE_ASSERT( oldVariationID.IsValid() && newVariationID.IsValid() );
-        EE_ASSERT( oldVariationID != GraphVariation::DefaultVariationID && newVariationID != GraphVariation::DefaultVariationID );
+        EE_ASSERT( oldVariationID != Variation::s_defaultVariationID && newVariationID != Variation::s_defaultVariationID );
         EE_ASSERT( IsValidVariation( oldVariationID ) );
         EE_ASSERT( !IsValidVariation( newVariationID ) );
 
@@ -100,7 +138,7 @@ namespace EE::Animation
 
     void VariationHierarchy::DestroyVariation( StringID variationID )
     {
-        EE_ASSERT( variationID != GraphVariation::DefaultVariationID );
+        EE_ASSERT( variationID != Variation::s_defaultVariationID );
 
         // Delete the specified variation
         int32_t const variationIdx = GetVariationIndex( variationID );
@@ -113,7 +151,7 @@ namespace EE::Animation
             bool variationRemoved = false;
             for ( int32_t i = (int32_t) m_variations.size() - 1; i >= 0; i-- )
             {
-                if ( m_variations[i].m_ID == GraphVariation::DefaultVariationID )
+                if ( m_variations[i].m_ID == Variation::s_defaultVariationID )
                 {
                     continue;
                 }

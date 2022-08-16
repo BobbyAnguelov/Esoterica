@@ -214,10 +214,7 @@
     <ClCompile Include="Core\Widgets\TreeListView.cpp">
       <Filter>Core\Widgets</Filter>
     </ClCompile>
-    <ClCompile Include="Core\Workspaces\EditorWorkspace.cpp">
-      <Filter>Core\Workspaces</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\Workspaces\ResourceWorkspace.cpp">
+    <ClCompile Include="Core\Workspace.cpp">
       <Filter>Core\Workspaces</Filter>
     </ClCompile>
     <ClCompile Include="Navmesh\NavmeshGenerator.cpp">
@@ -340,6 +337,8 @@
     <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp" />
     <ClCompile Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ExternalGraph.cpp" />
+    <ClCompile Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ChildGraph.cpp" />
+    <ClCompile Include="Entity\EntitySerializationTools.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource\RawFileInspector.h">
@@ -570,10 +569,7 @@
     <ClInclude Include="Core\Widgets\TreeListView.h">
       <Filter>Core\Widgets</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Workspaces\EditorWorkspace.h">
-      <Filter>Core\Workspaces</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Workspaces\ResourceWorkspace.h">
+    <ClInclude Include="Core\Workspace.h">
       <Filter>Core\Workspaces</Filter>
     </ClInclude>
     <ClInclude Include="Navmesh\NavmeshGenerator.h">
@@ -731,6 +727,10 @@
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
     <ClInclude Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ExternalGraph.h" />
+    <ClInclude Include="Animation\GraphEditor\EditorGraph\Nodes\Animation_EditorGraphNode_ChildGraph.h" />
+    <ClInclude Include="Entity\EntitySerializationTools.h" />
+    <ClInclude Include="Entity\ResourceDescriptors\ResourceDescriptor_Map.h" />
+    <ClInclude Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityCollection.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

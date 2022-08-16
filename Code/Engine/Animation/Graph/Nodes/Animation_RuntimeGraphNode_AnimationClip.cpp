@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_AnimationClip.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
@@ -11,12 +10,11 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void AnimationClipNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void AnimationClipNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<AnimationClipNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
-
-        pNode->m_pAnimation = pDataSet->GetResource<AnimationClip>( m_dataSlotIdx );
+        auto pNode = CreateNode<AnimationClipNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
+        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
     }
 
     bool AnimationClipNode::IsValid() const
@@ -228,7 +226,7 @@ namespace EE::Animation::GraphNodes
             }
 
             #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionActionRecorder()->RecordSampling( GetNodeIndex(), result.m_rootMotionDelta );
+            context.GetRootMotionDebugger()->RecordSampling( GetNodeIndex(), result.m_rootMotionDelta );
             #endif
         }
 

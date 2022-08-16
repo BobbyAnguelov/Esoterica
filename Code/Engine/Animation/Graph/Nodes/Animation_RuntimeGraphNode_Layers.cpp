@@ -9,15 +9,15 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void LayerBlendNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void LayerBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<LayerBlendNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_baseNodeIdx, pNode->m_pBaseLayerNode );
+        auto pNode = CreateNode<LayerBlendNode>( context, options );
+        context.SetNodePtrFromIndex( m_baseNodeIdx, pNode->m_pBaseLayerNode );
 
         for ( auto const& layerSettings : m_layerSettings )
         {
             StateMachineNode*& pLayerNode = pNode->m_layers.emplace_back();
-            SetNodePtrFromIndex( nodePtrs, layerSettings.m_layerNodeIdx, pLayerNode );
+            context.SetNodePtrFromIndex( layerSettings.m_layerNodeIdx, pLayerNode );
         }
     }
 
@@ -112,7 +112,7 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pBaseLayerNode->GetDuration();
 
             #if EE_DEVELOPMENT_TOOLS
-            m_rootMotionActionIdxBase = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+            m_rootMotionActionIdxBase = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update the layers
@@ -150,7 +150,7 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pBaseLayerNode->GetDuration();
 
             #if EE_DEVELOPMENT_TOOLS
-            m_rootMotionActionIdxBase = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+            m_rootMotionActionIdxBase = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update the layers
@@ -216,7 +216,7 @@ namespace EE::Animation::GraphNodes
             }
 
             #if EE_DEVELOPMENT_TOOLS
-            rootMotionActionIdxLayer = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+            rootMotionActionIdxLayer = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Register the layer blend tasks
@@ -233,8 +233,8 @@ namespace EE::Animation::GraphNodes
                     nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, layerResult.m_rootMotionDelta, context.m_layerContext.m_layerWeight, blendMode );
 
                     #if EE_DEVELOPMENT_TOOLS
-                    context.GetRootMotionActionRecorder()->RecordBlend( GetNodeIndex(), rootMotionActionIdxCurrentBase, rootMotionActionIdxLayer, nodeResult.m_rootMotionDelta );
-                    rootMotionActionIdxCurrentBase = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+                    context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxCurrentBase, rootMotionActionIdxLayer, nodeResult.m_rootMotionDelta );
+                    rootMotionActionIdxCurrentBase = context.GetRootMotionDebugger()->GetLastActionIndex();
                     #endif
 
                 }

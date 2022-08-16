@@ -24,7 +24,6 @@ namespace EE::Animation
 
     void GraphContext::Initialize( TaskSystem* pTaskSystem )
     {
-
         EE_ASSERT( m_pTaskSystem == nullptr && m_pPreviousPose == nullptr );
         EE_ASSERT( pTaskSystem != nullptr );
         m_pTaskSystem = pTaskSystem;
@@ -52,13 +51,13 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     void GraphContext::SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList )
     {
-        EE_ASSERT( m_pRootMotionActionRecorder == nullptr );
+        EE_ASSERT( m_pRootMotionDebugger == nullptr );
         EE_ASSERT( m_pActiveNodes == nullptr );
 
-        m_pRootMotionActionRecorder = pRootMotionRecorder;
+        m_pRootMotionDebugger = pRootMotionRecorder;
         m_pActiveNodes = pActiveNodesList;
 
-        EE_ASSERT( m_pRootMotionActionRecorder != nullptr );
+        EE_ASSERT( m_pRootMotionDebugger != nullptr );
         EE_ASSERT( m_pActiveNodes != nullptr );
     }
     #endif

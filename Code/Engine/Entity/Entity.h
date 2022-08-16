@@ -16,8 +16,9 @@ namespace EE
     namespace EntityModel
     {
         struct ActivationContext;
-        struct EntityDescriptor;
-        class EntityCollectionDescriptor;
+        struct SerializedEntityDescriptor;
+        class SerializedEntityCollection;
+        struct Serializer;
     }
 
     //-------------------------------------------------------------------------
@@ -37,8 +38,8 @@ namespace EE
         EE_REGISTER_TYPE( Entity );
 
         friend class EntityWorld;
+        friend EntityModel::Serializer;
         friend EntityModel::EntityMap;
-        friend EntityModel::EntityCollectionDescriptor;
         friend EntityModel::EntityMapEditor;
         template<typename T> friend struct TEntityAccessor;
 
@@ -89,9 +90,6 @@ namespace EE
             Activated,
         };
 
-        // Create a new entity from an entity descriptor
-        static Entity* CreateFromDescriptor( TypeSystem::TypeRegistry const& typeRegistry, EntityModel::EntityDescriptor const& entityDesc );
-
         // Event that's fired whenever a component/system is actually added or removed
         static TEventHandle<Entity*> OnEntityUpdated() { return s_entityUpdatedEvent; }
 
@@ -115,9 +113,6 @@ namespace EE
         inline EntityMapID const& GetMapID() const { return m_mapID; }
         inline uint32_t GetNumComponents() const { return (uint32_t) m_components.size(); }
         inline uint32_t GetNumSystems() const { return (uint32_t) m_systems.size(); }
-
-        // Creates a descriptor for this entity
-        bool CreateDescriptor( TypeSystem::TypeRegistry const& typeRegistry, EntityModel::EntityDescriptor& outDesc ) const;
 
         // Spatial Info
         //-------------------------------------------------------------------------

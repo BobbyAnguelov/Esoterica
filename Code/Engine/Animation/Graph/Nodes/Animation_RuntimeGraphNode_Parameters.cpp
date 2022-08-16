@@ -1,13 +1,12 @@
 #include "Animation_RuntimeGraphNode_Parameters.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void ControlParameterBoolNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ControlParameterBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterBoolNode>( nodePtrs, options );
+        auto pNode = CreateNode<ControlParameterBoolNode>( context, options );
     }
 
     void ControlParameterBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -22,9 +21,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterIDNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ControlParameterIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterIDNode>( nodePtrs, options );
+        auto pNode = CreateNode<ControlParameterIDNode>( context, options );
     }
 
     void ControlParameterIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -39,9 +38,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterIntNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ControlParameterIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterIntNode>( nodePtrs, options );
+        auto pNode = CreateNode<ControlParameterIntNode>( context, options );
     }
 
     void ControlParameterIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -56,9 +55,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterFloatNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ControlParameterFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterFloatNode>( nodePtrs, options );
+        auto pNode = CreateNode<ControlParameterFloatNode>( context, options );
     }
 
     void ControlParameterFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -73,9 +72,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterVectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ControlParameterVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterVectorNode>( nodePtrs, options );
+        auto pNode = CreateNode<ControlParameterVectorNode>( context, options );
     }
 
     void ControlParameterVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -90,9 +89,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterTargetNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ControlParameterTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterTargetNode>( nodePtrs, options );
+        auto pNode = CreateNode<ControlParameterTargetNode>( context, options );
     }
 
     void ControlParameterTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -107,10 +106,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterBoolNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterBoolNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterBoolNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterBoolNode::InitializeInternal( GraphContext& context )
@@ -135,10 +134,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterIDNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterIDNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterIDNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterIDNode::InitializeInternal( GraphContext& context )
@@ -163,10 +162,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterIntNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterIntNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterIntNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterIntNode::InitializeInternal( GraphContext& context )
@@ -191,10 +190,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterFloatNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterFloatNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterFloatNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterFloatNode::InitializeInternal( GraphContext& context )
@@ -219,10 +218,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterVectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterVectorNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterVectorNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterVectorNode::InitializeInternal( GraphContext& context )
@@ -247,10 +246,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterTargetNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterTargetNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterTargetNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterTargetNode::InitializeInternal( GraphContext& context )
@@ -275,10 +274,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterBoneMaskNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VirtualParameterBoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VirtualParameterBoneMaskNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        auto pNode = CreateNode<VirtualParameterBoneMaskNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     void VirtualParameterBoneMaskNode::InitializeInternal( GraphContext& context )

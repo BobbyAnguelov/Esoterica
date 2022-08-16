@@ -20,7 +20,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     AnimationClipWorkspace::AnimationClipWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : TResourceWorkspace<AnimationClip>( pToolsContext, pWorld, resourceID )
+        : TWorkspace<AnimationClip>( pToolsContext, pWorld, resourceID )
         , m_propertyGrid( m_pToolsContext )
         , m_eventEditor( *pToolsContext->m_pTypeRegistry )
     {
@@ -82,7 +82,7 @@ namespace EE::Animation
     {
         EE_ASSERT( m_pPreviewEntity == nullptr );
 
-        TResourceWorkspace<AnimationClip>::Initialize( context );
+        TWorkspace<AnimationClip>::Initialize( context );
 
         m_timelineWindowName.sprintf( "Timeline##%u", GetID() );
         m_detailsWindowName.sprintf( "Details##%u", GetID() );
@@ -101,7 +101,7 @@ namespace EE::Animation
         m_pAnimationComponent = nullptr;
         m_pMeshComponent = nullptr;
 
-        TResourceWorkspace<AnimationClip>::Shutdown( context );
+        TWorkspace<AnimationClip>::Shutdown( context );
     }
 
     void AnimationClipWorkspace::CreatePreviewEntity()
@@ -177,7 +177,7 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
-        TResourceWorkspace<AnimationClip>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        TWorkspace<AnimationClip>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
 
         // If someone messed with this resource outside of this editor
         if ( m_pDescriptor == nullptr )
@@ -201,7 +201,7 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::EndHotReload()
     {
-        TResourceWorkspace<AnimationClip>::EndHotReload();
+        TWorkspace<AnimationClip>::EndHotReload();
 
         if ( m_pDescriptor != nullptr && m_pPreviewEntity == nullptr )
         {
@@ -216,7 +216,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void AnimationClipWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         if ( IsResourceLoaded() )
         {
@@ -441,7 +441,7 @@ namespace EE::Animation
 
     bool AnimationClipWorkspace::IsDirty() const
     {
-        if ( TResourceWorkspace<AnimationClip>::IsDirty() )
+        if ( TWorkspace<AnimationClip>::IsDirty() )
         {
             return true;
         }
@@ -451,7 +451,7 @@ namespace EE::Animation
 
     bool AnimationClipWorkspace::Save()
     {
-        if ( !TResourceWorkspace<AnimationClip>::Save() )
+        if ( !TWorkspace<AnimationClip>::Save() )
         {
             return false;
         }

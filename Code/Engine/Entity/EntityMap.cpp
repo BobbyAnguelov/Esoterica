@@ -1,6 +1,7 @@
 #include "EntityMap.h"
 #include "EntityLog.h"
 #include "EntityActivationContext.h"
+#include "EntitySerialization.h"
 #include "Engine/Entity/Entity.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/Profiling.h"
@@ -45,48 +46,6 @@ namespace EE::EntityModel
 
         Entity::OnEntityInternalStateUpdated().Unbind( m_entityUpdateEventBindingID );
         DestroyAllEntities();
-    }
-
-    //-------------------------------------------------------------------------
-
-    bool EntityMap::CreateDescriptor( TypeSystem::TypeRegistry const& typeRegistry, EntityCollectionDescriptor& outCollectionDesc ) const
-    {
-        EE_ASSERT( IsLoaded() || IsActivated() );
-        EE_ASSERT( m_entitiesToAdd.empty() && m_entitiesToRemove.empty() );
-
-        #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( m_entitiesToHotReload.empty() );
-        #endif
-
-        TVector<StringID> entityNameList;
-        outCollectionDesc.Clear();
-
-        for ( auto pEntity : GetEntities() )
-        {
-            // Check for unique names
-            if ( VectorContains( entityNameList, pEntity->GetName() ) )
-            {
-                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetName().c_str() );
-                return false;
-            }
-            else
-            {
-                entityNameList.emplace_back( pEntity->GetName() );
-            }
-
-            //-------------------------------------------------------------------------
-
-            EntityDescriptor entityDesc;
-            if ( !pEntity->CreateDescriptor( typeRegistry, entityDesc ) )
-            {
-                return false;
-            }
-            outCollectionDesc.AddEntity( entityDesc );
-        }
-
-        outCollectionDesc.GenerateSpatialAttachmentInfo();
-
-        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -475,9 +434,9 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityMap::AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, EntityCollectionDescriptor const& entityCollectionDesc, Transform const& offsetTransform )
+    void EntityMap::AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform )
     {
-        TVector<Entity*> const createdEntities = entityCollectionDesc.InstantiateCollection( pTaskSystem, typeRegistry );
+        TVector<Entity*> const createdEntities = EntityModel::Serializer::CreateEntities( pTaskSystem, typeRegistry, entityCollectionDesc );
         AddEntities( createdEntities, offsetTransform );
     }
 
@@ -562,7 +521,7 @@ namespace EE::EntityModel
             if ( m_pMapDesc->IsValid() )
             {
                 // Create all required entities
-                TVector<Entity*> const createdEntities = m_pMapDesc.GetPtr()->InstantiateCollection( loadingContext.m_pTaskSystem, *loadingContext.m_pTypeRegistry );
+                TVector<Entity*> const createdEntities = EntityModel::Serializer::CreateEntities( loadingContext.m_pTaskSystem, *loadingContext.m_pTypeRegistry, *m_pMapDesc.GetPtr() );
 
                 // Reserve memory for new entities in internal structures
                 m_entities.reserve( m_entities.size() + createdEntities.size() );

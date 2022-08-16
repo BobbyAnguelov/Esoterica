@@ -4,9 +4,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ConstBoolNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ConstBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstBoolNode>( nodePtrs, options );
+        auto pNode = CreateNode<ConstBoolNode>( context, options );
     }
 
     void ConstBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -16,9 +16,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstIDNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ConstIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstIDNode>( nodePtrs, options );
+        auto pNode = CreateNode<ConstIDNode>( context, options );
     }
 
     void ConstIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -28,9 +28,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstIntNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ConstIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstIntNode>( nodePtrs, options );
+        auto pNode = CreateNode<ConstIntNode>( context, options );
     }
 
     void ConstIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -40,9 +40,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstFloatNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ConstFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstFloatNode>( nodePtrs, options );
+        auto pNode = CreateNode<ConstFloatNode>( context, options );
     }
 
     void ConstFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -52,9 +52,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstVectorNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ConstVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstVectorNode>( nodePtrs, options );
+        auto pNode = CreateNode<ConstVectorNode>( context, options );
     }
 
     void ConstVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -64,9 +64,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstTargetNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ConstTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstTargetNode>( nodePtrs, options );
+        auto pNode = CreateNode<ConstTargetNode>( context, options );
     }
 
     void ConstTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )

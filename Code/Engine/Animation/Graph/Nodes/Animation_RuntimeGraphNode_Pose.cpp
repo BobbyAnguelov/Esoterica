@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_Pose.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
@@ -9,9 +8,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ZeroPoseNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ZeroPoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ZeroPoseNode>( nodePtrs, options );
+        auto pNode = CreateNode<ZeroPoseNode>( context, options );
     }
 
     void ZeroPoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -34,9 +33,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ReferencePoseNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ReferencePoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ReferencePoseNode>( nodePtrs, options );
+        auto pNode = CreateNode<ReferencePoseNode>( context, options );
     }
 
     void ReferencePoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -59,11 +58,11 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void AnimationPoseNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void AnimationPoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<AnimationPoseNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
-        pNode->m_pAnimation = pDataSet->GetResource<AnimationClip>( m_dataSlotIndex );
+        auto pNode = CreateNode<AnimationPoseNode>( context, options );
+        context.SetNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
+        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIndex );
     }
 
     bool AnimationPoseNode::IsValid() const

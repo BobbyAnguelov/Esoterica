@@ -66,18 +66,25 @@ namespace EE::Animation
             {
                 return false;
             }
+
+            m_runtimeGraph.m_controlParameterIDs.emplace_back( pParameter->GetParameterID() );
         }
 
         // Then compile virtual parameters
         //-------------------------------------------------------------------------
 
         auto const virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterEditorNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        uint32_t const numVirtualParameters = (uint32_t) controlParameters.size();
         for ( auto pParameter : virtualParameters )
         {
-            if ( pParameter->Compile( m_context ) == InvalidIndex )
+            int16_t const parameterIdx = pParameter->Compile( m_context );
+            if ( parameterIdx == InvalidIndex )
             {
                 return false;
             }
+
+            m_runtimeGraph.m_virtualParameterIDs.emplace_back( pParameter->GetParameterID() );
+            m_runtimeGraph.m_virtualParameterNodeIndices.emplace_back( parameterIdx );
         }
 
         // Finally compile the actual graph
@@ -96,14 +103,9 @@ namespace EE::Animation
         m_runtimeGraph.m_instanceNodeStartOffsets = m_context.m_nodeMemoryOffsets;
         m_runtimeGraph.m_instanceRequiredMemory = m_context.m_currentNodeMemoryOffset;
         m_runtimeGraph.m_instanceRequiredAlignment = m_context.m_graphInstanceRequiredAlignment;
-        m_runtimeGraph.m_numControlParameters = numControlParameters;
         m_runtimeGraph.m_rootNodeIdx = rootNodeIdx;
+        m_runtimeGraph.m_childGraphSlots = m_context.m_registeredChildGraphSlots;
         m_runtimeGraph.m_externalGraphSlots = m_context.m_registeredExternalGraphSlots;
-
-        for ( uint32_t i = 0; i < numControlParameters; i++ )
-        {
-            m_runtimeGraph.m_controlParameterIDs.emplace_back( controlParameters[i]->GetParameterID() );
-        }
 
         #if EE_DEVELOPMENT_TOOLS
         m_runtimeGraph.m_nodePaths.swap( m_context.m_compiledNodePaths );

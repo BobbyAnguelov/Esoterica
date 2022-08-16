@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Animation_RuntimeGraph_Events.h"
+#include "Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "System/TypeSystem/RegisteredType.h"
@@ -58,63 +59,13 @@ namespace EE::Animation
         {
             EE_REGISTER_TYPE( Settings );
 
-            enum class InstantiationOptions
-            {
-                CreateNode,                 // Instruct the instantiate function to actually create the node
-                NodeAlreadyCreated          // Informs the instantiate function that the node has been created (via derived class) and so it should only get it's ptrs set
-            };
-
-        protected:
-
-            template<typename T>
-            EE_FORCE_INLINE static void SetNodePtrFromIndex( TVector<GraphNode*> const& nodePtrs, int16_t nodeIdx, T*& pTargetPtr )
-            {
-                EE_ASSERT( nodeIdx >= 0 && nodeIdx < nodePtrs.size() );
-                pTargetPtr = static_cast<T*>( nodePtrs[nodeIdx] );
-            }
-
-            template<typename T>
-            EE_FORCE_INLINE static void SetNodePtrFromIndex( TVector<GraphNode*> const& nodePtrs, int16_t nodeIdx, T const*& pTargetPtr )
-            {
-                EE_ASSERT( nodeIdx >= 0 && nodeIdx < nodePtrs.size() );
-                pTargetPtr = static_cast<T const*>( nodePtrs[nodeIdx] );
-            }
-
-            template<typename T>
-            EE_FORCE_INLINE static void SetOptionalNodePtrFromIndex( TVector<GraphNode*> const& nodePtrs, int16_t nodeIdx, T*& pTargetPtr )
-            {
-                if ( nodeIdx == InvalidIndex )
-                {
-                    pTargetPtr = nullptr;
-                }
-                else
-                {
-                    EE_ASSERT( nodeIdx >= 0 && nodeIdx < nodePtrs.size() );
-                    pTargetPtr = static_cast<T*>( nodePtrs[nodeIdx] );
-                }
-            }
-
-            template<typename T>
-            EE_FORCE_INLINE static void SetOptionalNodePtrFromIndex( TVector<GraphNode*> const& nodePtrs, int16_t nodeIdx, T const*& pTargetPtr )
-            {
-                if ( nodeIdx == InvalidIndex )
-                {
-                    pTargetPtr = nullptr;
-                }
-                else
-                {
-                    EE_ASSERT( nodeIdx >= 0 && nodeIdx < nodePtrs.size() );
-                    pTargetPtr = static_cast<T const*>( nodePtrs[nodeIdx] );
-                }
-            }
-
         public:
 
             virtual ~Settings() = default;
 
             // Factory method, will create the node instance and set all necessary node ptrs
             // NOTE!!! Node ptrs are not guaranteed to contain a constructed node so DO NOT ACCESS them in this function!!!
-            virtual void InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const = 0;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const = 0;
 
             // Serialization methods
             virtual void Load( Serialization::BinaryInputArchive& archive );
@@ -123,9 +74,9 @@ namespace EE::Animation
         protected:
 
             template<typename T>
-            EE_FORCE_INLINE T* CreateNode( TVector<GraphNode*> const& nodePtrs, InstantiationOptions options ) const
+            EE_FORCE_INLINE T* CreateNode( InstantiationContext const& context, InstantiationOptions options ) const
             {
-                T* pNode = static_cast<T*>( nodePtrs[m_nodeIdx] );
+                T* pNode = static_cast<T*>( context.m_nodePtrs[m_nodeIdx] );
 
                 if ( options == InstantiationOptions::CreateNode )
                 {

@@ -1,5 +1,5 @@
 #pragma once
-#include "EngineTools/Core/Workspaces/EditorWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 
 //-------------------------------------------------------------------------
 
@@ -36,46 +36,38 @@ namespace EE
         //-------------------------------------------------------------------------
 
         void LoadMap( ResourceID const& mapResourceID ) const;
-        bool IsMapEditorWorkspace( EditorWorkspace const* pWorkspace ) const;
+        bool IsMapEditorWorkspace( Workspace const* pWorkspace ) const;
         char const* GetMapEditorWindowName() const;
 
-        bool IsGamePreviewWorkspace( EditorWorkspace const* pWorkspace ) const;
+        inline bool IsGamePreviewRunning() const { return m_pGamePreviewer != nullptr; }
+        bool IsGamePreviewWorkspace( Workspace const* pWorkspace ) const;
         inline GamePreviewer* GetGamePreviewWorkspace() const { return m_pGamePreviewer; }
-
-        virtual bool IsGameRunning() const override { return m_pGamePreviewer != nullptr; }
-        virtual EntityWorld const* GetGameWorld() const override;
 
         // Workspaces
         //-------------------------------------------------------------------------
 
-        inline TVector<EditorWorkspace*> const& GetWorkspaces() const { return m_workspaces; }
-        void* GetViewportTextureForWorkspace( EditorWorkspace* pWorkspace ) const;
-        Render::PickingID GetViewportPickingID( EditorWorkspace* pWorkspace, Int2 const& pixelCoords ) const;
-
-        inline bool IsWorkspaceOpen( uint32_t workspaceID ) const { return FindResourceWorkspace( workspaceID ) != nullptr; }
-        inline bool IsWorkspaceOpen( ResourceID const& resourceID ) const { return FindResourceWorkspace( resourceID ) != nullptr; }
+        inline TVector<Workspace*> const& GetWorkspaces() const { return m_workspaces; }
+        void* GetViewportTextureForWorkspace( Workspace* pWorkspace ) const;
+        Render::PickingID GetViewportPickingID( Workspace* pWorkspace, Int2 const& pixelCoords ) const;
 
         // Immediately destroy a workspace
-        void DestroyWorkspace( UpdateContext const& context, EditorWorkspace* pWorkspace );
+        void DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace );
 
         // Queues a workspace destruction request till the next update
-        void QueueDestroyWorkspace( EditorWorkspace* pWorkspace );
+        void QueueDestroyWorkspace( Workspace* pWorkspace );
 
         // Tries to immediately create a workspace
         bool TryCreateWorkspace( UpdateContext const& context, ResourceID const& resourceID );
 
         // Queues a workspace creation request till the next update
-        void QueueCreateWorkspace( ResourceID const& resourceID ) { m_workspaceCreationRequests.emplace_back( resourceID ); }
+        void QueueCreateWorkspace( ResourceID const& resourceID );
 
     private:
-
-        EditorWorkspace* FindResourceWorkspace( ResourceID const& resourceID ) const;
-        EditorWorkspace* FindResourceWorkspace( uint32_t workspaceID ) const;
 
         void StartGamePreview( UpdateContext const& context );
         void StopGamePreview( UpdateContext const& context );
 
-        void DestroyWorkspaceInternal( UpdateContext const& context, EditorWorkspace* pWorkspace );
+        void DestroyWorkspaceInternal( UpdateContext const& context, Workspace* pWorkspace );
 
         virtual void TryOpenResource( ResourceID const& resourceID ) const override
         {
@@ -85,6 +77,8 @@ namespace EE
             }
         }
 
+        virtual EntityWorldManager* GetWorldManager() const override { return m_pWorldManager; }
+
     private:
 
         EntityModel::EntityMapEditor*       m_pMapEditor = nullptr;
@@ -92,9 +86,9 @@ namespace EE
         EntityWorldManager*                 m_pWorldManager = nullptr;
         Render::RenderingSystem*            m_pRenderingSystem = nullptr;
         Resource::ResourceDatabase          m_resourceDB;
-        TVector<EditorWorkspace*>           m_workspaces;
+        TVector<Workspace*>           m_workspaces;
         TVector<ResourceID>                 m_workspaceCreationRequests;
-        TVector<EditorWorkspace*>           m_workspaceDestructionRequests;
+        TVector<Workspace*>           m_workspaceDestructionRequests;
         EventBindingID                      m_gamePreviewStartedEventBindingID;
         EventBindingID                      m_gamePreviewStoppedEventBindingID;
     };

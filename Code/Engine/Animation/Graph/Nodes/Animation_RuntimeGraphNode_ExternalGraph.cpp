@@ -7,39 +7,39 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ExternalGraphNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void ExternalGraphNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ExternalGraphNode>( nodePtrs, options );
+        auto pNode = CreateNode<ExternalGraphNode>( context, options );
     }
 
     ExternalGraphNode::~ExternalGraphNode()
     {
         // Check for external instance leaks
-        EE_ASSERT( m_pExternalInstance == nullptr );
+        EE_ASSERT( m_pGraphInstance == nullptr );
     }
 
     void ExternalGraphNode::AttachGraphInstance( GraphContext& context, GraphInstance* pExternalGraphInstance )
     {
         EE_ASSERT( pExternalGraphInstance != nullptr );
-        EE_ASSERT( m_pExternalInstance == nullptr );
-        m_pExternalInstance = pExternalGraphInstance;
+        EE_ASSERT( m_pGraphInstance == nullptr );
+        m_pGraphInstance = pExternalGraphInstance;
     }
 
     void ExternalGraphNode::DetachExternalGraphInstance( GraphContext& context )
     {
-        EE_ASSERT( m_pExternalInstance != nullptr );
-        m_pExternalInstance = nullptr;
+        EE_ASSERT( m_pGraphInstance != nullptr );
+        m_pGraphInstance = nullptr;
     }
 
     void ExternalGraphNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         PoseNode::InitializeInternal( context, initialTime );
 
-        if ( m_pExternalInstance != nullptr )
+        if ( m_pGraphInstance != nullptr )
         {
-            m_pExternalInstance->ResetGraphState();
+            m_pGraphInstance->ResetGraphState();
 
-            auto pRootNode = m_pExternalInstance->GetRootNode();
+            auto pRootNode = m_pGraphInstance->GetRootNode();
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
             m_duration = pRootNode->GetDuration();
@@ -55,29 +55,29 @@ namespace EE::Animation::GraphNodes
 
     SyncTrack const& ExternalGraphNode::GetSyncTrack() const
     {
-        if ( m_pExternalInstance != nullptr )
+        if ( m_pGraphInstance != nullptr )
         {
-            auto pRootNode = m_pExternalInstance->GetRootNode();
+            auto pRootNode = m_pGraphInstance->GetRootNode();
             return pRootNode->GetSyncTrack();
         }
 
         return SyncTrack::s_defaultTrack;
     }
 
-    void ExternalGraphNode::TransferExternalData( GraphContext& context, GraphPoseNodeResult& result )
+    void ExternalGraphNode::TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result )
     {
         auto& localEventBuffer = context.m_sampledEventsBuffer;
-        auto const& externalEventBuffer = m_pExternalInstance->GetSampledEvents();
+        auto const& externalEventBuffer = m_pGraphInstance->GetSampledEvents();
         localEventBuffer.Append( externalEventBuffer );
         result.m_sampledEventRange = SampledEventRange( localEventBuffer.GetNumEvents(), localEventBuffer.GetNumEvents() + externalEventBuffer.GetNumEvents() );
 
-        auto pRootNode = m_pExternalInstance->GetRootNode();
+        auto pRootNode = m_pGraphInstance->GetRootNode();
         m_previousTime = pRootNode->GetCurrentTime();
         m_currentTime = pRootNode->GetCurrentTime();
         m_duration = pRootNode->GetDuration();
 
         #if EE_DEVELOPMENT_TOOLS
-        context.GetRootMotionActionRecorder()->RecordSampling( GetNodeIndex(), result.m_rootMotionDelta );
+        context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
         #endif
     }
 
@@ -89,15 +89,15 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
-        if ( m_pExternalInstance == nullptr )
+        if ( m_pGraphInstance == nullptr )
         {
             result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
         else
         {
-            result = m_pExternalInstance->UpdateGraph();
-            TransferExternalData( context, result );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene );
+            TransferGraphInstanceData( context, result );
         }
         return result;
     }
@@ -108,15 +108,15 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
-        if ( m_pExternalInstance == nullptr )
+        if ( m_pGraphInstance == nullptr )
         {
             result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
         else
         {
-            result = m_pExternalInstance->UpdateGraph( updateRange );
-            TransferExternalData( context, result );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene, updateRange );
+            TransferGraphInstanceData( context, result );
         }
         return result;
     }

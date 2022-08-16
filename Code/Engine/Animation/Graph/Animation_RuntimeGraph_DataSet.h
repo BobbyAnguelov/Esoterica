@@ -23,12 +23,12 @@ namespace EE::Animation
         inline Skeleton const* GetSkeleton() const { return m_pSkeleton.GetPtr(); }
 
         template<typename T>
-        inline T const* GetResource( int16_t const& ID ) const
+        inline T const* GetResource( int16_t const& slotIdx ) const
         {
-            EE_ASSERT( ID >= 0 && ID < m_resources.size() );
-            if ( m_resources[ID].IsValid() )
+            EE_ASSERT( slotIdx >= 0 && slotIdx < m_resources.size() );
+            if ( m_resources[slotIdx].IsValid() )
             {
-                return TResourcePtr<T>( m_resources[ID] ).GetPtr();
+                return TResourcePtr<T>( m_resources[slotIdx] ).GetPtr();
             }
 
             return nullptr;

@@ -383,7 +383,7 @@ namespace EE::Physics
     //-------------------------------------------------------------------------
 
     RagdollWorkspace::RagdollWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID, bool shouldLoadResource )
-        : TResourceWorkspace<RagdollDefinition>( pToolsContext, pWorld, resourceID, shouldLoadResource )
+        : TWorkspace<RagdollDefinition>( pToolsContext, pWorld, resourceID, shouldLoadResource )
         , m_bodyEditorPropertyGrid( pToolsContext )
         , m_solverSettingsGrid( pToolsContext )
         , m_resourceFilePicker( *pToolsContext )
@@ -465,7 +465,7 @@ namespace EE::Physics
 
     void RagdollWorkspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
-        TResourceWorkspace<RagdollDefinition>::PostUndoRedo( operation, pAction );
+        TWorkspace<RagdollDefinition>::PostUndoRedo( operation, pAction );
         SetActiveProfile( m_activeProfileID );
     }
 
@@ -473,7 +473,7 @@ namespace EE::Physics
 
     void RagdollWorkspace::Initialize( UpdateContext const& context )
     {
-        TResourceWorkspace<RagdollDefinition>::Initialize( context );
+        TWorkspace<RagdollDefinition>::Initialize( context );
         m_bodyEditorWindowName.sprintf( "Body Editor##%u", GetID() );
         m_bodyEditorDetailsWindowName.sprintf( "Details##%u", GetID() );
         m_profileEditorWindowName.sprintf( "Profile Editor##%u", GetID() );
@@ -499,7 +499,7 @@ namespace EE::Physics
 
         UnloadDefinition();
         DestroySkeletonTree();
-        TResourceWorkspace<RagdollDefinition>::Shutdown( context );
+        TWorkspace<RagdollDefinition>::Shutdown( context );
     }
 
     void RagdollWorkspace::LoadDefinition()
@@ -574,7 +574,7 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        TResourceWorkspace<RagdollDefinition>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        TWorkspace<RagdollDefinition>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
 
         // If the descriptor is being reloaded
         if ( m_pDescriptor == nullptr )
@@ -585,7 +585,7 @@ namespace EE::Physics
 
     void RagdollWorkspace::EndHotReload()
     {
-        TResourceWorkspace<RagdollDefinition>::EndHotReload();
+        TWorkspace<RagdollDefinition>::EndHotReload();
 
         if ( !m_definitionLoaded && m_pDescriptor != nullptr )
         {
@@ -690,7 +690,7 @@ namespace EE::Physics
 
     void RagdollWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        TResourceWorkspace<RagdollDefinition>::DrawViewportOverlayElements( context, pViewport );
+        TWorkspace<RagdollDefinition>::DrawViewportOverlayElements( context, pViewport );
 
         auto pRagdollDefinition = GetRagdollDefinition();
         if ( !pRagdollDefinition->IsValid() )
@@ -882,7 +882,7 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void RagdollWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         // Track ragdoll definition state changes
         //-------------------------------------------------------------------------
@@ -2527,7 +2527,7 @@ namespace EE::Physics
         EE::Delete( m_pFinalPose );
     }
 
-    void RagdollWorkspace::UpdateWorld( EntityWorldUpdateContext const& updateContext )
+    void RagdollWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
     {
         if ( !IsPreviewing() )
         {

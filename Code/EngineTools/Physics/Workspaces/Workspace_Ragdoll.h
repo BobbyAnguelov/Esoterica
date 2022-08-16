@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsRagdoll.h"
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
@@ -20,7 +20,7 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class RagdollWorkspace : public TResourceWorkspace<RagdollDefinition>
+    class RagdollWorkspace : public TWorkspace<RagdollDefinition>
     {
         friend class ScopedRagdollSettingsModification;
 
@@ -44,7 +44,7 @@ namespace EE::Physics
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
         virtual void EndHotReload() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
@@ -99,7 +99,7 @@ namespace EE::Physics
         inline bool IsPreviewing() const { return m_pRagdoll != nullptr; }
         void StartPreview( UpdateContext const& context );
         void StopPreview();
-        virtual void UpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
+        virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
 
         void DrawPreviewControlsWindow( UpdateContext const& context );
 

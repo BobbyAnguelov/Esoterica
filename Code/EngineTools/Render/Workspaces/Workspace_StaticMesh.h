@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "Engine/Render/Mesh/StaticMesh.h"
 #include "System/Imgui/ImguiX.h"
 
@@ -8,18 +8,18 @@
 
 namespace EE::Render
 {
-    class StaticMeshWorkspace final : public TResourceWorkspace<StaticMesh>
+    class StaticMeshWorkspace final : public TWorkspace<StaticMesh>
     {
 
     public:
 
-        using TResourceWorkspace::TResourceWorkspace;
+        using TWorkspace::TWorkspace;
 
     private:
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
 
     private:

@@ -156,15 +156,15 @@ namespace EE
         EE_EXPOSE TBitFlags<TestFlags>                                         m_specificFlags;
         EE_EXPOSE ResourceTypeID                                               m_resourceTypeID;
         EE_EXPOSE ResourceID                                                   m_resourceID;
-        EE_EXPOSE TResourcePtr<EntityModel::EntityCollectionDescriptor>        m_specificResourcePtr;
+        EE_EXPOSE TResourcePtr<EntityModel::SerializedEntityCollection>        m_specificResourcePtr;
 
         EE_EXPOSE IntRange                                                     m_intRange;
         EE_EXPOSE FloatRange                                                   m_floatRange;
         EE_EXPOSE FloatCurve                                                   m_floatCurve;
 
         #if EE_DEVELOPMENT_TOOLS
-        EE_EXPOSE TResourcePtr<EntityModel::EntityCollectionDescriptor>            m_devOnlyResource;
-        EE_EXPOSE TVector<TResourcePtr<EntityModel::EntityCollectionDescriptor>>   m_devOnlyResourcePtrs;
+        EE_EXPOSE TResourcePtr<EntityModel::SerializedEntityCollection>            m_devOnlyResource;
+        EE_EXPOSE TVector<TResourcePtr<EntityModel::SerializedEntityCollection>>   m_devOnlyResourcePtrs;
         EE_EXPOSE float                                                            m_devOnlyProperty;
         EE_EXPOSE TVector<ExternalTestStruct>                                      m_devOnlyDynamicArrayOfStructs = { ExternalTestStruct(), ExternalTestStruct(), ExternalTestStruct() };
         #endif

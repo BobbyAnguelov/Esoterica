@@ -234,7 +234,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( variationHierarchy.IsValidVariation( variationID ) );
 
-        if ( variationID == GraphVariation::DefaultVariationID )
+        if ( variationID == Variation::s_defaultVariationID )
         {
             return m_defaultResourceID;
         }
@@ -245,7 +245,7 @@ namespace EE::Animation::GraphNodes
 
         auto TryGetResourceID = [this, &resourceID] ( StringID variationID )
         {
-            if ( variationID == GraphVariation::DefaultVariationID )
+            if ( variationID == Variation::s_defaultVariationID )
             {
                 resourceID = m_defaultResourceID;
                 return true;
@@ -290,7 +290,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( variationID.IsValid() );
 
-        if ( variationID == GraphVariation::DefaultVariationID )
+        if ( variationID == Variation::s_defaultVariationID )
         {
             return &m_defaultResourceID;
         }
@@ -311,7 +311,7 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( variationID.IsValid() );
         EE_ASSERT( !resourceID.IsValid() || resourceID.GetResourceTypeID() == GetSlotResourceTypeID() );
 
-        if ( variationID == GraphVariation::DefaultVariationID )
+        if ( variationID == Variation::s_defaultVariationID )
         {
             m_defaultResourceID = resourceID;
             return;
@@ -335,7 +335,7 @@ namespace EE::Animation::GraphNodes
 
     void DataSlotEditorNode::CreateOverride( StringID variationID )
     {
-        EE_ASSERT( variationID.IsValid() && variationID != GraphVariation::DefaultVariationID );
+        EE_ASSERT( variationID.IsValid() && variationID != Variation::s_defaultVariationID );
         EE_ASSERT( !HasOverrideForVariation( variationID ) );
 
         auto& createdOverride = m_overrides.emplace_back();
@@ -345,7 +345,7 @@ namespace EE::Animation::GraphNodes
     void DataSlotEditorNode::RenameOverride( StringID oldVariationID, StringID newVariationID )
     {
         EE_ASSERT( oldVariationID.IsValid() && newVariationID.IsValid() );
-        EE_ASSERT( oldVariationID != GraphVariation::DefaultVariationID && newVariationID != GraphVariation::DefaultVariationID );
+        EE_ASSERT( oldVariationID != Variation::s_defaultVariationID && newVariationID != Variation::s_defaultVariationID );
 
         for ( auto& overrideValue : m_overrides )
         {
@@ -358,7 +358,7 @@ namespace EE::Animation::GraphNodes
 
     void DataSlotEditorNode::RemoveOverride( StringID variationID )
     {
-        EE_ASSERT( variationID.IsValid() && variationID != GraphVariation::DefaultVariationID );
+        EE_ASSERT( variationID.IsValid() && variationID != Variation::s_defaultVariationID );
 
         for ( auto iter = m_overrides.begin(); iter != m_overrides.end(); ++iter )
         {

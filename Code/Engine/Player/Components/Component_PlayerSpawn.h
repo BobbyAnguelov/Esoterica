@@ -20,10 +20,10 @@ namespace EE::Player
 
         inline PlayerSpawnComponent() = default;
 
-        inline EntityModel::EntityCollectionDescriptor const* GetEntityCollectionDesc() const { return m_pPlayerEntityDesc.GetPtr(); }
+        inline EntityModel::SerializedEntityCollection const* GetEntityCollectionDesc() const { return m_pPlayerEntityDesc.GetPtr(); }
 
     private:
 
-        EE_EXPOSE TResourcePtr<EntityModel::EntityCollectionDescriptor>    m_pPlayerEntityDesc = nullptr;
+        EE_EXPOSE TResourcePtr<EntityModel::SerializedEntityCollection>    m_pPlayerEntityDesc = nullptr;
     };
 }

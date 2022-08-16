@@ -54,6 +54,7 @@ namespace EE
 
         TVector<CameraComponent*>                   m_cameras;
         CameraComponent*                            m_pActiveCamera = nullptr;
+        bool                                        m_registeredCamerasStateChanged = false;
 
         #if EE_DEVELOPMENT_TOOLS
         DebugCameraComponent*                       m_pDebugCamera = nullptr;

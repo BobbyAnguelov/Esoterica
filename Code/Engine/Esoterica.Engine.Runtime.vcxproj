@@ -76,6 +76,7 @@
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_ID.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Contexts.cpp" />
@@ -131,6 +132,7 @@
     <ClCompile Include="Component_SerializationTest.cpp" />
     <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
     <ClCompile Include="Entity\EntityLog.cpp" />
+    <ClCompile Include="Entity\EntitySerialization.cpp" />
     <ClCompile Include="Render\RenderViewport.cpp" />
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp" />
     <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp" />
@@ -142,7 +144,6 @@
     <ClCompile Include="Entity\EntityComponent.cpp" />
     <ClCompile Include="Entity\EntityDescriptors.cpp" />
     <ClCompile Include="Entity\EntityMap.cpp" />
-    <ClCompile Include="Entity\EntitySerialization.cpp" />
     <ClCompile Include="Entity\EntitySpatialComponent.cpp" />
     <ClCompile Include="Entity\EntityWorld.cpp" />
     <ClCompile Include="Entity\EntityWorldDebugger.cpp" />
@@ -223,6 +224,7 @@
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Contexts.h" />
@@ -278,6 +280,7 @@
     <ClInclude Include="Component_SerializationTest.h" />
     <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
     <ClInclude Include="Entity\EntityLog.h" />
+    <ClInclude Include="Entity\EntitySerialization.h" />
     <ClInclude Include="Render\RenderViewport.h" />
     <ClInclude Include="Volumes\Components\Component_Volumes.h" />
     <ClInclude Include="Camera\DebugViews\DebugView_Camera.h" />
@@ -293,7 +296,6 @@
     <ClInclude Include="Entity\EntityIDs.h" />
     <ClInclude Include="Entity\EntityLoadingContext.h" />
     <ClInclude Include="Entity\EntityMap.h" />
-    <ClInclude Include="Entity\EntitySerialization.h" />
     <ClInclude Include="Entity\EntitySpatialComponent.h" />
     <ClInclude Include="Entity\EntitySystem.h" />
     <ClInclude Include="Entity\EntityWorld.h" />

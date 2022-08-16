@@ -47,8 +47,8 @@ namespace EE::RawAssets
         inline TVector<TrackData>& GetTrackData() { return m_tracks; }
         inline RawSkeleton const& GetSkeleton() const { return m_skeleton; }
 
-        inline TVector<Transform> const& GetRootMotion() const { return m_rootPositions; }
-        inline TVector<Transform>& GetRootMotion() { return m_rootPositions; }
+        inline TVector<Transform> const& GetRootMotion() const { return m_rootTransforms; }
+        inline TVector<Transform>& GetRootMotion() { return m_rootTransforms; }
 
         // Extract root motion and calculate transform component ranges
         void Finalize();
@@ -65,6 +65,6 @@ namespace EE::RawAssets
         Seconds                             m_duration = 0.0f;
         uint32_t                            m_numFrames = 0;
         TVector<TrackData>                  m_tracks;
-        TVector<Transform>                  m_rootPositions;
+        TVector<Transform>                  m_rootTransforms;
     };
 }

@@ -24,6 +24,7 @@ namespace EE
         if ( auto pCameraComponent = TryCast<CameraComponent>( pComponent ) )
         {
             m_cameras.emplace_back( pCameraComponent );
+            m_registeredCamerasStateChanged = true;
 
             // Handle Debug Cameras
             if ( auto pDebugCameraComponent = TryCast<DebugCameraComponent>( pComponent ) )
@@ -38,27 +39,6 @@ namespace EE
                     // TODO: we dont support multiple debug cameras atm
                 }
                 #endif
-
-                // Set active camera to debug camera if we dont already have one set
-                if ( m_pActiveCamera == nullptr )
-                {
-                    m_pActiveCamera = pCameraComponent;
-                }
-            }
-            else // Regular camera
-            {
-                // Switch active camera to the first not debug camera we receive
-                #if EE_DEVELOPMENT_TOOLS
-                if ( m_pActiveCamera == m_pDebugCamera )
-                {
-                    m_pActiveCamera = pCameraComponent;
-                }
-                #endif
-
-                if ( m_pActiveCamera == nullptr )
-                {
-                    m_pActiveCamera = pCameraComponent;
-                }
             }
         }
     }
@@ -80,17 +60,7 @@ namespace EE
             #endif
 
             m_cameras.erase_first( pCameraComponent );
-        }
-
-        //-------------------------------------------------------------------------
-
-        // Switch active camera to the next available camera
-        if ( m_pActiveCamera == nullptr )
-        {
-            if ( !m_cameras.empty() )
-            {
-                m_pActiveCamera = m_cameras.front();
-            }
+            m_registeredCamerasStateChanged = true;
         }
     }
 
@@ -99,6 +69,29 @@ namespace EE
         #if EE_DEVELOPMENT_TOOLS
         TrySpawnDebugCamera( ctx );
         #endif
+
+        //-------------------------------------------------------------------------
+
+        if ( m_registeredCamerasStateChanged )
+        {
+            // Always use the debug camera in tools
+            #if EE_DEVELOPMENT_TOOLS
+            if ( !ctx.IsGameWorld() )
+            {
+                m_pActiveCamera = m_pDebugCamera;
+            }
+            else
+            #endif
+            {
+                // Switch to the first camera in game worlds
+                if ( m_pActiveCamera == nullptr && !m_cameras.empty() )
+                {
+                    m_pActiveCamera = m_cameras.front();
+                }
+            }
+
+            m_registeredCamerasStateChanged = false;
+        }
     }
 
     void CameraManager::SetActiveCamera( CameraComponent const* pCamera )

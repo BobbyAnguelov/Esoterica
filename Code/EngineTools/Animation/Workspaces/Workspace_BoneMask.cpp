@@ -87,7 +87,7 @@ namespace EE::Animation
 
     void BoneMaskWorkspace::Initialize( UpdateContext const& context )
     {
-        TResourceWorkspace<BoneMaskDefinition>::Initialize( context );
+        TWorkspace<BoneMaskDefinition>::Initialize( context );
         m_weightEditorWindowName.sprintf( "Weights##%u", GetID() );
 
         //-------------------------------------------------------------------------
@@ -99,12 +99,12 @@ namespace EE::Animation
     {
         UnloadSkeleton();
 
-        TResourceWorkspace<BoneMaskDefinition>::Shutdown( context );
+        TWorkspace<BoneMaskDefinition>::Shutdown( context );
     }
 
     void BoneMaskWorkspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
-        TResourceWorkspace<BoneMaskDefinition>::PostUndoRedo( operation, pAction );
+        TWorkspace<BoneMaskDefinition>::PostUndoRedo( operation, pAction );
         
         // Reflect the actual bone weights into the working set
         if ( m_pSkeleton.IsLoaded() )
@@ -121,7 +121,7 @@ namespace EE::Animation
 
     void BoneMaskWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
-        TResourceWorkspace<BoneMaskDefinition>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        TWorkspace<BoneMaskDefinition>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
 
         // Destroy the tree since the skeleton will need to be reloaded
         if ( m_pSkeleton.IsValid() && VectorContains( resourcesToBeReloaded, m_pSkeleton.GetResourceID() ) )
@@ -138,7 +138,7 @@ namespace EE::Animation
 
     void BoneMaskWorkspace::EndHotReload()
     {
-        TResourceWorkspace<BoneMaskDefinition>::EndHotReload();
+        TWorkspace<BoneMaskDefinition>::EndHotReload();
 
         if ( m_pDescriptor != nullptr && m_pSkeleton.IsUnloaded() )
         {
@@ -325,7 +325,7 @@ namespace EE::Animation
         }
     }
 
-    void BoneMaskWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void BoneMaskWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         DrawMaskPreview();
         DrawDescriptorEditorWindow( context, pWindowClass );

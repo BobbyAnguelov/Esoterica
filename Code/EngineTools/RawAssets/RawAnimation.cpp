@@ -36,7 +36,7 @@ namespace EE::RawAssets
         // Extract Root Motion
         //-------------------------------------------------------------------------
 
-        m_rootPositions.resize( m_numFrames );
+        m_rootTransforms.resize( m_numFrames );
 
         TrackData& rootTrackData = m_tracks[0];
         Vector rootMotionOriginOffset = rootTrackData.m_localTransforms[0].GetTranslation(); // Ensure that the root motion always starts at the origin
@@ -51,8 +51,8 @@ namespace EE::RawAssets
             }
 
             // Extract root position and remove the origin offset from it
-            m_rootPositions[i] = rootTrackData.m_localTransforms[i];
-            m_rootPositions[i].SetTranslation( m_rootPositions[i].GetTranslation() - rootMotionOriginOffset );
+            m_rootTransforms[i] = rootTrackData.m_localTransforms[i];
+            m_rootTransforms[i].SetTranslation( m_rootTransforms[i].GetTranslation() - rootMotionOriginOffset );
 
             // Set the root tracks transform to Identity
             rootTrackData.m_localTransforms[i] = Transform::Identity;

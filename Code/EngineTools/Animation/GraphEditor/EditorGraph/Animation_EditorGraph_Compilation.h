@@ -122,6 +122,16 @@ namespace EE::Animation
             return slotIdx;
         }
 
+        // Record all child graph node indices
+        inline int16_t RegisterChildGraphNode( int16_t nodeIdx, UUID const& nodeID )
+        {
+            int16_t const dataSlotIdx = RegisterDataSlotNode( nodeID );
+
+            GraphDefinition::ChildGraphSlot const newSlot( nodeIdx, dataSlotIdx );
+            m_registeredChildGraphSlots.emplace_back( newSlot );
+            return (int16_t) m_registeredChildGraphSlots.size() - 1;
+        }
+
         // State Machine Compilation
         //-------------------------------------------------------------------------
 
@@ -168,12 +178,14 @@ namespace EE::Animation
             m_transitionDurationOverrideIdx = InvalidIndex;
         }
 
+        // Get the node index for a transition duration value node chain if set
         inline int16_t GetCompiledTransitionDurationOverrideIdx() const
         {
             EE_ASSERT( m_conduitSourceStateCompiledNodeIdx != InvalidIndex );
             return m_transitionDurationOverrideIdx;
         }
 
+        // Get the duration of a transition (if not using an override)
         inline Seconds GetCompiledTransitionDuration() const
         {
             EE_ASSERT( m_conduitSourceStateCompiledNodeIdx != InvalidIndex );
@@ -192,6 +204,7 @@ namespace EE::Animation
         uint32_t                                        m_graphInstanceRequiredAlignment = alignof( bool );
 
         TVector<UUID>                                   m_registeredDataSlots;
+        TVector<GraphDefinition::ChildGraphSlot>        m_registeredChildGraphSlots;
         TVector<GraphDefinition::ExternalGraphSlot>     m_registeredExternalGraphSlots;
         int16_t                                         m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
         Seconds                                         m_transitionDuration = 0;

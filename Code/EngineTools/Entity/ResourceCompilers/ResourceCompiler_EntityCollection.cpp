@@ -1,6 +1,6 @@
 #include "ResourceCompiler_EntityCollection.h"
+#include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Entity/EntityDescriptors.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Serialization/BinarySerialization.h"
 #include "System/FileSystem/FileSystem.h"
@@ -13,12 +13,12 @@ namespace EE::EntityModel
     EntityCollectionCompiler::EntityCollectionCompiler()
         : Resource::Compiler( "EntityCollectionCompiler", s_version )
     {
-        m_outputTypes.push_back( EntityCollectionDescriptor::GetStaticResourceTypeID() );
+        m_outputTypes.push_back( SerializedEntityCollection::GetStaticResourceTypeID() );
     }
 
     Resource::CompilationResult EntityCollectionCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
-        EntityCollectionDescriptor collectionDesc;
+        SerializedEntityCollection serializedCollection;
 
         //-------------------------------------------------------------------------
         // Read collection
@@ -28,7 +28,7 @@ namespace EE::EntityModel
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );
 
-            if ( !Serializer::ReadEntityCollectionFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, collectionDesc ) )
+            if ( !ReadSerializedEntityCollectionFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, serializedCollection ) )
             {
                 return Resource::CompilationResult::Failure;
             }
@@ -40,7 +40,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, EntityCollectionDescriptor::GetStaticResourceTypeID() ) << collectionDesc;
+        archive << Resource::ResourceHeader( s_version, SerializedEntityCollection::GetStaticResourceTypeID() ) << serializedCollection;
         
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
@@ -54,20 +54,20 @@ namespace EE::EntityModel
 
     bool EntityCollectionCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        EE_ASSERT( resourceID.GetResourceTypeID() == EntityCollectionDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( resourceID.GetResourceTypeID() == SerializedEntityCollection::GetStaticResourceTypeID() );
 
-        EntityModel::EntityCollectionDescriptor collectionDesc;
+        EntityModel::SerializedEntityCollection serializedCollection;
 
         // Read map descriptor
         FileSystem::Path const collectionFilePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
-        if ( !EntityModel::Serializer::ReadEntityCollectionFromFile( *m_pTypeRegistry, collectionFilePath, collectionDesc ) )
+        if ( !ReadSerializedEntityCollectionFromFile( *m_pTypeRegistry, collectionFilePath, serializedCollection ) )
         {
             return false;
         }
 
         // Get all referenced resources
         TVector<ResourceID> referencedResources;
-        collectionDesc.GetAllReferencedResources( referencedResources );
+        serializedCollection.GetAllReferencedResources( referencedResources );
 
         // Enqueue resources for compilation
         for ( auto const& referencedResourceID : referencedResources )

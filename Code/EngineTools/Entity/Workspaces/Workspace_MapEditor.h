@@ -25,7 +25,7 @@ namespace EE::EntityModel
 
         void CreateNewMap();
         void SelectAndLoadMap();
-        void LoadMap( TResourcePtr<EntityModel::EntityMapDescriptor> const& mapToLoad );
+        void LoadMap( TResourcePtr<EntityModel::SerializedEntityMap> const& mapToLoad );
         void SaveMap();
         void SaveMapAs();
 
@@ -44,7 +44,7 @@ namespace EE::EntityModel
         virtual bool IsDirty() const override{ return false; } // TODO
         virtual bool Save() override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
         // Navmesh
         //-------------------------------------------------------------------------

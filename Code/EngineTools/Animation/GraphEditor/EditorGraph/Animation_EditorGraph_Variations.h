@@ -17,9 +17,30 @@ namespace EE::Animation
     {
         EE_REGISTER_TYPE( Variation );
 
+    public:
+
+        // The default name for a graph variation
+        static StringID const s_defaultVariationID;
+
+        // The delimiter character used to separate the graph name and the variation name for graph variation resources
+        constexpr static char const s_graphPathDelimiter = '@';
+
+        // Create a file path for the graph variation resource
+        static String GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID );
+
+        // Note: Resource paths are case-insensitive so the name will be lowercase
+        static String GetVariationNameFromResourceID( ResourceID const& resourceID );
+
+        // Get the graph resource ID from either a graph or a graph variation resource ID
+        static ResourceID GetGraphResourceID( ResourceID const& resourceID );
+
+    public:
+
         inline bool IsValid() const { return m_ID.IsValid(); }
         inline bool operator==( StringID const& variationID ) const { return m_ID == variationID; }
         inline bool operator!=( StringID const& variationID ) const { return m_ID != variationID; }
+
+    public:
 
         EE_EXPOSE      StringID                m_ID;
         EE_REGISTER    StringID                m_parentID;

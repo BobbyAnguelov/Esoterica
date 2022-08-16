@@ -20,7 +20,7 @@ namespace EE
     {
         struct EntityLoadingContext;
         struct ActivationContext;
-        class EntityCollectionDescriptor;
+        class SerializedEntityCollection;
 
         //-------------------------------------------------------------------------
         // Entity Map
@@ -40,6 +40,7 @@ namespace EE
         class EE_ENGINE_API EntityMap
         {
             friend EntityWorld;
+            friend struct Serializer;
 
             enum class Status
             {
@@ -76,9 +77,6 @@ namespace EE
             inline ResourceID const& GetMapResourceID() const { return m_pMapDesc.GetResourceID(); }
             inline EntityMapID GetID() const { return m_ID; }
             inline bool IsTransientMap() const { return m_isTransientMap; }
-
-            // Creates a descriptor for this collection
-            bool CreateDescriptor( TypeSystem::TypeRegistry const& typeRegistry, EntityCollectionDescriptor& outCollectionDesc ) const;
 
             // Loading and Activation
             //-------------------------------------------------------------------------
@@ -127,7 +125,7 @@ namespace EE
             // Instantiates and adds an entity collection to the map
             // Additionally allows you to offset all the entities via the supplied offset transform
             // Takes 1 frame to be fully added
-            void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, EntityCollectionDescriptor const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity );
+            void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity );
 
             // Add a newly created entity to the map - Transfers ownership of the entity to the map
             // Will take 1 frame to be fully added, as the addition occurs during the loading update
@@ -207,7 +205,7 @@ namespace EE
 
             EntityMapID                                 m_ID = UUID::GenerateID(); // ID is always regenerated at creation time, do not rely on the ID being the same for a map on different runs
             Threading::RecursiveMutex                   m_mutex;
-            TResourcePtr<EntityMapDescriptor>           m_pMapDesc;
+            TResourcePtr<SerializedEntityMap>           m_pMapDesc;
             TVector<Entity*>                            m_entities;
             THashMap<EntityID, Entity*>                 m_entityIDLookupMap; // All activated entities in the map
             TVector<Entity*>                            m_entitiesCurrentlyLoading;

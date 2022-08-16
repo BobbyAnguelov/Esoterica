@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "System/Imgui/ImguiX.h"
@@ -10,11 +10,11 @@
 
 namespace EE::Animation
 {
-    class BoneMaskWorkspace final : public TResourceWorkspace<BoneMaskDefinition>
+    class BoneMaskWorkspace final : public TWorkspace<BoneMaskDefinition>
     {
     public:
 
-        using TResourceWorkspace::TResourceWorkspace;
+        using TWorkspace::TWorkspace;
         virtual ~BoneMaskWorkspace();
 
     private:
@@ -23,7 +23,7 @@ namespace EE::Animation
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
     private:
 

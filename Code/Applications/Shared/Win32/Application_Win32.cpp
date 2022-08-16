@@ -246,7 +246,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    int Win32Application::Run( int32_t argc, char** argv )
+    int32_t Win32Application::Run( int32_t argc, char** argv )
     {
         // Read Settings
         //-------------------------------------------------------------------------

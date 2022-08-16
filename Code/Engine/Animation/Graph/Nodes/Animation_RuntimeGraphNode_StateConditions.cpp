@@ -1,16 +1,15 @@
 #include "Animation_RuntimeGraphNode_StateConditions.h"
 #include "Animation_RuntimeGraphNode_State.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void StateCompletedConditionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void StateCompletedConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<StateCompletedConditionNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_transitionDurationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
+        auto pNode = CreateNode<StateCompletedConditionNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        context.SetOptionalNodePtrFromIndex( m_transitionDurationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
     }
 
     void StateCompletedConditionNode::InitializeInternal( GraphContext& context )
@@ -65,10 +64,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TimeConditionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void TimeConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<TimeConditionNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        auto pNode = CreateNode<TimeConditionNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
     void TimeConditionNode::InitializeInternal( GraphContext& context )

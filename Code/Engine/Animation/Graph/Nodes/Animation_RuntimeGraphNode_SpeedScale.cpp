@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_SpeedScale.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "System/Log.h"
 #include "Engine/Animation/AnimationClip.h"
 
@@ -7,11 +6,11 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void SpeedScaleNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void SpeedScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<SpeedScaleNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_scaleValueNodeIdx, pNode->m_pScaleValueNode );
-        PassthroughNode::Settings::InstantiateNode( nodePtrs, pDataSet, GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
+        auto pNode = CreateNode<SpeedScaleNode>( context, options );
+        context.SetNodePtrFromIndex( m_scaleValueNodeIdx, pNode->m_pScaleValueNode );
+        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void SpeedScaleNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -89,11 +88,11 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VelocityBasedSpeedScaleNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void VelocityBasedSpeedScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VelocityBasedSpeedScaleNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
-        SetNodePtrFromIndex( nodePtrs, m_desiredVelocityValueNodeIdx, pNode->m_pDesiredVelocityValueNode );
+        auto pNode = CreateNode<VelocityBasedSpeedScaleNode>( context, options );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
+        context.SetNodePtrFromIndex( m_desiredVelocityValueNodeIdx, pNode->m_pDesiredVelocityValueNode );
     }
 
     void VelocityBasedSpeedScaleNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )

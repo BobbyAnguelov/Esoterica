@@ -1,15 +1,14 @@
 #include "Animation_RuntimeGraphNode_Passthrough.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void PassthroughNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void PassthroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        EE_ASSERT( options == GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
-        auto pNode = static_cast<PassthroughNode*>( nodePtrs[m_nodeIdx] );
-        SetNodePtrFromIndex( nodePtrs, m_childNodeIdx, pNode->m_pChildNode );
+        EE_ASSERT( options == InstantiationOptions::NodeAlreadyCreated );
+        auto pNode = static_cast<PassthroughNode*>( context.m_nodePtrs[m_nodeIdx] );
+        context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 
     //-------------------------------------------------------------------------

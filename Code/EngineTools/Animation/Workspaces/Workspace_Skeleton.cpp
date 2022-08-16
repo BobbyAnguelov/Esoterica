@@ -41,7 +41,7 @@ namespace EE::Animation
     {
         EE_ASSERT( m_pPreviewEntity == nullptr );
 
-        TResourceWorkspace<Skeleton>::Initialize( context );
+        TWorkspace<Skeleton>::Initialize( context );
 
         m_skeletonTreeWindowName.sprintf( "Skeleton##%u", GetID() );
         m_detailsWindowName.sprintf( "Details##%u", GetID() );
@@ -52,7 +52,7 @@ namespace EE::Animation
     void SkeletonWorkspace::Shutdown( UpdateContext const& context )
     {
         DestroySkeletonTree();
-        TResourceWorkspace<Skeleton>::Shutdown( context );
+        TWorkspace<Skeleton>::Shutdown( context );
     }
 
     void SkeletonWorkspace::CreatePreviewEntity()
@@ -74,7 +74,7 @@ namespace EE::Animation
 
     void SkeletonWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
-        TResourceWorkspace<Skeleton>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        TWorkspace<Skeleton>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
         if ( m_pDescriptor == nullptr || IsHotReloading() )
         {
             DestroyEntityInWorld( m_pPreviewEntity );
@@ -83,7 +83,7 @@ namespace EE::Animation
 
     void SkeletonWorkspace::EndHotReload()
     {
-        TResourceWorkspace<Skeleton>::EndHotReload();
+        TWorkspace<Skeleton>::EndHotReload();
 
         if ( m_pPreviewEntity == nullptr )
         {
@@ -93,7 +93,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void SkeletonWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void SkeletonWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         // Debug drawing in Viewport
         //-------------------------------------------------------------------------

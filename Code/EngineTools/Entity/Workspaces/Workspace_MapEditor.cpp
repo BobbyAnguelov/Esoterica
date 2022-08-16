@@ -2,8 +2,9 @@
 #include "EngineTools/Navmesh/NavmeshGeneratorDialog.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/Helpers/CommonDialogs.h"
-#include "Engine/Navmesh/Components/Component_Navmesh.h"
+#include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Entity/EntitySerialization.h"
+#include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "System/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
@@ -11,7 +12,7 @@
 namespace EE::EntityModel
 {
     EntityMapEditor::EntityMapEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EntityEditorBaseWorkspace( pToolsContext, pWorld )
+        : EntityEditorBaseWorkspace( pToolsContext, pWorld, ResourceID( "data://NewMap.map" ) )
     {
         m_gizmo.SetTargetTransform( &m_gizmoTransform );
         SetDisplayName( "Map Editor" );
@@ -63,7 +64,7 @@ namespace EE::EntityModel
             return;
         }
 
-        if ( mapResourceID.GetResourceTypeID() != EntityMapDescriptor::GetStaticResourceTypeID() )
+        if ( mapResourceID.GetResourceTypeID() != SerializedEntityMap::GetStaticResourceTypeID() )
         {
             pfd::message( "Error", "Invalid map extension provided! Maps need to have the .map extension!", pfd::choice::ok, pfd::icon::error ).result();
             return;
@@ -72,8 +73,7 @@ namespace EE::EntityModel
         // Write the map out to a new path and load it
         //-------------------------------------------------------------------------
 
-        EntityCollectionDescriptor emptyMap;
-        if ( Serializer::WriteEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, emptyMap, mapFilePath ) )
+        if ( WriteMapToFile( m_context.GetTypeRegistry(), EntityMap(), mapFilePath ) )
         {
             LoadMap( mapResourceID );
         }
@@ -96,7 +96,7 @@ namespace EE::EntityModel
         LoadMap( mapToLoad );
     }
 
-    void EntityMapEditor::LoadMap( TResourcePtr<EntityModel::EntityMapDescriptor> const& mapToLoad )
+    void EntityMapEditor::LoadMap( TResourcePtr<EntityModel::SerializedEntityMap> const& mapToLoad )
     {
         if ( mapToLoad.GetResourceID() != m_loadedMap )
         {
@@ -151,13 +151,7 @@ namespace EE::EntityModel
         // Write the map out to a new path and load it
         //-------------------------------------------------------------------------
 
-        EntityCollectionDescriptor ecd;
-        if ( !pEditedMap->CreateDescriptor( *m_pToolsContext->m_pTypeRegistry, ecd ) )
-        {
-            return;
-        }
-
-        if ( Serializer::WriteEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, ecd, mapFilePath ) )
+        if ( WriteMapToFile( m_context.GetTypeRegistry(), *pEditedMap, mapFilePath ) )
         {
             ResourceID const mapResourcePath = GetResourcePath( mapFilePath );
             LoadMap( mapResourcePath );
@@ -176,14 +170,8 @@ namespace EE::EntityModel
             return false;
         }
 
-        EntityCollectionDescriptor ecd;
-        if ( !pEditedMap->CreateDescriptor( *m_pToolsContext->m_pTypeRegistry, ecd ) )
-        {
-            return false;
-        }
-
-        FileSystem::Path const filePath = GetFileSystemPath( m_loadedMap );
-        return Serializer::WriteEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, ecd, filePath );
+        FileSystem::Path const mapFilePath = GetFileSystemPath( m_loadedMap );
+        return WriteMapToFile( m_context.GetTypeRegistry(), *pEditedMap, mapFilePath );
     }
 
     //-------------------------------------------------------------------------
@@ -257,9 +245,9 @@ namespace EE::EntityModel
         ImGui::EndDisabled();
     }
 
-    void EntityMapEditor::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void EntityMapEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
-        EntityEditorBaseWorkspace::UpdateWorkspace( context, pWindowClass, isFocused );
+        EntityEditorBaseWorkspace::Update( context, pWindowClass, isFocused );
 
         if ( m_pNavmeshGeneratorDialog != nullptr )
         {
@@ -315,9 +303,9 @@ namespace EE::EntityModel
         FileSystem::Path navmeshFilePath = m_context.GetMap()->GetMapResourceID().GetResourcePath().ToFileSystemPath( m_context.m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
         navmeshFilePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString() );
 
-        EntityCollectionDescriptor mapDesc;
-        m_context.GetMap()->CreateDescriptor( *m_pToolsContext->m_pTypeRegistry, mapDesc );
-        m_pNavmeshGeneratorDialog = EE::New<Navmesh::NavmeshGeneratorDialog>( m_pToolsContext, pNavmeshComponent->GetBuildSettings(), mapDesc, navmeshFilePath);
+        SerializedEntityMap map;
+        Serializer::SerializeEntityMap( *m_pToolsContext->m_pTypeRegistry, m_context.GetMap(), map );
+        m_pNavmeshGeneratorDialog = EE::New<Navmesh::NavmeshGeneratorDialog>( m_pToolsContext, pNavmeshComponent->GetBuildSettings(), map, navmeshFilePath);
     }
 
     void EntityMapEditor::UpdateNavmeshGeneration( UpdateContext const& context )

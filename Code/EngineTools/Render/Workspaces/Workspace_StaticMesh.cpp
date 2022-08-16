@@ -15,7 +15,7 @@ namespace EE::Render
     {
         EE_ASSERT( m_pPreviewEntity == nullptr );
 
-        TResourceWorkspace<StaticMesh>::Initialize( context );
+        TWorkspace<StaticMesh>::Initialize( context );
 
         m_infoWindowName.sprintf( "Info##%u", GetID() );
 
@@ -54,7 +54,7 @@ namespace EE::Render
         }
     }
 
-    void StaticMeshWorkspace::UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void StaticMeshWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         auto DrawWindowContents = [this] ()
         {

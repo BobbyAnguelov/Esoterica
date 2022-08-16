@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 #include "System/Imgui/ImguiX.h"
@@ -13,12 +13,12 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    class SkeletalMeshWorkspace : public TResourceWorkspace<SkeletalMesh>
+    class SkeletalMeshWorkspace : public TWorkspace<SkeletalMesh>
     {
 
     public:
 
-        using TResourceWorkspace::TResourceWorkspace;
+        using TWorkspace::TWorkspace;
         virtual ~SkeletalMeshWorkspace();
 
     private:
@@ -27,7 +27,7 @@ namespace EE::Render
         virtual void Shutdown( UpdateContext const& context ) override;
 
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
         virtual bool HasViewportToolbar() const override { return true; }
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;

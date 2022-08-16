@@ -1,7 +1,6 @@
 #include "EditorUI.h"
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
-#include "EngineTools/Core/Workspaces/EditorWorkspace.h"
 #include "Engine/Physics/Debug/DebugView_Physics.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -23,7 +22,7 @@ namespace EE
     {
         EE_ASSERT( mapID.IsValid() );
 
-        if ( mapID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() )
+        if ( mapID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
         {
             m_startupMap = mapID;
         }
@@ -168,7 +167,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Reset mouse state, this is updated via the workspaces
-        EditorWorkspace* pWorkspaceToClose = nullptr;
+        Workspace* pWorkspaceToClose = nullptr;
 
         // Draw all workspaces
         for ( auto pWorkspace : m_context.GetWorkspaces() )
@@ -206,7 +205,7 @@ namespace EE
     void EditorUI::EndFrame( UpdateContext const& context )
     {
         // Game previewer needs to be drawn at the end of the frames since then all the game simulation data will be correct and all the debug tools will be accurate
-        if ( m_context.IsGameRunning() )
+        if ( m_context.IsGamePreviewRunning() )
         {
             GamePreviewer* pGamePreviewer = m_context.GetGamePreviewWorkspace();
             if ( !DrawWorkspaceWindow( context, pGamePreviewer ) )
@@ -221,7 +220,7 @@ namespace EE
         for ( auto pWorkspace : m_context.GetWorkspaces() )
         {
             EntityWorldUpdateContext updateContext( context, pWorkspace->GetWorld() );
-            pWorkspace->UpdateWorld( updateContext );
+            pWorkspace->PreUpdateWorld( updateContext );
         }
     }
 
@@ -461,7 +460,7 @@ namespace EE
         ImGui::Text( memStats.c_str() );
     }
 
-    bool EditorUI::DrawWorkspaceWindow( UpdateContext const& context, EditorWorkspace* pWorkspace )
+    bool EditorUI::DrawWorkspaceWindow( UpdateContext const& context, Workspace* pWorkspace )
     {
         EE_ASSERT( pWorkspace != nullptr );
 
@@ -535,21 +534,21 @@ namespace EE
 
         if ( shouldDrawWindowContents )
         {
-            if ( !m_context.IsMapEditorWorkspace( pWorkspace ) || !m_context.IsGameRunning() )
+            if ( !m_context.IsMapEditorWorkspace( pWorkspace ) || !m_context.IsGamePreviewRunning() )
             {
                 pWorld->ResumeUpdates();
             }
 
             if ( pWorkspace->HasViewportWindow() )
             {
-                EditorWorkspace::ViewportInfo viewportInfo;
+                Workspace::ViewportInfo viewportInfo;
                 viewportInfo.m_pViewportRenderTargetTexture = m_context.GetViewportTextureForWorkspace( pWorkspace );
                 viewportInfo.m_retrievePickingID = [this, pWorkspace] ( Int2 const& pixelCoords ) { return m_context.GetViewportPickingID( pWorkspace, pixelCoords ); };
                 enableCameraUpdate = pWorkspace->DrawViewport( context, viewportInfo, &workspaceWindowClass );
             }
 
-            pWorkspace->SharedUpdateWorkspace( context, &workspaceWindowClass, isFocused );
-            pWorkspace->UpdateWorkspace( context, &workspaceWindowClass, isFocused );
+            pWorkspace->InternalSharedUpdate( context, &workspaceWindowClass, isFocused );
+            pWorkspace->Update( context, &workspaceWindowClass, isFocused );
         }
         else // If the workspace window is hidden suspend world updates
         {

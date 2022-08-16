@@ -12,6 +12,7 @@ namespace EE
     namespace EntityModel
     {
         class EntityMapEditor;
+        struct Serializer;
     }
 
     // Used to provide access to component private internals in tools code
@@ -25,6 +26,7 @@ namespace EE
 
         friend class Entity;
         friend class EntityWorld;
+        friend EntityModel::Serializer;
         friend EntityModel::EntityCollection;
         friend EntityModel::EntityMap;
 

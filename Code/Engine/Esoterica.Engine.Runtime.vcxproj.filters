@@ -89,9 +89,6 @@
     <ClCompile Include="Entity\EntityMap.cpp">
       <Filter>Entity</Filter>
     </ClCompile>
-    <ClCompile Include="Entity\EntitySerialization.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
     <ClCompile Include="Entity\EntitySpatialComponent.cpp">
       <Filter>Entity</Filter>
     </ClCompile>
@@ -408,6 +405,8 @@
     <ClCompile Include="Camera\Components\Component_DebugCamera.cpp" />
     <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
     <ClCompile Include="Entity\EntityLog.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
+    <ClCompile Include="Entity\EntitySerialization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -537,9 +536,6 @@
       <Filter>Entity</Filter>
     </ClInclude>
     <ClInclude Include="Entity\EntityMap.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntitySerialization.h">
       <Filter>Entity</Filter>
     </ClInclude>
     <ClInclude Include="Entity\EntitySpatialComponent.h">
@@ -874,6 +870,8 @@
     <ClInclude Include="Camera\Components\Component_DebugCamera.h" />
     <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
     <ClInclude Include="Entity\EntityLog.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
+    <ClInclude Include="Entity\EntitySerialization.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

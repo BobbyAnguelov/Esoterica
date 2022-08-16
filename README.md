@@ -42,7 +42,7 @@ If anyone wants to use Esoterica to build or experiment with modern rendering, I
 
 Esoterica uses vanilla msbuild for its build system. There are a set of property sheets that control all the build settings for Esoterica in the "code/property sheets" folder.
 
-1. Download the external dependencies (<https://drive.google.com/file/d/1whDvXeZKd3P4nbxTmmukPds4SG3saYra/view?usp=sharing>) and extract into the Esoterica external folder ( X:/Path/Esoterica/External )
+1. Download the external dependencies (<https://drive.google.com/file/d/1MkkksGCw9lJ-H4GiPMNr2bAbnDkigogi/view?usp=sharing>) and extract into the Esoterica external folder ( X:/Esoterica Path/External )
 2. Download and install the FBX SDK (required for editor) - <https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk-2020-2-1>
 3. Open the EE.sln
 4. REBUILD the "EE.Scripts.Reflect" project - this will generate all the Esoterica reflection data

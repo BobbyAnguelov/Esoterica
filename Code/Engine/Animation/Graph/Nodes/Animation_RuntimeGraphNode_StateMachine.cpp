@@ -1,26 +1,25 @@
 #include "Animation_RuntimeGraphNode_StateMachine.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void StateMachineNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void StateMachineNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<StateMachineNode>( nodePtrs, options );
+        auto pNode = CreateNode<StateMachineNode>( context, options );
 
         for ( auto& stateSettings : m_stateSettings )
         {
             StateInfo& state = pNode->m_states.emplace_back();
-            SetNodePtrFromIndex( nodePtrs, stateSettings.m_stateNodeIdx, state.m_pStateNode );
-            SetOptionalNodePtrFromIndex( nodePtrs, stateSettings.m_entryConditionNodeIdx, state.m_pEntryConditionNode );
+            context.SetNodePtrFromIndex( stateSettings.m_stateNodeIdx, state.m_pStateNode );
+            context.SetOptionalNodePtrFromIndex( stateSettings.m_entryConditionNodeIdx, state.m_pEntryConditionNode );
 
             for ( auto& transitionSettings : stateSettings.m_transitionSettings )
             {
                 TransitionInfo& transition = state.m_transitions.emplace_back();
                 transition.m_targetStateIdx = transitionSettings.m_targetStateIdx;
-                SetNodePtrFromIndex( nodePtrs, transitionSettings.m_transitionNodeIdx, transition.m_pTransitionNode );
-                SetNodePtrFromIndex( nodePtrs, transitionSettings.m_conditionNodeIdx, transition.m_pConditionNode );
+                context.SetNodePtrFromIndex( transitionSettings.m_transitionNodeIdx, transition.m_pTransitionNode );
+                context.SetNodePtrFromIndex( transitionSettings.m_conditionNodeIdx, transition.m_pConditionNode );
             }
         }
     }

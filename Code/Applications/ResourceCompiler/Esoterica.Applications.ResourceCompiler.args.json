@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "3580e3b3-057c-4588-a5ae-e35ebc04b321",
+      "Command": "-compile data://testgraph_default.agv"
+    },
+    {
       "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
       "Command": "-shipping"
     },

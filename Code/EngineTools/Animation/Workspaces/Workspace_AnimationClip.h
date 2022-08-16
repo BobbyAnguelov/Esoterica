@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Animation/Events/AnimationEventEditor.h"
 #include "Engine/Animation/AnimationClip.h"
 
@@ -19,7 +19,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class AnimationClipWorkspace : public TResourceWorkspace<AnimationClip>
+    class AnimationClipWorkspace : public TWorkspace<AnimationClip>
     {
     public:
 
@@ -33,7 +33,7 @@ namespace EE::Animation
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
         virtual void EndHotReload() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;

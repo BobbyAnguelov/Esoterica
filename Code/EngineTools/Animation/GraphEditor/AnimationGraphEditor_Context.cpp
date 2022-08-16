@@ -317,4 +317,18 @@ namespace EE::Animation
             m_onNavigateToGraph.Execute( pGraph );
         }
     }
+
+    void GraphEditorContext::TrySetSelectedVariation( String const& variationName )
+    {
+        auto const& varHierarchy = m_editorGraph.GetVariationHierarchy();
+        for ( auto const& variation : varHierarchy.GetAllVariations() )
+        {
+            int32_t const result = variationName.comparei( variation.m_ID.c_str() );
+            if ( result == 0 )
+            {
+                SetSelectedVariation( variation.m_ID );
+                return;
+            }
+        }
+    }
 }

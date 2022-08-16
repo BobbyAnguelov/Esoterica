@@ -8,10 +8,10 @@
 
 namespace EE::Animation
 {
-    class EE_ENGINE_API GraphDefinition : public Resource::IResource
+    class EE_ENGINE_API GraphDefinition final : public Resource::IResource
     {
         EE_REGISTER_RESOURCE( 'ag', "Animation Graph" );
-        EE_SERIALIZE( m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_numControlParameters, m_rootNodeIdx, m_controlParameterIDs, m_externalGraphSlots );
+        EE_SERIALIZE( m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_rootNodeIdx, m_controlParameterIDs, m_virtualParameterIDs, m_virtualParameterNodeIndices, m_childGraphSlots, m_externalGraphSlots );
 
         friend class GraphDefinitionCompiler;
         friend class AnimationGraphCompiler;
@@ -31,6 +31,17 @@ namespace EE::Animation
             StringID                                m_slotID;
         };
 
+        struct ChildGraphSlot
+        {
+            EE_SERIALIZE( m_nodeIdx, m_dataSlotIdx );
+
+            ChildGraphSlot() = default;
+            ChildGraphSlot( int16_t idx, int16_t dataSlotIdx ) : m_nodeIdx( idx ), m_dataSlotIdx( dataSlotIdx ) { EE_ASSERT( idx != InvalidIndex && dataSlotIdx != InvalidIndex ); }
+
+            int16_t                                 m_nodeIdx = InvalidIndex;
+            int16_t                                 m_dataSlotIdx;
+        };
+
     public:
 
         virtual bool IsValid() const override { return m_rootNodeIdx != InvalidIndex; }
@@ -39,16 +50,19 @@ namespace EE::Animation
         String const& GetNodePath( int16_t nodeIdx ) const{ return m_nodePaths[nodeIdx]; }
         #endif
 
-    protected:
+    private:
 
         TVector<int16_t>                            m_persistentNodeIndices;
         TVector<uint32_t>                           m_instanceNodeStartOffsets;
         uint32_t                                    m_instanceRequiredMemory = 0;
         uint32_t                                    m_instanceRequiredAlignment = 0;
-        int32_t                                     m_numControlParameters = 0;
         int16_t                                     m_rootNodeIdx = InvalidIndex;
         TVector<StringID>                           m_controlParameterIDs;
+        TVector<StringID>                           m_virtualParameterIDs;
+        TVector<int16_t>                            m_virtualParameterNodeIndices;
+        TVector<ChildGraphSlot>                     m_childGraphSlots;
         TVector<ExternalGraphSlot>                  m_externalGraphSlots;
+        THashMap<StringID, int16_t>                 m_parameterLookupMap;
 
         #if EE_DEVELOPMENT_TOOLS
         TVector<String>                             m_nodePaths;
@@ -60,7 +74,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API GraphVariation : public Resource::IResource
+    class EE_ENGINE_API GraphVariation final : public Resource::IResource
     {
         EE_REGISTER_RESOURCE( 'agv', "Animation Graph Variation" );
         EE_SERIALIZE( m_pGraphDefinition, m_pDataSet );
@@ -68,10 +82,6 @@ namespace EE::Animation
         friend class AnimationGraphCompiler;
         friend class GraphLoader;
         friend class GraphInstance;
-
-    public:
-
-        static StringID const DefaultVariationID;
 
     public:
 

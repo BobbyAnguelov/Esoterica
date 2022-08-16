@@ -1,5 +1,4 @@
 #include "Animation_RuntimeGraphNode_Transition.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_CachedPose.h"
@@ -11,12 +10,12 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void TransitionNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void TransitionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<TransitionNode>( nodePtrs, options );
-        SetNodePtrFromIndex( nodePtrs, m_targetStateNodeIdx, pNode->m_pTargetNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_durationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
+        auto pNode = CreateNode<TransitionNode>( context, options );
+        context.SetNodePtrFromIndex( m_targetStateNodeIdx, pNode->m_pTargetNode );
+        context.SetOptionalNodePtrFromIndex( m_durationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
+        context.SetOptionalNodePtrFromIndex( m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
     }
 
     GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, InitializationOptions const& options, StateNode* pSourceState )
@@ -69,7 +68,7 @@ namespace EE::Animation::GraphNodes
 
         // Record source root motion index
         #if EE_DEVELOPMENT_TOOLS
-        m_rootMotionActionIdxSource = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+        m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
 
         // Layer context update
@@ -141,7 +140,7 @@ namespace EE::Animation::GraphNodes
             targetNodeResult = m_pTargetNode->Update( context );
 
             #if EE_DEVELOPMENT_TOOLS
-            m_rootMotionActionIdxTarget = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+            m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Clamp duration
@@ -187,7 +186,7 @@ namespace EE::Animation::GraphNodes
             targetNodeResult = m_pTargetNode->Update( context, targetUpdateRange );
 
             #if EE_DEVELOPMENT_TOOLS
-            m_rootMotionActionIdxTarget = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+            m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update internal transition state
@@ -490,7 +489,7 @@ namespace EE::Animation::GraphNodes
             outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, m_blendWeight );
 
             #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionActionRecorder()->RecordBlend( GetNodeIndex(), m_rootMotionActionIdxSource, m_rootMotionActionIdxTarget, outResult.m_rootMotionDelta );
+            context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), m_rootMotionActionIdxSource, m_rootMotionActionIdxTarget, outResult.m_rootMotionDelta );
             #endif
         }
         else
@@ -597,7 +596,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult sourceNodeResult = m_pSourceNode->Update( context );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_rootMotionActionIdxSource = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+        m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
 
         // If we have a source cached pose and we have registered tasks, register a blend
@@ -625,7 +624,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult const targetNodeResult = m_pTargetNode->Update( context );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_rootMotionActionIdxTarget = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+        m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
 
         // Record target ctx and reset ctx back to parent
@@ -745,7 +744,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult sourceNodeResult = m_pSourceNode->Update( context, sourceUpdateRange );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_rootMotionActionIdxSource = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+        m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
 
         // If we have a source cached pose and we have registered tasks, register a blend
@@ -774,7 +773,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult const targetNodeResult = m_pTargetNode->Update( context, updateRange );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_rootMotionActionIdxTarget = context.GetRootMotionActionRecorder()->GetLastActionIndex();
+        m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
 
         // Record target ctx and reset ctx back to parent

@@ -9,6 +9,7 @@
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Physics/Components/Component_PhysicsMesh.h"
 #include "Engine/Entity/EntityAccessor.h"
+#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "System/Resource/ResourceHeader.h"
@@ -39,11 +40,11 @@ namespace EE
 
 namespace EE::Navmesh
 {
-    NavmeshGenerator::NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::EntityCollectionDescriptor const& entityCollectionDesc, NavmeshBuildSettings const& buildSettings )
+    NavmeshGenerator::NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::SerializedEntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings )
         : m_typeRegistry( typeRegistry )
         , m_rawResourceDirectoryPath( rawResourceDirectoryPath )
         , m_outputPath( outputPath )
-        , m_entityCollectionDesc( entityCollectionDesc )
+        , m_entityCollection( entityCollection )
         , m_buildSettings( buildSettings )
         , m_asyncTask( [this] ( TaskSetPartition range, uint32_t threadnum ) { GenerateSync(); } )
     {
@@ -111,7 +112,7 @@ namespace EE::Navmesh
         Printf( m_progressMessage, 256, "Step 1/4: Collecting Primitives" );
         m_progress = 0.0f;
 
-        TVector<Entity*> createdEntities = m_entityCollectionDesc.InstantiateCollection( nullptr, m_typeRegistry );
+        TVector<Entity*> createdEntities = EntityModel::Serializer::CreateEntities( nullptr, m_typeRegistry, m_entityCollection );
 
         // Update all spatial transforms
         //-------------------------------------------------------------------------
@@ -130,16 +131,16 @@ namespace EE::Navmesh
         // Collect all collision geometry
         //-------------------------------------------------------------------------
 
-        auto foundPhysicsComponents = m_entityCollectionDesc.GetComponentsOfType( m_typeRegistry, Physics::PhysicsMeshComponent::GetStaticTypeID() );
+        auto foundPhysicsComponents = m_entityCollection.GetComponentsOfType( m_typeRegistry, Physics::PhysicsMeshComponent::GetStaticTypeID() );
         numComponentsToProgress += foundPhysicsComponents.size();
 
         float cnt = 0;
         for ( auto const& searchResult : foundPhysicsComponents )
         {
-            int32_t const entityIdx = m_entityCollectionDesc.FindEntityIndex( searchResult.m_pEntity->m_name );
+            int32_t const entityIdx = m_entityCollection.FindEntityIndex( searchResult.m_pEntity->m_name );
             EE_ASSERT( entityIdx != InvalidIndex );
 
-            int32_t const componentIdx = m_entityCollectionDesc.GetEntityDescriptors()[entityIdx].FindComponentIndex( searchResult.m_pComponent->m_name );
+            int32_t const componentIdx = m_entityCollection.GetEntityDescriptors()[entityIdx].FindComponentIndex( searchResult.m_pComponent->m_name );
             EE_ASSERT( componentIdx != InvalidIndex );
 
             Entity const* pEntity = createdEntities[entityIdx];

@@ -11,12 +11,12 @@
 
 namespace EE::Navmesh
 {
-    NavmeshGeneratorDialog::NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::EntityCollectionDescriptor const& entityCollectionDesc, FileSystem::Path const& navmeshOutputPath )
+    NavmeshGeneratorDialog::NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::SerializedEntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath )
         : m_pToolsContext( pToolsContext )
         , m_buildSettings( initialBuildSettings )
         , m_propertyGrid( pToolsContext )
         , m_navmeshOutputPath( navmeshOutputPath )
-        , m_entityCollectionDesc( entityCollectionDesc )
+        , m_entityCollection( entityCollection )
     {
         m_propertyGrid.SetTypeToEdit( &m_buildSettings );
         m_propertyGrid.ExpandAllPropertyViews();
@@ -79,7 +79,7 @@ namespace EE::Navmesh
                 #if EE_ENABLE_NAVPOWER
                 if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Generate", ImVec2( -1, 0 ) ) )
                 {
-                    m_pGenerator = EE::New<NavmeshGenerator>( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(), m_navmeshOutputPath, m_entityCollectionDesc, m_buildSettings );
+                    m_pGenerator = EE::New<NavmeshGenerator>( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(), m_navmeshOutputPath, m_entityCollection, m_buildSettings );
                     m_pGenerator->GenerateAsync( *ctx.GetSystem<TaskSystem>() );
                 }
                 #endif

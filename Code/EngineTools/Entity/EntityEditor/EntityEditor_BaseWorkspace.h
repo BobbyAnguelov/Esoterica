@@ -4,7 +4,7 @@
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Outliner.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Inspector.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_PropertyGrid.h"
-#include "EngineTools/Core/Workspaces/EditorWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/ToolsUI/Gizmo.h"
 
@@ -12,20 +12,21 @@
 
 namespace EE::EntityModel
 {
-    class EE_ENGINETOOLS_API EntityEditorBaseWorkspace : public EditorWorkspace
+    class EE_ENGINETOOLS_API EntityEditorBaseWorkspace : public Workspace
     {
     public:
 
-        EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld * pWorld );
+        EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
 
     protected:
 
+        virtual bool HasViewportWindow() const override { return true; }
         virtual bool HasViewportToolbar() const override { return true; }
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void UpdateWorkspace( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual bool IsDirty() const override{ return false; } // TODO
@@ -35,7 +36,7 @@ namespace EE::EntityModel
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         // Called whenever we have a valid resource being dropped into the viewport, users can override to provide custom handling
-        virtual void DropResourceInMap( ResourceID const& resourceID, Vector const& worldPosition );
+        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition );
 
     protected:
 

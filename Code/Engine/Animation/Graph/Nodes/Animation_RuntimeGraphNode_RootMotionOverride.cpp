@@ -1,19 +1,18 @@
 #include "Animation_RuntimeGraphNode_RootMotionOverride.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Contexts.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void RootMotionOverrideNode::Settings::InstantiateNode( TVector<GraphNode*> const& nodePtrs, GraphDataSet const* pDataSet, InstantiationOptions options ) const
+    void RootMotionOverrideNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<RootMotionOverrideNode>( nodePtrs, options );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_desiredHeadingVelocityNodeIdx, pNode->m_pDesiredHeadingVelocityNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_desiredFacingDirectionNodeIdx, pNode->m_pDesiredFacingDirectionNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_linearVelocityLimitNodeIdx, pNode->m_pLinearVelocityLimitNode );
-        SetOptionalNodePtrFromIndex( nodePtrs, m_angularVelocityLimitNodeIdx, pNode->m_pAngularVelocityLimitNode );
-        PassthroughNode::Settings::InstantiateNode( nodePtrs, pDataSet, GraphNode::Settings::InstantiationOptions::NodeAlreadyCreated );
+        auto pNode = CreateNode<RootMotionOverrideNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_desiredHeadingVelocityNodeIdx, pNode->m_pDesiredHeadingVelocityNode );
+        context.SetOptionalNodePtrFromIndex( m_desiredFacingDirectionNodeIdx, pNode->m_pDesiredFacingDirectionNode );
+        context.SetOptionalNodePtrFromIndex( m_linearVelocityLimitNodeIdx, pNode->m_pLinearVelocityLimitNode );
+        context.SetOptionalNodePtrFromIndex( m_angularVelocityLimitNodeIdx, pNode->m_pAngularVelocityLimitNode );
+        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void RootMotionOverrideNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -158,7 +157,7 @@ namespace EE::Animation::GraphNodes
         NodeResult.m_rootMotionDelta = AdjustedDisplacementDelta;
 
         #if EE_DEVELOPMENT_TOOLS
-        context.GetRootMotionActionRecorder()->RecordModification( GetNodeIndex(), NodeResult.m_rootMotionDelta );
+        context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), NodeResult.m_rootMotionDelta );
         #endif
     }
 

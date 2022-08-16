@@ -18,6 +18,7 @@ namespace EE::Animation
     class TaskSystem;
     class GraphNode;
     class PoseNode;
+    enum class TaskSystemDebugMode;
 
     //-------------------------------------------------------------------------
 
@@ -33,9 +34,17 @@ namespace EE::Animation
 
     class EE_ENGINE_API GraphInstance
     {
+        friend class AnimationDebugView;
+
     public:
 
-        struct ConnectedExternalGraph
+        struct ChildGraph
+        {
+            int16_t             m_nodeIdx = InvalidIndex;
+            GraphInstance*      m_pInstance = nullptr;
+        };
+
+        struct ExternalGraph
         {
             StringID            m_slotID;
             int16_t             m_nodeIdx = InvalidIndex;
@@ -45,17 +54,22 @@ namespace EE::Animation
     public:
 
         // Main instance
-        GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID );
+        inline GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID ) : GraphInstance( pGraphVariation, ownerID, nullptr ) {}
         ~GraphInstance();
 
-        void Initialize( TaskSystem* pTaskSystem );
-        void Shutdown();
-
-        // Graph State
+        // Info 
         //-------------------------------------------------------------------------
 
         inline ResourceID const& GetGraphVariationID() const { return m_pGraphVariation->GetResourceID(); }
         inline ResourceID const& GetGraphDefinitionID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
+
+        // Pose
+        //-------------------------------------------------------------------------
+
+        Pose const* GetPose();
+
+        // Graph State
+        //-------------------------------------------------------------------------
 
         // Is this a valid instance that has been correctly initialized
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
@@ -63,17 +77,17 @@ namespace EE::Animation
         // Fully reset all nodes in the graph
         void ResetGraphState();
 
-        // Called to reset the runtime state and prepare for a new frame update
-        void StartUpdate( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene );
-
         // Run the graph logic - returns the root motion delta for the update
-        GraphPoseNodeResult UpdateGraph();
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene );
 
         // Run the graph logic synchronized (needed for external graph support) - returns the root motion delta for the update
-        GraphPoseNodeResult UpdateGraph( SyncTrackTimeRange const& updateRange );
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange );
 
-        // Called to finalize the graph update with the final position of the character
-        void EndUpdate( Transform const& endWorldTransform );
+        // Execute any pre-physics pose tasks (assumes the character is at its final position for this frame)
+        void ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform );
+
+        // Execute any post-physics pose tasks
+        void ExecutePostPhysicsPoseTasks();
 
         // Get the sampled events for the last update
         SampledEventsBuffer const& GetSampledEvents() const { return m_graphContext.m_sampledEventsBuffer; }
@@ -98,11 +112,12 @@ namespace EE::Animation
         // Control Parameters
         //-------------------------------------------------------------------------
 
-        inline int32_t GetNumControlParameters() const { return m_pGraphVariation->m_pGraphDefinition->m_numControlParameters; }
+        inline int32_t GetNumControlParameters() const { return (int32_t) m_pGraphVariation->m_pGraphDefinition->m_controlParameterIDs.size(); }
 
         inline int16_t GetControlParameterIndex( StringID parameterID ) const
         {
-            for ( int16_t i = 0; i < m_pGraphVariation->m_pGraphDefinition->m_numControlParameters; i++ )
+            int32_t const numParams = GetNumControlParameters();
+            for ( int16_t i = 0; i < numParams; i++ )
             {
                 if ( m_pGraphVariation->m_pGraphDefinition->m_controlParameterIDs[i] == parameterID )
                 {
@@ -176,6 +191,15 @@ namespace EE::Animation
         // Get the root motion debugger for this instance
         inline RootMotionDebugger const* GetRootMotionDebugger() const { return &m_rootMotionDebugger; }
 
+        // Get the task system debug mode
+        inline TaskSystemDebugMode GetTaskSystemDebugMode() const;
+
+        // Set the task system debug mode
+        inline void SetTaskSystemDebugMode( TaskSystemDebugMode mode );
+
+        // Get the debug world transform that the task system used to execute
+        Transform GetTaskSystemDebugWorldTransform();
+
         // Set the list of the debugs that we wish to explicitly debug. Set an empty list to debug everything!
         inline void SetNodeDebugFilterList( TVector<int16_t> const& filterList ) { m_debugFilterNodes = filterList; }
 
@@ -189,10 +213,16 @@ namespace EE::Animation
         }
 
         // Get the connected external graph instance
+        GraphInstance const* GetChildGraphDebugInstance( int16_t nodeIdx ) const;
+
+        // Get all child graphs
+        inline TVector<ChildGraph> const& GetChildGraphsForDebug() const { return m_childGraphs; }
+
+        // Get the connected external graph instance
         GraphInstance const* GetExternalGraphDebugInstance( StringID slotID ) const;
 
         // Get all connected external graphs
-        inline TVector<ConnectedExternalGraph> const& GetConnectedExternalGraphsForDebug() const { return m_connectedExternalGraphs; }
+        inline TVector<ExternalGraph> const& GetExternalGraphsForDebug() const { return m_externalGraphs; }
 
         // Get the value of a specified value node
         template<typename T>
@@ -209,7 +239,9 @@ namespace EE::Animation
 
     private:
 
-        EE_FORCE_INLINE bool IsControlParameter( int16_t nodeIdx ) const { return nodeIdx < m_pGraphVariation->m_pGraphDefinition->m_numControlParameters; }
+        explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem );
+
+        EE_FORCE_INLINE bool IsControlParameter( int16_t nodeIdx ) const { return nodeIdx < GetNumControlParameters(); }
         int32_t GetExternalGraphSlotIndex( StringID slotID ) const;
         int16_t GetExternalGraphNodeIndex( StringID slotID ) const;
         int32_t GetConnectedExternalGraphIndex( StringID slotID ) const;
@@ -227,8 +259,10 @@ namespace EE::Animation
         PoseNode*                               m_pRootNode = nullptr;
         uint64_t                                m_userID = 0; // An idea identifying the owner of this instance (usually the entity ID)
 
+        TaskSystem*                             m_pTaskSystem = nullptr;
         GraphContext                            m_graphContext;
-        TVector<ConnectedExternalGraph>         m_connectedExternalGraphs;
+        TVector<ChildGraph>                     m_childGraphs;
+        TVector<ExternalGraph>                  m_externalGraphs;
 
         #if EE_DEVELOPMENT_TOOLS
         TVector<int16_t>                        m_activeNodes;

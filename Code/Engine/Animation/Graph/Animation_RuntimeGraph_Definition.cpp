@@ -3,6 +3,4 @@
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
-{
-    EE::StringID const GraphVariation::DefaultVariationID( "Default" );
-}
+{}

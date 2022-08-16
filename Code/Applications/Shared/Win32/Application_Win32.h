@@ -19,7 +19,7 @@ namespace EE
         Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID, bool startMinimized = false );
         virtual ~Win32Application();
 
-        int Run( int32_t argc, char** argv );
+        int32_t Run( int32_t argc, char** argv );
 
         inline bool IsInitialized() const { return m_initialized; }
 

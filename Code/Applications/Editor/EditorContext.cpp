@@ -3,11 +3,12 @@
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
 #include "EngineTools/Entity/Workspaces/Workspace_EntityCollectionEditor.h"
-#include "EngineTools/Core/Workspaces/ResourceWorkspace.h"
+#include "EngineTools/Core/Workspace.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/UpdateContext.h"
+#include "System/TypeSystem/TypeRegistry.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/IniFile.h"
@@ -106,13 +107,13 @@ namespace EE
         // Handle maps/ECs explicitly
         //-------------------------------------------------------------------------
 
-        if ( resourceTypeID == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() )
+        if ( resourceTypeID == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
         {
             m_pMapEditor->LoadMap( resourceID );
             ImGuiX::MakeTabVisible( m_pMapEditor->GetWorkspaceWindowID() );
             return true;
         }
-        else if ( resourceTypeID == EntityModel::EntityCollectionDescriptor::GetStaticResourceTypeID() )
+        else if ( resourceTypeID == EntityModel::SerializedEntityCollection::GetStaticResourceTypeID() )
         {
             // Create preview world
             auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
@@ -130,20 +131,33 @@ namespace EE
         // Other resource types
         //-------------------------------------------------------------------------
 
-        auto pExistingWorkspace = FindResourceWorkspace( resourceID );
+        Workspace* pExistingWorkspace = nullptr;
+        uint32_t const resourcePathID = resourceID.GetResourcePath().GetID();
+        auto foundWorkspaceIter = eastl::find( m_workspaces.begin(), m_workspaces.end(), resourcePathID, [] ( Workspace* const& pExistingWorkspace, uint32_t ID ) { return pExistingWorkspace->GetID() == ID; } );
+        if ( foundWorkspaceIter != m_workspaces.end() )
+        {
+            pExistingWorkspace = *foundWorkspaceIter;
+        }
+
         if ( pExistingWorkspace == nullptr )
         {
-            // Create preview world
-            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-            pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
-            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
-
-            // Try create workspace
-            auto pCreatedWorkspace = ResourceWorkspaceFactory::TryCreateWorkspace( this, pPreviewWorld, resourceID );
-            if ( pCreatedWorkspace != nullptr )
+            if ( ResourceWorkspaceFactory::CanCreateWorkspace( this, resourceID ) )
             {
+                // Create preview world
+                auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
+                pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
+                m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
+
+                // Try create workspace
+                auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pPreviewWorld, resourceID );
                 pCreatedWorkspace->Initialize( context );
                 m_workspaces.emplace_back( pCreatedWorkspace );
+
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
         else
@@ -154,19 +168,24 @@ namespace EE
         return true;
     }
 
-    void EditorContext::DestroyWorkspace( UpdateContext const& context, EditorWorkspace* pWorkspace )
+    void EditorContext::QueueCreateWorkspace( ResourceID const& resourceID )
+    {
+        m_workspaceCreationRequests.emplace_back( resourceID );
+    }
+
+    void EditorContext::DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace )
     {
         EE_ASSERT( m_pMapEditor != pWorkspace );
         DestroyWorkspaceInternal( context, pWorkspace );
     }
 
-    void EditorContext::QueueDestroyWorkspace( EditorWorkspace* pWorkspace )
+    void EditorContext::QueueDestroyWorkspace( Workspace* pWorkspace )
     {
         EE_ASSERT( m_pMapEditor != pWorkspace );
         m_workspaceDestructionRequests.emplace_back( pWorkspace );
     }
 
-    void EditorContext::DestroyWorkspaceInternal( UpdateContext const& context, EditorWorkspace* pWorkspace )
+    void EditorContext::DestroyWorkspaceInternal( UpdateContext const& context, Workspace* pWorkspace )
     {
         EE_ASSERT( pWorkspace != nullptr );
 
@@ -221,7 +240,7 @@ namespace EE
 
     bool EditorContext::HasDescriptorForResourceType( ResourceTypeID resourceTypeID ) const
     {
-        if ( resourceTypeID == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() )
+        if ( resourceTypeID == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
         {
             return false;
         }
@@ -234,11 +253,11 @@ namespace EE
     void EditorContext::LoadMap( ResourceID const& mapResourceID ) const
     {
         EE_ASSERT( m_pMapEditor != nullptr );
-        EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
         m_pMapEditor->LoadMap( mapResourceID );
     }
 
-    bool EditorContext::IsMapEditorWorkspace( EditorWorkspace const* pWorkspace ) const
+    bool EditorContext::IsMapEditorWorkspace( Workspace const* pWorkspace ) const
     {
         return m_pMapEditor == pWorkspace;
     }
@@ -248,60 +267,30 @@ namespace EE
         return m_pMapEditor->GetWorkspaceWindowID();
     }
 
-    bool EditorContext::IsGamePreviewWorkspace( EditorWorkspace const* pWorkspace ) const
+    bool EditorContext::IsGamePreviewWorkspace( Workspace const* pWorkspace ) const
     {
         return m_pGamePreviewer == pWorkspace;
     }
 
-    EntityWorld const* EditorContext::GetGameWorld() const
-    {
-        return m_pGamePreviewer->GetWorld();
-    }
-
-    void* EditorContext::GetViewportTextureForWorkspace( EditorWorkspace* pWorkspace ) const
+    void* EditorContext::GetViewportTextureForWorkspace( Workspace* pWorkspace ) const
     {
         EE_ASSERT( pWorkspace != nullptr );
         auto pWorld = pWorkspace->GetWorld();
         return (void*) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
     }
 
-    Render::PickingID EditorContext::GetViewportPickingID( EditorWorkspace* pWorkspace, Int2 const& pixelCoords ) const
+    Render::PickingID EditorContext::GetViewportPickingID( Workspace* pWorkspace, Int2 const& pixelCoords ) const
     {
         EE_ASSERT( pWorkspace != nullptr );
         auto pWorld = pWorkspace->GetWorld();
         return m_pRenderingSystem->GetViewportPickingID( pWorld->GetViewport(), pixelCoords );
     }
 
-    EditorWorkspace* EditorContext::FindResourceWorkspace( ResourceID const& resourceID ) const
-    {
-        EE_ASSERT( resourceID.IsValid() );
-        uint32_t const resourcePathID = resourceID.GetResourcePath().GetID();
-
-        auto foundWorkspaceIter = eastl::find( m_workspaces.begin(), m_workspaces.end(), resourcePathID, [] ( EditorWorkspace* const& pExistingWorkspace, uint32_t ID ) { return pExistingWorkspace->GetID() == ID; } );
-        if ( foundWorkspaceIter != m_workspaces.end() )
-        {
-            return *foundWorkspaceIter;
-        }
-
-        return nullptr;
-    }
-
-    EditorWorkspace* EditorContext::FindResourceWorkspace( uint32_t workspaceID ) const
-    {
-        auto foundWorkspaceIter = eastl::find( m_workspaces.begin(), m_workspaces.end(), workspaceID, [] ( EditorWorkspace* const& pExistingWorkspace, uint32_t ID ) { return pExistingWorkspace->GetID() == ID; } );
-        if ( foundWorkspaceIter != m_workspaces.end() )
-        {
-            return *foundWorkspaceIter;
-        }
-
-        return nullptr;
-    }
-
     //-------------------------------------------------------------------------
 
     void EditorContext::StartGamePreview( UpdateContext const& context )
     {
-        EE_ASSERT( !IsGameRunning() );
+        EE_ASSERT( m_pGamePreviewer == nullptr );
 
         auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Game );
         m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
@@ -315,7 +304,7 @@ namespace EE
 
     void EditorContext::StopGamePreview( UpdateContext const& context )
     {
-        EE_ASSERT( IsGameRunning() );
+        EE_ASSERT( m_pGamePreviewer != nullptr );
         QueueDestroyWorkspace( m_pGamePreviewer );
     }
 }
