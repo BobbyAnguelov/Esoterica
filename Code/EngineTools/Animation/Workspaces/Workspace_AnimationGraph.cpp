@@ -211,6 +211,12 @@ namespace EE::Animation
         m_editorContext.OnNavigateToGraph().Unbind( m_navigateToGraphEventBindingID );
     }
 
+    bool AnimationGraphWorkspace::IsEditingResource( ResourceID const& resourceID ) const
+    {
+        ResourceID const actualResourceID = Variation::GetGraphResourceID( resourceID );
+        return actualResourceID == m_descriptorID;
+    }
+
     void AnimationGraphWorkspace::Initialize( UpdateContext const& context )
     {
         TWorkspace<GraphDefinition>::Initialize( context );

@@ -40,7 +40,6 @@ namespace EE::EntityModel
 
     private:
 
-        virtual uint32_t GetID() const override { return 0xFFFFFFFF; }
         virtual bool IsDirty() const override{ return false; } // TODO
         virtual bool Save() override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;

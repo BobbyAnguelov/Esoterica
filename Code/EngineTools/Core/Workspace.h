@@ -51,12 +51,12 @@ namespace EE
 
     public:
 
-        Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        explicit Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
         Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName );
         virtual ~Workspace();
 
         // Get a unique ID for this workspace
-        virtual uint32_t GetID() const { return m_descriptorID.GetPathID(); }
+        inline uint32_t GetID() const { return m_ID; }
 
         // Get the display name for this workspace (shown on tab, dialogs, etc...)
         virtual char const* GetDisplayName() const { return m_displayName.c_str(); }
@@ -91,11 +91,17 @@ namespace EE
         // Get the world associated with this workspace
         inline EntityWorld* GetWorld() const { return m_pWorld; }
 
+        // Check if we are currently editing the specific resource. Can be derived to handle special cases where multiple resourceIDs map to the same edited ID
+        virtual bool IsEditingResource( ResourceID const& resourceID ) const { return resourceID == m_descriptorID; }
+
         // Lifetime/Update Functions
         //-------------------------------------------------------------------------
 
-        // Initialize the workspace: initialize window IDs, create preview entities, etc... - Base implementation must be called!
+        // Initialize the workspace: initialize window IDs, create preview entities, load descriptor etc...
+        // NOTE: Derived classes MUST call base implementation!
         virtual void Initialize( UpdateContext const& context );
+
+        // Shutdown the workspace, free loaded descriptor, etc...
         virtual void Shutdown( UpdateContext const& context );
 
         // Called just before the world is updated per update stage
@@ -155,19 +161,17 @@ namespace EE
         // Undo/Redo
         //-------------------------------------------------------------------------
 
-        // Called whenever we execute an undo or redo action
+        // Called immediately before we execute an undo or redo action
         virtual void PreUndoRedo( UndoStack::Operation operation ) {}
+
+        // Called immediately after we execute an undo or redo action
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction );
 
         inline bool CanUndo() { return m_undoStack.CanUndo(); }
         void Undo();
+
         inline bool CanRedo() { return m_undoStack.CanRedo(); }
         void Redo();
-
-        void PreEdit( PropertyEditInfo const& info );
-        void PostEdit( PropertyEditInfo const& info );
-        void BeginModification();
-        void EndModification();
 
         // Saving and Dirty state
         //-------------------------------------------------------------------------
@@ -210,6 +214,9 @@ namespace EE
         // Set the workspace tab-title
         void SetDisplayName( String const& name );
 
+        // Viewport Helpers
+        //-------------------------------------------------------------------------
+
         // Draws the viewport toolbar
         void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport );
 
@@ -219,7 +226,7 @@ namespace EE
         // End a toolbar group
         void EndViewportToolbarGroup();
 
-        // Resource helpers
+        // Resource Helpers
         //-------------------------------------------------------------------------
 
         inline FileSystem::Path const& GetRawResourceDirectoryPath() const { return m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(); }
@@ -243,11 +250,14 @@ namespace EE
             return ResourcePath::FromFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(), path );
         }
 
-        // Resource and Entity Management
-        //-------------------------------------------------------------------------
-
+        // Use this function to load a resource required for this workspace (hot-reload aware)
         void LoadResource( Resource::ResourcePtr* pResourcePtr );
+
+        // Use this function to unload a required resource for this workspace (hot-reload aware)
         void UnloadResource( Resource::ResourcePtr* pResourcePtr );
+
+        // Entity Helpers
+        //-------------------------------------------------------------------------
 
         // Add an entity to the preview world
         // Ownership is transferred to the world, you dont need to call remove/destroy if you dont explicitly need to remove an entity
@@ -263,24 +273,42 @@ namespace EE
         // Descriptor Utils
         //-------------------------------------------------------------------------
 
-        // Draws a separate descriptor property grid editor window - return true if focused
-        bool DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow = true );
+        // Does this workspace operate on a resource descriptor?
+        inline bool IsADescriptorWorkspace() const { return m_descriptorID.IsValid(); }
 
+        // Has the descriptor been loaded (only valid for descriptor workspaces)
+        inline bool IsDescriptorLoaded() const { return m_pDescriptor != nullptr; }
+
+        // Get the descriptor as a derived type (Note! You need to check if the descriptor is actually loaded)
         template<typename T>
         T* GetDescriptorAs() { return Cast<T>( m_pDescriptor ); }
 
-        virtual void SerializeCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) {}
-        virtual void SerializeCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) {}
+        // This is called to allow you to read custom data from the descriptor JSON data
+        virtual void ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) {}
+
+        // This is called to allow you to write custom data into the descriptor JSON data
+        virtual void WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) {}
+
+        // Call this immediately before you change the descriptor data (this serializes the original state of the descriptor state into the undo-redo-stack)
+        void BeginDescriptorModification();
+
+        // Call this once you are finished modifying the descriptor state (this serializes the modified state of the descriptor into the undo-redo-stack)
+        void EndDescriptorModification();
+
+        // Draws a separate descriptor property grid editor window - return true if focused
+        bool DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow = true );
 
     private:
 
         Workspace& operator=( Workspace const& ) = delete;
         Workspace( Workspace const& ) = delete;
 
+        // Loads the specified descriptor in the descriptor ID member
         void LoadDescriptor();
 
     protected:
 
+        uint32_t                                    m_ID = 0;
         EntityWorld*                                m_pWorld = nullptr;
         ToolsContext const*                         m_pToolsContext = nullptr;
 
@@ -328,12 +356,12 @@ namespace EE
             : m_pWorkspace( pWorkspace )
         {
             EE_ASSERT( pWorkspace != nullptr );
-            m_pWorkspace->BeginModification();
+            m_pWorkspace->BeginDescriptorModification();
         }
 
         virtual ~ScopedDescriptorModification()
         {
-            m_pWorkspace->EndModification();
+            m_pWorkspace->EndDescriptorModification();
         }
 
     private:
@@ -374,7 +402,6 @@ namespace EE
             }
         }
 
-        virtual uint32_t GetID() const override { return m_pResource.GetResourceID().GetPathID(); }
         virtual bool HasViewportWindow() const override { return true; }
         virtual bool HasViewportToolbar() const { return true; }
 

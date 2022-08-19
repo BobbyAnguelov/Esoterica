@@ -28,18 +28,20 @@ namespace EE::Animation
 
     ResourceID Variation::GetGraphResourceID( ResourceID const& resourceID )
     {
+        // Try to extract the actual graph ID from the resource ID for variations
         if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
         {
             String const name = resourceID.GetResourcePath().GetFileNameWithoutExtension();
             size_t const delimiterIdx = name.find_last_of( s_graphPathDelimiter );
-            EE_ASSERT( delimiterIdx != String::npos );
-            String const newResourcePath( String::CtorSprintf(), "%s%s.%s", resourceID.GetResourcePath().GetParentDirectory().c_str(), name.substr( 0, delimiterIdx ).c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
-            return ResourceID( newResourcePath );
+            if ( delimiterIdx != String::npos )
+            {
+                String const newResourcePath( String::CtorSprintf(), "%s%s.%s", resourceID.GetResourcePath().GetParentDirectory().c_str(), name.substr( 0, delimiterIdx ).c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
+                return ResourceID( newResourcePath );
+            }
         }
-        else
-        {
-            return resourceID;
-        }
+
+        // Just pass through the resource ID
+        return resourceID;
     }
 
     //-------------------------------------------------------------------------

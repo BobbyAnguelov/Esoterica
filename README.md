@@ -2,27 +2,19 @@
 
 ![Esoterica Logo](Docs/EE_Logo.png)
 
-Esoterica Game Engine (EE) is a game engine framework, basically an engine without a renderer. It contains a lot of the boilerplate machinery required for resource management, serialization, gameplay, etc. It provides a lot of references for how to potentially build a resource system, basic reflection and a AAA-level animation system. It could be a good framework for building your own renderer or just to experiment with as most of the tedious/annoying/time consuming pieces are already there.
+[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended as a technology demonstrator, an educational tool and an R&D framework. It contains a lot of the boilerplate machinery required for resource management, serialization, gameplay, etc. It provides a lot of references for how to potentially build a resource system, basic reflection and a AAA-level animation system. It could be a good framework for experimenting with game, AI, renderer tech or as a teaching aid for how to build game engines. Additionally, if you are more interested in building your own engine, Esoterica is a really good starting point.
 
-## Important Note
+## Important Note: Stability!
 
->Esoterica is a prototype engine that I use to mess around with, as such there will be bugs and crashes (primarily with the tooling side). It is meant as a reference or a starter pack not as a production ready tool. Please don't expect me to be actively maintaining it. That said, feel free to flag issues and bugs and I will try to fix them when I have some time.
+>Esoterica is a prototype engine that's being developed in our spare time and as such there will likely be bugs and crashes (primarily with the tooling side). It is not intended as a stable production tool. If you encounter any crashes or bugs, please file issues and we'll try to get to them as soon as we can.
 
-## Help Needed: Rendering + Examples
+## Help Needed: Rendering + Test Assets
 
-There are no examples of any of the tech supplied unfortunately since I do not have any assets that I can release publically. If anyone wants to donate a character model and some animations, I can build and provide examples of the various tools.
+There are no examples of any of the tech supplied unfortunately since we do not have any assets that I can release publically. We are looking for folks that can create some test assets that we can distribute with the engine (e.g., a character model and some animations). We can then use those assets to provide a set of examples of the various tools and features.
 
-If anyone wants to use Esoterica to build or experiment with modern rendering, I'd welcome the collaboration. I can provide all the plumbing/engine support needed so you can focus on the pure rendering aspect. It would need to be DX12 though.
+We are also looking for a someone to help us build out the renderer. More details can be found here: https://www.esotericaengine.com/contribute
 
 ## What's included
-
-|Resource Pipeline | Basic Editor |
-|:---:|:---:|
-|![Esoterica Resource Server](Docs/EE_ResourceServer.png)|![Esoterica Editor](Docs/EE_Editor.png)|
-
-| Animation Graph | Ragdoll Editor |
-|:---:|:---:|
-|![Esoterica Animation Graph](Docs/EE_AnimGraph.png)|![Esoterica Ragdoll](Docs/EE_Ragdoll.png)|
 
 * Basic core of a game engine (serialization, math, string handling, logging, etc...)
 * Libclang based c++ reflection and code-generation
@@ -32,6 +24,15 @@ If anyone wants to use Esoterica to build or experiment with modern rendering, I
 * Basic animation compression
 * Powered Ragdoll implmentation using PhysX articulations
 * Basic editor infrastructure and tooling using DearImgui
+
+## Screenshots
+|Resource Pipeline | Basic Editor |
+|:---:|:---:|
+|![Esoterica Resource Server](Docs/EE_ResourceServer.png)|![Esoterica Editor](Docs/EE_Editor.png)|
+
+| Animation Graph | Ragdoll Editor |
+|:---:|:---:|
+|![Esoterica Animation Graph](Docs/EE_AnimGraph.png)|![Esoterica Ragdoll](Docs/EE_Ragdoll.png)|
 
 ## Requirements
 

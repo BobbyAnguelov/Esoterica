@@ -8,6 +8,7 @@
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
+#include "System/Resource/ResourceSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -131,13 +132,15 @@ namespace EE
         if ( m_isResourceOverviewWindowOpen )
         {
             ImGui::SetNextWindowClass( &m_editorWindowClass );
-            Resource::ResourceDebugView::DrawOverviewWindow( m_context.GetResourceSystem(), &m_isResourceOverviewWindowOpen );
+            auto pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
+            Resource::ResourceDebugView::DrawOverviewWindow( pResourceSystem, &m_isResourceOverviewWindowOpen );
         }
 
         if ( m_isResourceLogWindowOpen )
         {
             ImGui::SetNextWindowClass( &m_editorWindowClass );
-            Resource::ResourceDebugView::DrawLogWindow( m_context.GetResourceSystem(), &m_isResourceLogWindowOpen );
+            auto pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
+            Resource::ResourceDebugView::DrawLogWindow( pResourceSystem, &m_isResourceLogWindowOpen );
         }
 
         if ( m_isSystemLogWindowOpen )

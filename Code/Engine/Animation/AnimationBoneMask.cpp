@@ -183,9 +183,7 @@ namespace EE::Animation
                     }
 
                     // Interpolate all weights in the chain
-                    float featherWeight = startWeight;
                     int32_t const numBonesInChain = (int32_t) boneChainIndices.size();
-
                     for ( int32_t i = numBonesInChain - 2; i > 0; i-- )
                     {
                         float const percentageThrough = float( i ) / ( numBonesInChain - 1 );

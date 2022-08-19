@@ -34,6 +34,16 @@ namespace EE::EntityModel
         m_gizmo.SetTargetTransform( &m_gizmoTransform );
     }
 
+    EntityEditorBaseWorkspace::EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
+        : Workspace( pToolsContext, pWorld, displayName )
+        , m_context( pToolsContext, pWorld, m_undoStack )
+        , m_entityOutliner( m_context )
+        , m_entityInspector( m_context )
+        , m_propertyGrid( m_context )
+    {
+        m_gizmo.SetTargetTransform( &m_gizmoTransform );
+    }
+
     //-------------------------------------------------------------------------
 
     void EntityEditorBaseWorkspace::Initialize( UpdateContext const& context )

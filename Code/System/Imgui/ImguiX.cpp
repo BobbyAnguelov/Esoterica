@@ -21,6 +21,7 @@ namespace EE::ImGuiX
         }
 
         pWindow->DockNode->TabBar->NextSelectedTabId = pWindow->ID;
+        ImGui::SetWindowFocus( pWindowName );
     }
 
     ImVec2 ClampToRect( ImRect const& rect, ImVec2 const& inPoint )

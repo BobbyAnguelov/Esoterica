@@ -8,6 +8,10 @@
 
 namespace EE::EntityModel
 {
+    EE_RESOURCE_WORKSPACE_FACTORY( EntityCollectionEditorFactory, SerializedEntityCollection, EntityCollectionEditor );
+
+    //-------------------------------------------------------------------------
+
     EntityCollectionEditor::EntityCollectionEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& collectionResourceID )
         : EntityEditorBaseWorkspace( pToolsContext, pWorld, collectionResourceID )
         , m_collection( collectionResourceID )

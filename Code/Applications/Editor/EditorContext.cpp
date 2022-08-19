@@ -2,7 +2,6 @@
 #include "RenderingSystem.h"
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
-#include "EngineTools/Entity/Workspaces/Workspace_EntityCollectionEditor.h"
 #include "EngineTools/Core/Workspace.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -104,7 +103,13 @@ namespace EE
     {
         ResourceTypeID const resourceTypeID = resourceID.GetResourceTypeID();
 
-        // Handle maps/ECs explicitly
+        // Don't try to open invalid resource IDs
+        if ( !m_resourceDB.DoesResourceExist( resourceID ) )
+        {
+            return false;
+        }
+
+        // Handle maps explicitly
         //-------------------------------------------------------------------------
 
         if ( resourceTypeID == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
@@ -113,57 +118,35 @@ namespace EE
             ImGuiX::MakeTabVisible( m_pMapEditor->GetWorkspaceWindowID() );
             return true;
         }
-        else if ( resourceTypeID == EntityModel::SerializedEntityCollection::GetStaticResourceTypeID() )
-        {
-            // Create preview world
-            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-            pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
-            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
-
-            // Create EC workspace
-            auto pWorkspace = EE::New<EntityModel::EntityCollectionEditor>( this, pPreviewWorld, resourceID );
-            pWorkspace->Initialize( context );
-            m_workspaces.emplace_back( pWorkspace );
-
-            return true;
-        }
 
         // Other resource types
         //-------------------------------------------------------------------------
 
-        Workspace* pExistingWorkspace = nullptr;
-        uint32_t const resourcePathID = resourceID.GetResourcePath().GetID();
-        auto foundWorkspaceIter = eastl::find( m_workspaces.begin(), m_workspaces.end(), resourcePathID, [] ( Workspace* const& pExistingWorkspace, uint32_t ID ) { return pExistingWorkspace->GetID() == ID; } );
-        if ( foundWorkspaceIter != m_workspaces.end() )
+        // Check if we already have a workspace open for this resource, if so then switch focus to it
+        for ( auto pWorkspace : m_workspaces )
         {
-            pExistingWorkspace = *foundWorkspaceIter;
-        }
-
-        if ( pExistingWorkspace == nullptr )
-        {
-            if ( ResourceWorkspaceFactory::CanCreateWorkspace( this, resourceID ) )
+            if ( pWorkspace->IsEditingResource( resourceID ) )
             {
-                // Create preview world
-                auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-                pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
-                m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
-
-                // Try create workspace
-                auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pPreviewWorld, resourceID );
-                pCreatedWorkspace->Initialize( context );
-                m_workspaces.emplace_back( pCreatedWorkspace );
-
+                ImGuiX::MakeTabVisible( pWorkspace->GetWorkspaceWindowID() );
                 return true;
             }
-            else
-            {
-                return false;
-            }
         }
-        else
+
+        // Check if we can create a new workspace
+        if ( !ResourceWorkspaceFactory::CanCreateWorkspace( this, resourceID ) )
         {
-            ImGuiX::MakeTabVisible( pExistingWorkspace->GetWorkspaceWindowID() );
+            return false;
         }
+
+        // Create preview world
+        auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
+        pPreviewWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
+        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
+
+        // Create workspace
+        auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pPreviewWorld, resourceID );
+        pCreatedWorkspace->Initialize( context );
+        m_workspaces.emplace_back( pCreatedWorkspace );
 
         return true;
     }
@@ -236,18 +219,6 @@ namespace EE
 
         // Destroy preview world
         m_pWorldManager->DestroyWorld( pPreviewWorld );
-    }
-
-    bool EditorContext::HasDescriptorForResourceType( ResourceTypeID resourceTypeID ) const
-    {
-        if ( resourceTypeID == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
-        {
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        return m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID );
     }
 
     void EditorContext::LoadMap( ResourceID const& mapResourceID ) const

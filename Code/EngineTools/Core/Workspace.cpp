@@ -35,7 +35,7 @@ namespace EE
             typeReader.ReadFromString( m_valueBefore.c_str() );
             auto const& document = typeReader.GetDocument();
             Serialization::ReadNativeType( m_typeRegistry, document, m_pWorkspace->m_pDescriptor );
-            m_pWorkspace->SerializeCustomDescriptorData( m_typeRegistry, document );
+            m_pWorkspace->ReadCustomDescriptorData( m_typeRegistry, document );
             m_pWorkspace->m_isDirty = true;
         }
 
@@ -46,7 +46,7 @@ namespace EE
             typeReader.ReadFromString( m_valueAfter.c_str() );
             auto const& document = typeReader.GetDocument();
             Serialization::ReadNativeType( m_typeRegistry, document, m_pWorkspace->m_pDescriptor );
-            m_pWorkspace->SerializeCustomDescriptorData( m_typeRegistry, document );
+            m_pWorkspace->ReadCustomDescriptorData( m_typeRegistry, document );
             m_pWorkspace->m_isDirty = true;
         }
 
@@ -57,7 +57,7 @@ namespace EE
             auto pWriter = writer.GetWriter();
             pWriter->StartObject();
             Serialization::WriteNativeTypeContents( m_typeRegistry, m_pWorkspace->m_pDescriptor, *pWriter );
-            m_pWorkspace->SerializeCustomDescriptorData( m_typeRegistry, *pWriter );
+            m_pWorkspace->WriteCustomDescriptorData( m_typeRegistry, *pWriter );
             pWriter->EndObject();
 
             m_valueBefore.resize( writer.GetStringBuffer().GetSize() );
@@ -71,7 +71,7 @@ namespace EE
             auto pWriter = writer.GetWriter();
             pWriter->StartObject();
             Serialization::WriteNativeTypeContents( m_typeRegistry, m_pWorkspace->m_pDescriptor, *pWriter );
-            m_pWorkspace->SerializeCustomDescriptorData( m_typeRegistry, *pWriter );
+            m_pWorkspace->WriteCustomDescriptorData( m_typeRegistry, *pWriter );
             pWriter->EndObject();
 
             m_valueAfter.resize( writer.GetStringBuffer().GetSize() );
@@ -101,6 +101,8 @@ namespace EE
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
         EE_ASSERT( resourceID.IsValid() );
 
+        m_ID = m_descriptorID.GetPathID();
+
         // Spawn Camera
         //-------------------------------------------------------------------------
 
@@ -116,9 +118,23 @@ namespace EE
         // Create descriptor property grid
         //-------------------------------------------------------------------------
 
+        auto const PreDescEdit = [this] ( PropertyEditInfo const& info )
+        {
+            EE_ASSERT( m_pActiveUndoableAction == nullptr );
+            EE_ASSERT( IsADescriptorWorkspace() && IsDescriptorLoaded() );
+            BeginDescriptorModification();
+        };
+
+        auto const PostDescEdit = [this] ( PropertyEditInfo const& info )
+        {
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            EE_ASSERT( IsADescriptorWorkspace() && IsDescriptorLoaded() );
+            EndDescriptorModification();
+        };
+
         m_pDescriptorPropertyGrid = EE::New<PropertyGrid>( m_pToolsContext );
-        m_preEditEventBindingID = m_pDescriptorPropertyGrid->OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { PreEdit( info ); } );
-        m_postEditEventBindingID = m_pDescriptorPropertyGrid->OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { PostEdit( info ); } );
+        m_preEditEventBindingID = m_pDescriptorPropertyGrid->OnPreEdit().Bind( PreDescEdit );
+        m_postEditEventBindingID = m_pDescriptorPropertyGrid->OnPostEdit().Bind( PostDescEdit );
     }
 
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
@@ -128,6 +144,8 @@ namespace EE
     {
         EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
+
+        m_ID = Hash::GetHash32( displayName );
 
         // Spawn Camera
         //-------------------------------------------------------------------------
@@ -164,7 +182,7 @@ namespace EE
         m_dockspaceID.sprintf( "Dockspace##%u", GetID() );
         m_descriptorWindowName.sprintf( "Descriptor##%u", GetID() );
 
-        if ( m_descriptorID.IsValid() )
+        if ( IsADescriptorWorkspace() )
         {
             LoadDescriptor();
         }
@@ -227,7 +245,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        if ( m_descriptorID.IsValid() )
+        if ( IsADescriptorWorkspace() )
         {
             if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY"##Copy Path" ) )
             {
@@ -615,9 +633,9 @@ namespace EE
     bool Workspace::Save()
     {
         // Save Descriptor
-        if ( m_descriptorID.IsValid() )
+        if ( IsADescriptorWorkspace() )
         {
-            EE_ASSERT( m_descriptorID.IsValid() && m_descriptorPath.IsFilePath() );
+            EE_ASSERT( m_descriptorPath.IsFilePath() );
             EE_ASSERT( m_pDescriptor != nullptr );
             EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
 
@@ -629,7 +647,7 @@ namespace EE
 
             pWriter->StartObject();
             Serialization::WriteNativeTypeContents( *m_pToolsContext->m_pTypeRegistry, m_pDescriptor, *pWriter );
-            SerializeCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, *pWriter );
+            WriteCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, *pWriter );
             pWriter->EndObject();
 
             // Save to file
@@ -650,19 +668,9 @@ namespace EE
         return true;
     }
 
-    void Workspace::PreEdit( PropertyEditInfo const& info )
-    {
-        EE_ASSERT( m_pActiveUndoableAction == nullptr );
-        BeginModification();
-    }
+    //-------------------------------------------------------------------------
 
-    void Workspace::PostEdit( PropertyEditInfo const& info )
-    {
-        EE_ASSERT( m_pActiveUndoableAction != nullptr );
-        EndModification();
-    }
-
-    void Workspace::BeginModification()
+    void Workspace::BeginDescriptorModification()
     {
         if ( m_beginModificationCallCount == 0 )
         {
@@ -673,7 +681,7 @@ namespace EE
         m_beginModificationCallCount++;
     }
 
-    void Workspace::EndModification()
+    void Workspace::EndDescriptorModification()
     {
         EE_ASSERT( m_beginModificationCallCount > 0 );
         EE_ASSERT( m_pActiveUndoableAction != nullptr );
@@ -715,7 +723,7 @@ namespace EE
     void Workspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         // Destroy descriptor if the resource we are operating on was modified
-        if ( m_descriptorID.IsValid() )
+        if ( IsADescriptorWorkspace() )
         {
             if ( VectorContains( resourcesToBeReloaded, m_descriptorID ) )
             {
@@ -764,7 +772,7 @@ namespace EE
         m_reloadingResources.clear();
 
         // Reload the descriptor if needed
-        if ( m_descriptorID.IsValid() && m_pDescriptor == nullptr )
+        if ( IsADescriptorWorkspace() && !IsDescriptorLoaded() )
         {
             LoadDescriptor();
         }
@@ -774,7 +782,7 @@ namespace EE
 
     void Workspace::LoadDescriptor()
     {
-        EE_ASSERT( m_descriptorID.IsValid() );
+        EE_ASSERT( IsADescriptorWorkspace() );
         EE_ASSERT( m_pDescriptor == nullptr );
         EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
 
@@ -789,12 +797,12 @@ namespace EE
         m_pDescriptor = Cast<Resource::ResourceDescriptor>( Serialization::CreateAndReadNativeType( *m_pToolsContext->m_pTypeRegistry, document ) );
         m_pDescriptorPropertyGrid->SetTypeToEdit( m_pDescriptor );
 
-        SerializeCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, document );
+        ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, document );
     }
 
     bool Workspace::DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow )
     {
-        EE_ASSERT( m_descriptorID.IsValid() );
+        EE_ASSERT( IsADescriptorWorkspace() );
         EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
 
         bool hasFocus = false;

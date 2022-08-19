@@ -12,11 +12,9 @@
 namespace EE::EntityModel
 {
     EntityMapEditor::EntityMapEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EntityEditorBaseWorkspace( pToolsContext, pWorld, ResourceID( "data://NewMap.map" ) )
+        : EntityEditorBaseWorkspace( pToolsContext, pWorld, String( "Map Editor" ) )
     {
         m_gizmo.SetTargetTransform( &m_gizmoTransform );
-        SetDisplayName( "Map Editor" );
-
         SetViewportCameraSpeed( 15.0f );
     }
 

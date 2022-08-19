@@ -58,6 +58,8 @@ namespace EE::Animation
         AnimationGraphWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
         ~AnimationGraphWorkspace();
 
+        virtual bool IsEditingResource( ResourceID const& resourceID ) const override;
+
     private:
 
         virtual void Initialize( UpdateContext const& context ) override;

@@ -390,12 +390,14 @@ namespace EE::Physics
     {
         auto OnPreEdit = [this] ( PropertyEditInfo const& info ) 
         {
-            PreEdit( info );
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            BeginDescriptorModification();
         };
         
         auto OnPostEdit = [this] ( PropertyEditInfo const& info ) 
         {
-            PostEdit( info );
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            EndDescriptorModification();
         };
 
         m_bodyGridPreEditEventBindingID = m_bodyEditorPropertyGrid.OnPreEdit().Bind( OnPreEdit );
@@ -405,14 +407,16 @@ namespace EE::Physics
 
         auto OnSolverPreEdit = [this] ( PropertyEditInfo const& info )
         {
-            PreEdit( info );
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            BeginDescriptorModification();
         };
 
         auto OnSolverPostEdit = [this] ( PropertyEditInfo const& info )
         {
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
             auto pSolverSettings = Cast<RagdollDefinition::Profile>( m_solverSettingsGrid.GetEditedType() );
             pSolverSettings->CorrectSettingsToValidRanges();
-            PostEdit( info );
+            EndDescriptorModification();
         };
 
         m_solverGridPreEditEventBindingID = m_solverSettingsGrid.OnPreEdit().Bind( OnSolverPreEdit );
@@ -825,7 +829,7 @@ namespace EE::Physics
                         {
                             case ImGuiX::Gizmo::Result::StartedManipulating :
                             {
-                                BeginModification();
+                                BeginDescriptorModification();
                                 body.m_offsetTransform = m_gizmoWorkingTransform * boneTransform.GetInverse();
                             }
                             break;
@@ -838,7 +842,7 @@ namespace EE::Physics
 
                             case ImGuiX::Gizmo::Result::StoppedManipulating :
                             {
-                                EndModification();
+                                EndDescriptorModification();
                             }
                             break;
                         }
@@ -851,7 +855,7 @@ namespace EE::Physics
                         {
                             case ImGuiX::Gizmo::Result::StartedManipulating:
                             {
-                                BeginModification();
+                                BeginDescriptorModification();
                                 body.m_jointTransform = m_gizmoWorkingTransform;
                             }
                             break;
@@ -864,7 +868,7 @@ namespace EE::Physics
 
                             case ImGuiX::Gizmo::Result::StoppedManipulating:
                             {
-                                EndModification();
+                                EndDescriptorModification();
                             }
                             break;
                         }

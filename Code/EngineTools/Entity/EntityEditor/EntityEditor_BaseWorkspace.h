@@ -16,7 +16,8 @@ namespace EE::EntityModel
     {
     public:
 
-        EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        explicit EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName );
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;

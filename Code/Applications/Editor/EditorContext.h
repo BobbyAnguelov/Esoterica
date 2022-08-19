@@ -23,14 +23,7 @@ namespace EE
         void Shutdown( UpdateContext const& context );
         void Update( UpdateContext const& context );
 
-        inline FileSystem::Path const& GetRawResourceDirectory() const { return m_resourceDB.GetRawResourceDirectoryPath(); }
-        inline FileSystem::Path const& GetCompiledResourceDirectory() const { return m_resourceDB.GetCompiledResourceDirectoryPath(); }
-        inline TypeSystem::TypeRegistry const* GetTypeRegistry() const { return m_pTypeRegistry; }
         inline Resource::ResourceDatabase const* GetResourceDatabase() const { return m_pResourceDatabase; }
-        inline Resource::ResourceSystem* GetResourceSystem() const { return m_pResourceSystem; }
-        inline Render::RenderingSystem* GetRenderingSystem() const { return m_pRenderingSystem; }
-
-        bool HasDescriptorForResourceType( ResourceTypeID resourceTypeID ) const;
 
         // Map editor and game preview
         //-------------------------------------------------------------------------
@@ -86,9 +79,9 @@ namespace EE
         EntityWorldManager*                 m_pWorldManager = nullptr;
         Render::RenderingSystem*            m_pRenderingSystem = nullptr;
         Resource::ResourceDatabase          m_resourceDB;
-        TVector<Workspace*>           m_workspaces;
+        TVector<Workspace*>                 m_workspaces;
         TVector<ResourceID>                 m_workspaceCreationRequests;
-        TVector<Workspace*>           m_workspaceDestructionRequests;
+        TVector<Workspace*>                 m_workspaceDestructionRequests;
         EventBindingID                      m_gamePreviewStartedEventBindingID;
         EventBindingID                      m_gamePreviewStoppedEventBindingID;
     };

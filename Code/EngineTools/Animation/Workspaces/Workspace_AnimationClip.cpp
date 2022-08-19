@@ -31,7 +31,7 @@ namespace EE::Animation
                 return;
             }
 
-            BeginModification();
+            BeginDescriptorModification();
         };
 
         auto OnEndMod = [this]( Timeline::TrackContainer* pContainer )
@@ -41,7 +41,7 @@ namespace EE::Animation
                 return;
             }
 
-            EndModification();
+            EndDescriptorModification();
         };
 
         m_eventEditor.SetLooping( true );
@@ -49,8 +49,24 @@ namespace EE::Animation
         m_beginModEventID = Timeline::TrackContainer::s_onBeginModification.Bind( OnBeginMod );
         m_endModEventID = Timeline::TrackContainer::s_onEndModification.Bind( OnEndMod );
 
-        m_propertyGridPreEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { PreEdit( info ); } );
-        m_propertyGridPostEditEventBindingID = m_propertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { PostEdit( info ); } );
+        //-------------------------------------------------------------------------
+
+        auto const PreDescEdit = [this] ( PropertyEditInfo const& info )
+        {
+            EE_ASSERT( m_pActiveUndoableAction == nullptr );
+            EE_ASSERT( IsADescriptorWorkspace() && IsDescriptorLoaded() );
+            BeginDescriptorModification();
+        };
+
+        auto const PostDescEdit = [this] ( PropertyEditInfo const& info )
+        {
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            EE_ASSERT( IsADescriptorWorkspace() && IsDescriptorLoaded() );
+            EndDescriptorModification();
+        };
+
+        m_propertyGridPreEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( PreDescEdit );
+        m_propertyGridPostEditEventBindingID = m_propertyGrid.OnPostEdit().Bind( PostDescEdit );
     }
 
     AnimationClipWorkspace::~AnimationClipWorkspace()
@@ -460,12 +476,12 @@ namespace EE::Animation
         return true;
     }
 
-    void AnimationClipWorkspace::SerializeCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue )
+    void AnimationClipWorkspace::ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue )
     {
         m_eventEditor.Serialize( typeRegistry, descriptorObjectValue );
     }
 
-    void AnimationClipWorkspace::SerializeCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer )
+    void AnimationClipWorkspace::WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer )
     {
         static_cast<Timeline::TimelineEditor&>( m_eventEditor ).Serialize( typeRegistry, writer );
     }
