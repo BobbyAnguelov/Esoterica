@@ -95,6 +95,7 @@ namespace EE::Animation
                 flags |= ( ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet );
             }
 
+            ImGui::SetNextItemOpen( true );
             isTreeNodeOpen = ImGui::TreeNodeEx( variationID.c_str(), flags );
             if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
             {
@@ -193,7 +194,7 @@ namespace EE::Animation
             ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+            ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
             ImGui::TableHeadersRow();
 
             //-------------------------------------------------------------------------
@@ -231,7 +232,7 @@ namespace EE::Animation
                     if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), pResourceID, true ) )
                     {
                         VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                        *pResourceID = m_resourcePicker.GetSelectedResourceID();
+                        pDataSlotNode->SetOverrideValueForVariation( currentVariationID, m_resourcePicker.GetSelectedResourceID() );
                     }
                 }
                 else // Variation
@@ -243,16 +244,7 @@ namespace EE::Animation
                         if ( m_resourcePicker.DrawResourcePicker( AnimationClip::GetStaticResourceTypeID(), pResourceID, true ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( pRootGraph );
-
-                            // If we've cleared the resource ID and it's not the default, remove the override
-                            if ( !pResourceID->IsValid() && !m_editorContext.IsDefaultVariationSelected() )
-                            {
-                                pDataSlotNode->RemoveOverride( currentVariationID );
-                            }
-                            else
-                            {
-                                *pResourceID = m_resourcePicker.GetSelectedResourceID();
-                            }
+                            pDataSlotNode->SetOverrideValueForVariation( currentVariationID, m_resourcePicker.GetSelectedResourceID() );
                         }
                     }
                     else // Show current value
@@ -268,14 +260,14 @@ namespace EE::Animation
                 {
                     if ( pDataSlotNode->HasOverrideForVariation( currentVariationID ) )
                     {
-                        if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::MediumRed ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_CLOSE_CIRCLE, ImVec2( 22, 22 ) ) )
+                        if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::MediumRed ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_CLOSE_CIRCLE, ImVec2( 26, 24 ) ) )
                         {
                             pDataSlotNode->RemoveOverride( currentVariationID );
                         }
                     }
                     else // Create an override
                     {
-                        if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::ForestGreen ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_PLUS, ImVec2( 22, 22 ) ) )
+                        if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::ForestGreen ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_PLUS, ImVec2( 26, 24 ) ) )
                         {
                             pDataSlotNode->CreateOverride( currentVariationID );
                         }

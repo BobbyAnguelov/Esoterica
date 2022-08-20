@@ -49,7 +49,7 @@ namespace EE::Resource
         bool DrawPathPicker( ResourcePath* pResourcePath );
 
         // Get the selected ID - Only use if DrawPicker returns true
-        inline ResourceID const GetSelectedResourceID() const { return m_selectedID; }
+        inline ResourceID const& GetSelectedResourceID() const { return m_selectedID; }
 
     private:
 

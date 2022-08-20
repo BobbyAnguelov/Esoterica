@@ -48,9 +48,9 @@ namespace EE::Animation
             {}
 
             Transform                   m_rootMotionDelta;
+            TInlineVector<int16_t, 2>   m_dependencies;
             int16_t                     m_nodeIdx;
             ActionType                  m_actionType;
-            TInlineVector<int16_t, 2>   m_dependencies;
         };
 
         struct RecordedPosition
