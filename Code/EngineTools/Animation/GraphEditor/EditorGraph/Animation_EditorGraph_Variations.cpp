@@ -10,6 +10,13 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    String Variation::GenerateResourceFilePathPrefix( FileSystem::Path const& graphPath )
+    {
+        FileSystem::Path const parentDirectory = graphPath.GetParentDirectory();
+        String const filenameNoExtension = graphPath.GetFileNameWithoutExtension();
+        return String( String::CtorSprintf(), "%s%s%c", parentDirectory.c_str(), filenameNoExtension.c_str(), s_graphPathDelimiter );
+    }
+
     String Variation::GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID )
     {
         FileSystem::Path const parentDirectory = graphPath.GetParentDirectory();
@@ -125,13 +132,13 @@ namespace EE::Animation
         for ( auto& variation : m_variations )
         {
             // Update ID
-            if ( variation.m_ID = oldVariationID )
+            if ( variation.m_ID == oldVariationID )
             {
                 variation.m_ID = newVariationID;
             }
 
             // Update parents
-            if ( variation.m_parentID = oldVariationID )
+            if ( variation.m_parentID == oldVariationID )
             {
                 variation.m_parentID = newVariationID;
             }

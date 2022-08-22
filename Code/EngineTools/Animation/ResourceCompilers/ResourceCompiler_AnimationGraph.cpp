@@ -13,7 +13,6 @@ namespace EE::Animation
     {
         m_outputTypes.push_back( GraphDefinition::GetStaticResourceTypeID() );
         m_outputTypes.push_back( GraphVariation::GetStaticResourceTypeID() );
-        m_virtualTypes.push_back( GraphDataSet::GetStaticResourceTypeID() );
     }
 
     Resource::CompilationResult AnimationGraphCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -100,7 +99,7 @@ namespace EE::Animation
             archive << pRuntimeGraph->m_nodePaths;
         }
 
-        // Node settings type descs
+        // Node settings type descriptors
         TypeSystem::TypeDescriptorCollection settingsTypeDescriptors;
         for ( auto pSettings : pRuntimeGraph->m_nodeSettings )
         {
@@ -154,33 +153,43 @@ namespace EE::Animation
             return Error( "Invalid variation requested: %s", variationID.c_str() );
         }
 
-        // Create requested data set resource
-        //-------------------------------------------------------------------------
-
-        String dataSetFileName;
-        dataSetFileName.sprintf( "%s_%s.%s", graphFilePath.GetFileNameWithoutExtension().c_str(), variationID.c_str(), GraphDataSet::GetStaticResourceTypeID().ToString().c_str() );
-
-        FileSystem::Path dataSetFilePath = graphFilePath.GetParentDirectory();
-        dataSetFilePath.Append( dataSetFileName );
-        ResourcePath const dataSetPath = ResourcePath::FromFileSystemPath( m_rawResourceDirectoryPath, dataSetFilePath );
-
-        if ( !GenerateVirtualDataSetResource( ctx, editorGraph, definitionCompiler.GetRegisteredDataSlots(), variationID, dataSetPath ) )
-        {
-            return Error( "Failed to create data set: %s", dataSetPath.c_str() );
-        }
-
-        // Create variation resource and serialize
+        // Create variation resource and data set
         //-------------------------------------------------------------------------
 
         GraphVariation variation;
         variation.m_pGraphDefinition = ResourceID( resourceDescriptor.m_graphPath );
-        variation.m_pDataSet = ResourceID( dataSetPath );
+        variation.m_dataSet.m_variationID = variationID;
 
+        if ( !GenerateDataSet( ctx, editorGraph, definitionCompiler.GetRegisteredDataSlots(), variation.m_dataSet ) )
+        {
+            return Error( "Failed to create data set for variation: %s", variationID.c_str() );
+        }
+
+        // Create header
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, GraphDataSet::GetStaticResourceTypeID() );
-        hdr.AddInstallDependency( variation.m_pDataSet.GetResourceID() );
+        Resource::ResourceHeader hdr( s_version, GraphVariation::GetStaticResourceTypeID() );
         hdr.AddInstallDependency( variation.m_pGraphDefinition.GetResourceID() );
+
+        // Add data set install dependencies
+        hdr.AddInstallDependency( variation.m_dataSet.m_pSkeleton.GetResourceID() );
+        for ( Resource::ResourcePtr const& resourcePtr : variation.m_dataSet.m_resources )
+        {
+            // Skip invalid (empty) resource ID
+            if ( resourcePtr.IsValid() )
+            {
+                // Ensure that we dont reference ourselves as a child-graph
+                if ( resourcePtr.GetResourceID() == ctx.m_resourceID )
+                {
+                    return Error( "Cyclic resource dependency detected!" );
+                }
+
+                hdr.AddInstallDependency( resourcePtr.GetResourceID() );
+            }
+        }
+
+        // Serialize variation
+        //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr;
@@ -286,23 +295,20 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool AnimationGraphCompiler::GenerateVirtualDataSetResource( Resource::CompileContext const& ctx, EditorGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, StringID const& variationID, ResourcePath const& dataSetPath ) const
+    bool AnimationGraphCompiler::GenerateDataSet( Resource::CompileContext const& ctx, EditorGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const
     {
-        auto pRootGraph = editorGraph.GetRootGraph();
-
-        GraphDataSet dataSet;
-        dataSet.m_variationID = variationID;
+        EE_ASSERT( dataSet.m_variationID.IsValid() );
+        EE_ASSERT( editorGraph.IsValidVariation( dataSet.m_variationID ) );
 
         //-------------------------------------------------------------------------
         // Get skeleton for variation
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( editorGraph.IsValidVariation( variationID ) );
-        auto const pVariation = editorGraph.GetVariation( variationID );
+        auto const pVariation = editorGraph.GetVariation( dataSet.m_variationID );
         EE_ASSERT( pVariation != nullptr ); 
         if ( !pVariation->m_pSkeleton.IsValid() )
         {
-            Error( "Skeleton not set for variation: %s", variationID.c_str() );
+            Error( "Skeleton not set for variation: %s", dataSet.m_variationID.c_str() );
             return false;
         }
 
@@ -313,6 +319,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         THashMap<UUID, GraphNodes::DataSlotEditorNode const*> dataSlotLookupMap;
+        auto pRootGraph = editorGraph.GetRootGraph();
         auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pSlotNode : dataSlotNodes )
         {
@@ -330,42 +337,11 @@ namespace EE::Animation
                 return false;
             }
 
-            auto const dataSlotResourceID = iter->second->GetResourceID( editorGraph.GetVariationHierarchy(), variationID );
+            auto const pDataSlotNode = iter->second;
+            auto const dataSlotResourceID = pDataSlotNode->GetResourceID( editorGraph.GetVariationHierarchy(), dataSet.m_variationID );
             dataSet.m_resources.emplace_back( dataSlotResourceID );
         }
 
-        //-------------------------------------------------------------------------
-        // Serialize
-        //-------------------------------------------------------------------------
-
-        Resource::ResourceHeader hdr( s_version, GraphDataSet::GetStaticResourceTypeID() );
-        hdr.AddInstallDependency( dataSet.m_pSkeleton.GetResourceID() );
-
-        for ( auto const& dataRecord : dataSet.m_resources )
-        {
-            if ( dataRecord.IsValid() )
-            {
-                if ( dataRecord.GetResourceID() == ctx.m_resourceID )
-                {
-                    Error( "Cyclic resource dependency detected!" );
-                    return false;
-                }
-
-                hdr.AddInstallDependency( dataRecord.GetResourceID() );
-            }
-        }
-
-        Serialization::BinaryOutputArchive archive;
-        archive << hdr << dataSet;
-
-        FileSystem::Path const dataSetOutputPath = dataSetPath.ToFileSystemPath( ctx.m_compiledResourceDirectoryPath );
-        if ( archive.WriteToFile( dataSetOutputPath ) )
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return true;
     }
 }

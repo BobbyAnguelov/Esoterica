@@ -10,7 +10,6 @@ namespace EE::Animation
 {
     GraphLoader::GraphLoader()
     {
-        m_loadableTypes.push_back( GraphDataSet::GetStaticResourceTypeID() );
         m_loadableTypes.push_back( GraphDefinition::GetStaticResourceTypeID() );
         m_loadableTypes.push_back( GraphVariation::GetStaticResourceTypeID() );
     }
@@ -18,6 +17,10 @@ namespace EE::Animation
     bool GraphLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         auto const resourceTypeID = resID.GetResourceTypeID();
+
+        //-------------------------------------------------------------------------
+        // Graph Definition
+        //-------------------------------------------------------------------------
 
         if ( resourceTypeID == GraphDefinition::GetStaticResourceTypeID() )
         {
@@ -65,20 +68,17 @@ namespace EE::Animation
 
             return pGraphDef->IsValid();
         }
-        else if ( resourceTypeID == GraphDataSet::GetStaticResourceTypeID() )
-        {
-            GraphDataSet* pDataSet = EE::New<GraphDataSet>();
-            archive << *pDataSet;
-            EE_ASSERT( pDataSet->m_variationID.IsValid() && pDataSet->m_pSkeleton.IsValid() );
-            pResourceRecord->SetResourceData( pDataSet );
-            return true;
-        }
+
+        //-------------------------------------------------------------------------
+        // Graph Variation
+        //-------------------------------------------------------------------------
+
         else if ( resourceTypeID == GraphVariation::GetStaticResourceTypeID() )
         {
             GraphVariation* pGraphVariation = EE::New<GraphVariation>();
             archive << *pGraphVariation;
             pResourceRecord->SetResourceData( pGraphVariation );
-            return true;
+            return pGraphVariation->m_pGraphDefinition.IsValid() && pGraphVariation->m_dataSet.m_variationID.IsValid() && pGraphVariation->m_dataSet.m_pSkeleton.IsValid();
         }
 
         EE_UNREACHABLE_CODE();
@@ -88,33 +88,38 @@ namespace EE::Animation
     Resource::InstallResult GraphLoader::Install( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
     {
         auto const resourceTypeID = resID.GetResourceTypeID();
-
-        if ( resourceTypeID == GraphDataSet::GetStaticResourceTypeID() )
+        if ( resourceTypeID == GraphVariation::GetStaticResourceTypeID() )
         {
-            auto pDataSet = pResourceRecord->GetResourceData<GraphDataSet>();
+            // Graph definition
+            //-------------------------------------------------------------------------
 
-            EE_ASSERT( pDataSet->m_pSkeleton.GetResourceID().IsValid() );
-            pDataSet->m_pSkeleton = GetInstallDependency( installDependencies, pDataSet->m_pSkeleton.GetResourceID() );
+            auto pGraphVariation = pResourceRecord->GetResourceData<GraphVariation>();
+            pGraphVariation->m_pGraphDefinition = GetInstallDependency( installDependencies, pGraphVariation->m_pGraphDefinition.GetResourceID() );
 
-            if ( !pDataSet->IsValid() )
+            // Get DataSet Skeleton
+            //-------------------------------------------------------------------------
+
+            GraphDataSet& dataSet = pGraphVariation->m_dataSet;
+            EE_ASSERT( dataSet.m_pSkeleton.GetResourceID().IsValid() );
+            dataSet.m_pSkeleton = GetInstallDependency( installDependencies, dataSet.m_pSkeleton.GetResourceID() );
+
+            if ( !dataSet.IsValid() )
             {
                 EE_LOG_ERROR( "Animation", "Graph Loader", "Failed to install skeleton for graph data set resource: %s", resID.ToString().c_str() );
                 return Resource::InstallResult::Failed;
             }
 
+            // Fill Slots
             //-------------------------------------------------------------------------
 
-            int32_t const numInstallDependencies = (int32_t) installDependencies.size();
-            for ( auto i = 1; i < numInstallDependencies; i++ )
+            int32_t const numDataSlots = (int32_t) dataSet.m_resources.size();
+            for ( int32_t i = 0; i < numDataSlots; i++ )
             {
-                pDataSet->m_resources[i - 1] = GetInstallDependency( installDependencies, pDataSet->m_resources[i - 1].GetResourceID() );
+                if ( dataSet.m_resources[i].GetResourceID().IsValid() )
+                {
+                    dataSet.m_resources[i] = GetInstallDependency( installDependencies, dataSet.m_resources[i].GetResourceID() );
+                }
             }
-        }
-        else if ( resourceTypeID == GraphVariation::GetStaticResourceTypeID() )
-        {
-            auto pGraphVariation = pResourceRecord->GetResourceData<GraphVariation>();
-            pGraphVariation->m_pDataSet = GetInstallDependency( installDependencies, pGraphVariation->m_pDataSet.GetResourceID() );
-            pGraphVariation->m_pGraphDefinition = GetInstallDependency( installDependencies, pGraphVariation->m_pGraphDefinition.GetResourceID() );
         }
 
         //-------------------------------------------------------------------------

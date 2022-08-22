@@ -5,6 +5,7 @@
 #include "EngineTools/Resource/ResourceFilePicker.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "System/Imgui/ImguiX.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -48,21 +49,8 @@ namespace EE::Animation
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( pWindowName, nullptr, 0 ) )
         {
-            if ( ImGui::BeginTable( "VariationMainSplitter", 2, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX ) )
-            {
-                ImGui::TableSetupColumn( "VariationTree", ImGuiTableColumnFlags_WidthStretch, 0.2f );
-                ImGui::TableSetupColumn( "Data", ImGuiTableColumnFlags_WidthStretch );
-
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                DrawVariationTree();
-
-                ImGui::TableNextColumn();
-                DrawOverridesTable();
-
-                ImGui::EndTable();
-            }
+            DrawVariationSelector();
+            DrawOverridesTable();
 
             //-------------------------------------------------------------------------
 
@@ -85,22 +73,22 @@ namespace EE::Animation
         // Draw Tree Node
         //-------------------------------------------------------------------------
 
-        bool isTreeNodeOpen = false;
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if ( childVariations.empty() )
         {
-            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::SmallBold : ImGuiX::Font::Small, isSelected ? ImGuiX::ConvertColor( Colors::LimeGreen ) : ImGui::GetStyle().Colors[ImGuiCol_Text] );
+            flags |= ( ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet );
+        }
 
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
-            if ( childVariations.empty() )
-            {
-                flags |= ( ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet );
-            }
-
-            ImGui::SetNextItemOpen( true );
+        bool isTreeNodeOpen = false;
+        ImGui::SetNextItemOpen( true );
+        {
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? ImGuiX::ConvertColor( Colors::LimeGreen ) : ImGui::GetStyle().Colors[ImGuiCol_Text] );
             isTreeNodeOpen = ImGui::TreeNodeEx( variationID.c_str(), flags );
-            if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
-            {
-                m_editorContext.SetSelectedVariation( variationID );
-            }
+        }
+        ImGuiX::TextTooltip( "Right click for options" );
+        if ( ImGui::IsItemClicked() )
+        {
+            m_editorContext.SetSelectedVariation( variationID );
         }
 
         // Context Menu
@@ -154,9 +142,16 @@ namespace EE::Animation
         ImGui::PopID();
     }
 
-    void GraphVariationEditor::DrawVariationTree()
+    void GraphVariationEditor::DrawVariationSelector()
     {
-        DrawVariationTreeNode( m_editorContext.GetVariationHierarchy(), Variation::s_defaultVariationID );
+        ImGui::SetNextItemWidth( -1 );
+        if ( ImGui::BeginCombo( "##VariationSelector", m_editorContext.GetSelectedVariationID().c_str() ) )
+        {
+            DrawVariationTreeNode( m_editorContext.GetVariationHierarchy(), Variation::s_defaultVariationID );
+
+            ImGui::EndCombo();
+        }
+        ImGuiX::ItemTooltip( "Variation Selector - Right click on variations for more options!" );
     }
 
     void GraphVariationEditor::DrawOverridesTable()
@@ -191,10 +186,10 @@ namespace EE::Animation
 
         if ( ImGui::BeginTable( "SourceTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX ) )
         {
+            ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
             ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
             ImGui::TableHeadersRow();
 
             //-------------------------------------------------------------------------
@@ -203,76 +198,104 @@ namespace EE::Animation
 
             for ( auto pDataSlotNode : dataSlotNodes )
             {
-                bool const hasOverrideForVariation = pDataSlotNode->HasOverrideForVariation( currentVariationID );
-
                 ImGui::PushID( pDataSlotNode );
-
                 ImGui::TableNextRow();
+
+                // Override Controls
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+
+                if ( !isDefaultVariationSelected )
+                {
+                    ImVec2 const buttonSize( 26, 24 );
+
+                    if ( pDataSlotNode->HasOverride( currentVariationID ) )
+                    {
+                        if ( ImGuiX::FlatButtonColored( ImGuiX::ConvertColor( Colors::MediumRed ), EE_ICON_CANCEL, buttonSize ) )
+                        {
+                            pDataSlotNode->RemoveOverride( currentVariationID );
+                        }
+                        ImGuiX::ItemTooltip( "Remove Override" );
+                    }
+                    else // Create an override
+                    {
+                        if ( ImGuiX::FlatButtonColored( ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_PLUS, buttonSize ) )
+                        {
+                            pDataSlotNode->CreateOverride( currentVariationID );
+                        }
+                        ImGuiX::ItemTooltip( "Add Override" );
+                    }
+                }
+
+                // Get variation override value
+                //-------------------------------------------------------------------------
+                // This is done here since the controls above might add/remove an override
+
+                bool const hasOverrideForVariation = isDefaultVariationSelected ? false : pDataSlotNode->HasOverride( currentVariationID );
+                ResourceID const* pResourceID = hasOverrideForVariation ? pDataSlotNode->GetOverrideValue( currentVariationID ) : nullptr;
+
+                // Node Name
+                //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
+
+                ImColor labelColor = ImGuiX::Style::s_colorText;
                 if ( !isDefaultVariationSelected && hasOverrideForVariation )
                 {
-                    ImGui::TextColored( ImVec4( 0, 1, 0, 1 ), pDataSlotNode->GetName() );
-                }
-                else
-                {
-                    ImGui::Text( pDataSlotNode->GetName() );
+                    labelColor = ( pResourceID->IsValid() ) ? ImGuiX::ConvertColor( Colors::Lime ) : ImGuiX::ConvertColor( Colors::MediumRed );
                 }
 
+                ImGui::TextColored( labelColor, pDataSlotNode->GetName() );
+
+                // Node Path
+                //-------------------------------------------------------------------------
+
                 ImGui::TableNextColumn();
-                ImGui::Text( pDataSlotNode->GetPathFromRoot().c_str() );
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( pDataSlotNode->GetPathFromRoot().c_str() );
+                    ImGuiX::TextTooltip( pDataSlotNode->GetPathFromRoot().c_str() );
+                }
+
+                // Resource Picker
+                //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
 
                 // Default variations always have values created
                 if ( isDefaultVariationSelected )
                 {
-                    ResourceID* pResourceID = pDataSlotNode->GetOverrideValueForVariation( currentVariationID );
-                    if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), pResourceID, true ) )
+                    if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), &pDataSlotNode->GetDefaultValue(), true) )
                     {
                         VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                        pDataSlotNode->SetOverrideValueForVariation( currentVariationID, m_resourcePicker.GetSelectedResourceID() );
+                        pDataSlotNode->SetDefaultValue( m_resourcePicker.GetSelectedResourceID() );
                     }
                 }
-                else // Variation
+                else // Child Variation
                 {
                     // If we have an override for this variation
-                    if ( pDataSlotNode->HasOverrideForVariation( currentVariationID ) )
+                    if ( hasOverrideForVariation )
                     {
-                        ResourceID* pResourceID = pDataSlotNode->GetOverrideValueForVariation( currentVariationID );
-                        if ( m_resourcePicker.DrawResourcePicker( AnimationClip::GetStaticResourceTypeID(), pResourceID, true ) )
+                        EE_ASSERT( pResourceID != nullptr );
+                        if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), pResourceID, true ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                            pDataSlotNode->SetOverrideValueForVariation( currentVariationID, m_resourcePicker.GetSelectedResourceID() );
+                            pDataSlotNode->SetOverrideValue( currentVariationID, m_resourcePicker.GetSelectedResourceID() );
                         }
                     }
-                    else // Show current value
+                    else // Show inherited value
                     {
-                        ImGui::Text( pDataSlotNode->GetResourceID( m_editorContext.GetVariationHierarchy(), currentVariationID ).c_str() );
+                        ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+                        ResourceID const resolvedResourceID = pDataSlotNode->GetResourceID( m_editorContext.GetVariationHierarchy(), currentVariationID );
+                        ImGui::Text( resolvedResourceID.c_str() );
+                        ImGuiX::TextTooltip( resolvedResourceID.c_str() );
                     }
                 }
 
                 //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                if ( !isDefaultVariationSelected )
-                {
-                    if ( pDataSlotNode->HasOverrideForVariation( currentVariationID ) )
-                    {
-                        if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::MediumRed ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_CLOSE_CIRCLE, ImVec2( 26, 24 ) ) )
-                        {
-                            pDataSlotNode->RemoveOverride( currentVariationID );
-                        }
-                    }
-                    else // Create an override
-                    {
-                        if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::ForestGreen ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_PLUS, ImVec2( 26, 24 ) ) )
-                        {
-                            pDataSlotNode->CreateOverride( currentVariationID );
-                        }
-                    }
-                }
 
                 ImGui::PopID();
             }

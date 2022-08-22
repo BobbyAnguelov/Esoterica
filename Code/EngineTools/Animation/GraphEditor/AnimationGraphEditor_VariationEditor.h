@@ -39,7 +39,7 @@ namespace EE::Animation
         void StartRename( StringID variationID );
         void StartDelete( StringID variationID );
 
-        void DrawVariationTree();
+        void DrawVariationSelector();
         void DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID );
         void DrawOverridesTable();
         void DrawDialogs();

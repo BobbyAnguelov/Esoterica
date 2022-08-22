@@ -34,13 +34,15 @@ namespace EE::Animation::GraphNodes
         }
 
         // Initialize state data
-        m_duration = m_pAnimation->GetDuration();
+        if ( m_pAnimation != nullptr )
+        {
+            m_duration = m_pAnimation->GetDuration();
+            m_currentTime = m_previousTime = m_pAnimation->GetSyncTrack().GetPercentageThrough( initialTime );
+            EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
+        }
+
         m_shouldSampleRootMotion = pSettings->m_sampleRootMotion;
         m_shouldPlayInReverse = false;
-
-        // Calculate start time
-        m_currentTime = m_previousTime = m_pAnimation->GetSyncTrack().GetPercentageThrough( initialTime );
-        EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
     }
 
     void AnimationClipNode::ShutdownInternal( GraphContext& context )

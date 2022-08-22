@@ -139,7 +139,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        if ( m_pCameraManager->HasDebugCamera() && m_pCameraManager->GetActiveCamera() != m_pCameraManager->GetDebugCamera() )
+        if ( m_pCameraManager->IsDebugCameraEnabled() )
         {
             ImGui::NewLine();
 

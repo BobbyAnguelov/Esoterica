@@ -318,6 +318,16 @@ namespace EE::Animation
         }
     }
 
+    void GraphEditorContext::SetSelectedVariation( StringID variationID )
+    {
+        EE_ASSERT( IsValidVariation( variationID ) );
+        if ( m_selectedVariationID != variationID )
+        {
+            m_selectedVariationID = variationID;
+            m_onVariationSwitched.Execute();
+        }
+    }
+
     void GraphEditorContext::TrySetSelectedVariation( String const& variationName )
     {
         auto const& varHierarchy = m_editorGraph.GetVariationHierarchy();

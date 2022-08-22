@@ -152,39 +152,6 @@ namespace EE::FileSystem
 
     //-------------------------------------------------------------------------
 
-    void GetDirectoryContents( char const* pDirectoryPath, TVector<String>& contents, const char* pFileFilter )
-    {
-        EE_ASSERT( pDirectoryPath != nullptr );
-        size_t const directoryPathLength = strlen( pDirectoryPath );
-        EE_ASSERT( directoryPathLength > 0 );
-
-        HANDLE hFind;
-        WIN32_FIND_DATAA findFileData;
-
-        // Create search path
-        size_t const filterLength = strlen( pFileFilter );
-        EE_ASSERT( filterLength + directoryPathLength < 256 );
-        char searchParam[256] = { 0 };
-        memcpy( searchParam, pDirectoryPath, directoryPathLength );
-        memcpy( &searchParam[directoryPathLength], pFileFilter, strlen( pFileFilter ) );
-
-        // Search directory - Case-insensitive
-        hFind = ::FindFirstFileExA( searchParam, FindExInfoStandard, &findFileData, FindExSearchNameMatch, nullptr, 0 );
-        if ( hFind != INVALID_HANDLE_VALUE )
-        {
-            do
-            {
-                if ( !( findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) )
-                {
-                    contents.emplace_back( String::CtorSprintf(), "%s%s", pDirectoryPath, findFileData.cFileName );
-                }
-            } while ( ::FindNextFileA( hFind, &findFileData ) );
-            ::FindClose( hFind );
-        }
-    }
-
-    //-------------------------------------------------------------------------
-
     bool LoadFile( char const* pPath, Blob& fileData )
     {
         EE_ASSERT( pPath != nullptr );

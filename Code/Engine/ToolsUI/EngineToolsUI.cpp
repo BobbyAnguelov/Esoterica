@@ -332,21 +332,17 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        DebugCameraComponent* pDebugCamera = pCameraManager->GetDebugCamera();
-
-        bool isDebugCameraEnabled = pCameraManager->GetActiveCamera() == pDebugCamera;
+        bool isDebugCameraEnabled = pCameraManager->IsDebugCameraEnabled();
         if ( ImGui::Checkbox( EE_ICON_CCTV " Enable Debug Camera", &isDebugCameraEnabled ) )
         {
-            CameraComponent const* pPlayerCamera = pPlayerManager->GetPlayerCamera();
-
             if ( isDebugCameraEnabled )
             {
-                pDebugCamera->SetPositionAndLookAtDirection( pPlayerCamera->GetPosition(), pPlayerCamera->GetForwardVector() );
-                pCameraManager->SetActiveCamera( pDebugCamera );
+                CameraComponent const* pPlayerCamera = pPlayerManager->GetPlayerCamera();
+                pCameraManager->EnableDebugCamera( pPlayerCamera->GetPosition(), pPlayerCamera->GetForwardVector() );
             }
             else
             {
-                pCameraManager->SetActiveCamera( pPlayerCamera );
+                pCameraManager->DisableDebugCamera();
             }
         }
 

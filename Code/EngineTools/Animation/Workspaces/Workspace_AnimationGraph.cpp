@@ -13,6 +13,8 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Animation/DebugViews/DebugView_Animation.h"
+#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "System/FileSystem/FileSystemUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -188,6 +190,18 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        auto OnVariationSwitched = [this] ()
+        {
+            if ( IsDebugging() )
+            { 
+                StopDebugging();
+            }
+        };
+
+        m_variationSwitchedEventBindingID = m_editorContext.OnVariationSwitched().Bind( OnVariationSwitched );
+
+        //-------------------------------------------------------------------------
+
         if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
         {
             m_editorContext.TrySetSelectedVariation( Variation::GetVariationNameFromResourceID( resourceID ) );
@@ -209,6 +223,8 @@ namespace EE::Animation
 
         m_editorContext.OnNavigateToNode().Unbind( m_navigateToNodeEventBindingID );
         m_editorContext.OnNavigateToGraph().Unbind( m_navigateToGraphEventBindingID );
+
+        m_editorContext.OnVariationSwitched().Unbind( m_variationSwitchedEventBindingID );
     }
 
     bool AnimationGraphWorkspace::IsEditingResource( ResourceID const& resourceID ) const
@@ -250,7 +266,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
-        m_nodeContext.m_currentVariationID = m_selectedVariationID;
+        m_nodeContext.m_currentVariationID = m_editorContext.GetSelectedVariationID();
 
         // Control Parameters
         //-------------------------------------------------------------------------
@@ -618,7 +634,23 @@ namespace EE::Animation
         m_editorContext.SaveGraph( *archive.GetWriter() );
         if ( archive.WriteToFile( m_graphFilePath ) )
         {
-            EE_ASSERT( m_graphFilePath.IsValid() && m_graphFilePath.MatchesExtension( "ag" ) );
+            auto const definitionExtension = GraphDefinition::GetStaticResourceTypeID().ToString();
+            EE_ASSERT( m_graphFilePath.IsValid() && m_graphFilePath.MatchesExtension( definitionExtension.c_str() ) );
+
+            // Delete all variation descriptors for this graph
+            auto const variationExtension = GraphVariation::GetStaticResourceTypeID().ToString();
+            TVector<FileSystem::Path> allVariationFiles;
+            if ( FileSystem::GetDirectoryContents( m_graphFilePath.GetParentDirectory(), allVariationFiles, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::DontExpand, { variationExtension.c_str() } ) )
+            {
+                String const variationPathPrefix = Variation::GenerateResourceFilePathPrefix( m_graphFilePath );
+                for ( auto const& variationFilePath : allVariationFiles )
+                {
+                    if ( variationFilePath.GetFullPath().find( variationPathPrefix.c_str() ) != String::npos )
+                    {
+                        FileSystem::EraseFile( variationFilePath );
+                    }
+                }
+            }
 
             // Generate the variation descriptors
             auto const& variations = m_editorContext.GetVariationHierarchy();
@@ -809,6 +841,7 @@ namespace EE::Animation
         // Compilation failed, stop preview attempt
         if ( !graphCompiledSuccessfully )
         {
+            pfd::message( "Compile Error!", "The graph failed to compile! Please check the compilation log for details!", pfd::choice::ok, pfd::icon::error ).result();
             ImGui::SetWindowFocus( m_compilationLogWindowName.c_str() );
             return;
         }
@@ -821,7 +854,7 @@ namespace EE::Animation
         // Try Create Preview Mesh Component
         //-------------------------------------------------------------------------
 
-        auto pVariation = m_editorContext.GetVariation( m_selectedVariationID );
+        auto pVariation = m_editorContext.GetVariation( m_editorContext.GetSelectedVariationID() );
         EE_ASSERT( pVariation != nullptr );
         if ( pVariation->m_pSkeleton.IsValid() )
         {
@@ -849,7 +882,7 @@ namespace EE::Animation
             Save();
 
             // Create Preview Graph Component
-            String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, m_selectedVariationID );
+            String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, m_editorContext.GetSelectedVariationID() );
             ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
 
             m_pDebugGraphComponent = EE::New<AnimationGraphComponent>( StringID( "Animation Component" ) );

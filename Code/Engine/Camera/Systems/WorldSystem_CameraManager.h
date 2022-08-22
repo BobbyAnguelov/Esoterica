@@ -2,6 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntityWorldSystem.h"
+#include "System/Math/Vector.h"
 
 //-------------------------------------------------------------------------
 
@@ -34,9 +35,11 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        bool HasDebugCamera() const { return m_pDebugCamera != nullptr; }
-        bool IsDebugCameraEnabled() const;
+        DebugCameraComponent* TrySpawnDebugCamera( Vector const& cameraPos = Vector::Zero, Vector const& cameraViewDir = Vector::WorldForward );
         inline DebugCameraComponent* GetDebugCamera() const { return m_pDebugCamera; }
+        bool IsDebugCameraEnabled() const { return m_useDebugCamera; }
+        void EnableDebugCamera( Vector const& cameraPos = Vector::Zero, Vector const& cameraViewDir = Vector::WorldForward );
+        void DisableDebugCamera();
         #endif
 
     private:
@@ -47,7 +50,6 @@ namespace EE
         virtual void UpdateSystem( EntityWorldUpdateContext const& ctx ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        bool TrySpawnDebugCamera( EntityWorldUpdateContext const& ctx );
         #endif
 
     private:
@@ -57,8 +59,10 @@ namespace EE
         bool                                        m_registeredCamerasStateChanged = false;
 
         #if EE_DEVELOPMENT_TOOLS
+        Entity*                                     m_pDebugCameraEntity = nullptr;
         DebugCameraComponent*                       m_pDebugCamera = nullptr;
-        bool                                        m_debugCameraSpawned = false;
+        CameraComponent*                            m_pPreviousCamera = nullptr;
+        bool                                        m_useDebugCamera = false;
         #endif
     };
 } 

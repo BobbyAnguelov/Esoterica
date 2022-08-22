@@ -8,17 +8,17 @@
 
 namespace EE::Animation
 {
-    class EE_ENGINE_API GraphDataSet : public Resource::IResource
+    class EE_ENGINE_API GraphDataSet
     {
-        EE_REGISTER_VIRTUAL_RESOURCE( 'agds', "Animation Graph DataSet" );
         EE_SERIALIZE( m_variationID, m_pSkeleton, m_resources );
+
         friend class AnimationGraphCompiler;
         friend class GraphLoader;
         friend class GraphInstance;
 
     public:
 
-        virtual bool IsValid() const override { return m_variationID.IsValid() && m_pSkeleton.IsLoaded(); }
+        inline bool IsValid() const { return m_variationID.IsValid() && m_pSkeleton.IsLoaded(); }
 
         inline Skeleton const* GetSkeleton() const { return m_pSkeleton.GetPtr(); }
 

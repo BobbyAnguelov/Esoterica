@@ -306,6 +306,9 @@ namespace EE
         // Loads the specified descriptor in the descriptor ID member
         void LoadDescriptor();
 
+        // Create the workspace camera
+        void CreateCamera();
+
     protected:
 
         uint32_t                                    m_ID = 0;

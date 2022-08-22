@@ -725,7 +725,7 @@ namespace EE::Resource
         m_allMaps.clear();
 
         TVector<FileSystem::Path> results;
-        if ( FileSystem::GetDirectoryContents( m_settings.m_rawResourcePath, results, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Expand, { ".map" } ) )
+        if ( FileSystem::GetDirectoryContents( m_settings.m_rawResourcePath, results, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Expand, { "map" } ) )
         {
             for ( auto const& foundMapPath : results )
             {

@@ -119,12 +119,12 @@ namespace EE::Animation
         EventBindingID                      m_postEditEventBindingID;
         EventBindingID                      m_navigateToNodeEventBindingID;
         EventBindingID                      m_navigateToGraphEventBindingID;
+        EventBindingID                      m_variationSwitchedEventBindingID;
+
+        FileSystem::Path                    m_graphFilePath;
 
         GraphUndoableAction*                m_pActiveUndoableAction = nullptr;
         UUID                                m_selectedNodePreUndoRedo;
-
-        FileSystem::Path                    m_graphFilePath;
-        StringID                            m_selectedVariationID = Variation::s_defaultVariationID;
 
         Transform                           m_gizmoTransform;
         DebugMode                           m_debugMode = DebugMode::None;

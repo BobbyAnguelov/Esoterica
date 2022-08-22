@@ -14,8 +14,10 @@ namespace EE
         EE_ASSERT( m_cameras.empty() );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_pDebugCamera = nullptr;
-        m_debugCameraSpawned = false;
+        EE_ASSERT( m_pDebugCamera == nullptr );
+        EE_ASSERT( m_pDebugCameraEntity == nullptr );
+        EE_ASSERT( m_pPreviousCamera == nullptr );
+        m_useDebugCamera = false;
         #endif
     }
 
@@ -27,19 +29,13 @@ namespace EE
             m_registeredCamerasStateChanged = true;
 
             // Handle Debug Cameras
+            #if EE_DEVELOPMENT_TOOLS
             if ( auto pDebugCameraComponent = TryCast<DebugCameraComponent>( pComponent ) )
             {
-                #if EE_DEVELOPMENT_TOOLS
-                if ( m_pDebugCamera == nullptr )
-                {
-                    m_pDebugCamera = pDebugCameraComponent;
-                }
-                else
-                {
-                    // TODO: we dont support multiple debug cameras atm
-                }
-                #endif
+                // TODO: we dont support multiple debug cameras ATM
+                EE_ASSERT( m_pDebugCamera == pDebugCameraComponent );
             }
+            #endif
         }
     }
 
@@ -55,7 +51,14 @@ namespace EE
             #if EE_DEVELOPMENT_TOOLS
             if ( m_pDebugCamera == pCameraComponent )
             {
+                DisableDebugCamera();
                 m_pDebugCamera = nullptr;
+                m_pDebugCameraEntity = nullptr;
+            }
+
+            if ( m_pPreviousCamera == pCameraComponent )
+            {
+                m_pPreviousCamera = nullptr;
             }
             #endif
 
@@ -66,32 +69,50 @@ namespace EE
 
     void CameraManager::UpdateSystem( EntityWorldUpdateContext const& ctx )
     {
-        #if EE_DEVELOPMENT_TOOLS
-        TrySpawnDebugCamera( ctx );
-        #endif
-
+        // Maintain valid active camera ptr
         //-------------------------------------------------------------------------
 
-        if ( m_registeredCamerasStateChanged )
+        if ( m_registeredCamerasStateChanged && m_pActiveCamera == nullptr )
         {
-            // Always use the debug camera in tools
             #if EE_DEVELOPMENT_TOOLS
-            if ( !ctx.IsGameWorld() )
+            if ( m_useDebugCamera && m_pDebugCamera != m_pActiveCamera )
             {
-                m_pActiveCamera = m_pDebugCamera;
-            }
-            else
-            #endif
-            {
-                // Switch to the first camera in game worlds
-                if ( m_pActiveCamera == nullptr && !m_cameras.empty() )
+                if ( m_pDebugCamera != nullptr && m_pDebugCamera->IsInitialized() )
                 {
-                    m_pActiveCamera = m_cameras.front();
+                    m_pActiveCamera = m_pDebugCamera;
+                }
+            }
+            #endif
+
+            //-------------------------------------------------------------------------
+
+            if ( m_pActiveCamera == nullptr )
+            {
+                for ( auto pCamera : m_cameras )
+                {
+                    if ( IsOfType<DebugCameraComponent>( pCamera ) )
+                    {
+                        continue;
+                    }
+
+                    m_pActiveCamera = pCamera;
+                    break;
                 }
             }
 
             m_registeredCamerasStateChanged = false;
         }
+
+        // Debug camera management
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        // Add debug camera entity to world if required
+        if ( m_pDebugCameraEntity != nullptr && !m_pDebugCameraEntity->IsAddedToMap() )
+        {
+            ctx.GetPersistentMap()->AddEntity( m_pDebugCameraEntity );
+        }
+        #endif
     }
 
     void CameraManager::SetActiveCamera( CameraComponent const* pCamera )
@@ -102,33 +123,55 @@ namespace EE
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    bool CameraManager::TrySpawnDebugCamera( EntityWorldUpdateContext const& ctx )
+    EE::DebugCameraComponent* CameraManager::TrySpawnDebugCamera( Vector const& cameraPos, Vector const& cameraViewDir )
     {
-        if ( !ctx.IsGameWorld() )
+        EE_ASSERT( !cameraViewDir.IsNearZero3() );
+
+        if ( m_pDebugCamera == nullptr )
         {
-            return false;
+            m_pDebugCamera = EE::New<DebugCameraComponent>( StringID( "Debug Camera Component" ) );
+            m_pDebugCamera->SetEnabled( false );
+            m_pDebugCamera->SetPositionAndLookAtDirection( cameraPos, cameraViewDir.GetNormalized3() );
+
+            m_pDebugCameraEntity = EE::New<Entity>( StringID( "Debug Camera" ) );
+            m_pDebugCameraEntity->AddComponent( m_pDebugCamera );
+            m_pDebugCameraEntity->CreateSystem<DebugCameraController>();
+        }
+        else
+        {
+            m_pDebugCamera->SetPositionAndLookAtDirection( cameraPos, cameraViewDir.GetNormalized3() );
         }
 
-        if ( m_debugCameraSpawned )
-        {
-            return false;
-        }
-
-        auto pDebugCamera = EE::New<DebugCameraComponent>( StringID( "Debug Camera Component" ) );
-        pDebugCamera->SetEnabled( false );
-
-        auto pEntity = EE::New<Entity>( StringID( "Debug Camera" ) );
-        pEntity->AddComponent( pDebugCamera );
-        pEntity->CreateSystem<DebugCameraController>();
-        ctx.GetPersistentMap()->AddEntity( pEntity );
-
-        m_debugCameraSpawned = true;
-        return m_debugCameraSpawned;
+        return m_pDebugCamera;
     }
 
-    bool CameraManager::IsDebugCameraEnabled() const
+    void CameraManager::EnableDebugCamera( Vector const& cameraPos, Vector const& cameraViewDir )
     {
-        return m_pDebugCamera != nullptr && m_pDebugCamera->IsEnabled();
+        // If we dont have debug camera set, try to find one
+        if ( m_pDebugCamera == nullptr )
+        {
+            m_pDebugCamera = TrySpawnDebugCamera( cameraPos, cameraViewDir );
+        }
+        else // Update camera position
+        {
+            m_pDebugCamera->SetPositionAndLookAtDirection( cameraPos, cameraViewDir.GetNormalized3() );
+        }
+
+        // Only switch active camera if the debug camera is initialized
+        m_pPreviousCamera = m_pActiveCamera;
+        
+        if ( m_pDebugCamera->IsInitialized() )
+        {
+            m_pActiveCamera = m_pDebugCamera;
+        }
+
+        m_useDebugCamera = true;
+    }
+
+    void CameraManager::DisableDebugCamera()
+    {
+        m_pActiveCamera = m_pPreviousCamera;
+        m_useDebugCamera = false;
     }
     #endif
 }

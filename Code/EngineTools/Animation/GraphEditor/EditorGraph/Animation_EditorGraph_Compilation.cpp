@@ -55,6 +55,21 @@ namespace EE::Animation
         m_context.Reset();
         m_runtimeGraph = GraphDefinition();
 
+        // Ensure that all variations have skeletons set
+        //-------------------------------------------------------------------------
+
+        auto const& variationHierarchy = editorGraph.GetVariationHierarchy();
+        for ( auto const& variation : variationHierarchy.GetAllVariations() )
+        {
+            EE_ASSERT( variation.m_ID.IsValid() );
+            if ( !variation.m_pSkeleton.IsValid() )
+            {
+                String const message( String::CtorSprintf(), "Variation '%s' has no skeleton set!", variation.m_ID.c_str() );
+                m_context.LogError( message );
+                return false;
+            }
+        }
+
         // Always compile control parameters first
         //-------------------------------------------------------------------------
 

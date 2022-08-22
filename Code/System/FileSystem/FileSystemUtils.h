@@ -26,7 +26,7 @@ namespace EE::FileSystem
     };
 
     // Get the contents of a specified directory
-    // The extension filter is a list of extensions including the period e.g. extensionfilter = { ".txt", ".exe" }
+    // The extension filter is a list of extensions excluding the period e.g. extensionfilter = { "txt", "exe" }
     EE_SYSTEM_API bool GetDirectoryContents( Path const& directoryPath, TVector<Path>& contents, DirectoryReaderOutput output = DirectoryReaderOutput::All, DirectoryReaderMode mode = DirectoryReaderMode::Expand, TVector<String> const& extensionFilters = TVector<String>() );
 
     // Get the contents of a specified directory

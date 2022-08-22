@@ -54,7 +54,7 @@ namespace EE::Animation
 
         for ( auto const& childGraphSlot : pGraphDef->m_childGraphSlots )
         {
-            auto pChildGraphVariation = m_pGraphVariation->m_pDataSet->GetResource<GraphVariation>( childGraphSlot.m_dataSlotIdx );
+            auto pChildGraphVariation = m_pGraphVariation->m_dataSet.GetResource<GraphVariation>( childGraphSlot.m_dataSlotIdx );
             if ( pChildGraphVariation != nullptr )
             {
                 if ( pChildGraphVariation->GetSkeleton() == pGraphVariation->GetSkeleton() )
@@ -80,7 +80,7 @@ namespace EE::Animation
         // Instantiate individual nodes
         //-------------------------------------------------------------------------
 
-        InstantiationContext context = { m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, m_pGraphVariation->m_pDataSet.GetPtr(), m_userID };
+        InstantiationContext context = { m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, &m_pGraphVariation->m_dataSet, m_userID };
 
         for ( auto i = 0; i < numNodes; i++ )
         {

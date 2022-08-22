@@ -119,10 +119,12 @@ namespace EE::Animation
             // Variation override management
             //-------------------------------------------------------------------------
 
-            bool HasOverrideForVariation( StringID variationID ) const { return GetOverrideValueForVariation( variationID ) != nullptr; }
-            ResourceID* GetOverrideValueForVariation( StringID variationID );
-            ResourceID const* GetOverrideValueForVariation( StringID variationID ) const { return const_cast<DataSlotEditorNode*>( this )->GetOverrideValueForVariation( variationID ); }
-            void SetOverrideValueForVariation( StringID variationID, ResourceID const& resourceID );
+            ResourceID const& GetDefaultValue() const { return m_defaultResourceID; }
+            void SetDefaultValue( ResourceID const& resourceID );
+
+            bool HasOverride( StringID variationID ) const;
+            ResourceID const* GetOverrideValue( StringID variationID ) const;
+            void SetOverrideValue( StringID variationID, ResourceID const& resourceID );
 
             void CreateOverride( StringID variationID );
             void RenameOverride( StringID oldVariationID, StringID newVariationID );

@@ -4,6 +4,7 @@
 #include "Engine/Camera/DebugViews/DebugView_Camera.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Camera/Systems/EntitySystem_DebugCameraController.h"
+#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "System/Imgui/ImguiStyle.h"
@@ -103,17 +104,7 @@ namespace EE
 
         m_ID = m_descriptorID.GetPathID();
 
-        // Spawn Camera
-        //-------------------------------------------------------------------------
-
-        m_pCamera = EE::New<DebugCameraComponent>( StringID( "Camera Component" ) );
-        m_pCamera->SetDefaultMoveSpeed( 5.0f );
-        m_pCamera->ResetMoveSpeed();
-
-        auto pEntity = EE::New<Entity>( StringID( "Camera" ) );
-        pEntity->AddComponent( m_pCamera );
-        pEntity->CreateSystem<DebugCameraController>();
-        m_pWorld->GetPersistentMap()->AddEntity( pEntity );
+        CreateCamera();
 
         // Create descriptor property grid
         //-------------------------------------------------------------------------
@@ -147,17 +138,7 @@ namespace EE
 
         m_ID = Hash::GetHash32( displayName );
 
-        // Spawn Camera
-        //-------------------------------------------------------------------------
-
-        m_pCamera = EE::New<DebugCameraComponent>( StringID( "Camera Component" ) );
-        m_pCamera->SetDefaultMoveSpeed( 5.0f );
-        m_pCamera->ResetMoveSpeed();
-
-        auto pEntity = EE::New<Entity>( StringID( "Camera" ) );
-        pEntity->AddComponent( m_pCamera );
-        pEntity->CreateSystem<DebugCameraController>();
-        m_pWorld->GetPersistentMap()->AddEntity( pEntity );
+        CreateCamera();
     }
 
     Workspace::~Workspace()
@@ -174,6 +155,21 @@ namespace EE
             EE::Delete( m_pDescriptorPropertyGrid );
         }
     }
+
+    //-------------------------------------------------------------------------
+
+    void Workspace::CreateCamera()
+    {
+        EE_ASSERT( m_pWorld != nullptr && m_pCamera == nullptr );
+        auto pCameraManager = m_pWorld->GetWorldSystem<CameraManager>();
+        m_pCamera = pCameraManager->TrySpawnDebugCamera();
+        m_pCamera->SetDefaultMoveSpeed( 5.0f );
+        m_pCamera->ResetMoveSpeed();
+
+        pCameraManager->EnableDebugCamera();
+    }
+
+    //-------------------------------------------------------------------------
 
     void Workspace::Initialize( UpdateContext const& context )
     {

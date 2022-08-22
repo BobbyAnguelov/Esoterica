@@ -15,8 +15,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments />
-    <RemoteDebuggerCommandArguments />
+    <LocalDebuggerCommandArguments>-map data://maps/Prototype_3Cs_Minimal.map</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>-map data://maps/Prototype_3Cs_Minimal.map</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup>
     <ShowAllFiles>false</ShowAllFiles>

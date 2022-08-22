@@ -25,6 +25,9 @@ namespace EE::Animation
         // The delimiter character used to separate the graph name and the variation name for graph variation resources
         constexpr static char const s_graphPathDelimiter = '@';
 
+        // Create a file path prefix for the graph variation resource (this is the path up to and including the delimiter )
+        static String GenerateResourceFilePathPrefix( FileSystem::Path const& graphPath );
+
         // Create a file path for the graph variation resource
         static String GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID );
 
@@ -36,7 +39,6 @@ namespace EE::Animation
 
     public:
 
-        inline bool IsValid() const { return m_ID.IsValid(); }
         inline bool operator==( StringID const& variationID ) const { return m_ID == variationID; }
         inline bool operator!=( StringID const& variationID ) const { return m_ID != variationID; }
 

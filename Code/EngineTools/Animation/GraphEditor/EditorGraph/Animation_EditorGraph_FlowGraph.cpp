@@ -286,15 +286,41 @@ namespace EE::Animation::GraphNodes
         return resourceID;
     }
 
-    ResourceID* DataSlotEditorNode::GetOverrideValueForVariation( StringID variationID )
+    void DataSlotEditorNode::SetName( String const& newName )
     {
-        EE_ASSERT( variationID.IsValid() );
+        EE_ASSERT( IsRenamable() );
+        VisualGraph::ScopedNodeModification const snm( this );
+        m_name = GetUniqueSlotName( newName );
+    }
 
-        if ( variationID == Variation::s_defaultVariationID )
+    void DataSlotEditorNode::SetDefaultValue( ResourceID const& resourceID )
+    {
+        EE_ASSERT( !resourceID.IsValid() || resourceID.GetResourceTypeID() == GetSlotResourceTypeID() );
+        m_defaultResourceID = resourceID;
+    }
+
+    bool DataSlotEditorNode::HasOverride( StringID variationID ) const
+    {
+        // This query makes no sense on the default variation
+        EE_ASSERT( variationID != Variation::s_defaultVariationID );
+
+        for ( auto& variation : m_overrides )
         {
-            return &m_defaultResourceID;
+            if ( variation.m_variationID == variationID )
+            {
+                return true;
+            }
         }
 
+        return false;
+    }
+
+    ResourceID const* DataSlotEditorNode::GetOverrideValue( StringID variationID ) const
+    {
+        EE_ASSERT( variationID.IsValid() );
+        EE_ASSERT( HasOverride( variationID ) );
+
+        // Check all actual overrides
         for ( auto& variation : m_overrides )
         {
             if ( variation.m_variationID == variationID )
@@ -303,23 +329,17 @@ namespace EE::Animation::GraphNodes
             }
         }
 
+        EE_UNREACHABLE_CODE();
         return nullptr;
     }
 
-    void DataSlotEditorNode::SetOverrideValueForVariation( StringID variationID, ResourceID const& resourceID )
+    void DataSlotEditorNode::SetOverrideValue( StringID variationID, ResourceID const& resourceID )
     {
+        VisualGraph::ScopedNodeModification const snm( this );
+
         EE_ASSERT( variationID.IsValid() );
         EE_ASSERT( !resourceID.IsValid() || resourceID.GetResourceTypeID() == GetSlotResourceTypeID() );
-
-        if ( variationID == Variation::s_defaultVariationID )
-        {
-            m_defaultResourceID = resourceID;
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( HasOverrideForVariation( variationID ) );
+        EE_ASSERT( HasOverride( variationID ) );
 
         for ( auto& variation : m_overrides )
         {
@@ -336,7 +356,9 @@ namespace EE::Animation::GraphNodes
     void DataSlotEditorNode::CreateOverride( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() && variationID != Variation::s_defaultVariationID );
-        EE_ASSERT( !HasOverrideForVariation( variationID ) );
+        EE_ASSERT( !HasOverride( variationID ) );
+
+        VisualGraph::ScopedNodeModification const snm( this );
 
         auto& createdOverride = m_overrides.emplace_back();
         createdOverride.m_variationID = variationID;
@@ -346,6 +368,8 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( oldVariationID.IsValid() && newVariationID.IsValid() );
         EE_ASSERT( oldVariationID != Variation::s_defaultVariationID && newVariationID != Variation::s_defaultVariationID );
+
+        VisualGraph::ScopedNodeModification const snm( this );
 
         for ( auto& overrideValue : m_overrides )
         {
@@ -359,6 +383,8 @@ namespace EE::Animation::GraphNodes
     void DataSlotEditorNode::RemoveOverride( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() && variationID != Variation::s_defaultVariationID );
+
+        VisualGraph::ScopedNodeModification const snm( this );
 
         for ( auto iter = m_overrides.begin(); iter != m_overrides.end(); ++iter )
         {
@@ -385,7 +411,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         auto pDebugContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
-        auto pResource = GetOverrideValueForVariation( pDebugContext->m_currentVariationID );
+        auto pResource = GetOverrideValue( pDebugContext->m_currentVariationID );
         if ( pResource == nullptr || !pResource->IsValid() )
         {
             ImGui::Text( EE_ICON_CUBE_OUTLINE "None Set!" );
@@ -406,12 +432,6 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         EditorGraphNode::DrawExtraControls( ctx );
-    }
-
-    void DataSlotEditorNode::SetName( String const& newName )
-    {
-        EE_ASSERT( IsRenamable() );
-        m_name = GetUniqueSlotName( newName );
     }
 
     String DataSlotEditorNode::GetUniqueSlotName( String const& desiredName )

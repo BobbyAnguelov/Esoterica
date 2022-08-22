@@ -21,7 +21,6 @@ namespace EE
 
     private:
 
-        //virtual uint32_t GetID() const override { return 0xFFFFFFFE; }
         virtual bool HasViewportWindow() const override { return true; }
         virtual bool HasWorkspaceToolbar() const override;
         virtual bool HasViewportToolbar() const override { return false; }

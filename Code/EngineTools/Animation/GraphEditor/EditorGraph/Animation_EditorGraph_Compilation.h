@@ -47,6 +47,10 @@ namespace EE::Animation
         void LogWarning( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Warning, pNode->GetID(), message ) ); }
         void LogError( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Error, pNode->GetID(), message ) ); }
 
+        void LogMessage( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Message, UUID(), message ) ); }
+        void LogWarning( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Warning, UUID(), message ) ); }
+        void LogError( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Error, UUID(), message ) ); }
+
         // General Compilation
         //-------------------------------------------------------------------------
 

@@ -9,7 +9,7 @@
 
 namespace EE::Resource
 {
-    constexpr static float const g_resourcePickerButtonWidth = 24;
+    static ImVec2 const g_buttonSize( 24, 24 );
 
     //-------------------------------------------------------------------------
 
@@ -117,7 +117,7 @@ namespace EE::Resource
         constexpr float const typeLabelWidth = 30;
 
         ImGui::PushID( pResourceID );
-        if ( ImGui::BeginChild( "Red", ImVec2( contentRegionAvailableX, 24 ), true, ImGuiWindowFlags_NoScrollbar ) )
+        if ( ImGui::BeginChild( "Red", ImVec2( contentRegionAvailableX, g_buttonSize.y ), true, ImGuiWindowFlags_NoScrollbar ) )
         {
             // Type and path
             //-------------------------------------------------------------------------
@@ -137,7 +137,7 @@ namespace EE::Resource
                 ImGui::TextColored( Colors::LightPink.ToFloat4(), resourceTypeStr.c_str() );
 
                 ImGui::SameLine( typeLabelWidth, itemSpacing );
-                ImGui::SetNextItemWidth( contentRegionAvailableX - ( itemSpacing * 4 ) - ( g_resourcePickerButtonWidth * 3 ) - typeLabelWidth );
+                ImGui::SetNextItemWidth( contentRegionAvailableX - ( itemSpacing * 4 ) - ( g_buttonSize.x * 3 ) - typeLabelWidth );
 
                 ImVec4 const pathColor = VectorContains( m_knownResourceIDs, *pResourceID ) ? ImGuiX::Style::s_colorText.Value : Colors::Red.ToFloat4_ABGR();
                 ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
@@ -155,45 +155,49 @@ namespace EE::Resource
             // Buttons
             //-------------------------------------------------------------------------
 
-            ImGui::SameLine( 0, itemSpacing );
-            ImGui::BeginDisabled( !pResourceID->IsValid() );
-            if ( ImGui::Button( EE_ICON_EYE_OUTLINE "##Open", ImVec2( g_resourcePickerButtonWidth, 0 ) ) )
             {
-                m_toolsContext.TryOpenResource( *pResourceID );
-            }
-            ImGuiX::ItemTooltip( "Open Resource" );
-            ImGui::EndDisabled();
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
 
-            ImGui::SameLine( 0, itemSpacing );
-            if ( ImGui::Button( EE_ICON_EYEDROPPER "##Pick", ImVec2( g_resourcePickerButtonWidth, 0 ) ) )
-            {
-                ImGui::OpenPopup( "Resource Picker" );
-                m_filterBuffer[0] = 0;
-                m_initializeFocus = true;
-                RefreshResourceList( resourceTypeID );
-                m_selectedID = *pResourceID;
-            }
-            ImGuiX::ItemTooltip( "Pick Resource" );
+                ImGui::SameLine( 0, itemSpacing );
+                ImGui::BeginDisabled( !pResourceID->IsValid() );
+                if ( ImGui::Button( EE_ICON_EYE_OUTLINE "##Open", g_buttonSize ) )
+                {
+                    m_toolsContext.TryOpenResource( *pResourceID );
+                }
+                ImGuiX::ItemTooltip( "Open Resource" );
+                ImGui::EndDisabled();
 
-            ImGui::SameLine( 0, itemSpacing );
-            ImGui::BeginDisabled( !pResourceID->IsValid() );
-            if ( ImGui::Button( EE_ICON_DOTS_HORIZONTAL "##Options", ImVec2( g_resourcePickerButtonWidth, 0 ) ) )
-            {
-                ImGui::OpenPopup( "##ResourcePickerOptions" );
+                ImGui::SameLine( 0, itemSpacing );
+                if ( ImGui::Button( EE_ICON_EYEDROPPER "##Pick", g_buttonSize ) )
+                {
+                    ImGui::OpenPopup( "Resource Picker" );
+                    m_filterBuffer[0] = 0;
+                    m_initializeFocus = true;
+                    RefreshResourceList( resourceTypeID );
+                    m_selectedID = *pResourceID;
+                }
+                ImGuiX::ItemTooltip( "Pick Resource" );
+
+                ImGui::SameLine( 0, itemSpacing );
+                ImGui::BeginDisabled( !pResourceID->IsValid() );
+                if ( ImGui::Button( EE_ICON_DOTS_HORIZONTAL "##Options", g_buttonSize ) )
+                {
+                    ImGui::OpenPopup( "##ResourcePickerOptions" );
+                }
+                ImGuiX::ItemTooltip( "Options" );
+                ImGui::EndDisabled();
             }
-            ImGuiX::ItemTooltip( "Options" );
-            ImGui::EndDisabled();
 
             //-------------------------------------------------------------------------
 
             if ( ImGui::BeginPopup( "##ResourcePickerOptions" ) )
             {
-                if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY "Copy Resource Path" ) )
+                if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY " Copy Resource Path" ) )
                 {
                     ImGui::SetClipboardText( pResourceID->GetResourcePath().ToFileSystemPath( m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryPath() ).c_str() );
                 }
 
-                if ( ImGui::MenuItem( EE_ICON_ERASER "Clear" ) )
+                if ( ImGui::MenuItem( EE_ICON_ERASER " Clear" ) )
                 {
                     m_selectedID.Clear();
                     valueUpdated = true;
@@ -221,7 +225,7 @@ namespace EE::Resource
 
         float const contentRegionAvailableX = ImGui::GetContentRegionAvail().x;
         float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-        float const textAreaWidth = contentRegionAvailableX - ( g_resourcePickerButtonWidth * 2 ) - ( itemSpacing * 2 );
+        float const textAreaWidth = contentRegionAvailableX - ( g_buttonSize.x * 2 ) - ( itemSpacing * 2 );
 
         bool valueUpdated = false;
 
@@ -229,7 +233,7 @@ namespace EE::Resource
         ImGui::InputText( "##pathstring", const_cast<char*>( pResourcePath->GetString().data() ), pResourcePath->GetString().length(), ImGuiInputTextFlags_ReadOnly );
 
         ImGui::SameLine( 0, itemSpacing );
-        if ( ImGui::Button( EE_ICON_EYEDROPPER "##Pick", ImVec2( g_resourcePickerButtonWidth, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_EYEDROPPER "##Pick", g_buttonSize ) )
         {
             auto const selectedFiles = pfd::open_file( "Choose Data File", GetRawResourceDirectoryPath().c_str(), { "All Files", "*" }, pfd::opt::none ).result();
             if ( !selectedFiles.empty() )
@@ -250,7 +254,7 @@ namespace EE::Resource
 
         ImGui::SameLine( 0, itemSpacing );
         ImGui::BeginDisabled( !pResourcePath->IsValid() );
-        if ( ImGui::Button( EE_ICON_DOTS_HORIZONTAL "##Options", ImVec2( g_resourcePickerButtonWidth, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_DOTS_HORIZONTAL "##Options", g_buttonSize ) )
         {
             ImGui::OpenPopup( "##ResourcePickerOptions" );
         }

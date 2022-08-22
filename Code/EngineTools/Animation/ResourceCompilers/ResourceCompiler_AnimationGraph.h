@@ -9,13 +9,14 @@ namespace EE::Animation
 {
     class EditorGraphDefinition;
     class GraphDefinitionCompiler;
+    class GraphDataSet;
 
     //-------------------------------------------------------------------------
 
     class AnimationGraphCompiler final : public Resource::Compiler
     {
         EE_REGISTER_TYPE( AnimationGraphCompiler );
-        static const int32_t s_version = 7;
+        static const int32_t s_version = 8;
 
     public:
 
@@ -28,6 +29,6 @@ namespace EE::Animation
         Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;
         bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, EditorGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const;
-        bool GenerateVirtualDataSetResource( Resource::CompileContext const& ctx, EditorGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, StringID const& variationID, ResourcePath const& dataSetPath ) const;
+        bool GenerateDataSet( Resource::CompileContext const& ctx, EditorGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const;
     };
 }
