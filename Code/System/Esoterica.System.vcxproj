@@ -463,6 +463,7 @@
     <ClInclude Include="Types\HashMap.h" />
     <ClInclude Include="Types\IDVector.h" />
     <ClInclude Include="Types\Function.h" />
+    <ClInclude Include="Types\PointerID.h" />
     <ClInclude Include="Types\Pool.h" />
     <ClInclude Include="Time\Time.h" />
     <ClInclude Include="Types\Percentage.h" />

@@ -1,7 +1,8 @@
 #include "ResourceCompiler_AnimationGraph.h"
-#include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Compilation.h"
-#include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
 #include "System/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
@@ -31,7 +32,7 @@ namespace EE::Animation
         return CompilationFailed( ctx );
     }
 
-    bool AnimationGraphCompiler::LoadAndCompileGraph( FileSystem::Path const& graphFilePath, EditorGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const
+    bool AnimationGraphCompiler::LoadAndCompileGraph( FileSystem::Path const& graphFilePath, ToolsGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const
     {
         Serialization::JsonArchiveReader archive;
         if ( !archive.ReadFromFile( graphFilePath ) )
@@ -76,7 +77,7 @@ namespace EE::Animation
 
     Resource::CompilationResult AnimationGraphCompiler::CompileGraphDefinition( Resource::CompileContext const& ctx ) const
     {
-        EditorGraphDefinition editorGraph;
+        ToolsGraphDefinition editorGraph;
         GraphDefinitionCompiler definitionCompiler;
         if ( !LoadAndCompileGraph( ctx.m_inputFilePath, editorGraph, definitionCompiler ) )
         {
@@ -140,7 +141,7 @@ namespace EE::Animation
             return Error( "invalid graph data path: %s", resourceDescriptor.m_graphPath.c_str() );
         }
 
-        EditorGraphDefinition editorGraph;
+        ToolsGraphDefinition editorGraph;
         GraphDefinitionCompiler definitionCompiler;
         if ( !LoadAndCompileGraph( graphFilePath, editorGraph, definitionCompiler ) )
         {
@@ -225,7 +226,7 @@ namespace EE::Animation
                 return false;
             }
 
-            EditorGraphDefinition editorGraph;
+            ToolsGraphDefinition editorGraph;
             GraphDefinitionCompiler definitionCompiler;
             if ( !LoadAndCompileGraph( graphFilePath, editorGraph, definitionCompiler ) )
             {
@@ -262,12 +263,12 @@ namespace EE::Animation
             // Add data resources
             //-------------------------------------------------------------------------
 
-            THashMap<UUID, GraphNodes::DataSlotEditorNode const*> dataSlotLookupMap;
+            THashMap<UUID, GraphNodes::DataSlotToolsNode const*> dataSlotLookupMap;
             auto pRootGraph = editorGraph.GetRootGraph();
-            auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+            auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
             for ( auto pSlotNode : dataSlotNodes )
             {
-                dataSlotLookupMap.insert( TPair<UUID, GraphNodes::DataSlotEditorNode const*>( pSlotNode->GetID(), pSlotNode ) );
+                dataSlotLookupMap.insert( TPair<UUID, GraphNodes::DataSlotToolsNode const*>( pSlotNode->GetID(), pSlotNode ) );
             }
 
             auto const& registeredDataSlots = definitionCompiler.GetRegisteredDataSlots();
@@ -295,7 +296,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool AnimationGraphCompiler::GenerateDataSet( Resource::CompileContext const& ctx, EditorGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const
+    bool AnimationGraphCompiler::GenerateDataSet( Resource::CompileContext const& ctx, ToolsGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const
     {
         EE_ASSERT( dataSet.m_variationID.IsValid() );
         EE_ASSERT( editorGraph.IsValidVariation( dataSet.m_variationID ) );
@@ -318,12 +319,12 @@ namespace EE::Animation
         // Fill data slots
         //-------------------------------------------------------------------------
 
-        THashMap<UUID, GraphNodes::DataSlotEditorNode const*> dataSlotLookupMap;
+        THashMap<UUID, GraphNodes::DataSlotToolsNode const*> dataSlotLookupMap;
         auto pRootGraph = editorGraph.GetRootGraph();
-        auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pSlotNode : dataSlotNodes )
         {
-            dataSlotLookupMap.insert( TPair<UUID, GraphNodes::DataSlotEditorNode const*>( pSlotNode->GetID(), pSlotNode ) );
+            dataSlotLookupMap.insert( TPair<UUID, GraphNodes::DataSlotToolsNode const*>( pSlotNode->GetID(), pSlotNode ) );
         }
 
         dataSet.m_resources.reserve( registeredDataSlots.size() );

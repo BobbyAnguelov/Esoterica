@@ -71,8 +71,8 @@ namespace EE::VisualGraph
 
     void BaseNode::Destroy()
     {
-         EE_ASSERT( HasParentGraph() );
-         GetParentGraph()->DestroyNode( m_ID );
+        EE_ASSERT( HasParentGraph() );
+        GetParentGraph()->DestroyNode( m_ID );
     }
 
     BaseGraph* BaseNode::GetRootGraph()
@@ -120,10 +120,6 @@ namespace EE::VisualGraph
 
         //-------------------------------------------------------------------------
 
-        SerializeCustom( typeRegistry, nodeObjectValue );
-
-        //-------------------------------------------------------------------------
-
         EE::Delete( m_pChildGraph );
 
         auto const childGraphValueIter = nodeObjectValue.FindMember( s_childGraphKey );
@@ -145,6 +141,10 @@ namespace EE::VisualGraph
             auto& graphObjectValue = secondaryGraphValueIter->value;
             m_pSecondaryGraph = BaseGraph::CreateGraphFromSerializedData( typeRegistry, graphObjectValue, this );
         }
+
+        //-------------------------------------------------------------------------
+
+        SerializeCustom( typeRegistry, nodeObjectValue );
     }
 
     void BaseNode::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const
@@ -241,13 +241,13 @@ namespace EE::VisualGraph
         {
             return VisualSettings::s_genericHoverColor;
         }
-        else if( visualState == NodeVisualState::Selected )
+        else if ( visualState == NodeVisualState::Selected )
         {
             return VisualSettings::s_genericSelectionColor;
         }
         else
         {
-           return ImColor( 0 );
+            return ImColor( 0 );
         }
     }
 
@@ -488,11 +488,18 @@ namespace EE::VisualGraph
         EE_ASSERT( IDMapping.find( originalID ) == IDMapping.end() );
         IDMapping.insert( TPair<UUID, UUID>( originalID, m_ID ) );
 
-        for( auto pNode : m_nodes )
+        for ( auto pNode : m_nodes )
         {
             pNode->RegenerateIDs( IDMapping );
         }
 
         return m_ID;
+    }
+    void BaseGraph::OnShowGraph()
+    {
+        for ( auto pNode : m_nodes )
+        {
+            pNode->OnShowNode();
+        }
     }
 }

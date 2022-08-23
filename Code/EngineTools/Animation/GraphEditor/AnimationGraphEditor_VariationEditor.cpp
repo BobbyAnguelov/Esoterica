@@ -1,11 +1,12 @@
 #include "AnimationGraphEditor_VariationEditor.h"
 #include "AnimationGraphEditor_Context.h"
-#include "EditorGraph/Animation_EditorGraph_Variations.h"
-#include "EditorGraph/Animation_EditorGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 #include "EngineTools/Resource/ResourceFilePicker.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Imgui/ImguiStyle.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
 
 //-------------------------------------------------------------------------
 
@@ -157,7 +158,7 @@ namespace EE::Animation
     void GraphVariationEditor::DrawOverridesTable()
     {
         auto pRootGraph = m_editorContext.GetRootGraph();
-        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         bool isDefaultVariationSelected = m_editorContext.IsDefaultVariationSelected();
 
         //-------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #pragma once
-#include "EditorGraph/Animation_EditorGraph_Definition.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_View.h"
 #include "EngineTools/Core/Helpers/CategoryTree.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,6 +14,14 @@ namespace EE
 
 namespace EE::Animation
 {
+    namespace GraphNodes
+    {
+        class ControlParameterToolsNode;
+        class VirtualParameterToolsNode;
+    }
+
+    //-------------------------------------------------------------------------
+
     class GraphEditorContext
     {
     public:
@@ -41,9 +49,9 @@ namespace EE::Animation
         // Graph Data
         //-------------------------------------------------------------------------
 
-        EditorGraphDefinition const* GetGraphDefinition() const { return &m_editorGraph; }
+        ToolsGraphDefinition const* GetGraphDefinition() const { return &m_editorGraph; }
 
-        EditorGraphDefinition* GetGraphDefinition() { return &m_editorGraph; }
+        ToolsGraphDefinition* GetGraphDefinition() { return &m_editorGraph; }
 
         inline FlowGraph* GetRootGraph() { return m_editorGraph.GetRootGraph(); }
 
@@ -52,14 +60,14 @@ namespace EE::Animation
         template<typename T>
         TInlineVector<T*, 20> FindAllNodesOfType( VisualGraph::SearchMode mode = VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch typeMatch = VisualGraph::SearchTypeMatch::Exact )
         {
-            static_assert( std::is_base_of<GraphNodes::EditorGraphNode, T>::value );
+            static_assert( std::is_base_of<GraphNodes::FlowToolsNode, T>::value );
             return GetRootGraph()->FindAllNodesOfType<T>( mode, typeMatch );
         }
 
         template<typename T>
         TInlineVector<T const*, 20> FindAllNodesOfType( VisualGraph::SearchMode mode = VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch typeMatch = VisualGraph::SearchTypeMatch::Exact ) const
         {
-            static_assert( std::is_base_of<GraphNodes::EditorGraphNode, T>::value );
+            static_assert( std::is_base_of<GraphNodes::FlowToolsNode, T>::value );
             return GetRootGraph()->FindAllNodesOfType<T const>( mode, typeMatch );
         }
 
@@ -72,11 +80,11 @@ namespace EE::Animation
         inline int32_t GetNumControlParameters() const { return (int32_t) m_controlParameters.size(); }
         inline int32_t GetNumVirtualParameters() const { return (int32_t) m_virtualParameters.size(); }
 
-        inline TInlineVector<GraphNodes::ControlParameterEditorNode*, 20> const& GetControlParameters() const { return m_controlParameters; }
-        inline TInlineVector<GraphNodes::VirtualParameterEditorNode*, 20> const& GetVirtualParameters() const { return m_virtualParameters; }
+        inline TInlineVector<GraphNodes::ControlParameterToolsNode*, 20> const& GetControlParameters() const { return m_controlParameters; }
+        inline TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> const& GetVirtualParameters() const { return m_virtualParameters; }
 
-        GraphNodes::ControlParameterEditorNode* FindControlParameter( UUID parameterID ) const;
-        GraphNodes::VirtualParameterEditorNode* FindVirtualParameter( UUID parameterID ) const;
+        GraphNodes::ControlParameterToolsNode* FindControlParameter( UUID parameterID ) const;
+        GraphNodes::VirtualParameterToolsNode* FindVirtualParameter( UUID parameterID ) const;
 
         void CreateControlParameter( GraphValueType type );
         void CreateVirtualParameter( GraphValueType type );
@@ -137,13 +145,13 @@ namespace EE::Animation
     private:
 
         ToolsContext const&                                             m_toolsContext;
-        EditorGraphDefinition                                           m_editorGraph;
+        ToolsGraphDefinition                                            m_editorGraph;
         TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
         CategoryTree<TypeSystem::TypeInfo const*>                       m_categorizedNodeTypes;
         TVector<VisualGraph::SelectedNode>                              m_selectedNodes;
         StringID                                                        m_selectedVariationID = Variation::s_defaultVariationID;
-        TInlineVector<GraphNodes::ControlParameterEditorNode*, 20>      m_controlParameters;
-        TInlineVector<GraphNodes::VirtualParameterEditorNode*, 20>      m_virtualParameters;
+        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
+        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
         TEvent<VisualGraph::BaseNode*>                                  m_onNavigateToNode;
         TEvent<VisualGraph::BaseGraph*>                                 m_onNavigateToGraph;
         TEvent<>                                                        m_onVariationSwitched;

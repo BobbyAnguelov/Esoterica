@@ -1,7 +1,9 @@
 #include "AnimationGraphEditor_Context.h"
-#include "EditorGraph/Nodes/Animation_EditorGraphNode_ControlParameters.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "System/TypeSystem/TypeRegistry.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,11 +21,11 @@ namespace EE::Animation
         // Create DB of all node types
         //-------------------------------------------------------------------------
 
-        m_registeredNodeTypes = toolsContext.m_pTypeRegistry->GetAllDerivedTypes( EditorGraphNode::GetStaticTypeID(), false, false, true );
+        m_registeredNodeTypes = toolsContext.m_pTypeRegistry->GetAllDerivedTypes( FlowToolsNode::GetStaticTypeID(), false, false, true );
 
         for ( auto pNodeType : m_registeredNodeTypes )
         {
-            auto pDefaultNode = Cast<EditorGraphNode const>( pNodeType->m_pDefaultInstance );
+            auto pDefaultNode = Cast<FlowToolsNode const>( pNodeType->m_pDefaultInstance );
             if ( pDefaultNode->IsUserCreatable() )
             {
                 m_categorizedNodeTypes.AddItem( pDefaultNode->GetCategory(), pDefaultNode->GetTypeName(), pNodeType );
@@ -41,8 +43,8 @@ namespace EE::Animation
         if ( m_editorGraph.LoadFromJson( *m_toolsContext.m_pTypeRegistry, graphDescriptorObjectValue ) )
         {
             auto pRootGraph = GetRootGraph();
-            m_controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterEditorNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-            m_virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterEditorNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+            m_controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+            m_virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
             return true;
         }
 
@@ -63,34 +65,34 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ControlParameterEditorNode* pParameter = nullptr;
+        ControlParameterToolsNode* pParameter = nullptr;
 
         VisualGraph::ScopedGraphModification gm( GetRootGraph() );
 
         switch ( type )
         {
             case GraphValueType::Bool:
-            pParameter = GetRootGraph()->CreateNode<BoolControlParameterEditorNode>( parameterName );
+            pParameter = GetRootGraph()->CreateNode<BoolControlParameterToolsNode>( parameterName );
             break;
 
             case GraphValueType::ID:
-            pParameter = GetRootGraph()->CreateNode<IDControlParameterEditorNode>( parameterName );
+            pParameter = GetRootGraph()->CreateNode<IDControlParameterToolsNode>( parameterName );
             break;
 
             case GraphValueType::Int:
-            pParameter = GetRootGraph()->CreateNode<IntControlParameterEditorNode>( parameterName );
+            pParameter = GetRootGraph()->CreateNode<IntControlParameterToolsNode>( parameterName );
             break;
 
             case GraphValueType::Float:
-            pParameter = GetRootGraph()->CreateNode<FloatControlParameterEditorNode>( parameterName );
+            pParameter = GetRootGraph()->CreateNode<FloatControlParameterToolsNode>( parameterName );
             break;
 
             case GraphValueType::Vector:
-            pParameter = GetRootGraph()->CreateNode<VectorControlParameterEditorNode>( parameterName );
+            pParameter = GetRootGraph()->CreateNode<VectorControlParameterToolsNode>( parameterName );
             break;
 
             case GraphValueType::Target:
-            pParameter = GetRootGraph()->CreateNode<TargetControlParameterEditorNode>( parameterName );
+            pParameter = GetRootGraph()->CreateNode<TargetControlParameterToolsNode>( parameterName );
             break;
 
             default:
@@ -107,7 +109,7 @@ namespace EE::Animation
         EnsureUniqueParameterName( parameterName );
 
         VisualGraph::ScopedGraphModification gm( GetRootGraph() );
-        auto pParameter = GetRootGraph()->CreateNode<VirtualParameterEditorNode>( parameterName, type );
+        auto pParameter = GetRootGraph()->CreateNode<VirtualParameterToolsNode>( parameterName, type );
         m_virtualParameters.emplace_back( pParameter );
     }
 
@@ -144,7 +146,7 @@ namespace EE::Animation
         ClearSelection();
 
         // Find and remove all reference nodes
-        auto const parameterReferences = FindAllNodesOfType<ParameterReferenceEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
+        auto const parameterReferences = FindAllNodesOfType<ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
         for ( auto const& pFoundParameterNode : parameterReferences )
         {
             if ( pFoundParameterNode->GetReferencedParameterID() == parameterID )
@@ -175,7 +177,7 @@ namespace EE::Animation
         ClearSelection();
 
         // Find and remove all reference nodes
-        auto const parameterReferences = FindAllNodesOfType<ParameterReferenceEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
+        auto const parameterReferences = FindAllNodesOfType<ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
         for ( auto const& pFoundParameterNode : parameterReferences )
         {
             if ( pFoundParameterNode->GetReferencedParameterID() == parameterID )
@@ -242,7 +244,7 @@ namespace EE::Animation
         parameterName = tempString;
     }
 
-    ControlParameterEditorNode* GraphEditorContext::FindControlParameter( UUID parameterID ) const
+    ControlParameterToolsNode* GraphEditorContext::FindControlParameter( UUID parameterID ) const
     {
         for ( auto pParameter : m_controlParameters )
         {
@@ -254,7 +256,7 @@ namespace EE::Animation
         return nullptr;
     }
 
-    VirtualParameterEditorNode* GraphEditorContext::FindVirtualParameter( UUID parameterID ) const
+    VirtualParameterToolsNode* GraphEditorContext::FindVirtualParameter( UUID parameterID ) const
     {
         for ( auto pParameter : m_virtualParameters )
         {
@@ -283,7 +285,7 @@ namespace EE::Animation
         m_editorGraph.GetVariationHierarchy().RenameVariation( existingVariationID, newVariationID );
 
         // Update all data slot nodes
-        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotEditorNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pDataSlotNode : dataSlotNodes )
         {
             pDataSlotNode->RenameOverride( existingVariationID, newVariationID );

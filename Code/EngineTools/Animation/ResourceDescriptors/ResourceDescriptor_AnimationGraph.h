@@ -8,7 +8,7 @@
 
 namespace EE::Animation
 {
-    class EditorGraphDefinition;
+    class ToolsGraphDefinition;
     class GraphCompilationContext;
 
     //-------------------------------------------------------------------------

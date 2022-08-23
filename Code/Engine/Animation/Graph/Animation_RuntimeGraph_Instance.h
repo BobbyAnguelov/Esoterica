@@ -2,6 +2,7 @@
 #include "Animation_RuntimeGraph_Definition.h"
 #include "Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Animation_RuntimeGraph_Contexts.h"
+#include "System/Types/PointerID.h"
 
 //-------------------------------------------------------------------------
 
@@ -51,6 +52,16 @@ namespace EE::Animation
             GraphInstance*      m_pInstance = nullptr;
         };
 
+        #if EE_DEVELOPMENT_TOOLS
+        struct DebuggableChildGraph
+        {
+            PointerID GetID() const { return PointerID( m_pInstance ); }
+
+            String              m_pathToInstance;
+            GraphInstance*      m_pInstance = nullptr;
+        };
+        #endif
+
     public:
 
         // Main instance
@@ -60,8 +71,9 @@ namespace EE::Animation
         // Info 
         //-------------------------------------------------------------------------
 
-        inline ResourceID const& GetGraphVariationID() const { return m_pGraphVariation->GetResourceID(); }
-        inline ResourceID const& GetGraphDefinitionID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
+        inline StringID const& GetVariationID() const { return m_pGraphVariation->m_dataSet.m_variationID; }
+        inline ResourceID const& GetResourceID() const { return m_pGraphVariation->GetResourceID(); }
+        inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
 
         // Pose
         //-------------------------------------------------------------------------
@@ -213,10 +225,10 @@ namespace EE::Animation
         }
 
         // Get the connected external graph instance
-        GraphInstance const* GetChildGraphDebugInstance( int16_t nodeIdx ) const;
+        GraphInstance const* GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const;
 
-        // Get all child graphs
-        inline TVector<ChildGraph> const& GetChildGraphsForDebug() const { return m_childGraphs; }
+        // Get all child graphs - this will return all child graph instance (recursively)
+        void GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances, String const& pathPrefix = String() ) const;
 
         // Get the connected external graph instance
         GraphInstance const* GetExternalGraphDebugInstance( StringID slotID ) const;

@@ -178,8 +178,13 @@ namespace EE::VisualGraph
         // Set and initialize the child graph
         void SetChildGraph( BaseGraph* pGraph );
 
-        // Allow for custom serialization in derived types
+        // Called whenever we switch the view to this node
+        virtual void OnShowNode() {}
+
+        // Allow for custom serialization in derived types (called after secondary/child graphs have been serialized)
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) {};
+
+        // Allow for custom serialization in derived types (called before secondary/child graphs have been serialized)
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const {};
 
     protected:
@@ -239,7 +244,7 @@ namespace EE::VisualGraph
         virtual void Shutdown();
 
         // Called whenever we change the view to this graph
-        virtual void OnShowGraph() {}
+        void OnShowGraph();
 
         // Undo/Redo
         //-------------------------------------------------------------------------

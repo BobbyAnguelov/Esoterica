@@ -16,36 +16,39 @@ namespace EE::Animation::GraphNodes
         // Create parameter mapping
         //-------------------------------------------------------------------------
 
-        size_t const numChildParams = pNode->m_pGraphInstance->GetNumControlParameters();
-        for ( int16_t childParamIdx = 0; childParamIdx < numChildParams; childParamIdx++ )
+        if ( pNode->m_pGraphInstance != nullptr )
         {
-            ValueNode* pFoundParameterNode = nullptr;
-
-            // Try find a parameter with the same ID in the parent graph
-            StringID const childParamID = pNode->m_pGraphInstance->GetControlParameterID( childParamIdx );
-            auto foundParamIter = context.m_parameterLookupMap.find( childParamID );
-            if ( foundParamIter != context.m_parameterLookupMap.end() )
+            size_t const numChildParams = pNode->m_pGraphInstance->GetNumControlParameters();
+            for ( int16_t childParamIdx = 0; childParamIdx < numChildParams; childParamIdx++ )
             {
-                int16_t const parentParamIdx = foundParamIter->second;
-                ValueNode* pParentParameterNode = static_cast<ValueNode*>( context.m_nodePtrs[parentParamIdx] );
+                ValueNode* pFoundParameterNode = nullptr;
 
-                // Check value types
-                auto const parentParamType = pParentParameterNode->GetValueType();
-                auto const childParamType = pNode->m_pGraphInstance->GetControlParameterType( childParamIdx );
-                if ( parentParamType == childParamType )
+                // Try find a parameter with the same ID in the parent graph
+                StringID const childParamID = pNode->m_pGraphInstance->GetControlParameterID( childParamIdx );
+                auto foundParamIter = context.m_parameterLookupMap.find( childParamID );
+                if ( foundParamIter != context.m_parameterLookupMap.end() )
                 {
-                    pFoundParameterNode = pParentParameterNode;
+                    int16_t const parentParamIdx = foundParamIter->second;
+                    ValueNode* pParentParameterNode = static_cast<ValueNode*>( context.m_nodePtrs[parentParamIdx] );
+
+                    // Check value types
+                    auto const parentParamType = pParentParameterNode->GetValueType();
+                    auto const childParamType = pNode->m_pGraphInstance->GetControlParameterType( childParamIdx );
+                    if ( parentParamType == childParamType )
+                    {
+                        pFoundParameterNode = pParentParameterNode;
+                    }
+                    else
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        EE_LOG_WARNING( "Animation", "Child Graph Node", "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pNode->m_pGraphInstance->GetDefinitionResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
+                        #endif 
+                    }
                 }
-                else
-                {
-                    #if EE_DEVELOPMENT_TOOLS
-                    EE_LOG_WARNING( "Animation", "Child Graph Node", "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pNode->m_pGraphInstance->GetGraphDefinitionID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
-                    #endif 
-                }
+
+                // Add mapping
+                pNode->m_parameterMapping.emplace_back( pFoundParameterNode );
             }
-
-            // Add mapping
-            pNode->m_parameterMapping.emplace_back( pFoundParameterNode );
         }
     }
 

@@ -1,7 +1,7 @@
 #include "Workspace_AnimationGraph.h"
-#include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Definition.h"
-#include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Compilation.h"
-#include "EngineTools/Animation/GraphEditor/EditorGraph/Nodes/Animation_EditorGraphNode_ControlParameters.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
@@ -91,7 +91,7 @@ namespace EE::Animation
 
             case DebugTargetType::ChildGraph:
             {
-                return m_pComponentToDebug != nullptr && m_childGraphNodeIdx != InvalidIndex;
+                return m_pComponentToDebug != nullptr && m_childGraphID.IsValid();
             }
             break;
 
@@ -267,6 +267,7 @@ namespace EE::Animation
     void AnimationGraphWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         m_nodeContext.m_currentVariationID = m_editorContext.GetSelectedVariationID();
+        m_nodeContext.m_pVariationHierarchy = &m_editorContext.GetVariationHierarchy();
 
         // Control Parameters
         //-------------------------------------------------------------------------
@@ -304,7 +305,7 @@ namespace EE::Animation
             if ( m_propertyGrid.GetEditedType() != pSelectedNode )
             {
                 // Handle control parameters as a special case
-                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceEditorNode>( pSelectedNode );
+                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
                 if ( pReferenceNode != nullptr && pReferenceNode->IsReferencingControlParameter() )
                 {
                     m_propertyGrid.SetTypeToEdit( pReferenceNode->GetReferencedControlParameter() );
@@ -331,7 +332,7 @@ namespace EE::Animation
         // Compilation Log
         //-------------------------------------------------------------------------
 
-        m_graphCompilationLog.UpdateAndDraw( context, &m_nodeContext, pWindowClass, m_compilationLogWindowName.c_str() );
+        m_compilationLogViewer.UpdateAndDraw( context, &m_nodeContext, pWindowClass, m_compilationLogWindowName.c_str() );
 
         // Debugger
         //-------------------------------------------------------------------------
@@ -517,19 +518,19 @@ namespace EE::Animation
         TWorkspace<GraphDefinition>::DrawViewportOverlayElements( context, pViewport );
 
         // Check if we have a target parameter selected
-        GraphNodes::TargetControlParameterEditorNode* pSelectedTargetControlParameter = nullptr;
+        GraphNodes::TargetControlParameterToolsNode* pSelectedTargetControlParameter = nullptr;
         if ( !m_editorContext.GetSelectedNodes().empty() )
         {
             auto pSelectedNode = m_editorContext.GetSelectedNodes().back().m_pNode;
-            pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterEditorNode>( pSelectedNode );
+            pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pSelectedNode );
 
             // Handle reference nodes
             if ( pSelectedTargetControlParameter == nullptr )
             {
-                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceEditorNode>( pSelectedNode );
+                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
                 if ( pReferenceNode != nullptr && pReferenceNode->GetParameterValueType() == GraphValueType::Target && pReferenceNode->IsReferencingControlParameter() )
                 {
-                    pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterEditorNode>( pReferenceNode->GetReferencedControlParameter() );
+                    pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pReferenceNode->GetReferencedControlParameter() );
                 }
             }
         }
@@ -836,7 +837,7 @@ namespace EE::Animation
 
         GraphDefinitionCompiler definitionCompiler;
         bool const graphCompiledSuccessfully = definitionCompiler.CompileGraph( *m_editorContext.GetGraphDefinition() );
-        m_graphCompilationLog.UpdateCompilationResults( definitionCompiler.GetLog() );
+        m_compilationLogViewer.UpdateCompilationResults( definitionCompiler.GetLog() );
 
         // Compilation failed, stop preview attempt
         if ( !graphCompiledSuccessfully )
@@ -850,26 +851,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
-
-        // Try Create Preview Mesh Component
-        //-------------------------------------------------------------------------
-
-        auto pVariation = m_editorContext.GetVariation( m_editorContext.GetSelectedVariationID() );
-        EE_ASSERT( pVariation != nullptr );
-        if ( pVariation->m_pSkeleton.IsValid() )
-        {
-            // Load resource descriptor for skeleton to get the preview mesh
-            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_pSkeleton.GetResourcePath() );
-            SkeletonResourceDescriptor resourceDesc;
-            if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) )
-            {
-                // Create a preview mesh component
-                m_pDebugMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-                m_pDebugMeshComponent->SetSkeleton( pVariation->m_pSkeleton.GetResourceID() );
-                m_pDebugMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
-                m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
-            }
-        }
 
         // Set debug component data
         //-------------------------------------------------------------------------
@@ -912,7 +893,7 @@ namespace EE::Animation
                 case DebugTargetType::ChildGraph:
                 {
                     auto pPrimaryInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                    m_pDebugGraphInstance = const_cast<GraphInstance*>( pPrimaryInstance->GetChildGraphDebugInstance( target.m_childGraphNodeIdx ) );
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( pPrimaryInstance->GetChildGraphDebugInstance( target.m_childGraphID ) );
                     EE_ASSERT( m_pDebugGraphInstance != nullptr );
                 }
                 break;
@@ -931,6 +912,33 @@ namespace EE::Animation
                     EE_UNREACHABLE_CODE();
                 }
                 break;
+            }
+
+            // Switch to the correct variation
+            StringID const debuggedInstanceVariationID = m_pDebugGraphInstance->GetVariationID();
+            if ( m_editorContext.GetSelectedVariationID() != debuggedInstanceVariationID )
+            {
+                m_editorContext.SetSelectedVariation( debuggedInstanceVariationID );
+            }
+        }
+
+        // Try Create Preview Mesh Component
+        //-------------------------------------------------------------------------
+
+        auto pVariation = m_editorContext.GetVariation( m_editorContext.GetSelectedVariationID() );
+        EE_ASSERT( pVariation != nullptr );
+        if ( pVariation->m_pSkeleton.IsValid() )
+        {
+            // Load resource descriptor for skeleton to get the preview mesh
+            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_pSkeleton.GetResourcePath() );
+            SkeletonResourceDescriptor resourceDesc;
+            if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) )
+            {
+                // Create a preview mesh component
+                m_pDebugMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
+                m_pDebugMeshComponent->SetSkeleton( pVariation->m_pSkeleton.GetResourceID() );
+                m_pDebugMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
+                m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
             }
         }
 
@@ -1038,42 +1046,42 @@ namespace EE::Animation
             {
                 case GraphValueType::Bool:
                 {
-                    auto pNode = TryCast<GraphNodes::BoolControlParameterEditorNode>( pControlParameter );
+                    auto pNode = TryCast<GraphNodes::BoolControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::ID:
                 {
-                    auto pNode = TryCast<GraphNodes::IDControlParameterEditorNode>( pControlParameter );
+                    auto pNode = TryCast<GraphNodes::IDControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Int:
                 {
-                    auto pNode = TryCast<GraphNodes::IntControlParameterEditorNode>( pControlParameter );
+                    auto pNode = TryCast<GraphNodes::IntControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Float:
                 {
-                    auto pNode = TryCast<GraphNodes::FloatControlParameterEditorNode>( pControlParameter );
+                    auto pNode = TryCast<GraphNodes::FloatControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Vector:
                 {
-                    auto pNode = TryCast<GraphNodes::VectorControlParameterEditorNode>( pControlParameter );
+                    auto pNode = TryCast<GraphNodes::VectorControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Target:
                 {
-                    auto pNode = TryCast<GraphNodes::TargetControlParameterEditorNode>( pControlParameter );
+                    auto pNode = TryCast<GraphNodes::TargetControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
@@ -1122,10 +1130,10 @@ namespace EE::Animation
             {
                 // Check main instance
                 GraphInstance const* pGraphInstance = pGraphComponent->GetDebugGraphInstance();
-                if ( pGraphInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
+                if ( pGraphInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
                 {
                     Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                    InlineString const targetName( InlineString::CtorSprintf(), "Component: '%s' on Entity: '%s'", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                    InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s'", pEntity->GetName().c_str(), pGraphComponent->GetName().c_str() );
                     if ( ImGui::MenuItem( targetName.c_str() ) )
                     {
                         DebugTarget target;
@@ -1138,19 +1146,20 @@ namespace EE::Animation
                 }
 
                 // Check child graph instances
-                auto const& childGraphs = pGraphInstance->GetChildGraphsForDebug();
+                TVector<GraphInstance::DebuggableChildGraph> childGraphs;
+                pGraphInstance->GetChildGraphsForDebug( childGraphs );
                 for ( auto const& childGraph : childGraphs )
                 {
-                    if ( childGraph.m_pInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
+                    if ( childGraph.m_pInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "Component: '%s' on Entity: '%s'", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Path: '%s'", pEntity->GetName().c_str(), pGraphComponent->GetName().c_str(), childGraph.m_pathToInstance.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;
                             target.m_type = DebugTargetType::ChildGraph;
                             target.m_pComponentToDebug = pGraphComponent;
-                            target.m_childGraphNodeIdx = childGraph.m_nodeIdx;
+                            target.m_childGraphID = childGraph.GetID();
                             StartDebugging( context, target );
                         }
 
@@ -1162,10 +1171,10 @@ namespace EE::Animation
                 auto const& externalGraphs = pGraphInstance->GetExternalGraphsForDebug();
                 for ( auto const& externalGraph : externalGraphs )
                 {
-                    if ( externalGraph.m_pInstance->GetGraphDefinitionID() == m_pResource.GetResourceID() )
+                    if ( externalGraph.m_pInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "Slot '%s' on Component: '%s' on Entity: '%s'", externalGraph.m_slotID.c_str(), pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Slot: '%s'", pEntity->GetName().c_str(), pGraphComponent->GetName().c_str(), externalGraph.m_slotID.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;

@@ -12,7 +12,7 @@ namespace EE::Resource { class ResourceDatabase; }
 namespace EE::Animation
 {
     class FlowGraph;
-    struct EditorGraphNodeContext;
+    struct ToolsNodeContext;
 }
 
 //-------------------------------------------------------------------------
@@ -61,7 +61,7 @@ namespace EE::Animation
         GraphEditor( GraphEditorContext& editorContext );
 
         // Update
-        void UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
+        void UpdateAndDraw( UpdateContext const& context, ToolsNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
         void OnUndoRedo();
 
         // Navigation

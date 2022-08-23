@@ -19,7 +19,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // If the supplied task system is null, then this is a standalone graph instance
-        bool const isStandaloneGraphInstance = pTaskSystem == nullptr;
+        bool const isStandaloneGraphInstance = ( pTaskSystem == nullptr );
         if ( isStandaloneGraphInstance )
         {
             m_pTaskSystem = EE::New<TaskSystem>( m_pGraphVariation->GetSkeleton() );
@@ -61,18 +61,20 @@ namespace EE::Animation
                 {
                     ChildGraph cg;
                     cg.m_nodeIdx = childGraphSlot.m_nodeIdx;
-                    cg.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pChildGraphVariation, m_userID, m_pTaskSystem );
+                    cg.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pChildGraphVariation, m_userID, isStandaloneGraphInstance ? m_pTaskSystem : pTaskSystem );
                     m_childGraphs.emplace_back( cg );
 
                     createdChildGraphInstances.emplace_back( cg.m_pInstance );
                 }
                 else
                 {
+                    createdChildGraphInstances.emplace_back( nullptr );
                     EE_LOG_ERROR( "Animation", "Graph Instance", "Different skeleton for child graph detected, this is not allowed. Trying to use '%s' within '%s'", pChildGraphVariation->GetResourceID().c_str(), pGraphVariation->GetResourceID().c_str() );
                 }
             }
             else
             {
+                createdChildGraphInstances.emplace_back( nullptr );
                 m_childGraphs.emplace_back( ChildGraph() );
             }
         }
@@ -143,8 +145,11 @@ namespace EE::Animation
         // Destroy child graph instances
         for ( auto childGraph : m_childGraphs )
         {
-            childGraph.m_pInstance->~GraphInstance();
-            EE::Free( childGraph.m_pInstance );
+            if ( childGraph.m_pInstance != nullptr )
+            {
+                childGraph.m_pInstance->~GraphInstance();
+                EE::Free( childGraph.m_pInstance );
+            }
         }
         m_childGraphs.clear();
 
@@ -342,7 +347,10 @@ namespace EE::Animation
         // Notify all child graphs
         for ( auto& childGraph : m_childGraphs )
         {
-            childGraph.m_pInstance->m_rootMotionDebugger.EndCharacterUpdate( endWorldTransform );
+            if ( childGraph.m_pInstance != nullptr )
+            {
+                childGraph.m_pInstance->m_rootMotionDebugger.EndCharacterUpdate( endWorldTransform );
+            }
         }
         #endif
 
@@ -377,16 +385,34 @@ namespace EE::Animation
         return m_pTaskSystem->GetCharacterWorldTransform();
     }
 
-    GraphInstance const* GraphInstance::GetChildGraphDebugInstance( int16_t nodeIdx ) const
+    void GraphInstance::GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances, String const& pathPrefix ) const
     {
         for ( auto const& childGraph : m_childGraphs )
         {
-            if ( childGraph.m_nodeIdx == nodeIdx )
+            String const pathSoFar( String::CtorSprintf(), "%s/%s", pathPrefix.c_str(), m_pGraphVariation->GetDefinition()->m_nodePaths[childGraph.m_nodeIdx].c_str() );
+
+            auto& debuggableGraph = outChildGraphInstances.emplace_back();
+            debuggableGraph.m_pInstance = childGraph.m_pInstance;
+            debuggableGraph.m_pathToInstance = pathSoFar;
+
+            childGraph.m_pInstance->GetChildGraphsForDebug( outChildGraphInstances, pathSoFar );
+        }
+    }
+
+    GraphInstance const* GraphInstance::GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const
+    {
+        TVector<DebuggableChildGraph> debuggableChildGraphs;
+        GetChildGraphsForDebug( debuggableChildGraphs );
+
+        for ( auto const& childGraph : debuggableChildGraphs )
+        {
+            if ( childGraph.GetID() == childGraphInstanceID )
             {
                 return childGraph.m_pInstance;
             }
         }
 
+        EE_UNREACHABLE_CODE();
         return nullptr;
     }
 

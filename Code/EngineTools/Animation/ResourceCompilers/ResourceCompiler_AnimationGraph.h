@@ -7,7 +7,7 @@
 
 namespace EE::Animation
 {
-    class EditorGraphDefinition;
+    class ToolsGraphDefinition;
     class GraphDefinitionCompiler;
     class GraphDataSet;
 
@@ -28,7 +28,7 @@ namespace EE::Animation
 
         Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;
-        bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, EditorGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const;
-        bool GenerateDataSet( Resource::CompileContext const& ctx, EditorGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const;
+        bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, ToolsGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const;
+        bool GenerateDataSet( Resource::CompileContext const& ctx, ToolsGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const;
     };
 }

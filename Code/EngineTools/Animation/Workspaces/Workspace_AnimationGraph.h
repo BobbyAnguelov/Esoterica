@@ -5,7 +5,6 @@
 #include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_GraphEditor.h"
 #include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_VariationEditor.h"
 #include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_CompilationLog.h"
-#include "EngineTools/Animation/GraphEditor/EditorGraph/Animation_EditorGraph_Common.h"
 #include "EngineTools/Core/Workspace.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
@@ -49,7 +48,7 @@ namespace EE::Animation
 
             DebugTargetType                 m_type = DebugTargetType::None;
             AnimationGraphComponent*        m_pComponentToDebug = nullptr;
-            int16_t                         m_childGraphNodeIdx = InvalidIndex;
+            PointerID                       m_childGraphID;
             StringID                        m_externalSlotID;
         };
 
@@ -110,7 +109,7 @@ namespace EE::Animation
         GraphControlParameterEditor         m_controlParameterEditor = GraphControlParameterEditor( m_editorContext );
         GraphVariationEditor                m_variationEditor = GraphVariationEditor( m_editorContext );
         GraphEditor                         m_graphEditor = GraphEditor( m_editorContext );
-        GraphCompilationLog                 m_graphCompilationLog = GraphCompilationLog( m_editorContext );
+        GraphCompilationLogViewer           m_compilationLogViewer = GraphCompilationLogViewer( m_editorContext );
         PropertyGrid                        m_propertyGrid;
 
         EventBindingID                      m_rootGraphBeginModificationBindingID;
@@ -137,7 +136,7 @@ namespace EE::Animation
         GraphInstance*                      m_pDebugGraphInstance = nullptr;
         StringID                            m_debugExternalGraphSlotID = StringID();
         GraphDebugMode                      m_graphDebugMode = GraphDebugMode::On;
-        EditorGraphNodeContext              m_nodeContext;
+        ToolsNodeContext                    m_nodeContext;
         RootMotionDebugMode                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
         TaskSystemDebugMode                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
 

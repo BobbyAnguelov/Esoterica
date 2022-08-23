@@ -1,16 +1,16 @@
 #include "AnimationGraphEditor_CompilationLog.h"
 #include "AnimationGraphEditor_Context.h"
-#include "EditorGraph/Animation_EditorGraph_Definition.h"
+#include "EngineTools/Animation//ToolsGraph/Animation_ToolsGraph_Definition.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    GraphCompilationLog::GraphCompilationLog( GraphEditorContext& editorContext )
+    GraphCompilationLogViewer::GraphCompilationLogViewer( GraphEditorContext& editorContext )
         : m_editorContext( editorContext )
     {}
 
-    void GraphCompilationLog::UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
+    void GraphCompilationLogViewer::UpdateAndDraw( UpdateContext const& context, ToolsNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
     {
         int32_t windowFlags = 0;
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );

@@ -1,9 +1,14 @@
 #include "AnimationGraphEditor_GraphEditor.h"
 #include "AnimationGraphEditor_Context.h"
-#include "EditorGraph/Nodes/Animation_EditorGraphNode_AnimationClip.h"
-#include "EditorGraph/Nodes/Animation_EditorGraphNode_Ragdoll.h"
-#include "EditorGraph/Nodes/Animation_EditorGraphNode_ExternalGraph.h"
-#include "EditorGraph/Animation_EditorGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_AnimationClip.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Ragdoll.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_ExternalGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_GlobalTransitions.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_EntryStates.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_State.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachine.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
 #include "Engine/UpdateContext.h"
@@ -35,11 +40,11 @@ namespace EE::Animation
 
             if ( ImGui::BeginMenu( "Control Parameters" ) )
             {
-                TInlineVector<ControlParameterEditorNode*, 20> sortedControlParameters = editorContext.GetControlParameters();
-                eastl::sort( sortedControlParameters.begin(), sortedControlParameters.end(), [] ( ControlParameterEditorNode* const& pA, ControlParameterEditorNode* const& pB ) { return strcmp( pA->GetName(), pB->GetName() ) < 0; } );
+                TInlineVector<ControlParameterToolsNode*, 20> sortedControlParameters = editorContext.GetControlParameters();
+                eastl::sort( sortedControlParameters.begin(), sortedControlParameters.end(), [] ( ControlParameterToolsNode* const& pA, ControlParameterToolsNode* const& pB ) { return strcmp( pA->GetName(), pB->GetName() ) < 0; } );
 
-                TInlineVector<VirtualParameterEditorNode*, 20> sortedVirtualParameters = editorContext.GetVirtualParameters();
-                eastl::sort( sortedVirtualParameters.begin(), sortedVirtualParameters.end(), [] ( VirtualParameterEditorNode* const& pA, VirtualParameterEditorNode* const& pB ) { return strcmp( pA->GetName(), pB->GetName() ) < 0; } );
+                TInlineVector<VirtualParameterToolsNode*, 20> sortedVirtualParameters = editorContext.GetVirtualParameters();
+                eastl::sort( sortedVirtualParameters.begin(), sortedVirtualParameters.end(), [] ( VirtualParameterToolsNode* const& pA, VirtualParameterToolsNode* const& pB ) { return strcmp( pA->GetName(), pB->GetName() ) < 0; } );
 
                 //-------------------------------------------------------------------------
 
@@ -55,7 +60,7 @@ namespace EE::Animation
                         if ( ImGui::MenuItem( pParameter->GetName() ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( m_pGraph );
-                            auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceEditorNode>( pParameter );
+                            auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceToolsNode>( pParameter );
                             pNode->SetCanvasPosition( m_contextMenuState.m_mouseCanvasPos );
                         }
                         ImGui::PopStyleColor();
@@ -72,7 +77,7 @@ namespace EE::Animation
                         if ( ImGui::MenuItem( pParameter->GetName() ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( m_pGraph );
-                            auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceEditorNode>( pParameter );
+                            auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceToolsNode>( pParameter );
                             pNode->SetCanvasPosition( m_contextMenuState.m_mouseCanvasPos );
                         }
                         ImGui::PopStyleColor();
@@ -96,7 +101,7 @@ namespace EE::Animation
         auto NodeFilter = [this, pGraph] ( CategoryItem<TypeSystem::TypeInfo const*> const& item )
         {
             // Parameter references are already handled
-            if ( item.m_data->m_ID == ParameterReferenceEditorNode::GetStaticTypeID() )
+            if ( item.m_data->m_ID == ParameterReferenceToolsNode::GetStaticTypeID() )
             {
                 return false;
             }
@@ -108,7 +113,7 @@ namespace EE::Animation
             }
 
             // Check the graphs specific restrictions
-            auto pDefaultNode = Cast<EditorGraphNode>( item.m_data->m_pDefaultInstance );
+            auto pDefaultNode = Cast<FlowToolsNode>( item.m_data->m_pDefaultInstance );
             if ( !pDefaultNode->GetAllowedParentGraphTypes().AreAnyFlagsSet( pGraph->GetType() ) )
             {
                 return false;
@@ -189,7 +194,7 @@ namespace EE::Animation
     {
         EE_ASSERT( pNode != nullptr );
 
-        auto pGraphNodeContext = reinterpret_cast<EditorGraphNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
 
         //-------------------------------------------------------------------------
 
@@ -197,14 +202,14 @@ namespace EE::Animation
         {
             m_graphEditor.NavigateTo( pNode->GetChildGraph() );
         }
-        else if ( auto pParameterReference = TryCast<ParameterReferenceEditorNode>( pNode ) )
+        else if ( auto pParameterReference = TryCast<ParameterReferenceToolsNode>( pNode ) )
         {
             if ( auto pVP = pParameterReference->GetReferencedVirtualParameter() )
             {
                 m_graphEditor.NavigateTo( pVP->GetChildGraph() );
             }
         }
-        else if ( auto pDataSlotNode = TryCast<DataSlotEditorNode>( pNode ) )
+        else if ( auto pDataSlotNode = TryCast<DataSlotToolsNode>( pNode ) )
         {
             ResourceID const resourceID = pDataSlotNode->GetResourceID( m_graphEditor.m_editorContext.GetVariationHierarchy(), m_graphEditor.m_editorContext.GetSelectedVariationID() );
             if ( resourceID.IsValid() )
@@ -212,7 +217,7 @@ namespace EE::Animation
                 m_graphEditor.m_resourceViewRequests.emplace_back( resourceID );
             }
         }
-        else if ( auto pExternalGraphNode = TryCast<ExternalGraphEditorNode>( pNode ) )
+        else if ( auto pExternalGraphNode = TryCast<ExternalGraphToolsNode>( pNode ) )
         {
             if ( pGraphNodeContext->HasDebugData() )
             {
@@ -223,7 +228,7 @@ namespace EE::Animation
                     GraphInstance const* pConnectedGraphInstance = pGraphNodeContext->m_pGraphInstance->GetExternalGraphDebugInstance( SlotID );
                     if ( pConnectedGraphInstance != nullptr )
                     {
-                        m_graphEditor.m_resourceViewRequests.emplace_back( pConnectedGraphInstance->GetGraphDefinitionID() );
+                        m_graphEditor.m_resourceViewRequests.emplace_back( pConnectedGraphInstance->GetDefinitionResourceID() );
                     }
                 }
             }
@@ -234,9 +239,9 @@ namespace EE::Animation
     {
         if ( IsViewingStateMachineGraph() )
         {
-            auto pEditorGraph = static_cast<StateMachineGraph*>( m_pGraph );
+            auto pStateMachineGraph = static_cast<StateMachineGraph*>( m_pGraph );
 
-            auto const stateNodes = pEditorGraph->FindAllNodesOfType<StateBaseEditorNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+            auto const stateNodes = pStateMachineGraph->FindAllNodesOfType<ToolsState>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
             for ( auto pStateNode : stateNodes )
             {
                 ImRect const nodeRect = GetNodeWindowRect( pStateNode );
@@ -244,14 +249,14 @@ namespace EE::Animation
                 ImVec2 iconOffset( 0, iconSize.y + 4.0f );
 
                 // Draw entry state marker
-                if ( pStateNode->GetID() == pEditorGraph->GetDefaultEntryStateID() )
+                if ( pStateNode->GetID() == pStateMachineGraph->GetDefaultEntryStateID() )
                 {
                     ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_ARROW_DOWN_CIRCLE );
                     iconOffset.x -= iconSize.x + 4.0f;
                 }
 
                 // Draw global transition marker
-                if ( pEditorGraph->HasGlobalTransitionForState( pStateNode->GetID() ) )
+                if ( pStateMachineGraph->GetGlobalTransitionConduit()->HasGlobalTransitionForState( pStateNode->GetID() ) )
                 {
                     ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, ImGuiX::ConvertColor( Colors::OrangeRed ), EE_ICON_LIGHTNING_BOLT_CIRCLE );
                 }
@@ -306,7 +311,7 @@ namespace EE::Animation
             if( isAnimationClipResource )
             {
                 VisualGraph::ScopedGraphModification sgm( m_pGraph );
-                auto pNode = pFlowEditorGraph->CreateNode<AnimationClipEditorNode>();
+                auto pNode = pFlowEditorGraph->CreateNode<AnimationClipToolsNode>();
                 pNode->SetName( resourceID.GetFileNameWithoutExtension() );
                 pNode->SetDefaultResourceID( resourceID );
                 pNode->SetCanvasPosition( mouseCanvasPos );
@@ -315,7 +320,7 @@ namespace EE::Animation
             else if ( isRagdollResource )
             {
                 VisualGraph::ScopedGraphModification sgm( m_pGraph );
-                auto pNode = pFlowEditorGraph->CreateNode<PoweredRagdollEditorNode>();
+                auto pNode = pFlowEditorGraph->CreateNode<PoweredRagdollToolsNode>();
                 pNode->SetName( resourceID.GetFileNameWithoutExtension() );
                 pNode->SetDefaultResourceID( resourceID );
                 pNode->SetCanvasPosition( mouseCanvasPos );
@@ -348,7 +353,7 @@ namespace EE::Animation
                 if ( payloadStr == pControlParameter->GetName() )
                 {
                     VisualGraph::ScopedGraphModification sgm( m_pGraph );
-                    auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceEditorNode>( pControlParameter );
+                    auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceToolsNode>( pControlParameter );
                     pNode->SetCanvasPosition( mouseCanvasPos );
                     return;
                 }
@@ -359,7 +364,7 @@ namespace EE::Animation
                 if ( payloadStr == pVirtualParameter->GetName() )
                 {
                     VisualGraph::ScopedGraphModification sgm( m_pGraph );
-                    auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceEditorNode>( pVirtualParameter );
+                    auto pNode = pFlowEditorGraph->CreateNode<ParameterReferenceToolsNode>( pVirtualParameter );
                     pNode->SetCanvasPosition( mouseCanvasPos );
                     return;
                 }
@@ -455,7 +460,7 @@ namespace EE::Animation
                     pSecondaryGraphToView = pSecondaryGraph;
                 }
             }
-            else if( auto pParameterReference = TryCast<ParameterReferenceEditorNode>( pSelectedNode ) )
+            else if( auto pParameterReference = TryCast<ParameterReferenceToolsNode>( pSelectedNode ) )
             {
                 if ( auto pVP = pParameterReference->GetReferencedVirtualParameter() )
                 {
@@ -470,7 +475,7 @@ namespace EE::Animation
         }
     }
 
-    void GraphEditor::UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
+    void GraphEditor::UpdateAndDraw( UpdateContext const& context, ToolsNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName )
     {
         m_resourceViewRequests.clear();
         bool isGraphViewFocused = false;

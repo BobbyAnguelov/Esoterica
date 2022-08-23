@@ -1712,6 +1712,7 @@
     </ClInclude>
     <ClInclude Include="ThirdParty\enkits\TaskScheduler_Esoterica.h" />
     <ClInclude Include="IniFile.h" />
+    <ClInclude Include="Types\PointerID.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\EA\EABase\doc\EABase.html">

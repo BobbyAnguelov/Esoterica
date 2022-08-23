@@ -14,12 +14,12 @@ namespace EE { class UpdateContext; }
 namespace EE::Animation
 {
     class GraphEditorContext;
-    struct EditorGraphNodeContext;
+    struct ToolsNodeContext;
 
     namespace GraphNodes
     {
-        class ControlParameterEditorNode;
-        class VirtualParameterEditorNode;
+        class ControlParameterToolsNode;
+        class VirtualParameterToolsNode;
     }
 
     //-------------------------------------------------------------------------
@@ -37,14 +37,14 @@ namespace EE::Animation
 
         struct ParameterPreviewState
         {
-            ParameterPreviewState( GraphNodes::ControlParameterEditorNode* pParameter ) : m_pParameter( pParameter ) { EE_ASSERT( m_pParameter != nullptr ); }
+            ParameterPreviewState( GraphNodes::ControlParameterToolsNode* pParameter ) : m_pParameter( pParameter ) { EE_ASSERT( m_pParameter != nullptr ); }
             virtual ~ParameterPreviewState() = default;
 
-            virtual void DrawPreviewEditor( EditorGraphNodeContext* pGraphNodeContext ) = 0;
+            virtual void DrawPreviewEditor( ToolsNodeContext* pGraphNodeContext ) = 0;
 
         public:
 
-            GraphNodes::ControlParameterEditorNode*     m_pParameter = nullptr;
+            GraphNodes::ControlParameterToolsNode*     m_pParameter = nullptr;
         };
 
     public:
@@ -53,15 +53,15 @@ namespace EE::Animation
         ~GraphControlParameterEditor();
 
         // Draw the control parameter editor, returns true if there is a request the calling code needs to fulfill i.e. navigation
-        bool UpdateAndDraw( UpdateContext const& context, EditorGraphNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
+        bool UpdateAndDraw( UpdateContext const& context, ToolsNodeContext* pGraphNodeContext, ImGuiWindowClass* pWindowClass, char const* pWindowName );
 
         // Get the virtual parameter graph we want to show
-        GraphNodes::VirtualParameterEditorNode* GetVirtualParameterToEdit() { return m_pVirtualParamaterToEdit; }
+        GraphNodes::VirtualParameterToolsNode* GetVirtualParameterToEdit() { return m_pVirtualParamaterToEdit; }
 
     private:
 
         void DrawParameterList();
-        void DrawParameterPreviewControls( EditorGraphNodeContext* pGraphNodeContext );
+        void DrawParameterPreviewControls( ToolsNodeContext* pGraphNodeContext );
         void DrawAddParameterCombo();
 
         void StartParameterRename( UUID const& parameterID );
@@ -74,7 +74,7 @@ namespace EE::Animation
     private:
 
         GraphEditorContext&                             m_editorContext;
-        GraphNodes::VirtualParameterEditorNode*         m_pVirtualParamaterToEdit = nullptr;
+        GraphNodes::VirtualParameterToolsNode*         m_pVirtualParamaterToEdit = nullptr;
         UUID                                            m_currentOperationParameterID;
         OperationType                                   m_activeOperation;
         char                                            m_parameterNameBuffer[255];

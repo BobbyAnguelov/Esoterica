@@ -3,8 +3,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-compile data://player/PlayerGraph@Default.agv</LocalDebuggerCommandArguments>
-    <RemoteDebuggerCommandArguments>-compile data://player/PlayerGraph@Default.agv</RemoteDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-compile data://interaction@default.agv</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>-compile data://interaction@default.agv</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>

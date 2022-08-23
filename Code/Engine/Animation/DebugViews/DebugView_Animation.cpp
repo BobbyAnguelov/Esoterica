@@ -2,6 +2,7 @@
 #include "Engine/Animation/Systems/WorldSystem_Animation.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
+#include "Engine/Animation/AnimationEvent.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "System/Imgui/ImguiX.h"
@@ -299,7 +300,8 @@ namespace EE::Animation
                 }
                 else
                 {
-                    InlineString const debugString = sampledEvent.GetEvent()->GetDebugText();
+                    Event const* pEvent = sampledEvent.GetEvent();
+                    InlineString const debugString = pEvent->GetDebugText();
                     ImGui::Text( debugString.c_str() );
                 }
 
