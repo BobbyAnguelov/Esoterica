@@ -27,14 +27,14 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void PostPaste() override;
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
         #endif
 
         String GetUniqueSlotName( String const& desiredName );
-
     private:
 
         EE_EXPOSE String                       m_name;

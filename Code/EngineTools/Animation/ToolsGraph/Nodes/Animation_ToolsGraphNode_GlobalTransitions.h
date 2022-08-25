@@ -43,7 +43,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        bool HasGlobalTransitionForState( UUID const& stateID );
+        bool HasGlobalTransitionForState( UUID const& stateID ) const;
 
         void UpdateTransitionNodes();
 
@@ -55,6 +55,6 @@ namespace EE::Animation::GraphNodes
         virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::OrangeRed ); }
         virtual char const* GetTypeName() const override { return "Global Transitions"; }
         virtual bool IsUserCreatable() const override { return false; }
-        virtual void OnShowNode() override;
+        virtual void OnShowNode( VisualGraph::UserContext* pUserContext ) override;
     };
 }

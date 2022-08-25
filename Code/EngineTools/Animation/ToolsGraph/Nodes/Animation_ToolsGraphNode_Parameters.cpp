@@ -1,6 +1,6 @@
 #include "Animation_ToolsGraphNode_Parameters.h"
 #include "Animation_ToolsGraphNode_Result.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Parameters.h"
 
@@ -204,6 +204,14 @@ namespace EE::Animation::GraphNodes
             {
                 pInvalidNode->Destroy();
             }
+        }
+    }
+
+    void ParameterReferenceToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    {
+        if ( auto pVP = GetReferencedVirtualParameter() )
+        {
+            pUserContext->NavigateTo( pVP->GetChildGraph() );
         }
     }
 

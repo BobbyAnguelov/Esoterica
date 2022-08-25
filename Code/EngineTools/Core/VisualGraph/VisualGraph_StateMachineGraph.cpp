@@ -1,9 +1,28 @@
 #include "VisualGraph_StateMachineGraph.h"
+#include "VisualGraph_UserContext.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::VisualGraph
 {
+    ImColor SM::TransitionConduit::GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
+    {
+        if ( visualState == NodeVisualState::Hovered )
+        {
+            return VisualSettings::s_connectionColorHovered;
+        }
+        else if ( visualState == NodeVisualState::Selected )
+        {
+            return VisualSettings::s_genericSelectionColor;
+        }
+        else
+        {
+            return VisualSettings::s_connectionColor;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void StateMachineGraph::SetDefaultEntryState( UUID const& newDefaultEntryStateID )
     {
         EE_ASSERT( newDefaultEntryStateID.IsValid() && FindNode( newDefaultEntryStateID ) != nullptr );
@@ -133,21 +152,5 @@ namespace EE::VisualGraph
         m_entryStateID = IDMapping.at( m_entryStateID );
 
         return originalID;
-    }
-
-    ImColor SM::TransitionConduit::GetNodeBorderColor( VisualGraph::DrawContext const& ctx, NodeVisualState visualState ) const
-    {
-        if ( visualState == NodeVisualState::Hovered )
-        {
-            return VisualSettings::s_connectionColorHovered;
-        }
-        else if ( visualState == NodeVisualState::Selected )
-        {
-            return VisualSettings::s_genericSelectionColor;
-        }
-        else
-        {
-            return VisualSettings::s_connectionColor;
-        }
     }
 }

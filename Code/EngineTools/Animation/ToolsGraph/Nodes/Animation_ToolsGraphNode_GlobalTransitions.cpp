@@ -1,6 +1,6 @@
 #include "Animation_ToolsGraphNode_GlobalTransitions.h"
 #include "Animation_ToolsGraphNode_State.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,9 +14,9 @@ namespace EE::Animation::GraphNodes
         UpdateTransitionNodes();
     }
 
-    void GlobalTransitionConduitToolsNode::OnShowNode()
+    void GlobalTransitionConduitToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
     {
-        VisualGraph::SM::Node::OnShowNode();
+        VisualGraph::SM::Node::OnShowNode( pUserContext );
         UpdateTransitionNodes();
     }
 
@@ -104,7 +104,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    bool GlobalTransitionConduitToolsNode::HasGlobalTransitionForState( UUID const& stateID )
+    bool GlobalTransitionConduitToolsNode::HasGlobalTransitionForState( UUID const& stateID ) const
     {
         auto globalTransitions = GetSecondaryGraph()->FindAllNodesOfType<GlobalTransitionToolsNode>();
         for ( auto pGlobalTransition : globalTransitions )

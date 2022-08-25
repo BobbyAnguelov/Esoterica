@@ -106,8 +106,10 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    bool RangedBlendToolsNode::DrawPinControls( VisualGraph::Flow::Pin const& pin )
+    bool RangedBlendToolsNode::DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
     {
+        ParameterizedBlendToolsNode::DrawPinControls( pUserContext, pin );
+
         // Add parameter value input field
         if ( pin.IsInputPin() && pin.m_type == (uint32_t) GraphValueType::Pose )
         {

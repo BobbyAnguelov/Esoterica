@@ -1,6 +1,6 @@
 #include "Animation_ToolsGraphNode_Selector.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Selector.h"
 
 //-------------------------------------------------------------------------

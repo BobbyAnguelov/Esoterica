@@ -1,6 +1,6 @@
 #include "Animation_ToolsGraphNode_Transition.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -79,7 +79,7 @@ namespace EE::Animation::GraphNodes
         return !GetSecondaryGraph()->FindAllNodesOfType<TransitionToolsNode>().empty();
     }
 
-    ImColor TransitionConduitToolsNode::GetNodeBorderColor( VisualGraph::DrawContext const& ctx, VisualGraph::NodeVisualState visualState ) const
+    ImColor TransitionConduitToolsNode::GetNodeBorderColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const
     {
         // Is this an blocked transition
         if ( visualState == VisualGraph::NodeVisualState::None && !HasTransitions() )
@@ -88,7 +88,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Is this transition active?
-        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             bool isActive = false;
@@ -112,6 +112,6 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        return VisualGraph::SM::TransitionConduit::GetNodeBorderColor( ctx, visualState );
+        return VisualGraph::SM::TransitionConduit::GetNodeBorderColor( ctx, pUserContext, visualState );
     }
 }

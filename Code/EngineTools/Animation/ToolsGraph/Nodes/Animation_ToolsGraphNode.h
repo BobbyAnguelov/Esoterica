@@ -1,4 +1,5 @@
 #pragma once
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_UserContext.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_FlowGraph.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_StateMachineGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
@@ -8,46 +9,6 @@
 namespace EE::Animation
 {
     class GraphCompilationContext;
-    class VariationHierarchy;
-
-    //-------------------------------------------------------------------------
-
-    struct ToolsNodeContext
-    {
-        inline bool HasDebugData() const
-        {
-            return m_pGraphInstance != nullptr && m_pGraphInstance->IsInitialized();
-        }
-
-        inline int16_t GetRuntimeGraphNodeIndex( UUID const& nodeID ) const
-        {
-            auto const foundIter = m_nodeIDtoIndexMap.find( nodeID );
-            if ( foundIter != m_nodeIDtoIndexMap.end() )
-            {
-                return foundIter->second;
-            }
-            return InvalidIndex;
-        }
-
-        bool IsNodeActive( int16_t nodeIdx ) const;
-
-        #if EE_DEVELOPMENT_TOOLS
-        PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const;
-        #endif
-
-        template<typename T>
-        inline T GetRuntimeNodeDebugValue( int16_t runtimeNodeIdx ) const
-        {
-            return m_pGraphInstance->GetRuntimeNodeDebugValue<T>( runtimeNodeIdx );
-        }
-
-    public:
-
-        StringID                            m_currentVariationID;
-        VariationHierarchy const*           m_pVariationHierarchy = nullptr;
-        GraphInstance*                      m_pGraphInstance = nullptr;
-        THashMap<UUID, int16_t>             m_nodeIDtoIndexMap;
-    };
 
     //-------------------------------------------------------------------------
 
@@ -109,9 +70,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) {}
 
-        virtual bool IsActive( VisualGraph::DrawContext const& ctx ) const override;
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
-        virtual void DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
+        virtual bool IsActive( VisualGraph::UserContext* pUserContext ) const override;
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+        virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
     };
 
     //-------------------------------------------------------------------------
@@ -139,7 +100,7 @@ namespace EE::Animation::GraphNodes
 
     protected:
 
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
 
     protected:
 

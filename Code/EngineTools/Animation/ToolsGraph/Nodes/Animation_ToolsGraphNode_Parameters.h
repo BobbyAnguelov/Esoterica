@@ -106,6 +106,10 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+
+    private:
+
         FlowToolsNode*                         m_pParameter = nullptr;
         EE_REGISTER UUID                       m_parameterUUID;
         EE_REGISTER GraphValueType             m_parameterValueType;

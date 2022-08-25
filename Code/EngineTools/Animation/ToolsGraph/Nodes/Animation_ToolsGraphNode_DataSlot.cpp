@@ -13,29 +13,6 @@ namespace EE::Animation::GraphNodes
         m_name = GetUniqueSlotName( GetDefaultSlotName() );
     }
 
-    bool DataSlotToolsNode::AreSlotValuesValid() const
-    {
-        if ( m_defaultResourceID.GetResourceTypeID() != GetSlotResourceTypeID() )
-        {
-            return false;
-        }
-
-        for ( auto const& variation : m_overrides )
-        {
-            if ( !variation.m_variationID.IsValid() )
-            {
-                return false;
-            }
-
-            if ( variation.m_resourceID.GetResourceTypeID() != GetSlotResourceTypeID() )
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     ResourceID DataSlotToolsNode::GetResourceID( VariationHierarchy const& variationHierarchy, StringID variationID ) const
     {
         EE_ASSERT( variationHierarchy.IsValidVariation( variationID ) );
@@ -204,21 +181,21 @@ namespace EE::Animation::GraphNodes
         EE_UNREACHABLE_CODE();
     }
 
-    void DataSlotToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void DataSlotToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
 
         // Draw separator
         //-------------------------------------------------------------------------
 
-        float const spacerWidth = Math::Max( GetSize().x, 40.0f );
+        float const spacerWidth = Math::Max( GetWidth(), 40.0f );
         ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton( "S1", ImVec2( spacerWidth, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
 
         //-------------------------------------------------------------------------
 
-        ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_currentVariationID );
+        ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
         if ( resourceID.IsValid() )
         {
             ImGui::Text( EE_ICON_CUBE" %s", resourceID.c_str() + 7 );
@@ -234,11 +211,11 @@ namespace EE::Animation::GraphNodes
 
         originalCursorPos = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton( "S2", ImVec2( spacerWidth, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
 
         //-------------------------------------------------------------------------
 
-        FlowToolsNode::DrawExtraControls( ctx );
+        FlowToolsNode::DrawExtraControls( ctx, pUserContext );
     }
 
     String DataSlotToolsNode::GetUniqueSlotName( String const& desiredName )
@@ -269,6 +246,16 @@ namespace EE::Animation::GraphNodes
     {
         FlowToolsNode::PostPaste();
         m_name = GetUniqueSlotName( m_name );
+    }
+
+    void DataSlotToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
+        if ( resourceID.IsValid() )
+        {
+            pGraphNodeContext->RequestOpenResource( resourceID );
+        }
     }
 
     #if EE_DEVELOPMENT_TOOLS

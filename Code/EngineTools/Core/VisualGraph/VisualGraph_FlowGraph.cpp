@@ -1,4 +1,5 @@
 #include "VisualGraph_FlowGraph.h"
+#include "VisualGraph_UserContext.h"
 
 //-------------------------------------------------------------------------
 

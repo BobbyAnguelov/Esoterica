@@ -20,9 +20,6 @@ namespace EE::Animation
 
     public:
 
-        void CreateNewState( Float2 const& mouseCanvasPos );
-        void CreateNewOffState( Float2 const& mouseCanvasPos );
-
         GraphNodes::EntryStateOverrideConduitToolsNode const* GetEntryStateOverrideConduit() const;
         GraphNodes::EntryStateOverrideConduitToolsNode* GetEntryStateOverrideConduit() { return const_cast<GraphNodes::EntryStateOverrideConduitToolsNode*>( const_cast<StateMachineGraph const*>( this )->GetEntryStateOverrideConduit() ); }
         GraphNodes::GlobalTransitionConduitToolsNode const* GetGlobalTransitionConduit() const;
@@ -42,18 +39,19 @@ namespace EE::Animation
             auto pNode = EE::New<T>( std::forward<ConstructorParams>( params )... );
             pNode->Initialize( this );
             AddNode( pNode );
-            UpdateDependentNodes();
             return pNode;
         }
 
     private:
 
+        virtual void DrawExtraInformation( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+        virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos ) override;
         virtual void Initialize( VisualGraph::BaseNode* pParentNode ) override;
         virtual bool CanDeleteNode( VisualGraph::BaseNode const* pNode ) const override;
         virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
         virtual VisualGraph::SM::TransitionConduit* CreateTransitionNode() const override;
         virtual void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) override;
         virtual void PostDestroyNode( UUID const& nodeID ) override;
-        virtual void DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos ) override;
+        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
     };
 }

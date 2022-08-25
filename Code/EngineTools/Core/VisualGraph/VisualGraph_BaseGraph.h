@@ -12,6 +12,7 @@
 namespace EE::VisualGraph
 {
     class BaseGraph;
+    struct UserContext;
 
     //-------------------------------------------------------------------------
     // Node Base
@@ -80,6 +81,9 @@ namespace EE::VisualGraph
         // Get node name (not guaranteed to be unique within the same graph)
         virtual char const* GetName() const { return GetTypeName(); }
 
+        // Get optional icon
+        virtual char const* GetIcon() const { return nullptr; }
+
         // Can this node be renamed via user input
         virtual bool IsRenamable() const { return false; }
 
@@ -109,21 +113,33 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE Float2 const& GetCanvasPosition() const { return m_canvasPosition; }
-        EE_FORCE_INLINE ImVec2 const& GetSize() const { return m_size; }
 
-        void SetCanvasPosition( ImVec2 const& newPosition );
+        EE_FORCE_INLINE Float2 const& GetSize() const { return m_size; }
+
+        EE_FORCE_INLINE float GetWidth() const { return m_size.m_x; }
+
+        EE_FORCE_INLINE float GetHeight() const { return m_size.m_y; }
+
+        // Get the rect (in canvas coords) that this node takes
+        ImRect GetCanvasRect() const;
+
+        // Get the rect (in window coords) that this node takes.
+        ImRect GetWindowRect( Float2 const& canvasToWindowOffset ) const;
+
+        // Set the node's canvas position
+        void SetCanvasPosition( Float2 const& newPosition );
 
         // Get node title bar color
         virtual ImColor GetTitleBarColor() const { return VisualSettings::s_genericNodeTitleColor; }
 
         // Optional function that can be overridden in derived classes to draw a border around the node to signify an active state
-        virtual bool IsActive( DrawContext const& ctx ) const { return false; }
+        virtual bool IsActive( UserContext* pUserContext ) const { return false; }
 
         // Get node highlight color
-        virtual ImColor GetNodeBorderColor( DrawContext const& ctx, NodeVisualState visualState ) const;
+        virtual ImColor GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
 
         // Get the margin between the node contents and the outer border
-        virtual ImVec2 GetNodeMargin() const { return ImVec2( 8, 4 ); }
+        virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }
 
         // Graphs
         //-------------------------------------------------------------------------
@@ -170,7 +186,7 @@ namespace EE::VisualGraph
     protected:
 
         // Override this if you want to add extra controls to this node (the derived nodes will determine where this content is placed)
-        virtual void DrawExtraControls( DrawContext const& ctx ) {}
+        virtual void DrawExtraControls( DrawContext const& ctx, UserContext* pUserContext ) {}
 
         // Set and initialize the secondary graph
         void SetSecondaryGraph( BaseGraph* pGraph );
@@ -179,7 +195,10 @@ namespace EE::VisualGraph
         void SetChildGraph( BaseGraph* pGraph );
 
         // Called whenever we switch the view to this node
-        virtual void OnShowNode() {}
+        virtual void OnShowNode( UserContext* pUserContext ) {}
+
+        // Called whenever the user double clicks the node - By default this will request a navigate action to its child when double clicked
+        virtual void OnDoubleClick( UserContext* pUserContext );
 
         // Allow for custom serialization in derived types (called after secondary/child graphs have been serialized)
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) {};
@@ -191,8 +210,8 @@ namespace EE::VisualGraph
 
         EE_REGISTER UUID            m_ID;
         EE_REGISTER Float2          m_canvasPosition = Float2( 0, 0 ); // Updated each frame
-        ImVec2                      m_size = ImVec2( 0, 0 ); // Updated each frame
-        ImVec2                      m_titleRectSize = ImVec2( 0, 0 ); // Updated each frame
+        Float2                      m_size = Float2( 0, 0 ); // Updated each frame
+        Float2                      m_titleRectSize = Float2( 0, 0 ); // Updated each frame
         bool                        m_isHovered = false;
 
     private:
@@ -244,7 +263,7 @@ namespace EE::VisualGraph
         virtual void Shutdown();
 
         // Called whenever we change the view to this graph
-        void OnShowGraph();
+        void OnShowGraph( UserContext* pUserContext );
 
         // Undo/Redo
         //-------------------------------------------------------------------------
@@ -393,9 +412,6 @@ namespace EE::VisualGraph
 
     protected:
 
-        // Override this if you want to provide additional context menu options
-        virtual void DrawExtraContextMenuOptions( DrawContext const& ctx, Float2 const& mouseCanvasPos ) {}
-
         // Adds a node to this graph - Note: this transfers ownership of the node memory to this graph!
         // Adding of a node must go through this code path as we need to set the parent node ptr
         void AddNode( BaseNode* pNode )
@@ -407,6 +423,18 @@ namespace EE::VisualGraph
             m_nodes.emplace_back( pNode );
             EndModification();
         }
+
+        // Called whenever the user double clicks the graph - By default this will request a navigate action to its parent graph if it has one
+        virtual void OnDoubleClick( UserContext* pUserContext );
+
+        // User this to draw any extra contextual information on the graph canvas
+        virtual void DrawExtraInformation( DrawContext const& ctx, UserContext* pUserContext ) {}
+
+        // Draw the graph context menu option
+        virtual void DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos ) {}
+
+        // Called whenever a drag and drop operation occurs
+        virtual void HandleDragAndDrop( UserContext* pUserContext, ImVec2 const& mouseCanvasPos ) {}
 
         // Called after we finish pasting nodes (allows for child graphs to run further processes)
         virtual void PostPasteNodes( TInlineVector<BaseNode*, 20> const& pastedNodes ) {}

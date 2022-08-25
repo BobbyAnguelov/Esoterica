@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void ConstBoolToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ConstBoolToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         ImGui::Text( m_value ? "True" : "False" );
     }
@@ -46,7 +46,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         ImGui::Text( m_value.c_str() );
     }
@@ -69,7 +69,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void ConstIntToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ConstIntToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         ImGui::Text( "%d", m_value );
     }
@@ -92,7 +92,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void ConstFloatToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ConstFloatToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         ImGui::Text( "%.3f", m_value );
     }
@@ -115,7 +115,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void ConstVectorToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ConstVectorToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f, W: %.2f", m_value.m_x, m_value.m_y, m_value.m_z, m_value.m_w );
     }
@@ -138,7 +138,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void ConstTargetToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ConstTargetToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         ImGui::Text( "Transform - TODO" );
     }

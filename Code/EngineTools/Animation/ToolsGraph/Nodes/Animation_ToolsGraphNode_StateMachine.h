@@ -38,7 +38,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        virtual void OnShowNode() override;
+        virtual void OnShowNode( VisualGraph::UserContext* pUserContext ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
 
         int16_t CompileState( GraphCompilationContext& context, ToolsState const* pBaseStateNode ) const;

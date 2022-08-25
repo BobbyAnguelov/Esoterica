@@ -44,12 +44,17 @@ namespace EE::VisualGraph
             inline bool IsOutputPin() const { return m_direction == Direction::Out; }
             inline bool IsDynamicPin() const { return m_isDynamic; }
 
+            inline float GetWidth() const { return m_size.m_x; }
+            inline float GetHeight() const { return m_size.m_y; }
+
+        public:
+
             UUID                    m_ID = UUID::GenerateID();
             String                  m_name;
             uint32_t                m_type; // Generic type that allows user to set custom data be it StringIDs or enum values
             Direction               m_direction;
-            ImVec2                  m_screenPosition = ImVec2( 0, 0 ); // Updated each frame (Screen Space)
-            ImVec2                  m_size = ImVec2( -1, -1 ); // Updated each frame
+            Float2                  m_screenPosition = Float2( 0, 0 ); // Updated each frame (Screen Space)
+            Float2                  m_size = Float2( -1, -1 ); // Updated each frame
             bool                    m_isDynamic = false; // Only relevant for input pins
             bool                    m_allowMultipleOutConnections = false; // Only relevant for output pins
         };
@@ -176,10 +181,10 @@ namespace EE::VisualGraph
             virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
 
             // Override this if you want custom UI after/before the pin. Returns true if something was drawn, false otherwise
-            virtual bool DrawPinControls( Pin const& pin ) { return false; }
+            virtual bool DrawPinControls( UserContext* pUserContext, Pin const& pin ) { return false; }
 
             // Override this if you want to provide additional context menu options
-            virtual void DrawExtraContextMenuOptions( DrawContext const& ctx, Float2 const& mouseCanvasPos, Pin* pHoveredPin ) {}
+            virtual void DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos, Pin* pHoveredPin ) {}
 
             // Create a new dynamic pin
             void CreateDynamicInputPin();

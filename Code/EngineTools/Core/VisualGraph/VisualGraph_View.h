@@ -19,6 +19,11 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
+    struct UserNodeContext;
+    struct UserGraphContext;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINETOOLS_API GraphView
     {
     protected:
@@ -104,7 +109,7 @@ namespace EE::VisualGraph
 
         //-------------------------------------------------------------------------
 
-        void SetGraphToView( BaseGraph* pGraph, bool tryMaintainSelection = false );
+        void SetGraphToView( UserContext* pUserContext, BaseGraph* pGraph, bool tryMaintainSelection = false );
 
         inline BaseGraph* GetViewedGraph() { return m_pGraph; };
         inline BaseGraph const* GetViewedGraph() const { return m_pGraph; }
@@ -118,7 +123,7 @@ namespace EE::VisualGraph
         // Drawing and view
         //-------------------------------------------------------------------------
 
-        void UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, float childHeightOverride = 0.0f, void* pUserContext = nullptr );
+        void UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, UserContext* pUserContext, float childHeightOverride = 0.0f );
 
         void ResetView();
 
@@ -143,23 +148,6 @@ namespace EE::VisualGraph
         // Node
         //-------------------------------------------------------------------------
 
-        inline ImRect GetNodeCanvasRect( BaseNode* pNode ) const
-        {
-            ImVec2 const nodeMargin = pNode->GetNodeMargin();
-            ImVec2 const rectMin = ImVec2( pNode->GetCanvasPosition() ) - nodeMargin;
-            ImVec2 const rectMax = ImVec2( pNode->GetCanvasPosition() ) + pNode->GetSize() + nodeMargin;
-            return ImRect( rectMin, rectMax );
-        }
-
-        inline ImRect GetNodeWindowRect( BaseNode* pNode ) const
-        {
-            EE_ASSERT( m_pViewOffset != nullptr );
-            ImVec2 const nodeMargin = pNode->GetNodeMargin();
-            ImVec2 const rectMin = ImVec2( pNode->GetCanvasPosition() ) - nodeMargin - *m_pViewOffset;
-            ImVec2 const rectMax = ImVec2( pNode->GetCanvasPosition() ) + pNode->GetSize() + nodeMargin - *m_pViewOffset;
-            return ImRect( rectMin, rectMax );
-        }
-
         void DestroySelectedNodes();
 
         // Visual
@@ -167,9 +155,6 @@ namespace EE::VisualGraph
 
         bool BeginDrawCanvas( float childHeightOverride );
         void EndDrawCanvas();
-
-        // User implementable function to draw any additional information needed in the graph (called after everything is drawn)
-        virtual void DrawExtraInformation( DrawContext const& ctx ) {}
     
         // Dragging
         //-------------------------------------------------------------------------
@@ -209,34 +194,6 @@ namespace EE::VisualGraph
         // User implementable custom selection change handler
         virtual void OnSelectionChanged( TVector<SelectedNode> const& oldSelection, TVector<SelectedNode> const& newSelection ) {}
 
-        // Context Menu
-        //-------------------------------------------------------------------------
-
-        inline bool IsContextMenuOpen() const { return m_contextMenuState.m_menuOpened; }
-
-        void HandleContextMenu( DrawContext const& ctx );
-
-        // Called when we actually draw the context menu, is expected to call the specific draw functions for graphs and nodes
-        void DrawContextMenu( DrawContext const& ctx );
-
-        // Override this to provide global context menu options for all graphs 
-        // Use this only if you need custom data stored in the derived graph editor, else prefer the context menu function on the graphs themselves
-        virtual void DrawExtraGraphContextMenuOptions( DrawContext const& ctx ) {}
-
-        // Override this to provide global context menu options for all nodes
-        // Use this only if you need custom data stored in the derived graph editor, else prefer the context menu function on the nodes themselves
-        virtual void DrawExtraNodeContextMenuOptions( DrawContext const& ctx ) {}
-
-        // Input Handling
-        //-------------------------------------------------------------------------
-
-        void HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx );
-
-        virtual void DrawDialogs();
-        virtual void OnGraphDoubleClick( DrawContext const& ctx, BaseGraph* pGraph ) {}
-        virtual void OnNodeDoubleClick( DrawContext const& ctx, BaseNode* pNode ) {}
-        virtual void HandleDragAndDrop( ImVec2 const& mouseCanvasPos ) {}
-
     private:
 
         EE_FORCE_INLINE void OnSelectionChangedInternal( TVector<SelectedNode> const& oldSelection, TVector<SelectedNode> const& newSelection )
@@ -249,13 +206,13 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         void DrawStateMachineNodeTitle( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize );
-        void DrawStateMachineNodeBackground( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize );
-        void DrawStateMachineNode( DrawContext const& ctx, SM::Node* pNode );
-        void DrawStateMachineTransitionConduit( DrawContext const& ctx, SM::TransitionConduit* pTransition );
+        void DrawStateMachineNodeBackground( DrawContext const& ctx, UserContext* pUserContext, SM::Node* pNode, ImVec2& newNodeSize );
+        void DrawStateMachineNode( DrawContext const& ctx, UserContext* pUserContext, SM::Node* pNode );
+        void DrawStateMachineTransitionConduit( DrawContext const& ctx, UserContext* pUserContext, SM::TransitionConduit* pTransition );
         void DrawFlowNodeTitle( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNodePins( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNodeBackground( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNode( DrawContext const& ctx, Flow::Node* pNode );
+        void DrawFlowNodePins( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize );
+        void DrawFlowNodeBackground( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize );
+        void DrawFlowNode( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode );
 
         // Copy/Paste
         //-------------------------------------------------------------------------
@@ -268,6 +225,17 @@ namespace EE::VisualGraph
 
         void BeginRenameNode( BaseNode* pNode );
         void EndRenameNode( bool shouldUpdateName );
+
+        // Input, Context Menu and Dialogs
+        //-------------------------------------------------------------------------
+
+        inline bool IsContextMenuOpen() const { return m_contextMenuState.m_menuOpened; }
+
+        void HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx, UserContext* pUserContext );
+
+        void HandleContextMenu( DrawContext const& ctx, UserContext* pUserContext );
+
+        void DrawDialogs();
 
     protected:
 

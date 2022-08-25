@@ -1,12 +1,43 @@
 #include "Animation_ToolsGraphNode_State.h"
 #include "Animation_ToolsGraphNode_Result.h"
+#include "Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
+    static void DrawStateTypeWindow( VisualGraph::DrawContext const& ctx, Color fontColor, float width, char const* pLabel )
+    {
+        if ( width <= 0 )
+        {
+            width = 26;
+        }
+
+        ImVec2 const size( width, 20 );
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 2 );
+
+        ImVec2 const rectMin = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
+        ImVec2 const rectMax = rectMin + size;
+        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, (uint32_t) ImGuiX::Style::s_colorGray6, 3.0f );
+
+        ImGui::SetCursorPos( ImVec2( ImGui::GetCursorPosX() + 2, ImGui::GetCursorPosY() + 2 ) );
+
+        {
+            ImGuiX::ScopedFont font( ImGuiX::Font::Small, fontColor );
+            ImGui::Text( pLabel );
+        }
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 8 );
+    }
+
+    //-------------------------------------------------------------------------
+
     void StateLayerDataToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
@@ -16,7 +47,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void BlendTreeStateToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void StateToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         VisualGraph::SM::State::Initialize( pParent );
 
@@ -27,33 +58,47 @@ namespace EE::Animation::GraphNodes
         auto pValueTree = EE::New<FlowGraph>( GraphType::ValueTree );
         pValueTree->CreateNode<StateLayerDataToolsNode>();
         SetSecondaryGraph( pValueTree );
-    }
 
-    ResultToolsNode const* BlendTreeStateToolsNode::GetBlendTreeRootNode() const
-    {
-        auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
-        EE_ASSERT( resultNodes.size() == 1 );
-        return resultNodes[0];
-    }
-
-    StateLayerDataToolsNode const* BlendTreeStateToolsNode::GetLayerDataNode() const
-    {
-        auto dataNodes = GetSecondaryGraph()->FindAllNodesOfType<StateLayerDataToolsNode>();
-        EE_ASSERT( dataNodes.size() == 1 );
-        return dataNodes[0];
-    }
-
-    void BlendTreeStateToolsNode::DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos )
-    {
-        ImGui::Separator();
-
-        if ( ImGui::MenuItem( "Make Default Entry State" ) )
+        // Create a state machine if this is a state machine state
+        if ( m_type == StateType::StateMachineState )
         {
-            auto pParentStateMachineGraph = Cast<VisualGraph::StateMachineGraph>( GetParentGraph() );
-            pParentStateMachineGraph->SetDefaultEntryState( GetID() );
-        }
+            auto pStateMachineNode = pBlendTree->CreateNode<StateMachineToolsNode>();
+            
+            auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+            EE_ASSERT( resultNodes.size() == 1 );
+            auto pBlendTreeResultNode = resultNodes[0];
 
-        if ( ImGui::BeginMenu( "Node Info" ) )
+            pBlendTree->TryMakeConnection( pStateMachineNode, pStateMachineNode->GetOutputPin( 0 ), pBlendTreeResultNode, pBlendTreeResultNode->GetInputPin( 0 ) );
+        }
+    }
+
+    void StateToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    {
+        if ( IsBlendTreeState() )
+        {
+            auto pChildGraph = GetChildGraph();
+            if ( pChildGraph != nullptr )
+            {
+                pUserContext->NavigateTo( pChildGraph );
+            }
+        }
+        else // Skip the blend tree
+        {
+            auto resultNodes = GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>();
+            EE_ASSERT( resultNodes.size() == 1 );
+            auto pStateMachineNode = resultNodes[0];
+
+            auto pChildGraph = pStateMachineNode->GetChildGraph();
+            if ( pChildGraph != nullptr )
+            {
+                pUserContext->NavigateTo( pChildGraph );
+            }
+        }
+    }
+
+    void StateToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
+    {
+        if ( ImGui::BeginMenu( EE_ICON_INFORMATION_OUTLINE" Node Info" ) )
         {
             // UUID
             auto IDStr = GetID().ToString();
@@ -64,7 +109,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Draw runtime node index
-            auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+            auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
             if ( pGraphNodeContext->HasDebugData() )
             {
                 int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
@@ -83,15 +128,37 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    //-------------------------------------------------------------------------
-
-    void OffStateToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void StateToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
+        if ( IsBlendTreeState() )
         {
-            ImGuiX::ScopedFont font( ImGuiX::Font::Large, Colors::Red );
-            ImGui::Text( EE_ICON_CLOSE_CIRCLE "OFF" );
+            DrawStateTypeWindow( ctx, Colors::White, GetWidth(), EE_ICON_FILE_TREE" Blend Tree" );
+        }
+        else
+        {
+            DrawStateTypeWindow( ctx, Colors::White, GetWidth(), EE_ICON_STATE_MACHINE" State Machine" );
         }
 
-        ToolsState::DrawExtraControls( ctx );
+        ToolsState::DrawExtraControls( ctx, pUserContext );
+    }
+
+    ImColor StateToolsNode::GetTitleBarColor() const
+    {
+        if ( IsBlendTreeState() )
+        {
+            return ImGuiX::ConvertColor( Colors::DarkSlateBlue );
+        }
+        else
+        {
+            return ImGuiX::ConvertColor( Colors::DarkCyan );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void OffStateToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    {
+        DrawStateTypeWindow( ctx, Colors::Red, GetWidth(), EE_ICON_CLOSE_CIRCLE" Off State" );
+        ToolsState::DrawExtraControls( ctx, pUserContext );
     }
 }

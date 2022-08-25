@@ -1,13 +1,13 @@
 #pragma once
 
-#include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_Context.h"
-#include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_ControlParameterEditor.h"
-#include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_GraphEditor.h"
-#include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_VariationEditor.h"
-#include "EngineTools/Animation/GraphEditor/AnimationGraphEditor_CompilationLog.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Core/Workspace.h"
+#include "EngineTools/Core/VisualGraph/VisualGraph_View.h"
+#include "EngineTools/Core/Helpers/CategoryTree.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
+#include "System/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -20,6 +20,10 @@ namespace EE::Animation
 {
     class AnimationGraphComponent;
     class GraphUndoableAction;
+    class ControlParameterPreviewState;
+    class VariationHierarchy;
+
+    namespace GraphNodes { class VirtualParameterToolsNode; class ControlParameterToolsNode; }
 
     //-------------------------------------------------------------------------
 
@@ -52,6 +56,16 @@ namespace EE::Animation
             StringID                        m_externalSlotID;
         };
 
+        enum class GraphOperationType
+        {
+            None,
+            RenameParameter,
+            DeleteParameter,
+            CreateVariation,
+            RenameVariation,
+            DeleteVariation
+        };
+
     public:
 
         AnimationGraphWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
@@ -62,6 +76,7 @@ namespace EE::Animation
     private:
 
         virtual void Initialize( UpdateContext const& context ) override;
+        virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
 
@@ -75,8 +90,123 @@ namespace EE::Animation
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual bool Save() override;
 
+        virtual void DrawDialogs( UpdateContext const& context );
+
+        // Graph Operations
+        //-------------------------------------------------------------------------
+
+        void OnBeginGraphModification( VisualGraph::BaseGraph* pRootGraph );
+        void OnEndGraphModification( VisualGraph::BaseGraph* pRootGraph );
+
+        // Variations
+        //-------------------------------------------------------------------------
+
+        inline bool IsDefaultVariationSelected() const { return m_selectedVariationID == Variation::s_defaultVariationID; }
+
+        inline StringID GetSelectedVariationID() const { return m_selectedVariationID; }
+
+        // Sets the current selected variation. Assumes a valid variation ID!
+        void SetSelectedVariation( StringID variationID );
+
+        // Tries to case-insensitively match a supplied variation name to the various variations we have
+        void TrySetSelectedVariation( String const& variationName );
+
+        // Selection
+        //-------------------------------------------------------------------------
+
+        void SetSelectedNodes( TVector<VisualGraph::SelectedNode> const& selectedNodes ) { m_selectedNodes = selectedNodes; }
+        void ClearSelection() { m_selectedNodes.clear(); }
+
+        // User Context
+        //-------------------------------------------------------------------------
+
+        void InitializeUserContext();
+        void UpdateUserContext();
+        void ShutdownUserContext();
+
+        // Graph View
+        //-------------------------------------------------------------------------
+
+        void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
+        void NavigateTo( VisualGraph::BaseGraph* pGraph );
+        void DrawGraphView( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void UpdateSecondaryViewState();
+
+        // Property Grid
+        //-------------------------------------------------------------------------
+
+        void DrawPropertyGrid( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+
+        void InitializePropertyGrid();
+        void ShutdownPropertyGrid();
+
+        // Compilation Log
+        //-------------------------------------------------------------------------
+
+        void DrawCompilationLog( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+
+        // Control Parameter Editor
+        //-------------------------------------------------------------------------
+
+        bool DrawControlParameterEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+
+        void InitializeControlParameterEditor();
+        void ShutdownControlParameterEditor();
+
+        void CreateControlParameterPreviewStates();
+        void DestroyControlParameterPreviewStates();
+
+        void RefreshControlParameterCache();
+        void DrawParameterList();
+        void DrawParameterPreviewControls();
+        void DrawAddParameterCombo();
+
+        void DrawDeleteParameterDialogWindow();
+        void DrawRenameParameterDialogWindow();
+
+        void StartParameterRename( UUID const& parameterID );
+        void StartParameterDelete( UUID const& parameterID );
+
+        GraphNodes::ControlParameterToolsNode* FindControlParameter( UUID parameterID ) const;
+        GraphNodes::VirtualParameterToolsNode* FindVirtualParameter( UUID parameterID ) const;
+
+        void CreateControlParameter( GraphValueType type );
+        void CreateVirtualParameter( GraphValueType type );
+
+        void RenameControlParameter( UUID parameterID, String const& newName, String const& category );
+        void RenameVirtualParameter( UUID parameterID, String const& newName, String const& category );
+
+        void DestroyControlParameter( UUID parameterID );
+        void DestroyVirtualParameter( UUID parameterID );
+
+        void EnsureUniqueParameterName( String& parameterName ) const;
+
+        // Variation Editor
+        //-------------------------------------------------------------------------
+
+        void DrawVariationEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+
+        void StartCreate( StringID variationID );
+        void StartRename( StringID variationID );
+        void StartDelete( StringID variationID );
+
+        void CreateVariation( StringID newVariationID, StringID parentVariationID );
+        void RenameVariation( StringID oldVariationID, StringID newVariationID );
+        void DeleteVariation( StringID variationID );
+
+        void DrawVariationSelector();
+        void DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID );
+        void DrawOverridesTable();
+
+        bool DrawVariationNameEditor();
+        void DrawCreateVariationDialogWindow();
+        void DrawRenameVariationDialogWindow();
+        void DrawDeleteVariationDialogWindow();
+
         // Debugging
         //-------------------------------------------------------------------------
+
+        void DrawDebuggerWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         inline bool IsDebugging() const { return m_debugMode != DebugMode::None; }
         inline bool IsPreviewing() const { return m_debugMode == DebugMode::Preview; }
@@ -88,9 +218,9 @@ namespace EE::Animation
         // Ends the current debug session
         void StopDebugging();
 
+        // 
         void ReflectInitialPreviewParameterValues( UpdateContext const& context );
 
-        void DrawDebuggerWindow( UpdateContext const& context );
         void DrawLiveDebugTargetsMenu( UpdateContext const& context );
 
         // Calculate the offset at which to place the camera when tracking
@@ -104,31 +234,43 @@ namespace EE::Animation
         String                              m_variationEditorWindowName;
         String                              m_compilationLogWindowName;
         String                              m_debuggerWindowName;
-
-        GraphEditorContext                  m_editorContext;
-        GraphControlParameterEditor         m_controlParameterEditor = GraphControlParameterEditor( m_editorContext );
-        GraphVariationEditor                m_variationEditor = GraphVariationEditor( m_editorContext );
-        GraphEditor                         m_graphEditor = GraphEditor( m_editorContext );
-        GraphCompilationLogViewer           m_compilationLogViewer = GraphCompilationLogViewer( m_editorContext );
         PropertyGrid                        m_propertyGrid;
+        Transform                           m_gizmoTransform;
+        GraphUndoableAction*                m_pActiveUndoableAction = nullptr;
+        GraphOperationType                  m_activeOperation = GraphOperationType::None;
 
         EventBindingID                      m_rootGraphBeginModificationBindingID;
         EventBindingID                      m_rootGraphEndModificationBindingID;
         EventBindingID                      m_preEditEventBindingID;
         EventBindingID                      m_postEditEventBindingID;
+        
+
+        // Graph Type Data
+        TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
+        CategoryTree<TypeSystem::TypeInfo const*>                       m_categorizedNodeTypes;
+
+        // Graph Data
+        FileSystem::Path                    m_graphFilePath;
+        ToolsGraphDefinition                m_toolsGraph;
+        TVector<VisualGraph::SelectedNode>  m_selectedNodes;
+        TVector<VisualGraph::SelectedNode>  m_selectedNodesPreUndoRedo;
+        StringID                            m_selectedVariationID = Variation::s_defaultVariationID; // NOTE: Do not set this directly!!! Use the provided functions
+
+        // User Context
+        ToolsGraphUserContext               m_userContext;
         EventBindingID                      m_navigateToNodeEventBindingID;
         EventBindingID                      m_navigateToGraphEventBindingID;
-        EventBindingID                      m_variationSwitchedEventBindingID;
+        EventBindingID                      m_resourceOpenRequestEventBindingID;
 
-        FileSystem::Path                    m_graphFilePath;
-
-        GraphUndoableAction*                m_pActiveUndoableAction = nullptr;
-        UUID                                m_selectedNodePreUndoRedo;
-
-        Transform                           m_gizmoTransform;
-        DebugMode                           m_debugMode = DebugMode::None;
+        // Graph view
+        float                               m_primaryGraphViewHeight = 300;
+        VisualGraph::GraphView              m_primaryGraphView;
+        VisualGraph::GraphView              m_secondaryGraphView;
+        VisualGraph::GraphView*             m_pFocusedGraphView = nullptr;
+        UUID                                m_primaryViewGraphID;
 
         // Debug
+        DebugMode                           m_debugMode = DebugMode::None;
         EntityID                            m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
         ComponentID                         m_debuggedComponentID;
         AnimationGraphComponent*            m_pDebugGraphComponent = nullptr;
@@ -136,9 +278,27 @@ namespace EE::Animation
         GraphInstance*                      m_pDebugGraphInstance = nullptr;
         StringID                            m_debugExternalGraphSlotID = StringID();
         GraphDebugMode                      m_graphDebugMode = GraphDebugMode::On;
-        ToolsNodeContext                    m_nodeContext;
         RootMotionDebugMode                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
         TaskSystemDebugMode                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
+
+        // Compilation Log
+        TVector<NodeCompilationLogEntry>    m_compilationLog;
+
+        // Control Parameter Editor
+        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
+        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
+        GraphNodes::VirtualParameterToolsNode*                          m_pVirtualParamaterToEdit = nullptr;
+        UUID                                                            m_currentOperationParameterID;
+        char                                                            m_parameterNameBuffer[255];
+        char                                                            m_parameterCategoryBuffer[255];
+        TVector<ControlParameterPreviewState*>                          m_parameterPreviewStates;
+        THashMap<UUID, int32_t>                                         m_cachedNumUses;
+        CountdownTimer<EngineClock>                                     m_updateCacheTimer;
+
+        // Variation Editor
+        StringID                            m_activeOperationVariationID;
+        char                                m_buffer[255] = { 0 };
+        Resource::ResourceFilePicker        m_resourcePicker;
 
         // Preview
         Physics::PhysicsSystem*             m_pPhysicsSystem = nullptr;

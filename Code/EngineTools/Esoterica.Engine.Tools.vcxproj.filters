@@ -28,21 +28,6 @@
     <ClCompile Include="Animation\Events\AnimationEventEditor.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_CompilationLog.cpp">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_Context.cpp">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_ControlParameterEditor.cpp">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_GraphEditor.cpp">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\GraphEditor\AnimationGraphEditor_VariationEditor.cpp">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.cpp">
       <Filter>Animation\ResourceCompilers</Filter>
     </ClCompile>
@@ -267,8 +252,8 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_StateMachine.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_FlowGraph.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_StateMachineGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Variations.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_AnimationClip.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blends.cpp" />
@@ -294,6 +279,8 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_EntryStates.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_GlobalTransitions.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp" />
+    <ClCompile Include="Core\VisualGraph\VisualGraph_UserContext.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource\RawFileInspector.h">
@@ -319,21 +306,6 @@
     </ClInclude>
     <ClInclude Include="Animation\Events\AnimationEventEditor.h">
       <Filter>Animation\Events</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_CompilationLog.h">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_Context.h">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_ControlParameterEditor.h">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_GraphEditor.h">
-      <Filter>Animation\GraphEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\GraphEditor\AnimationGraphEditor_VariationEditor.h">
-      <Filter>Animation\GraphEditor</Filter>
     </ClInclude>
     <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.h">
       <Filter>Animation\ResourceCompilers</Filter>
@@ -614,8 +586,8 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.h" />
-    <ClInclude Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph.h" />
-    <ClInclude Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_StateMachine.h" />
+    <ClInclude Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_FlowGraph.h" />
+    <ClInclude Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_StateMachineGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Variations.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_AnimationClip.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blends.h" />
@@ -641,6 +613,8 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_EntryStates.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_GlobalTransitions.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.h" />
+    <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.h" />
+    <ClInclude Include="Core\VisualGraph\VisualGraph_UserContext.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

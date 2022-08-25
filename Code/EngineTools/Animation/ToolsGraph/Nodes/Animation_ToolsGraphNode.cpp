@@ -3,23 +3,6 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation
-{
-    bool ToolsNodeContext::IsNodeActive( int16_t nodeIdx ) const
-    {
-        return m_pGraphInstance->IsNodeActive( nodeIdx );
-    }
-
-    #if EE_DEVELOPMENT_TOOLS
-    PoseNodeDebugInfo ToolsNodeContext::GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const
-    {
-        return m_pGraphInstance->GetPoseNodeDebugInfo( runtimeNodeIdx );
-    }
-    #endif
-}
-
-//-------------------------------------------------------------------------
-
 namespace EE::Animation::GraphNodes
 {
     constexpr static float const g_playbackBarMinimumWidth = 120;
@@ -112,9 +95,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FlowToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void FlowToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
         int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
@@ -128,11 +111,11 @@ namespace EE::Animation::GraphNodes
             if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
             {
                 PoseNodeDebugInfo const debugInfo = pGraphNodeContext->GetPoseNodeDebugInfo( runtimeNodeIdx );
-                DrawPoseNodeDebugInfo( ctx, GetSize().x, debugInfo );
+                DrawPoseNodeDebugInfo( ctx, GetWidth(), debugInfo );
             }
             else
             {
-                DrawEmptyPoseNodeDebugInfo( ctx, GetSize().x );
+                DrawEmptyPoseNodeDebugInfo( ctx, GetWidth() );
             }
 
             ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
@@ -228,9 +211,9 @@ namespace EE::Animation::GraphNodes
         DrawInfoText( ctx );
     }
 
-    bool FlowToolsNode::IsActive( VisualGraph::DrawContext const& ctx ) const
+    bool FlowToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             // Some nodes dont have runtime representations
@@ -254,11 +237,11 @@ namespace EE::Animation::GraphNodes
         return ImGuiX::ConvertColor( GetColorForValueType( (GraphValueType) pin.m_type ) );
     }
 
-    void FlowToolsNode::DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
+    void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
     {
         ImGui::Separator();
 
-        if ( ImGui::BeginMenu( "Node Info" ) )
+        if ( ImGui::BeginMenu( EE_ICON_INFORMATION_OUTLINE" Node Info" ) )
         {
             // UUID
             auto IDStr = GetID().ToString();
@@ -269,7 +252,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Draw runtime node index
-            auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+            auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
             if ( pGraphNodeContext->HasDebugData() )
             {
                 int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
@@ -290,7 +273,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ToolsState::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ToolsState::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         // State events
         //-------------------------------------------------------------------------
@@ -381,29 +364,29 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         ImVec2 const originalCursorPos = ImGui::GetCursorScreenPos();
-        float const width = Math::Max( GetSize().x, 40.0f );
+        float const width = Math::Max( GetWidth(), 40.0f );
         ImGui::InvisibleButton( "Spacer", ImVec2( width, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
 
         // Draw runtime debug info
         //-------------------------------------------------------------------------
 
         bool shouldDrawEmptyDebugInfoBlock = true;
-        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
             if ( runtimeNodeIdx != InvalidIndex && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
             {
                 PoseNodeDebugInfo const debugInfo = pGraphNodeContext->GetPoseNodeDebugInfo( runtimeNodeIdx );
-                DrawPoseNodeDebugInfo( ctx, GetSize().x, debugInfo );
+                DrawPoseNodeDebugInfo( ctx, GetWidth(), debugInfo);
                 shouldDrawEmptyDebugInfoBlock = false;
             }
         }
 
         if ( shouldDrawEmptyDebugInfoBlock )
         {
-            DrawEmptyPoseNodeDebugInfo( ctx, GetSize().x );
+            DrawEmptyPoseNodeDebugInfo( ctx, GetWidth() );
         }
 
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );

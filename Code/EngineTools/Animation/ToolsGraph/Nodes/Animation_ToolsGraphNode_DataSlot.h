@@ -25,7 +25,7 @@ namespace EE::Animation::GraphNodes
         virtual bool IsRenamable() const override { return true; }
         virtual void SetName( String const& newName ) override;
 
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
         virtual void PostPaste() override;
 
@@ -38,9 +38,11 @@ namespace EE::Animation::GraphNodes
 
         virtual char const* const GetDefaultSlotName() const { return "Slot"; }
 
-        bool AreSlotValuesValid() const;
-
+        // What resource is expected in this slot
         virtual ResourceTypeID GetSlotResourceTypeID() const { return ResourceTypeID(); }
+
+        // Should this node be created when we drop a resource of this type into the graph
+        virtual bool IsDragAndDropTargetForResourceType( ResourceTypeID typeID ) const { return GetSlotResourceTypeID() == typeID; }
 
         // This will return the final resolved resource value for this slot
         ResourceID GetResourceID( VariationHierarchy const& variationHierarchy, StringID variationID ) const;
@@ -68,6 +70,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
         String GetUniqueSlotName( String const& desiredName );
 
     protected:

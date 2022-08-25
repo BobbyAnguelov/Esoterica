@@ -4,7 +4,7 @@
 #include "Animation_ToolsGraphNode_State.h"
 #include "Animation_ToolsGraphNode_Result.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachine.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachineGraph.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_StateMachine.h"
 
 //-------------------------------------------------------------------------
@@ -25,13 +25,14 @@ namespace EE::Animation::GraphNodes
         pStateMachineGraph->CreateNode<GlobalTransitionConduitToolsNode>();
 
         // Create default state
-        auto pDefaultStateNode = pStateMachineGraph->CreateNode<BlendTreeStateToolsNode>();
+        auto pDefaultStateNode = pStateMachineGraph->CreateNode<StateToolsNode>();
         pDefaultStateNode->SetCanvasPosition( ImVec2( 0, 150 ) );
         pStateMachineGraph->SetDefaultEntryState( pDefaultStateNode->GetID() );
     }
 
-    void StateMachineToolsNode::OnShowNode()
+    void StateMachineToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
     {
+        FlowToolsNode::OnShowNode( pUserContext );
         auto pStateMachineGraph = Cast<StateMachineGraph>( GetChildGraph() );
         GetEntryStateOverrideConduit()->UpdateConditionsNode();
         GetGlobalTransitionConduit()->UpdateTransitionNodes();
@@ -251,13 +252,15 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto pBlendTreeStateNode = TryCast<BlendTreeStateToolsNode>( pBaseStateNode );
+        auto pBlendTreeStateNode = TryCast<StateToolsNode>( pBaseStateNode );
         if ( pBlendTreeStateNode != nullptr )
         {
             // Compile Blend Tree
             //-------------------------------------------------------------------------
 
-            ResultToolsNode const* pBlendTreeRoot = pBlendTreeStateNode->GetBlendTreeRootNode();
+            auto resultNodes = pBlendTreeStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+            EE_ASSERT( resultNodes.size() == 1 );
+            ResultToolsNode const* pBlendTreeRoot = resultNodes[0];
             EE_ASSERT( pBlendTreeRoot != nullptr );
 
             auto pBlendTreeNode = pBlendTreeRoot->GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -273,7 +276,9 @@ namespace EE::Animation::GraphNodes
             // Compile Layer Data
             //-------------------------------------------------------------------------
 
-            auto pLayerData = pBlendTreeStateNode->GetLayerDataNode();
+            auto dataNodes = pBlendTreeStateNode->GetSecondaryGraph()->FindAllNodesOfType<StateLayerDataToolsNode>();
+            EE_ASSERT( dataNodes.size() == 1 );
+            auto pLayerData = dataNodes[0];
             EE_ASSERT( pLayerData != nullptr );
 
             auto pLayerWeightNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 0 );

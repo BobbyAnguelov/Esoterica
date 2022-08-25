@@ -1,5 +1,5 @@
 #include "Animation_ToolsGraphNode_EntryStates.h"
-#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -68,9 +68,9 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void EntryStateOverrideConditionsToolsNode::OnShowNode()
+    void EntryStateOverrideConditionsToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
     {
-        FlowToolsNode::OnShowNode();
+        FlowToolsNode::OnShowNode( pUserContext );
         UpdateInputPins();
     }
 

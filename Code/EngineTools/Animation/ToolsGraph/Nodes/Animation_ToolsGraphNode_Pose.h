@@ -53,6 +53,7 @@ namespace EE::Animation::GraphNodes
 
         virtual char const* const GetDefaultSlotName() const override { return "Pose"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override { return AnimationClip::GetStaticResourceTypeID(); }
+        virtual bool IsDragAndDropTargetForResourceType( ResourceTypeID typeID ) const override { return false; }
 
     private:
 

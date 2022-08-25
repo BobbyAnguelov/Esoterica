@@ -23,7 +23,7 @@ namespace EE::VisualGraph
         protected:
 
             // Override this if you want to provide additional context menu options
-            virtual void DrawExtraContextMenuOptions( DrawContext const& ctx, Float2 const& mouseCanvasPos ) {}
+            virtual void DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos ) {}
         };
 
         //-------------------------------------------------------------------------
@@ -46,7 +46,7 @@ namespace EE::VisualGraph
             EE_REGISTER_TYPE( TransitionConduit );
 
             // Conduits are special since they are drawn as connections
-            virtual ImColor GetNodeBorderColor( VisualGraph::DrawContext const& ctx, NodeVisualState visualState ) const override;
+            virtual ImColor GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const override;
 
             inline UUID const GetStartStateID() const { return m_startStateID; }
             inline UUID const GetEndStateID() const { return m_endStateID; }

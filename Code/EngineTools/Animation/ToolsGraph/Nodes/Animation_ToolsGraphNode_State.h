@@ -24,22 +24,42 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    // A basic state
-    class BlendTreeStateToolsNode final : public ToolsState
+    class StateToolsNode final : public ToolsState
     {
         friend class StateMachineToolsNode;
-        EE_REGISTER_TYPE( BlendTreeStateToolsNode );
+        EE_REGISTER_TYPE( StateToolsNode );
 
     public:
 
-        ResultToolsNode const* GetBlendTreeRootNode() const;
-        StateLayerDataToolsNode const* GetLayerDataNode() const;
+        enum class StateType
+        {
+            EE_REGISTER_ENUM
+
+            BlendTreeState,
+            StateMachineState
+        };
+
+    public:
+
+        StateToolsNode() = default;
+        StateToolsNode( StateType type ) : m_type( type ) {}
+
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+
+        inline bool IsBlendTreeState() const { return m_type == StateType::BlendTreeState; }
+        inline bool IsStateMachineState() const { return m_type == StateType::StateMachineState; }
 
     private:
 
         virtual char const* GetTypeName() const override { return "State"; }
-        virtual void DrawExtraContextMenuOptions( VisualGraph::DrawContext const& ctx, Float2 const& mouseCanvasPos ) override;
+        virtual ImColor GetTitleBarColor() const override;
+        virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos ) override;
+        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+
+    private:
+
+        EE_REGISTER StateType m_type = StateType::BlendTreeState;
     };
 
     //-------------------------------------------------------------------------
@@ -53,7 +73,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual char const* GetTypeName() const override { return "Off State"; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::PaleVioletRed ); }
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx ) override;
+        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::DarkRed ); }
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
     };
 }

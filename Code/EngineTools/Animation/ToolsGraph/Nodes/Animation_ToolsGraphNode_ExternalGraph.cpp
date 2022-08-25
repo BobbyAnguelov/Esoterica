@@ -28,19 +28,19 @@ namespace EE::Animation::GraphNodes
         m_name = GetUniqueSlotName( newName );
     }
 
-    void ExternalGraphToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx )
+    void ExternalGraphToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         // Draw separator
         //-------------------------------------------------------------------------
 
-        float const spacerWidth = Math::Max( GetSize().x, 40.0f );
+        float const spacerWidth = Math::Max( GetWidth(), 40.0f );
         ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton( "S1", ImVec2( spacerWidth, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + Float2( 0, 4 ), originalCursorPos + Float2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
 
         //-------------------------------------------------------------------------
 
-        auto pGraphNodeContext = reinterpret_cast<ToolsNodeContext*>( ctx.m_pUserContext );
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
@@ -69,11 +69,11 @@ namespace EE::Animation::GraphNodes
 
         originalCursorPos = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton( "S2", ImVec2( spacerWidth, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetSize().x, 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ctx.m_pDrawList->AddLine( originalCursorPos + Float2( 0, 4 ), originalCursorPos + Float2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
 
         //-------------------------------------------------------------------------
 
-        FlowToolsNode::DrawExtraControls( ctx );
+        FlowToolsNode::DrawExtraControls( ctx, pUserContext );
     }
 
     String ExternalGraphToolsNode::GetUniqueSlotName( String const& desiredName )
@@ -106,6 +106,24 @@ namespace EE::Animation::GraphNodes
         m_name = GetUniqueSlotName( m_name );
     }
 
+    void ExternalGraphToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
+        {
+            int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+            if ( runtimeNodeIdx != InvalidIndex )
+            {
+                StringID const SlotID( GetName() );
+                GraphInstance const* pConnectedGraphInstance = pGraphNodeContext->m_pGraphInstance->GetExternalGraphDebugInstance( SlotID );
+                if ( pConnectedGraphInstance != nullptr )
+                {
+                    pGraphNodeContext->RequestOpenResource( pConnectedGraphInstance->GetDefinitionResourceID() );
+                }
+            }
+        }
+    }
+
     #if EE_DEVELOPMENT_TOOLS
     void ExternalGraphToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
     {
@@ -113,5 +131,4 @@ namespace EE::Animation::GraphNodes
         m_name = GetUniqueSlotName( m_name );
     }
     #endif
-
 }

@@ -1,4 +1,5 @@
 #include "VisualGraph_BaseGraph.h"
+#include "VisualGraph_UserContext.h"
 #include "System/Serialization/TypeSerialization.h"
 #include "System/TypeSystem/TypeRegistry.h"
 
@@ -203,7 +204,7 @@ namespace EE::VisualGraph
         m_pParentGraph->EndModification();
     }
 
-    void BaseNode::SetCanvasPosition( ImVec2 const& newPosition )
+    void BaseNode::SetCanvasPosition( Float2 const& newPosition )
     {
         BeginModification();
         m_canvasPosition = newPosition;
@@ -231,7 +232,7 @@ namespace EE::VisualGraph
         return m_ID;
     }
 
-    ImColor BaseNode::GetNodeBorderColor( DrawContext const& ctx, NodeVisualState visualState ) const
+    ImColor BaseNode::GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
     {
         if ( visualState == NodeVisualState::Active )
         {
@@ -249,6 +250,31 @@ namespace EE::VisualGraph
         {
             return ImColor( 0 );
         }
+    }
+
+    void BaseNode::OnDoubleClick( UserContext* pUserContext )
+    {
+        auto pChildGraph = GetChildGraph();
+        if ( pChildGraph != nullptr )
+        {
+            pUserContext->NavigateTo( pChildGraph );
+        }
+    }
+
+    ImRect BaseNode::GetCanvasRect() const
+    {
+        ImVec2 const nodeMargin = GetNodeMargin();
+        ImVec2 const rectMin = ImVec2( m_canvasPosition ) - nodeMargin;
+        ImVec2 const rectMax = ImVec2( m_canvasPosition ) + m_size + nodeMargin;
+        return ImRect( rectMin, rectMax );
+    }
+
+    ImRect BaseNode::GetWindowRect( Float2 const& canvasToWindowOffset ) const
+    {
+        ImVec2 const nodeMargin = GetNodeMargin();
+        ImVec2 const rectMin = ImVec2( m_canvasPosition ) - nodeMargin - canvasToWindowOffset;
+        ImVec2 const rectMax = ImVec2( m_canvasPosition ) + m_size + nodeMargin - canvasToWindowOffset;
+        return ImRect( rectMin, rectMax );
     }
 
     //-------------------------------------------------------------------------
@@ -495,11 +521,21 @@ namespace EE::VisualGraph
 
         return m_ID;
     }
-    void BaseGraph::OnShowGraph()
+
+    void BaseGraph::OnShowGraph( UserContext* pUserContext )
     {
         for ( auto pNode : m_nodes )
         {
-            pNode->OnShowNode();
+            pNode->OnShowNode( pUserContext );
+        }
+    }
+
+    void BaseGraph::OnDoubleClick( UserContext* pUserContext )
+    {
+        auto pParentNode = GetParentNode();
+        if ( pParentNode != nullptr )
+        {
+            pUserContext->NavigateTo( pParentNode->GetParentGraph() );
         }
     }
 }

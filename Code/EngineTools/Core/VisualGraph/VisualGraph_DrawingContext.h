@@ -91,8 +91,5 @@ namespace EE::VisualGraph
         ImRect              m_canvasVisibleRect;
         ImVec2              m_mouseScreenPos = ImVec2( 0, 0 );
         ImVec2              m_mouseCanvasPos = ImVec2( 0, 0 );
-
-        // User data to provide extra information with which to draw the extra node controls
-        void*               m_pUserContext = nullptr;
     };
 }

@@ -28,7 +28,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetTypeName() const override { return "Entry State Conditions"; }
         virtual char const* GetCategory() const override { return "State Machine"; }
         virtual bool IsUserCreatable() const override { return false; }
-        virtual void OnShowNode() override;
+        virtual void OnShowNode( VisualGraph::UserContext* pUserContext ) override;
 
     private:
 
