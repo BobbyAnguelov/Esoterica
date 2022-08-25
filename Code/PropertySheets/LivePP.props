@@ -2,7 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <LPP_INCLUDED>True</LPP_INCLUDED>
+    <LPP_INCLUDED>False</LPP_INCLUDED>
     <LPP_DIR>$(SolutionDir)External\LivePP\</LPP_DIR>
   </PropertyGroup>
   <ItemDefinitionGroup>
