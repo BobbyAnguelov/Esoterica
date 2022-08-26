@@ -203,7 +203,6 @@ namespace EE
         EE_FORCE_INLINE Vector& operator/=( float const f ) { return operator/=( Vector( f ) ); }
 
         EE_FORCE_INLINE Vector operator-() const { return GetNegated(); }
-        EE_FORCE_INLINE Vector& operator-() { Negate(); return *this; }
 
         EE_FORCE_INLINE Vector Orthogonal2D() const;
         EE_FORCE_INLINE Vector Cross2( Vector const& other ) const;

@@ -40,11 +40,14 @@ namespace EE::Animation::GraphNodes
         EE_EXPOSE Seconds                                      m_duration = 0.3f;
         EE_EXPOSE float                                        m_syncEventOffset = 0.0f;
         EE_EXPOSE bool                                         m_isSynchronized = false;
-        EE_EXPOSE bool                                         m_clampDurationToSource = true;
+        EE_EXPOSE bool                                         m_clampDurationToSource = false;
         EE_EXPOSE bool                                         m_keepSourceSyncEventIdx = false;
         EE_EXPOSE bool                                         m_keepSourceSyncEventPercentageThrough = false;
         EE_EXPOSE bool                                         m_canBeForced = false;
+        EE_EXPOSE StringID                                     m_blendPivotBoneID; // If this is set to a valid bone, this bone will be used as the blend pivot
     };
+
+    //-------------------------------------------------------------------------
 
     class TransitionConduitToolsNode final : public VisualGraph::SM::TransitionConduit
     {

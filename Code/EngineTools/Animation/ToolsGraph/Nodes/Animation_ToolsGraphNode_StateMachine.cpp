@@ -360,6 +360,7 @@ namespace EE::Animation::GraphNodes
         pSettings->m_rootMotionBlend = pTransitionNode->m_rootMotionBlend;
         pSettings->m_duration = pTransitionNode->m_duration;
         pSettings->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
+        pSettings->m_blendPivotBoneID = pTransitionNode->m_blendPivotBoneID;
 
         pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::Synchronized, pTransitionNode->m_isSynchronized );
         pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ClampDuration, pTransitionNode->m_clampDurationToSource );

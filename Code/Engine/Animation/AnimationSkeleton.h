@@ -56,10 +56,10 @@ namespace EE::Animation
         // Find the index of the first child encountered for the specified bone. Returns InvalidIndex if this is a leaf bone.
         int32_t GetFirstChildBoneIndex( int32_t boneIdx ) const;
 
-        // Returns whether the specified bone is a child of the specified parent bone
+        // Returns whether the specified bone is a descendant of the specified parent bone (checks entire hierarchy, not just immediate parents)
         bool IsChildBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const;
 
-        // Returns whether the specified bone is a parent of the specified child bone
+        // Returns whether the specified bone is a parent of the specified child bone (checks entire hierarchy, not just immediate parents)
         EE_FORCE_INLINE bool IsParentBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const { return IsChildBoneOf( parentBoneIdx, childBoneIdx ); }
 
         // Returns whether the specified bone is a child of the specified parent bone
@@ -96,7 +96,7 @@ namespace EE::Animation
     private:
 
         TVector<StringID>                   m_boneIDs;
-        TVector<int32_t>                      m_parentIndices;
+        TVector<int32_t>                    m_parentIndices;
         TVector<Transform>                  m_localReferencePose;
         TVector<Transform>                  m_globalReferencePose;
         TVector<TBitFlags<BoneFlags>>       m_boneFlags;

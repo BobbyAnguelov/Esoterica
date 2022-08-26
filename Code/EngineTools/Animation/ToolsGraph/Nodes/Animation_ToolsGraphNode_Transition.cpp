@@ -1,6 +1,7 @@
 #include "Animation_ToolsGraphNode_Transition.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,6 +18,14 @@ namespace EE::Animation::GraphNodes
 
     void TransitionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
+        float const separatorWidth = GetWidth() == 0 ? 20 : GetWidth();
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
+        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::Style::s_colorText );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+
+        //-------------------------------------------------------------------------
+
         switch ( m_rootMotionBlend )
         {
             case RootMotionBlendMode::Blend:
@@ -35,6 +44,13 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         ImGui::Text( "Duration: %.2fs", m_duration.ToFloat() );
+
+        if ( m_clampDurationToSource )
+        {
+            ImGui::Text( "Clamped To Source" );
+        }
+
+        //-------------------------------------------------------------------------
 
         if ( m_isSynchronized )
         {
@@ -63,6 +79,13 @@ namespace EE::Animation::GraphNodes
         if ( m_canBeForced )
         {
             ImGui::Text( "Forced" );
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_blendPivotBoneID.IsValid() )
+        {
+            ImGui::Text( "Pivot: %s", m_blendPivotBoneID.c_str() );
         }
     }
 

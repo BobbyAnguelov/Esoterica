@@ -1089,7 +1089,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
     {
-        if ( IsPreviewing() )
+        if ( IsPreviewDebugSession() )
         {
             if ( !m_pDebugGraphComponent->IsInitialized() )
             {
@@ -1107,21 +1107,8 @@ namespace EE::Animation
                 m_userContext.m_pGraphInstance = m_pDebugGraphInstance;
                 m_isFirstPreviewFrame = false;
             }
-
-            //-------------------------------------------------------------------------
-
-            if ( updateContext.GetUpdateStage() == UpdateStage::FrameEnd )
-            {
-                if ( !updateContext.IsWorldPaused() )
-                {
-                    Transform const& WT = m_pPreviewEntity->GetWorldTransform();
-                    Transform const& RMD = m_pDebugGraphComponent->GetRootMotionDelta();
-                    m_characterTransform = RMD * WT;
-                    m_pPreviewEntity->SetWorldTransform( m_characterTransform );
-                }
-            }
         }
-        else if ( IsLiveDebugging() )
+        else if ( IsLiveDebugSession() )
         {
             // Check if the entity we are debugging still exists
             auto pDebuggedEntity = m_pToolsContext->TryFindEntityInAllWorlds( m_debuggedEntityID );
@@ -1298,6 +1285,7 @@ namespace EE::Animation
             ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
 
             m_pDebugGraphComponent = EE::New<AnimationGraphComponent>( StringID( "Animation Component" ) );
+            m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
             m_pDebugGraphComponent->SetGraphVariation( graphVariationResourceID );
             m_pDebugGraphInstance = nullptr; // This will be set later when the component initializes
 
@@ -1415,8 +1403,11 @@ namespace EE::Animation
         // Adjust Camera
         //-------------------------------------------------------------------------
 
-        OBB const bounds = OBB( m_characterTransform.GetTranslation(), Vector::One );
-        m_pCamera->FocusOn( bounds );
+        if ( !isPreviewDebugSessionRequested )
+        {
+            OBB const bounds = OBB( m_characterTransform.GetTranslation(), Vector::One );
+            m_pCamera->FocusOn( bounds );
+        }
 
         if ( m_isCameraTrackingEnabled )
         {
@@ -1458,11 +1449,14 @@ namespace EE::Animation
         // Reset debug mode
         //-------------------------------------------------------------------------
 
-        SetViewportCameraTransform( m_cameraOffsetTransform );
-        m_previousCameraTransform = m_cameraOffsetTransform;
-        m_debugMode = DebugMode::None;
+        if ( IsLiveDebugSession() )
+        {
+            SetViewportCameraTransform( m_cameraOffsetTransform );
+            m_previousCameraTransform = m_cameraOffsetTransform;
+            ResetCameraView();
+        }
 
-        ResetCameraView();
+        m_debugMode = DebugMode::None;
     }
 
     void AnimationGraphWorkspace::ReflectInitialPreviewParameterValues( UpdateContext const& context )

@@ -209,8 +209,8 @@ namespace EE::Animation
         void DrawDebuggerWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         inline bool IsDebugging() const { return m_debugMode != DebugMode::None; }
-        inline bool IsPreviewing() const { return m_debugMode == DebugMode::Preview; }
-        inline bool IsLiveDebugging() const { return m_debugMode == DebugMode::LiveDebug; }
+        inline bool IsPreviewDebugSession() const { return m_debugMode == DebugMode::Preview; }
+        inline bool IsLiveDebugSession() const { return m_debugMode == DebugMode::LiveDebug; }
 
         // Starts a debugging session. If a target component is provided we assume we are attaching to a live game 
         void StartDebugging( UpdateContext const& context, DebugTarget target );

@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_blendPivotBoneID );
 
         public:
 
@@ -56,14 +56,15 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                      m_targetStateNodeIdx = InvalidIndex;
-            int16_t                      m_durationOverrideNodeIdx = InvalidIndex;
-            int16_t                      m_syncEventOffsetOverrideNodeIdx = InvalidIndex;
+            int16_t                             m_targetStateNodeIdx = InvalidIndex;
+            int16_t                             m_durationOverrideNodeIdx = InvalidIndex;
+            int16_t                             m_syncEventOffsetOverrideNodeIdx = InvalidIndex;
             Math::Easing::Type                  m_blendWeightEasingType = Math::Easing::Type::Linear;
             RootMotionBlendMode                 m_rootMotionBlend = RootMotionBlendMode::Blend;
             Seconds                             m_duration = 0;
             float                               m_syncEventOffset = 0;
             TBitFlags<TransitionOptions>        m_transitionOptions;
+            StringID                            m_blendPivotBoneID;
         };
 
     public:
@@ -120,11 +121,11 @@ namespace EE::Animation::GraphNodes
         FloatValueNode*                         m_pDurationOverrideNode = nullptr;
         FloatValueNode*                         m_pEventOffsetOverrideNode = nullptr;
         BoneMask                                m_boneMask;
+        SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
         float                                   m_transitionDuration = 0; // This is either time in seconds, or percentage of the sync track
-        int32_t                                   m_syncEventOffset = 0;
+        int32_t                                 m_syncEventOffset = 0;
         float                                   m_blendWeight = 0;
-        SyncTrack                               m_syncTrack;
 
         UUID                                    m_cachedPoseBufferID;                   // The buffer we are currently caching to
         UUID                                    m_sourceCachedPoseBufferID;             // The buffer we are reading from (in the case of an interrupted transition)
@@ -132,10 +133,13 @@ namespace EE::Animation::GraphNodes
         float                                   m_sourceCachedPoseBlendWeight = 0.0f;
 
         SourceType                              m_sourceType = SourceType::State;
+        Vector                                  m_pivotOffset = Vector::Zero;
+        bool                                    m_shouldApplyPivotOffset = false;
+        bool                                    m_isFirstTaskRegistrationUpdate = true;
 
         #if EE_DEVELOPMENT_TOOLS
-        int16_t                                   m_rootMotionActionIdxSource = InvalidIndex;
-        int16_t                                   m_rootMotionActionIdxTarget = InvalidIndex;
+        int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;
+        int16_t                                 m_rootMotionActionIdxTarget = InvalidIndex;
         #endif
     };
 }

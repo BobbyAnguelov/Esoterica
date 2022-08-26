@@ -245,7 +245,16 @@ namespace EE::Animation
         // Handle bone selection
         if( ImGui::IsItemClicked() )
         {
-            m_selectedBoneID = m_pResource->GetBoneID( pBone->m_boneIdx );
+            m_selectedBoneID = currentBoneID;
+        }
+
+        if ( ImGui::BeginPopupContextItem( "BoneCM" ) )
+        {
+            if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY" Copy Bone ID" ) )
+            {
+                ImGui::SetClipboardText( currentBoneID.c_str() );
+            }
+            ImGui::EndPopup();
         }
 
         //-------------------------------------------------------------------------

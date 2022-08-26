@@ -185,16 +185,20 @@ namespace EE::Animation
                     pAnimComponent->EvaluateGraph( ctx.GetDeltaTime(), characterWorldTransform, pPhysicsWorldSystem->GetScene() );
 
                     // Apply the root motion if desired
+                    Transform adjustedCharacterTransform = characterWorldTransform;
                     if ( m_pRootComponent != nullptr && pAnimComponent->ShouldApplyRootMotionToEntity() )
                     {
                         Transform rootMotionDelta = pAnimComponent->GetRootMotionDelta();
                         Transform worldTransform = m_pRootComponent->GetWorldTransform();
                         worldTransform = rootMotionDelta * worldTransform;
                         m_pRootComponent->SetWorldTransform( worldTransform );
+
+                        // Shift character world transform
+                        adjustedCharacterTransform = rootMotionDelta * characterWorldTransform;
                     }
 
                     // Calculate pose tasks
-                    pAnimComponent->ExecutePrePhysicsTasks( ctx.GetDeltaTime(), characterWorldTransform );
+                    pAnimComponent->ExecutePrePhysicsTasks( ctx.GetDeltaTime(), adjustedCharacterTransform );
                 }
             }
         }

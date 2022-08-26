@@ -39,6 +39,9 @@ namespace EE::Animation
         // (Note: only works if we dont require a manual update)
         inline bool ShouldApplyRootMotionToEntity() const { return m_applyRootMotionToEntity; }
 
+        // Set whether root motion is automatically applied to the entity
+        inline void ShouldApplyRootMotionToEntity( bool isEnabled ) { m_applyRootMotionToEntity = isEnabled; }
+
         // Gets the root motion delta for the last update (Note: this delta is in character space!)
         inline Transform const& GetRootMotionDelta() const { return m_rootMotionDelta; }
 
