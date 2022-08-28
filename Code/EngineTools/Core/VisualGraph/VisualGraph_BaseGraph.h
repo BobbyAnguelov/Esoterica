@@ -85,10 +85,10 @@ namespace EE::VisualGraph
         virtual char const* GetIcon() const { return nullptr; }
 
         // Can this node be renamed via user input
-        virtual bool IsRenamable() const { return false; }
+        virtual bool IsRenameable() const { return false; }
 
         // Override this function to set a node's name
-        virtual void SetName( String const& newName ) { EE_ASSERT( IsRenamable() ); }
+        virtual void SetName( String const& newName ) { EE_ASSERT( IsRenameable() ); }
 
         // Should this node be drawn?
         virtual bool IsVisible() const { return true; }
@@ -409,6 +409,9 @@ namespace EE::VisualGraph
             }
             return results;
         }
+
+        // Get a unique name for a renameable node within this graph
+        String GetUniqueNameForRenameableNode( String const& desiredName, BaseNode const* m_pNodeToIgnore = nullptr ) const;
 
     protected:
 

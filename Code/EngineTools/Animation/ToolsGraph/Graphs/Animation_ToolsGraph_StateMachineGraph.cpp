@@ -38,10 +38,10 @@ namespace EE::Animation
 
     bool StateMachineGraph::CanDeleteNode( VisualGraph::BaseNode const* pNode ) const
     {
-        auto pStateNode = TryCast<ToolsState>( pNode );
+        auto pStateNode = TryCast<StateToolsNode>( pNode );
         if ( pStateNode != nullptr )
         {
-            auto const stateNodes = FindAllNodesOfType<ToolsState>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+            auto const stateNodes = FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
             return stateNodes.size() > 1;
         }
 
@@ -77,30 +77,27 @@ namespace EE::Animation
 
     void StateMachineGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
     {
-        if ( ImGui::MenuItem( "Blend Tree State" ) )
+        auto const CreateState = [&, this] ( StateToolsNode::StateType type )
         {
             VisualGraph::ScopedGraphModification sgm( this );
-
-            auto pStateNode = CreateNode<StateToolsNode>( StateToolsNode::StateType::BlendTreeState );
+            auto pStateNode = CreateNode<StateToolsNode>( type );
             pStateNode->SetCanvasPosition( mouseCanvasPos );
             UpdateDependentNodes();
+        };
+
+        if ( ImGui::MenuItem( "Blend Tree State" ) )
+        {
+            CreateState( StateToolsNode::StateType::BlendTreeState );
         }
 
         if ( ImGui::MenuItem( "State Machine State" ) )
         {
-            VisualGraph::ScopedGraphModification sgm( this );
-
-            auto pStateNode = CreateNode<StateToolsNode>( StateToolsNode::StateType::StateMachineState );
-            pStateNode->SetCanvasPosition( mouseCanvasPos );
-            UpdateDependentNodes();
+            CreateState( StateToolsNode::StateType::StateMachineState );
         }
 
         if ( ImGui::MenuItem( "Off State" ) )
         {
-            VisualGraph::ScopedGraphModification sgm( this );
-            auto pStateNode = CreateNode<OffStateToolsNode>();
-            pStateNode->SetCanvasPosition( mouseCanvasPos );
-            UpdateDependentNodes();
+            CreateState( StateToolsNode::StateType::OffState );
         }
     }
 
@@ -122,7 +119,7 @@ namespace EE::Animation
 
     void StateMachineGraph::DrawExtraInformation( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto const stateNodes = FindAllNodesOfType<ToolsState>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto const stateNodes = FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pStateNode : stateNodes )
         {
             ImRect const nodeRect = pStateNode->GetWindowRect( ctx.m_viewOffset );
@@ -144,5 +141,4 @@ namespace EE::Animation
             }
         }
     }
-
 }

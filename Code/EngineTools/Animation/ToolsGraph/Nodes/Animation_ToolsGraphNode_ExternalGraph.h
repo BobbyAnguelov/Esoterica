@@ -15,7 +15,7 @@ namespace EE::Animation::GraphNodes
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
         virtual char const* GetName() const override { return m_name.c_str(); }
-        virtual bool IsRenamable() const override { return true; }
+        virtual bool IsRenameable() const override { return true; }
         virtual void SetName( String const& newName ) override;
 
         virtual char const* GetTypeName() const override { return "External Graph"; }

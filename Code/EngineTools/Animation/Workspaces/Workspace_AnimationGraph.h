@@ -130,6 +130,7 @@ namespace EE::Animation
         void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
         void NavigateTo( VisualGraph::BaseGraph* pGraph );
         void DrawGraphView( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawGraphViewNavigationBar();
         void UpdateSecondaryViewState();
 
         // Property Grid
@@ -218,9 +219,10 @@ namespace EE::Animation
         // Ends the current debug session
         void StopDebugging();
 
-        // 
+        // Set's the preview graph parameters to their default preview values
         void ReflectInitialPreviewParameterValues( UpdateContext const& context );
 
+        // Draw all the debug options for this graph
         void DrawLiveDebugTargetsMenu( UpdateContext const& context );
 
         // Calculate the offset at which to place the camera when tracking
@@ -228,61 +230,61 @@ namespace EE::Animation
 
     private:
 
-        String                              m_controlParametersWindowName;
-        String                              m_graphViewWindowName;
-        String                              m_propertyGridWindowName;
-        String                              m_variationEditorWindowName;
-        String                              m_compilationLogWindowName;
-        String                              m_debuggerWindowName;
-        PropertyGrid                        m_propertyGrid;
-        Transform                           m_gizmoTransform;
-        GraphUndoableAction*                m_pActiveUndoableAction = nullptr;
-        GraphOperationType                  m_activeOperation = GraphOperationType::None;
+        String                                                          m_controlParametersWindowName;
+        String                                                          m_graphViewWindowName;
+        String                                                          m_propertyGridWindowName;
+        String                                                          m_variationEditorWindowName;
+        String                                                          m_compilationLogWindowName;
+        String                                                          m_debuggerWindowName;
+        PropertyGrid                                                    m_propertyGrid;
+        Transform                                                       m_gizmoTransform;
+        GraphUndoableAction*                                            m_pActiveUndoableAction = nullptr;
+        GraphOperationType                                              m_activeOperation = GraphOperationType::None;
 
-        EventBindingID                      m_rootGraphBeginModificationBindingID;
-        EventBindingID                      m_rootGraphEndModificationBindingID;
-        EventBindingID                      m_preEditEventBindingID;
-        EventBindingID                      m_postEditEventBindingID;
-        
+        EventBindingID                                                  m_rootGraphBeginModificationBindingID;
+        EventBindingID                                                  m_rootGraphEndModificationBindingID;
+        EventBindingID                                                  m_preEditEventBindingID;
+        EventBindingID                                                  m_postEditEventBindingID;
 
         // Graph Type Data
         TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
         CategoryTree<TypeSystem::TypeInfo const*>                       m_categorizedNodeTypes;
 
         // Graph Data
-        FileSystem::Path                    m_graphFilePath;
-        ToolsGraphDefinition                m_toolsGraph;
-        TVector<VisualGraph::SelectedNode>  m_selectedNodes;
-        TVector<VisualGraph::SelectedNode>  m_selectedNodesPreUndoRedo;
-        StringID                            m_selectedVariationID = Variation::s_defaultVariationID; // NOTE: Do not set this directly!!! Use the provided functions
+        FileSystem::Path                                                m_graphFilePath;
+        ToolsGraphDefinition                                            m_toolsGraph;
+        TVector<VisualGraph::SelectedNode>                              m_selectedNodes;
+        TVector<VisualGraph::SelectedNode>                              m_selectedNodesPreUndoRedo;
+        StringID                                                        m_selectedVariationID = Variation::s_defaultVariationID; // NOTE: Do not set this directly!!! Use the provided functions
 
         // User Context
-        ToolsGraphUserContext               m_userContext;
-        EventBindingID                      m_navigateToNodeEventBindingID;
-        EventBindingID                      m_navigateToGraphEventBindingID;
-        EventBindingID                      m_resourceOpenRequestEventBindingID;
+        ToolsGraphUserContext                                           m_userContext;
+        EventBindingID                                                  m_navigateToNodeEventBindingID;
+        EventBindingID                                                  m_navigateToGraphEventBindingID;
+        EventBindingID                                                  m_resourceOpenRequestEventBindingID;
 
         // Graph view
-        float                               m_primaryGraphViewHeight = 300;
-        VisualGraph::GraphView              m_primaryGraphView;
-        VisualGraph::GraphView              m_secondaryGraphView;
-        VisualGraph::GraphView*             m_pFocusedGraphView = nullptr;
-        UUID                                m_primaryViewGraphID;
+        float                                                           m_primaryGraphViewHeight = 300;
+        VisualGraph::GraphView                                          m_primaryGraphView;
+        VisualGraph::GraphView                                          m_secondaryGraphView;
+        VisualGraph::GraphView*                                         m_pFocusedGraphView = nullptr;
+        UUID                                                            m_primaryViewGraphID;
+        VisualGraph::BaseNode*                                          m_pBreadcrumbPopupContext = nullptr;
 
         // Debug
-        DebugMode                           m_debugMode = DebugMode::None;
-        EntityID                            m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
-        ComponentID                         m_debuggedComponentID;
-        AnimationGraphComponent*            m_pDebugGraphComponent = nullptr;
-        Render::SkeletalMeshComponent*      m_pDebugMeshComponent = nullptr;
-        GraphInstance*                      m_pDebugGraphInstance = nullptr;
-        StringID                            m_debugExternalGraphSlotID = StringID();
-        GraphDebugMode                      m_graphDebugMode = GraphDebugMode::On;
-        RootMotionDebugMode                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
-        TaskSystemDebugMode                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
+        DebugMode                                                       m_debugMode = DebugMode::None;
+        EntityID                                                        m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
+        ComponentID                                                     m_debuggedComponentID;
+        AnimationGraphComponent*                                        m_pDebugGraphComponent = nullptr;
+        Render::SkeletalMeshComponent*                                  m_pDebugMeshComponent = nullptr;
+        GraphInstance*                                                  m_pDebugGraphInstance = nullptr;
+        StringID                                                        m_debugExternalGraphSlotID = StringID();
+        GraphDebugMode                                                  m_graphDebugMode = GraphDebugMode::On;
+        RootMotionDebugMode                                             m_rootMotionDebugMode = RootMotionDebugMode::Off;
+        TaskSystemDebugMode                                             m_taskSystemDebugMode = TaskSystemDebugMode::Off;
 
         // Compilation Log
-        TVector<NodeCompilationLogEntry>    m_compilationLog;
+        TVector<NodeCompilationLogEntry>                                m_compilationLog;
 
         // Control Parameter Editor
         TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
@@ -296,19 +298,19 @@ namespace EE::Animation
         CountdownTimer<EngineClock>                                     m_updateCacheTimer;
 
         // Variation Editor
-        StringID                            m_activeOperationVariationID;
-        char                                m_buffer[255] = { 0 };
-        Resource::ResourceFilePicker        m_resourcePicker;
+        StringID                                                        m_activeOperationVariationID;
+        char                                                            m_buffer[255] = { 0 };
+        Resource::ResourceFilePicker                                    m_resourcePicker;
 
         // Preview
-        Physics::PhysicsSystem*             m_pPhysicsSystem = nullptr;
-        Entity*                             m_pPreviewEntity = nullptr;
-        Transform                           m_previewStartTransform = Transform::Identity;
-        Transform                           m_characterTransform = Transform::Identity;
-        Transform                           m_cameraOffsetTransform = Transform::Identity;
-        Transform                           m_previousCameraTransform = Transform::Identity;
-        bool                                m_startPaused = false;
-        bool                                m_isFirstPreviewFrame = false;
-        bool                                m_isCameraTrackingEnabled = true;
+        Physics::PhysicsSystem*                                         m_pPhysicsSystem = nullptr;
+        Entity*                                                         m_pPreviewEntity = nullptr;
+        Transform                                                       m_previewStartTransform = Transform::Identity;
+        Transform                                                       m_characterTransform = Transform::Identity;
+        Transform                                                       m_cameraOffsetTransform = Transform::Identity;
+        Transform                                                       m_previousCameraTransform = Transform::Identity;
+        bool                                                            m_startPaused = false;
+        bool                                                            m_isFirstPreviewFrame = false;
+        bool                                                            m_isCameraTrackingEnabled = true;
     };
 }

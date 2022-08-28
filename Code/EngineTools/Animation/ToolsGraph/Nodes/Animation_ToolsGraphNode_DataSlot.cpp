@@ -71,7 +71,7 @@ namespace EE::Animation::GraphNodes
 
     void DataSlotToolsNode::SetName( String const& newName )
     {
-        EE_ASSERT( IsRenamable() );
+        EE_ASSERT( IsRenameable() );
         VisualGraph::ScopedNodeModification const snm( this );
         m_name = GetUniqueSlotName( newName );
     }

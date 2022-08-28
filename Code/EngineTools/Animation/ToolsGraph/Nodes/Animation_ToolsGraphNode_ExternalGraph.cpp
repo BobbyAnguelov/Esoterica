@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
 
     void ExternalGraphToolsNode::SetName( String const& newName )
     {
-        EE_ASSERT( IsRenamable() );
+        EE_ASSERT( IsRenameable() );
         m_name = GetUniqueSlotName( newName );
     }
 

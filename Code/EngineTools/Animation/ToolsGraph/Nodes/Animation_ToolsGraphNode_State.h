@@ -24,10 +24,20 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class StateToolsNode final : public ToolsState
+    class StateToolsNode final : public VisualGraph::SM::State
     {
         friend class StateMachineToolsNode;
         EE_REGISTER_TYPE( StateToolsNode );
+
+    public:
+
+        struct TimedStateEvent : public IRegisteredType
+        {
+            EE_REGISTER_TYPE( TimedStateEvent );
+
+            EE_EXPOSE StringID                 m_ID;
+            EE_EXPOSE Seconds                  m_timeValue;
+        };
 
     public:
 
@@ -35,6 +45,7 @@ namespace EE::Animation::GraphNodes
         {
             EE_REGISTER_ENUM
 
+            OffState,
             BlendTreeState,
             StateMachineState
         };
@@ -46,6 +57,11 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
+        virtual char const* GetName() const override { return m_name.c_str(); }
+        virtual bool IsRenameable() const override { return true; }
+        virtual void SetName( String const& newName ) override { EE_ASSERT( IsRenameable() ); m_name = newName; }
+
+        inline bool IsOffState() const { return m_type == StateType::OffState; }
         inline bool IsBlendTreeState() const { return m_type == StateType::BlendTreeState; }
         inline bool IsStateMachineState() const { return m_type == StateType::StateMachineState; }
 
@@ -59,21 +75,12 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER StateType m_type = StateType::BlendTreeState;
-    };
-
-    //-------------------------------------------------------------------------
-
-    // An off-state
-    class OffStateToolsNode final : public ToolsState
-    {
-        friend class StateMachineToolsNode;
-        EE_REGISTER_TYPE( OffStateToolsNode );
-
-    private:
-
-        virtual char const* GetTypeName() const override { return "Off State"; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::DarkRed ); }
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+        EE_REGISTER String                      m_name = "State";
+        EE_EXPOSE TVector<StringID>             m_entryEvents;
+        EE_EXPOSE TVector<StringID>             m_executeEvents;
+        EE_EXPOSE TVector<StringID>             m_exitEvents;
+        EE_EXPOSE TVector<TimedStateEvent>      m_timeRemainingEvents;
+        EE_EXPOSE TVector<TimedStateEvent>      m_timeElapsedEvents;
+        EE_REGISTER StateType                   m_type = StateType::BlendTreeState;
     };
 }

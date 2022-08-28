@@ -22,7 +22,7 @@ namespace EE::Animation::GraphNodes
     public:
 
         virtual char const* GetName() const override { return m_name.c_str(); }
-        virtual bool IsRenamable() const override { return true; }
+        virtual bool IsRenameable() const override { return true; }
         virtual void SetName( String const& newName ) override;
 
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;

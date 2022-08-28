@@ -10,7 +10,7 @@ namespace EE::Animation::GraphNodes
     constexpr static float const g_playbackBarHeight = 10;
     constexpr static float const g_playbackBarMarkerSize = 4;
 
-    static void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo )
+    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo )
     {
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 2.0f );
 
@@ -59,7 +59,7 @@ namespace EE::Animation::GraphNodes
         ImGui::Text( "Event: %d, %.1f%%", debugInfo.m_currentSyncTime.m_eventIdx, debugInfo.m_currentSyncTime.m_percentageThrough.ToFloat() * 100 );
     }
 
-    static void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width )
+    void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width )
     {
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4.0f );
 
@@ -269,126 +269,5 @@ namespace EE::Animation::GraphNodes
 
             ImGui::EndMenu();
         }
-    }
-
-    //-------------------------------------------------------------------------
-
-    void ToolsState::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
-    {
-        // State events
-        //-------------------------------------------------------------------------
-
-        InlineString string;
-        auto CreateEventString = [&] ( TVector<StringID> const& IDs )
-        {
-            string.clear();
-            for ( int32_t i = 0; i < (int32_t) IDs.size(); i++ )
-            {
-                if ( !IDs[i].IsValid() )
-                {
-                    continue;
-                }
-
-                string += IDs[i].c_str();
-
-                if ( i != IDs.size() - 1 )
-                {
-                    string += ", ";
-                }
-            }
-        };
-
-        auto CreateTimedEventString = [&] ( TVector<TimedStateEvent> const& events )
-        {
-            string.clear();
-            for ( int32_t i = 0; i < (int32_t) events.size(); i++ )
-            {
-                if ( !events[i].m_ID.IsValid() )
-                {
-                    continue;
-                }
-
-                InlineString const eventStr( InlineString::CtorSprintf(), "%s (%.2fs)", events[i].m_ID.c_str(), events[i].m_timeValue.ToFloat() );
-                string += eventStr.c_str();
-
-                if ( i != events.size() - 1 )
-                {
-                    string += ", ";
-                }
-            }
-        };
-
-        bool hasStateEvents = false;
-
-        if ( !m_entryEvents.empty() )
-        {
-            CreateEventString( m_entryEvents );
-            ImGui::Text( "Entry: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_executeEvents.empty() )
-        {
-            CreateEventString( m_executeEvents );
-            ImGui::Text( "Execute: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_exitEvents.empty() )
-        {
-            CreateEventString( m_exitEvents );
-            ImGui::Text( "Exit: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_timeRemainingEvents.empty() )
-        {
-            CreateTimedEventString( m_timeRemainingEvents );
-            ImGui::Text( "Time Left: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_timeElapsedEvents.empty() )
-        {
-            CreateTimedEventString( m_timeElapsedEvents );
-            ImGui::Text( "Time Elapsed: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !hasStateEvents )
-        {
-            ImGui::Text( "No State Events" );
-        }
-
-        // Draw separator
-        //-------------------------------------------------------------------------
-
-        ImVec2 const originalCursorPos = ImGui::GetCursorScreenPos();
-        float const width = Math::Max( GetWidth(), 40.0f );
-        ImGui::InvisibleButton( "Spacer", ImVec2( width, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
-
-        // Draw runtime debug info
-        //-------------------------------------------------------------------------
-
-        bool shouldDrawEmptyDebugInfoBlock = true;
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
-        if ( pGraphNodeContext->HasDebugData() )
-        {
-            int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
-            if ( runtimeNodeIdx != InvalidIndex && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
-            {
-                PoseNodeDebugInfo const debugInfo = pGraphNodeContext->GetPoseNodeDebugInfo( runtimeNodeIdx );
-                DrawPoseNodeDebugInfo( ctx, GetWidth(), debugInfo);
-                shouldDrawEmptyDebugInfoBlock = false;
-            }
-        }
-
-        if ( shouldDrawEmptyDebugInfoBlock )
-        {
-            DrawEmptyPoseNodeDebugInfo( ctx, GetWidth() );
-        }
-
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
     }
 }

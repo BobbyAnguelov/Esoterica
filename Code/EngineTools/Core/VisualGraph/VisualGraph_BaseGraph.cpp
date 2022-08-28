@@ -538,4 +538,46 @@ namespace EE::VisualGraph
             pUserContext->NavigateTo( pParentNode->GetParentGraph() );
         }
     }
+
+    String BaseGraph::GetUniqueNameForRenameableNode( String const& desiredName, BaseNode const* m_pNodeToIgnore ) const
+    {
+        String uniqueName = desiredName;
+        bool isNameUnique = false;
+        int32_t suffix = 0;
+
+        while ( !isNameUnique )
+        {
+            isNameUnique = true;
+
+            // Check control parameters
+            for ( auto pNode : m_nodes )
+            {
+                // Ignore specified node
+                if ( pNode == m_pNodeToIgnore )
+                {
+                    continue;
+                }
+
+                // Only check other renameable nodes
+                if ( !pNode->IsRenameable() )
+                {
+                    continue;
+                }
+
+                if ( pNode->GetName() == uniqueName )
+                {
+                    isNameUnique = false;
+                    break;
+                }
+            }
+
+            if ( !isNameUnique )
+            {
+                uniqueName.sprintf( "%s_%d", desiredName.c_str(), suffix);
+                suffix++;
+            }
+        }
+
+        return uniqueName;
+    }
 }

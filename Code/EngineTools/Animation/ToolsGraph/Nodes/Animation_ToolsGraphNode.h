@@ -9,6 +9,7 @@
 namespace EE::Animation
 {
     class GraphCompilationContext;
+    struct PoseNodeDebugInfo;
 
     //-------------------------------------------------------------------------
 
@@ -26,6 +27,11 @@ namespace EE::Animation
 
 namespace EE::Animation::GraphNodes
 {
+    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo );
+    void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width );
+
+    //-------------------------------------------------------------------------
+
     class FlowToolsNode : public VisualGraph::Flow::Node
     {
         EE_REGISTER_TYPE( FlowToolsNode );
@@ -73,42 +79,5 @@ namespace EE::Animation::GraphNodes
         virtual bool IsActive( VisualGraph::UserContext* pUserContext ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
-    };
-
-    //-------------------------------------------------------------------------
-
-    class ToolsState : public VisualGraph::SM::State
-    {
-        friend class StateMachineToolsNode;
-        EE_REGISTER_TYPE( ToolsState );
-
-    public:
-
-        struct TimedStateEvent : public IRegisteredType
-        {
-            EE_REGISTER_TYPE( TimedStateEvent );
-
-            EE_EXPOSE StringID                 m_ID;
-            EE_EXPOSE Seconds                  m_timeValue;
-        };
-
-    public:
-
-        virtual char const* GetName() const override { return m_name.c_str(); }
-        virtual bool IsRenamable() const override { return true; }
-        virtual void SetName( String const& newName ) override { EE_ASSERT( IsRenamable() ); m_name = newName; }
-
-    protected:
-
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
-
-    protected:
-
-        EE_EXPOSE String                       m_name = "State";
-        EE_EXPOSE TVector<StringID>            m_entryEvents;
-        EE_EXPOSE TVector<StringID>            m_executeEvents;
-        EE_EXPOSE TVector<StringID>            m_exitEvents;
-        EE_EXPOSE TVector<TimedStateEvent>     m_timeRemainingEvents;
-        EE_EXPOSE TVector<TimedStateEvent>     m_timeElapsedEvents;
     };
 }

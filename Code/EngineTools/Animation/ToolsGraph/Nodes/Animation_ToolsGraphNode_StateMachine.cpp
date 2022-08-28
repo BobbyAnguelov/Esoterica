@@ -67,7 +67,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         auto pStateMachineGraph = Cast<StateMachineGraph>( GetChildGraph() );
-        auto stateNodes = pStateMachineGraph->FindAllNodesOfType<ToolsState>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto stateNodes = pStateMachineGraph->FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         int32_t const numStateNodes = (int32_t) stateNodes.size();
         EE_ASSERT( numStateNodes >= 1 );
 
@@ -236,29 +236,33 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    int16_t StateMachineToolsNode::CompileState( GraphCompilationContext& context, ToolsState const* pBaseStateNode ) const
+    int16_t StateMachineToolsNode::CompileState( GraphCompilationContext& context, StateToolsNode const* pStateNode ) const
     {
-        EE_ASSERT( pBaseStateNode != nullptr );
+        EE_ASSERT( pStateNode != nullptr );
 
         StateNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<StateNode>( pBaseStateNode, pSettings );
+        NodeCompilationState const state = context.GetSettings<StateNode>( pStateNode, pSettings );
         EE_ASSERT( state == NodeCompilationState::NeedCompilation );
 
         //-------------------------------------------------------------------------
 
-        for ( auto const& ID : pBaseStateNode->m_entryEvents ) { pSettings->m_entryEvents.emplace_back( ID ); }
-        for ( auto const& ID : pBaseStateNode->m_executeEvents ) { pSettings->m_executeEvents.emplace_back( ID ); }
-        for ( auto const& ID : pBaseStateNode->m_exitEvents ) { pSettings->m_exitEvents.emplace_back( ID ); }
+        for ( auto const& ID : pStateNode->m_entryEvents ) { pSettings->m_entryEvents.emplace_back( ID ); }
+        for ( auto const& ID : pStateNode->m_executeEvents ) { pSettings->m_executeEvents.emplace_back( ID ); }
+        for ( auto const& ID : pStateNode->m_exitEvents ) { pSettings->m_exitEvents.emplace_back( ID ); }
 
         //-------------------------------------------------------------------------
 
-        auto pBlendTreeStateNode = TryCast<StateToolsNode>( pBaseStateNode );
-        if ( pBlendTreeStateNode != nullptr )
+        if ( pStateNode->IsOffState() )
+        {
+            pSettings->m_childNodeIdx = InvalidIndex;
+            pSettings->m_isOffState = true;
+        }
+        else
         {
             // Compile Blend Tree
             //-------------------------------------------------------------------------
 
-            auto resultNodes = pBlendTreeStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+            auto resultNodes = pStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
             EE_ASSERT( resultNodes.size() == 1 );
             ResultToolsNode const* pBlendTreeRoot = resultNodes[0];
             EE_ASSERT( pBlendTreeRoot != nullptr );
@@ -276,7 +280,7 @@ namespace EE::Animation::GraphNodes
             // Compile Layer Data
             //-------------------------------------------------------------------------
 
-            auto dataNodes = pBlendTreeStateNode->GetSecondaryGraph()->FindAllNodesOfType<StateLayerDataToolsNode>();
+            auto dataNodes = pStateNode->GetSecondaryGraph()->FindAllNodesOfType<StateLayerDataToolsNode>();
             EE_ASSERT( dataNodes.size() == 1 );
             auto pLayerData = dataNodes[0];
             EE_ASSERT( pLayerData != nullptr );
@@ -304,14 +308,8 @@ namespace EE::Animation::GraphNodes
             // Transfer additional state events
             //-------------------------------------------------------------------------
 
-            for ( auto const& evt : pBlendTreeStateNode->m_timeRemainingEvents ) { pSettings->m_timedRemainingEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) ); }
-            for ( auto const& evt : pBlendTreeStateNode->m_timeElapsedEvents ) { pSettings->m_timedElapsedEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) ); }
-        }
-        else
-        {
-            auto pOffState = Cast<OffStateToolsNode>( pBaseStateNode );
-            pSettings->m_childNodeIdx = InvalidIndex;
-            pSettings->m_isOffState = true;
+            for ( auto const& evt : pStateNode->m_timeRemainingEvents ) { pSettings->m_timedRemainingEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) ); }
+            for ( auto const& evt : pStateNode->m_timeElapsedEvents ) { pSettings->m_timedElapsedEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) ); }
         }
 
         //-------------------------------------------------------------------------

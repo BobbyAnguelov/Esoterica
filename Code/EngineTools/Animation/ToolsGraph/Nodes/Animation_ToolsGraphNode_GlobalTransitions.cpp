@@ -22,12 +22,12 @@ namespace EE::Animation::GraphNodes
 
     void GlobalTransitionConduitToolsNode::UpdateTransitionNodes()
     {
-        auto stateNodes = GetParentGraph()->FindAllNodesOfType<GraphNodes::ToolsState>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto stateNodes = GetParentGraph()->FindAllNodesOfType<GraphNodes::StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         auto globalTransitions = GetSecondaryGraph()->FindAllNodesOfType<GraphNodes::GlobalTransitionToolsNode>();
 
         //-------------------------------------------------------------------------
 
-        TInlineVector<GraphNodes::ToolsState*, 20> transitionsToCreate;
+        TInlineVector<GraphNodes::StateToolsNode*, 20> transitionsToCreate;
         TInlineVector<GraphNodes::GlobalTransitionToolsNode*, 20> transitionsToRemove;
 
         for ( auto const& pTransition : globalTransitions )

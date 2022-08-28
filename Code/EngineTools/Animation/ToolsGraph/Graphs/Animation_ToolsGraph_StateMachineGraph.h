@@ -38,6 +38,13 @@ namespace EE::Animation
             static_assert( std::is_base_of<VisualGraph::SM::Node, T>::value );
             auto pNode = EE::New<T>( std::forward<ConstructorParams>( params )... );
             pNode->Initialize( this );
+
+            // Ensure unique name
+            if ( pNode->IsRenameable() )
+            {
+                pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
+            }
+
             AddNode( pNode );
             return pNode;
         }

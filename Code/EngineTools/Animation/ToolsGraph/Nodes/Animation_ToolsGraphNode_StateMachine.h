@@ -13,7 +13,7 @@ namespace EE::Animation
 namespace EE::Animation::GraphNodes
 {
     class TransitionToolsNode;
-    class ToolsState;
+    class StateToolsNode;
     class EntryStateOverrideConduitToolsNode;
     class GlobalTransitionConduitToolsNode;
 
@@ -29,6 +29,9 @@ namespace EE::Animation::GraphNodes
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
         virtual char const* GetName() const override { return m_name.c_str(); }
+        virtual bool IsRenameable() const override { return true; }
+        virtual void SetName( String const& newName ) override { EE_ASSERT( IsRenameable() ); m_name = newName; }
+
         virtual char const* GetTypeName() const override { return "State Machine"; }
         virtual char const* GetCategory() const override { return ""; }
         virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::CornflowerBlue ); }
@@ -41,7 +44,7 @@ namespace EE::Animation::GraphNodes
         virtual void OnShowNode( VisualGraph::UserContext* pUserContext ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
 
-        int16_t CompileState( GraphCompilationContext& context, ToolsState const* pBaseStateNode ) const;
+        int16_t CompileState( GraphCompilationContext& context, StateToolsNode const* pStateNode ) const;
         int16_t CompileTransition( GraphCompilationContext& context, TransitionToolsNode const* pTransitionNode, int16_t targetStateNodeIdx ) const;
 
         EntryStateOverrideConduitToolsNode const* GetEntryStateOverrideConduit() const;
@@ -51,6 +54,6 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE String m_name = "SM";
+        EE_REGISTER String m_name = "SM";
     };
 }

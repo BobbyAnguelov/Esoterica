@@ -36,6 +36,13 @@ namespace EE::Animation
             auto pNode = EE::New<T>( std::forward<ConstructorParams>( params )... );
             EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
             pNode->Initialize( this );
+
+            // Ensure unique name
+            if ( pNode->IsRenameable() )
+            {
+                pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
+            }
+
             AddNode( pNode );
             return pNode;
         }
@@ -48,6 +55,13 @@ namespace EE::Animation
             auto pNode = Cast<GraphNodes::FlowToolsNode>( pTypeInfo->CreateType() );
             EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
             pNode->Initialize( this );
+
+            // Ensure unique name
+            if ( pNode->IsRenameable() )
+            {
+                pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
+            }
+
             AddNode( pNode );
             return pNode;
         }

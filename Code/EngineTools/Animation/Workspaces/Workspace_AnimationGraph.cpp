@@ -3,6 +3,8 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_EntryStates.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_GlobalTransitions.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_StateMachine.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_State.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachineGraph.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
@@ -1024,6 +1026,8 @@ namespace EE::Animation
     {
         TWorkspace<GraphDefinition>::PreUndoRedo( operation );
 
+        m_pBreadcrumbPopupContext = nullptr;
+
         // Stop Debugging
         //-------------------------------------------------------------------------
 
@@ -1723,6 +1727,210 @@ namespace EE::Animation
         }
     }
 
+    void AnimationGraphWorkspace::DrawGraphViewNavigationBar()
+    {
+        auto pRootGraph = m_toolsGraph.GetRootGraph();
+
+        ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+
+        // Sizes
+        //-------------------------------------------------------------------------
+
+        constexpr char const* const pBreadcrumbPopupName = "Breadcrumb";
+        ImVec2 const navBarDimensions = ImGui::GetContentRegionAvail();
+        constexpr static float const homeButtonWidth = 22;
+        constexpr static float const stateMachineNavButtonWidth = 64;
+
+        float const buttonHeight = navBarDimensions.y;
+        float const statemachineNavRequiredSpace = m_primaryGraphView.IsViewingStateMachineGraph() ? ( stateMachineNavButtonWidth * 2 ) : 0;
+        float const breadcrumbAvailableSpace = navBarDimensions.x - homeButtonWidth - statemachineNavRequiredSpace;
+
+        // Get all entries for breadcrumb
+        //-------------------------------------------------------------------------
+
+        TInlineVector<VisualGraph::BaseNode*, 10> pathToRoot;
+
+        auto pGraph = m_primaryGraphView.GetViewedGraph();
+        auto pParentNode = pGraph->GetParentNode();
+        if ( pParentNode != nullptr )
+        {
+            while ( pParentNode != nullptr )
+            {
+                pathToRoot.emplace_back( pParentNode );
+                pParentNode = pParentNode->GetParentGraph()->GetParentNode();
+            }
+        }
+
+        // Draw breadcrumbs
+        //-------------------------------------------------------------------------
+
+        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
+
+        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_HOME"##GoHome", ImVec2( homeButtonWidth, buttonHeight ) ) )
+        {
+            NavigateTo( pRootGraph );
+        }
+        ImGuiX::ItemTooltip( "Go to root graph" );
+
+        ImGui::SameLine( 0, 0 );
+        if ( ImGui::Button( EE_ICON_CHEVRON_RIGHT"##RootBrowser", ImVec2( 0, buttonHeight ) ) )
+        {
+            m_pBreadcrumbPopupContext = nullptr;
+            ImGui::OpenPopup( pBreadcrumbPopupName );
+        }
+
+        for ( auto i = (int32_t) pathToRoot.size() - 1; i >= 0; i-- )
+        {
+            bool drawChevron = true;
+            bool drawItem = true;
+
+            auto const pParentState = TryCast<GraphNodes::StateToolsNode>( pathToRoot[i]->GetParentGraph()->GetParentNode() );
+            auto const pState = TryCast<GraphNodes::StateToolsNode>( pathToRoot[i] );
+
+            // Hide the item is it is a state machine node whose parent is "state machine state"
+            if ( pParentState != nullptr && !pParentState->IsBlendTreeState() )
+            {
+                drawItem = false;
+            }
+
+            // Hide the chevron for state machine states (as we dont want to navigate to the child state machine)
+            bool const isStateMachineState = pState != nullptr && !pState->IsBlendTreeState();
+            if ( isStateMachineState )
+            {
+                drawChevron = false;
+            }
+
+            // Check if the last graph we are in has child state machines
+            if ( drawChevron && i == 0 && !IsOfType<GraphNodes::StateMachineToolsNode>( pathToRoot[i] ) )
+            {
+                auto const childStateMachines = pathToRoot[i]->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+                if ( childStateMachines.empty() )
+                {
+                    drawChevron = false;
+                }
+            }
+
+            // Draw the item
+            if ( drawItem )
+            {
+                ImGui::SameLine( 0, 0 );
+                InlineString const str( InlineString::CtorSprintf(), "%s##%s", pathToRoot[i]->GetName(), pathToRoot[i]->GetID().ToString().c_str() );
+                if ( ImGui::Button( str.c_str(), ImVec2( 0, buttonHeight ) ) )
+                {
+                    if ( isStateMachineState )
+                    {
+                        auto const childStateMachines = pathToRoot[i]->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+                        EE_ASSERT( childStateMachines.size() );
+                        NavigateTo( childStateMachines[0]->GetChildGraph() );
+                    }
+                    else
+                    {
+                        NavigateTo( pathToRoot[i]->GetChildGraph() );
+                    }
+                }
+            }
+
+            // Draw the chevron
+            if ( drawChevron )
+            {
+                ImGui::SameLine( 0, 0 );
+                InlineString const separatorStr( InlineString::CtorSprintf(), EE_ICON_CHEVRON_RIGHT"##%s", pathToRoot[i]->GetName(), pathToRoot[i]->GetID().ToString().c_str() );
+                if ( ImGui::Button( separatorStr.c_str(), ImVec2( 0, buttonHeight ) ) )
+                {
+                    m_pBreadcrumbPopupContext = pathToRoot[i];
+                    ImGui::OpenPopup( pBreadcrumbPopupName );
+                }
+            }
+        }
+        ImGui::PopStyleColor();
+
+        // Draw breadcrumb navigation menu
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginPopup( pBreadcrumbPopupName ) )
+        {
+            // If we navigating in a state machine node, we need to list all states
+            auto pSM = TryCast<GraphNodes::StateMachineToolsNode>( m_pBreadcrumbPopupContext );
+            if ( pSM )
+            {
+                auto const childStates = pSM->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+                for ( auto pChildState : childStates )
+                {
+                    // Ignore Off States
+                    if ( pChildState->IsOffState() )
+                    {
+                        continue;
+                    }
+
+                    // Regular States
+                    if ( pChildState->IsBlendTreeState() )
+                    {
+                        InlineString const label( InlineString::CtorSprintf(), EE_ICON_FILE_TREE" %s", pChildState->GetName() );
+                        if ( ImGui::MenuItem( label.c_str() ) )
+                        {
+                            NavigateTo( pChildState->GetChildGraph() );
+                            ImGui::CloseCurrentPopup();
+                        }
+                    }
+                    else
+                    {
+                        InlineString const label( InlineString::CtorSprintf(), EE_ICON_STATE_MACHINE" %s", pChildState->GetName() );
+                        if ( ImGui::MenuItem( label.c_str() ) )
+                        {
+                            auto const childStateMachines = pChildState->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+                            EE_ASSERT( childStateMachines.size() );
+                            NavigateTo( childStateMachines[0]->GetChildGraph() );
+                            ImGui::CloseCurrentPopup();
+                        }
+                    }
+                }
+            }
+            else // Just display all state machine nodes in this graph
+            {
+                auto const pGraphToSearch = ( m_pBreadcrumbPopupContext == nullptr ) ? pRootGraph : m_pBreadcrumbPopupContext->GetChildGraph();
+                auto childSMs = pGraphToSearch->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+                for ( auto pChildSM : childSMs )
+                {
+                    if ( ImGui::MenuItem( pChildSM->GetName() ) )
+                    {
+                        NavigateTo( pChildSM->GetChildGraph() );
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+
+        if ( !ImGui::IsPopupOpen( pBreadcrumbPopupName ) )
+        {
+            m_pBreadcrumbPopupContext = nullptr;
+        }
+
+        // Draw state machine navigation options
+        //-------------------------------------------------------------------------
+
+        if ( m_primaryGraphView.IsViewingStateMachineGraph() )
+        {
+            ImGui::SameLine( navBarDimensions.x - statemachineNavRequiredSpace, 0 );
+            ImGui::AlignTextToFramePadding();
+            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
+            {
+                auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
+                NavigateTo( pSM->GetEntryStateOverrideConduit() );
+            }
+            ImGuiX::ItemTooltip( "Entry State Overrides" );
+
+            ImGui::SameLine( 0, -1 );
+            if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
+            {
+                auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
+                NavigateTo( pSM->GetGlobalTransitionConduit() );
+            }
+            ImGuiX::ItemTooltip( "Global Transitions" );
+        }
+    }
+
     void AnimationGraphWorkspace::DrawGraphView( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         EE_ASSERT( &m_userContext != nullptr );
@@ -1751,77 +1959,7 @@ namespace EE::Animation
             ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 1 ) );
             if ( ImGui::BeginChild( "NavBar", ImVec2( ImGui::GetContentRegionAvail().x, 24 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                ImVec2 const navBarDimensions = ImGui::GetContentRegionAvail();
-
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_HOME"##GoHome", ImVec2( 22, -1 ) ) )
-                {
-                    NavigateTo( pRootGraph );
-                }
-                ImGuiX::ItemTooltip( "Go to root graph" );
-
-                //-------------------------------------------------------------------------
-
-                TInlineVector<VisualGraph::BaseGraph*, 10> pathToRoot;
-
-                auto pGraph = m_primaryGraphView.GetViewedGraph();
-                while ( pGraph != nullptr && pGraph != pRootGraph )
-                {
-                    pathToRoot.emplace_back( pGraph );
-                    if ( pGraph->GetParentNode() != nullptr )
-                    {
-                        pGraph = pGraph->GetParentNode()->GetParentGraph();
-                    }
-                    else
-                    {
-                        pGraph = nullptr;
-                    }
-                }
-
-                ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
-                for ( auto i = (int32_t) pathToRoot.size() - 1; i >= 0; i-- )
-                {
-                    ImGui::SameLine( 0, -1 );
-                    ImGui::Text( "/" );
-
-                    InlineString const str( InlineString::CtorSprintf(), "%s##%s", pathToRoot[i]->GetTitle(), pathToRoot[i]->GetID().ToString().c_str() );
-                    ImGui::SameLine( 0, -1 );
-                    if ( ImGui::Button( str.c_str() ) )
-                    {
-                        NavigateTo( pathToRoot[i] );
-                    }
-                }
-                ImGui::PopStyleColor();
-
-                //-------------------------------------------------------------------------
-
-                if ( m_primaryGraphView.IsViewingStateMachineGraph() )
-                {
-                    constexpr static float const buttonWidth = 64;
-
-                    ImGui::SameLine( navBarDimensions.x - buttonWidth * 2, 0 );
-                    ImGui::AlignTextToFramePadding();
-                    if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( buttonWidth, -1 ) ) )
-                    {
-                        auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
-                        NavigateTo( pSM->GetEntryStateOverrideConduit() );
-                    }
-                    ImGuiX::ItemTooltip( "Entry State Overrides" );
-
-                    ImGui::SameLine( 0, -1 );
-                    if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( buttonWidth, -1 ) ) )
-                    {
-                        auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
-                        NavigateTo( pSM->GetGlobalTransitionConduit() );
-                    }
-                    ImGuiX::ItemTooltip( "Global Transitions" );
-
-                    ImGui::SameLine();
-                }
-                else
-                {
-                    ImGui::SameLine( navBarDimensions.x - 14, 0 );
-                }
+                DrawGraphViewNavigationBar();
             }
             ImGui::EndChild();
             ImGui::PopStyleVar( 3 );

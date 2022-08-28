@@ -1071,19 +1071,23 @@ namespace EE::VisualGraph
 
     void GraphView::BeginRenameNode( BaseNode* pNode )
     {
-        EE_ASSERT( pNode != nullptr && pNode->IsRenamable() );
+        EE_ASSERT( pNode != nullptr && pNode->IsRenameable() );
         EE::Printf( m_renameBuffer, 255, pNode->GetName() );
         m_pNodeBeingRenamed = pNode;
     }
 
     void GraphView::EndRenameNode( bool shouldUpdateNode )
     {
-        EE_ASSERT( m_pNodeBeingRenamed != nullptr && m_pNodeBeingRenamed->IsRenamable() );
+        EE_ASSERT( m_pNodeBeingRenamed != nullptr && m_pNodeBeingRenamed->IsRenameable() );
 
         if ( shouldUpdateNode )
         {
+            // Set new name
+            //-------------------------------------------------------------------------
+
             ScopedNodeModification const snm( m_pNodeBeingRenamed );
-            m_pNodeBeingRenamed->SetName( m_renameBuffer );
+            String const uniqueName = m_pNodeBeingRenamed->GetParentGraph()->GetUniqueNameForRenameableNode( m_renameBuffer, m_pNodeBeingRenamed );
+            m_pNodeBeingRenamed->SetName( uniqueName );
         }
 
         m_pNodeBeingRenamed = nullptr;
@@ -1518,7 +1522,7 @@ namespace EE::VisualGraph
         {
             if ( ImGui::IsKeyPressed( ImGuiKey_F2 ) )
             {
-                if ( m_selectedNodes.size() == 1 && m_selectedNodes[0].m_pNode->IsRenamable() )
+                if ( m_selectedNodes.size() == 1 && m_selectedNodes[0].m_pNode->IsRenameable() )
                 {
                     BeginRenameNode( m_selectedNodes[0].m_pNode );
                 }
@@ -1639,7 +1643,7 @@ namespace EE::VisualGraph
                     {
                         ImGui::Separator();
 
-                        if ( m_contextMenuState.m_pNode->IsRenamable() )
+                        if ( m_contextMenuState.m_pNode->IsRenameable() )
                         {
                             if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
                             {
@@ -1676,6 +1680,15 @@ namespace EE::VisualGraph
         }
     }
 
+    static int FilterNodeNameChars( ImGuiInputTextCallbackData* data )
+    {
+        if ( isalnum( data->EventChar ) || data->EventChar == '_' )
+        {
+            return 0;
+        }
+        return 1;
+    }
+
     void GraphView::DrawDialogs()
     {
         if ( m_pNodeBeingRenamed != nullptr )
@@ -1692,7 +1705,7 @@ namespace EE::VisualGraph
                 else
                 {
                     auto pNode = m_selectedNodes.back().m_pNode;
-                    EE_ASSERT( pNode->IsRenamable() );
+                    EE_ASSERT( pNode->IsRenameable() );
                     bool updateConfirmed = false;
 
                     ImGui::AlignTextToFramePadding();
@@ -1706,7 +1719,7 @@ namespace EE::VisualGraph
                         ImGui::SetKeyboardFocusHere();
                     }
 
-                    if ( ImGui::InputText( "##NodeName", m_renameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+                    if ( ImGui::InputText( "##NodeName", m_renameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter, FilterNodeNameChars ) )
                     {
                         if ( m_renameBuffer[0] != 0 )
                         {

@@ -1,4 +1,5 @@
 #include "Animation_ToolsGraphNode_EntryStates.h"
+#include "Animation_ToolsGraphNode_State.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 
 //-------------------------------------------------------------------------
@@ -13,13 +14,13 @@ namespace EE::Animation::GraphNodes
         auto pParentStateMachineGraph = pEntryStateOverridesNode->GetParentGraph();
         EE_ASSERT( pParentStateMachineGraph != nullptr );
 
-        auto stateNodes = pParentStateMachineGraph->FindAllNodesOfType<ToolsState>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto stateNodes = pParentStateMachineGraph->FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
 
         //-------------------------------------------------------------------------
 
         int32_t const numOriginalInputPins = GetNumInputPins();
 
-        TInlineVector<ToolsState*, 20> pinsToCreate;
+        TInlineVector<StateToolsNode*, 20> pinsToCreate;
         TInlineVector<UUID, 20> pinsToRemove;
 
         for ( auto const& pin : GetInputPins() )
