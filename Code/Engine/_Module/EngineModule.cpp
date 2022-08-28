@@ -76,7 +76,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    bool EngineModule::InitializeCoreSystems( String const& applicationName, IniFile const& iniFile )
+    bool EngineModule::InitializeCoreSystems( IniFile const& iniFile )
     {
         #if EE_DEVELOPMENT_TOOLS
         EntityModel::InitializeLogQueue();
@@ -147,7 +147,7 @@ namespace EE
         m_physicsSystem.Initialize();
 
         #if EE_DEVELOPMENT_TOOLS
-        m_imguiSystem.Initialize( applicationName + ".imgui.ini", m_pRenderDevice, m_imguiViewportsEnabled );
+        m_imguiSystem.Initialize( m_pRenderDevice, m_imguiViewportsEnabled );
         #endif
 
         // Initialize and register renderers

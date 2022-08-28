@@ -30,7 +30,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    bool Engine::Initialize( String const& applicationName, Int2 const& windowDimensions )
+    bool Engine::Initialize( Int2 const& windowDimensions )
     {
         EE_LOG_MESSAGE( "System", nullptr, "Engine Application Startup" );
 
@@ -50,7 +50,7 @@ namespace EE
         // Initialize Core
         //-------------------------------------------------------------------------
 
-        if ( !m_engineModule.InitializeCoreSystems( applicationName, iniFile ) )
+        if ( !m_engineModule.InitializeCoreSystems( iniFile ) )
         {
             return m_fatalErrorHandler( "Failed to initialize engine core systems!" );
         }

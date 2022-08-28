@@ -26,7 +26,7 @@ namespace EE
         Engine( TFunction<bool( EE::String const& error )>&& errorHandler );
         virtual ~Engine() = default;
 
-        bool Initialize( String const& applicationName, Int2 const& windowDimensions );
+        bool Initialize( Int2 const& windowDimensions );
         bool Shutdown();
         bool Update();
 

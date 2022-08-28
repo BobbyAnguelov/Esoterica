@@ -142,7 +142,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        m_imguiSystem.Initialize( m_applicationNameNoWhitespace + ".imgui.ini", m_pRenderDevice );
+        m_imguiSystem.Initialize( m_pRenderDevice );
         m_imguiRenderer.Initialize( m_pRenderDevice );
 
         //-------------------------------------------------------------------------
@@ -264,8 +264,9 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
     //-------------------------------------------------------------------------
 
     #if EE_ENABLE_LPP
-    //auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"" );
-    //lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_NONE );
+    /*auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"../../External/LivePP/ProjectPreferences.json" );
+    lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES );
+    lppAgent.SetBoolPreferences( lpp::LPP_BOOL_PREF_UNITY_SPLITTING_ENABLED, false );*/
     #endif
 
     //-------------------------------------------------------------------------

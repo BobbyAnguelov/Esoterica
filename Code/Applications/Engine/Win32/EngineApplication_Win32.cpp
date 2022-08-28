@@ -42,7 +42,7 @@ namespace EE
     bool EngineApplication::Initialize()
     {
         Int2 const windowDimensions( ( m_windowRect.right - m_windowRect.left ), ( m_windowRect.bottom - m_windowRect.top ) );
-        if ( !m_engine.Initialize( m_applicationNameNoWhitespace, windowDimensions ) )
+        if ( !m_engine.Initialize( windowDimensions ) )
         {
             return FatalError( "Failed to initialize engine" );
         }
@@ -79,8 +79,9 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
     //-------------------------------------------------------------------------
 
     #if EE_ENABLE_LPP
-    auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"" );
-    lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_NONE );
+    auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"../../External/LivePP/ProjectPreferences.json" );
+    lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES );
+    lppAgent.SetBoolPreferences( lpp::LPP_BOOL_PREF_UNITY_SPLITTING_ENABLED, false );
     #endif
 
     //-------------------------------------------------------------------------

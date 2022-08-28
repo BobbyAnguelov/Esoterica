@@ -47,7 +47,7 @@ namespace EE
 
     public:
 
-        bool InitializeCoreSystems( String const& applicationName, IniFile const& iniFile );
+        bool InitializeCoreSystems( IniFile const& iniFile );
         void ShutdownCoreSystems();
 
         bool InitializeModule();
