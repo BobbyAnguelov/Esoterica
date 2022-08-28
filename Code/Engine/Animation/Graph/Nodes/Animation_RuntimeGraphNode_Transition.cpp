@@ -306,9 +306,6 @@ namespace EE::Animation::GraphNodes
         m_transitionProgress = 0.0f;
         m_blendWeight = 0.0f;
         m_sourceCachedPoseBlendWeight = 0.0f;
-        m_pivotOffset = Vector::Zero;
-        m_shouldApplyPivotOffset = false;
-        m_isFirstTaskRegistrationUpdate = true;
     }
 
     void TransitionNode::ShutdownInternal( GraphContext& context )
@@ -486,22 +483,7 @@ namespace EE::Animation::GraphNodes
         if ( sourceResult.HasRegisteredTasks() && targetResult.HasRegisteredTasks() )
         {
             outResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult.m_rootMotionDelta, targetResult.m_rootMotionDelta, m_blendWeight, pSettings->m_rootMotionBlend );
-
-            if ( pSettings->m_blendPivotBoneID.IsValid() )
-            {
-                if ( m_shouldApplyPivotOffset )
-                {
-                    outResult.m_rootMotionDelta.AddTranslation( -m_pivotOffset );
-                    m_shouldApplyPivotOffset = false;
-                }
-
-                outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::PivotBlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, m_blendWeight, pSettings->m_blendPivotBoneID, &m_pivotOffset, m_isFirstTaskRegistrationUpdate );
-                m_shouldApplyPivotOffset = m_isFirstTaskRegistrationUpdate;
-            }
-            else
-            {
-                outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, m_blendWeight );
-            }
+            outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, m_blendWeight );
 
             //-------------------------------------------------------------------------
 
@@ -522,8 +504,6 @@ namespace EE::Animation::GraphNodes
                 outResult.m_rootMotionDelta = targetResult.m_rootMotionDelta;
             }
         }
-
-        m_isFirstTaskRegistrationUpdate = false;
     }
 
     //-------------------------------------------------------------------------

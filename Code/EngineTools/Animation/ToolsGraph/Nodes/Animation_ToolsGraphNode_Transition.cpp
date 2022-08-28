@@ -80,13 +80,6 @@ namespace EE::Animation::GraphNodes
         {
             ImGui::Text( "Forced" );
         }
-
-        //-------------------------------------------------------------------------
-
-        if ( m_blendPivotBoneID.IsValid() )
-        {
-            ImGui::Text( "Pivot: %s", m_blendPivotBoneID.c_str() );
-        }
     }
 
     //-------------------------------------------------------------------------

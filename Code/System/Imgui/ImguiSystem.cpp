@@ -45,7 +45,7 @@ namespace EE::ImGuiX
         FileSystem::Path const imguiIniPath = outputDir + "EE.imgui.ini";
         FileSystem::Path const imguiLogPath = outputDir + "EE.imgui_log.txt";
         io.IniFilename = imguiIniPath.c_str();
-        io.IniFilename = imguiLogPath.c_str();
+        io.LogFilename = imguiLogPath.c_str();
 
         //-------------------------------------------------------------------------
 

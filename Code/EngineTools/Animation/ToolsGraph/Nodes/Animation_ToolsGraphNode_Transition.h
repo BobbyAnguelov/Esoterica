@@ -44,7 +44,6 @@ namespace EE::Animation::GraphNodes
         EE_EXPOSE bool                                         m_keepSourceSyncEventIdx = false;
         EE_EXPOSE bool                                         m_keepSourceSyncEventPercentageThrough = false;
         EE_EXPOSE bool                                         m_canBeForced = false;
-        EE_EXPOSE StringID                                     m_blendPivotBoneID; // If this is set to a valid bone, this bone will be used as the blend pivot
     };
 
     //-------------------------------------------------------------------------

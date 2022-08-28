@@ -137,9 +137,10 @@ namespace EE::Render
         swapChainDesc.Windowed = !m_isFullscreen;
 
         // Set debug flags on D3D device in debug build
+        // If you get a failure with this flag, it likely means you dont have the "Windows Graphics Tools" feature installed (this is an optional windows component)
         UINT flags = 0;
         #if EE_ENABLE_RENDERDEVICE_DEBUG
-        flags |= D3D10_CREATE_DEVICE_DEBUG;
+        flags |= D3D11_CREATE_DEVICE_DEBUG;
         #endif
 
         // Setup D3D feature levels

@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_blendPivotBoneID );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions );
 
         public:
 
@@ -64,7 +64,6 @@ namespace EE::Animation::GraphNodes
             Seconds                             m_duration = 0;
             float                               m_syncEventOffset = 0;
             TBitFlags<TransitionOptions>        m_transitionOptions;
-            StringID                            m_blendPivotBoneID;
         };
 
     public:
@@ -133,9 +132,6 @@ namespace EE::Animation::GraphNodes
         float                                   m_sourceCachedPoseBlendWeight = 0.0f;
 
         SourceType                              m_sourceType = SourceType::State;
-        Vector                                  m_pivotOffset = Vector::Zero;
-        bool                                    m_shouldApplyPivotOffset = false;
-        bool                                    m_isFirstTaskRegistrationUpdate = true;
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;

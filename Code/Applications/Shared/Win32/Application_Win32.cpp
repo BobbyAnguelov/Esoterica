@@ -3,6 +3,7 @@
 #include "System/IniFile.h"
 #include "System/Platform/PlatformHelpers_Win32.h"
 #include "System/FileSystem/FileSystemPath.h"
+#include "System/FileSystem/FileSystemUtils.h"
 #include "System/Log.h"
 
 //-------------------------------------------------------------------------
@@ -96,7 +97,7 @@ namespace EE
 
     void Win32Application::ReadLayoutSettings()
     {
-        FileSystem::Path const layoutIniFilePath = FileSystem::Path( m_applicationNameNoWhitespace + ".layout.ini" );
+        FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
         IniFile layoutIni( layoutIniFilePath );
         if ( !layoutIni.IsValid() )
         {
@@ -167,7 +168,7 @@ namespace EE
             layoutIni.SetInt( "Layout:UserFlags0", (uint32_t) m_userFlags );
             layoutIni.SetInt( "Layout:UserFlags1", (uint32_t) ( m_userFlags >> 32 ) );
 
-            FileSystem::Path const layoutIniFilePath = FileSystem::Path( m_applicationNameNoWhitespace + ".layout.ini" );
+            FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
             layoutIni.SaveToFile( layoutIniFilePath );
         }
     }
@@ -303,7 +304,7 @@ namespace EE
         bool const shutdownResult = Shutdown();
         m_initialized = false;
 
-        FileSystem::Path const LogFilePath( m_applicationNameNoWhitespace + "Log.txt" );
+        FileSystem::Path const LogFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
         Log::SaveToFile( LogFilePath );
 
         //-------------------------------------------------------------------------
