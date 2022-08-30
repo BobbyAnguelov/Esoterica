@@ -37,6 +37,9 @@ namespace EE::Animation
         // Get the graph resource ID from either a graph or a graph variation resource ID
         static ResourceID GetGraphResourceID( ResourceID const& resourceID );
 
+        // Create a graph variation file on disk
+        static bool TryCreateVariationFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourcePath, FileSystem::Path const& graphPath, StringID variationID );
+
     public:
 
         inline bool operator==( StringID const& variationID ) const { return m_ID == variationID; }
@@ -62,6 +65,12 @@ namespace EE::Animation
 
         // Does the specified variation exist?
         inline bool IsValidVariation( StringID variationID ) const { return eastl::find( m_variations.begin(), m_variations.end(), variationID ) != m_variations.end(); }
+
+        // Get the actual case-correct variation ID - this is useful to give the users some degree of flexibility
+        StringID TryGetCaseCorrectVariationID( String const& variationName ) const;
+
+        // Get the actual case-correct variation ID - this is useful to give the users some degree of flexibility
+        StringID TryGetCaseCorrectVariationID( StringID caseInsensitiveVariationID ) const { return TryGetCaseCorrectVariationID( caseInsensitiveVariationID.c_str() ); }
 
         // Get a specified variation
         Variation* GetVariation( StringID variationID );

@@ -78,7 +78,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         inline void SetOption( Options option, bool isEnabled ) { m_options.SetFlag( option, isEnabled ); }
-        inline bool IsManipulating() const { return m_manipulationMode != ManipulationMode::None; }
+        inline bool IsManipulating() const { return m_isManipulating; }
 
         //-------------------------------------------------------------------------
 
@@ -126,6 +126,7 @@ namespace EE::ImGuiX
         CoordinateSpace             m_coordinateSpace = CoordinateSpace::World;
         GizmoMode                   m_gizmoMode = GizmoMode::None;
         ManipulationMode            m_manipulationMode = ManipulationMode::None;
+        bool                        m_isManipulating = false; // Switched whenever we return a "StartManipulating" result
 
         TBitFlags<Options>          m_options;
 

@@ -91,8 +91,16 @@ namespace EE
         // Get the world associated with this workspace
         inline EntityWorld* GetWorld() const { return m_pWorld; }
 
-        // Check if we are currently editing the specific resource. Can be derived to handle special cases where multiple resourceIDs map to the same edited ID
-        virtual bool IsEditingResource( ResourceID const& resourceID ) const { return resourceID == m_descriptorID; }
+        // Resource Dependencies
+        //-------------------------------------------------------------------------
+
+        // Is this workspace currently working on this resource. This is necessary since we have situations where multiple resourceIDs all map to the same workspace.
+        // For example, all graph variations should open the workspace for the parent graph.
+        virtual bool IsWorkingOnResource( ResourceID const& resourceID ) const { return resourceID == m_descriptorID; }
+
+        // Is this resource necessary for this workspace to function. Primarily needed to determine when to automatically close workspaces due to external resource deletion.
+        // Again we need potential derivations due to cases where multiple resources tie into a single workspace.
+        virtual bool HasDependencyOnResource( ResourceID const& resourceID ) const { return resourceID == m_descriptorID; }
 
         // Lifetime/Update Functions
         //-------------------------------------------------------------------------
@@ -338,6 +346,7 @@ namespace EE
 
     private:
 
+        Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         bool                                        m_isDirty = false;
 
         // Time controls

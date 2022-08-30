@@ -2,14 +2,12 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="EditorUI.cpp" />
-    <ClCompile Include="EditorContext.cpp" />
     <ClCompile Include="Win32\EditorApplication_Win32.cpp">
       <Filter>Win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EditorUI.h" />
-    <ClInclude Include="EditorContext.h" />
     <ClInclude Include="Win32\Resource.h">
       <Filter>Win32</Filter>
     </ClInclude>

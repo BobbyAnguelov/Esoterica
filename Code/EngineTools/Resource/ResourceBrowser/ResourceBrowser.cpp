@@ -9,6 +9,8 @@
 #include "System/Profiling.h"
 #include "System/Platform/PlatformHelpers_Win32.h"
 #include <eastl/sort.h>
+#include "EngineTools/Core/Helpers/CommonDialogs.h"
+#include "EngineTools/Resource/ResourceDatabase.h"
 
 //-------------------------------------------------------------------------
 
@@ -48,6 +50,7 @@ namespace EE
         virtual uint64_t GetUniqueID() const override { return m_resourcePath.GetID(); }
         virtual bool HasContextMenu() const override { return true; }
         virtual bool IsActivatable() const override { return false; }
+        virtual bool IsLeaf() const override { return IsFile(); }
 
         // File Info
         //-------------------------------------------------------------------------
@@ -99,6 +102,7 @@ namespace EE
     {
         Memory::MemsetZero( m_nameFilterBuffer, 256 * sizeof( char ) );
         m_onDoubleClickEventID = OnItemDoubleClicked().Bind( [this] ( TreeListViewItem* pItem ) { OnBrowserItemDoubleClicked( pItem ); } );
+        m_resourceDatabaseUpdateEventBindingID = toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Bind( [this] () { RebuildBrowserTree(); } );
 
         // Refresh visual state
         RebuildBrowserTree();
@@ -108,6 +112,7 @@ namespace EE
     ResourceBrowser::~ResourceBrowser()
     {
         OnItemDoubleClicked().Unbind( m_onDoubleClickEventID );
+        m_toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
 
         EE::Delete( m_pResourceDescriptorCreator );
         EE::Delete( m_pRawResourceInspector );
@@ -151,7 +156,7 @@ namespace EE
 
     void ResourceBrowser::RebuildTreeInternal()
     {
-        if ( !FileSystem::GetDirectoryContents( m_toolsContext.GetRawResourceDirectory(), m_foundPaths, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Expand) )
+        if ( !FileSystem::GetDirectoryContents( m_toolsContext.GetRawResourceDirectory(), m_foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand) )
         {
             EE_HALT();
         }
@@ -161,21 +166,23 @@ namespace EE
         for ( auto const& path : m_foundPaths )
         {
             auto& parentItem = FindOrCreateParentForItem( path );
-
-            // Check if this is a registered resource
-            ResourceTypeID resourceTypeID;
-            auto const extension = path.GetLowercaseExtensionAsString();
-            if ( extension.length() <= 4 )
+            if ( path.IsFilePath() )
             {
-                resourceTypeID = ResourceTypeID( extension.c_str() );
-                if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) )
+                // Check if this is a registered resource
+                ResourceTypeID resourceTypeID;
+                auto const extension = path.GetLowercaseExtensionAsString();
+                if ( extension.length() <= 4 )
                 {
-                    resourceTypeID = ResourceTypeID();
+                    resourceTypeID = ResourceTypeID( extension.c_str() );
+                    if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) )
+                    {
+                        resourceTypeID = ResourceTypeID();
+                    }
                 }
-            }
 
-            // Create file item
-            parentItem.CreateChild<ResourceBrowserTreeItem>( path.GetFilename().c_str(), path, ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory(), path ), resourceTypeID );
+                // Create file item
+                parentItem.CreateChild<ResourceBrowserTreeItem>( path.GetFilename().c_str(), path, ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory(), path ), resourceTypeID );
+            }
         }
 
         UpdateVisibility();
@@ -249,12 +256,14 @@ namespace EE
         {
             ImGui::OpenPopup( "CreateNewDescriptor" );
         }
+        ImGuiX::ItemTooltip( "Create a new resource descriptor and fill out the settings by hand! This is how you create resources that dont have a source file." );
 
         if ( ImGui::BeginPopup( "CreateNewDescriptor" ) )
         {
             DrawCreateNewDescriptorMenu( m_toolsContext.GetRawResourceDirectory() );
             ImGui::EndPopup();
         }
+        ImGuiX::ItemTooltip( "Create a resource descriptor based on a source file. This will pop up a helper window to help you with the creation." );
 
         //-------------------------------------------------------------------------
 
@@ -400,7 +409,7 @@ namespace EE
 
     TreeListViewItem& ResourceBrowser::FindOrCreateParentForItem( FileSystem::Path const& path )
     {
-        EE_ASSERT( path.IsFilePath() );
+        //EE_ASSERT( path.IsFilePath() );
 
         TreeListViewItem* pCurrentItem = &m_rootItem;
         FileSystem::Path directoryPath = m_toolsContext.GetRawResourceDirectory();

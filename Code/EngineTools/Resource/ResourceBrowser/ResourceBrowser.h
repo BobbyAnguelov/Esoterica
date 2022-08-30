@@ -1,7 +1,6 @@
 #pragma once
 
 #include "EngineTools/Core/Widgets/TreeListView.h"
-#include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
 #include "System/Resource/ResourceTypeID.h"
 
 //-------------------------------------------------------------------------
@@ -15,7 +14,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API ResourceBrowser final: public TreeListView, public FileSystem::IFileSystemChangeListener
+    class EE_ENGINETOOLS_API ResourceBrowser final: public TreeListView
     {
     public:
 
@@ -50,6 +49,8 @@ namespace EE
         TVector<ResourceTypeID>                             m_typeFilter;
         bool                                                m_showRawFiles = false;
         bool                                                m_showDeleteConfirmationDialog = false;
+
+        EventBindingID                                      m_resourceDatabaseUpdateEventBindingID;
 
         int32_t                                             m_dataDirectoryPathDepth;
         TVector<FileSystem::Path>                           m_foundPaths;

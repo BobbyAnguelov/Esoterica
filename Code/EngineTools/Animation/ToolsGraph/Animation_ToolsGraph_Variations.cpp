@@ -1,4 +1,5 @@
 #include "Animation_ToolsGraph_Variations.h"
+#include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "System/Serialization/TypeSerialization.h"
 
@@ -51,6 +52,18 @@ namespace EE::Animation
         return resourceID;
     }
 
+    bool Variation::TryCreateVariationFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourcePath, FileSystem::Path const& graphPath, StringID variationID )
+    {
+        GraphVariationResourceDescriptor resourceDesc;
+        resourceDesc.m_graphPath = ResourcePath::FromFileSystemPath( rawResourcePath, graphPath );
+        resourceDesc.m_variationID = variationID;
+
+        String const variationPathStr = Variation::GenerateResourceFilePath( graphPath, variationID );
+        FileSystem::Path const variationPath( variationPathStr.c_str() );
+
+        return Resource::ResourceDescriptor::TryWriteToFile( typeRegistry, variationPath, &resourceDesc );
+    }
+
     //-------------------------------------------------------------------------
 
     VariationHierarchy::VariationHierarchy()
@@ -64,6 +77,20 @@ namespace EE::Animation
 
         auto& defaultVariation = m_variations.emplace_back();
         defaultVariation.m_ID = Variation::s_defaultVariationID;
+    }
+
+    StringID VariationHierarchy::TryGetCaseCorrectVariationID( String const& variationName ) const
+    {
+        for ( auto const& variation : m_variations )
+        {
+            int32_t const result = variationName.comparei( variation.m_ID.c_str() );
+            if ( result == 0 )
+            {
+                return variation.m_ID;
+            }
+        }
+
+        return StringID();
     }
 
     Variation* VariationHierarchy::GetVariation( StringID variationID )
@@ -108,8 +135,6 @@ namespace EE::Animation
 
         return childVariations;
     }
-
-    //-------------------------------------------------------------------------
 
     void VariationHierarchy::CreateVariation( StringID variationID, StringID parentVariationID )
     {
@@ -178,8 +203,6 @@ namespace EE::Animation
             }
         }
     }
-
-    //-------------------------------------------------------------------------
 
     bool VariationHierarchy::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& objectValue )
     {

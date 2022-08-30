@@ -75,6 +75,40 @@ namespace EE::Animation
         return true;
     }
 
+    //-------------------------------------------------------------------------
+
+    bool AnimationGraphCompiler::TryToGenerateAnimGraphVariationFile( Resource::CompileContext const& ctx ) const
+    {
+        ResourceID const graphResourceID = Variation::GetGraphResourceID( ctx.m_resourceID );
+        FileSystem::Path const graphFilePath = graphResourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
+
+        // Try to load the graph
+        ToolsGraphDefinition editorGraph;
+        GraphDefinitionCompiler definitionCompiler;
+        if ( !LoadAndCompileGraph( graphFilePath, editorGraph, definitionCompiler ) )
+        {
+            Error( "Failed to load graph: %s", graphResourceID.c_str() );
+            return false;
+        }
+
+        // Validate variation ID
+        StringID const suppliedVariationID( Variation::GetVariationNameFromResourceID( ctx.m_resourceID ) );
+        StringID const variationID = editorGraph.GetVariationHierarchy().TryGetCaseCorrectVariationID( suppliedVariationID );
+        if ( !variationID.IsValid() )
+        {
+            Error( "%s is not a valid variation for graph: %s", variationID.c_str(), graphResourceID.c_str() );
+            return false;
+        }
+
+        // Try to create the descriptor
+        if ( !Variation::TryCreateVariationFile( *m_pTypeRegistry, m_rawResourceDirectoryPath, graphFilePath, variationID ) )
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     Resource::CompilationResult AnimationGraphCompiler::CompileGraphDefinition( Resource::CompileContext const& ctx ) const
     {
         ToolsGraphDefinition editorGraph;
@@ -126,6 +160,17 @@ namespace EE::Animation
 
     Resource::CompilationResult AnimationGraphCompiler::CompileGraphVariation( Resource::CompileContext const& ctx ) const
     {
+        // If the file doesnt exist, try to create it since this is auto-generated
+        if ( !FileSystem::Exists( ctx.m_inputFilePath ) )
+        {
+            if ( !TryToGenerateAnimGraphVariationFile( ctx ) )
+            {
+                return Error( "Variation file doesnt exist and failed to create it: %s", ctx.m_inputFilePath.c_str() );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         GraphVariationResourceDescriptor resourceDescriptor;
         if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, resourceDescriptor ) )
         {

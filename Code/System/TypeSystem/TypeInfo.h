@@ -64,6 +64,8 @@ namespace EE::TypeSystem
         // Property Info
         //-------------------------------------------------------------------------
 
+        bool HasExposedProperties() const;
+
         PropertyInfo const* GetPropertyInfo( StringID propertyID ) const;
 
         // Function declaration for generated property registration functions

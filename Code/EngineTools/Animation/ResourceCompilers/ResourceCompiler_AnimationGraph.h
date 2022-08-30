@@ -26,6 +26,9 @@ namespace EE::Animation
 
     private:
 
+        virtual bool IsInputFileRequired() const override { return false; }
+
+        bool TryToGenerateAnimGraphVariationFile( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;
         bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, ToolsGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const;

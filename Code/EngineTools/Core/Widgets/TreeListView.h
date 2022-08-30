@@ -57,7 +57,11 @@ namespace EE
         // Expansion
         //-------------------------------------------------------------------------
 
+        // Is this item a leaf node (i.e., should we draw the expansion arrow)
+        virtual bool IsLeaf() const { return m_children.empty(); }
+
         inline void SetExpanded( bool isExpanded ) { m_isExpanded = isExpanded; }
+
         inline bool IsExpanded() const { return m_isExpanded; }
 
         // Visibility
@@ -171,8 +175,8 @@ namespace EE
 
         public:
 
-            TreeListViewItem*   m_pItem = nullptr;
-            int32_t               m_hierarchyLevel = -1;
+            TreeListViewItem*                   m_pItem = nullptr;
+            int32_t                             m_hierarchyLevel = -1;
         };
 
     protected:
@@ -296,6 +300,12 @@ namespace EE
         // Override this to handle selection changes
         virtual void OnSelectionChangedInternal() {}
 
+        // Override this to disable tree sorting
+        virtual bool ShouldSortTree() const { return true; }
+
+        // Override this to change the default sorting approach (by item name)
+        virtual void SortItemChildren( TreeListViewItem* pItem );
+
     private:
 
         void HandleItemSelection( TreeListViewItem* pItem, bool isSelected );
@@ -337,7 +347,7 @@ namespace EE
         VisualTreeState                                         m_visualTreeState = VisualTreeState::None;
         float                                                   m_estimatedRowHeight = -1.0f;
         float                                                   m_estimatedTreeHeight = -1.0f;
-        int32_t                                                   m_firstVisibleRowItemIdx = 0;
+        int32_t                                                 m_firstVisibleRowItemIdx = 0;
         float                                                   m_itemControlColumnWidth = 0;
         bool                                                    m_maintainVisibleRowIdx = false;
     };

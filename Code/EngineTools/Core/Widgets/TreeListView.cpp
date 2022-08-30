@@ -1,5 +1,6 @@
 #include "TreeListView.h"
 #include "System/Imgui/ImguiStyle.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -188,6 +189,31 @@ namespace EE
         pFoundParentItem->DestroyChild( uniqueID );
     }
 
+    void TreeListView::SortItemChildren( TreeListViewItem* pItem )
+    {
+        EE_ASSERT( pItem != nullptr );
+
+        auto const Comparator = [] ( TreeListViewItem const* pItemA, TreeListViewItem const* pItemB )
+        {
+            char const* const pNameA = pItemA->GetNameID().c_str();
+            size_t const lengthA = strlen( pNameA );
+            char const* const pNameB = pItemB->GetNameID().c_str();
+            size_t const lengthB = strlen( pNameB );
+
+            int32_t const result = String::comparei( pNameA, pNameA + lengthA, pNameB, pNameB + lengthB );
+            return result < 0;
+        };
+
+        eastl::sort( pItem->m_children.begin(), pItem->m_children.end(), Comparator );
+
+        //-------------------------------------------------------------------------
+
+        for ( auto pChild : pItem->m_children )
+        {
+            SortItemChildren( pChild );
+        }
+    }
+
     void TreeListView::RebuildTree( bool maintainExpansionAndSelection )
     {
         // Record current state
@@ -235,11 +261,20 @@ namespace EE
 
         RebuildTreeInternal();
 
+        // Sort Tree
+        //-------------------------------------------------------------------------
+
+        if ( ShouldSortTree() )
+        {
+            SortItemChildren( &m_rootItem );
+        }
+
         // Restore original state
         //-------------------------------------------------------------------------
 
         if ( maintainExpansionAndSelection )
         {
+            // Restore Expansion
             auto RestoreItemState = [&originalExpandedItems] ( TreeListViewItem* pItem )
             {
                 if ( VectorContains( originalExpandedItems, pItem->GetUniqueID() ) )
@@ -250,9 +285,11 @@ namespace EE
 
             ForEachItem( RestoreItemState );
 
+            // Restore active item
             auto FindActiveItem = [activeItemID] ( TreeListViewItem const* pItem ) { return pItem->GetUniqueID() == activeItemID; };
             m_pActiveItem = m_rootItem.SearchChildren( FindActiveItem );
 
+            // Restore selection
             for ( auto selectedItemID : selectedItemIDs )
             {
                 auto FindSelectedItem = [selectedItemID] ( TreeListViewItem const* pItem )
@@ -260,7 +297,11 @@ namespace EE
                     return pItem->GetUniqueID() == selectedItemID; 
                 };
 
-                m_selection.emplace_back( m_rootItem.SearchChildren( FindSelectedItem ) );
+                auto pPreviouslySelectedItem = m_rootItem.SearchChildren( FindSelectedItem );
+                if ( pPreviouslySelectedItem != nullptr )
+                {
+                    m_selection.emplace_back( pPreviouslySelectedItem );
+                }
             }
         }
 
@@ -290,7 +331,7 @@ namespace EE
             // Always add branch items first
             for ( auto& pChildItem : pItem->m_children )
             {
-                if ( pChildItem->HasChildren() )
+                if ( !pChildItem->IsLeaf() )
                 {
                     TryAddItemToVisualTree( pChildItem, hierarchyLevel + 1 );
                 }
@@ -299,7 +340,7 @@ namespace EE
             // Add leaf items last
             for ( auto& pChildItem : pItem->m_children )
             {
-                if ( !pChildItem->HasChildren() )
+                if ( pChildItem->IsLeaf() )
                 {
                     TryAddItemToVisualTree( pChildItem, hierarchyLevel + 1 );
                 }
@@ -318,7 +359,7 @@ namespace EE
         // Always add branch items first
         for ( auto& pChildItem : m_rootItem.m_children )
         {
-            if ( pChildItem->HasChildren() )
+            if ( !pChildItem->IsLeaf() )
             {
                 TryAddItemToVisualTree( pChildItem, 0 );
             }
@@ -327,7 +368,7 @@ namespace EE
         // Add leaf items last
         for ( auto& pChildItem : m_rootItem.m_children )
         {
-            if ( !pChildItem->HasChildren() )
+            if ( pChildItem->IsLeaf() )
             {
                 TryAddItemToVisualTree( pChildItem, 0 );
             }
@@ -481,7 +522,7 @@ namespace EE
         }
 
         // Leaf nodes
-        if ( pItem->m_children.empty() )
+        if ( pItem->IsLeaf() )
         {
             treeNodeflags |= ImGuiTreeNodeFlags_Leaf;
         }
@@ -516,7 +557,7 @@ namespace EE
             ImGui::TreePop();
         }
 
-        if ( pItem->HasChildren() && pItem->IsExpanded() != newExpansionState )
+        if ( !pItem->IsLeaf() && pItem->IsExpanded() != newExpansionState )
         {
             pItem->SetExpanded( newExpansionState );
             m_visualTreeState = VisualTreeState::NeedsRebuild;

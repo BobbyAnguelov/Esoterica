@@ -133,6 +133,10 @@ namespace EE::ImGuiX
 
     void Gizmo::ResetState()
     {
+        // Do NOT reset mid manipulation
+        EE_ASSERT( !m_isManipulating );
+        EE_ASSERT( m_manipulationMode == ManipulationMode::None );
+
         m_isScreenRotationWidgetHovered = false;
         m_isAxisRotationWidgetHoveredX = false;
         m_isAxisRotationWidgetHoveredY = false;
@@ -158,8 +162,9 @@ namespace EE::ImGuiX
     {
         if ( m_pTargetTransform == nullptr )
         {
-            if ( m_manipulationMode != ManipulationMode::None )
+            if ( m_isManipulating )
             {
+                m_isManipulating = false;
                 m_manipulationMode = ManipulationMode::None;
                 return Result::StoppedManipulating;
             }
@@ -180,6 +185,7 @@ namespace EE::ImGuiX
             // If we were manipulating, ensure that we cancel the manipulation
             if ( m_manipulationMode != ManipulationMode::None )
             {
+                m_isManipulating = false;
                 m_manipulationMode = ManipulationMode::None;
                 return Result::StoppedManipulating;
             }
@@ -254,7 +260,6 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         Transform const originalTransform = *m_pTargetTransform;
-        bool const wasManipulating = m_manipulationMode != ManipulationMode::None;
 
         if ( m_gizmoMode == GizmoMode::Rotation )
         {
@@ -280,16 +285,32 @@ namespace EE::ImGuiX
         // Determine result
         //-------------------------------------------------------------------------
 
-        bool const isManipulating = m_manipulationMode != ManipulationMode::None && ImGui::IsWindowHovered();
-        Result result = isManipulating ? Result::Manipulating : Result::NoResult;
+        Result result = Result::NoResult;
 
-        if ( wasManipulating && !isManipulating )
+        // Check if we are still manipulating
+        if ( m_isManipulating )
         {
-            result = Result::StoppedManipulating;
+            bool const isWindowHovered = ImGui::IsWindowHovered( ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem );
+            bool const isStillManipulating = m_manipulationMode != ManipulationMode::None && isWindowHovered;
+            if ( isStillManipulating )
+            {
+                result = Result::Manipulating;
+            }
+            else // Stop Manipulating
+            {
+                m_isManipulating = false;
+                m_manipulationMode = ManipulationMode::None;
+                result = Result::StoppedManipulating;
+            }
         }
-        else if ( !wasManipulating && isManipulating )
+        else // Should we start manipulating
         {
-            result = Result::StartedManipulating;
+            bool const startedManipulating = m_manipulationMode != ManipulationMode::None;
+            if ( startedManipulating )
+            {
+                m_isManipulating = true;
+                result = Result::StartedManipulating;
+            }
         }
 
         return result;

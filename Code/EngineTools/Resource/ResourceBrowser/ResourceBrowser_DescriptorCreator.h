@@ -24,11 +24,12 @@ namespace EE
         ResourceDescriptorCreator( ToolsContext* toolsContext, TypeSystem::TypeID const descriptorTypeID, FileSystem::Path const& startingDir );
         virtual ~ResourceDescriptorCreator();
 
+        // Returns true if we should keep drawing this widget. Returns false when we are done!
         bool Draw();
 
     private:
 
-        bool SaveDescriptor();
+        void SaveDescriptor();
 
     protected:
 

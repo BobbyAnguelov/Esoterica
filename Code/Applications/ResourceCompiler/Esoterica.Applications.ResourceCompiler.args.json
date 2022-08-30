@@ -3,10 +3,6 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
-      "Id": "ff2603eb-2974-43e2-8a25-5347a8973a7c",
-      "Command": "-compile data://interaction@default.agv"
-    },
-    {
       "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
       "Command": "-shipping"
     },
@@ -144,6 +140,10 @@
       "Id": "c375fed6-8f52-4aa2-9ce9-12b2e4723ce7",
       "Command": "Animation",
       "Items": [
+        {
+          "Id": "dca273b1-f463-42fd-ae8a-7ac559dfe196",
+          "Command": "-compile data://interaction@default.agv"
+        },
         {
           "Id": "6b989043-19e7-4e28-af7d-b52083f606dc",
           "Command": "-compile data://testgraph_default.agv"

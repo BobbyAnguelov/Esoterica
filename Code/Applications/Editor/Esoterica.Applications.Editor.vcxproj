@@ -98,12 +98,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="EditorUI.cpp" />
-    <ClCompile Include="EditorContext.cpp" />
     <ClCompile Include="Win32\EditorApplication_Win32.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EditorUI.h" />
-    <ClInclude Include="EditorContext.h" />
     <ClInclude Include="Win32\Resource.h" />
     <ClInclude Include="Win32\EditorApplication_Win32.h" />
   </ItemGroup>

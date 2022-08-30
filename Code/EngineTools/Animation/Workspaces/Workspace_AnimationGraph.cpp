@@ -535,7 +535,7 @@ namespace EE::Animation
         VisualGraph::BaseGraph::OnEndModification().Unbind( m_rootGraphEndModificationBindingID );
     }
 
-    bool AnimationGraphWorkspace::IsEditingResource( ResourceID const& resourceID ) const
+    bool AnimationGraphWorkspace::IsWorkingOnResource( ResourceID const& resourceID ) const
     {
         ResourceID const actualResourceID = Variation::GetGraphResourceID( resourceID );
         return actualResourceID == m_descriptorID;
@@ -981,7 +981,20 @@ namespace EE::Animation
             auto const definitionExtension = GraphDefinition::GetStaticResourceTypeID().ToString();
             EE_ASSERT( m_graphFilePath.IsValid() && m_graphFilePath.MatchesExtension( definitionExtension.c_str() ) );
 
-            // Delete all variation descriptors for this graph
+            // Create list of valid descriptor
+            //-------------------------------------------------------------------------
+
+            TVector<FileSystem::Path> validVariations;
+
+            auto const& variationHierarchy = m_toolsGraph.GetVariationHierarchy();
+            for ( auto const& variation : variationHierarchy.GetAllVariations() )
+            {
+                validVariations.emplace_back( Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID ) );
+            }
+
+            // Delete all invalid descriptors for this graph
+            //-------------------------------------------------------------------------
+
             auto const variationExtension = GraphVariation::GetStaticResourceTypeID().ToString();
             TVector<FileSystem::Path> allVariationFiles;
             if ( FileSystem::GetDirectoryContents( m_graphFilePath.GetParentDirectory(), allVariationFiles, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::DontExpand, { variationExtension.c_str() } ) )
@@ -991,23 +1004,25 @@ namespace EE::Animation
                 {
                     if ( variationFilePath.GetFullPath().find( variationPathPrefix.c_str() ) != String::npos )
                     {
-                        FileSystem::EraseFile( variationFilePath );
+                        if ( !VectorContains( validVariations, variationFilePath ) )
+                        {
+                            FileSystem::EraseFile( variationFilePath );
+                        }
                     }
                 }
             }
 
-            // Generate the variation descriptors
-            auto const& variations = m_toolsGraph.GetVariationHierarchy();
-            for ( auto const& variation : variations.GetAllVariations() )
+            // Generate all variation descriptors
+            //-------------------------------------------------------------------------
+
+            for ( auto const& variation : variationHierarchy.GetAllVariations() )
             {
-                GraphVariationResourceDescriptor resourceDesc;
-                resourceDesc.m_graphPath = GetResourcePath( m_graphFilePath );
-                resourceDesc.m_variationID = variation.m_ID;
-
-                String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID );
-                FileSystem::Path const variationPath( variationPathStr.c_str() );
-
-                Resource::ResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, variationPath, &resourceDesc );
+                if ( !Variation::TryCreateVariationFile( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->GetRawResourceDirectory(), m_graphFilePath, variation.m_ID ) )
+                {
+                    InlineString const str( InlineString::CtorSprintf(), "Failed to create variation file - %s", Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID ).c_str() );
+                    pfd::message( "Error Saving!", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+                    return false;
+                }
             }
 
             m_toolsGraph.ClearDirty();
@@ -1629,14 +1644,10 @@ namespace EE::Animation
     void AnimationGraphWorkspace::TrySetSelectedVariation( String const& variationName )
     {
         auto const& varHierarchy = m_toolsGraph.GetVariationHierarchy();
-        for ( auto const& variation : varHierarchy.GetAllVariations() )
+        StringID const variationID = varHierarchy.TryGetCaseCorrectVariationID( variationName );
+        if ( variationID.IsValid() )
         {
-            int32_t const result = variationName.comparei( variation.m_ID.c_str() );
-            if ( result == 0 )
-            {
-                SetSelectedVariation( variation.m_ID );
-                return;
-            }
+            SetSelectedVariation( variationID );
         }
     }
 

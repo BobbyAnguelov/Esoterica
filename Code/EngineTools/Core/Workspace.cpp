@@ -7,6 +7,7 @@
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
+#include "Engine/UpdateContext.h"
 #include "System/Imgui/ImguiStyle.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Resource/ResourceSystem.h"
@@ -173,6 +174,8 @@ namespace EE
 
     void Workspace::Initialize( UpdateContext const& context )
     {
+        m_pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
+
         SetDisplayName( m_displayName );
         m_viewportWindowID.sprintf( "Viewport##%u", GetID() );
         m_dockspaceID.sprintf( "Dockspace##%u", GetID() );
@@ -187,6 +190,7 @@ namespace EE
     void Workspace::Shutdown( UpdateContext const& context )
     {
         EE::Delete( m_pDescriptor );
+        m_pResourceSystem = nullptr;
     }
 
     void Workspace::SetDisplayName( String const& name )
@@ -588,14 +592,14 @@ namespace EE
         EE_ASSERT( pResourcePtr != nullptr && pResourcePtr->IsUnloaded() );
         EE_ASSERT( !VectorContains( m_requestedResources, pResourcePtr ) );
         m_requestedResources.emplace_back( pResourcePtr );
-        m_pToolsContext->m_pResourceSystem->LoadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+        m_pResourceSystem->LoadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
     }
 
     void Workspace::UnloadResource( Resource::ResourcePtr* pResourcePtr )
     {
         EE_ASSERT( !pResourcePtr->IsUnloaded() );
         EE_ASSERT( VectorContains( m_requestedResources, pResourcePtr ) );
-        m_pToolsContext->m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+        m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
         m_requestedResources.erase_first_unsorted( pResourcePtr );
     }
 
@@ -752,7 +756,7 @@ namespace EE
             // Request unload and track the resource we need to reload
             if ( shouldUnload )
             {
-                m_pToolsContext->m_pResourceSystem->UnloadResource( *pLoadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+                m_pResourceSystem->UnloadResource( *pLoadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
                 m_reloadingResources.emplace_back( pLoadedResource );
             }
         }
@@ -763,7 +767,7 @@ namespace EE
         // Load all unloaded resources
         for ( auto& pReloadedResource : m_reloadingResources )
         {
-            m_pToolsContext->m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+            m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
         }
         m_reloadingResources.clear();
 

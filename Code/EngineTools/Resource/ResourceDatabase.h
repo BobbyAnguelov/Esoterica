@@ -65,6 +65,9 @@ namespace EE::Resource
         // Event that fires whenever the database is updated
         TEventHandle<> OnDatabaseUpdated() const { return m_databaseUpdatedEvent; }
 
+        // Event that fires whenever a resource is deleted
+        TEventHandle<ResourceID> OnResourceDeleted() const { return m_resourceDeletedEvent; }
+
     private:
 
         void RebuildDatabase();
@@ -97,5 +100,6 @@ namespace EE::Resource
         Directory                                                   m_rootDir;
         THashMap<ResourceTypeID, TVector<ResourceEntry*>>           m_resourcesPerType;
         mutable TEvent<>                                            m_databaseUpdatedEvent;
+        mutable TEvent<ResourceID>                                  m_resourceDeletedEvent;
     };
 }

@@ -140,29 +140,17 @@ namespace EE::Resource
 
     void RawFileInspectorFBX::DrawFileInfo()
     {
-        ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 4.0f );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 8.0f, 4.0f ) );
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray9.Value );
-        if ( ImGui::BeginChild( "Contents", ImVec2( -1, 90 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+        ImGuiX::TextSeparator( "File Info" );
+
+        ImGui::Indent();
+        ImGui::Text( "Raw File: %s", m_filePath.c_str() );
+
+        if ( m_sceneContext.IsValid() )
         {
-            {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold, Colors::Orange );
-                ImGui::Text( "File Info" );
-            }
-            ImGui::Separator();
-
-            ImGui::Text( "Raw File: %s", m_filePath.c_str() );
-
-            if ( m_sceneContext.IsValid() )
-            {
-
-                ImGui::Text( "Original Up Axis: %s", Math::ToString( m_sceneContext.GetOriginalUpAxis() ) );
-                ImGui::Text( "Scale: %.2f", m_sceneContext.GetScaleConversionMultiplier() == 1.0f ? "M" : "CM" );
-            }
+            ImGui::Text( "Original Up Axis: %s", Math::ToString( m_sceneContext.GetOriginalUpAxis() ) );
+            ImGui::Text( "Scale: %.2f", m_sceneContext.GetScaleConversionMultiplier() == 1.0f ? "M" : "CM" );
         }
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
-        ImGui::PopStyleVar( 2 );
+        ImGui::Unindent();
     }
 
     void RawFileInspectorFBX::DrawFileContents()
@@ -334,46 +322,41 @@ namespace EE::Resource
     {
         if ( m_selectedItemType != InfoType::None )
         {
+            switch ( m_selectedItemType )
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::LargeBold, ImGuiX::Style::s_colorAccent1 );
-
-                switch ( m_selectedItemType )
+                case InfoType::StaticMesh:
                 {
-                    case InfoType::StaticMesh:
-                    {
-                        ImGui::Text( "Create New Static Mesh" );
-                    }
-                    break;
-
-                    case InfoType::SkeletalMesh:
-                    {
-                        ImGui::Text( "Create New Skeletal Mesh" );
-                    }
-                    break;
-
-                    case InfoType::PhysicsMesh:
-                    {
-                        ImGui::Text( "Create New Physics Mesh" );
-                    }
-                    break;
-
-                    case InfoType::Skeleton:
-                    {
-                        ImGui::Text( "Create New Skeleton" );
-                    }
-                    break;
-
-                    case InfoType::Animation:
-                    {
-                        ImGui::Text( "Create New Animation" );
-                    }
-                    break;
-
-                    default:
-                    EE_UNREACHABLE_CODE();
-                    break;
+                    ImGuiX::TextSeparator( "Create New Static Mesh" );
                 }
+                break;
 
+                case InfoType::SkeletalMesh:
+                {
+                    ImGuiX::TextSeparator( "Create New Skeletal Mesh" );
+                }
+                break;
+
+                case InfoType::PhysicsMesh:
+                {
+                    ImGuiX::TextSeparator( "Create New Physics Mesh" );
+                }
+                break;
+
+                case InfoType::Skeleton:
+                {
+                    ImGuiX::TextSeparator( "Create New Skeleton" );
+                }
+                break;
+
+                case InfoType::Animation:
+                {
+                    ImGuiX::TextSeparator( "Create New Animation" );
+                }
+                break;
+
+                default:
+                EE_UNREACHABLE_CODE();
+                break;
             }
 
             //-------------------------------------------------------------------------

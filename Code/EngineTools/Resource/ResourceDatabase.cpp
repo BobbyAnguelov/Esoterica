@@ -142,7 +142,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         TVector<FileSystem::Path> foundPaths;
-        if ( !FileSystem::GetDirectoryContents( m_rawResourceDirPath, foundPaths, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Expand ) )
+        if ( !FileSystem::GetDirectoryContents( m_rawResourceDirPath, foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand ) )
         {
             EE_HALT();
         }
@@ -151,7 +151,15 @@ namespace EE::Resource
 
         for ( auto const& filePath : foundPaths )
         {
-            AddFileRecord( filePath );
+            if ( filePath.IsDirectoryPath() )
+            {
+                Directory* pDirectory = FindOrCreateDirectory( filePath );
+                EE_ASSERT( pDirectory != nullptr );
+            }
+            else
+            {
+                AddFileRecord( filePath );
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -296,9 +304,10 @@ namespace EE::Resource
             if ( pDirectory->m_files[i]->m_filePath == path )
             {
                 // Remove from categorized resource lists
-                if ( pDirectory->m_files[i]->m_resourceID.IsValid() )
+                ResourceID const& resourceID = pDirectory->m_files[i]->m_resourceID;
+                if ( resourceID.IsValid() )
                 {
-                    ResourceTypeID const typeID = pDirectory->m_files[i]->m_resourceID.GetResourceTypeID();
+                    ResourceTypeID const typeID = resourceID.GetResourceTypeID();
 
                     auto iter = m_resourcesPerType.find( typeID );
                     if ( iter != m_resourcesPerType.end() )
@@ -306,6 +315,8 @@ namespace EE::Resource
                         TVector<ResourceEntry*>& category = iter->second;
                         category.erase_first_unsorted( pDirectory->m_files[i] );
                     }
+
+                    m_resourceDeletedEvent.Execute( resourceID );
                 }
 
                 // Destroy record
@@ -342,9 +353,18 @@ namespace EE::Resource
             EE_HALT();
         }
 
-        for ( auto const& filePath : foundPaths )
+        // If this is an empty directory, add to the directory list
+        if ( foundPaths.empty() )
         {
-            AddFileRecord( filePath );
+            Directory* pDirectory = FindOrCreateDirectory( newDirectoryPath );
+            EE_ASSERT( pDirectory != nullptr );
+        }
+        else // Add file records (this will automatically create the directory record)
+        {
+            for ( auto const& filePath : foundPaths )
+            {
+                AddFileRecord( filePath );
+            }
         }
     }
 
@@ -414,6 +434,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
+        EE_ASSERT( pDirectory != nullptr );
         pDirectory->ChangePath( m_rawResourceDirPath, newPath );
     }
 }

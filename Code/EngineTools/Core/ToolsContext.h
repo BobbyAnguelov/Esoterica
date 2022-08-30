@@ -21,7 +21,7 @@ namespace EE
     {
     public:
 
-        inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pResourceDatabase != nullptr && m_pResourceSystem != nullptr; }
+        inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pResourceDatabase != nullptr; }
         FileSystem::Path const& GetRawResourceDirectory() const;
         FileSystem::Path const& GetCompiledResourceDirectory() const;
 
@@ -47,6 +47,5 @@ namespace EE
 
         TypeSystem::TypeRegistry const*                     m_pTypeRegistry = nullptr;
         Resource::ResourceDatabase const*                   m_pResourceDatabase = nullptr;
-        Resource::ResourceSystem*                           m_pResourceSystem = nullptr;
     };
 }

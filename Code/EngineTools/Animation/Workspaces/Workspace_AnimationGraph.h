@@ -71,7 +71,7 @@ namespace EE::Animation
         AnimationGraphWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
         ~AnimationGraphWorkspace();
 
-        virtual bool IsEditingResource( ResourceID const& resourceID ) const override;
+        virtual bool IsWorkingOnResource( ResourceID const& resourceID ) const override;
 
     private:
 
