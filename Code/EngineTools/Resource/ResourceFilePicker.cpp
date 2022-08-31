@@ -3,6 +3,7 @@
 #include "System/Imgui/ImguiX.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "System/TypeSystem/TypeRegistry.h"
 #include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
@@ -39,6 +40,9 @@ namespace EE::Resource
 
     void ResourceFilePicker::RefreshResourceList( ResourceTypeID resourceTypeID )
     {
+        EE_ASSERT( resourceTypeID.IsValid() );
+        EE_ASSERT( m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) );
+
         m_knownResourceIDs.clear();
 
         if ( resourceTypeID.IsValid() )
@@ -104,6 +108,12 @@ namespace EE::Resource
         bool valueUpdated = false;
 
         //-------------------------------------------------------------------------
+
+        if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) )
+        {
+            ImGui::Text( "Invalid Resource Type!" );
+            return false;
+        }
 
         if ( forceRefreshValidity || ( m_knownResourceIDs.empty() && resourceTypeID.IsValid() ) )
         {
