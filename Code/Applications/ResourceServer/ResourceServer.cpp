@@ -299,13 +299,6 @@ namespace EE::Resource
             return;
         }
 
-        // Check compiled resources database for a record for this file
-        auto compiledResourceRecord = m_compiledResourceDatabase.GetRecord( resourceID );
-        if ( !compiledResourceRecord.IsValid() )
-        {
-            return;
-        }
-
         // If we have a record, then schedule a recompile task
         CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::FileWatcher );
     }

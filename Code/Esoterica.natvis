@@ -102,13 +102,24 @@
     <DisplayString>{m_path}, Type: {m_type.m_ID}</DisplayString>
   </Type>
 
-  <Type Name="EE::TResourcePtr&lt;*&gt;">
-    <DisplayString Condition="m_pResource != 0">{m_resourceID}, Status: {m_pResource->m_loadingStatus}</DisplayString>
-    <DisplayString Condition="m_pResource == 0">{m_resourceID}, Status: Unloaded</DisplayString>
+  <Type Name="EE::Resource::ResourcePtr">
+    <DisplayString Condition="m_resourceID.m_type.m_ID == 0">Not Set</DisplayString>
+    <DisplayString Condition="m_pResourceRecord != 0">{m_resourceID}, Status: {m_pResourceRecord->m_loadingStatus}</DisplayString>
+    <DisplayString Condition="m_pResourceRecord == 0">{m_resourceID}, Status: Not Requested</DisplayString>
     <Expand>
       <Item Name="ID">m_resourceID</Item>
-      <Item Name="Data">($T1*) m_pResource->m_pResource</Item>
-      <Item Name="ResourceRecord">m_pResource</Item>
+      <Item Name="ResourceRecord">m_pResourceRecord</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::TResourcePtr&lt;*&gt;">
+    <DisplayString Condition="m_resourceID.m_type.m_ID == 0">Not Set</DisplayString>
+    <DisplayString Condition="m_pResourceRecord != 0">{m_resourceID}, Status: {m_pResourceRecord->m_loadingStatus}</DisplayString>
+    <DisplayString Condition="m_pResourceRecord == 0">{m_resourceID}, Status: Not Requested</DisplayString>
+    <Expand>
+      <Item Name="ID">m_resourceID</Item>
+      <Item Name="Data">($T1*) m_pResourceRecord->m_pResource</Item>
+      <Item Name="ResourceRecord">m_pResourceRecord</Item>
     </Expand>
   </Type>
 

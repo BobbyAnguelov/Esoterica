@@ -62,7 +62,7 @@ namespace EE
         String                      m_name;
         TVector<Category<T>>        m_childCategories;
         TVector<CategoryItem<T>>    m_items;
-        int32_t                       m_depth = -1;
+        int32_t                     m_depth = -1;
     };
 
     // Category Tree

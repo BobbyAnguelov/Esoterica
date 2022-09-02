@@ -68,6 +68,7 @@ namespace EE
 #define EE_PROFILE_FUNCTION_ENTITY() OPTICK_EVENT( OPTICK_FUNC, Optick::Category::Scene )
 #define EE_PROFILE_FUNCTION_RESOURCE() OPTICK_EVENT( OPTICK_FUNC, Optick::Category::Streaming )
 #define EE_PROFILE_FUNCTION_NETWORK() OPTICK_EVENT( OPTICK_FUNC, Optick::Category::Network )
+#define EE_PROFILE_FUNCTION_DEVTOOLS() OPTICK_EVENT( OPTICK_FUNC, Optick::Category::Debug )
 
 #define EE_PROFILE_SCOPE_AI( name ) OPTICK_EVENT( name, Optick::Category::AI )
 #define EE_PROFILE_SCOPE_ANIMATION( name ) OPTICK_EVENT( name, Optick::Category::Animation )
@@ -80,3 +81,4 @@ namespace EE
 #define EE_PROFILE_SCOPE_ENTITY( name ) OPTICK_EVENT( name, Optick::Category::Scene )
 #define EE_PROFILE_SCOPE_RESOURCE( name ) OPTICK_EVENT( name, Optick::Category::Streaming )
 #define EE_PROFILE_SCOPE_NETWORK( name ) OPTICK_EVENT( name, Optick::Category::Network )
+#define EE_PROFILE_SCOPE_DEVTOOLS( name ) OPTICK_EVENT( name, Optick::Category::Debug )

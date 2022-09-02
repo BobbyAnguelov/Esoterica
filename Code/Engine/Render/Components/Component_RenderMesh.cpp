@@ -46,7 +46,7 @@ namespace EE::Render
         {
             if ( i < numMaterialOverrides )
             {
-                if ( m_materialOverrides[i].IsValid() )
+                if ( m_materialOverrides[i].IsSet() )
                 {
                     EE_ASSERT( m_materialOverrides[i].IsLoaded() );
                     m_materials[i] = m_materialOverrides[i].GetPtr();
@@ -58,7 +58,7 @@ namespace EE::Render
             }
             else // Use default material
             {
-                if ( defaultMaterials[i].IsValid() )
+                if ( defaultMaterials[i].IsSet() )
                 {
                     EE_ASSERT( defaultMaterials[i].IsLoaded() );
                     m_materials[i] = defaultMaterials[i].GetPtr();

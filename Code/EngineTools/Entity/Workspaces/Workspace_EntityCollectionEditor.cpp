@@ -13,7 +13,7 @@ namespace EE::EntityModel
     //-------------------------------------------------------------------------
 
     EntityCollectionEditor::EntityCollectionEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& collectionResourceID )
-        : EntityEditorBaseWorkspace( pToolsContext, pWorld, collectionResourceID )
+        : EntityWorldEditorWorkspace( pToolsContext, pWorld, collectionResourceID )
         , m_collection( collectionResourceID )
     {
         SetDisplayName( collectionResourceID.GetFileNameWithoutExtension() );
@@ -23,7 +23,7 @@ namespace EE::EntityModel
 
     void EntityCollectionEditor::Initialize( UpdateContext const& context )
     {
-        EntityEditorBaseWorkspace::Initialize( context );
+        EntityWorldEditorWorkspace::Initialize( context );
         LoadResource( &m_collection );
         m_collectionInstantiated = false;
     }
@@ -37,7 +37,7 @@ namespace EE::EntityModel
 
         m_collectionInstantiated = false;
 
-        EntityEditorBaseWorkspace::Shutdown( context );
+        EntityWorldEditorWorkspace::Shutdown( context );
     }
 
     //-------------------------------------------------------------------------
@@ -81,6 +81,6 @@ namespace EE::EntityModel
             }
         }
 
-        EntityEditorBaseWorkspace::Update( context, pWindowClass, isFocused );
+        EntityWorldEditorWorkspace::Update( context, pWindowClass, isFocused );
     }
 }

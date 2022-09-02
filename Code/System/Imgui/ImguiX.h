@@ -56,6 +56,21 @@ namespace EE::ImGuiX
     // Returns the closest point on the rect border to the specified point
     EE_SYSTEM_API ImVec2 GetClosestPointOnRectBorder( ImRect const& rect, ImVec2 const& inPoint );
 
+    // Is this a valid name ID character (i.e. A-Z, a-z, 0-9, _ )
+    inline bool IsValidNameIDChar( ImWchar c )
+    {
+        return isalnum( c ) || c == '_';
+    }
+
+    inline int FilterNameIDChars( ImGuiInputTextCallbackData* data )
+    {
+        if ( IsValidNameIDChar( data->EventChar ) )
+        {
+            return 0;
+        }
+        return 1;
+    }
+
     //-------------------------------------------------------------------------
     // Separators
     //-------------------------------------------------------------------------

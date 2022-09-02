@@ -11,7 +11,7 @@ namespace EE
 
     public:
 
-        TGlobalRegistryBase::TGlobalRegistryBase()
+        TGlobalRegistryBase()
         {
             // Add to global list
             if ( T::s_pHead != nullptr )

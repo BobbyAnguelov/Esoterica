@@ -29,53 +29,58 @@ namespace EE
             ResourcePtr( Resource::ResourcePtr const& rhs ) { operator=( rhs ); }
             ResourcePtr( Resource::ResourcePtr&& rhs ) { operator=( eastl::move( rhs ) ); }
 
-            inline bool IsValid() const { return m_resourceID.IsValid(); }
+            // Is the resource ID set for this ptr - doesnt signify if the resource is loaded
+            inline bool IsSet() const { return m_resourceID.IsValid(); }
+
             inline ResourceID const& GetResourceID() const { return m_resourceID; }
             inline ResourcePath const& GetResourcePath() const { return m_resourceID.GetResourcePath(); }
             inline ResourceTypeID GetResourceTypeID() const { return m_resourceID.GetResourceTypeID(); }
 
             inline void Clear()
             {
-                EE_ASSERT( m_pResource == nullptr ); // Only allowed to clear unloaded resource ptrs
+                EE_ASSERT( m_pResourceRecord == nullptr ); // Only allowed to clear unloaded resource ptrs
                 m_resourceID.Clear();
             }
 
             template<typename T>
-            inline T* GetPtr() { return (T*) m_pResource; }
+            inline T* GetPtr() { return (T*) m_pResourceRecord; }
 
-            inline bool operator==( nullptr_t ) { return m_pResource == nullptr; }
-            inline bool operator!=( nullptr_t ) { return m_pResource != nullptr; }
+            inline bool operator==( nullptr_t ) { return m_pResourceRecord == nullptr; }
+            inline bool operator!=( nullptr_t ) { return m_pResourceRecord != nullptr; }
             inline bool operator==( ResourcePtr const& rhs ) const { return m_resourceID == rhs.m_resourceID; }
             inline bool operator!=( ResourcePtr const& rhs ) const { return m_resourceID != rhs.m_resourceID; }
 
             inline ResourcePtr& operator=( ResourcePtr const& rhs ) 
             {
                 // Can't change a loaded resource, unload it first
-                EE_ASSERT( m_pResource == nullptr || m_pResource->IsUnloaded() );
+                EE_ASSERT( m_pResourceRecord == nullptr || m_pResourceRecord->IsUnloaded() );
                 m_resourceID = rhs.m_resourceID;
-                m_pResource = rhs.m_pResource;
+                m_pResourceRecord = rhs.m_pResourceRecord;
                 return *this;
             }
 
             inline ResourcePtr& operator=( ResourcePtr&& rhs )
             {
                 m_resourceID = rhs.m_resourceID;
-                m_pResource = rhs.m_pResource;
+                m_pResourceRecord = rhs.m_pResourceRecord;
                 rhs.m_resourceID = ResourceID();
-                rhs.m_pResource = nullptr;
+                rhs.m_pResourceRecord = nullptr;
                 return *this;
             }
 
             inline TInlineVector<ResourceID, 4> const& GetInstallDependencies() const
             {
-                EE_ASSERT( m_pResource != nullptr && ( m_pResource->IsLoaded() || m_pResource->IsLoading() ) );
-                return m_pResource->GetInstallDependencies(); 
+                EE_ASSERT( m_pResourceRecord != nullptr && ( m_pResourceRecord->IsLoaded() || m_pResourceRecord->IsLoading() || m_pResourceRecord->HasLoadingFailed() ) );
+                return m_pResourceRecord->GetInstallDependencies();
             }
 
             // Load status
             //-------------------------------------------------------------------------
+            // Note: loading status is a frame delayed, so if you want to know if a resource has been requested (and still to be processed) used the "WasRequested" function
 
-            inline LoadingStatus GetLoadingStatus() const { return ( m_pResource != nullptr ) ? m_pResource->GetLoadingStatus() : LoadingStatus::Unloaded; }
+            inline bool WasRequested() const { return m_pResourceRecord != nullptr; }
+
+            inline LoadingStatus GetLoadingStatus() const { return ( m_pResourceRecord != nullptr ) ? m_pResourceRecord->GetLoadingStatus() : LoadingStatus::Unloaded; }
             inline bool IsLoading() const { return GetLoadingStatus() == LoadingStatus::Loading; }
             inline bool IsLoaded() const { return GetLoadingStatus() == LoadingStatus::Loaded; }
             inline bool IsUnloading() const { return GetLoadingStatus() == LoadingStatus::Unloading; }
@@ -85,7 +90,7 @@ namespace EE
         protected:
 
             ResourceID                  m_resourceID;
-            ResourceRecord const*       m_pResource = nullptr;
+            ResourceRecord const*       m_pResourceRecord = nullptr;
         };
     }
 
@@ -112,33 +117,33 @@ namespace EE
         { 
             operator=( otherResourcePtr );
             otherResourcePtr.m_resourceID = ResourceID();
-            otherResourcePtr.m_pResource = nullptr;
+            otherResourcePtr.m_pResourceRecord = nullptr;
         }
 
-        inline bool operator==( nullptr_t ) const { return m_pResource == nullptr; }
-        inline bool operator!=( nullptr_t ) const { return m_pResource != nullptr; }
+        inline bool operator==( nullptr_t ) const { return m_pResourceRecord == nullptr; }
+        inline bool operator!=( nullptr_t ) const { return m_pResourceRecord != nullptr; }
         inline bool operator==( ResourcePtr const& rhs ) const { return m_resourceID == rhs.m_resourceID; }
         inline bool operator!=( ResourcePtr const& rhs ) const { return m_resourceID != rhs.m_resourceID; }
         inline bool operator==( TResourcePtr const& rhs ) const { return m_resourceID == rhs.m_resourceID; }
         inline bool operator!=( TResourcePtr const& rhs ) const { return m_resourceID != rhs.m_resourceID; }
 
-        inline T const* operator->() const { EE_ASSERT( m_pResource != nullptr ); return static_cast<T const*>( m_pResource->GetResourceData() ); }
-        inline T const* GetPtr() const { EE_ASSERT( m_pResource != nullptr ); return static_cast<T const*>( m_pResource->GetResourceData() ); }
+        inline T const* operator->() const { EE_ASSERT( m_pResourceRecord != nullptr ); return static_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
+        inline T const* GetPtr() const { EE_ASSERT( m_pResourceRecord != nullptr ); return static_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
 
         inline ResourceTypeID GetSpecializedResourceTypeID() const { return T::GetStaticResourceTypeID(); }
 
         inline TResourcePtr<T>& operator=( ResourcePtr const& rhs )
         {
             // Can't change a loaded resource, unload it first
-            EE_ASSERT( m_pResource == nullptr || m_pResource->IsUnloaded() );
+            EE_ASSERT( m_pResourceRecord == nullptr || m_pResourceRecord->IsUnloaded() );
 
-            if ( rhs.IsValid() )
+            if ( rhs.IsSet() )
             {
                 if ( rhs.GetResourceTypeID() == T::GetStaticResourceTypeID() )
                 {
                     TResourcePtr<T> const& castPtr = reinterpret_cast<TResourcePtr<T> const&>( rhs );
                     m_resourceID = castPtr.m_resourceID;
-                    m_pResource = castPtr.m_pResource;
+                    m_pResourceRecord = castPtr.m_pResourceRecord;
                 }
                 else // Invalid Assignment
                 {

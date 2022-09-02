@@ -37,19 +37,19 @@ namespace EE::Render
         // Mesh Data
         //-------------------------------------------------------------------------
 
-        virtual bool HasMeshResourceSet() const override final { return m_pMesh.IsValid(); }
+        virtual bool HasMeshResourceSet() const override final { return m_mesh.IsSet(); }
 
         inline void SetMesh( ResourceID meshResourceID )
         {
             EE_ASSERT( IsUnloaded() );
             EE_ASSERT( meshResourceID.IsValid() );
-            m_pMesh = meshResourceID;
+            m_mesh = meshResourceID;
         }
 
         inline StaticMesh const* GetMesh() const
         {
-            EE_ASSERT( m_pMesh != nullptr && m_pMesh->IsValid() );
-            return m_pMesh.GetPtr();
+            EE_ASSERT( m_mesh != nullptr && m_mesh->IsValid() );
+            return m_mesh.GetPtr();
         }
 
         // Mobility
@@ -67,7 +67,7 @@ namespace EE::Render
 
     private:
 
-        EE_EXPOSE TResourcePtr<StaticMesh>               m_pMesh;
+        EE_EXPOSE TResourcePtr<StaticMesh>               m_mesh;
         EE_EXPOSE Mobility                               m_mobility = Mobility::Static;
     };
 }

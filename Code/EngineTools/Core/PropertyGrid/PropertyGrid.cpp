@@ -165,26 +165,49 @@ namespace EE
     {
         if ( m_pTypeInstance == nullptr )
         {
-            ImGui::Text( "Nothing To Edit" );
+            ImGui::Text( "Nothing To Edit." );
             return;
         }
 
+        // Control Bar
+        //-------------------------------------------------------------------------
+
+        if ( m_isControlBarVisible )
+        {
+            if ( m_showAllRegisteredProperties )
+            {
+                if ( ImGuiX::FlatButton( EE_ICON_EYE_OUTLINE"##ToggleShowRegisteredProperties" ) )
+                {
+                    m_showAllRegisteredProperties = false;
+                }
+                ImGuiX::ItemTooltip( "Show only exposed properties" );
+            }
+            else
+            {
+                if ( ImGuiX::FlatButton( EE_ICON_EYE_OFF_OUTLINE"##ToggleShowRegisteredProperties" ) )
+                {
+                    m_showAllRegisteredProperties = true;
+                }
+                ImGuiX::ItemTooltip( "Show all properties" );
+            }
+        }
+
+        // Properties
         //-------------------------------------------------------------------------
 
         ImGuiTableFlags const flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersH | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 2, 4 ) );
         if ( ImGui::BeginTable( "PropertyGrid", 3, flags ) )
         {
-            ImGui::TableSetupColumn( "Property", ImGuiTableColumnFlags_WidthFixed, 100 );
+            ImGui::TableSetupColumn( "##Property", ImGuiTableColumnFlags_WidthFixed, 100 );
             ImGui::TableSetupColumn( "##EditorWidget", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupColumn( "##ExtraControls", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, g_extraControlsColumnWidth );
-            ImGui::TableHeadersRow();
 
             //-------------------------------------------------------------------------
 
             for ( auto const& propertyInfo : m_pTypeInfo->m_properties )
             {
-                if ( !propertyInfo.IsExposedProperty() )
+                if ( !m_showAllRegisteredProperties && !propertyInfo.IsExposedProperty() )
                 {
                     continue;
                 }
@@ -273,11 +296,13 @@ namespace EE
         {
             if ( pPropertyEditor != nullptr )
             {
+                ImGui::BeginDisabled( !propertyInfo.IsExposedProperty() );
                 if ( pPropertyEditor->UpdateAndDraw() )
                 {
                     ScopedChangeNotifier cn( this, &propertyInfo );
                     pPropertyEditor->UpdatePropertyValue();
                 }
+                ImGui::EndDisabled();
 
                 if ( !propertyInfo.m_description.empty() )
                 {
@@ -301,6 +326,7 @@ namespace EE
 
         ImGui::PushID( pActualPropertyInstance );
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_extraControlsButtonPadding );
+        ImGui::BeginDisabled( !propertyInfo.IsExposedProperty() );
         if ( propertyInfo.IsDynamicArrayProperty() )
         {
             EE_ASSERT( arrayIdx != InvalidIndex );
@@ -319,6 +345,7 @@ namespace EE
             }
             ImGuiX::ItemTooltip( "Reset value to default" );
         }
+        ImGui::EndDisabled();
         ImGui::PopStyleVar();
         ImGui::PopID();
 
@@ -337,6 +364,11 @@ namespace EE
 
             for ( auto const& childPropertyInfo : pChildTypeInfo->m_properties )
             {
+                if ( !m_showAllRegisteredProperties && !propertyInfo.IsExposedProperty() )
+                {
+                    continue;
+                }
+
                 ImGui::TableNextRow();
                 DrawPropertyRow( pChildTypeInfo, reinterpret_cast<IRegisteredType*>( pChildTypeInstance ), childPropertyInfo, pChildTypeInstance + childPropertyInfo.m_offset );
             }
@@ -421,12 +453,14 @@ namespace EE
 
             ImGui::SameLine( 0, textAreaWidth - actualTextWidth + itemSpacing );
             ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_extraControlsButtonPadding );
+            ImGui::BeginDisabled( !propertyInfo.IsExposedProperty() );
             if ( ImGuiX::FlatButtonColored( Colors::LightGreen.ToFloat4(), EE_ICON_PLUS, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 ScopedChangeNotifier cn( this, &propertyInfo, PropertyEditInfo::Action::AddArrayElement );
                 pTypeInfo->AddArrayElement( pTypeInstance, propertyInfo.m_ID );
                 ImGui::GetStateStorage()->SetInt( ImGui::GetID( propertyInfo.m_ID.c_str() ), 1 );
             }
+            ImGui::EndDisabled();
             ImGuiX::ItemTooltip( "Add array element" );
             ImGui::PopStyleVar();
         }
@@ -443,11 +477,13 @@ namespace EE
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_extraControlsButtonPadding );
         if ( !pTypeInfo->IsPropertyValueSetToDefault( pTypeInstance, propertyInfo.m_ID ) )
         {
+            ImGui::BeginDisabled( !propertyInfo.IsExposedProperty() );
             if ( ImGuiX::FlatButtonColored( Colors::LightGray.ToFloat4(), EE_ICON_UNDO_VARIANT, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 ScopedChangeNotifier cn( this, &propertyInfo );
                 pTypeInfo->ResetToDefault( pTypeInstance, propertyInfo.m_ID );
             }
+            ImGui::EndDisabled();
             ImGuiX::ItemTooltip( "Reset value to default" );
         }
         ImGui::PopStyleVar();

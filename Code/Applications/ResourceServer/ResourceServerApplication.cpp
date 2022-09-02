@@ -1,5 +1,6 @@
 #include "ResourceServerApplication.h"
 #include "Resources/Resource.h"
+#include "Applications/Shared/LivePP/LivePP.h"
 #include "System/Log.h"
 #include "System/Time/Timers.h"
 #include "System/FileSystem/FileSystemUtils.h"
@@ -8,10 +9,6 @@
 #include "System/IniFile.h"
 #include <tchar.h>
 #include <shobjidl_core.h>
-
-#if EE_ENABLE_LPP
-#include "LPP_API_x64_CPP.h"
-#endif
 
 //-------------------------------------------------------------------------
 
@@ -260,31 +257,22 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
     }
 
     //-------------------------------------------------------------------------
-    // Live++ Support
-    //-------------------------------------------------------------------------
 
-    #if EE_ENABLE_LPP
-    /*auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"../../External/LivePP/ProjectPreferences.json" );
-    lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES );
-    lppAgent.SetBoolPreferences( lpp::LPP_BOOL_PREF_UNITY_SPLITTING_ENABLED, false );*/
-    #endif
+    int result = 0;
+    {
+        #if EE_ENABLE_LPP
+        //auto lppAgent = EE::ScopedLPPAgent();
+        #endif
 
-    //-------------------------------------------------------------------------
-    
-    EE::ApplicationGlobalState globalState;
-    EE::ResourceServerApplication engineApplication( hInstance );
-    int const result = engineApplication.Run( __argc, __argv );
+        EE::ApplicationGlobalState globalState;
+        EE::ResourceServerApplication engineApplication( hInstance );
+        result = engineApplication.Run( __argc, __argv );
+    }
 
     //-------------------------------------------------------------------------
 
     ReleaseMutex( pSingletonMutex );
     CloseHandle( pSingletonMutex );
-
-    //-------------------------------------------------------------------------
-
-    #if EE_ENABLE_LPP
-    //lpp::LppDestroyDefaultAgent( &lppAgent );
-    #endif
 
     return result;
 }

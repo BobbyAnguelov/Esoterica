@@ -13,8 +13,8 @@ namespace EE::TypeSystem::Reflection
 
         enum Pass
         {
-            FirstPass,
-            SecondPass
+            DevToolsPass,
+            NoDevToolsPass
         };
 
     public:

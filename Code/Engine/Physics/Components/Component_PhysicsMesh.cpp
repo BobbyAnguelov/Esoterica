@@ -7,7 +7,7 @@ namespace EE::Physics
 {
     bool PhysicsMeshComponent::HasValidPhysicsSetup() const
     {
-        if ( !m_pPhysicsMesh.IsValid() )
+        if ( !m_pPhysicsMesh.IsSet() )
         {
             return false;
         }
@@ -45,6 +45,6 @@ namespace EE::Physics
     {
         PhysicsShapeComponent::Initialize();
 
-        EE_ASSERT( !m_pPhysicsMesh.IsValid() || m_pPhysicsMesh.IsLoaded() );
+        EE_ASSERT( !m_pPhysicsMesh.IsSet() || m_pPhysicsMesh.IsLoaded() );
     }
 }

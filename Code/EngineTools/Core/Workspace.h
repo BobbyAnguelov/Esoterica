@@ -55,6 +55,9 @@ namespace EE
         Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName );
         virtual ~Workspace();
 
+        // Workspace
+        //-------------------------------------------------------------------------
+
         // Get a unique ID for this workspace
         inline uint32_t GetID() const { return m_ID; }
 
@@ -64,20 +67,35 @@ namespace EE
         // Get the main workspace window ID - Needs to be unique per workspace instance!
         inline char const* GetWorkspaceWindowID() const { EE_ASSERT( !m_workspaceWindowID.empty() ); return m_workspaceWindowID.c_str(); }
 
-        // Get the viewport window name/ID - Needs to be unique per workspace instance!
-        inline char const* GetViewportWindowID() const { EE_ASSERT( !m_viewportWindowID.empty() ); return m_viewportWindowID.c_str(); }
-
-        // Get the main workspace window ID - Needs to be unique per workspace instance!
-        inline char const* GetDockspaceID() const { EE_ASSERT( !m_dockspaceID.empty() ); return m_dockspaceID.c_str(); }
-
-        // Should this workspace display a viewport?
-        virtual bool HasViewportWindow() const { return false; }
-
         // Does this workspace have a toolbar?
         virtual bool HasWorkspaceToolbar() const { return true; }
 
         // Does this workspace's viewport have the default items (save/undo/redo)?
         virtual bool HasWorkspaceToolbarDefaultItems() const { return true; }
+
+        // Draw any toolbar buttons that this workspace needs
+        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) {}
+
+        // Draws the workspace toolbar menu (not user overridable as this draws the shared default items)
+        void DrawWorkspaceToolbar( UpdateContext const& context );
+
+        // Does this workspace operate on a resource descriptor?
+        inline bool IsADescriptorWorkspace() const { return m_descriptorID.IsValid(); }
+
+        // Has the descriptor been loaded (only valid for descriptor workspaces)
+        inline bool IsDescriptorLoaded() const { return m_pDescriptor != nullptr; }
+
+        // Was the initialization function called
+        inline bool IsInitialized() const { return m_isInitialized; }
+
+        // Viewport
+        //-------------------------------------------------------------------------
+
+        // Should this workspace display a viewport?
+        virtual bool HasViewportWindow() const { return false; }
+
+        // Get the viewport window name/ID - Needs to be unique per workspace instance!
+        inline char const* GetViewportWindowID() const { EE_ASSERT( !m_viewportWindowID.empty() ); return m_viewportWindowID.c_str(); }
 
         // Does this workspace's viewport have a toolbar?
         virtual bool HasViewportToolbar() const { return false; }
@@ -88,8 +106,23 @@ namespace EE
         // Does this workspace's viewport have a orientation guide drawn?
         virtual bool HasViewportOrientationGuide() const { return true; }
 
-        // Get the world associated with this workspace
-        inline EntityWorld* GetWorld() const { return m_pWorld; }
+        // Called within the context of a large overlay window allowing you to draw helpers and widgets over a viewport
+        virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) {}
+
+        // Draw the viewport toolbar
+        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) {}
+
+        // Draw the viewport for this workspace - returns true if this viewport is currently focused
+        bool DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass );
+
+        // Docking
+        //-------------------------------------------------------------------------
+
+        // Get the main workspace window ID - Needs to be unique per workspace instance!
+        inline char const* GetDockspaceID() const { EE_ASSERT( !m_dockspaceID.empty() ); return m_dockspaceID.c_str(); }
+
+        // Set up initial docking layout
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const;
 
         // Resource Dependencies
         //-------------------------------------------------------------------------
@@ -121,26 +154,17 @@ namespace EE
         // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
         void InternalSharedUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
 
-        // Drawing Functions
+        // Preview World
         //-------------------------------------------------------------------------
 
-        // Set up initial docking layout
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const;
+        // Get the world associated with this workspace
+        inline EntityWorld* GetWorld() const { return m_pWorld; }
 
-        // Draw any toolbar buttons that this workspace needs
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) {}
+        void SetWorldPaused( bool isPaused );
 
-        // Draws the workspace toolbar menu
-        void DrawWorkspaceToolbar( UpdateContext const& context );
+        void SetWorldTimeScale( float newTimeScale );
 
-        // Called within the context of a large overlay window allowing you to draw helpers and widgets over a viewport
-        virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) {}
-
-        // Draw the viewport toolbar
-        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) {}
-
-        // Draw the viewport for this workspace - returns true if this viewport is currently focused
-        bool DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass );
+        void ResetWorldTimeScale();
 
         // Camera
         //-------------------------------------------------------------------------
@@ -151,20 +175,11 @@ namespace EE
 
         void FocusCameraView( Entity* pTarget );
 
-        void SetViewportCameraSpeed( float cameraSpeed );
+        void SetCameraSpeed( float cameraSpeed );
 
-        void SetViewportCameraTransform( Transform const& cameraTransform );
+        void SetCameraTransform( Transform const& cameraTransform );
 
-        Transform GetViewportCameraTransform() const;
-
-        // Preview World Functions
-        //-------------------------------------------------------------------------
-
-        void SetWorldPaused( bool isPaused );
-
-        void SetWorldTimeScale( float newTimeScale );
-
-        void ResetWorldTimeScale();
+        Transform GetCameraTransform() const;
 
         // Undo/Redo
         //-------------------------------------------------------------------------
@@ -199,13 +214,10 @@ namespace EE
         // Hot-reload
         //-------------------------------------------------------------------------
 
-        // Are we actually reloading any of our resources
-        inline bool IsHotReloading() const { return !m_reloadingResources.empty(); }
-
         // Called whenever a hot-reload operation occurs
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded );
 
-        // Called after hot-reloading completes
+        // Called after hot-reloading completes.
         virtual void EndHotReload();
 
     protected:
@@ -213,17 +225,20 @@ namespace EE
         // Called whenever we click inside a workspace viewport and get a non-zero picking ID
         virtual void OnMousePick( Render::PickingID pickingID ) {}
 
-        // Called during the viewport drawing allowing the workspaces to handle drag and drop requests
-        virtual void OnDragAndDrop( Render::Viewport* pViewport ) {}
-
         // Helper function for debug drawing
         Drawing::DrawContext GetDrawingContext();
 
         // Set the workspace tab-title
         void SetDisplayName( String const& name );
 
-        // Viewport Helpers
+        // Viewport
         //-------------------------------------------------------------------------
+
+        // Called during the viewport drawing allowing the workspaces to handle drag and drop requests
+        virtual void OnDragAndDropIntoViewport( Render::Viewport* pViewport ) {}
+
+        // Called whenever we have a valid resource being dropped into the viewport, users can override to provide custom handling
+        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) {}
 
         // Draws the viewport toolbar
         void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport );
@@ -264,6 +279,15 @@ namespace EE
         // Use this function to unload a required resource for this workspace (hot-reload aware)
         void UnloadResource( Resource::ResourcePtr* pResourcePtr );
 
+        // Called before we start a hot-reload operation (before we actually unload anything, allows workspaces to clean up any dependent data)
+        // This is only called if any of the resources that workspace has explicitly loaded (or the descriptor) needs a reload
+        virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) {}
+
+        // Called after hot-reloading completes (you will always get this call if you get the 'OnHotReloadStarted' call, unless a fatal occurs)
+        // This only gets called if we needed to reload anything and the reload was successful
+        // If the descriptor fails to reload, this is considered a fatal error and this function will not be called and the workspace will be closed instead
+        virtual void OnHotReloadComplete() {}
+
         // Entity Helpers
         //-------------------------------------------------------------------------
 
@@ -281,15 +305,13 @@ namespace EE
         // Descriptor Utils
         //-------------------------------------------------------------------------
 
-        // Does this workspace operate on a resource descriptor?
-        inline bool IsADescriptorWorkspace() const { return m_descriptorID.IsValid(); }
-
-        // Has the descriptor been loaded (only valid for descriptor workspaces)
-        inline bool IsDescriptorLoaded() const { return m_pDescriptor != nullptr; }
+        // Get the descriptor as a derived type (Note! You need to check if the descriptor is actually loaded)
+        template<typename T>
+        T* GetDescriptor() { return Cast<T>( m_pDescriptor ); }
 
         // Get the descriptor as a derived type (Note! You need to check if the descriptor is actually loaded)
         template<typename T>
-        T* GetDescriptorAs() { return Cast<T>( m_pDescriptor ); }
+        T const* GetDescriptor() const { return Cast<T>( m_pDescriptor ); }
 
         // This is called to allow you to read custom data from the descriptor JSON data
         virtual void ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) {}
@@ -305,8 +327,8 @@ namespace EE
 
         // Draws a separate descriptor property grid editor window - return true if focused
         bool DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow = true );
-
-    private:
+    
+private:
 
         Workspace& operator=( Workspace const& ) = delete;
         Workspace( Workspace const& ) = delete;
@@ -332,6 +354,7 @@ namespace EE
         String                                      m_dockspaceID;
         bool                                        m_isViewportFocused = false;
         bool                                        m_isViewportHovered = false;
+        bool                                        m_showDescriptorEditor = false;
 
         String                                      m_descriptorWindowName;
         ResourceID                                  m_descriptorID;
@@ -340,7 +363,7 @@ namespace EE
         Resource::ResourceDescriptor*               m_pDescriptor = nullptr;
         EventBindingID                              m_preEditEventBindingID;
         EventBindingID                              m_postEditEventBindingID;
-        ResourceDescriptorUndoableAction*           m_pActiveUndoableAction = nullptr;
+        IUndoableAction*                            m_pActiveUndoableAction = nullptr;
         int32_t                                     m_beginModificationCallCount = 0;
         ImGuiX::Gizmo                               m_gizmo;
 
@@ -348,6 +371,8 @@ namespace EE
 
         Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         bool                                        m_isDirty = false;
+        bool                                        m_isInitialized = false;
+        bool                                        m_isHotReloading = false;
 
         // Time controls
         float                                       m_worldTimeScale = 1.0f;
@@ -356,6 +381,30 @@ namespace EE
         TVector<Resource::ResourcePtr*>             m_requestedResources;
         TVector<Entity*>                            m_addedEntities;
         TVector<Resource::ResourcePtr*>             m_reloadingResources;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class ResourceDescriptorUndoableAction final : public IUndoableAction
+    {
+        EE_REGISTER_TYPE( IUndoableAction );
+
+    public:
+
+        ResourceDescriptorUndoableAction() = default;
+        ResourceDescriptorUndoableAction( TypeSystem::TypeRegistry const* pTypeRegistry, Workspace* pWorkspace );
+
+        virtual void Undo() override;
+        virtual void Redo() override;
+        void SerializeBeforeState();
+        void SerializeAfterState();
+
+    private:
+
+        TypeSystem::TypeRegistry const*     m_pTypeRegistry = nullptr;
+        Workspace*                          m_pWorkspace = nullptr;
+        String                              m_valueBefore;
+        String                              m_valueAfter;
     };
 
     //-------------------------------------------------------------------------
@@ -394,28 +443,36 @@ namespace EE
     public:
 
         // Specify whether to initially load the resource, this is not necessary for all editors
-        TWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID, bool shouldLoadResource = true )
+        TWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID, bool shouldAutoLoadResource = true )
             : Workspace( pToolsContext, pWorld, resourceID )
             , m_pResource( resourceID )
+            , m_shouldAutoLoadResource( shouldAutoLoadResource )
         {
             EE_ASSERT( resourceID.IsValid() );
+        }
 
-            if ( shouldLoadResource )
+        virtual void Initialize( UpdateContext const& context ) override
+        {
+            Workspace::Initialize( context );
+
+            if ( m_shouldAutoLoadResource )
             {
                 LoadResource( &m_pResource );
             }
         }
 
-        ~TWorkspace()
+        virtual void Shutdown( UpdateContext const& context ) override
         {
-            if ( !m_pResource.IsUnloaded() )
+            if ( m_pResource.WasRequested() )
             {
                 UnloadResource( &m_pResource );
             }
+
+            Workspace::Shutdown( context );
         }
 
         virtual bool HasViewportWindow() const override { return true; }
-        virtual bool HasViewportToolbar() const { return true; }
+        virtual bool HasViewportToolbar() const override { return true; }
 
         // Resource Status
         inline bool IsLoading() const { return m_pResource.IsLoading(); }
@@ -427,6 +484,7 @@ namespace EE
     protected:
 
         TResourcePtr<T>                     m_pResource;
+        bool                                m_shouldAutoLoadResource = true;
     };
 
     //-------------------------------------------------------------------------

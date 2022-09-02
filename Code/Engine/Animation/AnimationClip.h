@@ -77,7 +77,7 @@ namespace EE::Animation
     class EE_ENGINE_API AnimationClip : public Resource::IResource
     {
         EE_REGISTER_RESOURCE( 'anim', "Animation Clip" );
-        EE_SERIALIZE( m_pSkeleton, m_numFrames, m_duration, m_compressedPoseData, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
+        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
 
         friend class AnimationClipCompiler;
         friend class AnimationClipLoader;
@@ -110,9 +110,9 @@ namespace EE::Animation
 
         AnimationClip() = default;
 
-        virtual bool IsValid() const final { return m_pSkeleton != nullptr && m_pSkeleton.IsLoaded() && m_numFrames > 0; }
-        inline Skeleton const* GetSkeleton() const { return m_pSkeleton.GetPtr(); }
-        inline int32_t GetNumBones() const { EE_ASSERT( m_pSkeleton != nullptr ); return m_pSkeleton->GetNumBones(); }
+        virtual bool IsValid() const final { return m_skeleton != nullptr && m_skeleton.IsLoaded() && m_numFrames > 0; }
+        inline Skeleton const* GetSkeleton() const { return m_skeleton.GetPtr(); }
+        inline int32_t GetNumBones() const { EE_ASSERT( m_skeleton != nullptr ); return m_skeleton->GetNumBones(); }
 
         // Animation Info
         //-------------------------------------------------------------------------
@@ -202,7 +202,7 @@ namespace EE::Animation
 
     private:
 
-        TResourcePtr<Skeleton>                  m_pSkeleton;
+        TResourcePtr<Skeleton>                  m_skeleton;
         uint32_t                                m_numFrames = 0;
         Seconds                                 m_duration = 0.0f;
         TVector<uint16_t>                       m_compressedPoseData;

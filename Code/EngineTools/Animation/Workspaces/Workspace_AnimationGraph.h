@@ -19,7 +19,6 @@ namespace EE::Physics { class PhysicsSystem; }
 namespace EE::Animation
 {
     class AnimationGraphComponent;
-    class GraphUndoableAction;
     class ControlParameterPreviewState;
     class VariationHierarchy;
 
@@ -29,7 +28,7 @@ namespace EE::Animation
 
     class AnimationGraphWorkspace final : public TWorkspace<GraphDefinition>
     {
-        friend GraphUndoableAction;
+        friend class GraphUndoableAction;
 
         enum class DebugMode
         {
@@ -238,7 +237,6 @@ namespace EE::Animation
         String                                                          m_debuggerWindowName;
         PropertyGrid                                                    m_propertyGrid;
         Transform                                                       m_gizmoTransform;
-        GraphUndoableAction*                                            m_pActiveUndoableAction = nullptr;
         GraphOperationType                                              m_activeOperation = GraphOperationType::None;
 
         EventBindingID                                                  m_rootGraphBeginModificationBindingID;
@@ -312,5 +310,28 @@ namespace EE::Animation
         bool                                                            m_startPaused = false;
         bool                                                            m_isFirstPreviewFrame = false;
         bool                                                            m_isCameraTrackingEnabled = true;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class GraphUndoableAction final : public IUndoableAction
+    {
+        EE_REGISTER_TYPE( IUndoableAction );
+
+    public:
+
+        GraphUndoableAction() = default;
+        GraphUndoableAction( AnimationGraphWorkspace* pWorkspace );
+
+        virtual void Undo() override;
+        virtual void Redo() override;
+        void SerializeBeforeState();
+        void SerializeAfterState();
+
+    private:
+
+        AnimationGraphWorkspace*            m_pWorkspace = nullptr;
+        String                              m_valueBefore;
+        String                              m_valueAfter;
     };
 }

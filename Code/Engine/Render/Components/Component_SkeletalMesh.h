@@ -23,19 +23,19 @@ namespace EE::Render
         // Mesh Data
         //-------------------------------------------------------------------------
 
-        virtual bool HasMeshResourceSet() const override final { return m_pMesh.IsValid(); }
+        virtual bool HasMeshResourceSet() const override final { return m_mesh.IsSet(); }
 
         inline void SetMesh( ResourceID meshResourceID )
         {
             EE_ASSERT( IsUnloaded() );
             EE_ASSERT( meshResourceID.IsValid() );
-            m_pMesh = meshResourceID;
+            m_mesh = meshResourceID;
         }
 
         inline SkeletalMesh const* GetMesh() const
         {
-            EE_ASSERT( m_pMesh != nullptr && m_pMesh->IsValid() );
-            return m_pMesh.GetPtr();
+            EE_ASSERT( m_mesh != nullptr && m_mesh->IsValid() );
+            return m_mesh.GetPtr();
         }
 
         // Skeletal Pose
@@ -61,8 +61,8 @@ namespace EE::Render
         // Animation Pose
         //-------------------------------------------------------------------------
 
-        inline bool HasSkeletonResourceSet() const { return m_pSkeleton.IsValid(); }
-        inline Animation::Skeleton const* GetSkeleton() const { return m_pSkeleton.GetPtr(); }
+        inline bool HasSkeletonResourceSet() const { return m_skeleton.IsSet(); }
+        inline Animation::Skeleton const* GetSkeleton() const { return m_skeleton.GetPtr(); }
         void SetSkeleton( ResourceID skeletonResourceID );
 
         void SetPose( Animation::Pose const* pPose );
@@ -92,9 +92,9 @@ namespace EE::Render
 
     protected:
 
-        EE_EXPOSE TResourcePtr<SkeletalMesh>           m_pMesh;
-        EE_EXPOSE TResourcePtr<Animation::Skeleton>    m_pSkeleton = nullptr;
-        TVector<int32_t>                                  m_animToMeshBoneMap;
+        EE_EXPOSE TResourcePtr<SkeletalMesh>            m_mesh;
+        EE_EXPOSE TResourcePtr<Animation::Skeleton>     m_skeleton = nullptr;
+        TVector<int32_t>                                m_animToMeshBoneMap;
         TVector<Transform>                              m_boneTransforms;
         TVector<Matrix>                                 m_skinningTransforms;
     };

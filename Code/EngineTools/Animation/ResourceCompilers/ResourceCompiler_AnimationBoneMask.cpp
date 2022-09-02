@@ -37,12 +37,12 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Convert the skeleton resource path to a physical file path
-        if ( !resourceDescriptor.m_pSkeleton.GetResourceID().IsValid() )
+        if ( !resourceDescriptor.m_skeleton.GetResourceID().IsValid() )
         {
             return Error( "Invalid skeleton resource ID" );
         }
 
-        ResourcePath const& skeletonPath = resourceDescriptor.m_pSkeleton.GetResourcePath();
+        ResourcePath const& skeletonPath = resourceDescriptor.m_skeleton.GetResourcePath();
         FileSystem::Path skeletonDescriptorFilePath;
         if ( !ConvertResourcePathToFilePath( skeletonPath, skeletonDescriptorFilePath ) )
         {
@@ -110,7 +110,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Resource::ResourceHeader hdr( s_version, BoneMaskDefinition::GetStaticResourceTypeID() );
-        hdr.AddInstallDependency( resourceDescriptor.m_pSkeleton.GetResourceID() );
+        hdr.AddInstallDependency( resourceDescriptor.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << boneMaskDef;

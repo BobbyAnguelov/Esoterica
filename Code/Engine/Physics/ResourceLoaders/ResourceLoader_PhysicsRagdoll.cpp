@@ -34,7 +34,7 @@ namespace EE::Physics
     Resource::InstallResult RagdollLoader::Install( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
     {
         RagdollDefinition* pRagdoll = pResourceRecord->GetResourceData<RagdollDefinition>();
-        pRagdoll->m_pSkeleton = GetInstallDependency( installDependencies, pRagdoll->m_pSkeleton.GetResourceID() );
+        pRagdoll->m_skeleton = GetInstallDependency( installDependencies, pRagdoll->m_skeleton.GetResourceID() );
         pRagdoll->CreateRuntimeData();
         return Resource::InstallResult::Succeeded;
     }

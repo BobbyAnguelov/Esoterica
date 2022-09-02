@@ -305,6 +305,8 @@ namespace EE
 
                 m_pEntityWorldManager->StartFrame();
 
+                //-------------------------------------------------------------------------
+
                 #if EE_DEVELOPMENT_TOOLS
                 m_pImguiSystem->StartFrame( m_updateContext.GetDeltaTime() );
                 m_pToolsUI->StartFrame( m_updateContext );
@@ -313,7 +315,8 @@ namespace EE
                 //-------------------------------------------------------------------------
 
                 {
-                    EE_PROFILE_SCOPE_RESOURCE( "Loading/Streaming" );
+                    EE_PROFILE_SCOPE_RESOURCE( "Resource System" );
+
                     m_pResourceSystem->Update();
 
                     // Handle hot-reloading of entities
@@ -335,13 +338,21 @@ namespace EE
                         m_pToolsUI->EndHotReload();
                     }
                     #endif
+                }
 
+                //-------------------------------------------------------------------------
+
+                {
+                    EE_PROFILE_SCOPE_ENTITY( "World Loading" );
                     m_pEntityWorldManager->UpdateLoading();
                 }
 
                 //-------------------------------------------------------------------------
 
-                m_pInputSystem->Update( m_updateContext.GetDeltaTime() );
+                {
+                    EE_PROFILE_SCOPE_DEVTOOLS( "Input System" );
+                    m_pInputSystem->Update( m_updateContext.GetDeltaTime() );
+                }
 
                 #if EE_DEVELOPMENT_TOOLS
                 m_pToolsUI->Update( m_updateContext );

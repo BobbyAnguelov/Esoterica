@@ -76,9 +76,14 @@ namespace EE
         // Drag and drop
         //-------------------------------------------------------------------------
 
-        virtual bool SupportsDragAndDrop() { return false; }
-        virtual char const* GetDragAndDropPayloadID() { return nullptr; }
-        virtual TPair<void*, size_t> GetDragAndDropPayload() const { return TPair<void*, size_t>( nullptr, 0 ); }
+        // Can we be dragged somewhere?
+        virtual bool IsDragAndDropSource() { return false; }
+
+        // Are we a valid target for drag and drop operations?
+        virtual bool IsDragAndDropTarget() { return false; }
+
+        // Set the ImGui payload data for the drag and drop operation
+        virtual void SetDragAndDropPayloadData() const {}
 
         // Hierarchy
         //-------------------------------------------------------------------------
@@ -213,7 +218,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Clear the current selection
-        inline void ClearSelection() { m_selection.clear(); m_onSelectionChanged.Execute(); }
+        void ClearSelection();
 
         // Get the current selection
         inline TVector<TreeListViewItem*> GetSelection() const { return m_selection; }
@@ -266,7 +271,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        // User overrideable function to draw any addition windows/dialogs that might be needed
+        virtual void HandleDragAndDropOnItem( TreeListViewItem* pDragAndDropTargetItem ) {}
+
+        // User overridable function to draw any addition windows/dialogs that might be needed
         virtual void DrawAdditionalUI() {}
 
         // Get the number of extra columns needed
@@ -288,11 +295,17 @@ namespace EE
         // DO NOT CALL THIS DIRECTLY!
         virtual void RebuildTreeInternal() = 0;
 
-        // Select just this item
-        void SelectItem( TreeListViewItem* pItem );
+        // Set the selection to a single item
+        void SetSelection( TreeListViewItem* pItem );
 
         // Add to the current selection
         void AddToSelection( TreeListViewItem* pItem );
+
+        // Add an item range to the selection
+        void AddRangeToSelection( TVector<TreeListViewItem*> const& itemRange );
+
+        // Add an item range to the selection
+        void SetSelectionToRange( TVector<TreeListViewItem*> const& itemRange );
 
         // Remove an item from the current selection
         void RemoveFromSelection( TreeListViewItem* pItem );
@@ -316,6 +329,9 @@ namespace EE
         void RebuildVisualTree();
         void OnItemDoubleClickedInternal( TreeListViewItem* pItem );
 
+        int32_t GetVisualTreeItemIndex( TreeListViewItem const* pBaseItem ) const;
+        int32_t GetVisualTreeItemIndex( uint64_t uniqueID ) const;
+
         void NotifySelectionChanged()
         {
             OnSelectionChangedInternal();
@@ -334,7 +350,7 @@ namespace EE
         // The active item is an item that is activated (and deactivated) via a double click
         TreeListViewItem*                                       m_pActiveItem = nullptr;
 
-        // The currently selected item (changes frequently due to clicks/focus/etc...)
+        // The currently selected item (changes frequently due to clicks/focus/etc...) - In order of selection time, first is oldest
         TVector<TreeListViewItem*>                              m_selection;
 
         // Control tree view behavior

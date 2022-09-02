@@ -348,12 +348,34 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    bool RagdollDefinition::Profile::IsValid() const
+    bool RagdollDefinition::Profile::IsValid( int32_t numBodies ) const
     {
         if ( !m_ID.IsValid() )
         {
             return false;
         }
+
+        //-------------------------------------------------------------------------
+
+        if ( numBodies > 0 )
+        {
+            if ( m_jointSettings.size() != numBodies - 1 )
+            {
+                return false;
+            }
+        }
+
+        if ( m_bodySettings.size() != numBodies )
+        {
+            return false;
+        }
+
+        if ( m_materialSettings.size() != numBodies )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
 
         if ( !m_rootControlBodySettings.IsValid() )
         {
@@ -418,7 +440,7 @@ namespace EE::Physics
 
     bool RagdollDefinition::IsValid() const
     {
-        if ( !m_pSkeleton.IsValid() )
+        if ( !m_skeleton.IsSet() )
         {
             return false;
         }
@@ -429,27 +451,10 @@ namespace EE::Physics
         }
 
         // Validate the profiles
+        int32_t const numBodies = (int32_t) m_bodies.size();
         for ( auto& profile : m_profiles )
         {
-            if ( !m_bodies.empty() )
-            {
-                if ( profile.m_jointSettings.size() != m_bodies.size() - 1 )
-                {
-                    return false;
-                }
-            }
-
-            if ( profile.m_bodySettings.size() != m_bodies.size() )
-            {
-                return false;
-            }
-
-            if ( profile.m_materialSettings.size() != m_bodies.size() )
-            {
-                return false;
-            }
-
-            if ( !profile.IsValid() )
+            if ( !profile.IsValid( numBodies ) )
             {
                 return false;
             }
@@ -557,15 +562,15 @@ namespace EE::Physics
 
     int32_t RagdollDefinition::GetBodyIndexForBoneIdx( int32_t boneIdx ) const
     {
-        auto const& boneID = m_pSkeleton->GetBoneID( boneIdx );
+        auto const& boneID = m_skeleton->GetBoneID( boneIdx );
         return GetBodyIndexForBoneID( boneID );
     }
 
     void RagdollDefinition::CreateRuntimeData()
     {
-        EE_ASSERT( m_pSkeleton.IsLoaded() );
+        EE_ASSERT( m_skeleton.IsLoaded() );
 
-        int32_t const numBones = m_pSkeleton->GetNumBones();
+        int32_t const numBones = m_skeleton->GetNumBones();
         int32_t const numBodies = (int32_t) m_bodies.size();
 
         TInlineVector<Transform, 30> inverseBodyTransforms;
@@ -582,12 +587,12 @@ namespace EE::Physics
 
         for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
-            auto const& boneID = m_pSkeleton->GetBoneID( boneIdx );
+            auto const& boneID = m_skeleton->GetBoneID( boneIdx );
             for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
             {
                 if ( m_bodies[bodyIdx].m_boneID == boneID )
                 {
-                    m_bodies[bodyIdx].m_initialGlobalTransform = m_bodies[bodyIdx].m_offsetTransform * m_pSkeleton->GetBoneGlobalTransform( boneIdx );
+                    m_bodies[bodyIdx].m_initialGlobalTransform = m_bodies[bodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( boneIdx );
                     m_bodies[bodyIdx].m_inverseOffsetTransform = m_bodies[bodyIdx].m_offsetTransform.GetInverse();
 
                     inverseBodyTransforms[bodyIdx] = m_bodies[bodyIdx].m_initialGlobalTransform.GetInverse();
@@ -606,8 +611,8 @@ namespace EE::Physics
             body.m_parentBodyIdx = InvalidIndex;
 
             // Traverse hierarchy and set parent body idx to the first parent bone that has a body
-            int32_t boneIdx = m_pSkeleton->GetBoneIndex( body.m_boneID );
-            int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
+            int32_t boneIdx = m_skeleton->GetBoneIndex( body.m_boneID );
+            int32_t parentBoneIdx = m_skeleton->GetParentBoneIndex( boneIdx );
             while ( parentBoneIdx != InvalidIndex )
             {
                 int32_t const parentBodyIdx = m_boneToBodyMap[parentBoneIdx];
@@ -618,7 +623,7 @@ namespace EE::Physics
                 }
                 else
                 {
-                    parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
+                    parentBoneIdx = m_skeleton->GetParentBoneIndex( parentBoneIdx );
                 }
             }
 
@@ -717,7 +722,7 @@ namespace EE::Physics
         m_pArticulation->userData = this;
 
         #if EE_DEVELOPMENT_TOOLS
-        m_ragdollName.sprintf( "%s_%s", pDefinition->m_ID.c_str(), m_pProfile->m_ID.c_str() );
+        m_ragdollName.sprintf( "%s - %s", pDefinition->GetResourceID().c_str(), m_pProfile->m_ID.c_str() );
         m_pArticulation->setName( m_ragdollName.c_str() );
         #endif
 
@@ -1137,7 +1142,7 @@ namespace EE::Physics
         if ( m_shouldFollowPose )
         {
             EE_ASSERT( pPose != nullptr );
-            EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_pSkeleton.GetResourceID() );
+            EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
             EE_ASSERT( pPose->HasGlobalTransforms() );
 
             ScopedWriteLock const sl( this );
@@ -1227,7 +1232,7 @@ namespace EE::Physics
     bool Ragdoll::GetPose( Transform const& inverseWorldTransform, Animation::Pose* pPose ) const
     {
         EE_ASSERT( IsValid() );
-        EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_pSkeleton.GetResourceID() );
+        EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
         EE_ASSERT( pPose->HasGlobalTransforms() );
 
         // Copy the global bone transforms here
@@ -1279,7 +1284,7 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            int32_t const parentBoneIdx = m_pDefinition->m_pSkeleton->GetParentBoneIndex( i );
+            int32_t const parentBoneIdx = m_pDefinition->m_skeleton->GetParentBoneIndex( i );
             if ( parentBoneIdx != InvalidIndex )
             {
                 Transform const boneLocalTransform = m_globalBoneTransforms[i] * m_globalBoneTransforms[parentBoneIdx].GetInverse();

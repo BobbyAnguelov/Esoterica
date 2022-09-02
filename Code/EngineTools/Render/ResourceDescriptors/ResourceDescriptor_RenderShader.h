@@ -22,6 +22,9 @@ namespace EE::Render
     {
         EE_REGISTER_TYPE( ShaderResourceDescriptor );
 
+    public:
+
+        virtual bool IsValid() const override { return m_shaderPath.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Shader::GetStaticResourceTypeID(); }
 

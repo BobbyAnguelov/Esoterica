@@ -67,7 +67,7 @@ namespace EE::Animation
         for ( auto const& variation : variationHierarchy.GetAllVariations() )
         {
             EE_ASSERT( variation.m_ID.IsValid() );
-            if ( !variation.m_pSkeleton.IsValid() )
+            if ( !variation.m_skeleton.IsSet() )
             {
                 String const message( String::CtorSprintf(), "Variation '%s' has no skeleton set!", variation.m_ID.c_str() );
                 m_context.LogError( message );

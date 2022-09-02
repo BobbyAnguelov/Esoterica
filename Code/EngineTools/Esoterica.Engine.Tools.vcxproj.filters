@@ -46,21 +46,6 @@
     <ClCompile Include="Animation\Workspaces\Workspace_Skeleton.cpp">
       <Filter>Animation\Workspaces</Filter>
     </ClCompile>
-    <ClCompile Include="Entity\EntityEditor\EntityEditor_BaseWorkspace.cpp">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityEditor\EntityEditor_Context.cpp">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityEditor\EntityEditor_Inspector.cpp">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityEditor\EntityEditor_Outliner.cpp">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityEditor\EntityEditor_PropertyGrid.cpp">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClCompile>
     <ClCompile Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.cpp">
       <Filter>Entity\ResourceCompilers</Filter>
     </ClCompile>
@@ -281,6 +266,12 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_UserContext.cpp" />
+    <ClCompile Include="Entity\Workspaces\Workspace_EntityWorldEditor.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Context.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Inspector.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Outliner.cpp" />
+    <ClCompile Include="Entity\SharedWidgets\EntityWorldOutliner.cpp" />
+    <ClCompile Include="Entity\SharedWidgets\EntityEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource\RawFileInspector.h">
@@ -333,21 +324,6 @@
     </ClInclude>
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationSkeleton.h">
       <Filter>Animation\ResourceDescriptors</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityEditor\EntityEditor_BaseWorkspace.h">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityEditor\EntityEditor_Context.h">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityEditor\EntityEditor_Inspector.h">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityEditor\EntityEditor_Outliner.h">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityEditor\EntityEditor_PropertyGrid.h">
-      <Filter>Entity\EntityEditor</Filter>
     </ClInclude>
     <ClInclude Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.h">
       <Filter>Entity\ResourceCompilers</Filter>
@@ -615,6 +591,12 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.h" />
     <ClInclude Include="Core\VisualGraph\VisualGraph_UserContext.h" />
+    <ClInclude Include="Entity\Workspaces\Workspace_EntityWorldEditor.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Context.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Inspector.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Outliner.h" />
+    <ClInclude Include="Entity\SharedWidgets\EntityWorldOutliner.h" />
+    <ClInclude Include="Entity\SharedWidgets\EntityEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

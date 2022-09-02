@@ -1,9 +1,9 @@
 #pragma once
 
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Context.h"
-#include "EngineTools/Entity/EntityEditor/EntityEditor_Outliner.h"
-#include "EngineTools/Entity/EntityEditor/EntityEditor_Inspector.h"
-#include "EngineTools/Entity/EntityEditor/EntityEditor_PropertyGrid.h"
+#include "EngineTools/Entity/SharedWidgets/EntityWorldOutliner.h"
+#include "EngineTools/Entity/SharedWidgets/EntityEditor.h"
+
 #include "EngineTools/Core/Workspace.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/ToolsUI/Gizmo.h"
@@ -12,12 +12,12 @@
 
 namespace EE::EntityModel
 {
-    class EE_ENGINETOOLS_API EntityEditorBaseWorkspace : public Workspace
+    class EE_ENGINETOOLS_API EntityWorldEditorWorkspace : public Workspace
     {
     public:
 
-        explicit EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
-        EntityEditorBaseWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName );
+        explicit EntityWorldEditorWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        EntityWorldEditorWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName );
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
@@ -33,27 +33,21 @@ namespace EE::EntityModel
         virtual bool IsDirty() const override{ return false; } // TODO
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual void OnMousePick( Render::PickingID pickingID ) override;
-        virtual void OnDragAndDrop( Render::Viewport* pViewport ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
-
-        // Called whenever we have a valid resource being dropped into the viewport, users can override to provide custom handling
-        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition );
+        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) override;
 
     protected:
 
-        String                                          m_outlinerWindowName;
-        String                                          m_entityViewWindowName;
-        String                                          m_propertyGridWindowName;
+
 
         EntityEditorContext                             m_context;
-        EntityEditorOutliner                            m_entityOutliner;
-        EntityEditorInspector                           m_entityInspector;
-        EntityEditorPropertyGrid                        m_propertyGrid;
+        EntityWorldOutliner                             m_worldOutliner;
+        EntityEditor                                    m_entityEditor;
 
         TVector<TypeSystem::TypeInfo const*>            m_volumeTypes;
         TVector<TypeSystem::TypeInfo const*>            m_visualizedVolumeTypes;
 
-        ImGuiX::Gizmo                                   m_gizmo;
+        // Transform
         Transform                                       m_gizmoTransform;
     };
 }

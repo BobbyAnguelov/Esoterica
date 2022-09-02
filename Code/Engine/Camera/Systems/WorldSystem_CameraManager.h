@@ -63,6 +63,7 @@ namespace EE
         DebugCameraComponent*                       m_pDebugCamera = nullptr;
         CameraComponent*                            m_pPreviousCamera = nullptr;
         bool                                        m_useDebugCamera = false;
+        bool                                        m_debugCameraWasAdded = false;
         #endif
     };
 } 

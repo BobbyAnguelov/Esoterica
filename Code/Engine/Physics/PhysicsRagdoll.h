@@ -160,10 +160,12 @@ namespace EE::Physics
     // Ragdoll Definition
     //-------------------------------------------------------------------------
     // This defines a ragdoll: The bodies and joints as well as the various joint profiles
+    // Note: The root body control concept is an additional copy of the root body of the articulation 
+    //       which is used to help drive the articulation relative to input pose.
 
     struct EE_ENGINE_API RagdollDefinition : public Resource::IResource, public IRegisteredType
     {
-        EE_SERIALIZE( m_ID, m_pSkeleton, m_bodies, m_profiles );
+        EE_SERIALIZE( m_skeleton, m_bodies, m_profiles );
         EE_REGISTER_TYPE_RESOURCE( 'rgdl', "Physics Ragdoll", RagdollDefinition );
 
     public:
@@ -175,14 +177,14 @@ namespace EE::Physics
             EE_SERIALIZE( m_boneID, m_offsetTransform, m_radius, m_halfHeight, m_jointTransform );
             EE_REGISTER_TYPE( BodyDefinition );
 
-            EE_REGISTER StringID                           m_boneID;
+            EE_REGISTER StringID                            m_boneID;
             int32_t                                         m_parentBodyIdx = InvalidIndex;
-            EE_EXPOSE float                                m_radius = 0.075f;
-            EE_EXPOSE float                                m_halfHeight = 0.025f;
-            EE_EXPOSE Transform                            m_offsetTransform;
+            EE_EXPOSE float                                 m_radius = 0.075f;
+            EE_EXPOSE float                                 m_halfHeight = 0.025f;
+            EE_EXPOSE Transform                             m_offsetTransform;
             Transform                                       m_initialGlobalTransform;
             Transform                                       m_inverseOffsetTransform;
-            EE_EXPOSE Transform                            m_jointTransform; // Global joint transform
+            EE_EXPOSE Transform                             m_jointTransform; // Global joint transform
             Transform                                       m_bodyRelativeJointTransform; // The joint transform relative to the current body
             Transform                                       m_parentRelativeJointTransform; // The joint transform relative to the parent body
         };
@@ -198,37 +200,43 @@ namespace EE::Physics
             );
             EE_REGISTER_TYPE( Profile );
 
+            constexpr static char const* const s_defaultProfileID = "Default";
+
+        public:
+
             Profile();
 
-            bool IsValid() const;
+            bool IsValid( int32_t numBodies ) const;
 
             // Ensures that all body settings are within the required limits. Returns true if any changes were made!
             bool CorrectSettingsToValidRanges();
 
+            // Checks whether two bodies in the same ragdoll should collide with one another
             inline bool ShouldBodiesCollides( int32_t bodyIdx0, int32_t bodyIdx1 ) const
             {
-                EE_ASSERT( IsValid() );
+                EE_ASSERT( bodyIdx0 >= 0 && bodyIdx1 >= 0 );
+                EE_ASSERT( bodyIdx0 < m_selfCollisionRules.size() && bodyIdx1 < m_selfCollisionRules.size() );
                 uint64_t const result = m_selfCollisionRules[bodyIdx0] & ( 1ULL << bodyIdx1 );
                 return result != 0;
             }
 
         public:
 
-            EE_REGISTER StringID                               m_ID = StringID( "Default" );
-            EE_REGISTER RagdollRootControlBodySettings         m_rootControlBodySettings;
-            EE_REGISTER TVector<RagdollBodySettings>           m_bodySettings;
-            EE_REGISTER TVector<RagdollJointSettings>          m_jointSettings;
-            EE_REGISTER TVector<RagdollBodyMaterialSettings>   m_materialSettings;
+            EE_REGISTER StringID                                m_ID = StringID( s_defaultProfileID );
+            EE_REGISTER RagdollRootControlBodySettings          m_rootControlBodySettings;
+            EE_REGISTER TVector<RagdollBodySettings>            m_bodySettings;
+            EE_REGISTER TVector<RagdollJointSettings>           m_jointSettings;
+            EE_REGISTER TVector<RagdollBodyMaterialSettings>    m_materialSettings;
 
             // Solver Settings
-            EE_EXPOSE uint32_t                                 m_solverPositionIterations = 4;
-            EE_EXPOSE uint32_t                                 m_solverVelocityIterations = 4;
-            EE_EXPOSE uint32_t                                 m_maxProjectionIterations = 4;
-            EE_EXPOSE uint32_t                                 m_internalDriveIterations = 4;
-            EE_EXPOSE uint32_t                                 m_externalDriveIterations = 4;
-            EE_EXPOSE float                                    m_separationTolerance = 0.1f;
-            EE_EXPOSE float                                    m_stabilizationThreshold;
-            EE_EXPOSE float                                    m_sleepThreshold = 1;
+            EE_EXPOSE uint32_t                                  m_solverPositionIterations = 4;
+            EE_EXPOSE uint32_t                                  m_solverVelocityIterations = 4;
+            EE_EXPOSE uint32_t                                  m_maxProjectionIterations = 4;
+            EE_EXPOSE uint32_t                                  m_internalDriveIterations = 4;
+            EE_EXPOSE uint32_t                                  m_externalDriveIterations = 4;
+            EE_EXPOSE float                                     m_separationTolerance = 0.1f;
+            EE_EXPOSE float                                     m_stabilizationThreshold;
+            EE_EXPOSE float                                     m_sleepThreshold = 1;
 
             TVector<uint64_t>                                   m_selfCollisionRules;
         };
@@ -237,7 +245,11 @@ namespace EE::Physics
 
         virtual bool IsValid() const override;
 
+        // Creates all the necessary additional runtime data needed to instantiate this definition (i.e. bone mappings, etc...)
         void CreateRuntimeData();
+
+        // Bodies + Joints
+        //-------------------------------------------------------------------------
 
         int32_t GetNumBodies() const { return (int32_t) m_bodies.size(); }
         int32_t GetNumJoints() const { return (int32_t) m_bodies.size() - 1; }
@@ -256,10 +268,9 @@ namespace EE::Physics
 
     public:
 
-        EE_EXPOSE StringID                                     m_ID;
-        EE_EXPOSE TResourcePtr<Animation::Skeleton>            m_pSkeleton;
-        EE_REGISTER TVector<BodyDefinition>                    m_bodies;
-        EE_REGISTER TVector<Profile>                           m_profiles;
+        EE_REGISTER TResourcePtr<Animation::Skeleton>           m_skeleton;
+        EE_REGISTER TVector<BodyDefinition>                     m_bodies;
+        EE_REGISTER TVector<Profile>                            m_profiles;
 
         // Runtime Data
         TVector<int32_t>                                        m_boneToBodyMap;

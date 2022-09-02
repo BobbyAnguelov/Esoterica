@@ -10,7 +10,7 @@ namespace EE::Animation
 {
     class EE_ENGINE_API GraphDataSet
     {
-        EE_SERIALIZE( m_variationID, m_pSkeleton, m_resources );
+        EE_SERIALIZE( m_variationID, m_skeleton, m_resources );
 
         friend class AnimationGraphCompiler;
         friend class GraphLoader;
@@ -18,15 +18,15 @@ namespace EE::Animation
 
     public:
 
-        inline bool IsValid() const { return m_variationID.IsValid() && m_pSkeleton.IsLoaded(); }
+        inline bool IsValid() const { return m_variationID.IsValid() && m_skeleton.IsLoaded(); }
 
-        inline Skeleton const* GetSkeleton() const { return m_pSkeleton.GetPtr(); }
+        inline Skeleton const* GetSkeleton() const { return m_skeleton.GetPtr(); }
 
         template<typename T>
         inline T const* GetResource( int16_t const& slotIdx ) const
         {
             EE_ASSERT( slotIdx >= 0 && slotIdx < m_resources.size() );
-            if ( m_resources[slotIdx].IsValid() )
+            if ( m_resources[slotIdx].IsSet() )
             {
                 return TResourcePtr<T>( m_resources[slotIdx] ).GetPtr();
             }
@@ -37,7 +37,7 @@ namespace EE::Animation
     private:
 
         StringID                                    m_variationID;
-        TResourcePtr<Skeleton>                      m_pSkeleton = nullptr;
+        TResourcePtr<Skeleton>                      m_skeleton = nullptr;
         TVector<Resource::ResourcePtr>              m_resources;
     };
 }

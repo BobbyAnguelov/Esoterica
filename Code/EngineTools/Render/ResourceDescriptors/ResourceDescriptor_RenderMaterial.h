@@ -13,11 +13,7 @@ namespace EE::Render
     {
         EE_REGISTER_TYPE( MaterialResourceDescriptor );
 
-        inline bool IsValid() const
-        {
-            return m_albedoTexture.GetResourceID().IsValid();
-        }
-
+        virtual bool IsValid() const override { return m_albedoTexture.IsSet(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Material::GetStaticResourceTypeID(); }
 

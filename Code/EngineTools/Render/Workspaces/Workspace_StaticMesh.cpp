@@ -17,6 +17,10 @@ namespace EE::Render
 
         TWorkspace<StaticMesh>::Initialize( context );
 
+        m_showDescriptorEditor = true;
+
+        //-------------------------------------------------------------------------
+
         m_infoWindowName.sprintf( "Info##%u", GetID() );
 
         //-------------------------------------------------------------------------
@@ -56,6 +60,10 @@ namespace EE::Render
 
     void StaticMeshWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
+        TWorkspace::Update( context, pWindowClass, isFocused );
+
+        //-------------------------------------------------------------------------
+
         auto DrawWindowContents = [this] ()
         {
             if ( IsWaitingForResource() )
@@ -138,8 +146,6 @@ namespace EE::Render
         ImGui::End();
 
         //-------------------------------------------------------------------------
-
-        DrawDescriptorEditorWindow( context, pWindowClass );
 
         if ( m_pPreviewEntity != nullptr && ImGui::IsKeyPressed( ImGuiKey_Backspace ) )
         {

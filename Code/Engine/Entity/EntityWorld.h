@@ -121,7 +121,15 @@ namespace EE
 
         // Get the persistent map - this is a transient map that's always presents - be very careful with what you add to this map
         EntityModel::EntityMap* GetPersistentMap() { return &m_maps[0]; }
+
+        // Get the persistent map - this is a transient map that's always presents - be very careful with what you add to this map
         EntityModel::EntityMap const* GetPersistentMap() const { return &m_maps[0]; }
+
+        // Get the first non-persistent map
+        EntityModel::EntityMap* GetFirstNonPersistentMap() { return ( m_maps.size() > 1 ) ? &m_maps[1] : nullptr; }
+
+        // Get the first non-persistent map
+        EntityModel::EntityMap const* GetFirstNonPersistentMap() const { return ( m_maps.size() > 1 ) ? &m_maps[1] : nullptr; }
 
         // Create a transient map (one that is managed programatically)
         EntityModel::EntityMap* CreateTransientMap();

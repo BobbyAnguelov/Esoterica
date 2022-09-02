@@ -16,7 +16,7 @@ namespace EE::Render
 
         if ( HasMeshResourceSet() )
         {
-            SetLocalBounds( m_pMesh->GetBounds() );
+            SetLocalBounds( m_mesh->GetBounds() );
         }
     }
 
@@ -43,6 +43,6 @@ namespace EE::Render
     TVector<TResourcePtr<Render::Material>> const& StaticMeshComponent::GetDefaultMaterials() const
     {
         EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
-        return m_pMesh->GetMaterials();
+        return m_mesh->GetMaterials();
     }
 }

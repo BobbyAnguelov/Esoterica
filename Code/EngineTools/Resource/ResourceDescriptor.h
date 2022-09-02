@@ -55,10 +55,13 @@ namespace EE::Resource
 
         virtual ~ResourceDescriptor() = default;
 
+        // Is this a valid descriptor - This only signifies whether all the required data is set and not whether the resource or any other authored data within the descriptor is valid
+        virtual bool IsValid() const = 0;
+
         // Can this descriptor be created by a user in the editor?
         virtual bool IsUserCreateableDescriptor() const { return false; }
 
-        // What is the compiled resource type for this descriptor - Only needed for user createable descriptors
+        // What is the compiled resource type for this descriptor - Only needed for user creatable descriptors
         virtual ResourceTypeID GetCompiledResourceTypeID() const { return ResourceTypeID(); }
     };
 }

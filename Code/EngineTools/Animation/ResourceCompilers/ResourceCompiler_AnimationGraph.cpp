@@ -218,11 +218,11 @@ namespace EE::Animation
         hdr.AddInstallDependency( variation.m_pGraphDefinition.GetResourceID() );
 
         // Add data set install dependencies
-        hdr.AddInstallDependency( variation.m_dataSet.m_pSkeleton.GetResourceID() );
+        hdr.AddInstallDependency( variation.m_dataSet.m_skeleton.GetResourceID() );
         for ( Resource::ResourcePtr const& resourcePtr : variation.m_dataSet.m_resources )
         {
             // Skip invalid (empty) resource ID
-            if ( resourcePtr.IsValid() )
+            if ( resourcePtr.IsSet() )
             {
                 // Ensure that we dont reference ourselves as a child-graph
                 if ( resourcePtr.GetResourceID() == ctx.m_resourceID )
@@ -300,9 +300,9 @@ namespace EE::Animation
             auto const pVariation = editorGraph.GetVariation( variationID );
             EE_ASSERT( pVariation != nullptr );
 
-            if ( pVariation->m_pSkeleton.GetResourceID().IsValid() )
+            if ( pVariation->m_skeleton.GetResourceID().IsValid() )
             {
-                VectorEmplaceBackUnique( outReferencedResources, pVariation->m_pSkeleton.GetResourceID() );
+                VectorEmplaceBackUnique( outReferencedResources, pVariation->m_skeleton.GetResourceID() );
             }
 
             // Add data resources
@@ -352,13 +352,13 @@ namespace EE::Animation
 
         auto const pVariation = editorGraph.GetVariation( dataSet.m_variationID );
         EE_ASSERT( pVariation != nullptr ); 
-        if ( !pVariation->m_pSkeleton.IsValid() )
+        if ( !pVariation->m_skeleton.IsSet() )
         {
             Error( "Skeleton not set for variation: %s", dataSet.m_variationID.c_str() );
             return false;
         }
 
-        dataSet.m_pSkeleton = pVariation->m_pSkeleton;
+        dataSet.m_skeleton = pVariation->m_skeleton;
 
         //-------------------------------------------------------------------------
         // Fill data slots

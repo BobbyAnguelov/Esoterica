@@ -1,13 +1,13 @@
 #pragma once
 
-#include "EngineTools/Entity/EntityEditor/EntityEditor_BaseWorkspace.h"
+#include "Workspace_EntityWorldEditor.h"
 #include "Engine/Entity/EntityDescriptors.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::EntityModel
 {
-    class EE_ENGINETOOLS_API EntityCollectionEditor final : public EntityEditorBaseWorkspace
+    class EE_ENGINETOOLS_API EntityCollectionEditor final : public EntityWorldEditorWorkspace
     {
     public:
 

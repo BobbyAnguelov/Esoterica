@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Entity/EntityEditor/EntityEditor_BaseWorkspace.h"
+#include "EngineTools/Entity/Workspaces/Workspace_EntityWorldEditor.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ namespace EE::Navmesh
 
 namespace EE::EntityModel
 {
-    class EE_ENGINETOOLS_API EntityMapEditor final : public EntityEditorBaseWorkspace
+    class EE_ENGINETOOLS_API EntityMapEditor final : public EntityWorldEditorWorkspace
     {
     public:
 

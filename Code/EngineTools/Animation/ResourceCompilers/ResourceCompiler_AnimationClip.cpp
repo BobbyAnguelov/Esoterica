@@ -61,12 +61,12 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Convert the skeleton resource path to a physical file path
-        if ( !resourceDescriptor.m_pSkeleton.GetResourceID().IsValid() )
+        if ( !resourceDescriptor.m_skeleton.GetResourceID().IsValid() )
         {
             return Error( "Invalid skeleton resource ID" );
         }
 
-        ResourcePath const& skeletonPath = resourceDescriptor.m_pSkeleton.GetResourcePath();
+        ResourcePath const& skeletonPath = resourceDescriptor.m_skeleton.GetResourcePath();
         FileSystem::Path skeletonDescriptorFilePath;
         if ( !ConvertResourcePathToFilePath( skeletonPath, skeletonDescriptorFilePath ) )
         {
@@ -118,7 +118,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         AnimationClip animData;
-        animData.m_pSkeleton = resourceDescriptor.m_pSkeleton;
+        animData.m_skeleton = resourceDescriptor.m_skeleton;
 
         TransferAndCompressAnimationData( *pRawAnimation, animData );
 
@@ -135,7 +135,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Resource::ResourceHeader hdr( s_version, AnimationClip::GetStaticResourceTypeID() );
-        hdr.AddInstallDependency( resourceDescriptor.m_pSkeleton.GetResourceID() );
+        hdr.AddInstallDependency( resourceDescriptor.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << animData;

@@ -182,7 +182,7 @@ namespace EE::Render
     {
         for ( auto i = 0u; i < mesh.m_materials.size(); i++ )
         {
-            if ( mesh.m_materials[i].IsValid() )
+            if ( mesh.m_materials[i].IsSet() )
             {
                 hdr.AddInstallDependency( mesh.m_materials[i].GetResourceID() );
             }

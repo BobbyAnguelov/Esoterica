@@ -23,14 +23,18 @@ namespace EE::Render
     {
         EE_REGISTER_TYPE( MeshResourceDescriptor );
 
+        virtual bool IsValid() const override { return m_meshPath.IsValid(); }
+
+    public:
+
         // The path to the mesh source file
         EE_EXPOSE ResourcePath                         m_meshPath;
 
-        // Default materials - TODO: extract from FBX
-        EE_EXPOSE TVector<TResourcePtr<Material>>      m_materials;
-
         // Optional value that specifies the specific sub-mesh to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
         EE_EXPOSE String                               m_meshName;
+
+        // Default materials - TODO: extract from source files
+        EE_EXPOSE TVector<TResourcePtr<Material>>      m_materials;
     };
 
     //-------------------------------------------------------------------------

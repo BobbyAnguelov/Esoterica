@@ -12,6 +12,7 @@ namespace EE::EntityModel
     {
         EE_REGISTER_TYPE( EntityCollectionDescriptor );
 
+        virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return false; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return SerializedEntityCollection::GetStaticResourceTypeID(); }
     };

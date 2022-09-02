@@ -78,7 +78,7 @@ namespace EE::Animation
             GraphVariation* pGraphVariation = EE::New<GraphVariation>();
             archive << *pGraphVariation;
             pResourceRecord->SetResourceData( pGraphVariation );
-            return pGraphVariation->m_pGraphDefinition.IsValid() && pGraphVariation->m_dataSet.m_variationID.IsValid() && pGraphVariation->m_dataSet.m_pSkeleton.IsValid();
+            return pGraphVariation->m_pGraphDefinition.IsSet() && pGraphVariation->m_dataSet.m_variationID.IsValid() && pGraphVariation->m_dataSet.m_skeleton.IsSet();
         }
 
         EE_UNREACHABLE_CODE();
@@ -100,8 +100,8 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             GraphDataSet& dataSet = pGraphVariation->m_dataSet;
-            EE_ASSERT( dataSet.m_pSkeleton.GetResourceID().IsValid() );
-            dataSet.m_pSkeleton = GetInstallDependency( installDependencies, dataSet.m_pSkeleton.GetResourceID() );
+            EE_ASSERT( dataSet.m_skeleton.GetResourceID().IsValid() );
+            dataSet.m_skeleton = GetInstallDependency( installDependencies, dataSet.m_skeleton.GetResourceID() );
 
             if ( !dataSet.IsValid() )
             {

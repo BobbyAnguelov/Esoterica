@@ -94,27 +94,27 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        if ( resourceDescriptor.m_albedoTexture.IsValid() )
+        if ( resourceDescriptor.m_albedoTexture.IsSet() )
         {
             VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_albedoTexture.GetResourceID() );
         }
 
-        if ( resourceDescriptor.m_metalnessTexture.IsValid() )
+        if ( resourceDescriptor.m_metalnessTexture.IsSet() )
         {
             VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_metalnessTexture.GetResourceID() );
         }
 
-        if ( resourceDescriptor.m_roughnessTexture.IsValid() )
+        if ( resourceDescriptor.m_roughnessTexture.IsSet() )
         {
             VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_roughnessTexture.GetResourceID() );
         }
 
-        if ( resourceDescriptor.m_normalMapTexture.IsValid() )
+        if ( resourceDescriptor.m_normalMapTexture.IsSet() )
         {
             VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_normalMapTexture.GetResourceID() );
         }
 
-        if ( resourceDescriptor.m_aoTexture.IsValid() )
+        if ( resourceDescriptor.m_aoTexture.IsSet() )
         {
             VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_aoTexture.GetResourceID() );
         }

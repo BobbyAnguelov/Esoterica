@@ -30,11 +30,11 @@ namespace EE::Render
         inline Texture const* GetNormalMapTexture() const { EE_ASSERT( IsValid() ); return m_pNormalMapTexture.GetPtr(); }
         inline Texture const* GetAOTexture() const { EE_ASSERT( IsValid() ); return m_pAOTexture.GetPtr(); }
 
-        EE_FORCE_INLINE bool HasAlbedoTexture() const { return m_pAlbedoTexture.IsValid(); }
-        EE_FORCE_INLINE bool HasMetalnessTexture() const { return m_pMetalnessTexture.IsValid(); }
-        EE_FORCE_INLINE bool HasRoughnessTexture() const { return m_pRoughnessTexture.IsValid(); }
-        EE_FORCE_INLINE bool HasNormalMapTexture() const { return m_pNormalMapTexture.IsValid(); }
-        EE_FORCE_INLINE bool HasAOTexture() const { return m_pAOTexture.IsValid(); }
+        EE_FORCE_INLINE bool HasAlbedoTexture() const { return m_pAlbedoTexture.IsSet(); }
+        EE_FORCE_INLINE bool HasMetalnessTexture() const { return m_pMetalnessTexture.IsSet(); }
+        EE_FORCE_INLINE bool HasRoughnessTexture() const { return m_pRoughnessTexture.IsSet(); }
+        EE_FORCE_INLINE bool HasNormalMapTexture() const { return m_pNormalMapTexture.IsSet(); }
+        EE_FORCE_INLINE bool HasAOTexture() const { return m_pAOTexture.IsSet(); }
 
         EE_FORCE_INLINE Color GetAlbedoValue() const { return m_albedo; }
         EE_FORCE_INLINE float GetMetalnessValue() const { return m_metalness; }

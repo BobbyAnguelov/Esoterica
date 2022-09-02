@@ -13,8 +13,8 @@ namespace EE::Render
 
         if ( HasMeshResourceSet() )
         {
-            EE_ASSERT( m_pMesh.IsLoaded() );
-            SetLocalBounds( m_pMesh->GetBounds() );
+            EE_ASSERT( m_mesh.IsLoaded() );
+            SetLocalBounds( m_mesh->GetBounds() );
 
             if ( HasSkeletonResourceSet() )
             {
@@ -24,7 +24,7 @@ namespace EE::Render
             // Set mesh to reference pose
             //-------------------------------------------------------------------------
 
-            m_boneTransforms.resize( m_pMesh->GetNumBones() );
+            m_boneTransforms.resize( m_mesh->GetNumBones() );
             ResetPose();
 
             //-------------------------------------------------------------------------
@@ -46,7 +46,7 @@ namespace EE::Render
     TVector<TResourcePtr<Render::Material>> const& SkeletalMeshComponent::GetDefaultMaterials() const
     {
         EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
-        return m_pMesh->GetMaterials();
+        return m_mesh->GetMaterials();
     }
 
     bool SkeletalMeshComponent::TryFindAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const
@@ -55,9 +55,9 @@ namespace EE::Render
 
         outSocketWorldTransform = GetWorldTransform();
 
-        if ( m_pMesh.IsValid() && m_pMesh.IsLoaded() )
+        if ( m_mesh.IsSet() && m_mesh.IsLoaded() )
         {
-            auto const boneIdx = m_pMesh->GetBoneIndex( socketID );
+            auto const boneIdx = m_mesh->GetBoneIndex( socketID );
             if ( boneIdx != InvalidIndex )
             {
                 if ( IsInitialized() )
@@ -66,7 +66,7 @@ namespace EE::Render
                 }
                 else
                 {
-                    outSocketWorldTransform = m_pMesh->GetBindPose()[boneIdx] * outSocketWorldTransform;
+                    outSocketWorldTransform = m_mesh->GetBindPose()[boneIdx] * outSocketWorldTransform;
                 }
 
                 return true;
@@ -80,9 +80,9 @@ namespace EE::Render
     {
         EE_ASSERT( socketID.IsValid() );
 
-        if ( m_pMesh.IsValid() && m_pMesh.IsLoaded() )
+        if ( m_mesh.IsSet() && m_mesh.IsLoaded() )
         {
-            int32_t boneIdx = m_pMesh->GetBoneIndex( socketID );
+            int32_t boneIdx = m_mesh->GetBoneIndex( socketID );
             return boneIdx != InvalidIndex;
         }
 
@@ -95,7 +95,7 @@ namespace EE::Render
     {
         EE_ASSERT( IsUnloaded() );
         EE_ASSERT( skeletonResourceID.IsValid() );
-        m_pSkeleton = skeletonResourceID;
+        m_skeleton = skeletonResourceID;
     }
 
     void SkeletalMeshComponent::SetPose( Animation::Pose const* pPose )
@@ -124,20 +124,20 @@ namespace EE::Render
 
         if ( HasSkeletonResourceSet() )
         {
-            Animation::Pose referencePose( m_pSkeleton.GetPtr() );
+            Animation::Pose referencePose( m_skeleton.GetPtr() );
             referencePose.CalculateGlobalTransforms();
             SetPose( &referencePose );
         }
         else
         {
-            m_boneTransforms = m_pMesh->GetBindPose();
+            m_boneTransforms = m_mesh->GetBindPose();
         }
     }
 
     void SkeletalMeshComponent::FinalizePose()
     {
         EE_PROFILE_FUNCTION_RENDER();
-        EE_ASSERT( m_pMesh.IsValid() && m_pMesh.IsLoaded() );
+        EE_ASSERT( m_mesh.IsSet() && m_mesh.IsLoaded() );
 
         NotifySocketsUpdated();
         UpdateBounds();
@@ -148,7 +148,7 @@ namespace EE::Render
 
     void SkeletalMeshComponent::UpdateBounds()
     {
-        EE_ASSERT( m_pMesh.IsValid() && m_pMesh.IsLoaded() );
+        EE_ASSERT( m_mesh.IsSet() && m_mesh.IsLoaded() );
 
         AABB newBounds;
         for ( auto const& boneTransform : m_boneTransforms )
@@ -161,12 +161,12 @@ namespace EE::Render
 
     void SkeletalMeshComponent::UpdateSkinningTransforms()
     {
-        EE_ASSERT( m_pMesh.IsValid() && m_pMesh.IsLoaded() );
+        EE_ASSERT( m_mesh.IsSet() && m_mesh.IsLoaded() );
 
         auto const numBones = m_boneTransforms.size();
         EE_ASSERT( m_skinningTransforms.size() == numBones );
 
-        auto const& inverseBindPose = m_pMesh->GetInverseBindPose();
+        auto const& inverseBindPose = m_mesh->GetInverseBindPose();
         for ( auto i = 0; i < numBones; i++ )
         {
             Transform const skinningTransform = inverseBindPose[i] * m_boneTransforms[i];
@@ -176,16 +176,16 @@ namespace EE::Render
 
     void SkeletalMeshComponent::GenerateAnimationBoneMap()
     {
-        EE_ASSERT( m_pMesh != nullptr && m_pSkeleton != nullptr );
+        EE_ASSERT( m_mesh != nullptr && m_skeleton != nullptr );
 
         auto const pMesh = GetMesh();
 
-        auto const numBones = m_pSkeleton->GetNumBones();
+        auto const numBones = m_skeleton->GetNumBones();
         m_animToMeshBoneMap.resize( numBones, InvalidIndex );
 
         for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
-            auto const& boneID = m_pSkeleton->GetBoneID( boneIdx );
+            auto const& boneID = m_skeleton->GetBoneID( boneIdx );
             m_animToMeshBoneMap[boneIdx] = pMesh->GetBoneIndex( boneID );
         }
     }
@@ -197,7 +197,7 @@ namespace EE::Render
     {
         EE_ASSERT( IsInitialized() );
 
-        if ( !m_pMesh.IsValid() || !m_pMesh.IsLoaded() )
+        if ( !m_mesh.IsSet() || !m_mesh.IsLoaded() )
         {
             return;
         }
@@ -215,7 +215,7 @@ namespace EE::Render
         {
             boneWorldTransform = m_boneTransforms[i] * worldTransform;
 
-            auto const parentBoneIdx = m_pMesh->GetParentBoneIndex( i );
+            auto const parentBoneIdx = m_mesh->GetParentBoneIndex( i );
             Transform const parentBoneWorldTransform = m_boneTransforms[parentBoneIdx] * worldTransform;
 
             drawingContext.DrawLine( parentBoneWorldTransform.GetTranslation(), boneWorldTransform.GetTranslation(), Colors::Orange );

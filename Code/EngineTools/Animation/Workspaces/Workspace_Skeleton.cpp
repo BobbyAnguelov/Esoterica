@@ -59,8 +59,8 @@ namespace EE::Animation
     {
         EE_ASSERT( m_pPreviewEntity == nullptr );
 
-        auto pSkeletonDescriptor = GetDescriptorAs<SkeletonResourceDescriptor>();
-        if ( pSkeletonDescriptor->m_previewMesh.IsValid() )
+        auto pSkeletonDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        if ( pSkeletonDescriptor->m_previewMesh.IsSet() )
         {
             auto pMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
             pMeshComponent->SetSkeleton( m_descriptorID );
@@ -72,29 +72,24 @@ namespace EE::Animation
         }
     }
 
-    void SkeletonWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void SkeletonWorkspace::OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded )
     {
-        TWorkspace<Skeleton>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
-        if ( m_pDescriptor == nullptr || IsHotReloading() )
-        {
-            DestroyEntityInWorld( m_pPreviewEntity );
-        }
+        TWorkspace<Skeleton>::OnHotReloadStarted( descriptorNeedsReload, resourcesToBeReloaded );
+        DestroyEntityInWorld( m_pPreviewEntity );
     }
 
-    void SkeletonWorkspace::EndHotReload()
+    void SkeletonWorkspace::OnHotReloadComplete()
     {
-        TWorkspace<Skeleton>::EndHotReload();
-
-        if ( m_pPreviewEntity == nullptr )
-        {
-            CreatePreviewEntity();
-        }
+        TWorkspace<Skeleton>::OnHotReloadComplete();
+        CreatePreviewEntity();
     }
 
     //-------------------------------------------------------------------------
 
     void SkeletonWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
+        TWorkspace::Update( context, pWindowClass, isFocused );
+
         // Debug drawing in Viewport
         //-------------------------------------------------------------------------
 
@@ -121,10 +116,7 @@ namespace EE::Animation
             }
         }
 
-        // UI
         //-------------------------------------------------------------------------
-
-        DrawDescriptorEditorWindow( context, pWindowClass );
 
         ImGui::SetNextWindowClass( pWindowClass );
         DrawSkeletonHierarchyWindow( context );

@@ -486,7 +486,7 @@ namespace EE::EntityModel
             }
 
             // Unload the map resource
-            if ( !m_isTransientMap && !m_pMapDesc.IsUnloaded() )
+            if ( !m_isTransientMap && m_pMapDesc.WasRequested() )
             {
                 loadingContext.m_pResourceSystem->UnloadResource( m_pMapDesc );
             }

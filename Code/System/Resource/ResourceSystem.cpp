@@ -152,7 +152,7 @@ namespace EE::Resource
 
         // Immediately update the resource ptr
         auto pRecord = FindOrCreateResourceRecord( resourcePtr.GetResourceID() );
-        resourcePtr.m_pResource = pRecord;
+        resourcePtr.m_pResourceRecord = pRecord;
 
         //-------------------------------------------------------------------------
 
@@ -169,7 +169,7 @@ namespace EE::Resource
         Threading::RecursiveScopeLock lock( m_accessLock );
 
         // Immediately update the resource ptr
-        resourcePtr.m_pResource = nullptr;
+        resourcePtr.m_pResourceRecord = nullptr;
 
         //-------------------------------------------------------------------------
 

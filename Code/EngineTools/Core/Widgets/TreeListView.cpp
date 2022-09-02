@@ -1,6 +1,7 @@
 #include "TreeListView.h"
 #include "System/Imgui/ImguiStyle.h"
 #include "EASTL/sort.h"
+#include "System/Math/NumericRange.h"
 
 //-------------------------------------------------------------------------
 
@@ -388,6 +389,36 @@ namespace EE
         m_visualTreeState = VisualTreeState::UpToDate;
     }
 
+    int32_t TreeListView::GetVisualTreeItemIndex( TreeListViewItem const* pBaseItem ) const
+    {
+        int32_t const numItems = (int32_t) m_visualTree.size();
+        for ( auto i = 0; i < numItems; i++ )
+        {
+            if ( m_visualTree[i].m_pItem == pBaseItem )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
+    }
+
+    int32_t TreeListView::GetVisualTreeItemIndex( uint64_t uniqueID ) const
+    {
+        int32_t const numItems = (int32_t) m_visualTree.size();
+        for ( auto i = 0; i < numItems; i++ )
+        {
+            if ( m_visualTree[i].m_pItem->GetUniqueID() == uniqueID )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
+    }
+
+    //-------------------------------------------------------------------------
+
     void TreeListView::OnItemDoubleClickedInternal( TreeListViewItem* pItem )
     {
         // Double click
@@ -416,8 +447,14 @@ namespace EE
     }
 
     //-------------------------------------------------------------------------
+    
+    void TreeListView::ClearSelection()
+    {
+        m_selection.clear();
+        NotifySelectionChanged();
+    }
 
-    void TreeListView::SelectItem( TreeListViewItem* pItem )
+    void TreeListView::SetSelection( TreeListViewItem* pItem )
     {
         m_selection.clear();
         m_selection.emplace_back( pItem );
@@ -435,13 +472,42 @@ namespace EE
         }
     }
 
+    void TreeListView::AddRangeToSelection( TVector<TreeListViewItem*> const& itemRange )
+    {
+        if ( itemRange.empty() )
+        {
+            return;
+        }
+
+        bool selectionModified = false;
+        for ( auto pItem : itemRange )
+        {
+            if ( !VectorContains( m_selection, pItem ) )
+            {
+                m_selection.emplace_back( pItem );
+                selectionModified = true;
+            }
+        }
+
+        if ( selectionModified )
+        {
+            NotifySelectionChanged();
+        }
+    }
+
+    void TreeListView::SetSelectionToRange( TVector<TreeListViewItem*> const& itemRange )
+    {
+        m_selection = itemRange;
+        NotifySelectionChanged();
+    }
+
     void TreeListView::RemoveFromSelection( TreeListViewItem* pItem )
     {
         EE_ASSERT( m_multiSelectionAllowed );
 
         if ( VectorContains( m_selection, pItem ) )
         {
-            m_selection.erase_first_unsorted( pItem );
+            m_selection.erase_first( pItem );
             NotifySelectionChanged();
         }
     }
@@ -453,8 +519,42 @@ namespace EE
         {
             if ( m_multiSelectionAllowed && ImGui::GetIO().KeyShift )
             {
-                // TODO
-                // Find selection bounds and bulk select everything between them
+                if ( m_selection.empty() )
+                {
+                    AddToSelection( pItem );
+                }
+                else
+                {
+                    // Get the index of the clicked item
+                    int32_t const clickedItemIdx = GetVisualTreeItemIndex( pItem );
+
+                    // Get the index of the selection range start item
+                    TreeListViewItem const* const pLastSelectedItem = m_selection.back();
+                    int32_t const lastSelectedItemIdx = GetVisualTreeItemIndex( pLastSelectedItem );
+
+                    // Get the items we want to add to the selection
+                    TVector<TreeListViewItem*> itemsToSelect;
+                    itemsToSelect.reserve( 20 );
+
+                    // Ensure that we always keep the last selected item as last item in the range (i.e. the last selected)
+                    if ( lastSelectedItemIdx <= clickedItemIdx )
+                    {
+                        for ( auto i = clickedItemIdx; i >= lastSelectedItemIdx; i-- )
+                        {
+                            itemsToSelect.emplace_back( m_visualTree[i].m_pItem );
+                        }
+                    }
+                    else // Selection is upwards in tree
+                    {
+                        for ( auto i = clickedItemIdx; i <= lastSelectedItemIdx; i++ )
+                        {
+                            itemsToSelect.emplace_back( m_visualTree[i].m_pItem );
+                        }
+                    }
+
+                    // Modify the selection
+                    SetSelectionToRange( itemsToSelect );
+                }
             }
             else  if ( m_multiSelectionAllowed && ImGui::GetIO().KeyCtrl )
             {
@@ -469,7 +569,7 @@ namespace EE
             }
             else
             {
-                SelectItem( pItem );
+                SetSelection( pItem );
             }
         }
         // Right click never deselects! Nor does it support multi-selection
@@ -477,7 +577,7 @@ namespace EE
         {
             if ( !isSelectedItem )
             {
-                SelectItem( pItem );
+                SetSelection( pItem );
             }
         }
     }
@@ -509,7 +609,7 @@ namespace EE
         }
 
         // Set node flags
-        uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanFullWidth;
+        uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding;
 
         if ( m_expandItemsOnlyViaArrow )
         {
@@ -537,17 +637,27 @@ namespace EE
         
         {
             ImGuiX::ScopedFont font( isActiveItem ? ImGuiX::Font::SmallBold : ImGuiX::Font::Small, pItem->GetDisplayColor( state ) );
+            ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, 4 ) );
             newExpansionState = ImGui::TreeNodeEx( pItem->GetDisplayName(), treeNodeflags );
+            ImGui::PopStyleVar();
         }
 
-        if ( pItem->SupportsDragAndDrop() )
+        if ( pItem->IsDragAndDropSource() )
         {
             if ( ImGui::BeginDragDropSource( ImGuiDragDropFlags_None ) )
             {
-                auto payloadData = pItem->GetDragAndDropPayload();
-                ImGui::SetDragDropPayload( pItem->GetDragAndDropPayloadID(), payloadData.first, payloadData.second );
+                pItem->SetDragAndDropPayloadData();
                 ImGui::Text( pItem->GetDisplayName() );
                 ImGui::EndDragDropSource();
+            }
+        }
+
+        if ( pItem->IsDragAndDropTarget() )
+        {
+            if ( ImGui::BeginDragDropTarget() )
+            {
+                HandleDragAndDropOnItem( pItem );
+                ImGui::EndDragDropTarget();
             }
         }
 
@@ -580,7 +690,7 @@ namespace EE
                     }
                     else // Switch selection to this item
                     {
-                        SelectItem( pItem );
+                        SetSelection( pItem );
                     }
                 }
 
@@ -643,9 +753,11 @@ namespace EE
 
         ImGui::PushID( this );
         ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( ImGui::GetStyle().ItemSpacing.x, 0 ) ); // Ensure table border and scrollbar align
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 0, 0 ) );
+        ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray2.Value ); // Why does 'header' control selected table row BG?!
         ImGui::BeginChild( "TreeViewChild", ImVec2( 0, 0 ), false, 0 );
         {
-            constexpr ImGuiTableFlags const tableFlags = ImGuiTableFlags_BordersV | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
+            constexpr ImGuiTableFlags const tableFlags = ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_BordersV | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
             float const totalVerticalSpaceAvailable = ImGui::GetContentRegionAvail().y;
             float const maxVerticalScrollPosition = ImGui::GetScrollMaxY();
 
@@ -683,6 +795,7 @@ namespace EE
             }
             else // Draw clipped table
             {
+                int32_t const maxNumDrawableRows = (int32_t) Math::Floor( totalVerticalSpaceAvailable / m_estimatedRowHeight );
                 float const numRowIndices = float( m_visualTree.size() ) - 1;
                 float currentVerticalScrollPosition = ImGui::GetScrollY();
 
@@ -695,17 +808,21 @@ namespace EE
                 }
 
                 // Update visible item based on scrollbar position
-                m_firstVisibleRowItemIdx = (int32_t) Math::Round( ( currentVerticalScrollPosition / maxVerticalScrollPosition ) * numRowIndices );
+                // Assumption is that when we are at max scrolling we should show the last item at the bottom of the visible area
+                int32_t const scrollItemOffset = (int32_t) Math::Round( currentVerticalScrollPosition / m_estimatedRowHeight );
+                m_firstVisibleRowItemIdx = scrollItemOffset + 1; // Ensure the last item is always fully visible
                 m_firstVisibleRowItemIdx = Math::Clamp( m_firstVisibleRowItemIdx, 0, (int32_t) m_visualTree.size() - 1 );
 
                 // Calculate draw range
                 bool shouldDrawDummyRow = false;
-                int32_t const maxNumDrawableRows = (int32_t) Math::Floor( totalVerticalSpaceAvailable / m_estimatedRowHeight );
                 int32_t const itemsToDrawStartIdx = m_firstVisibleRowItemIdx;
                 int32_t itemsToDrawEndIdx = Math::Min( itemsToDrawStartIdx + maxNumDrawableRows, (int32_t) m_visualTree.size() - 1 );
 
                 // Draw initial dummy to adjust scrollbar position
-                ImGui::Dummy( ImVec2( -1, currentVerticalScrollPosition ) );
+                if ( currentVerticalScrollPosition != 0 )
+                {
+                    ImGui::Dummy( ImVec2( -1, currentVerticalScrollPosition ) );
+                }
 
                 // Draw table rows
                 if ( ImGui::BeginTable( "Tree View Browser", GetNumExtraColumns() + 1, tableFlags, ImVec2(ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x / 2, 0)) )
@@ -726,7 +843,8 @@ namespace EE
             }
         }
         ImGui::EndChild();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar( 2 );
+        ImGui::PopStyleColor();
 
         //-------------------------------------------------------------------------
 

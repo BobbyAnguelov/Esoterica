@@ -159,17 +159,17 @@ namespace EE::Animation
         }
 
         // Load resource descriptor for skeleton to get the preview mesh
-        auto pAnimClipDescriptor = GetDescriptorAs<AnimationClipResourceDescriptor>();
-        if ( pAnimClipDescriptor->m_pSkeleton.IsValid() )
+        auto pAnimClipDescriptor = GetDescriptor<AnimationClipResourceDescriptor>();
+        if ( pAnimClipDescriptor->m_skeleton.IsSet() )
         {
-            FileSystem::Path const resourceDescPath = GetFileSystemPath( pAnimClipDescriptor->m_pSkeleton.GetResourcePath() );
+            FileSystem::Path const resourceDescPath = GetFileSystemPath( pAnimClipDescriptor->m_skeleton.GetResourcePath() );
             SkeletonResourceDescriptor resourceDesc;
-            if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) && resourceDesc.m_previewMesh.IsValid() )
+            if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) && resourceDesc.m_previewMesh.IsSet() )
             {
                 // Create a preview mesh component
                 m_pMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-                m_pMeshComponent->SetSkeleton( pAnimClipDescriptor->m_pSkeleton.GetResourceID() );
-                if ( resourceDesc.m_previewMesh.IsValid() )
+                m_pMeshComponent->SetSkeleton( pAnimClipDescriptor->m_skeleton.GetResourceID() );
+                if ( resourceDesc.m_previewMesh.IsSet() )
                 {
                     m_pMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
                 }
@@ -191,12 +191,12 @@ namespace EE::Animation
         m_pMeshComponent = nullptr;
     }
 
-    void AnimationClipWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void AnimationClipWorkspace::OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded )
     {
-        TWorkspace<AnimationClip>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        TWorkspace<AnimationClip>::OnHotReloadStarted( descriptorNeedsReload, resourcesToBeReloaded );
 
         // If someone messed with this resource outside of this editor
-        if ( m_pDescriptor == nullptr )
+        if ( descriptorNeedsReload )
         {
             m_propertyGrid.SetTypeToEdit( nullptr );
             if ( m_pPreviewEntity != nullptr )
@@ -205,21 +205,17 @@ namespace EE::Animation
             }
         }
 
-        // If we are actually reloading one of our resources, destroy the mesh component
-        if ( IsHotReloading() )
+        if ( m_pMeshComponent != nullptr )
         {
-            if ( m_pMeshComponent != nullptr )
-            {
-                DestroyPreviewMeshComponent();
-            }
+            DestroyPreviewMeshComponent();
         }
     }
 
-    void AnimationClipWorkspace::EndHotReload()
+    void AnimationClipWorkspace::OnHotReloadComplete()
     {
-        TWorkspace<AnimationClip>::EndHotReload();
+        TWorkspace<AnimationClip>::OnHotReloadComplete();
 
-        if ( m_pDescriptor != nullptr && m_pPreviewEntity == nullptr )
+        if ( m_pPreviewEntity == nullptr )
         {
             CreatePreviewEntity();
         }

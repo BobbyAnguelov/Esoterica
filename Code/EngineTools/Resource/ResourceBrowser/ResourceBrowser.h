@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineTools/Core/Widgets/TreeListView.h"
+#include "EngineTools/Core/Helpers/CategoryTree.h"
 #include "System/Resource/ResourceTypeID.h"
 
 //-------------------------------------------------------------------------
@@ -11,6 +12,7 @@ namespace EE
     class ToolsContext;
     class ResourceDescriptorCreator;
     namespace Resource{ class RawFileInspector; }
+    namespace TypeSystem { class TypeInfo; }
 
     //-------------------------------------------------------------------------
 
@@ -37,10 +39,15 @@ namespace EE
         TreeListViewItem& FindOrCreateParentForItem( FileSystem::Path const& path );
 
         void UpdateVisibility();
-        void DrawCreateNewDescriptorMenu( FileSystem::Path const& path );
         void DrawCreationControls( UpdateContext const& context );
         void DrawFilterOptions( UpdateContext const& context );
         bool DrawResourceTypeFilterMenu( float width );
+
+        // Descriptor Creator
+        //-------------------------------------------------------------------------
+
+        void CreateDescriptorCategoryTree();
+        void DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category );
 
     private:
 
@@ -55,6 +62,7 @@ namespace EE
         int32_t                                             m_dataDirectoryPathDepth;
         TVector<FileSystem::Path>                           m_foundPaths;
 
+        CategoryTree<TypeSystem::TypeInfo const*>           m_categorizedDescriptorTypes;
         ResourceDescriptorCreator*                          m_pResourceDescriptorCreator = nullptr;
         Resource::RawFileInspector*                         m_pRawResourceInspector = nullptr;
         EventBindingID                                      m_onDoubleClickEventID;

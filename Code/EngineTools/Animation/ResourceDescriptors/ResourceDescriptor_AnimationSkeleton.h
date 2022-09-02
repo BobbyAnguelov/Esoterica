@@ -13,6 +13,7 @@ namespace EE::Animation
     {
         EE_REGISTER_TYPE( SkeletonResourceDescriptor );
     
+        virtual bool IsValid() const override { return m_skeletonPath.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return Skeleton::GetStaticResourceTypeID(); }
 

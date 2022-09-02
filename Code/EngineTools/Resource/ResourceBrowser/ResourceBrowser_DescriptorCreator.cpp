@@ -18,6 +18,7 @@ namespace EE
     {
         EE_ASSERT( m_pToolsContext != nullptr );
         EE_ASSERT( m_pToolsContext->m_pTypeRegistry->IsTypeDerivedFrom( descriptorTypeID, Resource::ResourceDescriptor::GetStaticTypeID() ) );
+
         auto pTypeInfo = m_pToolsContext->m_pTypeRegistry->GetTypeInfo( descriptorTypeID );
         EE_ASSERT( pTypeInfo != nullptr );
 
@@ -63,11 +64,13 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            if ( ImGui::Button( "Save", ImVec2( 120, 0 ) ) )
+            ImGui::BeginDisabled( !m_pDescriptor->IsValid() );
+            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Save", ImVec2( 120, 0 ) ) )
             {
                 SaveDescriptor();
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::EndDisabled();
 
             ImGui::SetItemDefaultFocus();
             ImGui::SameLine();
@@ -92,10 +95,8 @@ namespace EE
         TypeSystem::ResourceInfo const* pResourceInfo = m_pToolsContext->m_pTypeRegistry->GetResourceInfoForResourceType( resourceTypeID );
 
         FileSystem::Path outPath = SaveDialog( resourceTypeID, m_startingPath, pResourceInfo->m_friendlyName );
-        if ( !outPath.IsValid() )
+        if( !outPath.IsValid() )
         {
-            InlineString const str( InlineString::CtorSprintf(), "Invalid descriptor file path (%s) to selected!", outPath.c_str() );
-            pfd::message( "Invalid filepath supplied!", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
             return;
         }
 

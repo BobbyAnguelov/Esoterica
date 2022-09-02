@@ -9,7 +9,7 @@ namespace EE::Animation
     void AnimationClip::GetPose( FrameTime const& frameTime, Pose* pOutPose ) const
     {
         EE_ASSERT( IsValid() );
-        EE_ASSERT( pOutPose != nullptr && pOutPose->GetSkeleton() == m_pSkeleton.GetPtr() );
+        EE_ASSERT( pOutPose != nullptr && pOutPose->GetSkeleton() == m_skeleton.GetPtr() );
         EE_ASSERT( frameTime.GetFrameIndex() < m_numFrames );
 
         pOutPose->ClearGlobalTransforms();
@@ -22,7 +22,7 @@ namespace EE::Animation
         // Read exact key frame
         if ( frameTime.IsExactlyAtKeyFrame() )
         {
-            auto const numBones = m_pSkeleton->GetNumBones();
+            auto const numBones = m_skeleton->GetNumBones();
             for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
                 pTrackData = ReadCompressedTrackKeyFrame( pTrackData, m_trackCompressionSettings[boneIdx], frameTime.GetFrameIndex(), boneTransform );
@@ -31,7 +31,7 @@ namespace EE::Animation
         }
         else // Read interpolated anim pose
         {
-            auto const numBones = m_pSkeleton->GetNumBones();
+            auto const numBones = m_skeleton->GetNumBones();
             for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
                 pTrackData = ReadCompressedTrackTransform( pTrackData, m_trackCompressionSettings[boneIdx], frameTime, boneTransform );
@@ -45,7 +45,7 @@ namespace EE::Animation
 
     Transform AnimationClip::GetLocalSpaceTransform( int32_t boneIdx, FrameTime const& frameTime ) const
     {
-        EE_ASSERT( IsValid() && m_pSkeleton->IsValidBoneIndex( boneIdx ) );
+        EE_ASSERT( IsValid() && m_skeleton->IsValidBoneIndex( boneIdx ) );
 
         uint32_t frameIdx = frameTime.GetFrameIndex();
         EE_ASSERT( frameIdx < m_numFrames );
@@ -72,7 +72,7 @@ namespace EE::Animation
 
     Transform AnimationClip::GetGlobalSpaceTransform( int32_t boneIdx, FrameTime const& frameTime ) const
     {
-        EE_ASSERT( IsValid() && m_pSkeleton->IsValidBoneIndex( boneIdx ) );
+        EE_ASSERT( IsValid() && m_skeleton->IsValidBoneIndex( boneIdx ) );
 
         uint32_t frameIdx = frameTime.GetFrameIndex();
         EE_ASSERT( frameIdx < m_numFrames );
@@ -83,11 +83,11 @@ namespace EE::Animation
         TInlineVector<int32_t, 20> boneHierarchy;
         boneHierarchy.emplace_back( boneIdx );
 
-        int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
+        int32_t parentBoneIdx = m_skeleton->GetParentBoneIndex( boneIdx );
         while ( parentBoneIdx != InvalidIndex )
         {
             boneHierarchy.emplace_back( parentBoneIdx );
-            parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
+            parentBoneIdx = m_skeleton->GetParentBoneIndex( parentBoneIdx );
         }
 
         // Calculate the global transform

@@ -12,10 +12,10 @@
 namespace EE::EntityModel
 {
     EntityMapEditor::EntityMapEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EntityEditorBaseWorkspace( pToolsContext, pWorld, String( "Map Editor" ) )
+        : EntityWorldEditorWorkspace( pToolsContext, pWorld, String( "Map Editor" ) )
     {
         m_gizmo.SetTargetTransform( &m_gizmoTransform );
-        SetViewportCameraSpeed( 15.0f );
+        SetCameraSpeed( 15.0f );
     }
 
     EntityMapEditor::~EntityMapEditor()
@@ -245,7 +245,7 @@ namespace EE::EntityModel
 
     void EntityMapEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
-        EntityEditorBaseWorkspace::Update( context, pWindowClass, isFocused );
+        EntityWorldEditorWorkspace::Update( context, pWindowClass, isFocused );
 
         if ( m_pNavmeshGeneratorDialog != nullptr )
         {

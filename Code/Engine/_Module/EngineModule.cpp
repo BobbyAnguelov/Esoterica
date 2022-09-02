@@ -411,7 +411,7 @@ namespace EE
     void EngineModule::LoadModuleResources( Resource::ResourceSystem& resourceSystem )
     {
         m_pPhysicMaterialDB = ResourceID( g_physicsMaterialDatabaseResourceID );
-        EE_ASSERT( m_pPhysicMaterialDB.IsValid() );
+        EE_ASSERT( m_pPhysicMaterialDB.IsSet() );
         resourceSystem.LoadResource( m_pPhysicMaterialDB );
     }
 

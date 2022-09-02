@@ -49,7 +49,7 @@ namespace EE::Animation
 
         EE_EXPOSE      StringID                m_ID;
         EE_REGISTER    StringID                m_parentID;
-        EE_EXPOSE      TResourcePtr<Skeleton>  m_pSkeleton;
+        EE_EXPOSE      TResourcePtr<Skeleton>  m_skeleton;
     };
 
     //-------------------------------------------------------------------------

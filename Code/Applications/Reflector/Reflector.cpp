@@ -697,11 +697,11 @@ namespace EE::TypeSystem::Reflection
 
         if ( !headersToParse.empty() )
         {
-            std::cout << " * Reflecting C++ Code - First Pass - ";
+            std::cout << " * Reflecting C++ Code - First Pass (With Dev Tools) - ";
 
             // Parse headers
             ClangParser clangParser( &m_solution, &m_database, m_reflectionDataPath );
-            if ( !clangParser.Parse( headersToParse, ClangParser::FirstPass ) )
+            if ( !clangParser.Parse( headersToParse, ClangParser::DevToolsPass ) )
             {
                 std::cout << "Error occurred!\n\n  Error: " << clangParser.GetErrorMessage().c_str() << std::endl;
                 return false;
@@ -710,10 +710,10 @@ namespace EE::TypeSystem::Reflection
             Milliseconds clangVisitingTime = clangParser.GetVisitingTime();
             std::cout << "Complete! ( P:" << (float) clangParsingTime << "ms, V:" << (float) clangVisitingTime << "ms )" << std::endl;
 
-            std::cout << " * Reflecting C++ Code - Second Pass - ";
+            std::cout << " * Reflecting C++ Code - Second Pass (No Dev Tools) - ";
 
             // Second parse to detect dev-only types
-            if ( !clangParser.Parse( headersToParse, ClangParser::SecondPass ) )
+            if ( !clangParser.Parse( headersToParse, ClangParser::NoDevToolsPass ) )
             {
                 std::cout << "Error occurred!\n\n  Error: " << clangParser.GetErrorMessage().c_str() << std::endl;
                 return false;

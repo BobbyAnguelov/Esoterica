@@ -6,6 +6,9 @@
 #include "Engine/Camera/Systems/EntitySystem_DebugCameraController.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Entity/EntityWorld.h"
+#include "Engine/Physics/PhysicsScene.h"
+#include "Engine/Physics/Systems/WorldSystem_Physics.h"
+#include "Engine/Physics/PhysicsLayers.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/UpdateContext.h"
 #include "System/Imgui/ImguiStyle.h"
@@ -18,77 +21,74 @@
 
 namespace EE
 {
-    class ResourceDescriptorUndoableAction final : public IUndoableAction
+    ResourceDescriptorUndoableAction::ResourceDescriptorUndoableAction( TypeSystem::TypeRegistry const* pTypeRegistry, Workspace* pWorkspace )
+        : m_pTypeRegistry( pTypeRegistry )
+        , m_pWorkspace( pWorkspace )
     {
-    public:
+        EE_ASSERT( m_pTypeRegistry != nullptr );
+        EE_ASSERT( m_pWorkspace != nullptr );
+        EE_ASSERT( m_pWorkspace->m_pDescriptor != nullptr );
+    }
 
-        ResourceDescriptorUndoableAction( TypeSystem::TypeRegistry const& typeRegistry, Workspace* pWorkspace )
-            : m_typeRegistry( typeRegistry )
-            , m_pWorkspace( pWorkspace )
-        {
-            EE_ASSERT( m_pWorkspace != nullptr );
-            EE_ASSERT( m_pWorkspace->m_pDescriptor != nullptr );
-        }
+    void ResourceDescriptorUndoableAction::Undo()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pWorkspace != nullptr );
 
-        virtual void Undo() override
-        {
-            Serialization::JsonArchiveReader typeReader;
+        Serialization::JsonArchiveReader typeReader;
 
-            typeReader.ReadFromString( m_valueBefore.c_str() );
-            auto const& document = typeReader.GetDocument();
-            Serialization::ReadNativeType( m_typeRegistry, document, m_pWorkspace->m_pDescriptor );
-            m_pWorkspace->ReadCustomDescriptorData( m_typeRegistry, document );
-            m_pWorkspace->m_isDirty = true;
-        }
+        typeReader.ReadFromString( m_valueBefore.c_str() );
+        auto const& document = typeReader.GetDocument();
+        Serialization::ReadNativeType( *m_pTypeRegistry, document, m_pWorkspace->m_pDescriptor );
+        m_pWorkspace->ReadCustomDescriptorData( *m_pTypeRegistry, document );
+        m_pWorkspace->m_isDirty = true;
+    }
 
-        virtual void Redo() override
-        {
-            Serialization::JsonArchiveReader typeReader;
+    void ResourceDescriptorUndoableAction::Redo()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pWorkspace != nullptr );
 
-            typeReader.ReadFromString( m_valueAfter.c_str() );
-            auto const& document = typeReader.GetDocument();
-            Serialization::ReadNativeType( m_typeRegistry, document, m_pWorkspace->m_pDescriptor );
-            m_pWorkspace->ReadCustomDescriptorData( m_typeRegistry, document );
-            m_pWorkspace->m_isDirty = true;
-        }
+        Serialization::JsonArchiveReader typeReader;
 
-        void SerializeBeforeState()
-        {
-            Serialization::JsonArchiveWriter writer;
+        typeReader.ReadFromString( m_valueAfter.c_str() );
+        auto const& document = typeReader.GetDocument();
+        Serialization::ReadNativeType( *m_pTypeRegistry, document, m_pWorkspace->m_pDescriptor );
+        m_pWorkspace->ReadCustomDescriptorData( *m_pTypeRegistry, document );
+        m_pWorkspace->m_isDirty = true;
+    }
 
-            auto pWriter = writer.GetWriter();
-            pWriter->StartObject();
-            Serialization::WriteNativeTypeContents( m_typeRegistry, m_pWorkspace->m_pDescriptor, *pWriter );
-            m_pWorkspace->WriteCustomDescriptorData( m_typeRegistry, *pWriter );
-            pWriter->EndObject();
+    void ResourceDescriptorUndoableAction::SerializeBeforeState()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pWorkspace != nullptr );
 
-            m_valueBefore.resize( writer.GetStringBuffer().GetSize() );
-            memcpy( m_valueBefore.data(), writer.GetStringBuffer().GetString(), writer.GetStringBuffer().GetSize() );
-        }
+        Serialization::JsonArchiveWriter writer;
 
-        void SerializeAfterState()
-        {
-            Serialization::JsonArchiveWriter writer;
+        auto pWriter = writer.GetWriter();
+        pWriter->StartObject();
+        Serialization::WriteNativeTypeContents( *m_pTypeRegistry, m_pWorkspace->m_pDescriptor, *pWriter );
+        m_pWorkspace->WriteCustomDescriptorData( *m_pTypeRegistry, *pWriter );
+        pWriter->EndObject();
 
-            auto pWriter = writer.GetWriter();
-            pWriter->StartObject();
-            Serialization::WriteNativeTypeContents( m_typeRegistry, m_pWorkspace->m_pDescriptor, *pWriter );
-            m_pWorkspace->WriteCustomDescriptorData( m_typeRegistry, *pWriter );
-            pWriter->EndObject();
+        m_valueBefore.resize( writer.GetStringBuffer().GetSize() );
+        memcpy( m_valueBefore.data(), writer.GetStringBuffer().GetString(), writer.GetStringBuffer().GetSize() );
+    }
 
-            m_valueAfter.resize( writer.GetStringBuffer().GetSize() );
-            memcpy( m_valueAfter.data(), writer.GetStringBuffer().GetString(), writer.GetStringBuffer().GetSize() );
+    void ResourceDescriptorUndoableAction::SerializeAfterState()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pWorkspace != nullptr );
 
-            m_pWorkspace->m_isDirty = true;
-        }
+        Serialization::JsonArchiveWriter writer;
 
-    private:
+        auto pWriter = writer.GetWriter();
+        pWriter->StartObject();
+        Serialization::WriteNativeTypeContents( *m_pTypeRegistry, m_pWorkspace->m_pDescriptor, *pWriter );
+        m_pWorkspace->WriteCustomDescriptorData( *m_pTypeRegistry, *pWriter );
+        pWriter->EndObject();
 
-        TypeSystem::TypeRegistry const&     m_typeRegistry;
-        Workspace*                          m_pWorkspace = nullptr;
-        String                              m_valueBefore;
-        String                              m_valueAfter;
-    };
+        m_valueAfter.resize( writer.GetStringBuffer().GetSize() );
+        memcpy( m_valueAfter.data(), writer.GetStringBuffer().GetString(), writer.GetStringBuffer().GetSize() );
+
+        m_pWorkspace->m_isDirty = true;
+    }
 
     //-------------------------------------------------------------------------
 
@@ -125,8 +125,14 @@ namespace EE
         };
 
         m_pDescriptorPropertyGrid = EE::New<PropertyGrid>( m_pToolsContext );
+        m_pDescriptorPropertyGrid->SetControlBarVisible( true );
         m_preEditEventBindingID = m_pDescriptorPropertyGrid->OnPreEdit().Bind( PreDescEdit );
         m_postEditEventBindingID = m_pDescriptorPropertyGrid->OnPostEdit().Bind( PostDescEdit );
+
+        // Load descriptor
+        //-------------------------------------------------------------------------
+
+        LoadDescriptor();
     }
 
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
@@ -146,8 +152,9 @@ namespace EE
     {
         EE_ASSERT( m_requestedResources.empty() );
         EE_ASSERT( m_reloadingResources.empty() );
-        EE_ASSERT( m_pDescriptor == nullptr );
         EE_ASSERT( m_pActiveUndoableAction == nullptr );
+        EE_ASSERT( !m_isInitialized );
+        EE_ASSERT( !m_isHotReloading );
 
         if ( m_pDescriptorPropertyGrid != nullptr )
         {
@@ -155,6 +162,8 @@ namespace EE
             m_pDescriptorPropertyGrid->OnPostEdit().Unbind( m_postEditEventBindingID );
             EE::Delete( m_pDescriptorPropertyGrid );
         }
+
+        EE::Delete( m_pDescriptor );
     }
 
     //-------------------------------------------------------------------------
@@ -174,6 +183,14 @@ namespace EE
 
     void Workspace::Initialize( UpdateContext const& context )
     {
+        // We should never initialize a workspace for a corrupted descriptor
+        if ( IsADescriptorWorkspace() )
+        {
+            EE_ASSERT( IsDescriptorLoaded() );
+        }
+
+        //-------------------------------------------------------------------------
+
         m_pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
 
         SetDisplayName( m_displayName );
@@ -181,16 +198,16 @@ namespace EE
         m_dockspaceID.sprintf( "Dockspace##%u", GetID() );
         m_descriptorWindowName.sprintf( "Descriptor##%u", GetID() );
 
-        if ( IsADescriptorWorkspace() )
-        {
-            LoadDescriptor();
-        }
+        //-------------------------------------------------------------------------
+
+        m_isInitialized = true;
     }
 
     void Workspace::Shutdown( UpdateContext const& context )
     {
-        EE::Delete( m_pDescriptor );
+        EE_ASSERT( m_isInitialized );
         m_pResourceSystem = nullptr;
+        m_isInitialized = false;
     }
 
     void Workspace::SetDisplayName( String const& name )
@@ -247,6 +264,12 @@ namespace EE
 
         if ( IsADescriptorWorkspace() )
         {
+            if ( ImGui::MenuItem( EE_ICON_FILE_EDIT"##Show Descriptor Window" ) )
+            {
+                m_showDescriptorEditor = true;
+            }
+            ImGuiX::ItemTooltip( "Show Descriptor Editor" );
+
             if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY"##Copy Path" ) )
             {
                 ImGui::SetClipboardText( m_descriptorID.c_str() );
@@ -436,7 +459,45 @@ namespace EE
 
             if ( ImGui::BeginDragDropTarget() )
             {
-                OnDragAndDrop( pViewport );
+                if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( "ResourceFile", ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+                {
+                    if ( payload->IsDelivery() )
+                    {
+                        InlineString payloadStr = (char*) payload->Data;
+
+                        ResourceID const resourceID( payloadStr.c_str() );
+                        if ( resourceID.IsValid() && m_pToolsContext->m_pResourceDatabase->DoesResourceExist( resourceID ) )
+                        {
+                            // Unproject mouse into viewport
+                            Vector const nearPointWS = pViewport->ScreenSpaceToWorldSpaceNearPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
+                            Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
+                            Vector worldPosition = Vector::Zero;
+
+                            // Raycast against the environmental collision
+                            Physics::RayCastResults results;
+                            Physics::QueryFilter filter( Physics::CreateLayerMask( Physics::Layers::Environment ) );
+                            Physics::Scene* pPhysicsScene = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>()->GetScene();
+                            pPhysicsScene->AcquireReadLock();
+                            if ( pPhysicsScene->RayCast( nearPointWS, farPointWS, filter, results ) )
+                            {
+                                worldPosition = results.GetHitPosition();
+                            }
+                            else // Arbitrary position
+                            {
+                                worldPosition = nearPointWS + ( ( farPointWS - nearPointWS ).GetNormalized3() * 10.0f );
+                            }
+                            pPhysicsScene->ReleaseReadLock();
+
+                            // Notify workspace of a resource drag and drop operation
+                            DropResourceInViewport( resourceID, worldPosition );
+                        }
+                    }
+                }
+                else // Generic drag and drop notification
+                {
+                    OnDragAndDropIntoViewport( pViewport );
+                }
+
                 ImGui::EndDragDropTarget();
             }
 
@@ -525,19 +586,19 @@ namespace EE
         m_pCamera->FocusOn( worldBounds );
     }
 
-    void Workspace::SetViewportCameraSpeed( float cameraSpeed )
+    void Workspace::SetCameraSpeed( float cameraSpeed )
     {
         EE_ASSERT( m_pCamera != nullptr );
         m_pCamera->SetMoveSpeed( cameraSpeed );
     }
 
-    void Workspace::SetViewportCameraTransform( Transform const& cameraTransform )
+    void Workspace::SetCameraTransform( Transform const& cameraTransform )
     {
         EE_ASSERT( m_pCamera != nullptr );
         m_pCamera->SetWorldTransform( cameraTransform );
     }
 
-    Transform Workspace::GetViewportCameraTransform() const
+    Transform Workspace::GetCameraTransform() const
     {
         EE_ASSERT( m_pCamera != nullptr );
         return m_pCamera->GetWorldTransform();
@@ -589,6 +650,7 @@ namespace EE
 
     void Workspace::LoadResource( Resource::ResourcePtr* pResourcePtr )
     {
+        EE_ASSERT( m_pResourceSystem != nullptr );
         EE_ASSERT( pResourcePtr != nullptr && pResourcePtr->IsUnloaded() );
         EE_ASSERT( !VectorContains( m_requestedResources, pResourcePtr ) );
         m_requestedResources.emplace_back( pResourcePtr );
@@ -597,7 +659,8 @@ namespace EE
 
     void Workspace::UnloadResource( Resource::ResourcePtr* pResourcePtr )
     {
-        EE_ASSERT( !pResourcePtr->IsUnloaded() );
+        EE_ASSERT( m_pResourceSystem != nullptr );
+        EE_ASSERT( pResourcePtr->WasRequested() );
         EE_ASSERT( VectorContains( m_requestedResources, pResourcePtr ) );
         m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
         m_requestedResources.erase_first_unsorted( pResourcePtr );
@@ -605,6 +668,7 @@ namespace EE
 
     void Workspace::AddEntityToWorld( Entity* pEntity )
     {
+        EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( pEntity != nullptr && !pEntity->IsAddedToMap() );
         EE_ASSERT( !VectorContains( m_addedEntities, pEntity ) );
         m_addedEntities.emplace_back( pEntity );
@@ -613,6 +677,7 @@ namespace EE
 
     void Workspace::RemoveEntityFromWorld( Entity* pEntity )
     {
+        EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( pEntity != nullptr && pEntity->GetMapID() == m_pWorld->GetPersistentMap()->GetID() );
         EE_ASSERT( VectorContains( m_addedEntities, pEntity ) );
         m_pWorld->GetPersistentMap()->RemoveEntity( pEntity );
@@ -621,6 +686,7 @@ namespace EE
 
     void Workspace::DestroyEntityInWorld( Entity*& pEntity )
     {
+        EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( pEntity != nullptr && pEntity->GetMapID() == m_pWorld->GetPersistentMap()->GetID() );
         EE_ASSERT( VectorContains( m_addedEntities, pEntity ) );
         m_pWorld->GetPersistentMap()->DestroyEntity( pEntity );
@@ -674,7 +740,7 @@ namespace EE
     {
         if ( m_beginModificationCallCount == 0 )
         {
-            auto pUndoableAction = EE::New<ResourceDescriptorUndoableAction>( *m_pToolsContext->m_pTypeRegistry, this );
+            auto pUndoableAction = EE::New<ResourceDescriptorUndoableAction>( m_pToolsContext->m_pTypeRegistry, this );
             pUndoableAction->SerializeBeforeState();
             m_pActiveUndoableAction = pUndoableAction;
         }
@@ -722,16 +788,20 @@ namespace EE
 
     void Workspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
-        // Destroy descriptor if the resource we are operating on was modified
+        EE_ASSERT( !m_isHotReloading );
+
+        // Does the descriptor need reloading?
+        bool reloadDescriptor = false;
         if ( IsADescriptorWorkspace() )
         {
             if ( VectorContains( resourcesToBeReloaded, m_descriptorID ) )
             {
-                EE::Delete( m_pDescriptor );
+                reloadDescriptor = true;
             }
         }
 
-        // Unload necessary resources
+        // Do we have any resources that need reloading
+        TInlineVector<Resource::ResourcePtr*, 10> resourcesThatNeedReloading;
         for ( auto& pLoadedResource : m_requestedResources )
         {
             if ( pLoadedResource->IsUnloaded() )
@@ -756,25 +826,76 @@ namespace EE
             // Request unload and track the resource we need to reload
             if ( shouldUnload )
             {
-                m_pResourceSystem->UnloadResource( *pLoadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
-                m_reloadingResources.emplace_back( pLoadedResource );
+                resourcesThatNeedReloading.emplace_back( pLoadedResource );
             }
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Do we need to hot-reload anything?
+        if ( reloadDescriptor || !resourcesThatNeedReloading.empty() )
+        {
+            OnHotReloadStarted( reloadDescriptor, resourcesThatNeedReloading );
+
+            //-------------------------------------------------------------------------
+
+            // Unload descriptor
+            if ( reloadDescriptor )
+            {
+                EE::Delete( m_pDescriptor );
+            }
+
+            // Unload resources
+            for ( auto& pResource : resourcesThatNeedReloading )
+            {
+                // The 'OnHotReloadStarted' function might have unloaded some resources as part of its execution, so ignore those here
+                if ( pResource->IsUnloaded() )
+                {
+                    continue;
+                }
+
+                m_pResourceSystem->UnloadResource( *pResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+                m_reloadingResources.emplace_back( pResource );
+            }
+
+            m_isHotReloading = true;
         }
     }
 
     void Workspace::EndHotReload()
     {
-        // Load all unloaded resources
-        for ( auto& pReloadedResource : m_reloadingResources )
+        bool const hasResourcesToReload = !m_reloadingResources.empty();
+        if ( hasResourcesToReload )
         {
-            m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+            // Load all unloaded resources
+            for ( auto& pReloadedResource : m_reloadingResources )
+            {
+                m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+            }
+            m_reloadingResources.clear();
         }
-        m_reloadingResources.clear();
 
-        // Reload the descriptor if needed
-        if ( IsADescriptorWorkspace() && !IsDescriptorLoaded() )
+        //-------------------------------------------------------------------------
+
+        bool const needsToReloadDescriptor = IsADescriptorWorkspace() && m_pDescriptor == nullptr;
+        if ( needsToReloadDescriptor )
         {
+            // Try to load the descriptor, if this fails to load, then we early out of the hot-reload
             LoadDescriptor();
+            if ( !IsDescriptorLoaded() )
+            {
+                m_isHotReloading = false;
+                return;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Notify workspaces that the reload is complete
+        if ( m_isHotReloading )
+        {
+            OnHotReloadComplete();
+            m_isHotReloading = false;
         }
     }
 
@@ -797,7 +918,10 @@ namespace EE
         m_pDescriptor = Cast<Resource::ResourceDescriptor>( Serialization::CreateAndReadNativeType( *m_pToolsContext->m_pTypeRegistry, document ) );
         m_pDescriptorPropertyGrid->SetTypeToEdit( m_pDescriptor );
 
-        ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, document );
+        if ( m_pDescriptor != nullptr )
+        {
+            ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, document );
+        }
     }
 
     bool Workspace::DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow )
@@ -807,7 +931,7 @@ namespace EE
 
         bool hasFocus = false;
         ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_descriptorWindowName.c_str() ) )
+        if ( ImGui::Begin( m_descriptorWindowName.c_str(), isSeparateWindow ? &m_showDescriptorEditor : nullptr ) )
         {
             if ( !isSeparateWindow )
             {
@@ -852,7 +976,10 @@ namespace EE
 
     void Workspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
-        DrawDescriptorEditorWindow( context, pWindowClass, true );
+        if ( m_showDescriptorEditor )
+        {
+            DrawDescriptorEditorWindow( context, pWindowClass, true );
+        }
     }
 
     void Workspace::InternalSharedUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )

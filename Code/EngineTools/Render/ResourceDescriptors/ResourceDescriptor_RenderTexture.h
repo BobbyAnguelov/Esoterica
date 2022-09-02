@@ -23,6 +23,7 @@ namespace EE::Render
     {
         EE_REGISTER_TYPE( TextureResourceDescriptor );
 
+        virtual bool IsValid() const override { return m_path.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Texture::GetStaticResourceTypeID(); }
 
@@ -30,7 +31,7 @@ namespace EE::Render
 
         EE_EXPOSE ResourcePath     m_path;
         EE_EXPOSE TextureType      m_type = TextureType::Default;
-        EE_EXPOSE String           m_name; // Optional property needed for extracting textures out of container files (e.g. glb, fbx)
+        EE_EXPOSE String           m_name; // Optional: needed for extracting textures out of container files (e.g. glb, fbx)
     };
 
     //-------------------------------------------------------------------------
@@ -39,6 +40,7 @@ namespace EE::Render
     {
         EE_REGISTER_TYPE( CubemapTextureResourceDescriptor );
 
+        virtual bool IsValid() const override { return m_path.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return CubemapTexture::GetStaticResourceTypeID(); }
 

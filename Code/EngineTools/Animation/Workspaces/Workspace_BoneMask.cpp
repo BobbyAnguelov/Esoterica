@@ -66,7 +66,7 @@ namespace EE::Animation
 
     BoneMaskWorkspace::~BoneMaskWorkspace()
     {
-        EE_ASSERT( !m_pSkeleton.IsValid() );
+        EE_ASSERT( !m_skeleton.IsSet() );
         EE_ASSERT( m_pSkeletonTreeRoot == nullptr );
     }
 
@@ -107,10 +107,10 @@ namespace EE::Animation
         TWorkspace<BoneMaskDefinition>::PostUndoRedo( operation, pAction );
         
         // Reflect the actual bone weights into the working set
-        if ( m_pSkeleton.IsLoaded() )
+        if ( m_skeleton.IsLoaded() )
         {
-            auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
-            for ( auto i = 0; i < m_pSkeleton->GetNumBones(); i++ )
+            auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
+            for ( auto i = 0; i < m_skeleton->GetNumBones(); i++ )
             {
                 pBoneMaskDesc->m_boneWeights[i] = Math::Clamp( pBoneMaskDesc->m_boneWeights[i], 0.0f, 1.0f );
                 m_workingSetWeights[i] = pBoneMaskDesc->m_boneWeights[i];
@@ -119,43 +119,40 @@ namespace EE::Animation
         }
     }
 
-    void BoneMaskWorkspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void BoneMaskWorkspace::OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded )
     {
-        TWorkspace<BoneMaskDefinition>::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        TWorkspace<BoneMaskDefinition>::OnHotReloadStarted( descriptorNeedsReload, resourcesToBeReloaded );
 
         // Destroy the tree since the skeleton will need to be reloaded
-        if ( m_pSkeleton.IsValid() && VectorContains( resourcesToBeReloaded, m_pSkeleton.GetResourceID() ) )
-        {
-            DestroySkeletonTree();
-        }
+        DestroySkeletonTree();
 
         // If the descriptor is being reloaded, unload the skeleton
-        if ( m_pDescriptor == nullptr )
+        if ( descriptorNeedsReload )
         {
             UnloadSkeleton();
         }
     }
 
-    void BoneMaskWorkspace::EndHotReload()
+    void BoneMaskWorkspace::OnHotReloadComplete()
     {
-        TWorkspace<BoneMaskDefinition>::EndHotReload();
-
-        if ( m_pDescriptor != nullptr && m_pSkeleton.IsUnloaded() )
+        // Try to load the skeleton (handles invalid descriptor now becoming valid)
+        if ( !m_skeleton.IsSet() )
         {
             LoadSkeleton();
         }
+
+        TWorkspace<BoneMaskDefinition>::OnHotReloadComplete();
     }
 
     //-------------------------------------------------------------------------
 
     void BoneMaskWorkspace::LoadSkeleton()
     {
-        auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
-        if ( pBoneMaskDesc->m_pSkeleton.IsValid() )
+        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
+        if ( pBoneMaskDesc->m_skeleton.IsSet() )
         {
-            m_pSkeleton = pBoneMaskDesc->m_pSkeleton;
-            LoadResource( &m_pSkeleton );
-            m_skeletonLoadingRequested = true;
+            m_skeleton = pBoneMaskDesc->m_skeleton;
+            LoadResource( &m_skeleton );
         }
     }
 
@@ -163,15 +160,11 @@ namespace EE::Animation
     {
         DestroySkeletonTree();
 
-        if ( m_skeletonLoadingRequested )
+        if ( m_skeleton.IsSet() && m_skeleton.WasRequested() )
         {
-            if ( m_pSkeleton.IsValid() && !m_pSkeleton.IsUnloaded() )
-            {
-                UnloadResource( &m_pSkeleton );
-                m_pSkeleton.Clear();
-                m_skeletonLoadingRequested = false;
-            }
+            UnloadResource( &m_skeleton );
         }
+        m_skeleton.Clear();
     }
 
     void BoneMaskWorkspace::CreateSkeletonTree()
@@ -179,7 +172,7 @@ namespace EE::Animation
         TVector<BoneInfo*> boneInfos;
 
         // Create all infos
-        int32_t const numBones = m_pSkeleton->GetNumBones();
+        int32_t const numBones = m_skeleton->GetNumBones();
         for ( auto i = 0; i < numBones; i++ )
         {
             auto& pBoneInfo = boneInfos.emplace_back( EE::New<BoneInfo>() );
@@ -189,7 +182,7 @@ namespace EE::Animation
         // Create hierarchy
         for ( auto i = 1; i < numBones; i++ )
         {
-            int32_t const parentBoneIdx = m_pSkeleton->GetParentBoneIndex( i );
+            int32_t const parentBoneIdx = m_skeleton->GetParentBoneIndex( i );
             EE_ASSERT( parentBoneIdx != InvalidIndex );
             boneInfos[parentBoneIdx]->m_children.emplace_back( boneInfos[i] );
         }
@@ -209,21 +202,21 @@ namespace EE::Animation
 
     void BoneMaskWorkspace::CreateDescriptorWeights()
     {
-        auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
+        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
 
         // Ensure valid number of weights
-        if ( pBoneMaskDesc->m_boneWeights.size() != m_pSkeleton->GetNumBones() )
+        if ( pBoneMaskDesc->m_boneWeights.size() != m_skeleton->GetNumBones() )
         {
-            pBoneMaskDesc->m_boneWeights.resize( m_pSkeleton->GetNumBones(), 1.0f );
+            pBoneMaskDesc->m_boneWeights.resize( m_skeleton->GetNumBones(), 1.0f );
         }
 
-        m_workingSetWeights.resize( m_pSkeleton->GetNumBones() );
+        m_workingSetWeights.resize( m_skeleton->GetNumBones() );
 
         // Root weight is always 0
         pBoneMaskDesc->m_boneWeights[0] = 0.0f;
 
         // Ensure valid weight values
-        for ( auto i = 0; i < m_pSkeleton->GetNumBones(); i++ )
+        for ( auto i = 0; i < m_skeleton->GetNumBones(); i++ )
         {
             if ( pBoneMaskDesc->m_boneWeights[i] != -1.0f )
             {
@@ -238,11 +231,11 @@ namespace EE::Animation
     void BoneMaskWorkspace::SetWeight( int32_t boneIdx, float weight )
     {
         EE_ASSERT( IsValidWeight( weight ) );
-        EE_ASSERT( m_pSkeleton.IsValid() && m_pSkeleton.IsLoaded() );
-        EE_ASSERT( m_pSkeleton->IsValidBoneIndex( boneIdx ) );
+        EE_ASSERT( m_skeleton.IsSet() && m_skeleton.IsLoaded() );
+        EE_ASSERT( m_skeleton->IsValidBoneIndex( boneIdx ) );
 
         ScopedDescriptorModification const sm( this );
-        auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
+        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
         pBoneMaskDesc->m_boneWeights[boneIdx] = weight;
         m_workingSetWeights[boneIdx] = weight;
 
@@ -252,10 +245,10 @@ namespace EE::Animation
     void BoneMaskWorkspace::SetAllChildWeights( int32_t parentBoneIdx, float weight, bool bIncludeParent )
     {
         EE_ASSERT( IsValidWeight( weight ) );
-        EE_ASSERT( m_pSkeleton.IsValid() && m_pSkeleton.IsLoaded() );
-        EE_ASSERT( m_pSkeleton->IsValidBoneIndex( parentBoneIdx ) );
+        EE_ASSERT( m_skeleton.IsSet() && m_skeleton.IsLoaded() );
+        EE_ASSERT( m_skeleton->IsValidBoneIndex( parentBoneIdx ) );
 
-        auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
+        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
 
         ScopedDescriptorModification const sm( this );
         
@@ -264,10 +257,10 @@ namespace EE::Animation
             pBoneMaskDesc->m_boneWeights[parentBoneIdx] = weight;
         }
         
-        auto const numBones = m_pSkeleton->GetNumBones();
+        auto const numBones = m_skeleton->GetNumBones();
         for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
         {
-            if ( m_pSkeleton->IsChildBoneOf( parentBoneIdx, boneIdx ) )
+            if ( m_skeleton->IsChildBoneOf( parentBoneIdx, boneIdx ) )
             {
                 pBoneMaskDesc->m_boneWeights[boneIdx] = weight;
                 m_workingSetWeights[boneIdx] = weight;
@@ -279,11 +272,11 @@ namespace EE::Animation
 
     void BoneMaskWorkspace::UpdateDemoBoneMask()
     {
-        EE_ASSERT( m_pSkeleton.IsValid() && m_pSkeleton.IsLoaded() );
+        EE_ASSERT( m_skeleton.IsSet() && m_skeleton.IsLoaded() );
 
         BoneMaskDefinition boneMaskDef;
 
-        auto const numSkeletonBones = m_pSkeleton->GetNumBones();
+        auto const numSkeletonBones = m_skeleton->GetNumBones();
         for ( auto i = 0; i < numSkeletonBones; i++ )
         {
             if ( m_workingSetWeights[i] == -1.0f || m_workingSetWeights[i] == 0.0f )
@@ -291,18 +284,18 @@ namespace EE::Animation
                 continue;
             }
 
-            StringID const boneID = m_pSkeleton->GetBoneID( i );
+            StringID const boneID = m_skeleton->GetBoneID( i );
             boneMaskDef.m_weights.emplace_back( boneID, m_workingSetWeights[i] );
         }
 
-        m_demoBoneMask = BoneMask( m_pSkeleton.GetPtr(), boneMaskDef, 0.0f );
+        m_demoBoneMask = BoneMask( m_skeleton.GetPtr(), boneMaskDef, 0.0f );
     }
 
     //-------------------------------------------------------------------------
 
     void BoneMaskWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        if ( !m_pSkeleton.IsValid() )
+        if ( !m_skeleton.IsSet() )
         {
             auto size = ImGui::GetContentRegionAvail();
 
@@ -327,8 +320,23 @@ namespace EE::Animation
 
     void BoneMaskWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
+        TWorkspace::Update( context, pWindowClass, isFocused );
+
+        //-------------------------------------------------------------------------
+
+        if ( IsResourceLoaded() && m_skeleton.IsLoaded() )
+        {
+            // Lazy create the skeleton tree root and bone mask data whenever the skeleton is loaded
+            if ( m_pSkeletonTreeRoot == nullptr )
+            {
+                CreateDescriptorWeights();
+                CreateSkeletonTree();
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         DrawMaskPreview();
-        DrawDescriptorEditorWindow( context, pWindowClass );
         DrawWeightEditorWindow( context, pWindowClass );
     }
 
@@ -337,29 +345,19 @@ namespace EE::Animation
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_weightEditorWindowName.c_str() ) )
         {
-            if ( IsResourceLoaded() )
+            if ( m_pSkeletonTreeRoot != nullptr )
             {
-                // Whenever we load a skeleton
-                if ( m_pSkeleton.IsLoaded() && m_pSkeletonTreeRoot == nullptr )
-                {
-                    CreateDescriptorWeights();
-                    CreateSkeletonTree();
-                }
+                static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
 
-                if ( m_pSkeletonTreeRoot != nullptr )
+                if ( ImGui::BeginTable( "WeightEditor", 2, flags ) )
                 {
-                    static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
+                    // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
+                    ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide );
+                    ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed, 10 * 12.0f );
+                    ImGui::TableHeadersRow();
 
-                    if ( ImGui::BeginTable( "WeightEditor", 2, flags ) )
-                    {
-                        // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
-                        ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide );
-                        ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed, 10 * 12.0f );
-                        ImGui::TableHeadersRow();
-                    
-                        DrawBoneWeightEditor( m_pSkeletonTreeRoot );
-                        ImGui::EndTable();
-                    }
+                    DrawBoneWeightEditor( m_pSkeletonTreeRoot );
+                    ImGui::EndTable();
                 }
             }
         }
@@ -369,12 +367,12 @@ namespace EE::Animation
     void BoneMaskWorkspace::DrawBoneWeightEditor( BoneInfo* pBone )
     {
         EE_ASSERT( pBone != nullptr );
-        auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
+        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
 
         //-------------------------------------------------------------------------
 
         int32_t const boneIdx = pBone->m_boneIdx;
-        StringID const currentBoneID = m_pSkeleton->GetBoneID( boneIdx );
+        StringID const currentBoneID = m_skeleton->GetBoneID( boneIdx );
         float* pWeight = &m_workingSetWeights[boneIdx];
 
         InlineString boneLabel;
@@ -528,7 +526,7 @@ namespace EE::Animation
             return;
         }
 
-        if ( !m_pSkeleton.IsValid() || !m_pSkeleton.IsLoaded() )
+        if ( !m_skeleton.IsSet() || !m_skeleton.IsLoaded() )
         {
             return;
         }
@@ -540,10 +538,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pBoneMaskDesc = GetDescriptorAs<BoneMaskResourceDescriptor>();
+        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
         auto drawingCtx = GetDrawingContext();
-        auto const& localRefPose = m_pSkeleton->GetLocalReferencePose();
-        auto const& parentIndices = m_pSkeleton->GetParentBoneIndices();
+        auto const& localRefPose = m_skeleton->GetLocalReferencePose();
+        auto const& parentIndices = m_skeleton->GetParentBoneIndices();
 
         auto const numBones = localRefPose.size();
         if ( numBones > 0 )

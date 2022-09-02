@@ -63,9 +63,9 @@ namespace EE::Animation
     Resource::InstallResult AnimationClipLoader::Install( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
     {
         auto pAnimData = pResourceRecord->GetResourceData<AnimationClip>();
-        EE_ASSERT( pAnimData->m_pSkeleton.GetResourceID().IsValid() );
+        EE_ASSERT( pAnimData->m_skeleton.GetResourceID().IsValid() );
 
-        pAnimData->m_pSkeleton = GetInstallDependency( installDependencies, pAnimData->m_pSkeleton.GetResourceID() );
+        pAnimData->m_skeleton = GetInstallDependency( installDependencies, pAnimData->m_skeleton.GetResourceID() );
         EE_ASSERT( pAnimData->IsValid() );
 
         ResourceLoader::Install( resID, pResourceRecord, installDependencies );

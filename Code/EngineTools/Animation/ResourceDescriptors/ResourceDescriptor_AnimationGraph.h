@@ -17,6 +17,7 @@ namespace EE::Animation
     {
         EE_REGISTER_TYPE( GraphResourceDescriptor );
 
+        virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return GraphDefinition::GetStaticResourceTypeID(); }
     };
@@ -27,9 +28,12 @@ namespace EE::Animation
     {
         EE_REGISTER_TYPE( GraphVariationResourceDescriptor );
 
+        virtual bool IsValid() const override { return true; }
+        virtual bool IsUserCreateableDescriptor() const override { return false; }
+
     public:
 
-        EE_EXPOSE ResourcePath                 m_graphPath;
-        EE_EXPOSE StringID                     m_variationID; // Optional: if not set, will use the default variation
+        EE_REGISTER ResourcePath                 m_graphPath;
+        EE_REGISTER StringID                     m_variationID; // Optional: if not set, will use the default variation
     };
 }

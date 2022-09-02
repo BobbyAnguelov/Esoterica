@@ -66,8 +66,8 @@ namespace EE::ImGuiX
         colors[ImGuiCol_TabUnfocusedActive] = s_colorGray5;
 
         colors[ImGuiCol_Header] = s_colorGray4;
-        colors[ImGuiCol_HeaderHovered] = s_colorGray3;
-        colors[ImGuiCol_HeaderActive] = s_colorGray2;
+        colors[ImGuiCol_HeaderHovered] = s_colorGray2;
+        colors[ImGuiCol_HeaderActive] = s_colorGray1;
 
         colors[ImGuiCol_Separator] = s_colorGray2;
         colors[ImGuiCol_SeparatorHovered] = s_colorGray1;
@@ -99,6 +99,9 @@ namespace EE::ImGuiX
         colors[ImGuiCol_PlotHistogram] = s_colorAccent2;
         colors[ImGuiCol_PlotHistogramHovered] = s_colorAccent1;
 
+        colors[ImGuiCol_TableRowBg] = s_colorGray6;
+        colors[ImGuiCol_TableRowBgAlt] = s_colorGray5;
+
         colors[ImGuiCol_DragDropTarget] = s_colorGray6;
 
         //-------------------------------------------------------------------------
@@ -108,6 +111,7 @@ namespace EE::ImGuiX
         style.FramePadding = ImVec2( 4, 4 );
         style.WindowPadding = ImVec2( 4, 4 );
         style.ChildBorderSize = 0.0f;
+        style.TabBorderSize = 1.0f;
         style.GrabRounding = 2.0f;
         style.GrabMinSize = 6.0f;
         style.WindowRounding = 0.0f;

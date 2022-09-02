@@ -15,6 +15,7 @@ namespace EE::Render
         TWorkspace<Texture>::Initialize( context );
         m_previewWindowName.sprintf( "Preview##%u", GetID() );
         m_infoWindowName.sprintf( "Info##%u", GetID() );
+        m_showDescriptorEditor = true;
     }
 
     void TextureWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
@@ -30,6 +31,10 @@ namespace EE::Render
 
     void TextureWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
+        TWorkspace::Update( context, pWindowClass, isFocused );
+
+        //-------------------------------------------------------------------------
+
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_previewWindowName.c_str() ) )
         {
@@ -62,9 +67,5 @@ namespace EE::Render
             }
         }
         ImGui::End();
-
-        //-------------------------------------------------------------------------
-
-        DrawDescriptorEditorWindow( context, pWindowClass );
     }
 }

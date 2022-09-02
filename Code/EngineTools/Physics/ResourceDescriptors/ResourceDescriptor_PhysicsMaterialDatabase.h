@@ -12,6 +12,7 @@ namespace EE::Physics
     {
         EE_REGISTER_TYPE( PhysicsMaterialDatabaseResourceDescriptor );
 
+        virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return PhysicsMaterialDatabase::GetStaticResourceTypeID(); }
 

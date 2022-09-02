@@ -13,9 +13,21 @@ namespace EE
     {
         EE_ASSERT( m_cameras.empty() );
 
+        //-------------------------------------------------------------------------
+
         #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( m_pDebugCamera == nullptr );
-        EE_ASSERT( m_pDebugCameraEntity == nullptr );
+        // If the debug camera entity was actually added to the world, assert that it was correctly removed
+        if ( m_debugCameraWasAdded )
+        {
+            EE_ASSERT( m_pDebugCameraEntity == nullptr );
+            EE_ASSERT( m_pDebugCamera == nullptr );
+        }
+        else
+        {
+            m_pDebugCameraEntity = nullptr;
+            m_pDebugCamera = nullptr;
+        }
+
         EE_ASSERT( m_pPreviousCamera == nullptr );
         m_useDebugCamera = false;
         #endif
@@ -34,6 +46,7 @@ namespace EE
             {
                 // TODO: we dont support multiple debug cameras ATM
                 EE_ASSERT( m_pDebugCamera == pDebugCameraComponent );
+                m_debugCameraWasAdded = true;
             }
             #endif
         }
@@ -54,6 +67,7 @@ namespace EE
                 DisableDebugCamera();
                 m_pDebugCamera = nullptr;
                 m_pDebugCameraEntity = nullptr;
+                m_debugCameraWasAdded = false;
             }
 
             if ( m_pPreviousCamera == pCameraComponent )

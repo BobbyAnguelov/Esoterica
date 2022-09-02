@@ -3,13 +3,10 @@
 #include "Engine_Win32.h"
 #include "Resource.h"
 #include "Applications/Shared/cmdParser/cmdParser.h"
+#include "Applications/Shared/LivePP/LivePP.h"
 #include "System/Imgui/ImguiStyle.h"
 #include <tchar.h>
 #include <windows.h>
-
-#if EE_ENABLE_LPP
-#include "LPP_API_x64_CPP.h"
-#endif
 
 //-------------------------------------------------------------------------
 
@@ -74,25 +71,16 @@ namespace EE
 
 int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {
-    //-------------------------------------------------------------------------
-    // Live++ Support
-    //-------------------------------------------------------------------------
+    int result = 0;
+    {
+        #if EE_ENABLE_LPP
+        auto lppAgent = EE::ScopedLPPAgent();
+        #endif
 
-    #if EE_ENABLE_LPP
-    auto lppAgent = lpp::LppCreateDefaultAgent( L"../../External/LivePP", L"../../External/LivePP/ProjectPreferences.json" );
-    lppAgent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES );
-    lppAgent.SetBoolPreferences( lpp::LPP_BOOL_PREF_UNITY_SPLITTING_ENABLED, false );
-    #endif
-
-    //-------------------------------------------------------------------------
-
-    EE::ApplicationGlobalState globalState;
-    EE::EngineApplication engineApplication( hInstance );
-    int32_t const result = engineApplication.Run( __argc, __argv );
-
-    #if EE_ENABLE_LPP
-    lpp::LppDestroyDefaultAgent( &lppAgent );
-    #endif
+        EE::ApplicationGlobalState globalState;
+        EE::EngineApplication engineApplication( hInstance );
+        result = engineApplication.Run( __argc, __argv );
+    }
 
     return result;
 }

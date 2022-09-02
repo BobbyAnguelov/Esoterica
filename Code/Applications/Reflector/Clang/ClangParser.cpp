@@ -19,7 +19,7 @@ namespace EE::TypeSystem::Reflection
 
     bool ClangParser::Parse( TVector<HeaderInfo*> const& headers, Pass pass )
     {
-        m_context.m_detectDevOnlyTypesAndProperties = ( pass == SecondPass );
+        m_context.m_detectDevOnlyTypesAndProperties = ( pass == NoDevToolsPass );
 
         // Create single amalgamated header file for all headers to parse
         //-------------------------------------------------------------------------
@@ -35,7 +35,7 @@ namespace EE::TypeSystem::Reflection
         for ( HeaderInfo const* pHeader : headers )
         {
             // Exclude dev tools
-            if ( pass == SecondPass && pHeader->IsInToolsLayer() )
+            if ( pass == NoDevToolsPass && pHeader->IsInToolsLayer() )
             {
                 continue;
             }
@@ -77,7 +77,7 @@ namespace EE::TypeSystem::Reflection
         clangArgs.push_back( "-Wno-gnu-folding-constant" );
 
         // Exclude dev tools
-        if ( pass == SecondPass )
+        if ( pass == NoDevToolsPass )
         {
             clangArgs.push_back( Settings::g_devToolsExclusionDefine );
         }
@@ -129,7 +129,7 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
-        // If we have an error from the parser, prepend the header to it
+        // If we have an error from the parser, pre-pend the header to it
         if ( m_context.ErrorOccured() )
         {
             m_context.LogError( "%s --> %s", reflectorHeader.c_str(), m_context.GetErrorMessage() );

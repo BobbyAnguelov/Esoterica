@@ -87,6 +87,9 @@ namespace EE
         // Expand all properties
         void CollapseAllPropertyViews();
 
+        // Should the control bar be visible?
+        void SetControlBarVisible( bool isVisible ) { m_isControlBarVisible = false; }
+
         //-------------------------------------------------------------------------
 
         // Event fired just before a property is modified
@@ -111,6 +114,8 @@ namespace EE
         Resource::ResourceFilePicker                                m_resourcePicker;
         IRegisteredType*                                            m_pTypeInstance = nullptr;
         bool                                                        m_isDirty = false;
+        bool                                                        m_isControlBarVisible = false;
+        bool                                                        m_showAllRegisteredProperties = false;
 
         TEvent<PropertyEditInfo const&>                             m_preEditEvent; // Fired just before we change a property value
         TEvent<PropertyEditInfo const&>                             m_postEditEvent; // Fired just after we change a property value

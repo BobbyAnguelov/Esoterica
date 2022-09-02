@@ -1,14 +1,17 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
+#include "System/TypeSystem/RegisteredType.h"
 #include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    class EE_ENGINETOOLS_API IUndoableAction
+    class EE_ENGINETOOLS_API IUndoableAction : public IRegisteredType
     {
         friend class UndoStack;
+
+        EE_REGISTER_TYPE( IUndoableAction );
 
     public:
 

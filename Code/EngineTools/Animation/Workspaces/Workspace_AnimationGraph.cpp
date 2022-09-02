@@ -31,57 +31,46 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class GraphUndoableAction final : public IUndoableAction
+    GraphUndoableAction::GraphUndoableAction( AnimationGraphWorkspace* pWorkspace )
+        : m_pWorkspace( pWorkspace )
     {
-    public:
+        EE_ASSERT( m_pWorkspace != nullptr );
+    }
 
-        GraphUndoableAction( AnimationGraphWorkspace* pWorkspace )
-            : m_pWorkspace( pWorkspace )
+    void GraphUndoableAction::Undo()
+    {
+        Serialization::JsonArchiveReader archive;
+        archive.ReadFromString( m_valueBefore.c_str() );
+        m_pWorkspace->m_toolsGraph.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
+    }
+
+    void GraphUndoableAction::Redo()
+    {
+        Serialization::JsonArchiveReader archive;
+        archive.ReadFromString( m_valueAfter.c_str() );
+        m_pWorkspace->m_toolsGraph.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
+    }
+
+    void GraphUndoableAction::SerializeBeforeState()
+    {
+        if ( m_pWorkspace->IsDebugging() )
         {
-            EE_ASSERT( m_pWorkspace != nullptr );
+            m_pWorkspace->StopDebugging();
         }
 
-        virtual void Undo() override
-        {
-            Serialization::JsonArchiveReader archive;
-            archive.ReadFromString( m_valueBefore.c_str() );
-            m_pWorkspace->m_toolsGraph.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
-        }
+        Serialization::JsonArchiveWriter archive;
+        m_pWorkspace->m_toolsGraph.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
+        m_valueBefore.resize( archive.GetStringBuffer().GetSize() );
+        memcpy( m_valueBefore.data(), archive.GetStringBuffer().GetString(), archive.GetStringBuffer().GetSize() );
+    }
 
-        virtual void Redo() override
-        {
-            Serialization::JsonArchiveReader archive;
-            archive.ReadFromString( m_valueAfter.c_str() );
-            m_pWorkspace->m_toolsGraph.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
-        }
-
-        void SerializeBeforeState()
-        {
-            if ( m_pWorkspace->IsDebugging() )
-            {
-                m_pWorkspace->StopDebugging();
-            }
-
-            Serialization::JsonArchiveWriter archive;
-            m_pWorkspace->m_toolsGraph.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
-            m_valueBefore.resize( archive.GetStringBuffer().GetSize() );
-            memcpy( m_valueBefore.data(), archive.GetStringBuffer().GetString(), archive.GetStringBuffer().GetSize() );
-        }
-
-        void SerializeAfterState()
-        {
-            Serialization::JsonArchiveWriter archive;
-            m_pWorkspace->m_toolsGraph.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
-            m_valueAfter.resize( archive.GetStringBuffer().GetSize() );
-            memcpy( m_valueAfter.data(), archive.GetStringBuffer().GetString(), archive.GetStringBuffer().GetSize() );
-        }
-
-    private:
-
-        AnimationGraphWorkspace*            m_pWorkspace = nullptr;
-        String                              m_valueBefore;
-        String                              m_valueAfter;
-    };
+    void GraphUndoableAction::SerializeAfterState()
+    {
+        Serialization::JsonArchiveWriter archive;
+        m_pWorkspace->m_toolsGraph.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
+        m_valueAfter.resize( archive.GetStringBuffer().GetSize() );
+        memcpy( m_valueAfter.data(), archive.GetStringBuffer().GetString(), archive.GetStringBuffer().GetSize() );
+    }
 
     //-------------------------------------------------------------------------
 
@@ -1182,11 +1171,11 @@ namespace EE::Animation
             {
                 if ( m_isCameraTrackingEnabled )
                 {
-                    Transform const currentCameraTransform = GetViewportCameraTransform();
+                    Transform const currentCameraTransform = GetCameraTransform();
                     Transform const offsetDelta = currentCameraTransform * m_previousCameraTransform.GetInverse();
                     m_cameraOffsetTransform = offsetDelta * m_cameraOffsetTransform;
                     m_previousCameraTransform = m_cameraOffsetTransform * m_characterTransform;
-                    SetViewportCameraTransform( m_previousCameraTransform );
+                    SetCameraTransform( m_previousCameraTransform );
                 }
             }
 
@@ -1212,8 +1201,9 @@ namespace EE::Animation
         {
             EE_ASSERT( m_pActiveUndoableAction == nullptr );
 
-            m_pActiveUndoableAction = EE::New<GraphUndoableAction>( this );
-            m_pActiveUndoableAction->SerializeBeforeState();
+            auto pGraphUndoableAction = EE::New<GraphUndoableAction>( this );
+            pGraphUndoableAction->SerializeBeforeState();
+            m_pActiveUndoableAction = pGraphUndoableAction;
         }
     }
 
@@ -1223,7 +1213,7 @@ namespace EE::Animation
         {
             EE_ASSERT( m_pActiveUndoableAction != nullptr );
 
-            m_pActiveUndoableAction->SerializeAfterState();
+            Cast<GraphUndoableAction>( m_pActiveUndoableAction )->SerializeAfterState();
             m_undoStack.RegisterAction( m_pActiveUndoableAction );
             m_pActiveUndoableAction = nullptr;
             MarkDirty();
@@ -1365,16 +1355,16 @@ namespace EE::Animation
 
         auto pVariation = m_toolsGraph.GetVariation( m_selectedVariationID );
         EE_ASSERT( pVariation != nullptr );
-        if ( pVariation->m_pSkeleton.IsValid() )
+        if ( pVariation->m_skeleton.IsSet() )
         {
             // Load resource descriptor for skeleton to get the preview mesh
-            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_pSkeleton.GetResourcePath() );
+            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_skeleton.GetResourcePath() );
             SkeletonResourceDescriptor resourceDesc;
             if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) )
             {
                 // Create a preview mesh component
                 m_pDebugMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-                m_pDebugMeshComponent->SetSkeleton( pVariation->m_pSkeleton.GetResourceID() );
+                m_pDebugMeshComponent->SetSkeleton( pVariation->m_skeleton.GetResourceID() );
                 m_pDebugMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
                 m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
             }
@@ -1470,7 +1460,7 @@ namespace EE::Animation
 
         if ( IsLiveDebugSession() )
         {
-            SetViewportCameraTransform( m_cameraOffsetTransform );
+            SetCameraTransform( m_cameraOffsetTransform );
             m_previousCameraTransform = m_cameraOffsetTransform;
             ResetCameraView();
         }
@@ -1619,7 +1609,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::CalculateCameraOffset()
     {
-        m_previousCameraTransform = GetViewportCameraTransform();
+        m_previousCameraTransform = GetCameraTransform();
         m_cameraOffsetTransform = m_previousCameraTransform * m_characterTransform.GetInverse();
     }
 
@@ -3082,20 +3072,6 @@ namespace EE::Animation
     // Variation Editor
     //-------------------------------------------------------------------------
 
-    static bool IsValidVariationNameChar( ImWchar c )
-    {
-        return isalnum( c ) || c == '_';
-    }
-
-    static int FilterVariationNameChars( ImGuiInputTextCallbackData* data )
-    {
-        if ( IsValidVariationNameChar( data->EventChar ) )
-        {
-            return 0;
-        }
-        return 1;
-    }
-
     void AnimationGraphWorkspace::DrawVariationEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
@@ -3287,18 +3263,18 @@ namespace EE::Animation
         ImGui::SameLine( 0, 0 );
 
         auto pVariation = m_toolsGraph.GetVariation( m_selectedVariationID );
-        ResourceID resourceID = pVariation->m_pSkeleton.GetResourceID();
+        ResourceID resourceID = pVariation->m_skeleton.GetResourceID();
         if ( m_resourcePicker.DrawResourcePicker( Skeleton::GetStaticResourceTypeID(), &resourceID, true ) )
         {
             VisualGraph::ScopedGraphModification sgm( pRootGraph );
 
             if ( m_resourcePicker.GetSelectedResourceID().IsValid() )
             {
-                pVariation->m_pSkeleton = m_resourcePicker.GetSelectedResourceID();
+                pVariation->m_skeleton = m_resourcePicker.GetSelectedResourceID();
             }
             else
             {
-                pVariation->m_pSkeleton.Clear();
+                pVariation->m_skeleton.Clear();
             }
         }
 
@@ -3447,7 +3423,7 @@ namespace EE::Animation
             // Check for invalid chars
             for ( auto i = 0; i < bufferLen; i++ )
             {
-                if ( !IsValidVariationNameChar( m_buffer[i] ) )
+                if ( !ImGuiX::IsValidNameIDChar( m_buffer[i] ) )
                 {
                     return false;
                 }
@@ -3473,7 +3449,7 @@ namespace EE::Animation
 
         bool isValidVariationName = ValidateVariationName();
         ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImGuiX::ConvertColor( Colors::Red ).Value );
-        if ( ImGui::InputText( "##VariationName", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, FilterVariationNameChars ) )
+        if ( ImGui::InputText( "##VariationName", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars ) )
         {
             nameChangeConfirmed = true;
         }

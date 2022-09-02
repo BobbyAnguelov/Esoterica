@@ -28,8 +28,8 @@ namespace EE::Animation
     private:
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
-        virtual void EndHotReload() override;
+        virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
+        virtual void OnHotReloadComplete() override;
 
         void LoadSkeleton();
         void UnloadSkeleton();
@@ -53,8 +53,6 @@ namespace EE::Animation
         BoneInfo*                               m_pSkeletonTreeRoot = nullptr;
         TVector<float>                          m_workingSetWeights;
         BoneMask                                m_demoBoneMask;
-
-        TResourcePtr<Animation::Skeleton>       m_pSkeleton; // This is kept separate since hot-reload can destroy the descriptor (and we can edit the descriptor)
-        bool                                    m_skeletonLoadingRequested = false;
+        TResourcePtr<Animation::Skeleton>       m_skeleton;
     };
 }

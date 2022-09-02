@@ -274,11 +274,20 @@ namespace EE
         // Draw all workspaces
         for ( auto pWorkspace : m_workspaces )
         {
+            // The game previewer is special and is handled separately
             if ( pWorkspace == m_pGamePreviewer )
             {
                 continue;
             }
 
+            // Dont draw any workspaces queued for destructor
+            if ( VectorContains( m_workspaceDestructionRequests, pWorkspace ) )
+            {
+                continue;
+            }
+
+            // Draw the workspaces
+            EE_ASSERT( pWorkspace->IsInitialized() );
             ImGui::SetNextWindowClass( &m_editorWindowClass );
             if ( !DrawWorkspaceWindow( context, pWorkspace ) )
             {
@@ -342,6 +351,14 @@ namespace EE
         for ( auto pWorkspace : m_workspaces )
         {
             pWorkspace->EndHotReload();
+
+            // Auto destroy any workspaces that had a problem loading their descriptor i.e. they were externally corrupted.
+            if ( pWorkspace->IsADescriptorWorkspace() && !pWorkspace->IsDescriptorLoaded() )
+            {
+                InlineString const str( InlineString::CtorSprintf(), "There was an error reloading the descriptor for workspace: %s! Please check the log for details.", pWorkspace->GetDisplayName() );
+                pfd::message( "Error Loading Descriptor", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+                QueueDestroyWorkspace( pWorkspace );
+            }
         }
     }
 
@@ -406,15 +423,25 @@ namespace EE
         }
 
         // Create tools world
-        auto pToolsWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-        pToolsWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
-        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pToolsWorld->GetViewport() );
+        auto pWorkspaceWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
+        pWorkspaceWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
+        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pWorkspaceWorld->GetViewport() );
 
         // Create workspace
-        auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pToolsWorld, resourceID );
-        pCreatedWorkspace->Initialize( context );
+        auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pWorkspaceWorld, resourceID );
         m_workspaces.emplace_back( pCreatedWorkspace );
 
+        // Check if the descriptor was correctly loaded, if not schedule this workspace to be destroyed
+        if ( pCreatedWorkspace->IsADescriptorWorkspace() && !pCreatedWorkspace->IsDescriptorLoaded() )
+        {
+            InlineString const str( InlineString::CtorSprintf(), "There was an error loading the descriptor for %s! Please check the log for details.", resourceID.c_str() );
+            pfd::message( "Error Loading Descriptor", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+            QueueDestroyWorkspace( pCreatedWorkspace );
+            return false;
+        }
+
+        // Initialize workspace
+        pCreatedWorkspace->Initialize( context );
         return true;
     }
 
@@ -457,12 +484,14 @@ namespace EE
 
         bool const isGamePreviewerWorkspace = m_pGamePreviewer == pWorkspace;
 
-        // Destroy the custom viewport render target
-        auto pPreviewWorld = pWorkspace->GetWorld();
-        m_pRenderingSystem->DestroyCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
+        // Get the world before we destroy the workspace
+        auto pWorkspaceWorld = pWorkspace->GetWorld();
 
         // Destroy workspace
-        pWorkspace->Shutdown( context );
+        if ( pWorkspace->IsInitialized() )
+        {
+            pWorkspace->Shutdown( context );
+        }
         EE::Delete( pWorkspace );
         m_workspaces.erase( foundWorkspaceIter );
 
@@ -473,8 +502,9 @@ namespace EE
             m_pGamePreviewer = nullptr;
         }
 
-        // Destroy preview world
-        m_pWorldManager->DestroyWorld( pPreviewWorld );
+        // Destroy preview world and render target
+        m_pRenderingSystem->DestroyCustomRenderTargetForViewport( pWorkspaceWorld->GetViewport() );
+        m_pWorldManager->DestroyWorld( pWorkspaceWorld );
     }
 
     void EditorUI::QueueDestroyWorkspace( Workspace* pWorkspace )

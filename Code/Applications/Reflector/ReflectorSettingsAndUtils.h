@@ -100,7 +100,17 @@ namespace EE::TypeSystem::Reflection
         {
             auto const& filePathStr = filePath.GetString();
 
-            return filePathStr.find( Settings::g_allowedProjectNames[3] ) != String::npos || filePath.GetString().find( Settings::g_allowedProjectNames[4] ) != String::npos;
+            if ( filePathStr.find( "\\EngineTools\\" ) != String::npos )
+            {
+                return true;
+            }
+
+            if ( filePathStr.find( "\\GameTools\\" ) != String::npos )
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

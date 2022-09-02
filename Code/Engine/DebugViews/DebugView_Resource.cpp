@@ -89,7 +89,7 @@ namespace EE::Resource
 
                 case LoadingStatus::Loading:
                 {
-                    ImGui::TextColored( Colors::Yellow.ToFloat4(), "Loaded" );
+                    ImGui::TextColored( Colors::Yellow.ToFloat4(), "Loading" );
                 }
                 break;
 
@@ -107,7 +107,7 @@ namespace EE::Resource
 
                 case LoadingStatus::Failed:
                 {
-                    ImGui::TextColored( Colors::Red.ToFloat4(), "Loaded" );
+                    ImGui::TextColored( Colors::Red.ToFloat4(), "Failed" );
                 }
                 break;
             }
