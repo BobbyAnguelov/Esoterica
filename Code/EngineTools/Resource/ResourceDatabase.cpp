@@ -131,14 +131,24 @@ namespace EE::Resource
     // TODO: Make this async!
     void ResourceDatabase::RebuildDatabase()
     {
-        m_resourcesPerType.clear();
-        m_rootDir.Clear();
-
+        // Reset the resource type category and add an entry for for every known resource type
         //-------------------------------------------------------------------------
 
+        m_resourcesPerType.clear();
+        for ( auto const& resourceInfoPair : m_pTypeRegistry->GetRegisteredResourceTypes() )
+        {
+            auto const& resourceInfo = resourceInfoPair.second;
+            m_resourcesPerType.insert( TPair<ResourceTypeID, TVector<ResourceEntry*>>( resourceInfo.m_resourceTypeID, TVector<ResourceEntry*>() ) );
+        }
+
+        // Reset the root dir
+        //-------------------------------------------------------------------------
+
+        m_rootDir.Clear();
         m_rootDir.m_name = StringID( m_rawResourceDirPath.GetDirectoryName() );
         m_rootDir.m_filePath = m_rawResourceDirPath;
 
+        // Get all files in the data directory
         //-------------------------------------------------------------------------
 
         TVector<FileSystem::Path> foundPaths;
@@ -147,6 +157,7 @@ namespace EE::Resource
             EE_HALT();
         }
 
+        // Add record for all files
         //-------------------------------------------------------------------------
 
         for ( auto const& filePath : foundPaths )
@@ -162,6 +173,7 @@ namespace EE::Resource
             }
         }
 
+        // Notify users that the DB has been rebuilt
         //-------------------------------------------------------------------------
 
         if ( m_databaseUpdatedEvent.HasBoundUsers() )
@@ -273,7 +285,7 @@ namespace EE::Resource
 
     void ResourceDatabase::AddFileRecord( FileSystem::Path const& path )
     {
-        auto const resourcePath = ResourcePath::FromFileSystemPath(m_rawResourceDirPath, path);
+        auto const resourcePath = ResourcePath::FromFileSystemPath( m_rawResourceDirPath, path );
         EE_ASSERT( resourcePath.IsFile() );
 
         auto pNewEntry = EE::New<ResourceEntry>();
