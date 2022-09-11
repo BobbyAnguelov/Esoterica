@@ -93,6 +93,9 @@ namespace EE
             // Updates map loading and entity state, returns true if all loading/state changes are complete, false otherwise
             bool UpdateState( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
 
+            // Do we have any pending entity addition or removal requests?
+            inline bool HasPendingAddOrRemoveRequests() const { return ( m_entitiesToLoad.size() + m_entitiesToRemove.size() ) > 0; }
+
             bool IsLoading() const { return m_status == Status::MapDescriptorLoading || m_status == Status::MapEntitiesLoading; }
             inline bool IsLoaded() const { return m_status == Status::Loaded; }
             inline bool IsUnloaded() const { return m_status == Status::Unloaded; }
@@ -103,6 +106,10 @@ namespace EE
             // Entity API
             //-------------------------------------------------------------------------
 
+            // Get the number of entities in this map
+            inline int32_t GetNumEntities() const { return (int32_t) m_entities.size(); }
+
+            // Get all entities in the map. This includes all entities that are still loading/unloading, etc...
             inline TVector<Entity*> const& GetEntities() const { return m_entities; }
 
             // Finds an entity via its ID. This uses a lookup map so is relatively performant
@@ -116,7 +123,6 @@ namespace EE
             // If you are working with an entity and a map, prefer to check the map ID vs the entity's map ID!
             inline bool ContainsEntity( EntityID entityID ) const { return FindEntity( entityID ) != nullptr; }
 
-
             // Adds a set of entities to this map - Transfers ownership of the entities to the map
             // Additionally allows you to offset all the entities via the supplied offset transform
             // Takes 1 frame to be fully added
@@ -128,18 +134,24 @@ namespace EE
             void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity );
 
             // Add a newly created entity to the map - Transfers ownership of the entity to the map
-            // Will take 1 frame to be fully added, as the addition occurs during the loading update
             void AddEntity( Entity* pEntity );
 
             // Unload and remove an entity from the map - Transfer ownership of the entity to the calling code
-            // May take multiple frame to be fully destroyed, as the removal occurs during the loading update
+            // May take multiple frames to be fully destroyed, as the deactivation/unload occurs during the loading update
+            // Entity is free to be deleted by the user ONLY once it is in an unloaded state
             Entity* RemoveEntity( EntityID entityID );
 
             // Unload, remove and destroy entity in this map
-            // May take multiple frame to be fully destroyed, as the removal occurs during the loading update
+            // May take multiple frames to be fully destroyed, as the removal occurs during the loading update
             void DestroyEntity( EntityID entityID );
 
             #if EE_DEVELOPMENT_TOOLS
+            // Gets a unique entity name for this map given a specified desired name
+            StringID GenerateUniqueEntityNameID( StringID desiredNameID ) const;
+
+            // Gets a unique entity name for this map given a specified desired name
+            inline StringID GenerateUniqueEntityNameID( char const* pName ) const { return GenerateUniqueEntityNameID( StringID( pName ) ); }
+
             // Rename an existing entity - allow renaming of existing entities, will ensure that the new name is unique
             void RenameEntity( Entity* pEntity, StringID newNameID );
 
@@ -176,10 +188,6 @@ namespace EE
 
             // 3rd Stage: Requests load of all entities required hot-reload
             void HotReloadLoadEntities( EntityLoadingContext const& loadingContext );
-
-            //-------------------------------------------------------------------------
-
-            StringID GenerateUniqueEntityName( StringID desiredName ) const;
             #endif
 
             //-------------------------------------------------------------------------
@@ -192,11 +200,8 @@ namespace EE
             void ProcessEntityAdditionAndRemoval( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
             bool ProcessEntityLoadingAndActivation( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
 
-            // Add entity to internal lookup maps
-            void AddEntityToLookupMaps( Entity* pEntity );
-
-            // Remove entity from internal lookup maps
-            void RemoveEntityFromLookupMaps( Entity* pEntity );
+            // Remove entity
+            Entity* RemoveEntityInternal( EntityID entityID, bool destroyEntityOnceRemoved );
 
             // Destroy all created entity instances
             void DestroyAllEntities();
@@ -209,7 +214,7 @@ namespace EE
             TVector<Entity*>                            m_entities;
             THashMap<EntityID, Entity*>                 m_entityIDLookupMap; // All activated entities in the map
             TVector<Entity*>                            m_entitiesCurrentlyLoading;
-            TInlineVector<Entity*, 5>                   m_entitiesToAdd;
+            TInlineVector<Entity*, 5>                   m_entitiesToLoad;
             TInlineVector<RemovalRequest, 5>            m_entitiesToRemove;
             EventBindingID                              m_entityUpdateEventBindingID;
             Status                                      m_status = Status::Unloaded;

@@ -187,7 +187,7 @@ namespace EE::Animation
     void AnimationClipWorkspace::DestroyPreviewMeshComponent()
     {
         EE_ASSERT( m_pPreviewEntity != nullptr && m_pMeshComponent != nullptr );
-        m_pPreviewEntity->DestroyComponent( m_pMeshComponent );
+        m_pPreviewEntity->DestroyComponent( m_pMeshComponent->GetID() );
         m_pMeshComponent = nullptr;
     }
 

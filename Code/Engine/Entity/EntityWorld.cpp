@@ -77,9 +77,9 @@ namespace EE
         // Create and activate the persistent map
         //-------------------------------------------------------------------------
 
-        m_maps.emplace_back( EntityModel::EntityMap() );
-        m_maps[0].Load( m_loadingContext );
-        m_maps[0].Activate( m_activationContext );
+        m_maps.emplace_back( EE::New<EntityModel::EntityMap>() );
+        m_maps[0]->Load( m_loadingContext );
+        m_maps[0]->Activate( m_activationContext );
 
         //-------------------------------------------------------------------------
 
@@ -91,9 +91,9 @@ namespace EE
         // Unload maps
         //-------------------------------------------------------------------------
         
-        for ( auto& map : m_maps )
+        for ( auto& pMap : m_maps )
         {
-            map.Unload( m_loadingContext );
+            pMap->Unload( m_loadingContext );
         }
 
         // Run the loading update as this will immediately unload all maps
@@ -194,14 +194,15 @@ namespace EE
 
         for ( int32_t i = (int32_t) m_maps.size() - 1; i >= 0; i-- )
         {
-            if ( m_maps[i].UpdateState( m_loadingContext, m_activationContext ) )
+            if ( m_maps[i]->UpdateState( m_loadingContext, m_activationContext ) )
             {
-                if ( m_maps[i].IsLoaded() )
+                if ( m_maps[i]->IsLoaded() )
                 {
-                    m_maps[i].Activate( m_activationContext );
+                    m_maps[i]->Activate( m_activationContext );
                 }
-                else if ( m_maps[i].IsUnloaded() )
+                else if ( m_maps[i]->IsUnloaded() )
                 {
+                    EE::Delete( m_maps[i] );
                     m_maps.erase_unsorted( m_maps.begin() + i );
                 }
             }
@@ -244,7 +245,7 @@ namespace EE
                 {
                     auto pEntity = m_updateList[i];
 
-                    // Ignore any entities with spatial parents these will be removed from the update list
+                    // Ignore any entities with spatial parents, these will be updated by their parents
                     if ( pEntity->HasSpatialParent() )
                     {
                         continue;
@@ -483,9 +484,9 @@ namespace EE
 
     bool EntityWorld::IsBusyLoading() const
     {
-        for ( auto const& map : m_maps )
+        for ( auto const& pMap : m_maps )
         {
-            if( map.IsLoading() ) 
+            if( pMap->IsLoading() ) 
             {
                 return true;
             }
@@ -496,10 +497,22 @@ namespace EE
 
     bool EntityWorld::HasMap( ResourceID const& mapResourceID ) const
     {
-        // Make sure the map isn't already loaded or loading, since duplicate loads are not allowed
-        for ( auto const& map : m_maps )
+        for ( auto const& pMap : m_maps )
         {
-            if ( map.GetMapResourceID() == mapResourceID )
+            if ( pMap->GetMapResourceID() == mapResourceID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool EntityWorld::HasMap( EntityMapID const& mapID ) const
+    {
+        for ( auto const& pMap : m_maps )
+        {
+            if ( pMap->GetID() == mapID )
             {
                 return true;
             }
@@ -511,11 +524,11 @@ namespace EE
     bool EntityWorld::IsMapActive( ResourceID const& mapResourceID ) const
     {
         // Make sure the map isn't already loaded or loading, since duplicate loads are not allowed
-        for ( auto const& map : m_maps )
+        for ( auto const& pMap : m_maps )
         {
-            if ( map.GetMapResourceID() == mapResourceID )
+            if ( pMap->GetMapResourceID() == mapResourceID )
             {
-                return map.IsActivated();
+                return pMap->IsActivated();
             }
         }
 
@@ -527,11 +540,11 @@ namespace EE
     bool EntityWorld::IsMapActive( EntityMapID const& mapID ) const
     {
         // Make sure the map isn't already loaded or loading, since duplicate loads are not allowed
-        for ( auto const& map : m_maps )
+        for ( auto const& pMap : m_maps )
         {
-            if ( map.GetID() == mapID )
+            if ( pMap->GetID() == mapID )
             {
-                return map.IsActivated();
+                return pMap->IsActivated();
             }
         }
 
@@ -542,44 +555,45 @@ namespace EE
 
     EntityModel::EntityMap* EntityWorld::CreateTransientMap()
     {
-        EntityModel::EntityMap& newMap = m_maps.emplace_back( EntityModel::EntityMap() );
-        newMap.Load( m_loadingContext );
-        newMap.Activate( m_activationContext );
-        return &newMap;
+        EntityModel::EntityMap* pNewMap = m_maps.emplace_back( EE::New<EntityModel::EntityMap>() );
+        pNewMap->Load( m_loadingContext );
+        pNewMap->Activate( m_activationContext );
+        return pNewMap;
     }
 
     EntityModel::EntityMap const* EntityWorld::GetMap( ResourceID const& mapResourceID ) const
     {
         EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
-        auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const& map, ResourceID const& mapResourceID ) { return map.GetMapResourceID() == mapResourceID; } );
+        auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const* pMap, ResourceID const& mapResourceID ) { return pMap->GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
-        return foundMapIter;
+        return *foundMapIter;
     }
 
     EntityModel::EntityMap const* EntityWorld::GetMap( EntityMapID const& mapID ) const
     {
         EE_ASSERT( mapID.IsValid() );
-        auto const foundMapIter = VectorFind( m_maps, mapID, [] ( EntityModel::EntityMap const& map, EntityMapID const& mapID ) { return map.GetID() == mapID; } );
+        auto const foundMapIter = VectorFind( m_maps, mapID, [] ( EntityModel::EntityMap const* pMap, EntityMapID const& mapID ) { return pMap->GetID() == mapID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
-        return foundMapIter;
+        return *foundMapIter;
     }
 
-    void EntityWorld::LoadMap( ResourceID const& mapResourceID )
+    EntityMapID EntityWorld::LoadMap( ResourceID const& mapResourceID )
     {
         EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
 
         EE_ASSERT( !HasMap( mapResourceID ) );
-        auto& map = m_maps.emplace_back( EntityModel::EntityMap( mapResourceID ) );
-        map.Load( m_loadingContext );
+        auto pNewMap = m_maps.emplace_back( EE::New<EntityModel::EntityMap>( mapResourceID ) );
+        pNewMap->Load( m_loadingContext );
+        return pNewMap->GetID();
     }
 
     void EntityWorld::UnloadMap( ResourceID const& mapResourceID )
     {
         EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
 
-        auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const& map, ResourceID const& mapResourceID ) { return map.GetMapResourceID() == mapResourceID; } );
+        auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const* pMap, ResourceID const& mapResourceID ) { return pMap->GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
-        foundMapIter->Unload( m_loadingContext );
+        ( *foundMapIter )->Unload(m_loadingContext);
     }
 
     //-------------------------------------------------------------------------
@@ -600,6 +614,16 @@ namespace EE
         pMap->ComponentEditingUnload( m_loadingContext, entityID, componentID );
     }
 
+    void EntityWorld::PrepareComponentForEditing( EntityComponent* pComponent )
+    {
+        EE_ASSERT( pComponent != nullptr );
+
+        auto pEntity = FindEntity( pComponent->GetEntityID() );
+        EE_ASSERT( pEntity != nullptr );
+
+        PrepareComponentForEditing( pEntity->GetMapID(), pComponent->GetEntityID(), pComponent->GetID() );
+    }
+
     //-------------------------------------------------------------------------
 
     void EntityWorld::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload )
@@ -607,9 +631,9 @@ namespace EE
         EE_ASSERT( !usersToReload.empty() );
 
         // Fill the hot-reload lists per map and deactivate any active entities
-        for ( auto& map : m_maps )
+        for ( auto& pMap : m_maps )
         {
-            map.HotReloadDeactivateEntities( m_activationContext, usersToReload );
+            pMap->HotReloadDeactivateEntities( m_activationContext, usersToReload );
         }
 
         // Process all deactivation requests
@@ -617,18 +641,18 @@ namespace EE
         ProcessComponentRegistrationRequests();
 
         // Unload all entities that require hot reload
-        for ( auto& map : m_maps )
+        for ( auto& pMap : m_maps )
         {
-            map.HotReloadUnloadEntities( m_loadingContext );
+            pMap->HotReloadUnloadEntities( m_loadingContext );
         }
     }
 
     void EntityWorld::EndHotReload()
     {
         // Load all entities that require hot reload
-        for ( auto& map : m_maps )
+        for ( auto& pMap : m_maps )
         {
-            map.HotReloadLoadEntities( m_loadingContext );
+            pMap->HotReloadLoadEntities( m_loadingContext );
         }
     }
     #endif

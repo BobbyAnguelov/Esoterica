@@ -2,6 +2,7 @@
 #include "EngineTools/_Module/API.h"
 #include "System/TypeSystem/RegisteredType.h"
 #include "System/Types/Arrays.h"
+#include "System/Types/Event.h"
 
 //-------------------------------------------------------------------------
 
@@ -39,6 +40,9 @@ namespace EE
 
         ~UndoStack();
 
+        // Clear all registered actions
+        void Reset();
+
         // Do we have an action to undo
         inline bool CanUndo() { return !m_recordedActions.empty(); }
 
@@ -56,6 +60,17 @@ namespace EE
         // Register a new action, this transfers ownership of the action memory to the stack
         void RegisterAction( IUndoableAction* pAction );
 
+        //-------------------------------------------------------------------------
+
+        // Fired before we execute an undo/redo action
+        TEventHandle<UndoStack::Operation, IUndoableAction const*> OnPreUndoRedo() { return m_preUndoRedoEvent; }
+
+        // Fired after we execute an undo/redo action
+        TEventHandle<UndoStack::Operation, IUndoableAction const*> OnPostUndoRedo() { return m_postUndoRedoEvent; }
+
+        // Fired whenever we perform an action (register, undo, redo)
+        TEventHandle<> OnActionPerformed() { return m_actionPerformed; }
+
     private:
 
         void ClearUndoStack();
@@ -63,7 +78,10 @@ namespace EE
 
     private:
 
-        TVector<IUndoableAction*>    m_recordedActions;
-        TVector<IUndoableAction*>    m_undoneActions;
+        TVector<IUndoableAction*>                                   m_recordedActions;
+        TVector<IUndoableAction*>                                   m_undoneActions;
+        TEvent<UndoStack::Operation, IUndoableAction const*>        m_preUndoRedoEvent;
+        TEvent<UndoStack::Operation, IUndoableAction const*>        m_postUndoRedoEvent;
+        TEvent<>                                                    m_actionPerformed;
     };
 }

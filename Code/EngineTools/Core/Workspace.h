@@ -202,6 +202,9 @@ namespace EE
         // Flag this workspace as dirty
         void MarkDirty() { m_isDirty = true; }
 
+        // Clear the dirty flag
+        void ClearDirty() { m_isDirty = false; }
+
         // Has any modifications been made to this file?
         virtual bool IsDirty() const { return m_isDirty; }
 

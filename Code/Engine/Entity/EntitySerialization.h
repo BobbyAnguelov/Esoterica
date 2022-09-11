@@ -9,7 +9,7 @@ namespace EE
     class Entity;
     class TaskSystem;
     namespace TypeSystem { class TypeRegistry; }
-    namespace EntityModel { class EntityMap; struct SerializedEntityDescriptor; class SerializedEntityCollection; }
+    namespace EntityModel { class EntityMap; struct SerializedEntityDescriptor; class SerializedEntityCollection; struct SerializedComponentDescriptor; }
 }
 
 //-------------------------------------------------------------------------

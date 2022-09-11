@@ -4,6 +4,7 @@
 #include "EngineTools/Core/Helpers/CommonDialogs.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Entity/EntitySerialization.h"
+#include "Engine/Entity/EntityWorld.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "System/FileSystem/FileSystem.h"
 
@@ -12,7 +13,7 @@
 namespace EE::EntityModel
 {
     EntityMapEditor::EntityMapEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EntityWorldEditorWorkspace( pToolsContext, pWorld, String( "Map Editor" ) )
+        : EntityEditorWorkspace( pToolsContext, pWorld, String( "Map Editor" ) )
     {
         m_gizmo.SetTargetTransform( &m_gizmoTransform );
         SetCameraSpeed( 15.0f );
@@ -24,6 +25,11 @@ namespace EE::EntityModel
     }
 
     //-------------------------------------------------------------------------
+
+    EntityMap* EntityMapEditor::GetEditedMap() const
+    {
+        return m_pWorld->GetMap( m_editedMapID );
+    }
 
     void EntityMapEditor::CreateNewMap()
     {
@@ -71,7 +77,7 @@ namespace EE::EntityModel
         // Write the map out to a new path and load it
         //-------------------------------------------------------------------------
 
-        if ( WriteMapToFile( m_context.GetTypeRegistry(), EntityMap(), mapFilePath ) )
+        if ( WriteMapToFile( *m_pToolsContext->m_pTypeRegistry, EntityMap(), mapFilePath ) )
         {
             LoadMap( mapResourceID );
         }
@@ -98,7 +104,7 @@ namespace EE::EntityModel
     {
         if ( mapToLoad.GetResourceID() != m_loadedMap )
         {
-            m_context.ClearSelection();
+            m_outliner.ClearSelection();
 
             // Should we save the current map before unloading?
             if ( IsDirty() )
@@ -118,9 +124,12 @@ namespace EE::EntityModel
 
             // Load map
             m_loadedMap = mapToLoad.GetResourceID();
-            m_pWorld->LoadMap( m_loadedMap );
-            m_context.SetMapToUse( m_loadedMap );
+            m_editedMapID = m_pWorld->LoadMap( m_loadedMap );
             SetDisplayName( m_loadedMap.GetResourcePath().GetFileNameWithoutExtension() );
+
+            // Reset widget
+            m_entityStructureEditor.SetEntityToEdit( nullptr );
+            m_undoStack.Reset();
         }
     }
 
@@ -131,7 +140,7 @@ namespace EE::EntityModel
 
     void EntityMapEditor::SaveMapAs()
     {
-        auto pEditedMap = m_context.GetMap();
+        auto pEditedMap = GetEditedMap();
         if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() || pEditedMap->IsActivated() ) )
         {
             return;
@@ -149,7 +158,7 @@ namespace EE::EntityModel
         // Write the map out to a new path and load it
         //-------------------------------------------------------------------------
 
-        if ( WriteMapToFile( m_context.GetTypeRegistry(), *pEditedMap, mapFilePath ) )
+        if ( WriteMapToFile( *m_pToolsContext->m_pTypeRegistry, *pEditedMap, mapFilePath ) )
         {
             ResourceID const mapResourcePath = GetResourcePath( mapFilePath );
             LoadMap( mapResourcePath );
@@ -162,14 +171,20 @@ namespace EE::EntityModel
 
     bool EntityMapEditor::Save()
     {
-        auto pEditedMap = m_context.GetMap();
+        auto pEditedMap = GetEditedMap();
         if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() || pEditedMap->IsActivated() ) )
         {
             return false;
         }
 
         FileSystem::Path const mapFilePath = GetFileSystemPath( m_loadedMap );
-        return WriteMapToFile( m_context.GetTypeRegistry(), *pEditedMap, mapFilePath );
+        if ( !WriteMapToFile( *m_pToolsContext->m_pTypeRegistry, *pEditedMap, mapFilePath ) )
+        {
+            return false;
+        }
+
+        ClearDirty();
+        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -245,7 +260,7 @@ namespace EE::EntityModel
 
     void EntityMapEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
-        EntityWorldEditorWorkspace::Update( context, pWindowClass, isFocused );
+        EntityEditorWorkspace::Update( context, pWindowClass, isFocused );
 
         if ( m_pNavmeshGeneratorDialog != nullptr )
         {
@@ -272,14 +287,14 @@ namespace EE::EntityModel
     void EntityMapEditor::CreateNavmeshComponent()
     {
         // Create the appropriate resource ID for the navmesh data
-        ResourcePath navmeshResourcePath = m_context.GetMap()->GetMapResourceID().GetResourcePath();
+        ResourcePath navmeshResourcePath = GetEditedMap()->GetMapResourceID().GetResourcePath();
         navmeshResourcePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString().c_str() );
         ResourceID const navmeshResourceID( navmeshResourcePath );
 
         // Create a new entity with a navmesh component if one isnt found
         Entity* pEntity = EE::New<Entity>( StringID( "Navmesh Entity" ) );
         pEntity->AddComponent( EE::New<Navmesh::NavmeshComponent>( navmeshResourceID ) );
-        m_context.AddEntity( pEntity );
+        m_pWorld->GetFirstNonPersistentMap()->AddEntity( pEntity );
     }
 
     void EntityMapEditor::BeginNavmeshGeneration( UpdateContext const& context )
@@ -298,11 +313,11 @@ namespace EE::EntityModel
         // Navmesh Generation
         //-------------------------------------------------------------------------
 
-        FileSystem::Path navmeshFilePath = m_context.GetMap()->GetMapResourceID().GetResourcePath().ToFileSystemPath( m_context.m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
+        FileSystem::Path navmeshFilePath = GetEditedMap()->GetMapResourceID().GetResourcePath().ToFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
         navmeshFilePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString() );
 
         SerializedEntityMap map;
-        Serializer::SerializeEntityMap( *m_pToolsContext->m_pTypeRegistry, m_context.GetMap(), map );
+        Serializer::SerializeEntityMap( *m_pToolsContext->m_pTypeRegistry, GetEditedMap(), map );
         m_pNavmeshGeneratorDialog = EE::New<Navmesh::NavmeshGeneratorDialog>( m_pToolsContext, pNavmeshComponent->GetBuildSettings(), map, navmeshFilePath);
     }
 
@@ -326,9 +341,8 @@ namespace EE::EntityModel
             EE_ASSERT( navmeshComponents.size() == 1 );
            
             auto pNavmeshComponent = const_cast<Navmesh::NavmeshComponent*>( navmeshComponents.back() );
-            m_context.BeginEditComponent( pNavmeshComponent );
+            m_pWorld->PrepareComponentForEditing( pNavmeshComponent );
             pNavmeshComponent->SetBuildSettings( m_pNavmeshGeneratorDialog->GetBuildSettings() );
-            m_context.EndEditComponent();
         }
 
         // Destroy dialog

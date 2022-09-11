@@ -27,8 +27,12 @@ namespace EE::Physics
         {
             EE_ASSERT( IsUnloaded() );
             EE_ASSERT( meshResourceID.IsValid() );
-            m_pPhysicsMesh = meshResourceID;
+            m_physicsMesh = meshResourceID;
         }
+
+        #if EE_DEVELOPMENT_TOOLS
+        inline ResourceID const& GetMeshResourceID() { return m_physicsMesh.GetResourceID(); }
+        #endif
 
     private:
 
@@ -42,6 +46,6 @@ namespace EE::Physics
         EE_EXPOSE TVector<StringID>                            m_materialOverrideIDs;
 
         // The collision mesh to load (can be either convex or concave)
-        EE_EXPOSE TResourcePtr<PhysicsMesh>                    m_pPhysicsMesh;
+        EE_EXPOSE TResourcePtr<PhysicsMesh>                    m_physicsMesh;
     };
 }

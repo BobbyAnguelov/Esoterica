@@ -228,13 +228,13 @@ namespace EE::Animation
 
             if ( !m_pGraphInstance->IsValidExternalGraphSlotID( slotID ) )
             {
-                EE_LOG_ENTITY_ERROR( m_pGraphComponent, "Animation", "Invalid slot ID (%s) - Component (%s) on Entity (%ul)!", slotID.c_str(), m_pGraphComponent->GetName().c_str(), m_pGraphComponent->GetEntityID().m_ID );
+                EE_LOG_ENTITY_ERROR( m_pGraphComponent, "Animation", "Invalid slot ID (%s) - Component (%s) on Entity (%ul)!", slotID.c_str(), m_pGraphComponent->GetNameID().c_str(), m_pGraphComponent->GetEntityID().m_value );
                 return nullptr;
             }
 
             if ( m_pGraphInstance->IsExternalGraphSlotFilled( slotID ) )
             {
-                EE_LOG_ENTITY_ERROR( m_pGraphComponent, "Animation", "External graph slot (%s) is filled! - Component (%s) on Entity (%ul)", slotID.c_str(), m_pGraphComponent->GetName().c_str(), m_pGraphComponent->GetEntityID().m_ID );
+                EE_LOG_ENTITY_ERROR( m_pGraphComponent, "Animation", "External graph slot (%s) is filled! - Component (%s) on Entity (%ul)", slotID.c_str(), m_pGraphComponent->GetNameID().c_str(), m_pGraphComponent->GetEntityID().m_value );
                 return nullptr;
             }
 

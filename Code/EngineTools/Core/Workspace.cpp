@@ -534,10 +534,7 @@ namespace EE
                         ImVec2 const mousePosWithinViewportImage = ( mousePos - windowPos ) - viewportImageCursorPos;
                         Int2 const pixelCoords = Int2( Math::RoundToInt( mousePosWithinViewportImage.x ), Math::RoundToInt( mousePosWithinViewportImage.y ) );
                         Render::PickingID const pickingID = viewportInfo.m_retrievePickingID( pixelCoords );
-                        if ( pickingID.IsSet() )
-                        {
-                            OnMousePick( pickingID );
-                        }
+                        OnMousePick( pickingID );
                     }
                 }
             }
@@ -680,7 +677,7 @@ namespace EE
         EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( pEntity != nullptr && pEntity->GetMapID() == m_pWorld->GetPersistentMap()->GetID() );
         EE_ASSERT( VectorContains( m_addedEntities, pEntity ) );
-        m_pWorld->GetPersistentMap()->RemoveEntity( pEntity );
+        m_pWorld->GetPersistentMap()->RemoveEntity( pEntity->GetID() );
         m_addedEntities.erase_first_unsorted( pEntity );
     }
 
@@ -689,7 +686,7 @@ namespace EE
         EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( pEntity != nullptr && pEntity->GetMapID() == m_pWorld->GetPersistentMap()->GetID() );
         EE_ASSERT( VectorContains( m_addedEntities, pEntity ) );
-        m_pWorld->GetPersistentMap()->DestroyEntity( pEntity );
+        m_pWorld->GetPersistentMap()->DestroyEntity( pEntity->GetID() );
         m_addedEntities.erase_first_unsorted( pEntity );
         pEntity = nullptr;
     }
@@ -776,12 +773,16 @@ namespace EE
 
     void Workspace::Undo()
     {
-        PreUndoRedo( UndoStack::Operation::Undo ); auto pAction = m_undoStack.Undo(); PostUndoRedo( UndoStack::Operation::Undo, pAction );
+        PreUndoRedo( UndoStack::Operation::Undo );
+        auto pAction = m_undoStack.Undo();
+        PostUndoRedo( UndoStack::Operation::Undo, pAction );
     }
 
     void Workspace::Redo()
     {
-        PreUndoRedo( UndoStack::Operation::Redo ); auto pAction = m_undoStack.Redo(); PostUndoRedo( UndoStack::Operation::Redo, pAction );
+        PreUndoRedo( UndoStack::Operation::Redo );
+        auto pAction = m_undoStack.Redo();
+        PostUndoRedo( UndoStack::Operation::Redo, pAction );
     }
 
     //-------------------------------------------------------------------------
@@ -1000,6 +1001,14 @@ namespace EE
                 if ( CanRedo() )
                 {
                     Redo();
+                }
+            }
+
+            if ( IO.KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_S ) )
+            {
+                if ( IsDirty() || AlwaysAllowSaving() )
+                {
+                    Save();
                 }
             }
         }

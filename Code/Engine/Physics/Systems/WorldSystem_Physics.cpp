@@ -131,7 +131,7 @@ namespace EE::Physics
 
             if ( !CreateActorAndShape( pPhysicsComponent ) )
             {
-                EE_LOG_ENTITY_ERROR( pPhysicsComponent, "Physics", "Failed to create physics actor/shape for shape component %s (%u)!", pPhysicsComponent->GetName().c_str(), pPhysicsComponent->GetID() );
+                EE_LOG_ENTITY_ERROR( pPhysicsComponent, "Physics", "Failed to create physics actor/shape for shape component %s (%u)!", pPhysicsComponent->GetNameID().c_str(), pPhysicsComponent->GetID() );
             }
         }
 
@@ -142,7 +142,7 @@ namespace EE::Physics
             m_characterComponents.Add( pCharacterComponent );
             if ( !CreateCharacterActorAndShape( pCharacterComponent ) )
             {
-                EE_LOG_ENTITY_ERROR( pCharacterComponent, "Physics", "Failed to create physics actor/shape for character %s (%u)!", pCharacterComponent->GetName().c_str(), pCharacterComponent->GetID() );
+                EE_LOG_ENTITY_ERROR( pCharacterComponent, "Physics", "Failed to create physics actor/shape for character %s (%u)!", pCharacterComponent->GetNameID().c_str(), pCharacterComponent->GetID() );
             }
         }
     }
@@ -177,25 +177,25 @@ namespace EE::Physics
     {
         if ( !pComponent->HasValidPhysicsSetup() )
         {
-            EE_LOG_ENTITY_WARNING( pComponent, "Physics", "Invalid physics setup set for component: %s (%u), no physics actors will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_WARNING( pComponent, "Physics", "Invalid physics setup set for component: %s (%u), no physics actors will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
             return false;
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName = pComponent->GetName().IsValid() ? pComponent->GetName().c_str() : "Invalid Name";
+        pComponent->m_debugName = pComponent->GetNameID().IsValid() ? pComponent->GetNameID().c_str() : "Invalid Name";
         #endif
 
         PxRigidActor* pPhysicsActor = CreateActor( pComponent );
         if ( pPhysicsActor == nullptr )
         {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics actor for component %s (%u)!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics actor for component %s (%u)!", pComponent->GetNameID().c_str(), pComponent->GetID() );
             return false;
         }
 
         PxShape* pShape = CreateShape( pComponent, pPhysicsActor );
         if ( pShape == nullptr )
         {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics shape for component %s (%u)!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics shape for component %s (%u)!", pComponent->GetNameID().c_str(), pComponent->GetID() );
             return false;
         }
 
@@ -287,7 +287,7 @@ namespace EE::Physics
 
         if ( physicsMaterials.empty() )
         {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "No physics materials set for component %s (%u). No shapes will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "No physics materials set for component %s (%u). No shapes will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
             return false;
         }
 
@@ -329,19 +329,19 @@ namespace EE::Physics
         OBB localBounds;
         if ( auto pMeshComponent = TryCast<PhysicsMeshComponent>( pComponent ) )
         {
-            EE_ASSERT( pMeshComponent->m_pPhysicsMesh->IsValid() );
+            EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
 
             // Triangle Mesh
-            if ( pMeshComponent->m_pPhysicsMesh->IsTriangleMesh() )
+            if ( pMeshComponent->m_physicsMesh->IsTriangleMesh() )
             {
-                PxTriangleMesh const* pTriMesh = pMeshComponent->m_pPhysicsMesh->GetTriangleMesh();
+                PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
                 PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( scale ) );
                 pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
                 localBounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
             }
             else // Convex Mesh
             {
-                PxConvexMesh const* pConvexMesh = pMeshComponent->m_pPhysicsMesh->GetConvexMesh();
+                PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
                 PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( scale ) );
                 pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
                 localBounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
@@ -406,19 +406,19 @@ namespace EE::Physics
         OBB localBounds;
         if ( auto pMeshComponent = TryCast<PhysicsMeshComponent>( pComponent ) )
         {
-            EE_ASSERT( pMeshComponent->m_pPhysicsMesh->IsValid() );
+            EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
 
             // Triangle Mesh
-            if ( pMeshComponent->m_pPhysicsMesh->IsTriangleMesh() )
+            if ( pMeshComponent->m_physicsMesh->IsTriangleMesh() )
             {
-                PxTriangleMesh const* pTriMesh = pMeshComponent->m_pPhysicsMesh->GetTriangleMesh();
+                PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
                 PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( scale ) );
                 pComponent->m_pPhysicsShape->setGeometry( meshGeo );
                 localBounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
             }
             else // Convex Mesh
             {
-                PxConvexMesh const* pConvexMesh = pMeshComponent->m_pPhysicsMesh->GetConvexMesh();
+                PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
                 PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( scale ) );
                 pComponent->m_pPhysicsShape->setGeometry( meshGeo );
                 localBounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
@@ -482,12 +482,12 @@ namespace EE::Physics
 
         if ( !pComponent->HasValidPhysicsSetup() )
         {
-            EE_LOG_ERROR( "Physics", "No Physics Material set for component: %s (%u), no physics actors will be created!", pComponent->GetName().c_str(), pComponent->GetID() );
+            EE_LOG_ERROR( "Physics", "No Physics Material set for component: %s (%u), no physics actors will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
             return false;
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName = pComponent->GetName().c_str();
+        pComponent->m_debugName = pComponent->GetNameID().c_str();
         #endif
 
         // Create actor
@@ -597,7 +597,7 @@ namespace EE::Physics
                 {
                     if ( ctx.IsGameWorld() )
                     {
-                        EE_LOG_ENTITY_ERROR( pShapeComponent, "Physics", "Someone moved a static physics actor: %s with entity ID %u. This should not be done!", pShapeComponent->GetName().c_str(), pShapeComponent->GetEntityID().m_ID );
+                        EE_LOG_ENTITY_ERROR( pShapeComponent, "Physics", "Someone moved a static physics actor: %s with entity ID %u. This should not be done!", pShapeComponent->GetNameID().c_str(), pShapeComponent->GetEntityID().m_value );
                     }
 
                     UpdateStaticActorAndShape( pShapeComponent );

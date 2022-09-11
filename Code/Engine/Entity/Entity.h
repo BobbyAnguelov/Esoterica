@@ -19,6 +19,10 @@ namespace EE
         struct SerializedEntityDescriptor;
         class SerializedEntityCollection;
         struct Serializer;
+
+        #if EE_DEVELOPMENT_TOOLS
+        class EntityStructureEditor;
+        #endif
     }
 
     //-------------------------------------------------------------------------
@@ -41,7 +45,10 @@ namespace EE
         friend EntityModel::Serializer;
         friend EntityModel::EntityMap;
         friend EntityModel::EntityMapEditor;
-        template<typename T> friend struct TEntityAccessor;
+
+        #if EE_DEVELOPMENT_TOOLS
+        friend EntityModel::EntityStructureEditor;
+        #endif
 
         using SystemUpdateList = TVector<EntitySystem*>;
 
@@ -90,6 +97,12 @@ namespace EE
             Activated,
         };
 
+        enum class SpatialAttachmentRule
+        {
+            KeepWorldTransform,
+            KeepLocalTranform
+        };
+
         // Event that's fired whenever a component/system is actually added or removed
         static TEventHandle<Entity*> OnEntityUpdated() { return s_entityUpdatedEvent; }
 
@@ -108,11 +121,14 @@ namespace EE
         // Entity Info
         //-------------------------------------------------------------------------
 
+        // Get the entity ID, this is a globally unique transient ID (it is generated at runtime)
         inline EntityID const& GetID() const { return m_ID; }
-        inline StringID GetName() const { return m_name; }
+
+        // Get the serialized name ID for this entity, this is only unique within the context of a map
+        inline StringID GetNameID() const { return m_name; }
+
+        // Get the ID of the map this entity belongs to
         inline EntityMapID const& GetMapID() const { return m_mapID; }
-        inline uint32_t GetNumComponents() const { return (uint32_t) m_components.size(); }
-        inline uint32_t GetNumSystems() const { return (uint32_t) m_systems.size(); }
 
         // Spatial Info
         //-------------------------------------------------------------------------
@@ -125,25 +141,41 @@ namespace EE
         inline ComponentID const& GetRootSpatialComponentID() const { return m_pRootSpatialComponent->GetID(); }
         inline OBB const& GetRootSpatialComponentWorldBounds() const { EE_ASSERT( IsSpatialEntity() ); return m_pRootSpatialComponent->GetWorldBounds(); }
 
+        // Get the world bounds for this entity i.e. the combined bounds of all spatial components
+        // Warning!!! This is incredibly expensive
+        OBB GetCombinedWorldBounds() const;
+
         // Get the world transform for this entity i.e. the transform of the root spatial component
         inline Transform const& GetWorldTransform() const { EE_ASSERT( IsSpatialEntity() ); return m_pRootSpatialComponent->GetLocalTransform(); }
         
         // Set the world transform for this entity i.e. the transform of the root spatial component
         inline void SetWorldTransform( Transform const& worldTransform ) const { EE_ASSERT( IsSpatialEntity() ); return m_pRootSpatialComponent->SetLocalTransform( worldTransform ); }
         
+        // Do we have a spatial parent entity
         inline bool HasSpatialParent() const { return m_pParentSpatialEntity != nullptr; }
+
+        // Get our spatial parent entity
         inline Entity* GetSpatialParent() const { return m_pParentSpatialEntity; }
+
+        // Get the ID for our spatial parent entity - Warning: Do not call without checking if we actually have a parent
         inline EntityID const& GetSpatialParentID() const { EE_ASSERT( HasSpatialParent() ); return m_pParentSpatialEntity->GetID(); }
-        
+
+        // Are we under the spatial hierarchy of the supplied entity?
+        bool IsSpatialChildOf( Entity const* pPotentialParent ) const;
+
+        // Set the spatial parent
+        // This will set the ptr to the parent entity and add this entity to the parent entity's attached entity list
+        // This will also update any spatial attachments between components
+        // Note: this will lock a bunch of mutexes so be careful when you call this
+        void SetSpatialParent( Entity* pParentEntity, StringID socketID = StringID(), SpatialAttachmentRule attachmentRule = SpatialAttachmentRule::KeepWorldTransform);
+
+        // Clears the spatial parent for this entity
+        // Note: this will lock a bunch of mutexes so be careful when you call this
+        void ClearSpatialParent();
+
         inline StringID const& GetAttachmentSocketID() const { EE_ASSERT( HasSpatialParent() ); return m_parentAttachmentSocketID; }
         inline bool HasAttachedEntities() const { return !m_attachedEntities.empty(); }
         inline Transform GetAttachmentSocketTransform( StringID socketID ) const { EE_ASSERT( IsSpatialEntity() ); return m_pRootSpatialComponent->GetAttachmentSocketTransform( socketID ); }
-
-        #if EE_DEVELOPMENT_TOOLS
-        // Get the world bounds for this entity i.e. the combined bounds of all spatial components
-        // Warning!!! This is incredibly expensive
-        OBB GetCombinedWorldBounds() const;
-        #endif
 
         // Status
         //-------------------------------------------------------------------------
@@ -160,19 +192,18 @@ namespace EE
         //-------------------------------------------------------------------------
         // NB!!! Add and remove operations execute immediately for unloaded entities BUT will be deferred to the next loading phase for loaded entities
 
-        inline TVector<EntityComponent*> const& GetComponents() const { return m_components; }
+        // Get the number of components this entity owns
+        inline uint32_t GetNumComponents() const { return (uint32_t) m_components.size(); }
 
-        inline EntityComponent* FindComponent( ComponentID const& componentID )
-        {
-            auto foundIter = eastl::find( m_components.begin(), m_components.end(), componentID, [] ( EntityComponent* pComponent, ComponentID const& ID ) { return pComponent->GetID() == ID; } );
-            return ( foundIter != m_components.end() ) ? *foundIter : nullptr;
-        }
+        inline TVector<EntityComponent*> const& GetComponents() const { return m_components; }
 
         inline EntityComponent const* FindComponent( ComponentID const& componentID ) const
         {
             auto foundIter = eastl::find( m_components.begin(), m_components.end(), componentID, [] ( EntityComponent* pComponent, ComponentID const& ID ) { return pComponent->GetID() == ID; } );
             return ( foundIter != m_components.end() ) ? *foundIter : nullptr;
         }
+        
+        inline EntityComponent* FindComponent( ComponentID const& componentID ) { return const_cast<EntityComponent*>( const_cast<Entity const*>( this )->FindComponent( componentID ) ); }
 
         // Create a new component of the specified type
         void CreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo, ComponentID const& parentSpatialComponentID = ComponentID() );
@@ -187,6 +218,9 @@ namespace EE
         // Systems
         //-------------------------------------------------------------------------
         // NB!!! Add and remove operations execute immediately for unloaded entities BUT will be deferred to the next loading phase for loaded entities
+
+        // Get the number of systems this entity owns
+        inline uint32_t GetNumSystems() const { return (uint32_t) m_systems.size(); }
 
         inline TVector<EntitySystem*> const& GetSystems() const { return m_systems; }
 
@@ -226,17 +260,35 @@ namespace EE
             DestroySystem( T::s_pTypeInfo );
         }
 
+        // Tools Helpers
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        // Finds a component by it's name ID
+        inline EntityComponent const* FindComponentByName( StringID const& componentID ) const
+        {
+            auto foundIter = eastl::find( m_components.begin(), m_components.end(), componentID, [] ( EntityComponent* pComponent, StringID const& ID ) { return pComponent->GetNameID() == ID; } );
+            return ( foundIter != m_components.end() ) ? *foundIter : nullptr;
+        }
+
+        // Finds a component by it's name ID
+        inline EntityComponent* FindComponentByName( StringID const& componentID ) { return const_cast<EntityComponent*>( const_cast<Entity const*>( this )->FindComponentByName( componentID ) ); }
+
+        // Generates a unique component name based on the desired name
+        StringID GenerateUniqueComponentNameID( EntityComponent* pComponent, StringID desiredNameID ) const;
+
+        // Rename an existing component - this ensures that component names remain unique
+        void RenameComponent( EntityComponent* pComponent, StringID newNameID );
+
+        // Get all attached entities
+        TVector<Entity*> const& GetAttachedEntities() const { return m_attachedEntities; }
+        #endif
+
     private:
 
         // This function will search through the spatial hierarchy of this entity and return the first component it finds that contains a socket with the specified socket ID
         SpatialEntityComponent* FindSocketAttachmentComponent( SpatialEntityComponent* pComponentToSearch, StringID socketID ) const;
         inline SpatialEntityComponent* FindSocketAttachmentComponent( StringID socketID ) const { EE_ASSERT( IsSpatialEntity() ); return FindSocketAttachmentComponent( m_pRootSpatialComponent, socketID ); }
-
-        // Set attachment info - This will set the ptr to the parent entity and add this entity to the parent entity's attached entity list
-        void SetSpatialParent( Entity* pParentEntity, StringID socketID );
-
-        // Clear attachment info - Assumes spatial attachment has not been created
-        void ClearSpatialParent();
 
         // Create the component-to-component attachment between this entity and the parent entity
         void CreateSpatialAttachment();
@@ -304,19 +356,13 @@ namespace EE
 
         // This will end any component editing for this frame and load all unloaded components, should only be called once per frame when needed!
         void EndComponentEditing( EntityModel::EntityLoadingContext const& loadingContext );
-
-        // Generates a unique component name based on the desired name
-        StringID GenerateUniqueComponentName( EntityComponent* pComponent, StringID desiredNameID ) const;
-
-        // Rename an existing component - this ensures that component names remain unique
-        void RenameComponent( EntityComponent* pComponent, StringID newNameID );
         #endif
 
     protected:
 
-        EntityID                                        m_ID = EntityID( this );                                            // The unique ID of this entity ( globally unique and generated at runtime )
+        EntityID                                        m_ID = EntityID::Generate();                                        // The unique ID of this entity ( globally unique and generated at runtime )
         EntityMapID                                     m_mapID;                                                            // The ID of the map that owns this entity
-        EE_REGISTER StringID                           m_name;                                                             // The name of the entity, only unique within the context of a map
+        EE_REGISTER StringID                            m_name;                                                             // The name of the entity, only unique within the context of a map
         Status                                          m_status = Status::Unloaded;
         RegistrationStatus                              m_updateRegistrationStatus = RegistrationStatus::Unregistered;      // Is this entity registered for frame updates
 
@@ -327,10 +373,10 @@ namespace EE
         SpatialEntityComponent*                         m_pRootSpatialComponent = nullptr;                                  // This spatial component defines our world position
         TVector<Entity*>                                m_attachedEntities;                                                 // The list of entities that are attached to this entity
         Entity*                                         m_pParentSpatialEntity = nullptr;                                   // The parent entity we are attached to
-        EE_EXPOSE StringID                             m_parentAttachmentSocketID;                                         // The socket that we are attached to on the parent
+        EE_EXPOSE StringID                              m_parentAttachmentSocketID;                                         // The socket that we are attached to on the parent
         bool                                            m_isSpatialAttachmentCreated = false;                               // Has the actual component-to-component attachment been created
 
         TVector<EntityInternalStateAction>              m_deferredActions;                                                  // The set of internal entity state changes that need to be executed
-        Threading::Mutex                                m_internalStateMutex;                                               // A mutex that needs to be lock due to internal state changes
+        Threading::RecursiveMutex                       m_internalStateMutex;                                               // A mutex that needs to be lock due to internal state changes
     };
  }

@@ -407,7 +407,7 @@ namespace EE::EntityModel
 
             if ( ctx.DoesEntityExist( outEntityDesc.m_name ) )
             {
-                return Error( "Duplicate entity ID detected: %s", outEntityDesc.m_name.c_str() );
+                return Error( "Duplicate entity name ID detected: %s", outEntityDesc.m_name.c_str() );
             }
             else
             {
@@ -416,10 +416,13 @@ namespace EE::EntityModel
             }
         }
 
-        static bool ReadEntityArray( ParsingContext& ctx, Serialization::JsonValue const& entitiesArrayValue, SerializedEntityCollection& outCollection )
+        static bool ReadEntityCollection( ParsingContext& ctx, Serialization::JsonValue const& entitiesArrayValue, SerializedEntityCollection& outCollection )
         {
             int32_t const numEntities = (int32_t) entitiesArrayValue.Size();
-            outCollection.Reserve( numEntities );
+
+            TVector<SerializedEntityDescriptor> entityDescs;
+            entityDescs.reserve( numEntities );
+
             for ( int32_t i = 0; i < numEntities; i++ )
             {
                 if ( !entitiesArrayValue[i].IsObject() )
@@ -433,9 +436,12 @@ namespace EE::EntityModel
                     return false;
                 }
 
-                outCollection.AddEntity( entityDesc );
+                entityDescs.emplace_back( entityDesc );
             }
 
+            //-------------------------------------------------------------------------
+
+            outCollection.SetCollectionData( eastl::move( entityDescs ) );
             return true;
         }
     }
@@ -461,17 +467,7 @@ namespace EE::EntityModel
         }
 
         ParsingContext ctx( typeRegistry );
-
-        if ( !ReadEntityArray( ctx, entitiesArrayValue, outCollection ) )
-        {
-            return false;
-        }
-
-        outCollection.GenerateSpatialAttachmentInfo();
-
-        //-------------------------------------------------------------------------
-
-        return true;
+        return ReadEntityCollection( ctx, entitiesArrayValue, outCollection );
     }
 
     bool ReadSerializedEntityCollectionFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& filePath, SerializedEntityCollection& outCollection )
@@ -600,6 +596,12 @@ namespace EE::EntityModel
         writer.Key( "Name" );
         writer.String( entityDesc.m_name.c_str() );
 
+        if ( entityDesc.m_spatialParentName.IsValid() )
+        {
+            writer.Key( "SpatialParent" );
+            writer.String( entityDesc.m_spatialParentName.c_str() );
+        }
+
         if ( entityDesc.m_attachmentSocketID.IsValid() )
         {
             writer.Key( "AttachmentSocketID" );
@@ -660,7 +662,6 @@ namespace EE::EntityModel
         // Write collection to document
         //-------------------------------------------------------------------------
 
-        
         writer.Key( "Entities" );
         writer.StartArray();
 

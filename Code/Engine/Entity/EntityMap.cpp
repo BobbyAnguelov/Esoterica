@@ -37,7 +37,7 @@ namespace EE::EntityModel
     {
         EE_ASSERT( IsUnloaded() && !m_isMapInstantiated );
         EE_ASSERT( m_entities.empty() && m_entityIDLookupMap.empty() );
-        EE_ASSERT( m_entitiesToAdd.empty() && m_entitiesToRemove.empty() );
+        EE_ASSERT( m_entitiesToLoad.empty() && m_entitiesToRemove.empty() );
 
         #if EE_DEVELOPMENT_TOOLS
         EE_ASSERT( m_entitiesToHotReload.empty() );
@@ -90,40 +90,6 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    void EntityMap::AddEntityToLookupMaps( Entity* pEntity )
-    {
-        EE_ASSERT( pEntity != nullptr && !pEntity->IsActivated() );
-        EE_ASSERT( !ContainsEntity( pEntity ) );
-
-        m_entityIDLookupMap.insert( TPair<EntityID, Entity*>( pEntity->m_ID, pEntity ) );
-
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        pEntity->m_name = GenerateUniqueEntityName( pEntity->m_name );
-        m_entityNameLookupMap.insert( TPair<StringID, Entity*>( pEntity->m_name, pEntity ) );
-        #endif
-    }
-
-    void EntityMap::RemoveEntityFromLookupMaps( Entity* pEntity )
-    {
-        EE_ASSERT( pEntity != nullptr && !pEntity->IsActivated() );
-
-        //-------------------------------------------------------------------------
-
-        auto IDLookupIter = m_entityIDLookupMap.find( pEntity->m_ID );
-        EE_ASSERT( IDLookupIter != m_entityIDLookupMap.end() );
-        m_entityIDLookupMap.erase( IDLookupIter );
-
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        auto nameLookupIter = m_entityNameLookupMap.find( pEntity->m_name );
-        EE_ASSERT( nameLookupIter != m_entityNameLookupMap.end() );
-        m_entityNameLookupMap.erase( nameLookupIter );
-        #endif
-    }
-
     #if EE_DEVELOPMENT_TOOLS
     void EntityMap::RenameEntity( Entity* pEntity, StringID newNameID )
     {
@@ -138,7 +104,7 @@ namespace EE::EntityModel
         m_entityNameLookupMap.erase( nameLookupIter );
 
         // Rename
-        pEntity->m_name = GenerateUniqueEntityName( newNameID );
+        pEntity->m_name = GenerateUniqueEntityNameID( newNameID );
 
         // Add to lookup map
         m_entityNameLookupMap.insert( TPair<StringID, Entity*>( pEntity->m_name, pEntity ) );
@@ -176,44 +142,106 @@ namespace EE::EntityModel
     {
         // Ensure that the entity to add, is not already part of a collection and that it's deactivated
         EE_ASSERT( pEntity != nullptr && !pEntity->IsAddedToMap() && !pEntity->HasRequestedComponentLoad() );
-        EE_ASSERT( !VectorContains( m_entitiesToAdd, pEntity ) );
+        EE_ASSERT( !VectorContains( m_entitiesToLoad, pEntity ) );
+
+        // Entity validation
+        //-------------------------------------------------------------------------
+        // Ensure spatial parenting and unique name
 
         #if EE_DEVELOPMENT_TOOLS
         if ( pEntity->HasSpatialParent() )
         {
-            EE_ASSERT( ContainsEntity( pEntity->GetSpatialParent() ) );
+            EE_ASSERT( ContainsEntity( pEntity->GetSpatialParent()->GetID() ) );
         }
+
+        pEntity->m_name = GenerateUniqueEntityNameID( pEntity->m_name );
         #endif
 
+        // Add entity
         //-------------------------------------------------------------------------
 
         Threading::RecursiveScopeLock lock( m_mutex );
 
         pEntity->m_mapID = m_ID;
-        m_entitiesToAdd.emplace_back( pEntity );
+        m_entities.emplace_back( pEntity );
+        m_entitiesToLoad.emplace_back( pEntity );
+
+        // Add to lookup maps
+        //-------------------------------------------------------------------------
+
+        m_entityIDLookupMap.insert( TPair<EntityID, Entity*>( pEntity->m_ID, pEntity ) );
+        #if EE_DEVELOPMENT_TOOLS
+        m_entityNameLookupMap.insert( TPair<StringID, Entity*>( pEntity->m_name, pEntity ) );
+        #endif
     }
 
-    Entity* EntityMap::RemoveEntity( EntityID entityID )
+    Entity* EntityMap::RemoveEntityInternal( EntityID entityID, bool destroyEntityOnceRemoved )
     {
-        Entity* pEntityToRemove = nullptr;
-
-        // Lock the map
         Threading::RecursiveScopeLock lock( m_mutex );
 
+        // Handle spatial hierarchy
+        //-------------------------------------------------------------------------
+
+        Entity* pEntityToRemove = FindEntity( entityID );
+        EE_ASSERT( pEntityToRemove != nullptr );
+
+        if ( !pEntityToRemove->m_attachedEntities.empty() )
+        {
+            // If we have a parent, re-parent all children to it
+            if ( pEntityToRemove->m_pParentSpatialEntity != nullptr )
+            {
+                for ( auto pAttachedEntity : pEntityToRemove->m_attachedEntities )
+                {
+                    pAttachedEntity->SetSpatialParent( pEntityToRemove->m_pParentSpatialEntity );
+                }
+            }
+            else // If we have no parent, remove spatial parent
+            {
+                for ( auto pAttachedEntity : pEntityToRemove->m_attachedEntities )
+                {
+                    pAttachedEntity->ClearSpatialParent();
+                }
+            }
+        }
+
+        // Remove from map
+        //-------------------------------------------------------------------------
+
+        m_entities.erase_first_unsorted( pEntityToRemove );
+
+        // Remove from internal lookup maps
+        //-------------------------------------------------------------------------
+
+        auto IDLookupIter = m_entityIDLookupMap.find( pEntityToRemove->m_ID );
+        EE_ASSERT( IDLookupIter != m_entityIDLookupMap.end() );
+        m_entityIDLookupMap.erase( IDLookupIter );
+
+        #if EE_DEVELOPMENT_TOOLS
+        auto nameLookupIter = m_entityNameLookupMap.find( pEntityToRemove->m_name );
+        EE_ASSERT( nameLookupIter != m_entityNameLookupMap.end() );
+        m_entityNameLookupMap.erase( nameLookupIter );
+        #endif
+
+        // Schedule unload
+        //-------------------------------------------------------------------------
+
         // Check if the entity is in the add queue, if so just cancel the request
-        int32_t const entityIdx = VectorFindIndex( m_entitiesToAdd, entityID, [] ( Entity* pEntity, EntityID entityID ) { return pEntity->GetID() == entityID; } );
+        int32_t const entityIdx = VectorFindIndex( m_entitiesToLoad, entityID, [] ( Entity* pEntity, EntityID entityID ) { return pEntity->GetID() == entityID; } );
         if ( entityIdx != InvalidIndex )
         {
-            pEntityToRemove = m_entitiesToAdd[entityIdx];
-            m_entitiesToAdd.erase_unsorted( m_entitiesToAdd.begin() + entityIdx );
+            pEntityToRemove = m_entitiesToLoad[entityIdx];
+            m_entitiesToLoad.erase_unsorted( m_entitiesToLoad.begin() + entityIdx );
+
+            if ( destroyEntityOnceRemoved )
+            {
+                EE::Delete( pEntityToRemove );
+            }
         }
         else // Queue removal
         {
             if ( m_isMapInstantiated )
             {
-                pEntityToRemove = FindEntity( entityID );
-                EE_ASSERT( pEntityToRemove != nullptr );
-                m_entitiesToRemove.emplace_back( RemovalRequest( pEntityToRemove, false ) );
+                m_entitiesToRemove.emplace_back( RemovalRequest( pEntityToRemove, destroyEntityOnceRemoved ) );
             }
             else // Unknown entity
             {
@@ -223,62 +251,35 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
+        // Do not return anything if we are requesting destruction
+        if ( destroyEntityOnceRemoved )
+        {
+            pEntityToRemove = nullptr;
+        }
+
+        return pEntityToRemove;
+    }
+
+    Entity* EntityMap::RemoveEntity( EntityID entityID )
+    {
+        Entity* pEntityToRemove = RemoveEntityInternal( entityID, false );
         EE_ASSERT( pEntityToRemove != nullptr );
-
-        #if EE_DEVELOPMENT_TOOLS
-        InlineString const newNameStr( InlineString::CtorSprintf(), "%s - ToBeRemoved", pEntityToRemove->GetName().c_str() );
-        StringID const newNameID( newNameStr.c_str() );
-        RenameEntity( pEntityToRemove, newNameID );
-        #endif
-
         return pEntityToRemove;
     }
 
     void EntityMap::DestroyEntity( EntityID entityID )
     {
-        Entity* pEntityToDestroy = nullptr;
-
-        // Lock the map
-        Threading::RecursiveScopeLock lock( m_mutex );
-
-        // Check if the entity is in the add queue, if so just cancel the request
-        int32_t const entityIdx = VectorFindIndex( m_entitiesToAdd, entityID, [] ( Entity* pEntity, EntityID entityID ) { return pEntity->GetID() == entityID; } );
-        if ( entityIdx != InvalidIndex )
-        {
-            pEntityToDestroy = m_entitiesToAdd[entityIdx];
-            m_entitiesToAdd.erase_unsorted( m_entitiesToAdd.begin() + entityIdx );
-            EE::Delete( pEntityToDestroy );
-        }
-        else
-        {
-            // Queue removal
-            if ( m_isMapInstantiated )
-            {
-                pEntityToDestroy = FindEntity( entityID );
-                EE_ASSERT( pEntityToDestroy != nullptr );
-                m_entitiesToRemove.emplace_back( RemovalRequest( pEntityToDestroy, true ) );
-            }
-            else// Unknown entity
-            {
-                EE_UNREACHABLE_CODE();
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( pEntityToDestroy != nullptr );
-
-        #if EE_DEVELOPMENT_TOOLS
-        InlineString const newNameStr( InlineString::CtorSprintf(), "%s - ToBeDestroyed", pEntityToDestroy->GetName().c_str() );
-        StringID const newNameID( newNameStr.c_str() );
-        RenameEntity( pEntityToDestroy, newNameID );
-        #endif
+        RemoveEntityInternal( entityID, true );
     }
 
     void EntityMap::DestroyAllEntities()
     {
+        EE_ASSERT( m_entitiesToLoad.empty() );
+        EE_ASSERT( m_entitiesToRemove.empty() );
+
         for ( auto& pEntity : m_entities )
         {
+            EE_ASSERT( pEntity->IsUnloaded() );
             EE::Delete( pEntity );
         }
 
@@ -329,9 +330,9 @@ namespace EE::EntityModel
         {
             EntityActivationTask( EntityModel::ActivationContext& activationContext, TVector<Entity*>& entities )
                 : m_activationContext( activationContext )
-                , m_entities( entities )
+                , m_entitiesToActivate( entities )
             {
-                m_SetSize = (uint32_t) m_entities.size();
+                m_SetSize = (uint32_t) m_entitiesToActivate.size();
             }
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
@@ -340,14 +341,10 @@ namespace EE::EntityModel
 
                 for ( uint64_t i = range.start; i < range.end; ++i )
                 {
-                    auto pEntity = m_entities[i];
+                    auto pEntity = m_entitiesToActivate[i];
                     if ( pEntity->IsLoaded() )
                     {
-                        // Only activate non-spatial and root spatial entities
-                        if ( !pEntity->IsSpatialEntity() || !pEntity->HasSpatialParent() )
-                        {
-                            pEntity->Activate( m_activationContext );
-                        }
+                        pEntity->Activate( m_activationContext );
                     }
                 }
             }
@@ -355,7 +352,7 @@ namespace EE::EntityModel
         private:
 
             EntityModel::ActivationContext&         m_activationContext;
-            TVector<Entity*>&                       m_entities;
+            TVector<Entity*>&                       m_entitiesToActivate;
         };
 
         //-------------------------------------------------------------------------
@@ -380,9 +377,9 @@ namespace EE::EntityModel
         {
             EntityDeactivationTask( EntityModel::ActivationContext& activationContext, TVector<Entity*>& entities )
                 : m_activationContext( activationContext )
-                , m_entities( entities )
+                , m_entitiesToDeactivate( entities )
             {
-                m_SetSize = (uint32_t) m_entities.size();
+                m_SetSize = (uint32_t) m_entitiesToDeactivate.size();
             }
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
@@ -391,7 +388,7 @@ namespace EE::EntityModel
 
                 for ( uint64_t i = range.start; i < range.end; ++i )
                 {
-                    auto pEntity = m_entities[i];
+                    auto pEntity = m_entitiesToDeactivate[i];
                     if ( pEntity->IsActivated() )
                     {
                         if ( !pEntity->IsSpatialEntity() || !pEntity->HasSpatialParent() )
@@ -405,7 +402,7 @@ namespace EE::EntityModel
         private:
 
             EntityModel::ActivationContext&         m_activationContext;
-            TVector<Entity*>&                       m_entities;
+            TVector<Entity*>&                       m_entitiesToDeactivate;
         };
 
         //-------------------------------------------------------------------------
@@ -449,12 +446,12 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        // Ensure that we also deactivate all entities properly
+        // Ensure that we deactivate all entities properly
         if ( IsActivated() )
         {
             Deactivate( activationContext );
         }
-        else
+        else // Map is deactivated so we are safe to unload and destroy all entities
         {
             if ( m_status != Status::LoadFailed )
             {
@@ -472,15 +469,8 @@ namespace EE::EntityModel
                     m_isMapInstantiated = false;
                 }
 
-                // Since entity ownership is transferred via the add call, we need to delete all pending add entity requests
-                for ( auto pEntity : m_entitiesToAdd )
-                {
-                    EE_ASSERT( !pEntity->HasRequestedComponentLoad() );
-                    EE::Delete( pEntity );
-                }
-                m_entitiesToAdd.clear();
-
                 // Clear all internal entity lists
+                m_entitiesToLoad.clear();
                 m_entitiesCurrentlyLoading.clear();
                 m_entitiesToRemove.clear();
             }
@@ -584,9 +574,6 @@ namespace EE::EntityModel
             {
                 m_entitiesCurrentlyLoading.erase_first_unsorted( pEntityToRemove );
 
-                // Remove from all internal maps
-                RemoveEntityFromLookupMaps( pEntityToRemove );
-
                 // Unload components and remove from collection
                 pEntityToRemove->UnloadComponents( loadingContext );
                 pEntityToRemove->m_mapID.Clear();
@@ -603,14 +590,14 @@ namespace EE::EntityModel
             }
         }
 
-        // Addition
+        // Loading
         //-------------------------------------------------------------------------
 
         // Wait until we have a collection to add the entities too since the map might still be loading
         if ( m_isMapInstantiated )
         {
-            // Add entities to the collection and request load
-            for ( auto pEntityToAdd : m_entitiesToAdd )
+            // Request load for unloaded entities
+            for ( auto pEntityToAdd : m_entitiesToLoad )
             {
                 // Ensure that the entity to add, is not already part of a collection and that it's deactivated
                 EE_ASSERT( pEntityToAdd != nullptr && pEntityToAdd->m_mapID == m_ID && !pEntityToAdd->IsActivated() );
@@ -619,13 +606,9 @@ namespace EE::EntityModel
                 pEntityToAdd->LoadComponents( loadingContext );
                 EE_ASSERT( !VectorContains( m_entitiesCurrentlyLoading, pEntityToAdd ) );
                 m_entitiesCurrentlyLoading.emplace_back( pEntityToAdd );
-
-                // Add entity to internal structures
-                m_entities.push_back( pEntityToAdd );
-                AddEntityToLookupMaps( pEntityToAdd );
             }
 
-            m_entitiesToAdd.clear();
+            m_entitiesToLoad.clear();
         }
     }
 
@@ -664,11 +647,7 @@ namespace EE::EntityModel
                         // If the map is activated, immediately activate any entities that finish loading
                         if ( m_isActivated && pEntity->IsLoaded() )
                         {
-                            // Prevent us from activating entities whose parents are not yet activated, this ensures that our attachment chain have a consistent activation state
-                            if ( !pEntity->HasSpatialParent() || pEntity->GetSpatialParent()->IsActivated() )
-                            {
-                                pEntity->Activate( m_activationContext );
-                            }
+                            pEntity->Activate( m_activationContext );
                         }
                     }
                     else // Entity is still loading
@@ -878,7 +857,7 @@ namespace EE::EntityModel
         return finalName;
     }
 
-    StringID EntityMap::GenerateUniqueEntityName( StringID desiredNameID ) const
+    StringID EntityMap::GenerateUniqueEntityNameID( StringID desiredNameID ) const
     {
         EE_ASSERT( desiredNameID.IsValid() );
 
@@ -890,6 +869,7 @@ namespace EE::EntityModel
         bool isUniqueName = false;
         while ( !isUniqueName )
         {
+            // Check the lookup map
             isUniqueName = m_entityNameLookupMap.find( finalNameID ) == m_entityNameLookupMap.end();
 
             // If we found a name clash, generate a new name and try again

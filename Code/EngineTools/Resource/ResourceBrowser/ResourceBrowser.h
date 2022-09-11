@@ -30,9 +30,9 @@ namespace EE
 
     private:
 
-        virtual void RebuildTreeInternal() override;
+        virtual void RebuildTreeUserFunction() override;
         virtual void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) override;
-        virtual void DrawAdditionalUI() override;
+        void DrawDialogs();
 
         void OnBrowserItemDoubleClicked( TreeListViewItem* pItem );
 

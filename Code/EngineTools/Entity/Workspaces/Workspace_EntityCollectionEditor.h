@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Workspace_EntityWorldEditor.h"
+#include "Workspace_EntityEditor.h"
 #include "Engine/Entity/EntityDescriptors.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::EntityModel
 {
-    class EE_ENGINETOOLS_API EntityCollectionEditor final : public EntityWorldEditorWorkspace
+    class EE_ENGINETOOLS_API EntityCollectionEditor final : public EntityEditorWorkspace
     {
     public:
 
@@ -18,7 +18,6 @@ namespace EE::EntityModel
 
     private:
 
-        virtual bool IsDirty() const override{ return false; } // TODO
         virtual bool Save() override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 

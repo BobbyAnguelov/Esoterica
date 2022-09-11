@@ -385,7 +385,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            componentName.sprintf( "%s (%s)", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+            componentName.sprintf( "%s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
             if ( ImGui::BeginMenu( componentName.c_str() ) )
             {
                 ImGuiX::TextSeparator( "Graph" );
@@ -499,7 +499,7 @@ namespace EE::Animation
                 if ( m_componentRuntimeSettings[i].m_drawControlParameters )
                 {
                     bool keepOpen = true;
-                    title.sprintf( "Control Parameters: %s (%s)", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                    title.sprintf( "Control Parameters: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings) )
                     {
@@ -518,7 +518,7 @@ namespace EE::Animation
                 if ( m_componentRuntimeSettings[i].m_drawActiveTasks )
                 {
                     bool keepOpen = true;
-                    title.sprintf( "Active Tasks: %s (%s)", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                    title.sprintf( "Active Tasks: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {
@@ -537,7 +537,7 @@ namespace EE::Animation
                 if ( m_componentRuntimeSettings[i].m_drawSampledEvents )
                 {
                     bool keepOpen = true;
-                    title.sprintf( "Sampled Events: %s (%s)", pGraphComponent->GetName().c_str(), pEntity->GetName().c_str() );
+                    title.sprintf( "Sampled Events: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {

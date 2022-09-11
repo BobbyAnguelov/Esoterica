@@ -1,6 +1,7 @@
 #pragma once
 
-#include "EngineTools/Entity/Workspaces/Workspace_EntityWorldEditor.h"
+#include "Workspace_EntityEditor.h"
+#include "Engine/Entity/EntityDescriptors.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +14,7 @@ namespace EE::Navmesh
 
 namespace EE::EntityModel
 {
-    class EE_ENGINETOOLS_API EntityMapEditor final : public EntityWorldEditorWorkspace
+    class EE_ENGINETOOLS_API EntityMapEditor final : public EntityEditorWorkspace
     {
     public:
 
@@ -40,7 +41,8 @@ namespace EE::EntityModel
 
     private:
 
-        virtual bool IsDirty() const override{ return false; } // TODO
+        EntityMap* GetEditedMap() const;
+
         virtual bool Save() override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
@@ -56,6 +58,7 @@ namespace EE::EntityModel
     private:
 
         ResourceID                                      m_loadedMap;
+        EntityMapID                                     m_editedMapID;
         bool                                            m_isGamePreviewRunning = false;
         TEvent<UpdateContext const&>                    m_gamePreviewStartRequested;
         TEvent<UpdateContext const&>                    m_gamePreviewStopRequested;

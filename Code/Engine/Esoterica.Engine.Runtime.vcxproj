@@ -134,6 +134,7 @@
     <ClCompile Include="Entity\EntityLog.cpp" />
     <ClCompile Include="Entity\EntitySerialization.cpp" />
     <ClCompile Include="Render\RenderViewport.cpp" />
+    <ClCompile Include="Entity\EntityIDs.cpp" />
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp" />
     <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp" />
     <ClCompile Include="Entity\DebugViews\DebugView_EntityWorld.cpp" />
@@ -289,7 +290,6 @@
     <ClInclude Include="DebugViews\DebugView_Resource.h" />
     <ClInclude Include="DebugViews\DebugView_System.h" />
     <ClInclude Include="Entity\Entity.h" />
-    <ClInclude Include="Entity\EntityAccessor.h" />
     <ClInclude Include="Entity\EntityActivationContext.h" />
     <ClInclude Include="Entity\EntityComponent.h" />
     <ClInclude Include="Entity\EntityDescriptors.h" />

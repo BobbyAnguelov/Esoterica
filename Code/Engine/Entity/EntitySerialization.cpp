@@ -7,6 +7,7 @@
 #include "EntityLog.h"
 #include "EntitySystem.h"
 #include "EntityMap.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -25,6 +26,14 @@ namespace EE::EntityModel
         auto pEntity = reinterpret_cast<Entity*>( pEntityTypeInfo->CreateType() );
         pEntity->m_name = entityDesc.m_name;
 
+        #if EE_DEVELOPMENT_TOOLS
+        // Restore entity ID if valid
+        if ( entityDesc.m_transientEntityID.IsValid() )
+        {
+            pEntity->m_ID = entityDesc.m_transientEntityID;
+        }
+        #endif
+
         // Create entity components
         //-------------------------------------------------------------------------
         // Component descriptors are sorted during compilation, spatial components are first, followed by regular components
@@ -41,6 +50,14 @@ namespace EE::EntityModel
             pEntityComponent->m_name = componentDesc.m_name;
             pEntityComponent->m_entityID = pEntity->m_ID;
             pEntity->m_components.push_back( pEntityComponent );
+
+            #if EE_DEVELOPMENT_TOOLS
+            // Restore component ID if valid
+            if ( componentDesc.m_transientComponentID.IsValid() )
+            {
+                pEntityComponent->m_ID = componentDesc.m_transientComponentID;
+            }
+            #endif
 
             //-------------------------------------------------------------------------
 
@@ -71,7 +88,7 @@ namespace EE::EntityModel
             // Skip the root component
             if ( spatialComponentDesc.IsRootComponent() )
             {
-                EE_ASSERT( pEntity->GetRootSpatialComponent()->GetName() == spatialComponentDesc.m_name );
+                EE_ASSERT( pEntity->GetRootSpatialComponent()->GetNameID() == spatialComponentDesc.m_name );
                 continue;
             }
 
@@ -80,7 +97,7 @@ namespace EE::EntityModel
             EE_ASSERT( parentComponentIdx != InvalidIndex );
 
             auto pParentSpatialComponent = static_cast<SpatialEntityComponent*>( pEntity->m_components[parentComponentIdx] );
-            if ( spatialComponentDesc.m_spatialParentName == pParentSpatialComponent->GetName() )
+            if ( spatialComponentDesc.m_spatialParentName == pParentSpatialComponent->GetNameID() )
             {
                 auto pSpatialComponent = static_cast<SpatialEntityComponent*>( pEntity->m_components[spatialComponentIdx] );
                 pSpatialComponent->m_pSpatialParent = pParentSpatialComponent;
@@ -203,28 +220,70 @@ namespace EE::EntityModel
         EE_ASSERT( !outDesc.IsValid() );
         outDesc.m_name = pEntity->m_name;
 
+        #if EE_DEVELOPMENT_TOOLS
+        outDesc.m_transientEntityID = pEntity->m_ID;
+        #endif
+
         // Get spatial parent
         if ( pEntity->HasSpatialParent() )
         {
-            outDesc.m_spatialParentName = pEntity->m_pParentSpatialEntity->GetName();
+            outDesc.m_spatialParentName = pEntity->m_pParentSpatialEntity->GetNameID();
             outDesc.m_attachmentSocketID = pEntity->GetAttachmentSocketID();
         }
 
         // Components
         //-------------------------------------------------------------------------
 
-        TVector<StringID> entityComponentList;
+        auto ComponentComparator = [] ( EntityComponent const* pA, EntityComponent const* pB )
+        {
+            auto const pSpatialA = TryCast<SpatialEntityComponent>( pA );
+            auto const pSpatialB = TryCast<SpatialEntityComponent>( pB );
 
-        for ( auto pComponent : pEntity->m_components )
+            // If both are spatial then provide some arbitrary sort
+            if ( pSpatialA != nullptr && pSpatialB != nullptr )
+            {
+                if ( pSpatialA->IsRootComponent() )
+                {
+                    return true;
+                }
+                else if ( pSpatialB->IsRootComponent() )
+                {
+                    return false;
+                }
+
+                return (uintptr_t) pA < (uintptr_t) pB;
+            }
+            // If neither are spatial then provide some arbitrary sort
+            else if ( pSpatialA == nullptr && pSpatialB == nullptr )
+            {
+                return (uintptr_t) pA < (uintptr_t) pB;
+            }
+            else // Only one is a spatial component
+            {
+                return pSpatialA != nullptr;
+            }
+        };
+
+        TInlineVector<EntityComponent*, 10> sortedComponents( pEntity->m_components.begin(), pEntity->m_components.end() );
+        eastl::sort( sortedComponents.begin(), sortedComponents.end(), ComponentComparator );
+
+        //-------------------------------------------------------------------------
+
+        TVector<StringID> entityComponentList;
+        for ( auto pComponent : sortedComponents )
         {
             EntityModel::SerializedComponentDescriptor componentDesc;
-            componentDesc.m_name = pComponent->GetName();
+            componentDesc.m_name = pComponent->GetNameID();
+
+            #if EE_DEVELOPMENT_TOOLS
+            componentDesc.m_transientComponentID = pComponent->m_ID;
+            #endif
 
             // Check for unique names
             if ( VectorContains( entityComponentList, componentDesc.m_name ) )
             {
                 // Duplicate name detected!!
-                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity descriptor, duplicate component name detected: %s on entity %s", pComponent->GetName().c_str(), pEntity->m_name.c_str() );
+                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity descriptor, duplicate component name detected: %s on entity %s", pComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
                 return false;
             }
             else
@@ -236,10 +295,10 @@ namespace EE::EntityModel
             auto pSpatialEntityComponent = TryCast<SpatialEntityComponent>( pComponent );
             if ( pSpatialEntityComponent != nullptr )
             {
-                if ( pSpatialEntityComponent->HasSpatialParent() )
+                if ( !pSpatialEntityComponent->IsRootComponent() )
                 {
                     EntityComponent const* pSpatialParentComponent = pEntity->FindComponent( pSpatialEntityComponent->GetSpatialParentID() );
-                    componentDesc.m_spatialParentName = pSpatialParentComponent->GetName();
+                    componentDesc.m_spatialParentName = pSpatialParentComponent->GetNameID();
                     componentDesc.m_attachmentSocketID = pSpatialEntityComponent->GetAttachmentSocketID();
                 }
 
@@ -273,23 +332,26 @@ namespace EE::EntityModel
     bool Serializer::SerializeEntityMap( TypeSystem::TypeRegistry const& typeRegistry, EntityMap const* pMap, SerializedEntityCollection& outCollection )
     {
         EE_ASSERT( pMap->IsLoaded() || pMap->IsActivated() );
-        EE_ASSERT( pMap->m_entitiesToAdd.empty() && pMap->m_entitiesToRemove.empty() );
+        EE_ASSERT( pMap->m_entitiesToLoad.empty() && pMap->m_entitiesToRemove.empty() );
         EE_ASSERT( pMap->m_entitiesToHotReload.empty() );
 
-        TVector<StringID> entityNameList;
-        outCollection.Clear();
+        THashMap<StringID, StringID> entityNameMap;
+        entityNameMap.reserve( pMap->GetNumEntities() );
+
+        TVector<SerializedEntityDescriptor> entityDescs;
+        entityDescs.reserve( pMap->GetNumEntities() );
 
         for ( auto pEntity : pMap->GetEntities() )
         {
-            // Check for unique names
-            if ( VectorContains( entityNameList, pEntity->GetName() ) )
+            // Check for unique names - This should never happen but we're paranoid so let's keep the extra validation
+            if ( entityNameMap.find( pEntity->GetNameID() ) != entityNameMap.end() )
             {
-                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetName().c_str() );
+                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetNameID().c_str() );
                 return false;
             }
             else
             {
-                entityNameList.emplace_back( pEntity->GetName() );
+                entityNameMap.insert( TPair<StringID, StringID>( pEntity->GetNameID(), pEntity->GetNameID() ) );
             }
 
             //-------------------------------------------------------------------------
@@ -299,11 +361,13 @@ namespace EE::EntityModel
             {
                 return false;
             }
-            outCollection.AddEntity( entityDesc );
+
+            entityDescs.emplace_back( entityDesc );
         }
 
-        outCollection.GenerateSpatialAttachmentInfo();
+        //-------------------------------------------------------------------------
 
+        outCollection.SetCollectionData( eastl::move( entityDescs ) );
         return true;
     }
     #endif

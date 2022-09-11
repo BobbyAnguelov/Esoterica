@@ -38,6 +38,10 @@ namespace EE::EntityModel
         StringID                                                    m_spatialParentName;
         StringID                                                    m_attachmentSocketID;
         bool                                                        m_isSpatialComponent = false;
+
+        #if EE_DEVELOPMENT_TOOLS
+        ComponentID                                                 m_transientComponentID; // WARNING: this is not serialized, and it is only stored for undo/redo support in the tools
+        #endif
     };
 
     //-------------------------------------------------------------------------
@@ -59,7 +63,7 @@ namespace EE::EntityModel
 
     struct EE_ENGINE_API SerializedEntityDescriptor
     {
-        EE_SERIALIZE( m_spatialParentName, m_name, m_attachmentSocketID, m_systems, m_components, m_numSpatialComponents );
+        EE_SERIALIZE( m_name, m_spatialParentName, m_attachmentSocketID, m_systems, m_components, m_numSpatialComponents );
 
     public:
 
@@ -80,9 +84,14 @@ namespace EE::EntityModel
         StringID                                                    m_name;
         StringID                                                    m_spatialParentName;
         StringID                                                    m_attachmentSocketID;
+        int32_t                                                     m_spatialHierarchyDepth = -1;
         TInlineVector<SerializedSystemDescriptor, 5>                m_systems;
         TVector<SerializedComponentDescriptor>                      m_components; // Ordered list of components: spatial components are first, followed by regular components
         int32_t                                                     m_numSpatialComponents = 0;
+
+        #if EE_DEVELOPMENT_TOOLS
+        EntityID                                                    m_transientEntityID; // WARNING: this is not serialized, and it is only stored for undo/redo support in the tools
+        #endif
     };
 }
 
@@ -132,22 +141,6 @@ namespace EE::EntityModel
 
             return m_entityDescriptors.size() == m_entityLookupMap.size();
         }
-
-        // Template Creation
-        //-------------------------------------------------------------------------
-
-        void Reserve( int32_t numEntities );
-
-        inline void AddEntity( SerializedEntityDescriptor const& entityDesc )
-        {
-            EE_ASSERT( entityDesc.IsValid() );
-            m_entityLookupMap.insert( TPair<StringID, int32_t>( entityDesc.m_name, (int32_t) m_entityDescriptors.size() ) );
-            m_entityDescriptors.emplace_back( entityDesc );
-        }
-
-        void GenerateSpatialAttachmentInfo();
-
-        void Clear() { m_entityDescriptors.clear(); m_entityLookupMap.clear(); m_entitySpatialAttachmentInfo.clear(); }
 
         // Entity Access
         //-------------------------------------------------------------------------
@@ -227,10 +220,12 @@ namespace EE::EntityModel
             return HasComponentsOfType( typeRegistry, T::GetStaticTypeID(), allowDerivedTypes );
         }
 
-        // Collection Info
+        // Collection Creation and Info
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+        void Clear();
+        void SetCollectionData( TVector<SerializedEntityDescriptor>&& entityDescriptors );
         void GetAllReferencedResources( TVector<ResourceID>& outReferencedResources ) const;
         #endif
 

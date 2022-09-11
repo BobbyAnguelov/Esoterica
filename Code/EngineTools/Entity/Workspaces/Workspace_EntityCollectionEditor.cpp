@@ -2,6 +2,7 @@
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntitySerialization.h"
+#include "Engine/Entity/EntityWorld.h"
 #include "System/Threading/TaskSystem.h"
 
 //-------------------------------------------------------------------------
@@ -13,7 +14,7 @@ namespace EE::EntityModel
     //-------------------------------------------------------------------------
 
     EntityCollectionEditor::EntityCollectionEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& collectionResourceID )
-        : EntityWorldEditorWorkspace( pToolsContext, pWorld, collectionResourceID )
+        : EntityEditorWorkspace( pToolsContext, pWorld, collectionResourceID )
         , m_collection( collectionResourceID )
     {
         SetDisplayName( collectionResourceID.GetFileNameWithoutExtension() );
@@ -23,7 +24,7 @@ namespace EE::EntityModel
 
     void EntityCollectionEditor::Initialize( UpdateContext const& context )
     {
-        EntityWorldEditorWorkspace::Initialize( context );
+        EntityEditorWorkspace::Initialize( context );
         LoadResource( &m_collection );
         m_collectionInstantiated = false;
     }
@@ -37,27 +38,33 @@ namespace EE::EntityModel
 
         m_collectionInstantiated = false;
 
-        EntityWorldEditorWorkspace::Shutdown( context );
+        EntityEditorWorkspace::Shutdown( context );
     }
 
     //-------------------------------------------------------------------------
 
     bool EntityCollectionEditor::Save()
     {
-        auto pEditedMap = m_context.GetMap();
+        auto pEditedMap = m_pWorld->GetFirstNonPersistentMap();
         if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() || pEditedMap->IsActivated() ) )
         {
             return false;
         }
 
         SerializedEntityMap sem;
-        if ( !Serializer::SerializeEntityMap( m_context.GetTypeRegistry(), pEditedMap, sem ) )
+        if ( !Serializer::SerializeEntityMap( *m_pToolsContext->m_pTypeRegistry, pEditedMap, sem ) )
         {
             return false;
         }
 
         FileSystem::Path const filePath = GetFileSystemPath( m_collection.GetResourcePath() );
-        return WriteSerializedEntityCollectionToFile( m_context.GetTypeRegistry(), sem, filePath );
+        if ( !WriteSerializedEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, sem, filePath ) )
+        {
+            return false;
+        }
+
+        ClearDirty();
+        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -70,17 +77,14 @@ namespace EE::EntityModel
             {
                 // Create transient map for the collection editing
                 auto pMap = m_pWorld->CreateTransientMap();
-                pMap->AddEntityCollection( context.GetSystem<TaskSystem>(), m_context.GetTypeRegistry(), *m_collection.GetPtr() );
+                pMap->AddEntityCollection( context.GetSystem<TaskSystem>(), *m_pToolsContext->m_pTypeRegistry, *m_collection.GetPtr() );
                 
                 // Unload the collection resource
                 m_collectionInstantiated = true;
                 UnloadResource( &m_collection );
-
-                // Set the context to operate on the new map
-                m_context.SetMapToUse( pMap->GetID() );
             }
         }
 
-        EntityWorldEditorWorkspace::Update( context, pWindowClass, isFocused );
+        EntityEditorWorkspace::Update( context, pWindowClass, isFocused );
     }
 }

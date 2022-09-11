@@ -11,7 +11,7 @@ namespace EE::Serialization
 {
     int32_t GetBinarySerializationVersion()
     {
-        return 3;
+        return 4;
     }
 
     //-------------------------------------------------------------------------

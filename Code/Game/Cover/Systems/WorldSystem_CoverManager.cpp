@@ -25,7 +25,7 @@ namespace EE
     {
         if ( auto pCoverComponent = TryCast<CoverVolumeComponent>( pComponent ) )
         {
-            m_coverVolumes.Remove( pCoverComponent );
+            m_coverVolumes.Remove( pCoverComponent->GetID() );
         }
     }
 

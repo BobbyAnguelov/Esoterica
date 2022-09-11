@@ -42,10 +42,15 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         FileSystem::Path const outputDir = FileSystem::GetCurrentProcessPath();
+
         FileSystem::Path const imguiIniPath = outputDir + "EE.imgui.ini";
+        m_iniFilename = imguiIniPath.GetString();
+
         FileSystem::Path const imguiLogPath = outputDir + "EE.imgui_log.txt";
-        io.IniFilename = imguiIniPath.c_str();
-        io.LogFilename = imguiLogPath.c_str();
+        m_logFilename = imguiLogPath.GetString();
+
+        io.IniFilename = m_iniFilename.c_str();
+        io.LogFilename = m_logFilename.c_str();
 
         //-------------------------------------------------------------------------
 

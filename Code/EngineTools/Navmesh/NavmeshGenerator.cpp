@@ -8,33 +8,14 @@
 #include "Engine/Navmesh/NavmeshData.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Physics/Components/Component_PhysicsMesh.h"
-#include "Engine/Entity/EntityAccessor.h"
 #include "Engine/Entity/EntitySerialization.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "System/Resource/ResourceHeader.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Serialization/BinarySerialization.h"
 #include <bfxSystem.h>
-
-//-------------------------------------------------------------------------
-
-namespace EE
-{
-    template<>
-    struct TEntityAccessor<Physics::PhysicsMeshComponent>
-    {
-        TEntityAccessor( Physics::PhysicsMeshComponent* pType )
-            : m_pType( pType )
-        {}
-
-        inline ResourceID const& GetMeshResourceID() { return m_pType->m_pPhysicsMesh.GetResourceID(); }
-
-    protected:
-
-        Physics::PhysicsMeshComponent* m_pType = nullptr;
-    };
-}
 
 //-------------------------------------------------------------------------
 
@@ -149,8 +130,7 @@ namespace EE::Navmesh
             auto pPhysicsComponent = Cast<Physics::PhysicsMeshComponent>( pEntity->GetComponents()[componentIdx] );
             EE_ASSERT( pPhysicsComponent != nullptr );
 
-            TEntityAccessor<Physics::PhysicsMeshComponent> accessor( pPhysicsComponent );
-            ResourceID geometryResourceID = accessor.GetMeshResourceID();
+            ResourceID geometryResourceID = pPhysicsComponent->GetMeshResourceID();
             if ( geometryResourceID.IsValid() )
             {
                 m_collisionPrimitives[geometryResourceID.GetResourcePath()].emplace_back( pPhysicsComponent->GetWorldTransform() );

@@ -26,7 +26,7 @@ namespace EE::Physics
     {
         if ( m_radius <= 0 || m_cylinderPortionHalfHeight <= 0 )
         {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius or half height on Physics Capsule Component: %s (%u). Negative or zero values are not allowed!", GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius or half height on Physics Capsule Component: %s (%u). Negative or zero values are not allowed!", GetNameID().c_str(), GetID() );
             return false;
         }
 

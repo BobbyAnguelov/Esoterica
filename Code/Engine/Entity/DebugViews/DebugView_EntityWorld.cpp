@@ -99,7 +99,7 @@ namespace EE
     {
         EE_ASSERT( pComponent != nullptr );
 
-        ImGui::Text( pComponent->GetName().c_str() );
+        ImGui::Text( pComponent->GetNameID().c_str() );
         ImGui::SameLine();
         ImGui::Text( " - %u - ", pComponent->GetID() );
         ImGui::SameLine();
@@ -185,14 +185,14 @@ namespace EE
 
         bool foundSelectedEntity = false;
 
-        for ( auto& loadedMap : m_pWorld->m_maps )
+        for ( auto& pLoadedMap : m_pWorld->m_maps )
         {
-            if ( loadedMap.IsLoaded() || loadedMap.IsActivated() )
+            if ( pLoadedMap->IsLoaded() || pLoadedMap->IsActivated() )
             {
-                numEntities += (int32_t) loadedMap.GetEntities().size();
-                m_entities.insert( m_entities.end(), loadedMap.GetEntities().begin(), loadedMap.GetEntities().end() );
+                numEntities += (int32_t) pLoadedMap->GetEntities().size();
+                m_entities.insert( m_entities.end(), pLoadedMap->GetEntities().begin(), pLoadedMap->GetEntities().end() );
 
-                for ( Entity* pEntity : loadedMap.GetEntities() )
+                for ( Entity* pEntity : pLoadedMap->GetEntities() )
                 {
                     if ( pEntity == m_pSelectedEntity )
                     {
@@ -241,7 +241,7 @@ namespace EE
             {
                 for ( auto i = 0u; i < m_entities.size(); i++ )
                 {
-                    if ( !filter.PassFilter( m_entities[i]->GetName().c_str() ) )
+                    if ( !filter.PassFilter( m_entities[i]->GetNameID().c_str() ) )
                     {
                         continue;
                     }
@@ -249,12 +249,12 @@ namespace EE
                     if ( m_pSelectedEntity == m_entities[i] )
                     {
                         ImGui::PushStyleColor( ImGuiCol_Text, 0xFF00FFFF );
-                        ImGui::Button( m_entities[i]->GetName().c_str() );
+                        ImGui::Button( m_entities[i]->GetNameID().c_str() );
                         ImGui::PopStyleColor( 1 );
                     }
                     else
                     {
-                        String const buttonLabel = String( String::CtorSprintf(), "%s##%d", m_entities[i]->GetName().c_str(), i );
+                        String const buttonLabel = String( String::CtorSprintf(), "%s##%d", m_entities[i]->GetNameID().c_str(), i );
                         if ( ImGui::Button( buttonLabel.c_str() ) )
                         {
                             m_pSelectedEntity = m_entities[i];
@@ -288,7 +288,7 @@ namespace EE
             {
                 if ( m_pSelectedEntity != nullptr )
                 {
-                    ImGui::Text( "Entity Name: %s", m_pSelectedEntity->GetName().c_str() );
+                    ImGui::Text( "Entity Name: %s", m_pSelectedEntity->GetNameID().c_str() );
                     ImGui::Text( "Entity ID: %u", m_pSelectedEntity->GetID() );
 
                     ImGui::Separator();

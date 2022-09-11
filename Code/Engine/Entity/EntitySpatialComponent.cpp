@@ -33,6 +33,25 @@ namespace EE
         return hierarchyDepth;
     }
 
+    bool SpatialEntityComponent::IsSpatialChildOf( SpatialEntityComponent const* pPotentialParent ) const
+    {
+        EE_ASSERT( pPotentialParent != nullptr );
+        EE_ASSERT( pPotentialParent->m_entityID == m_entityID );
+
+        auto pActualParent = m_pSpatialParent;
+        while ( pActualParent != nullptr )
+        {
+            if ( pActualParent == pPotentialParent )
+            {
+                return true;
+            }
+
+            pActualParent = pActualParent->m_pSpatialParent;
+        }
+
+        return false;
+    }
+
     Transform SpatialEntityComponent::GetAttachmentSocketTransform( StringID socketID ) const
     {
         Transform socketTransform;
@@ -67,7 +86,7 @@ namespace EE
         // Log warning only when we are loaded/initialized
         if ( m_status == EntityComponent::Status::Loaded || m_status == EntityComponent::Status::Initialized )
         {
-            EE_LOG_ENTITY_WARNING( this, "Entity", "Failed to find socket %s on component %s (%u)", socketID.c_str(), GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_WARNING( this, "Entity", "Failed to find socket %s on component %s (%u)", socketID.c_str(), GetNameID().c_str(), GetID() );
         }
 
         // Fallback to the world transform

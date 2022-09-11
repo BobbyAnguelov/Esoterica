@@ -4,6 +4,7 @@
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Profiling.h"
 #include "System/Threading/TaskSystem.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -30,39 +31,6 @@ namespace EE::EntityModel
 
 namespace EE::EntityModel
 {
-    void SerializedEntityCollection::Reserve( int32_t numEntities )
-    {
-        m_entityDescriptors.reserve( numEntities );
-        m_entityLookupMap.reserve( numEntities );
-    }
-
-    void SerializedEntityCollection::GenerateSpatialAttachmentInfo()
-    {
-        m_entitySpatialAttachmentInfo.clear();
-        m_entitySpatialAttachmentInfo.reserve( m_entityDescriptors.size() );
-
-        int32_t const numEntities = (int32_t) m_entityDescriptors.size();
-        for ( int32_t i = 0; i < numEntities; i++ )
-        {
-            auto const& entityDesc = m_entityDescriptors[i];
-            if ( !entityDesc.IsSpatialEntity() || !entityDesc.HasSpatialParent() )
-            {
-                continue;
-            }
-
-            //-------------------------------------------------------------------------
-
-            SpatialAttachmentInfo attachmentInfo;
-            attachmentInfo.m_entityIdx = i;
-            attachmentInfo.m_parentEntityIdx = FindEntityIndex( entityDesc.m_spatialParentName );
-
-            if ( attachmentInfo.m_parentEntityIdx != InvalidIndex )
-            {
-                m_entitySpatialAttachmentInfo.push_back( attachmentInfo );
-            }
-        }
-    }
-
     TVector<SerializedEntityCollection::SearchResult> SerializedEntityCollection::GetComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeID typeID, bool allowDerivedTypes )
     {
         TVector<SearchResult> foundComponents;
@@ -100,6 +68,94 @@ namespace EE::EntityModel
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void SerializedEntityCollection::Clear()
+    {
+        m_entityDescriptors.clear();
+        m_entityLookupMap.clear();
+        m_entitySpatialAttachmentInfo.clear();
+    }
+
+    void SerializedEntityCollection::SetCollectionData( TVector<SerializedEntityDescriptor>&& entityDescriptors )
+    {
+        // Set entity descriptors
+        //-------------------------------------------------------------------------
+
+        m_entityDescriptors.swap( entityDescriptors );
+        int32_t const numEntities = (int32_t) m_entityDescriptors.size();
+
+        // Generate spatial hierarchy depths
+        //-------------------------------------------------------------------------
+
+        for ( int32_t i = 0; i < numEntities; i++ )
+        {
+            auto& entityDesc = m_entityDescriptors[i];
+            EE_ASSERT( entityDesc.IsValid() );
+            entityDesc.m_spatialHierarchyDepth = 0;
+
+            if ( entityDesc.IsSpatialEntity() )
+            {
+                // Calculate the spatial hierarchy depth
+                StringID parentID = entityDesc.m_spatialParentName;
+                while ( parentID.IsValid() )
+                {
+                    entityDesc.m_spatialHierarchyDepth++;
+
+                    int32_t const parentIdx = m_entityLookupMap[parentID];
+                    EE_ASSERT( parentIdx != InvalidIndex );
+                    parentID = m_entityDescriptors[parentIdx].m_spatialParentName;
+                }
+            }
+        }
+
+        // Sort entity desc array by depth
+        //-------------------------------------------------------------------------
+
+        auto SortComparator = [] ( SerializedEntityDescriptor const& entityA, SerializedEntityDescriptor const& entityB )
+        {
+            EE_ASSERT( entityA.m_spatialHierarchyDepth >= 0 && entityA.m_spatialHierarchyDepth >= 0 );
+            return entityA.m_spatialHierarchyDepth < entityB.m_spatialHierarchyDepth;
+        };
+
+        eastl::sort( m_entityDescriptors.begin(), m_entityDescriptors.end(), SortComparator );
+
+        // Create lookup map
+        //-------------------------------------------------------------------------
+
+        m_entityLookupMap.clear();
+        m_entityLookupMap.reserve( numEntities );
+
+        for ( int32_t i = 0; i < numEntities; i++ )
+        {
+            m_entityLookupMap.insert( TPair<StringID, int32_t>( m_entityDescriptors[i].m_name, i ) );
+        }
+
+        // Generate spatial attachment info
+        //-------------------------------------------------------------------------
+
+        m_entitySpatialAttachmentInfo.clear();
+        m_entitySpatialAttachmentInfo.reserve( m_entityDescriptors.size() );
+
+        for ( int32_t i = 0; i < numEntities; i++ )
+        {
+            auto const& entityDesc = m_entityDescriptors[i];
+            if ( !entityDesc.IsSpatialEntity() || !entityDesc.HasSpatialParent() )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            SpatialAttachmentInfo attachmentInfo;
+            attachmentInfo.m_entityIdx = i;
+            attachmentInfo.m_parentEntityIdx = FindEntityIndex( entityDesc.m_spatialParentName );
+
+            if ( attachmentInfo.m_parentEntityIdx != InvalidIndex )
+            {
+                m_entitySpatialAttachmentInfo.push_back( attachmentInfo );
+            }
+        }
+    }
+
     void SerializedEntityCollection::GetAllReferencedResources( TVector<ResourceID>& outReferencedResources ) const
     {
         outReferencedResources.clear();

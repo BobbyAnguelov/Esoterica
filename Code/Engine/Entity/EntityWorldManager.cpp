@@ -258,7 +258,7 @@ namespace EE
                     if ( pFoundEntity != nullptr )
                     {
                         pFoundWorld = pWorld;
-                        if ( request.m_componentID != 0 )
+                        if ( request.m_componentID.IsValid() )
                         {
                             pFoundComponent = pFoundEntity->FindComponent( request.m_componentID );
                         }
@@ -275,11 +275,11 @@ namespace EE
 
                 if ( pFoundComponent == nullptr )
                 {
-                    sourceInfoStr.sprintf( "W: %s, E: %s", pFoundWorld->GetDebugName().c_str(), pFoundEntity->GetName().c_str() );
+                    sourceInfoStr.sprintf( "W: %s, E: %s", pFoundWorld->GetDebugName().c_str(), pFoundEntity->GetNameID().c_str() );
                 }
                 else
                 {
-                    sourceInfoStr.sprintf( "W: %s, E: %s, C: %s", pFoundWorld->GetDebugName().c_str(), pFoundEntity->GetName().c_str(), pFoundComponent->GetName().c_str() );
+                    sourceInfoStr.sprintf( "W: %s, E: %s, C: %s", pFoundWorld->GetDebugName().c_str(), pFoundEntity->GetNameID().c_str(), pFoundComponent->GetNameID().c_str() );
                 }
 
                 // Add Log

@@ -1544,7 +1544,7 @@ namespace EE::Animation
                 if ( pGraphInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
                 {
                     Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                    InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s'", pEntity->GetName().c_str(), pGraphComponent->GetName().c_str() );
+                    InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str() );
                     if ( ImGui::MenuItem( targetName.c_str() ) )
                     {
                         DebugTarget target;
@@ -1564,7 +1564,7 @@ namespace EE::Animation
                     if ( childGraph.m_pInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Path: '%s'", pEntity->GetName().c_str(), pGraphComponent->GetName().c_str(), childGraph.m_pathToInstance.c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Path: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), childGraph.m_pathToInstance.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;
@@ -1585,7 +1585,7 @@ namespace EE::Animation
                     if ( externalGraph.m_pInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Slot: '%s'", pEntity->GetName().c_str(), pGraphComponent->GetName().c_str(), externalGraph.m_slotID.c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Slot: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), externalGraph.m_slotID.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;

@@ -548,7 +548,7 @@ namespace EE::Render
 
             if ( renderTarget.HasPickingRT() )
             {
-                PickingData const pd( pMeshComponent->GetEntityID().m_ID, pMeshComponent->GetID().m_ID );
+                PickingData const pd( pMeshComponent->GetEntityID().m_value, pMeshComponent->GetID().m_value );
                 renderContext.WriteToBuffer( m_pixelShaderPicking.GetConstBuffer( 2 ), &pd, sizeof( PickingData ) );
             }
 
@@ -624,7 +624,7 @@ namespace EE::Render
 
             if ( renderTarget.HasPickingRT() )
             {
-                PickingData const pd( pMeshComponent->GetEntityID().m_ID, pMeshComponent->GetID().m_ID );
+                PickingData const pd( pMeshComponent->GetEntityID().m_value, pMeshComponent->GetID().m_value );
                 renderContext.WriteToBuffer( m_pixelShaderPicking.GetConstBuffer( 2 ), &pd, sizeof( PickingData ) );
             }
 

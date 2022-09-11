@@ -110,7 +110,7 @@ namespace EE::TypeSystem
         // Descriptor Creation
         //-------------------------------------------------------------------------
 
-        void DescribeTypeInstance( TypeRegistry const& typeRegistry, IRegisteredType* pTypeInstance, bool shouldSetPropertyStringValues );
+        void DescribeTypeInstance( TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, bool shouldSetPropertyStringValues );
 
         // Type Creation
         //-------------------------------------------------------------------------

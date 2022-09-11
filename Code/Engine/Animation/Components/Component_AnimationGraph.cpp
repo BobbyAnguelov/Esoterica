@@ -21,7 +21,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         EE_ASSERT( m_pGraphVariation.IsLoaded() );
-        m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_ID );
+        m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_value );
     }
 
     void AnimationGraphComponent::Shutdown()

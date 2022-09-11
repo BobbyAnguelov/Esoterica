@@ -242,7 +242,7 @@ namespace EE::Physics
                 bool isSelectedComponent = pPhysicsComponent == m_pSelectedComponent;
                 selectedComponentValid |= isSelectedComponent;
 
-                componentID.sprintf( "%s##%u", pPhysicsComponent->GetName().c_str(), pPhysicsComponent->GetID().ToUint64() );
+                componentID.sprintf( "%s##%u", pPhysicsComponent->GetNameID().c_str(), pPhysicsComponent->GetID().m_value );
                 if ( ImGui::Selectable( componentID.c_str(), isSelectedComponent ) )
                 {
                     if ( m_pSelectedComponent != nullptr && isSelectedComponent )

@@ -7,16 +7,16 @@ namespace EE::Physics
 {
     bool PhysicsMeshComponent::HasValidPhysicsSetup() const
     {
-        if ( !m_pPhysicsMesh.IsSet() )
+        if ( !m_physicsMesh.IsSet() )
         {
             return false;
         }
 
-        EE_ASSERT( m_pPhysicsMesh.IsLoaded() );
+        EE_ASSERT( m_physicsMesh.IsLoaded() );
 
-        if ( !m_pPhysicsMesh->IsValid() )
+        if ( !m_physicsMesh->IsValid() )
         {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid collision mesh on Physics Mesh Component: %s (%u)", GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid collision mesh on Physics Mesh Component: %s (%u)", GetNameID().c_str(), GetID() );
             return false;
         }
 
@@ -25,11 +25,11 @@ namespace EE::Physics
 
     TInlineVector<StringID, 4> PhysicsMeshComponent::GetPhysicsMaterialIDs() const
     {
-        TInlineVector<StringID, 4> materials = m_pPhysicsMesh->GetPhysicsMaterials();
+        TInlineVector<StringID, 4> materials = m_physicsMesh->GetPhysicsMaterials();
 
         //-------------------------------------------------------------------------
 
-        uint16_t const numMaterialsNeeded = m_pPhysicsMesh->GetNumMaterialsNeeded();
+        uint16_t const numMaterialsNeeded = m_physicsMesh->GetNumMaterialsNeeded();
         for ( int32_t i = 0; i < numMaterialsNeeded; i++ )
         {
             if ( i < m_materialOverrideIDs.size() && m_materialOverrideIDs[i].IsValid() )
@@ -45,6 +45,6 @@ namespace EE::Physics
     {
         PhysicsShapeComponent::Initialize();
 
-        EE_ASSERT( !m_pPhysicsMesh.IsSet() || m_pPhysicsMesh.IsLoaded() );
+        EE_ASSERT( !m_physicsMesh.IsSet() || m_physicsMesh.IsLoaded() );
     }
 }

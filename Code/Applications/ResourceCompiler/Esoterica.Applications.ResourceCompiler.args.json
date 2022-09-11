@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "59d1d86b-3a8d-4322-ac4e-aeab12b03aa1",
+      "Command": "-compile data://maps/br_minimal.map"
+    },
+    {
       "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
       "Command": "-shipping"
     },

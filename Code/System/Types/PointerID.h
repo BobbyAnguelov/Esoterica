@@ -10,7 +10,7 @@ namespace EE
         EE_SERIALIZE( m_ID );
 
         PointerID() = default;
-        PointerID( void const* pV ) : m_ID( reinterpret_cast<uint64_t>( pV ) ) {}
+        explicit PointerID( void const* pV ) : m_ID( reinterpret_cast<uint64_t>( pV ) ) {}
         explicit PointerID( uint64_t v ) : m_ID( v ) {}
 
         inline bool IsValid() const { return m_ID != 0; }
@@ -23,5 +23,16 @@ namespace EE
     public:
 
         uint64_t m_ID = 0;
+    };
+}
+
+//-------------------------------------------------------------------------
+
+namespace eastl
+{
+    template <>
+    struct hash<EE::PointerID>
+    {
+        EE_FORCE_INLINE eastl_size_t operator()( EE::PointerID const& t ) const { return t.m_ID; }
     };
 }

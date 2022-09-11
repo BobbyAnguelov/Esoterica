@@ -16,13 +16,13 @@ namespace EE::Physics
     {
         if ( m_radius <= 0.0f )
         {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius on Physics Sphere Component: %s (%u)", GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius on Physics Sphere Component: %s (%u)", GetNameID().c_str(), GetID() );
             return false;
         }
 
         if ( !m_materialID.IsValid() )
         {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid physical material setup on Physics Component: %s (%u)", GetName().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid physical material setup on Physics Component: %s (%u)", GetNameID().c_str(), GetID() );
             return false;
         }
 

@@ -32,6 +32,7 @@ namespace EE::ImGuiX
     private:
 
         String                  m_iniFilename;
+        String                  m_logFilename;
     };
 }
 #endif

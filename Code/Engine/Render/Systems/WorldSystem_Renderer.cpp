@@ -280,7 +280,7 @@ namespace EE::Render
         {
             if ( ctx.IsGameWorld() )
             {
-                EE_LOG_ENTITY_ERROR( pMeshComponent, "Render", "Someone moved a mesh with static mobility: %s with entity ID %u. This should not be done!", pMeshComponent->GetName().c_str(), pMeshComponent->GetEntityID().m_ID );
+                EE_LOG_ENTITY_ERROR( pMeshComponent, "Render", "Someone moved a mesh with static mobility: %s with entity ID %u. This should not be done!", pMeshComponent->GetNameID().c_str(), pMeshComponent->GetEntityID().m_value );
             }
 
             m_staticMobilityTree.RemoveBox( pMeshComponent );

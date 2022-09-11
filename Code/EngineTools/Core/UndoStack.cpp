@@ -10,6 +10,12 @@ namespace EE
         ClearUndoStack();
     }
 
+    void UndoStack::Reset()
+    {
+        ClearRedoStack();
+        ClearUndoStack();
+    }
+
     //-------------------------------------------------------------------------
 
     IUndoableAction const* UndoStack::Undo()
@@ -20,9 +26,17 @@ namespace EE
         IUndoableAction* pAction = m_recordedActions.back();
         m_recordedActions.pop_back();
 
+        // Notify listeners
+        m_preUndoRedoEvent.Execute( Operation::Redo, pAction );
+
         // Undo the action and place it on the undone stack
         pAction->Undo();
         m_undoneActions.emplace_back( pAction );
+
+        // Notify listeners
+        m_postUndoRedoEvent.Execute( Operation::Undo, pAction );
+        m_actionPerformed.Execute();
+
         return pAction;
     }
 
@@ -34,9 +48,17 @@ namespace EE
         IUndoableAction* pAction = m_undoneActions.back();
         m_undoneActions.pop_back();
 
+        // Notify listeners
+        m_preUndoRedoEvent.Execute( Operation::Redo, pAction );
+
         // Undo the action and place it on the undone stack
         pAction->Redo();
         m_recordedActions.emplace_back( pAction );
+
+        // Notify listeners
+        m_postUndoRedoEvent.Execute( Operation::Redo, pAction );
+        m_actionPerformed.Execute();
+
         return pAction;
     }
 
@@ -47,6 +69,8 @@ namespace EE
         EE_ASSERT( pAction != nullptr );
         m_recordedActions.emplace_back( pAction );
         ClearRedoStack();
+
+        m_actionPerformed.Execute();
     }
 
     void UndoStack::ClearUndoStack()

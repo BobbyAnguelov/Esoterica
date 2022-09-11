@@ -159,7 +159,7 @@ namespace EE::TypeSystem
         DescribeTypeInstance( typeRegistry, pTypeInstance, shouldSetPropertyStringValues );
     }
 
-    void TypeDescriptor::DescribeTypeInstance( TypeRegistry const& typeRegistry, IRegisteredType* pTypeInstance, bool shouldSetPropertyStringValues )
+    void TypeDescriptor::DescribeTypeInstance( TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, bool shouldSetPropertyStringValues )
     {
         // Reset descriptor
         m_typeID = pTypeInstance->GetTypeID();

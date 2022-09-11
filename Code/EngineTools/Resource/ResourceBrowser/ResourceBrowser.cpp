@@ -52,6 +52,26 @@ namespace EE
         virtual bool IsActivatable() const override { return false; }
         virtual bool IsLeaf() const override { return IsFile(); }
 
+        virtual String GetDisplayName() const override
+        {
+            String displayName;
+
+            if ( IsDirectory() )
+            {
+                displayName.sprintf( EE_ICON_FOLDER" %s", GetNameID().c_str() );
+            }
+            else if( IsResourceFile() )
+            {
+                displayName.sprintf( EE_ICON_FILE_OUTLINE" %s", GetNameID().c_str() );
+            }
+            else if ( IsRawFile() )
+            {
+                displayName.sprintf( EE_ICON_FILE_QUESTION_OUTLINE" %s", GetNameID().c_str() );
+            }
+
+            return displayName;
+        }
+
         // File Info
         //-------------------------------------------------------------------------
 
@@ -60,8 +80,8 @@ namespace EE
         inline FileSystem::Path const& GetFilePath() const { return m_path; }
         inline ResourcePath const& GetResourcePath() const { return m_resourcePath; }
 
-        virtual bool IsDragAndDropSource() { return IsFile() && IsResourceFile(); }
-        virtual void SetDragAndDropPayloadData() const { ImGui::SetDragDropPayload( "ResourceFile", (void*) m_resourcePath.c_str(), m_resourcePath.GetString().length() ); }
+        virtual bool IsDragAndDropSource() const override { return IsFile() && IsResourceFile(); }
+        virtual void SetDragAndDropPayloadData() const override { ImGui::SetDragDropPayload( "ResourceFile", (void*) m_resourcePath.c_str(), m_resourcePath.GetString().length() ); }
 
         // Resource Info
         //-------------------------------------------------------------------------
@@ -158,6 +178,8 @@ namespace EE
         }
         ImGui::End();
 
+        DrawDialogs();
+
         //-------------------------------------------------------------------------
 
         if ( m_pResourceDescriptorCreator != nullptr )
@@ -181,7 +203,7 @@ namespace EE
         return isOpen;
     }
 
-    void ResourceBrowser::RebuildTreeInternal()
+    void ResourceBrowser::RebuildTreeUserFunction()
     {
         if ( !FileSystem::GetDirectoryContents( m_toolsContext.GetRawResourceDirectory(), m_foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand) )
         {
@@ -519,7 +541,7 @@ namespace EE
         }
     }
 
-    void ResourceBrowser::DrawAdditionalUI()
+    void ResourceBrowser::DrawDialogs()
     {
         if ( m_showDeleteConfirmationDialog )
         {

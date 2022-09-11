@@ -11,7 +11,7 @@
         <Variable Name="bucket_item" InitialValue="buckets[i]"/>
         <Loop>
           <If Condition="bucket_item == 0">
-            <Item Name="Value">"INVALID_STRING_ID"</Item>
+            <Item Name="Value">"StringID Not Set"</Item>
             <Break />
           </If>
           <If Condition="bucket_item->mValue.first == m_ID">
