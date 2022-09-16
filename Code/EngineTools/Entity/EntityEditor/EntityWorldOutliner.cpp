@@ -118,7 +118,25 @@ namespace EE::EntityModel
 
             m_entityDeletionRequests.clear();
             ClearSelection();
-            m_requestTreeRebuild = true;
+        }
+
+        if ( !m_spatialParentingRequests.empty() )
+        {
+            m_pUndoStack->BeginCompoundAction();
+            for ( auto const& request : m_spatialParentingRequests )
+            {
+                if ( request.second == nullptr )
+                {
+                    ClearEntityParent( request.first );
+                }
+                else
+                {
+                    SetEntityParent( request.first, request.second );
+                }
+            }
+            m_pUndoStack->EndCompoundAction();
+
+            m_spatialParentingRequests.clear();
         }
 
         // Update Tree
@@ -131,31 +149,12 @@ namespace EE::EntityModel
         else
         {
             EntityMap* pMap = GetEditedMap();
-            if ( m_requestTreeRebuild && pMap != nullptr && pMap->IsActivated() )
+            if ( m_requestTreeRebuild && pMap != nullptr && pMap->IsLoaded() )
             {
                 // The rebuild has to come first so that we can return the correct selected entities once the tree rebuild and sends out the "selection changed event"
                 m_requestTreeRebuild = false;
                 RebuildTree();
             }
-        }
-
-        // Process selection requests
-        //-------------------------------------------------------------------------
-
-        if ( !m_requestTreeRebuild && !m_deferredSelectionRequests.empty() )
-        {
-            TVector<TreeListViewItem*> newSelection;
-            for ( auto pEntity : m_deferredSelectionRequests )
-            {
-                auto pItem = FindItem( pEntity->GetID().m_value );
-                if ( pItem != nullptr )
-                {
-                    newSelection.emplace_back( pItem );
-                }
-            }
-
-            TreeListView::SetSelection( newSelection );
-            m_deferredSelectionRequests.clear();
         }
 
         // Draw Tree
@@ -176,7 +175,7 @@ namespace EE::EntityModel
             else // Draw outliner
             {
                 EntityMap* pMap = GetEditedMap();
-                if ( !pMap->IsActivated() )
+                if ( !pMap->IsLoaded() )
                 {
                     ImGui::Indent();
                     ImGuiX::DrawSpinner( "LoadIndicator" );
@@ -193,6 +192,8 @@ namespace EE::EntityModel
                             CreateEntity( pMap->GetID() );
                         }
                     }
+
+                    //-------------------------------------------------------------------------
 
                     TreeListView::Draw();
                 }
@@ -321,6 +322,8 @@ namespace EE::EntityModel
             {
                 CreateEntityTreeItem( pEntityItem, pChildEntity );
             }
+
+            pEntityItem->SetExpanded( true, true );
         }
     }
 
@@ -374,7 +377,8 @@ namespace EE::EntityModel
                     return;
                 }
 
-                SetEntityParent( pSourceEntityItem->m_pEntity, pTargetEntityItem->m_pEntity );
+                // Enqueue request
+                m_spatialParentingRequests.emplace_back( TPair<Entity*, Entity*>( pSourceEntityItem->m_pEntity, pTargetEntityItem->m_pEntity ) );
             }
         }
     }
@@ -395,7 +399,7 @@ namespace EE::EntityModel
             {
                 if ( ImGui::MenuItem( EE_ICON_CLOSE" Detach From Parent" ) )
                 {
-                    ClearEntityParent( pEntityItem->m_pEntity );
+                    m_spatialParentingRequests.emplace_back( TPair<Entity*, Entity*>( pEntityItem->m_pEntity, nullptr ) );
                 }
             }
         }
@@ -468,10 +472,21 @@ namespace EE::EntityModel
         {
             TreeListView::SetSelection( pItem );
         }
-        else // Defer selection change
+    }
+
+    void EntityWorldOutliner::SetSelection( TVector<Entity*> const& entities )
+    {
+        TVector<TreeListViewItem*> itemsToSelect;
+        for ( auto pEntity : entities )
         {
-            m_deferredSelectionRequests.emplace_back( pEntity );
+            TreeListViewItem* pItem = FindItem( pEntity->GetID().m_value );
+            if ( pItem != nullptr )
+            {
+                itemsToSelect.emplace_back( pItem );
+            }
         }
+
+        TreeListView::SetSelection( itemsToSelect );
     }
 
     void EntityWorldOutliner::AddToSelection( Entity* pEntity )
@@ -481,11 +496,6 @@ namespace EE::EntityModel
         if ( pItem != nullptr )
         {
             TreeListView::AddToSelection( pItem );
-        }
-        else // Defer selection change
-        {
-            m_deferredSelectionRequests = GetSelectedEntities();
-            m_deferredSelectionRequests.emplace_back( pEntity );
         }
     }
 
@@ -505,8 +515,10 @@ namespace EE::EntityModel
 
     void EntityWorldOutliner::CreateEntity( EntityMapID const& mapID )
     {
+        EE_ASSERT( !IsCurrentlyDrawingTree() ); // This function rebuilds the tree so it cannot be called during tree drawing
+
         auto pMap = m_pWorld->GetMap( mapID );
-        EE_ASSERT( pMap != nullptr && pMap->IsActivated() );
+        EE_ASSERT( pMap != nullptr && pMap->IsLoaded() );
 
         StringID const uniqueNameID = pMap->GenerateUniqueEntityNameID( "Entity" );
         Entity* pEntity = EE::New<Entity>( StringID( uniqueNameID ) );
@@ -520,42 +532,108 @@ namespace EE::EntityModel
         m_pUndoStack->RegisterAction( pActiveUndoableAction );
 
         // Update selection
-        m_deferredSelectionRequests.emplace_back( pEntity );
-        m_requestTreeRebuild = true;
+        RebuildTree( false );
+        SetSelection( pEntity );
     }
 
     void EntityWorldOutliner::DuplicateSelectedEntities()
     {
+        EE_ASSERT( !IsCurrentlyDrawingTree() ); // This function rebuilds the tree so it cannot be called during tree drawing
+
         if ( GetSelection().empty() )
         {
             return;
         }
 
-        // Duplicate the entities and add them to the map
+        // Serialized all selected entities
         //-------------------------------------------------------------------------
 
         auto const selectedEntities = GetSelectedEntities();
-        TVector<Entity*> duplicatedEntities;
+        TVector<TPair<EntityMap*, SerializedEntityDescriptor>> entityDescs;
         for ( auto pEntity : selectedEntities )
         {
-            auto pMap = GetMapForEntity( pEntity );
+            auto& serializedEntity = entityDescs.emplace_back();
+            serializedEntity.first = GetMapForEntity( pEntity );
+            EE_ASSERT( serializedEntity.first != nullptr );
 
-            SerializedEntityDescriptor entityDesc;
-            if ( Serializer::SerializeEntity( *m_pToolsContext->m_pTypeRegistry, pEntity, entityDesc ) )
+            if ( Serializer::SerializeEntity( *m_pToolsContext->m_pTypeRegistry, pEntity, serializedEntity.second ) )
             {
-                auto pDuplicatedEntity = Serializer::CreateEntity( *m_pToolsContext->m_pTypeRegistry, entityDesc );
-                duplicatedEntities.emplace_back( pDuplicatedEntity );
-                pMap->AddEntity( pDuplicatedEntity );
+                // Clear the serialized ID so that we will generate a new ID for the duplicated entities
+                serializedEntity.second.ClearAllSerializedIDs();
+            }
+            else
+            {
+                entityDescs.pop_back();
             }
         }
 
-        // Update selection
+        // Duplicate the entities and add them to the map
         //-------------------------------------------------------------------------
 
-        for ( auto pDuplicatedEntity : duplicatedEntities )
+        bool hasSpatialEntities = false;
+        THashMap<StringID, StringID> nameRemap;
+        TVector<Entity*> duplicatedEntities;
+        int32_t const numEntitiesToDuplicate = (int32_t) entityDescs.size();
+        for ( int32_t i = 0; i < numEntitiesToDuplicate; i++ )
         {
-            m_deferredSelectionRequests.emplace_back( pDuplicatedEntity );
+            // Create the duplicated entity
+            auto pDuplicatedEntity = Serializer::CreateEntity( *m_pToolsContext->m_pTypeRegistry, entityDescs[i].second );
+            duplicatedEntities.emplace_back( pDuplicatedEntity );
+
+            // Add to map
+            auto pMap = entityDescs[i].first;
+            pMap->AddEntity( pDuplicatedEntity );
+            hasSpatialEntities = hasSpatialEntities || pDuplicatedEntity->IsSpatialEntity();
+
+            // Add to remap table
+            nameRemap.insert( TPair<StringID, StringID>( entityDescs[i].second.m_name, pDuplicatedEntity->GetNameID() ) );
         }
+
+        // Resolve entity names for parenting
+        auto ResolveEntityName = [&nameRemap] ( StringID name )
+        {
+            StringID resolvedName = name;
+            auto iter = nameRemap.find( name );
+            if ( iter != nameRemap.end() )
+            {
+                resolvedName = iter->second;
+            }
+
+            return resolvedName;
+        };
+
+        // Restore spatial parenting
+        if ( hasSpatialEntities )
+        {
+            for ( int32_t i = 0; i < numEntitiesToDuplicate; i++ )
+            {
+                if ( !duplicatedEntities[i]->IsSpatialEntity() )
+                {
+                    continue;
+                }
+
+                if ( entityDescs[i].second.HasSpatialParent() )
+                {
+                    auto pMap = entityDescs[i].first;
+
+                    StringID const newParentID = ResolveEntityName( entityDescs[i].second.m_spatialParentName );
+                    auto pParentEntity = pMap->FindEntityByName( newParentID );
+                    EE_ASSERT( pParentEntity != nullptr );
+
+                    StringID const newChildID = ResolveEntityName( entityDescs[i].second.m_name );
+                    auto pChildEntity = pMap->FindEntityByName( newChildID );
+                    EE_ASSERT( pChildEntity != nullptr );
+
+                    pChildEntity->SetSpatialParent( pParentEntity, entityDescs[i].second.m_attachmentSocketID, Entity::SpatialAttachmentRule::KeepLocalTranform );
+                }
+            }
+        }
+
+        // Refresh Tree and Selection
+        //-------------------------------------------------------------------------
+
+        RebuildTree( false );
+        SetSelection( duplicatedEntities );
     }
 
     void EntityWorldOutliner::DestroyEntity( Entity* pEntity )
@@ -582,6 +660,8 @@ namespace EE::EntityModel
 
     void EntityWorldOutliner::RenameEntity( Entity* pEntity, StringID newDesiredName )
     {
+        EE_ASSERT( !IsCurrentlyDrawingTree() ); // This function rebuilds the tree so it cannot be called during tree drawing
+
         auto pMap = GetMapForEntity( pEntity );
         auto pActiveUndoableAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
         pActiveUndoableAction->RecordBeginEdit( { pEntity } );
@@ -591,13 +671,13 @@ namespace EE::EntityModel
         pActiveUndoableAction->RecordEndEdit();
         m_pUndoStack->RegisterAction( pActiveUndoableAction );
 
-        m_deferredSelectionRequests.emplace_back( pEntity );
-        m_requestTreeRebuild = true;
+        RebuildTree( false );
+        SetSelection( pEntity );
     }
 
     void EntityWorldOutliner::SetEntityParent( Entity* pEntity, Entity* pNewParent )
     {
-        EE_ASSERT( pEntity != nullptr );
+        EE_ASSERT( !IsCurrentlyDrawingTree() ); // This function rebuilds the tree so it cannot be called during tree drawing
 
         //-------------------------------------------------------------------------
 
@@ -605,21 +685,19 @@ namespace EE::EntityModel
         auto pActiveUndoableAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
         pActiveUndoableAction->RecordBeginEdit( { pEntity } );
 
-        //-------------------------------------------------------------------------
-
         pEntity->SetSpatialParent( pNewParent, StringID() );
-
-        //-------------------------------------------------------------------------
 
         pActiveUndoableAction->RecordEndEdit();
         m_pUndoStack->RegisterAction( pActiveUndoableAction );
 
-        m_deferredSelectionRequests.emplace_back( pEntity );
-        m_requestTreeRebuild = true;
+        RebuildTree( false );
+        SetSelection( pEntity );
     }
 
     void EntityWorldOutliner::ClearEntityParent( Entity* pEntity )
     {
+        EE_ASSERT( !IsCurrentlyDrawingTree() ); // This function rebuilds the tree so it cannot be called during tree drawing
+
         EE_ASSERT( pEntity != nullptr );
         EE_ASSERT( pEntity->HasSpatialParent() );
 
@@ -638,7 +716,7 @@ namespace EE::EntityModel
         pActiveUndoableAction->RecordEndEdit();
         m_pUndoStack->RegisterAction( pActiveUndoableAction );
 
-        m_deferredSelectionRequests.emplace_back( pEntity );
-        m_requestTreeRebuild = true;
+        RebuildTree( false );
+        SetSelection( pEntity );
     }
 }

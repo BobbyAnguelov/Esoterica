@@ -106,6 +106,14 @@ namespace EE::EntityModel
             }
         }
 
+        // Ensure that all world transforms are up to date!
+        //-------------------------------------------------------------------------
+
+        if ( pEntity->IsSpatialEntity() )
+        {
+            pEntity->GetRootSpatialComponent()->CalculateWorldTransform( false );
+        }
+
         // Create entity systems
         //-------------------------------------------------------------------------
 
@@ -203,7 +211,7 @@ namespace EE::EntityModel
                 Entity* pParentEntity = createdEntities[entityAttachmentInfo.m_parentEntityIdx];
                 EE_ASSERT( pParentEntity->IsSpatialEntity() );
 
-                pEntity->SetSpatialParent( pParentEntity, entityDesc.m_attachmentSocketID );
+                pEntity->SetSpatialParent( pParentEntity, entityDesc.m_attachmentSocketID, Entity::SpatialAttachmentRule::KeepLocalTranform );
             }
         }
 
@@ -331,7 +339,7 @@ namespace EE::EntityModel
 
     bool Serializer::SerializeEntityMap( TypeSystem::TypeRegistry const& typeRegistry, EntityMap const* pMap, SerializedEntityCollection& outCollection )
     {
-        EE_ASSERT( pMap->IsLoaded() || pMap->IsActivated() );
+        EE_ASSERT( pMap->IsLoaded() );
         EE_ASSERT( pMap->m_entitiesToLoad.empty() && pMap->m_entitiesToRemove.empty() );
         EE_ASSERT( pMap->m_entitiesToHotReload.empty() );
 

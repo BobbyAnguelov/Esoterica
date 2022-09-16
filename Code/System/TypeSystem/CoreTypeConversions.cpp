@@ -445,25 +445,23 @@ namespace EE::TypeSystem::Conversion
 
                 case CoreTypeID::Matrix:
                 {
-                    float floatData[9];
-                    StringToFloatArray( str, 9, floatData );
+                    float floatData[7];
+                    StringToFloatArray( str, 7, floatData );
 
                     EulerAngles const rotation( floatData[0], floatData[1], floatData[2] );
                     Vector const translation = Vector( floatData[3], floatData[4], floatData[5] );
-                    Vector const scale = Vector( floatData[6], floatData[7], floatData[8] );
-                    *reinterpret_cast<Matrix*>( pValue ) = Matrix( Quaternion( rotation ), translation, scale );
+                    *reinterpret_cast<Matrix*>( pValue ) = Matrix( Quaternion( rotation ), translation, floatData[6] );
                 }
                 break;
 
                 case CoreTypeID::Transform:
                 {
-                    float floatData[9];
-                    StringToFloatArray( str, 9, floatData );
+                    float floatData[7];
+                    StringToFloatArray( str, 7, floatData );
 
                     EulerAngles const rotation( floatData[0], floatData[1], floatData[2] );
                     Vector const translation( floatData[3], floatData[4], floatData[5] );
-                    Vector const scale( floatData[6], floatData[7], floatData[8] );
-                    *reinterpret_cast<Transform*>( pValue ) = Transform( Quaternion( rotation ), translation, scale );
+                    *reinterpret_cast<Transform*>( pValue ) = Transform( Quaternion( rotation ), translation, floatData[6] );
                 }
                 break;
 
@@ -841,16 +839,16 @@ namespace EE::TypeSystem::Conversion
                     {
                         auto eulerAngles = value.ToEulerAngles();
 
-                        float floatData[9];
+                        float floatData[7];
                         (Float3&) floatData = Float3( (float) eulerAngles.m_x.ToDegrees(), (float) eulerAngles.m_y.ToDegrees(), (float) eulerAngles.m_z.ToDegrees() );
                         (Float3&) floatData[3] = value.GetTranslation().ToFloat3();
-                        (Float3&) floatData[6] = value.GetScale().ToFloat3();
+                        floatData[6] = value.GetScale();
 
-                        FloatArrayToString( floatData, 9, strValue );
+                        FloatArrayToString( floatData, 7, strValue );
                     }
                     else
                     {
-                        strValue = "0,0,0,0,0,0,0,0,0";
+                        strValue = "0,0,0,0,0,0,0";
                     }
                 }
                 break;
@@ -860,7 +858,7 @@ namespace EE::TypeSystem::Conversion
                     Transform const& transform = *reinterpret_cast<Transform const*>( pValue );
                     auto eulerAngles = transform.GetRotation().ToEulerAngles();
 
-                    float floatData[9];
+                    float floatData[7];
 
                     floatData[0] = (float) eulerAngles.m_x.ToDegrees();
                     floatData[1] = (float) eulerAngles.m_y.ToDegrees();
@@ -870,13 +868,11 @@ namespace EE::TypeSystem::Conversion
                     floatData[4] = transform.GetTranslation().m_y;
                     floatData[5] = transform.GetTranslation().m_z;
 
-                    floatData[6] = transform.GetScale().m_x;
-                    floatData[7] = transform.GetScale().m_y;
-                    floatData[8] = transform.GetScale().m_z;
+                    floatData[6] = transform.GetScale();
 
                     //-------------------------------------------------------------------------
 
-                    FloatArrayToString( floatData, 9, strValue );
+                    FloatArrayToString( floatData, 7, strValue );
                 }
                 break;
 

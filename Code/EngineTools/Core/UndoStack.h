@@ -26,6 +26,40 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
+    class CompoundStackAction final : public IUndoableAction
+    {
+        friend class UndoStack;
+
+        EE_REGISTER_TYPE( CompoundStackAction );
+
+    public:
+
+        virtual ~CompoundStackAction()
+        {
+            for ( auto& pAction : m_actions )
+            {
+                EE::Delete( pAction );
+            }
+        }
+
+    private:
+
+        inline void AddToStack( IUndoableAction* pAction )
+        {
+            EE_ASSERT( pAction != nullptr );
+            m_actions.emplace_back( pAction );
+        }
+
+        virtual void Undo() override { EE_UNREACHABLE_CODE(); }
+        virtual void Redo() override { EE_UNREACHABLE_CODE(); }
+
+    private:
+
+        TVector<IUndoableAction*> m_actions;
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINETOOLS_API UndoStack
     {
     public:
@@ -60,6 +94,12 @@ namespace EE
         // Register a new action, this transfers ownership of the action memory to the stack
         void RegisterAction( IUndoableAction* pAction );
 
+        // Begin a compound action stack, all subsequent registered undoable actions will be grouped together until you end the compound action
+        void BeginCompoundAction();
+
+        // Ends a compound action stack
+        void EndCompoundAction();
+
         //-------------------------------------------------------------------------
 
         // Fired before we execute an undo/redo action
@@ -73,6 +113,9 @@ namespace EE
 
     private:
 
+        void ExecuteRedo( IUndoableAction* pAction ) const;
+        void ExecuteUndo( IUndoableAction* pAction ) const;
+
         void ClearUndoStack();
         void ClearRedoStack();
 
@@ -83,5 +126,6 @@ namespace EE
         TEvent<UndoStack::Operation, IUndoableAction const*>        m_preUndoRedoEvent;
         TEvent<UndoStack::Operation, IUndoableAction const*>        m_postUndoRedoEvent;
         TEvent<>                                                    m_actionPerformed;
+        CompoundStackAction*                                        m_pCompoundStackAction = nullptr;
     };
 }

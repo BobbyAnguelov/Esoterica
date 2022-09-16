@@ -67,9 +67,7 @@ namespace EE::RawAssets
             track.m_translationValueRangeX = FloatRange();
             track.m_translationValueRangeY = FloatRange();
             track.m_translationValueRangeZ = FloatRange();
-            track.m_scaleValueRangeX = FloatRange();
-            track.m_scaleValueRangeY = FloatRange();
-            track.m_scaleValueRangeZ = FloatRange();
+            track.m_scaleValueRange = FloatRange();
 
             for ( auto const& transform : track.m_localTransforms )
             {
@@ -78,10 +76,7 @@ namespace EE::RawAssets
                 track.m_translationValueRangeY.GrowRange( translation.m_y );
                 track.m_translationValueRangeZ.GrowRange( translation.m_z );
 
-                Vector const& scale = transform.GetScale();
-                track.m_scaleValueRangeX.GrowRange( scale.m_x );
-                track.m_scaleValueRangeY.GrowRange( scale.m_y );
-                track.m_scaleValueRangeZ.GrowRange( scale.m_z );
+                track.m_scaleValueRange.GrowRange( transform.GetScale() );
             }
         }
     }
@@ -105,7 +100,7 @@ namespace EE::RawAssets
 
                 for ( auto f = 0u; f < m_numFrames; f++ )
                 {
-                    trackData.m_localTransforms[f] = trackData.m_globalTransforms[f] * parentTrackData.m_globalTransforms[f].GetInverse();
+                    trackData.m_localTransforms[f] = Transform::Delta( parentTrackData.m_globalTransforms[f], trackData.m_globalTransforms[f] );
                 }
             }
         }

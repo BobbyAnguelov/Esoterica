@@ -152,7 +152,7 @@ namespace EE
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
 
         // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
-        void InternalSharedUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
+        void CommonUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
 
         // Preview World
         //-------------------------------------------------------------------------

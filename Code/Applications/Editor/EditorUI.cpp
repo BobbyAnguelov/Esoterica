@@ -534,7 +534,7 @@ namespace EE
 
         if ( pWorkspace->IsDirty() )
         {
-            windowFlags |= ImGuiWindowFlags_UnsavedDocument;
+            //windowFlags |= ImGuiWindowFlags_UnsavedDocument;
         }
 
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
@@ -600,7 +600,7 @@ namespace EE
                 enableCameraUpdate = pWorkspace->DrawViewport( context, viewportInfo, &workspaceWindowClass );
             }
 
-            pWorkspace->InternalSharedUpdate( context, &workspaceWindowClass, isFocused );
+            pWorkspace->CommonUpdate( context, &workspaceWindowClass, isFocused );
             pWorkspace->Update( context, &workspaceWindowClass, isFocused );
         }
         else // If the workspace window is hidden suspend world updates

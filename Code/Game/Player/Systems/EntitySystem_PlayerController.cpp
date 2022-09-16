@@ -16,7 +16,7 @@
 
 namespace EE::Player
 {
-    void PlayerController::Activate()
+    void PlayerController::PostComponentRegister()
     {
         if ( m_actionContext.m_pCharacterComponent != nullptr )
         {

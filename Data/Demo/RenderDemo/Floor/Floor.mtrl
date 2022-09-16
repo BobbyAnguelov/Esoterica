@@ -1,0 +1,12 @@
+{
+    "TypeID": "EE::Render::MaterialResourceDescriptor",
+    "m_albedoTexture": "data://Demo/RenderDemo/floor/floor.txtr",
+    "m_metalnessTexture": "",
+    "m_roughnessTexture": "",
+    "m_normalMapTexture": "",
+    "m_aoTexture": "",
+    "m_albedo": "FFFFFFFF",
+    "m_metalness": "0.000000",
+    "m_roughness": "0.500000",
+    "m_normalScaler": "1.000000"
+}

@@ -42,7 +42,8 @@ namespace EE::EntityModel
         // Events
         //-------------------------------------------------------------------------
 
-        void OnEntitySelectionChanged( TreeListView::ChangeReason reason );
+        void OnOutlinerSelectionChanged( TreeListView::ChangeReason reason );
+        void OnStructureEditorSelectionChanged( IRegisteredType* pTypeToEdit );
         void OnActionPerformed();
         void UpdateSelectionSpatialInfo();
 
@@ -57,11 +58,12 @@ namespace EE::EntityModel
 
         // Outliner
         EntityWorldOutliner                             m_outliner;
-        EventBindingID                                  m_selectionUpdateEventBindingID;
+        EventBindingID                                  m_outlinerSelectionUpdateEventBindingID;
         EventBindingID                                  m_actionPerformEventBindingID;
 
         // Structure editor
         EntityStructureEditor                           m_entityStructureEditor;
+        EventBindingID                                  m_structureEditorSelectionUpdateEventBindingID;
 
         // Property Grid
         EntityWorldPropertyGrid                         m_propertyGrid;

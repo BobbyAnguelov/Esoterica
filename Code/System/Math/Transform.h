@@ -1,11 +1,17 @@
 #pragma once
 
 #include "Matrix.h"
+#include "System/Log.h"
 
 //-------------------------------------------------------------------------
+// VQS Transform
+//-------------------------------------------------------------------------
+// Does NOT support non-uniform scale
+// We've kept translation and scale separate for performance reasons (this can be reevaluated later)
 
 namespace EE
 {
+
     class EE_SYSTEM_API Transform
     {
         EE_SERIALIZE( m_rotation, m_translation, m_scale );
@@ -14,17 +20,20 @@ namespace EE
 
         static Transform const Identity;
 
-        inline static Transform Lerp( Transform const& from, Transform const& to, float t );
-        inline static Transform Slerp( Transform const& from, Transform const& to, float t );
-        inline static Transform Delta( Transform const& from, Transform const& to );
-        inline static Transform DeltaNoScale( Transform const& from, Transform const& to );
-
         EE_FORCE_INLINE static Transform FromRotation( Quaternion const& rotation ) { return Transform( rotation ); }
         EE_FORCE_INLINE static Transform FromTranslation( Vector const& translation ) { return Transform( Quaternion::Identity, translation ); }
-        EE_FORCE_INLINE static Transform FromScale( Vector const& scale ) { return Transform( Quaternion::Identity, Vector::Zero, scale ); }
-        EE_FORCE_INLINE static Transform FromUniformScale( float uniformScale ) { return Transform( Quaternion::Identity, Vector::Zero, Vector( uniformScale, uniformScale, uniformScale, 1.0f ) ); }
-        EE_FORCE_INLINE static Transform FromTranslationAndScale( Vector const& translation, Vector const& scale ) { return Transform( Quaternion::Identity, translation, scale ); }
+        EE_FORCE_INLINE static Transform FromScale( float uniformScale ) { return Transform( Quaternion::Identity, Vector::Zero, uniformScale ); }
+        EE_FORCE_INLINE static Transform FromTranslationAndScale( Vector const& translation, float uniformScale ) { return Transform( Quaternion::Identity, translation, uniformScale ); }
         EE_FORCE_INLINE static Transform FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Transform( Quaternion::FromRotationBetweenNormalizedVectors( sourceVector, targetVector ) ); }
+
+        inline static Transform Lerp( Transform const& from, Transform const& to, float t );
+        inline static Transform Slerp( Transform const& from, Transform const& to, float t );
+
+        // Calculate a delta transform that you can concatenate to the 'from' transform to get the 'to' transform. Properly handles the non-uniform scaling case.
+        inline static Transform Delta( Transform const& from, Transform const& to );
+
+        // Calculates a delta transform that you can concatenate to the 'from' transform to get the 'to' transform (ignoring scale)
+        inline static Transform DeltaNoScale( Transform const& from, Transform const& to );
 
     public:
 
@@ -38,13 +47,15 @@ namespace EE
 
         explicit inline Transform( Matrix const& m )
         {
-            m.Decompose( m_rotation, m_translation, m_scale );
+            float scale;
+            m.Decompose( m_rotation, m_translation, scale );
+            m_scale = Vector( scale, scale, scale, 0.0f );
         }
 
-        explicit inline Transform( Quaternion const& rotation, Vector const& translation = Vector( 0, 0, 0, 0 ), Vector const& scale = Vector( 1, 1, 1, 0 ) )
+        explicit inline Transform( Quaternion const& rotation, Vector const& translation = Vector( 0, 0, 0, 0 ), float scale = 1.0f )
             : m_rotation( rotation )
             , m_translation( translation.GetWithW0() )
-            , m_scale( scale.GetWithW0() )
+            , m_scale( scale )
         {}
 
         explicit inline Transform( AxisAngle const& rotation )
@@ -53,7 +64,7 @@ namespace EE
             , m_scale( 1, 1, 1, 0 )
         {}
 
-        inline Matrix ToMatrix() const { return Matrix( m_rotation, m_translation, m_scale ); }
+        inline Matrix ToMatrix() const { return Matrix( m_rotation, m_translation, m_scale.GetX() ); }
         inline EulerAngles ToEulerAngles() const { return m_rotation.ToEulerAngles(); }
 
         //-------------------------------------------------------------------------
@@ -70,8 +81,22 @@ namespace EE
         inline bool IsRigidTransform() const { return m_scale.IsEqual3( Vector::One ); }
         inline void MakeRigidTransform() { m_scale = Vector::One; }
 
+        // Inverse and Deltas
+        //-------------------------------------------------------------------------
+
+        // Invert this transform.
+        // If you want a delta transform that you can concatenate, then you should use the 'Delta' functions
         inline Transform& Inverse();
+
+        // Get the inverse of this transform.
+        // If you want a delta transform that you can concatenate, then you should use the 'Delta' functions
         inline Transform GetInverse() const;
+
+        // Return the delta required to a given target transform (i.e., what do we need to add to reach that transform)
+        inline Transform GetDeltaToOther( Transform const& targetTransform ) const { return Transform::Delta( *this, targetTransform ); }
+
+        // Return the delta relative from a given a start transform (i.e., how much do we differ from it)
+        inline Transform GetDeltaFromOther( Transform const& startTransform ) const { return Transform::Delta( startTransform, *this ); }
 
         // Rotation
         //-------------------------------------------------------------------------
@@ -90,18 +115,14 @@ namespace EE
         // Scale
         //-------------------------------------------------------------------------
 
-        inline Vector const& GetScale() const { return m_scale; }
-        inline void SetScale( Vector const& scale ) { m_scale = scale.GetWithW0(); }
+        inline float GetScale() const { return m_scale.GetX(); }
         inline void SetScale( float uniformScale ) { m_scale = Vector( uniformScale, uniformScale, uniformScale, 0.0f ); }
         inline bool HasScale() const { return !m_scale.IsEqual3( Vector::One ); }
         inline bool HasNegativeScale() const { return m_scale.IsAnyLessThan( Vector::Zero ); }
-        inline bool HasUniformScale() const { return m_scale.m_x == m_scale.m_y && m_scale.m_y == m_scale.m_z; }
-        inline bool HasShearOrSkew() const { auto const abs = m_scale.GetAbs(); return abs.m_x != abs.m_y || abs.m_y != abs.m_z; }
 
         // This function will sanitize the scale values to remove any trailing values from scale factors i.e. 1.000000012 will be converted to 1
-        // If values are really close to each other ( 1.0000012, 0.9999996, 1.0 ) this function will create a uniform scale (1, 1, 1)
         // This is primarily needed in import steps where scale values might be sampled from curves or have multiple conversions applied resulting in variance.
-        void SanitizeScaleValues();
+        void SanitizeScaleValue();
 
         // Transformations
         //-------------------------------------------------------------------------
@@ -111,10 +132,29 @@ namespace EE
         inline Vector RotateVector( Vector const& vector ) const { return m_rotation.RotateVector( vector ); }
         inline Vector TransformPoint( Vector const& vector ) const;
         inline Vector TransformPointNoScale( Vector const& vector ) const;
-        inline Vector ApplyTransform( Vector const& vector ) const;
+
+        // Invert the operation order when doing inverse transformation: first translation then rotation then scale
+        inline Vector InverseTransformPoint( Vector const& point ) const;
+
+        // Invert the operation order when doing inverse transformation: first translation then rotation
+        inline Vector InverseTransformPointNoScale( Vector const& point ) const;
+
+        // Apply this transformation to a vector (scale then rotate)
+        inline Vector TransformVector( Vector const& vector ) const;
+
+        // Rotate a vector
+        inline Vector TransformVectorNoScale( Vector const& vector ) const { return m_rotation.RotateVector( vector ); }
+
+        // Invert the operation order when performing inverse transformation: first rotation then scale
+        Vector InverseTransformVector( Vector const& vector ) const;
+
+        // Unrotate a vector
+        Vector InverseTransformVectorNoScale( Vector const& vector ) const { return m_rotation.RotateVectorInverse( vector ); }
 
         // WARNING: The results from multiplying transforms with shear or skew is ill-defined
         inline Transform operator*( Transform const& rhs ) const;
+
+        // WARNING: The results from multiplying transforms with shear or skew is ill-defined
         inline Transform& operator*=( Transform const& rhs );
 
         // Operators
@@ -141,27 +181,15 @@ namespace EE
 
     inline Transform& Transform::Inverse()
     {
-        Vector inverseScale;
-
-        // Handle zero scale case
-        if ( m_scale.IsAnyEqualsZero() )
-        {
-            inverseScale.m_x = Math::IsNearZero( m_scale.m_x ) ? 0.0f : 1.0f / m_scale.m_x;
-            inverseScale.m_y = Math::IsNearZero( m_scale.m_y ) ? 0.0f : 1.0f / m_scale.m_y;
-            inverseScale.m_z = Math::IsNearZero( m_scale.m_z ) ? 0.0f : 1.0f / m_scale.m_z;
-            inverseScale.m_w = 0.0f;
-        }
-        else // Just invert
-        {
-            inverseScale = m_scale.GetInverse();
-            inverseScale.SetW0();
-        }
+        EE_ASSERT( !m_scale.IsAnyEqualToZero3() );
 
         //-------------------------------------------------------------------------
 
+        Vector const inverseScale = m_scale.GetInverse().SetW0();
         Quaternion const inverseRotation = m_rotation.GetInverse();
-        Vector inverseTranslation = ( inverseRotation.RotateVector( inverseScale * m_translation ) ).GetNegated();
-        inverseTranslation.SetW0();
+        Vector const inverselyScaledTranslation = inverseScale * m_translation;
+        Vector const inverselyRotatedTranslation = inverseRotation.RotateVector( inverselyScaledTranslation );
+        Vector const inverseTranslation = inverselyRotatedTranslation.GetNegated().SetW0();
 
         //-------------------------------------------------------------------------
 
@@ -185,7 +213,7 @@ namespace EE
         Quaternion const rotation = Quaternion::NLerp( Quaternion( from.m_rotation ), Quaternion( to.m_rotation ), t );
         Vector const translation = Vector::Lerp( from.m_translation, to.m_translation, t );
         Vector const scale = Vector::Lerp( from.m_scale, to.m_scale, t );
-        return Transform( rotation, translation, scale );
+        return Transform( rotation, translation, scale.GetX() );
     }
 
     inline Transform Transform::Slerp( Transform const& from, Transform const& to, float t )
@@ -193,37 +221,24 @@ namespace EE
         Quaternion const rotation = Quaternion::SLerp( Quaternion( from.m_rotation ), Quaternion( to.m_rotation ), t );
         Vector const translation = Vector::Lerp( Vector( from.m_translation ), Vector( to.m_translation ), t );
         Vector const scale = Vector::Lerp( from.m_scale, to.m_scale, t );
-        return Transform( rotation, translation, scale );
+        return Transform( rotation, translation, scale.GetX() );
     }
 
     inline Transform Transform::Delta( Transform const& from, Transform const& to )
     {
         EE_ASSERT( from.m_rotation.IsNormalized() && to.m_rotation.IsNormalized() );
+        EE_ASSERT( !from.m_scale.IsAnyEqualToZero3() && !to.m_scale.IsAnyEqualToZero3() );
 
         Transform result;
 
         //-------------------------------------------------------------------------
 
-        Vector inverseScale;
-
-        // Handle zero scale case
-        if ( from.m_scale.IsAnyEqualsZero() )
-        {
-            inverseScale.m_x = Math::IsNearZero( from.m_scale.m_x ) ? 0.0f : 1.0f / from.m_scale.m_x;
-            inverseScale.m_y = Math::IsNearZero( from.m_scale.m_y ) ? 0.0f : 1.0f / from.m_scale.m_y;
-            inverseScale.m_z = Math::IsNearZero( from.m_scale.m_z ) ? 0.0f : 1.0f / from.m_scale.m_z;
-            inverseScale.m_w = 0.0f;
-        }
-        else // Just invert
-        {
-            inverseScale = from.m_scale.GetInverse();
-            inverseScale.SetW0();
-        }
-
+        Vector const inverseScale = from.m_scale.GetInverse().SetW0();
         Vector const deltaScale = to.m_scale * inverseScale;
 
         //-------------------------------------------------------------------------
 
+        // If we have negative scaling, we need to use matrices to calculate the deltas
         Vector const minScale = Vector::Min( from.m_scale, to.m_scale );
         if ( minScale.IsAnyLessThan( Vector::Zero ) )
         {
@@ -246,9 +261,12 @@ namespace EE
         }
         else
         {
-            Quaternion const fromInverse = from.m_rotation.GetInverse();
-            result.m_rotation = to.m_rotation * fromInverse;
-            result.m_translation = fromInverse.RotateVector( to.m_translation - from.m_translation ) * inverseScale;
+            Quaternion const fromInverseRotation = from.m_rotation.GetInverse();
+            result.m_rotation = to.m_rotation * fromInverseRotation;
+
+            Vector const deltaTranslation = to.m_translation - from.m_translation;
+            result.m_translation = fromInverseRotation.RotateVector( deltaTranslation ) * inverseScale;
+
             result.m_scale = deltaScale;
         }
 
@@ -319,6 +337,7 @@ namespace EE
 
     inline Vector Transform::TransformPoint( Vector const& point ) const
     {
+        EE_ASSERT( !m_scale.IsAnyEqualToZero3() );
         Vector transformedPoint = point * m_scale;
         transformedPoint = m_translation + m_rotation.RotateVector( transformedPoint );
         return transformedPoint;
@@ -330,11 +349,37 @@ namespace EE
         return transformedPoint;
     }
 
-    inline Vector Transform::ApplyTransform( Vector const& vector ) const
+    inline Vector Transform::InverseTransformPoint( Vector const& point ) const
     {
+        EE_ASSERT( !m_scale.IsAnyEqualToZero3() );
+        Vector const shiftedPoint = point - m_translation;
+        Vector const unrotatedShiftedPoint = m_rotation.RotateVectorInverse( shiftedPoint );
+        Vector const inverseScale = m_scale.GetReciprocal().SetW1();
+        Vector const result = unrotatedShiftedPoint * inverseScale;
+        return result;
+    }
+
+    inline Vector Transform::InverseTransformPointNoScale( Vector const& point ) const
+    {
+        Vector const shiftedPoint = point - m_translation;
+        Vector const unrotatedShiftedPoint = m_rotation.RotateVectorInverse( shiftedPoint );
+        return unrotatedShiftedPoint;
+    }
+
+    inline Vector Transform::TransformVector( Vector const& vector ) const
+    {
+        EE_ASSERT( !m_scale.IsAnyEqualToZero3() );
         Vector transformedVector = vector * m_scale;
         transformedVector = m_rotation.RotateVector( transformedVector );
-        transformedVector += m_translation;
         return transformedVector;
+    }
+
+    inline Vector Transform::InverseTransformVector( Vector const& vector ) const
+    {
+        EE_ASSERT( !m_scale.IsAnyEqualToZero3() );
+        Vector const unrotatedVector = m_rotation.RotateVectorInverse( vector );
+        Vector const inverseScale = m_scale.GetReciprocal().SetW1();
+        Vector const result = unrotatedVector * inverseScale;
+        return result;
     }
 }

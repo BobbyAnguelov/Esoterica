@@ -45,9 +45,6 @@ namespace EE::ImGuiX
             TranslateXZ,
             TranslateYZ,
 
-            ScaleX,
-            ScaleY,
-            ScaleZ,
             ScaleXYZ,
         };
 

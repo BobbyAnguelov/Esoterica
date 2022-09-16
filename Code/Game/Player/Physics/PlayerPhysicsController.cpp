@@ -158,10 +158,8 @@ namespace EE::Player
         if( g_debugBottomFloor )
         {
             auto debugRenderer = ctx.GetDrawingContext();
-            Transform circleTransform = characterWorldTransform;
-            circleTransform.AddTranslation( Vector( 0.f, 0.f, -m_pCharacterComponent->GetCapsuleHalfHeight() ) );
-            circleTransform.SetScale( Vector( 0.5f, 0.5f, 0.5f ) );
-            debugRenderer.DrawCircle( circleTransform, Axis::Z, Colors::Yellow );
+            Vector const debugPosition = characterWorldTransform.GetTranslation() + Vector( 0.f, 0.f, -m_pCharacterComponent->GetCapsuleHalfHeight() );
+            debugRenderer.DrawCircle( debugPosition, Axis::Z, 0.5f, Colors::Yellow );
         }
         #endif
 
@@ -189,7 +187,7 @@ namespace EE::Player
         if ( distance < Math::Epsilon )
         {
             moveDirection = -Vector::UnitZ;
-            distance = 0.01;
+            distance = 0.01f;
             onlyApplyDepenetration = true;
         }
 
@@ -432,7 +430,7 @@ namespace EE::Player
             {
                 // We need to force a direction and distance to test for initial penetration even if the displacement is null.
                 moveDirection = -Vector::UnitZ;
-                distance = 0.01;
+                distance = 0.01f;
                 onlyApplyDepenetration = true;
             }
 

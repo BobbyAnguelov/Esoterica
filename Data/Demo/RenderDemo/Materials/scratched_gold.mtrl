@@ -1,0 +1,11 @@
+{
+    "TypeID": "EE::Render::MaterialResourceDescriptor",
+    "m_albedoTexture": "data://Demo/RenderDemo/materials/scratched_gold/albedo.txtr",
+    "m_metalnessTexture": "",
+    "m_roughnessTexture": "data://Demo/RenderDemo/materials/scratched_gold/roughness.txtr",
+    "m_normalMapTexture": "data://Demo/RenderDemo/materials/scratched_gold/normal.txtr",
+    "m_albedo": "000000FF",
+    "m_metalness": "1.000000",
+    "m_roughness": "1.000000",
+    "m_normalScaler": "4.000000"
+}

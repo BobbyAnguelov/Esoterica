@@ -34,7 +34,7 @@ namespace EE::Animation
                 pResultPose->SetTranslation( boneIdx, translation );
 
                 // Blend scales
-                Vector const scale = Blender::BlendScale( sourceTransform.GetScale(), targetTransform.GetScale(), boneBlendWeight );
+                float const scale = Blender::BlendScale( sourceTransform.GetScale(), targetTransform.GetScale(), boneBlendWeight );
                 pResultPose->SetScale( boneIdx, scale );
 
                 // Blend rotations
@@ -67,7 +67,7 @@ namespace EE::Animation
             Vector const translation = Blender::BlendTranslation( pSourcePose->GetTransform( rootBoneIndex ).GetTranslation(), pTargetPose->GetTransform( rootBoneIndex ).GetTranslation(), boneBlendWeight );
             pResultPose->SetTranslation( rootBoneIndex, translation );
 
-            Vector const scale = Blender::BlendScale( pSourcePose->GetTransform( rootBoneIndex ).GetScale(), pTargetPose->GetTransform( rootBoneIndex ).GetScale(), boneBlendWeight );
+            float const scale = Blender::BlendScale( pSourcePose->GetTransform( rootBoneIndex ).GetScale(), pTargetPose->GetTransform( rootBoneIndex ).GetScale(), boneBlendWeight );
             pResultPose->SetScale( rootBoneIndex, scale );
 
             Quaternion const rotation = Blender::BlendRotation( pSourcePose->GetTransform( rootBoneIndex ).GetRotation(), pTargetPose->GetTransform( rootBoneIndex ).GetRotation(), boneBlendWeight );
@@ -94,7 +94,7 @@ namespace EE::Animation
                 pResultPose->SetTranslation( boneIdx, translation );
 
                 // Blend scales - scale blending is done in local space
-                Vector const scale = Blender::BlendScale( pSourcePose->GetTransform( boneIdx ).GetScale(), pTargetPose->GetTransform( boneIdx ).GetScale(), boneBlendWeight );
+                float const scale = Blender::BlendScale( pSourcePose->GetTransform( boneIdx ).GetScale(), pTargetPose->GetTransform( boneIdx ).GetScale(), boneBlendWeight );
                 pResultPose->SetScale( boneIdx, scale );
 
                 //-------------------------------------------------------------------------

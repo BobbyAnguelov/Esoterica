@@ -79,6 +79,10 @@ namespace EE::EntityModel
             return ( componentIdx != InvalidIndex ) ? &m_components[componentIdx] : nullptr;
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        void ClearAllSerializedIDs();
+        #endif
+
     public:
 
         StringID                                                    m_name;
@@ -246,7 +250,7 @@ namespace EE::EntityModel
 
 namespace EE::EntityModel
 {
-    struct EntityLoadingContext;
+    struct LoadingContext;
 
     //-------------------------------------------------------------------------
 

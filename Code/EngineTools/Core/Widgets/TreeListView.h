@@ -65,7 +65,18 @@ namespace EE
         // Is this item a leaf node (i.e., should we draw the expansion arrow)
         virtual bool IsLeaf() const { return m_children.empty(); }
 
-        inline void SetExpanded( bool isExpanded ) { m_isExpanded = isExpanded; }
+        inline void SetExpanded( bool isExpanded, bool applyToChildren = false ) 
+        {
+            m_isExpanded = isExpanded;
+
+            if ( applyToChildren )
+            {
+                for ( auto pChild : m_children )
+                {
+                    pChild->SetExpanded( isExpanded, applyToChildren );
+                }
+            }
+        }
 
         inline bool IsExpanded() const { return m_isExpanded; }
 
@@ -280,6 +291,8 @@ namespace EE
 
     protected:
 
+        inline bool IsCurrentlyDrawingTree() const { return m_isDrawingTree; }
+
         inline void RefreshVisualState() { m_visualTreeState = VisualTreeState::NeedsRebuild; }
 
         inline int32_t GetNumItems() const { return (int32_t) m_visualTree.size(); }
@@ -415,6 +428,8 @@ namespace EE
         int32_t                                                 m_firstVisibleRowItemIdx = 0;
         float                                                   m_itemControlColumnWidth = 0;
         bool                                                    m_maintainVisibleRowIdx = false;
+        bool                                                    m_isDrawingTree = false;
+
 
         // The currently selected item (changes frequently due to clicks/focus/etc...) - In order of selection time, first is oldest
         TVector<TreeListViewItem*>                              m_selection;

@@ -96,7 +96,7 @@ namespace EE::ImGuiX
 
         if ( m_gizmoMode == GizmoMode::Scale )
         {
-            m_coordinateSpace = CoordinateSpace::Local;
+            m_coordinateSpace = CoordinateSpace::World;
         }
     }
 
@@ -1131,22 +1131,7 @@ namespace EE::ImGuiX
 
         if ( io.MouseClicked[0] )
         {
-            if ( m_isOriginHovered )
-            {
-                m_manipulationMode = ManipulationMode::ScaleXYZ;
-            }
-            else if ( m_isAxisHoveredX )
-            {
-                m_manipulationMode = ManipulationMode::ScaleX;
-            }
-            else if ( m_isAxisHoveredY )
-            {
-                m_manipulationMode = ManipulationMode::ScaleY;
-            }
-            else if ( m_isAxisHoveredZ )
-            {
-                m_manipulationMode = ManipulationMode::ScaleZ;
-            }
+            m_manipulationMode = ManipulationMode::ScaleXYZ;
         }
         else if ( io.MouseReleased[0] )
         {
@@ -1159,7 +1144,6 @@ namespace EE::ImGuiX
     {
         EE_ASSERT( m_gizmoMode == GizmoMode::Scale );
 
-
         ImGuiIO& io = ImGui::GetIO();
         if ( io.MouseDownDuration[0] > 0 )
         {
@@ -1171,51 +1155,9 @@ namespace EE::ImGuiX
 
             if ( !mouseDelta.IsNearZero2() )
             {
-                Vector scaleDelta = Vector::Zero;
-                Vector manipulationAxis;
-                Vector scaleDeltaAxis;
-
-                if ( m_manipulationMode == ManipulationMode::ScaleXYZ )
-                {
-                    auto const axisSS = viewport.WorldSpaceToScreenSpace( origin + m_manipulationTransform.GetAxisZ() );
-                    Vector const unitsPerPixel = Vector::One / Vector( axisSS - originSS ).Length2();
-                    scaleDelta = Vector::One * -mouseDelta.m_y * unitsPerPixel;
-                }
-                else if ( m_manipulationMode == ManipulationMode::ScaleX || m_manipulationMode == ManipulationMode::ScaleY || m_manipulationMode == ManipulationMode::ScaleZ )
-                {
-                    if ( m_manipulationMode == ManipulationMode::ScaleX )
-                    {
-                        manipulationAxis = m_manipulationTransform.GetAxisX();
-                        scaleDeltaAxis = Vector::UnitX;
-                    }
-                    else if ( m_manipulationMode == ManipulationMode::ScaleY )
-                    {
-                        manipulationAxis = m_manipulationTransform.GetAxisY();
-                        scaleDeltaAxis = Vector::UnitY;
-                    }
-                    else if ( m_manipulationMode == ManipulationMode::ScaleZ )
-                    {
-                        manipulationAxis = m_manipulationTransform.GetAxisZ();
-                        scaleDeltaAxis = Vector::UnitZ;
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    auto const axisSS = viewport.WorldSpaceToScreenSpace( origin + manipulationAxis );
-                    Vector const unitsPerPixel = Vector::One / Vector( axisSS - originSS ).Length2();
-
-                    LineSegment const manipulationAxisLine( originSS, axisSS );
-                    Vector const projectedPointOnAxis = manipulationAxisLine.GetClosestPointOnLine( originSS + mouseDelta );
-                    Vector const axisDelta = projectedPointOnAxis - originSS;
-                    Vector const axisDeltaDir = Vector::Dot2( axisDelta.GetNormalized2(), manipulationAxisLine.GetDirection() ).m_x > 0 ? Vector::One : Vector::NegativeOne;
-                    Vector const axisDeltaLength = axisDelta.Length2();
-
-                    scaleDelta = scaleDeltaAxis * axisDeltaDir * axisDeltaLength * unitsPerPixel;
-                }
-
-                //-------------------------------------------------------------------------
-
-                scaleDelta += Vector::One; // Ensure that we maintain current scale for 0 deltas
+                Float2 const axisSS = viewport.WorldSpaceToScreenSpace( origin + m_manipulationTransform.GetAxisZ() );
+                float const unitsPerPixel = 1.0f / Vector( axisSS - originSS ).GetLength2();
+                float const scaleDelta = 1.0f + ( unitsPerPixel * -mouseDelta.m_y ); // Ensure that we maintain current scale for 0 deltas
                 m_pTargetTransform->SetScale( m_pTargetTransform->GetScale() * scaleDelta );
             }
         }
@@ -1228,85 +1170,6 @@ namespace EE::ImGuiX
         auto pDrawList = ImGui::GetWindowDrawList();
 
         //-------------------------------------------------------------------------
-        // Draw Mode guides
-        //-------------------------------------------------------------------------
-
-        if ( m_manipulationMode == ManipulationMode::ScaleX )
-        {
-            DrawAxisGuide( m_axisDir_SS_X, Colors::Red );
-        }
-        else if ( m_manipulationMode == ManipulationMode::ScaleY )
-        {
-            DrawAxisGuide( m_axisDir_SS_Y, Colors::Lime );
-        }
-        else if ( m_manipulationMode == ManipulationMode::ScaleZ )
-        {
-            DrawAxisGuide( m_axisDir_SS_Z, Colors::Blue );
-        }
-
-        //-------------------------------------------------------------------------
-        // Draw axes
-        //-------------------------------------------------------------------------
-
-        // If any axes face away from the camera negate them before drawing
-        Vector const viewForwardDir_WS = viewport.GetViewForwardDirection();
-
-        Vector const drawAxisDir_SS_X = m_axisDir_SS_X;
-        Vector const drawAxisDir_SS_Y = m_axisDir_SS_Y;
-        Vector const drawAxisDir_SS_Z = m_axisDir_SS_Z;
-
-        // Ensure that gizmo is alway uniform size
-        Vector const axisEndPoint_SS_X = m_origin_SS + drawAxisDir_SS_X * g_axisLength;
-        Vector const axisEndPoint_SS_Y = m_origin_SS + drawAxisDir_SS_Y * g_axisLength;
-        Vector const axisEndPoint_SS_Z = m_origin_SS + drawAxisDir_SS_Z * g_axisLength;
-
-        // Ensure each axis is at least 10 degrees offset from the view direction
-        bool const shouldDrawAxis_X = m_offsetBetweenViewFwdAndAxis_WS_X > Degrees( 10.0f );
-        bool const shouldDrawAxis_Y = m_offsetBetweenViewFwdAndAxis_WS_Y > Degrees( 10.0f );
-        bool const shouldDrawAxis_Z = m_offsetBetweenViewFwdAndAxis_WS_Z > Degrees( 10.0f );
-
-        Color elementColor;
-
-        if ( m_shouldDrawAxis_X )
-        {
-            bool const isHovered =
-            (
-                m_manipulationMode == ManipulationMode::ScaleXYZ ||
-                m_manipulationMode == ManipulationMode::ScaleX ||
-                m_isAxisHoveredX
-            );
-
-            elementColor = isHovered ? g_selectedColor : g_axisColorX;
-            m_isAxisHoveredX = DrawAxisWidget( m_origin_SS, m_axisEndPoint_SS_X, elementColor, AxisCap::Dot, 9 );
-        }
-
-        if ( m_shouldDrawAxis_Y )
-        {
-            bool const isHovered =
-            (
-                m_manipulationMode == ManipulationMode::ScaleXYZ ||
-                m_manipulationMode == ManipulationMode::ScaleY ||
-                m_isAxisHoveredY
-            );
-
-            elementColor = isHovered ? g_selectedColor : g_axisColorY;
-            m_isAxisHoveredY = DrawAxisWidget( m_origin_SS, m_axisEndPoint_SS_Y, elementColor, AxisCap::Dot, 9 );
-        }
-
-        if ( m_shouldDrawAxis_Z )
-        {
-            bool const isHovered =
-            (
-                m_manipulationMode == ManipulationMode::ScaleXYZ ||
-                m_manipulationMode == ManipulationMode::ScaleZ ||
-                m_isAxisHoveredZ
-            );
-
-            elementColor = isHovered ? g_selectedColor : g_axisColorZ;
-            m_isAxisHoveredZ = DrawAxisWidget( m_origin_SS, m_axisEndPoint_SS_Z, elementColor, AxisCap::Dot, 9 );
-        }
-
-        //-------------------------------------------------------------------------
         // Draw Uniform Scale Widget
         //-------------------------------------------------------------------------
 
@@ -1315,6 +1178,7 @@ namespace EE::ImGuiX
 
         pDrawList->AddCircleFilled( originPosSS, 3.0f, originColor, 20 );
         pDrawList->AddCircle( originPosSS, 8.0f, originColor, 20, 2.0f );
+        pDrawList->AddCircle( originPosSS, 16.0f, originColor, 20, 2.0f );
 
         if ( m_isOriginHovered || m_manipulationMode == ManipulationMode::ScaleXYZ )
         {

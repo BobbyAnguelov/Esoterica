@@ -72,12 +72,13 @@ namespace EE::Fbx
             auto const T = fbxMatrix.GetT();
             auto const S = fbxMatrix.GetS();
 
+            EE_ASSERT( Math::IsNearEqual( S[0], S[1] ) && Math::IsNearEqual( S[1], S[2] ) );
+
             auto const rotation = Quaternion( (float) Q[0], (float) Q[1], (float) Q[2], (float) Q[3] ).GetNormalized();
             auto const translation = Vector( (float) T[0], (float) T[1], (float) T[2] );
-            auto const scale = Vector( (float) S[0], (float) S[1], (float) S[2] );
 
-            Transform transform( rotation, translation, scale );
-            transform.SanitizeScaleValues();
+            Transform transform( rotation, translation, (float) S[0] );
+            transform.SanitizeScaleValue();
             return transform;
         }
 
@@ -87,12 +88,13 @@ namespace EE::Fbx
             auto const T = fbxMatrix.GetT();
             auto const S = fbxMatrix.GetS();
 
+            EE_ASSERT( S[0] == S[1] && S[1] == S[2] );
+
             auto const rotation = Quaternion( (float) Q[0], (float) Q[1], (float) Q[2], (float) Q[3] ).GetNormalized();
             auto const translation = Vector( (float) T[0] * m_scaleConversionMultiplier, (float) T[1] * m_scaleConversionMultiplier, (float) T[2] * m_scaleConversionMultiplier );
-            auto const scale = Vector( (float) S[0], (float) S[1], (float) S[2] );
 
-            Transform transform( rotation, translation, scale );
-            transform.SanitizeScaleValues();
+            Transform transform( rotation, translation, (float) S[0] );
+            transform.SanitizeScaleValue();
             return transform;
         }
 

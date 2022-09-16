@@ -35,9 +35,8 @@ namespace EE
 
         inline static Matrix FromRotation( Quaternion const& rotation ) { return Matrix( rotation ); }
         inline static Matrix FromTranslation( Vector const& translation );
-        inline static Matrix FromScale( Vector const& scale );
-        inline static Matrix FromUniformScale( float uniformScale );
-        inline static Matrix FromTranslationAndScale( Vector const& translation, Vector const& scale );
+        inline static Matrix FromScale( float uniformScale );
+        inline static Matrix FromTranslationAndScale( Vector const& translation, float uniformScale );
         inline static Matrix FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Matrix( Quaternion::FromRotationBetweenNormalizedVectors( sourceVector, targetVector ) ); }
 
     public:
@@ -53,7 +52,7 @@ namespace EE
         inline Matrix( AxisAngle const axisAngle ) : Matrix( Vector( axisAngle.m_axis ), axisAngle.m_angle ) {}
 
         explicit Matrix( Quaternion const& rotation );
-        explicit Matrix( Quaternion const& rotation, Vector const& translation, Vector const& scale = Vector::One );
+        explicit Matrix( Quaternion const& rotation, Vector const& translation, float scale = 1.0f );
         explicit Matrix( EulerAngles const& eulerAngles, Vector const translation = Vector::UnitW );
 
         EulerAngles ToEulerAngles() const;
@@ -83,7 +82,7 @@ namespace EE
         inline bool IsOrthogonal() const;
         inline bool IsOrthonormal() const;
 
-        bool Decompose( Quaternion& outRotation, Vector& outTranslation, Vector& outScale ) const;
+        bool Decompose( Quaternion& outRotation, Vector& outTranslation, float& outScale ) const;
 
         //-------------------------------------------------------------------------
 
@@ -121,12 +120,11 @@ namespace EE
         // Scale
         //-------------------------------------------------------------------------
 
-        Vector GetScale() const;
+        float GetScale() const;
 
         // These functions perform a full decomposition to extract the scale/shear from the matrix
         Matrix& RemoveScale();
-        Matrix& SetScale( Vector const& scale );
-        inline Matrix& SetScale( float uniformScale ) { SetScale( Vector( uniformScale ) ); return *this; }
+        Matrix& SetScale( float uniformScale );
         
         // These are naive and fast versions of the above functions (simply normalization and multiplication of the 3x3 rotation part)
         inline Matrix& RemoveScaleFast();
@@ -184,12 +182,12 @@ namespace EE
         m_rows[3] = Vector::UnitW;
     }
 
-    inline Matrix::Matrix( Quaternion const& rotation, Vector const& translation, Vector const& scale )
+    inline Matrix::Matrix( Quaternion const& rotation, Vector const& translation, float scale )
     {
         SetRotation( rotation );
-        m_rows[0] = m_rows[0] * scale.m_x;
-        m_rows[1] = m_rows[1] * scale.m_y;
-        m_rows[2] = m_rows[2] * scale.m_z;
+        m_rows[0] = m_rows[0] * scale;
+        m_rows[1] = m_rows[1] * scale;
+        m_rows[2] = m_rows[2] * scale;
         m_rows[3] = translation.GetWithW1();
     }
 
@@ -408,14 +406,14 @@ namespace EE
 
     inline Matrix& Matrix::SetRotationMaintainingScale( Matrix const& rotation )
     {
-        Vector const scale = GetScale();
+        float const scale = GetScale();
         SetRotation( rotation );
         return SetScale( scale );
     }
 
     inline Matrix& Matrix::SetRotationMaintainingScale( Quaternion const& rotation )
     {
-        Vector const scale = GetScale();
+        float const scale = GetScale();
         SetRotation( rotation );
         return SetScale( scale );
     }
@@ -748,17 +746,7 @@ namespace EE
         return M;
     }
 
-    inline Matrix Matrix::FromScale( Vector const& scale )
-    {
-        Matrix M;
-        M.m_rows[0] = _mm_and_ps( scale, SIMD::g_maskX000 );
-        M.m_rows[1] = _mm_and_ps( scale, SIMD::g_mask0Y00 );
-        M.m_rows[2] = _mm_and_ps( scale, SIMD::g_mask00Z0 );
-        M.m_rows[3] = Vector::UnitW;
-        return M;
-    }
-   
-    inline Matrix Matrix::FromUniformScale( float uniformScale )
+    inline Matrix Matrix::FromScale( float uniformScale )
     {
         Matrix M;
         M.m_rows[0] = _mm_set_ps( 0, 0, 0, uniformScale );
@@ -768,12 +756,14 @@ namespace EE
         return M;
     }
 
-    inline Matrix Matrix::FromTranslationAndScale( Vector const& translation, Vector const& scale )
+    inline Matrix Matrix::FromTranslationAndScale( Vector const& translation, float uniformScale )
     {
+        Vector const vUniformScale( uniformScale );
+
         Matrix M;
-        M.m_rows[0] = _mm_and_ps( scale, SIMD::g_maskX000 );
-        M.m_rows[1] = _mm_and_ps( scale, SIMD::g_mask0Y00 );
-        M.m_rows[2] = _mm_and_ps( scale, SIMD::g_mask00Z0 );
+        M.m_rows[0] = _mm_and_ps( vUniformScale, SIMD::g_maskX000 );
+        M.m_rows[1] = _mm_and_ps( vUniformScale, SIMD::g_mask0Y00 );
+        M.m_rows[2] = _mm_and_ps( vUniformScale, SIMD::g_mask00Z0 );
         M.m_rows[3] = translation.GetWithW1();
         return M;
     }

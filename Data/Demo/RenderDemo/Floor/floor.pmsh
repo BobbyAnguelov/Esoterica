@@ -1,0 +1,6 @@
+{
+  "TypeID": "EE::Physics::PhysicsMeshResourceDescriptor",
+  "m_resourceTypeID": "PMSH",
+  "m_meshPath": "data://Demo/RenderDemo/Floor/floor.fbx",
+  "m_isConvexMesh" : "false"
+}

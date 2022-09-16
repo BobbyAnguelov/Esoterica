@@ -47,7 +47,7 @@ namespace EE::Animation::Tasks
         {
             auto pResultBuffer = GetNewPoseBuffer( context );
             pResultBuffer->m_pose.CalculateGlobalTransforms();
-            m_pRagdoll->GetPose( context.m_worldTransformInverse, &pResultBuffer->m_pose );
+            m_pRagdoll->GetPose( context.m_worldTransform, &pResultBuffer->m_pose );
         }
         else // Potentially blend the poses
         {
@@ -58,7 +58,7 @@ namespace EE::Animation::Tasks
             if ( Math::IsNearEqual( m_physicsBlendWeight, 1.0f, Math::LargeEpsilon ) )
             {
                 pResultBuffer->m_pose.CalculateGlobalTransforms();
-                m_pRagdoll->GetPose( context.m_worldTransformInverse, &pResultBuffer->m_pose );
+                m_pRagdoll->GetPose( context.m_worldTransform, &pResultBuffer->m_pose );
             }
             else if ( m_physicsBlendWeight > Math::LargeEpsilon )
             {
@@ -68,7 +68,7 @@ namespace EE::Animation::Tasks
 
                 // Get the ragdoll pose and blend it with the animation pose
                 pTempBuffer->m_pose.CalculateGlobalTransforms();
-                m_pRagdoll->GetPose( context.m_worldTransformInverse, &pTempBuffer->m_pose );
+                m_pRagdoll->GetPose( context.m_worldTransform, &pTempBuffer->m_pose );
                 Animation::Blender::Blend( &pResultBuffer->m_pose, &pTempBuffer->m_pose, m_physicsBlendWeight, TBitFlags<Animation::PoseBlendOptions>(), nullptr, &pResultBuffer->m_pose );
 
                 ReleaseTemporaryPoseBuffer( context, tmpBufferIdx );

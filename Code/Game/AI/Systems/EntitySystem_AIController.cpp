@@ -13,7 +13,7 @@
 
 namespace EE::AI
 {
-    void AIController::Activate()
+    void AIController::PostComponentRegister()
     {
         if ( m_behaviorContext.m_pCharacter != nullptr )
         {

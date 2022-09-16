@@ -24,7 +24,7 @@ namespace EE::Physics
 {
     static inline PxBoxGeometry CreateBoxGeometry( Vector const& scale, Vector const& extents, OBB* pLocalBounds = nullptr )
     {
-        EE_ASSERT( !scale.GetWithW1().IsAnyEqualsZero());
+        EE_ASSERT( !scale.GetWithW1().IsAnyEqualToZero3());
 
         if ( pLocalBounds != nullptr )
         {
@@ -323,7 +323,7 @@ namespace EE::Physics
         // We also calculate and set the component local bounds
 
         Transform const& physicsComponentTransform = pComponent->GetWorldTransform();
-        Vector const& scale = physicsComponentTransform.GetScale();
+        Vector const scale( physicsComponentTransform.GetScale() );
 
         PxPhysics* pPhysics = m_pPhysicsSystem->GetPxPhysics();
         OBB localBounds;
@@ -398,7 +398,7 @@ namespace EE::Physics
         }
 
         Transform const& worldTransform = pComponent->GetWorldTransform();
-        Vector const scale = worldTransform.GetScale();
+        Vector const scale( worldTransform.GetScale() );
 
         // Update actor geometry
         //-------------------------------------------------------------------------

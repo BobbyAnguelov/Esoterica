@@ -123,6 +123,10 @@ namespace EE::Resource
                     {
                         ImGui::TextColored( Colors::Aqua.ToFloat4(), "Manual Request" );
                     }
+                    else if ( requesterID.IsToolsRequest() )
+                    {
+                        ImGui::TextColored( Colors::Aqua.ToFloat4(), "Tools Request" );
+                    }
                     else if ( requesterID.IsInstallDependencyRequest() )
                     {
                         ImGui::TextColored( Colors::Coral.ToFloat4(), "Install Dependency: %u", requesterID.GetInstallDependencyResourcePathID() );

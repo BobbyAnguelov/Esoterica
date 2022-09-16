@@ -45,7 +45,7 @@ namespace EE::gltf
             );
 
             Transform convertedTransform = Transform( engineMatrix );
-            convertedTransform.SanitizeScaleValues();
+            convertedTransform.SanitizeScaleValue();
             return convertedTransform;
         }
 
@@ -93,10 +93,12 @@ namespace EE::gltf
                     translation = Vector( pNode->translation[0], pNode->translation[1], pNode->translation[2] );
                 }
 
-                Vector scale = Vector::One;
+                float scale = 1.0f;
                 if ( pNode->has_scale )
                 {
-                    scale = Vector( pNode->scale[0], pNode->scale[1], pNode->scale[2] );
+                    // TODO: log warning
+                    EE_ASSERT( pNode->scale[0] != pNode->scale[1] || pNode->scale[1] != pNode->scale[2] );
+                    scale = pNode->scale[0];
                 }
 
                 t = Transform( rotation, translation, scale );

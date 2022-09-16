@@ -1172,7 +1172,7 @@ namespace EE::Animation
                 if ( m_isCameraTrackingEnabled )
                 {
                     Transform const currentCameraTransform = GetCameraTransform();
-                    Transform const offsetDelta = currentCameraTransform * m_previousCameraTransform.GetInverse();
+                    Transform const offsetDelta = Transform::Delta( m_previousCameraTransform, currentCameraTransform );
                     m_cameraOffsetTransform = offsetDelta * m_cameraOffsetTransform;
                     m_previousCameraTransform = m_cameraOffsetTransform * m_characterTransform;
                     SetCameraTransform( m_previousCameraTransform );
@@ -1610,7 +1610,7 @@ namespace EE::Animation
     void AnimationGraphWorkspace::CalculateCameraOffset()
     {
         m_previousCameraTransform = GetCameraTransform();
-        m_cameraOffsetTransform = m_previousCameraTransform * m_characterTransform.GetInverse();
+        m_cameraOffsetTransform = Transform::Delta( m_characterTransform, m_previousCameraTransform );
     }
 
     //-------------------------------------------------------------------------

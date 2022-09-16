@@ -10,6 +10,11 @@
 
 namespace EE
 {
+    EntityWorld::EntityWorld( EntityWorldType worldType )
+        : m_worldType( worldType )
+        , m_initializationContext( m_worldSystems, m_entityUpdateList )
+    {}
+
     EntityWorld::~EntityWorld()
     {
         EE_ASSERT( m_maps.empty());
@@ -38,11 +43,22 @@ namespace EE
         m_pTaskSystem = systemsRegistry.GetSystem<TaskSystem>();
         EE_ASSERT( m_pTaskSystem != nullptr );
 
-        m_loadingContext = EntityModel::EntityLoadingContext( m_pTaskSystem, systemsRegistry.GetSystem<TypeSystem::TypeRegistry>(), systemsRegistry.GetSystem<Resource::ResourceSystem>() );
+        // Set up Contexts
+        //-------------------------------------------------------------------------
+
+        m_loadingContext = EntityModel::LoadingContext( m_pTaskSystem, systemsRegistry.GetSystem<TypeSystem::TypeRegistry>(), systemsRegistry.GetSystem<Resource::ResourceSystem>() );
         EE_ASSERT( m_loadingContext.IsValid() );
 
-        m_activationContext = EntityModel::ActivationContext( m_pTaskSystem );
-        EE_ASSERT( m_activationContext.IsValid() );
+        //-------------------------------------------------------------------------
+
+        const_cast<TaskSystem*&>( m_initializationContext.m_pTaskSystem ) = m_pTaskSystem;
+        const_cast<TypeSystem::TypeRegistry const*&>( m_initializationContext.m_pTypeRegistry ) = m_loadingContext.m_pTypeRegistry;
+        
+        #if EE_DEVELOPMENT_TOOLS
+        m_initializationContext.SetComponentTypeMapPtr( &m_componentTypeLookup );
+        #endif
+
+        EE_ASSERT( m_initializationContext.IsValid() );
 
         // Create World Systems
         //-------------------------------------------------------------------------
@@ -74,12 +90,11 @@ namespace EE
             }
         }
 
-        // Create and activate the persistent map
+        // Create and initialize the persistent map
         //-------------------------------------------------------------------------
 
         m_maps.emplace_back( EE::New<EntityModel::EntityMap>() );
-        m_maps[0]->Load( m_loadingContext );
-        m_maps[0]->Activate( m_activationContext );
+        m_maps[0]->Load( m_loadingContext, m_initializationContext );
 
         //-------------------------------------------------------------------------
 
@@ -93,7 +108,7 @@ namespace EE
         
         for ( auto& pMap : m_maps )
         {
-            pMap->Unload( m_loadingContext );
+            pMap->Unload( m_loadingContext, m_initializationContext );
         }
 
         // Run the loading update as this will immediately unload all maps
@@ -189,29 +204,20 @@ namespace EE
 
         // Update all maps internal loading state
         //-------------------------------------------------------------------------
-        // This will fill the world activation/registration lists used below
+        // This will fill the world initialization/registration lists used below
         // This will also handle all hot-reload unload/load requests
 
         for ( int32_t i = (int32_t) m_maps.size() - 1; i >= 0; i-- )
         {
-            if ( m_maps[i]->UpdateState( m_loadingContext, m_activationContext ) )
+            if ( m_maps[i]->UpdateLoadingAndStateChanges( m_loadingContext, m_initializationContext ) )
             {
-                if ( m_maps[i]->IsLoaded() )
-                {
-                    m_maps[i]->Activate( m_activationContext );
-                }
-                else if ( m_maps[i]->IsUnloaded() )
+                if ( m_maps[i]->IsUnloaded() )
                 {
                     EE::Delete( m_maps[i] );
                     m_maps.erase_unsorted( m_maps.begin() + i );
                 }
             }
         }
-
-        //-------------------------------------------------------------------------
-
-        ProcessEntityRegistrationRequests();
-        ProcessComponentRegistrationRequests();
     }
 
     void EntityWorld::Update( UpdateContext const& context )
@@ -233,7 +239,7 @@ namespace EE
             {
                 pEntity->UpdateSystems( m_context );
 
-                for ( auto pAttachedEntity : pEntity->m_attachedEntities )
+                for ( auto pAttachedEntity : pEntity->GetAttachedEntities() )
                 {
                     RecursiveEntityUpdate( pAttachedEntity );
                 }
@@ -321,163 +327,6 @@ namespace EE
         }
     }
 
-    void EntityWorld::ProcessEntityRegistrationRequests()
-    {
-        {
-            EE_PROFILE_SCOPE_ENTITY( "Entity Unregistration" );
-
-            Entity* pEntityToUnregister = nullptr;
-            while ( m_activationContext.m_unregisterForEntityUpdate.try_dequeue( pEntityToUnregister ) )
-            {
-                EE_ASSERT( pEntityToUnregister != nullptr && pEntityToUnregister->m_updateRegistrationStatus == Entity::RegistrationStatus::QueuedForUnregister );
-                m_entityUpdateList.erase_first_unsorted( pEntityToUnregister );
-                pEntityToUnregister->m_updateRegistrationStatus = Entity::RegistrationStatus::Unregistered;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        {
-            EE_PROFILE_SCOPE_ENTITY( "Entity Registration" );
-
-            Entity* pEntityToRegister = nullptr;
-            while ( m_activationContext.m_registerForEntityUpdate.try_dequeue( pEntityToRegister ) )
-            {
-                EE_ASSERT( pEntityToRegister != nullptr && pEntityToRegister->IsActivated() && pEntityToRegister->m_updateRegistrationStatus == Entity::RegistrationStatus::QueuedForRegister );
-                EE_ASSERT( !pEntityToRegister->HasSpatialParent() ); // Attached entities are not allowed to be directly updated
-                m_entityUpdateList.push_back( pEntityToRegister );
-                pEntityToRegister->m_updateRegistrationStatus = Entity::RegistrationStatus::Registered;
-            }
-        }
-    }
-
-    void EntityWorld::ProcessComponentRegistrationRequests()
-    {
-        // Create a task that splits per-system registration across multiple threads
-        struct ComponentRegistrationTask : public ITaskSet
-        {
-            ComponentRegistrationTask( TVector<IEntityWorldSystem*> const& worldSystems, TVector< TPair<Entity*, EntityComponent*> > const& componentsToRegister, TVector< TPair<Entity*, EntityComponent*> > const& componentsToUnregister )
-                : m_worldSystems( worldSystems )
-                , m_componentsToRegister( componentsToRegister )
-                , m_componentsToUnregister( componentsToUnregister )
-            {
-                m_SetSize = (uint32_t) worldSystems.size();
-            }
-
-            virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
-            {
-                EE_PROFILE_SCOPE_ENTITY( "Component World Registration Task" );
-
-                for ( uint64_t i = range.start; i < range.end; ++i )
-                {
-                    auto pSystem = m_worldSystems[i];
-
-                    // Unregister components
-                    //-------------------------------------------------------------------------
-
-                    size_t const numComponentsToUnregister = m_componentsToUnregister.size();
-                    for ( auto c = 0u; c < numComponentsToUnregister; c++ )
-                    {
-                        auto pEntity = m_componentsToUnregister[c].first;
-                        auto pComponent = m_componentsToUnregister[c].second;
-
-                        EE_ASSERT( pEntity != nullptr );
-                        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() && pComponent->m_isRegisteredWithWorld );
-                        pSystem->UnregisterComponent( pEntity, pComponent );
-                    }
-
-                    // Register components
-                    //-------------------------------------------------------------------------
-
-                    size_t const numComponentsToRegister = m_componentsToRegister.size();
-                    for ( auto c = 0u; c < numComponentsToRegister; c++ )
-                    {
-                        auto pEntity = m_componentsToRegister[c].first;
-                        auto pComponent = m_componentsToRegister[c].second;
-
-                        EE_ASSERT( pEntity != nullptr && pEntity->IsActivated() && !pComponent->m_isRegisteredWithWorld );
-                        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() );
-                        pSystem->RegisterComponent( pEntity, pComponent );
-                    }
-                }
-            }
-
-        private:
-
-            TVector<IEntityWorldSystem*> const&                         m_worldSystems;
-            TVector< TPair<Entity*, EntityComponent*> > const&          m_componentsToRegister;
-            TVector< TPair<Entity*, EntityComponent*> > const&          m_componentsToUnregister;
-        };
-
-        //-------------------------------------------------------------------------
-
-        {
-            EE_PROFILE_SCOPE_ENTITY( "Component World Registration" );
-
-            // Get Components to register/unregister
-            //-------------------------------------------------------------------------
-
-            TVector< TPair<Entity*, EntityComponent*>> componentsToUnregister;
-            size_t const numComponentsToUnregister = m_activationContext.m_componentsToUnregister.size_approx();
-            componentsToUnregister.resize( numComponentsToUnregister );
-
-            size_t numDequeued = m_activationContext.m_componentsToUnregister.try_dequeue_bulk( componentsToUnregister.data(), numComponentsToUnregister );
-            EE_ASSERT( numComponentsToUnregister == numDequeued );
-
-            //-------------------------------------------------------------------------
-
-            TVector< TPair<Entity*, EntityComponent*>> componentsToRegister;
-            size_t const numComponentsToRegister = m_activationContext.m_componentsToRegister.size_approx();
-            componentsToRegister.resize( numComponentsToRegister );
-
-            numDequeued = m_activationContext.m_componentsToRegister.try_dequeue_bulk( componentsToRegister.data(), numComponentsToRegister );
-            EE_ASSERT( numComponentsToRegister == numDequeued );
-
-            // Run registration task
-            //-------------------------------------------------------------------------
-
-            if ( ( numComponentsToUnregister + numComponentsToRegister ) > 0 )
-            {
-                ComponentRegistrationTask componentRegistrationTask( m_worldSystems, componentsToRegister, componentsToUnregister );
-                m_loadingContext.m_pTaskSystem->ScheduleTask( &componentRegistrationTask );
-                m_loadingContext.m_pTaskSystem->WaitForTask( &componentRegistrationTask );
-            }
-
-            // Finalize component registration
-            //-------------------------------------------------------------------------
-            // Update component registration flags
-            // Add to type tracking table
-
-            for ( auto const& unregisteredComponent : componentsToUnregister )
-            {
-                auto pComponent = unregisteredComponent.second;
-                pComponent->m_isRegisteredWithWorld = false;
-
-                #if EE_DEVELOPMENT_TOOLS
-                auto const castableTypeIDs = m_loadingContext.m_pTypeRegistry->GetAllCastableTypes( pComponent );
-                for ( auto castableTypeID : castableTypeIDs )
-                {
-                    m_componentTypeLookup[castableTypeID].erase_first_unsorted( pComponent );
-                }
-                #endif
-            }
-
-            for ( auto const& registeredComponent : componentsToRegister )
-            {
-                auto pComponent = registeredComponent.second;
-                pComponent->m_isRegisteredWithWorld = true;
-
-                #if EE_DEVELOPMENT_TOOLS
-                auto const castableTypeIDs = m_loadingContext.m_pTypeRegistry->GetAllCastableTypes( pComponent );
-                for ( auto castableTypeID : castableTypeIDs )
-                {
-                    m_componentTypeLookup[castableTypeID].emplace_back( pComponent );
-                }
-                #endif
-            }
-        }
-    }
-
     //-------------------------------------------------------------------------
     // Maps
     //-------------------------------------------------------------------------
@@ -521,14 +370,14 @@ namespace EE
         return false;
     }
 
-    bool EntityWorld::IsMapActive( ResourceID const& mapResourceID ) const
+    bool EntityWorld::IsMapLoaded( ResourceID const& mapResourceID ) const
     {
         // Make sure the map isn't already loaded or loading, since duplicate loads are not allowed
         for ( auto const& pMap : m_maps )
         {
             if ( pMap->GetMapResourceID() == mapResourceID )
             {
-                return pMap->IsActivated();
+                return pMap->IsLoaded();
             }
         }
 
@@ -537,14 +386,14 @@ namespace EE
         return false;
     }
 
-    bool EntityWorld::IsMapActive( EntityMapID const& mapID ) const
+    bool EntityWorld::IsMapLoaded( EntityMapID const& mapID ) const
     {
         // Make sure the map isn't already loaded or loading, since duplicate loads are not allowed
         for ( auto const& pMap : m_maps )
         {
             if ( pMap->GetID() == mapID )
             {
-                return pMap->IsActivated();
+                return pMap->IsLoaded();
             }
         }
 
@@ -556,8 +405,7 @@ namespace EE
     EntityModel::EntityMap* EntityWorld::CreateTransientMap()
     {
         EntityModel::EntityMap* pNewMap = m_maps.emplace_back( EE::New<EntityModel::EntityMap>() );
-        pNewMap->Load( m_loadingContext );
-        pNewMap->Activate( m_activationContext );
+        pNewMap->Load( m_loadingContext, m_initializationContext );
         return pNewMap;
     }
 
@@ -583,7 +431,7 @@ namespace EE
 
         EE_ASSERT( !HasMap( mapResourceID ) );
         auto pNewMap = m_maps.emplace_back( EE::New<EntityModel::EntityMap>( mapResourceID ) );
-        pNewMap->Load( m_loadingContext );
+        pNewMap->Load( m_loadingContext, m_initializationContext );
         return pNewMap->GetID();
     }
 
@@ -593,7 +441,7 @@ namespace EE
 
         auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const* pMap, ResourceID const& mapResourceID ) { return pMap->GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
-        ( *foundMapIter )->Unload(m_loadingContext);
+        ( *foundMapIter )->Unload( m_loadingContext, m_initializationContext );
     }
 
     //-------------------------------------------------------------------------
@@ -601,27 +449,28 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void EntityWorld::PrepareComponentForEditing( EntityMapID const& mapID, EntityID const& entityID, ComponentID const& componentID )
-    {
-        auto pMap = GetMap( mapID );
-        EE_ASSERT( pMap != nullptr );
-        pMap->ComponentEditingDeactivate( m_activationContext, entityID, componentID );
-
-        // Process all deactivation requests
-        ProcessEntityRegistrationRequests();
-        ProcessComponentRegistrationRequests();
-
-        pMap->ComponentEditingUnload( m_loadingContext, entityID, componentID );
-    }
-
-    void EntityWorld::PrepareComponentForEditing( EntityComponent* pComponent )
+    void EntityWorld::BeginComponentEdit( EntityComponent* pComponent )
     {
         EE_ASSERT( pComponent != nullptr );
 
         auto pEntity = FindEntity( pComponent->GetEntityID() );
         EE_ASSERT( pEntity != nullptr );
 
-        PrepareComponentForEditing( pEntity->GetMapID(), pComponent->GetEntityID(), pComponent->GetID() );
+        auto pMap = GetMap( pEntity->GetMapID() );
+        EE_ASSERT( pMap != nullptr );
+        pMap->BeginComponentEdit( m_loadingContext, m_initializationContext, pEntity->GetID() );
+    }
+
+    void EntityWorld::EndComponentEdit( EntityComponent* pComponent )
+    {
+        EE_ASSERT( pComponent != nullptr );
+
+        auto pEntity = FindEntity( pComponent->GetEntityID() );
+        EE_ASSERT( pEntity != nullptr );
+
+        auto pMap = GetMap( pEntity->GetMapID() );
+        EE_ASSERT( pMap != nullptr );
+        pMap->EndComponentEdit( m_loadingContext, m_initializationContext, pEntity->GetID() );
     }
 
     //-------------------------------------------------------------------------
@@ -629,30 +478,17 @@ namespace EE
     void EntityWorld::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload )
     {
         EE_ASSERT( !usersToReload.empty() );
-
-        // Fill the hot-reload lists per map and deactivate any active entities
         for ( auto& pMap : m_maps )
         {
-            pMap->HotReloadDeactivateEntities( m_activationContext, usersToReload );
-        }
-
-        // Process all deactivation requests
-        ProcessEntityRegistrationRequests();
-        ProcessComponentRegistrationRequests();
-
-        // Unload all entities that require hot reload
-        for ( auto& pMap : m_maps )
-        {
-            pMap->HotReloadUnloadEntities( m_loadingContext );
+            pMap->BeginHotReload( m_loadingContext, m_initializationContext, usersToReload );
         }
     }
 
     void EntityWorld::EndHotReload()
     {
-        // Load all entities that require hot reload
         for ( auto& pMap : m_maps )
         {
-            pMap->HotReloadLoadEntities( m_loadingContext );
+            pMap->EndHotReload( m_loadingContext );
         }
     }
     #endif

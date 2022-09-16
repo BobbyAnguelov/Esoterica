@@ -18,6 +18,7 @@ namespace EE
     class EntityWorldUpdateContext;
     class Entity;
     class EntityComponent;
+    namespace EntityModel { class EntityMap; }
 
     //-------------------------------------------------------------------------
 
@@ -26,6 +27,7 @@ namespace EE
         EE_REGISTER_TYPE( IEntityWorldSystem );
 
         friend class EntityWorld;
+        friend EntityModel::EntityMap;
 
     public:
 

@@ -1,0 +1,4 @@
+{
+    "TypeID": "EE::Render::CubemapTextureResourceDescriptor",
+    "m_path" : "data://Demo/RenderDemo/Matball/skybox.dds"
+}

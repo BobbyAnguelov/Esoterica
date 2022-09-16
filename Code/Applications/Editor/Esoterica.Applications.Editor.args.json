@@ -3,6 +3,10 @@
   "Id": "d6bdd49c-ef46-4637-844a-4ffdd6a25dc5",
   "Items": [
     {
+      "Id": "858b08e0-53ba-4ee9-af20-1f1c4544ff08",
+      "Command": "-map data://maps/Test.map"
+    },
+    {
       "Id": "8fe4b02b-32a6-465e-9525-b1d7a9227e22",
       "Command": "-map data://maps/BR_Minimal.map"
     },

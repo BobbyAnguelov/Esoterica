@@ -227,13 +227,8 @@ namespace EE::Navmesh
 
             for ( Transform const& transform : primitiveDesc.second )
             {
-                Vector const& scale = transform.GetScale();
-
-                int32_t numNegativelyScaledAxes = ( scale.m_x < 0 ) ? 1 : 0;
-                numNegativelyScaledAxes += ( scale.m_y < 0 ) ? 1 : 0;
-                numNegativelyScaledAxes += ( scale.m_z < 0 ) ? 1 : 0;
-
-                bool const flipWindingDueToScale = Math::IsOdd( numNegativelyScaledAxes );
+                float const scale = transform.GetScale();
+                bool const flipWindingDueToScale = ( scale < 0 );
 
                 //-------------------------------------------------------------------------
 

@@ -1,0 +1,7 @@
+{
+    "TypeID": "EE::Physics::PhysicsMaterialDatabaseResourceDescriptor",
+    "m_materialLibraries": [
+        "data://physics/basicmaterials.pml",
+        "data://physics/terrainmaterials.pml"
+    ]
+}

@@ -1,0 +1,6 @@
+{
+    "TypeID": "EE::Render::TextureResourceDescriptor",
+    "m_path": "data://Demo/RenderDemo/materials/scratched_gold/ao.dds",
+    "m_type": "Default",
+    "m_name": ""
+}

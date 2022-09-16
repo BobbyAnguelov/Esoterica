@@ -64,7 +64,7 @@ namespace EE::EntityModel
 
         if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pEditedTypeInstance ) )
         {
-            m_pWorld->PrepareComponentForEditing( pComponent );
+            m_pWorld->BeginComponentEdit( pComponent );
         }
     }
 
@@ -86,6 +86,13 @@ namespace EE::EntityModel
         m_pActiveUndoAction->RecordEndEdit();
         m_pUndoStack->RegisterAction( m_pActiveUndoAction );
         m_pActiveUndoAction = nullptr;
+
+        //-------------------------------------------------------------------------
+
+        if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pEditedTypeInstance ) )
+        {
+            m_pWorld->EndComponentEdit( pComponent );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -195,8 +202,30 @@ namespace EE::EntityModel
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_windowName.c_str() ) )
         {
-            ImGui::Text( "Work in Progress! - Coming Soon" );
-            ImGui::NewLine();
+            auto const& style = ImGui::GetStyle();
+            ImGui::PushStyleColor( ImGuiCol_ChildBg, style.Colors[ImGuiCol_FrameBg] );
+            ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, style.FrameRounding );
+            ImGui::PushStyleVar( ImGuiStyleVar_ChildBorderSize, style.FrameBorderSize );
+            ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, style.FramePadding );
+            if ( ImGui::BeginChild( "ST", ImVec2( -1, 24 ), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+            {
+                if ( m_editedComponentID.IsValid() )
+                {
+                    auto pEntity = m_pWorld->FindEntity( m_editedEntityID );
+                    auto pComponent = pEntity->FindComponent( m_editedComponentID );
+                    ImGui::Text( "Entity: %s, Component: %s", pEntity->GetNameID().c_str(), pComponent->GetNameID().c_str() );
+                }
+                else if ( m_editedEntityID.IsValid() )
+                {
+                    auto pEntity = m_pWorld->FindEntity( m_editedEntityID );
+                    ImGui::Text( "Entity: %s", pEntity->GetNameID().c_str() );
+                }
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleVar( 3 );
+            ImGui::PopStyleColor();
+
+            //-------------------------------------------------------------------------
 
             m_propertyGrid.DrawGrid();
 

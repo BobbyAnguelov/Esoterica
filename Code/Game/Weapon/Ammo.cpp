@@ -45,7 +45,7 @@ namespace EE::Weapon
         Vector const HitLocation = origin + directionToTarget * outTraceResults.block.distance;
 
         #if EE_DEVELOPMENT_TOOLS
-        drawingCtx.DrawSphere( HitLocation, EE::Float3( 0.5f ), DrawingColor, 2.f, EE::Drawing::DisableDepthTest, 2.f );
+        drawingCtx.DrawSphere( HitLocation, 0.5f, DrawingColor, 2.f, EE::Drawing::DisableDepthTest, 2.f );
         #endif
 
         // Calculate damage with ammo mods

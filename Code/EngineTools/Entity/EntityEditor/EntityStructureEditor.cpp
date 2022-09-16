@@ -284,6 +284,7 @@ namespace EE::EntityModel
                 if ( ImGui::Button( EE_ICON_PLAYLIST_EDIT, ImVec2( 26, 26 ) ) )
                 {
                     ClearSelection();
+                    m_onRequestedTypeToEditChanged.Execute( m_pEditedEntity );
                 }
                 ImGuiX::ItemTooltip( "Edit Entity Details" );
                 ImGui::Separator();
@@ -372,6 +373,9 @@ namespace EE::EntityModel
                                 ClearSelection();
                                 m_selectedComponents.clear();
                                 m_selectedComponents.emplace_back( pComponent );
+
+                                // Notify listeners that we want to edit the selected component
+                                m_onRequestedTypeToEditChanged.Execute( pComponent );
                             }
                         }
 
@@ -431,6 +435,7 @@ namespace EE::EntityModel
                         if ( ImGui::Selectable( pSystem->GetTypeInfo()->GetFriendlyTypeName() ) )
                         {
                             ClearSelection();
+                            m_onRequestedTypeToEditChanged.Execute( nullptr );
                         }
 
                         if ( ImGui::BeginPopupContextItem( "System" ) )
@@ -1086,6 +1091,19 @@ namespace EE::EntityModel
         {
             m_selectedComponents.clear();
         }
+
+        // Notify listeners that we want to edit the selected component
+        if ( reason != TreeListView::ChangeReason::TreeRebuild )
+        {
+            if ( m_selectedSpatialComponents.empty() )
+            {
+                m_onRequestedTypeToEditChanged.Execute( nullptr );
+            }
+            else
+            {
+                m_onRequestedTypeToEditChanged.Execute( m_selectedSpatialComponents.back() );
+            }
+        }
     }
 
     void EntityStructureEditor::HandleDragAndDropOnItem( TreeListViewItem* pDragAndDropTargetItem ) 
@@ -1256,7 +1274,7 @@ namespace EE::EntityModel
         // Flag all components for edit
         for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
         {
-            m_pWorld->PrepareComponentForEditing( pExistingComponent );
+            m_pWorld->BeginComponentEdit( pExistingComponent );
         }
 
         // Remove the component from its old parent
@@ -1266,6 +1284,12 @@ namespace EE::EntityModel
         // Add the component to its new parent
         pNewParentComponent->m_spatialChildren.emplace_back( pComponent );
         pComponent->m_pSpatialParent = pNewParentComponent;
+
+        // Complete Component edits
+        for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
+        {
+            m_pWorld->EndComponentEdit( pExistingComponent );
+        }
 
         //-------------------------------------------------------------------------
 
@@ -1294,13 +1318,13 @@ namespace EE::EntityModel
         bool recreateSpatialAttachment = m_pEditedEntity->m_isSpatialAttachmentCreated;
         if ( recreateSpatialAttachment )
         {
-            m_pEditedEntity->DestroySpatialAttachment();
+            m_pEditedEntity->DestroySpatialAttachment( Entity::SpatialAttachmentRule::KeepLocalTranform );
         }
 
         // Flag all components for edit
         for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
         {
-            m_pWorld->PrepareComponentForEditing( pExistingComponent );
+            m_pWorld->BeginComponentEdit( pExistingComponent );
         }
 
         // Remove the component from its parent
@@ -1318,6 +1342,12 @@ namespace EE::EntityModel
         if ( recreateSpatialAttachment )
         {
             m_pEditedEntity->CreateSpatialAttachment();
+        }
+
+        // End components edit operations
+        for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
+        {
+            m_pWorld->EndComponentEdit( pExistingComponent );
         }
 
         //-------------------------------------------------------------------------

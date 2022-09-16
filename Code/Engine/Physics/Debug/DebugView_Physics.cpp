@@ -293,7 +293,7 @@ namespace EE::Physics
         }
         else if ( auto pSphereComponent = TryCast<SphereComponent>( pComponent ) )
         {
-            drawingContext.DrawSphere( pComponent->GetWorldTransform(), Float3( pSphereComponent->GetRadius() ), Colors::Cyan );
+            drawingContext.DrawSphere( pComponent->GetWorldTransform(), pSphereComponent->GetRadius(), Colors::Cyan );
         }
         else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
         {

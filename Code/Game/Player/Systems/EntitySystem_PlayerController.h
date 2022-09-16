@@ -33,7 +33,7 @@ namespace EE::Player
 
     private:
 
-        virtual void Activate() override;
+        virtual void PostComponentRegister() override;
         virtual void Shutdown() override;
 
         virtual void RegisterComponent( EntityComponent* pComponent ) override;

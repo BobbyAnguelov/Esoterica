@@ -984,10 +984,12 @@ namespace EE
                     ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthStretch );
                     SetupExtraColumnHeaders();
 
+                    m_isDrawingTree = true;
                     for ( int32_t i = itemsToDrawStartIdx; i <= itemsToDrawEndIdx; i++ )
                     {
                         DrawVisualItem( m_visualTree[i] );
                     }
+                    m_isDrawingTree = false;
 
                     ImGui::EndTable();
                 }

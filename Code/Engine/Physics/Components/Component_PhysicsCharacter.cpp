@@ -9,16 +9,6 @@ namespace EE::Physics
     void CharacterComponent::Initialize()
     {
         SpatialEntityComponent::Initialize();
-
-        // Ensure uniform scaling!
-        if ( !GetWorldTransform().HasUniformScale() )
-        {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Characters are not allowed to be non-uniformly scale - Scale was reset!" );
-            auto WT = GetWorldTransform();
-            WT.SetScale( 1.0f );
-            SetWorldTransform( WT );
-        }
-
         m_capsuleWorldTransform = CalculateCapsuleTransformFromWorldTransform( GetWorldTransform() );
     }
 
@@ -35,18 +25,6 @@ namespace EE::Physics
 
     void CharacterComponent::OnWorldTransformUpdated()
     {
-        // Ensure uniform scaling!
-        if ( !GetWorldTransform().HasUniformScale() )
-        {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Characters are not allowed to be non-uniformly scale - Scale was reset!" );
-            auto WT = GetWorldTransform();
-            WT.SetScale( 1.0f );
-            SetWorldTransform( WT );
-            return; // return here since this callback will be called via the set world transform
-        }
-
-        //-------------------------------------------------------------------------
-
         m_capsuleWorldTransform = CalculateCapsuleTransformFromWorldTransform( GetWorldTransform() );
         m_linearVelocity = Vector::Zero;
 

@@ -976,11 +976,10 @@ namespace EE::TypeSystem
                     ImGui::Text( "Scl" );
 
                     ImGui::TableNextColumn();
-                    if ( ImGuiX::InputFloat3( "S", m_scale_imgui ) )
+                    ImGui::SetNextItemWidth( -1 );
+                    if ( ImGui::InputFloat( "##S", &m_scale_imgui ) )
                     {
-                        m_scale_imgui.m_x = Math::IsNearZero( m_scale_imgui.m_x ) ? 0.01f : m_scale_imgui.m_x;
-                        m_scale_imgui.m_y = Math::IsNearZero( m_scale_imgui.m_y ) ? 0.01f : m_scale_imgui.m_y;
-                        m_scale_imgui.m_z = Math::IsNearZero( m_scale_imgui.m_z ) ? 0.01f : m_scale_imgui.m_z;
+                        m_scale_imgui = Math::IsNearZero( m_scale_imgui ) ? 0.01f : m_scale_imgui;
                         m_scale_cached = m_scale_imgui;
                         transformUpdated = true;
                     }
@@ -1016,19 +1015,20 @@ namespace EE::TypeSystem
                 
                 m_rotation_cached = m_rotation_imgui = transform->GetRotation().ToEulerAngles().GetAsDegrees();
                 m_translation_cached = m_translation_imgui = transform->GetTranslation().ToFloat3();
-                m_scale_cached = m_scale_imgui = transform->GetScale().ToFloat3();
+                m_scale_cached = m_scale_imgui = transform->GetScale();
             }
             else if ( m_coreType == CoreTypeID::Matrix )
             {
                 auto const& matrix = reinterpret_cast<Matrix*>( m_pPropertyInstance );
 
                 Quaternion q;
-                Vector t, s;
+                Vector t;
+                float s;
                 matrix->Decompose( q, t, s );
 
                 m_rotation_cached = m_rotation_imgui = q.ToEulerAngles().GetAsDegrees();
                 m_translation_cached = m_translation_imgui = t.ToFloat3();
-                m_scale_cached = m_scale_imgui = s.ToFloat3();
+                m_scale_cached = m_scale_imgui = s;
             }
         }
 
@@ -1036,7 +1036,7 @@ namespace EE::TypeSystem
         {
             Quaternion actualQ;
             Vector actualTranslation;
-            Vector actualScale;
+            float actualScale = 1.0f;
 
             // Get actual transform values
             //-------------------------------------------------------------------------
@@ -1073,9 +1073,9 @@ namespace EE::TypeSystem
                 m_translation_imgui = m_translation_cached;
             }
 
-            if ( !actualScale.IsNearEqual3( m_scale_cached ) )
+            if ( !Math::IsNearEqual( actualScale, m_scale_cached ) )
             {
-                m_scale_cached = actualScale.ToFloat3();
+                m_scale_cached = actualScale;
                 m_scale_imgui = m_scale_cached;
             }
         }
@@ -1084,11 +1084,11 @@ namespace EE::TypeSystem
 
         Float3                m_rotation_imgui;
         Float3                m_translation_imgui;
-        Float3                m_scale_imgui;
+        float                 m_scale_imgui;
 
         Float3                m_rotation_cached;
         Float3                m_translation_cached;
-        Float3                m_scale_cached;
+        float                 m_scale_cached;
     };
 
     //-------------------------------------------------------------------------

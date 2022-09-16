@@ -18,7 +18,7 @@ namespace EE::RawAssets
         {
             Quaternion m_rotation;
             Vector     m_translation;
-            Vector     m_scale;
+            float      m_scale;
         };
 
     public:
@@ -172,7 +172,9 @@ namespace EE::RawAssets
                         {
                             Float3 scale;
                             cgltf_accessor_read_float( channel.sampler->output, i, &scale.m_x, 3 );
-                            trackData[boneIdx][i].m_scale = scale;
+                            // TODO: Log warning
+                            EE_ASSERT( scale.m_x == scale.m_y && scale.m_y == scale.m_z );
+                            trackData[boneIdx][i].m_scale = scale.m_x;
                         }
                     }
                     break;

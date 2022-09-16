@@ -20,7 +20,7 @@ namespace EE
         if ( mapResourceID != m_loadedMap )
         {
             // Unload current map
-            if ( m_loadedMap.IsValid() && m_pWorld->IsMapActive( m_loadedMap ) )
+            if ( m_loadedMap.IsValid() && m_pWorld->IsMapLoaded( m_loadedMap ) )
             {
                 m_pWorld->UnloadMap( m_loadedMap );
             }

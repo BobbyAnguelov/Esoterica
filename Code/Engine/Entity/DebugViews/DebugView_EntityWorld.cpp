@@ -187,7 +187,7 @@ namespace EE
 
         for ( auto& pLoadedMap : m_pWorld->m_maps )
         {
-            if ( pLoadedMap->IsLoaded() || pLoadedMap->IsActivated() )
+            if ( pLoadedMap->IsLoaded() )
             {
                 numEntities += (int32_t) pLoadedMap->GetEntities().size();
                 m_entities.insert( m_entities.end(), pLoadedMap->GetEntities().begin(), pLoadedMap->GetEntities().end() );
@@ -303,7 +303,7 @@ namespace EE
                             auto const eulerAngles = transform.GetRotation().ToEulerAngles();
                             ImGui::Text( "Rotation: %.2f %.2f %.2f", eulerAngles.m_x, eulerAngles.m_y, eulerAngles.m_z );
                             ImGui::Text( "Translation: %.2f %.2f %.2f", transform.GetTranslation().m_x, transform.GetTranslation().m_y, transform.GetTranslation().m_z );
-                            ImGui::Text( "Scale: %.2f %.2f %.2f", transform.GetScale().m_x, transform.GetScale().m_y, transform.GetScale().m_z );
+                            ImGui::Text( "Scale: %.2f", transform.GetScale() );
                         }
                     }
 

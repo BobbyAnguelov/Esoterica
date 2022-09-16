@@ -1,0 +1,4 @@
+{
+  "TypeID": "EE::Render::MaterialResourceDescriptor",
+  "m_albedoTexture": "data://Demo/RenderDemo/matball/debug_texture.txtr"
+}

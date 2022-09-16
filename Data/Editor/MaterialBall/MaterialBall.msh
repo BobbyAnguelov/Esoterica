@@ -1,0 +1,5 @@
+{
+    "TypeID": "EE::Render::StaticMeshResourceDescriptor",
+    "m_meshPath": "data://Editor/MaterialBall/MaterialBall.gltf",
+    "m_meshName": ""
+}

@@ -141,7 +141,7 @@ namespace EE::EntityModel
     void EntityMapEditor::SaveMapAs()
     {
         auto pEditedMap = GetEditedMap();
-        if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() || pEditedMap->IsActivated() ) )
+        if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() ) )
         {
             return;
         }
@@ -172,7 +172,7 @@ namespace EE::EntityModel
     bool EntityMapEditor::Save()
     {
         auto pEditedMap = GetEditedMap();
-        if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() || pEditedMap->IsActivated() ) )
+        if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() ) )
         {
             return false;
         }
@@ -341,8 +341,9 @@ namespace EE::EntityModel
             EE_ASSERT( navmeshComponents.size() == 1 );
            
             auto pNavmeshComponent = const_cast<Navmesh::NavmeshComponent*>( navmeshComponents.back() );
-            m_pWorld->PrepareComponentForEditing( pNavmeshComponent );
+            m_pWorld->BeginComponentEdit( pNavmeshComponent );
             pNavmeshComponent->SetBuildSettings( m_pNavmeshGeneratorDialog->GetBuildSettings() );
+            m_pWorld->EndComponentEdit( pNavmeshComponent );
         }
 
         // Destroy dialog

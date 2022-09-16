@@ -47,9 +47,9 @@ namespace EE::Animation
                 return Vector::Lerp( trans0, trans1, t );
             }
 
-            inline static Vector BlendScale( Vector const& scale0, Vector const& scale1, float t )
+            inline static float BlendScale( float const scale0, float const scale1, float t )
             {
-                return Vector::Lerp( scale0, scale1, t );
+                return Math::Lerp( scale0, scale1, t );
             }
         };
 
@@ -66,9 +66,9 @@ namespace EE::Animation
                 return Vector::MultiplyAdd( trans1, Vector( t ), trans0 ).SetW1();
             }
 
-            inline static Vector BlendScale( Vector const& scale0, Vector const& scale1, float t )
+            inline static float BlendScale( float const scale0, float const scale1, float t )
             {
-                return Vector::MultiplyAdd( scale1, Vector( t ), scale0 ).SetW1();
+                return scale0 + (scale1 * t );
             }
         };
 
@@ -112,13 +112,13 @@ namespace EE::Animation
                 {
                     result.SetRotation( AdditiveBlender::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
                     result.SetTranslation( AdditiveBlender::BlendTranslation( source.GetTranslation(), target.GetTranslation(), blendWeight ) );
-                    result.SetScale( Vector::One );
+                    result.SetScale( 1.0f );
                 }
                 else // Regular blend
                 {
                     result.SetRotation( InterpolativeBlender::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
                     result.SetTranslation( InterpolativeBlender::BlendTranslation( source.GetTranslation(), target.GetTranslation(), blendWeight ).SetW1() );
-                    result.SetScale( Vector::One );
+                    result.SetScale( 1.0f );
                 }
             }
 

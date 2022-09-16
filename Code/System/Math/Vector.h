@@ -375,7 +375,9 @@ namespace EE
         EE_FORCE_INLINE bool IsLessThanEqual4( Vector const& v ) const { return ( ( _mm_movemask_ps( LessThanEqual( v ) ) == 0x0f ) != 0 ); }
 
         EE_FORCE_INLINE Vector EqualsZero() const { return Equal( Vector::Zero ); }
-        EE_FORCE_INLINE bool IsAnyEqualsZero() const { return !EqualsZero().IsZero4(); }
+        EE_FORCE_INLINE bool IsAnyEqualToZero2() const { return !EqualsZero().IsZero2(); }
+        EE_FORCE_INLINE bool IsAnyEqualToZero3() const { return !EqualsZero().IsZero3(); }
+        EE_FORCE_INLINE bool IsAnyEqualToZero4() const { return !EqualsZero().IsZero4(); }
 
         EE_FORCE_INLINE bool IsZero2() const { return IsEqual2( Vector::Zero ); }
         EE_FORCE_INLINE bool IsZero3() const { return IsEqual3( Vector::Zero ); }

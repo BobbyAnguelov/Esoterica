@@ -1,0 +1,6 @@
+{
+  "TypeID": "EE::Render::TextureResourceDescriptor",
+  "m_path": "data://Demo/RenderDemo/materials/scratched_gold/normal.dds",
+  "m_type": "TangentSpaceNormals",
+  "m_name": ""  
+}

@@ -119,19 +119,19 @@ namespace EE::Drawing
         InternalDrawTriangle( m_commandBuffer, verts[2], verts[1], verts[3], color, depthTestState, TTL );
     }
 
-    void DrawContext::DrawBox( Transform const& transform, Float4 const& color, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState, Seconds TTL )
     {
         // Calculate transformed vertices
         Vector verts[8] =
         {
-            transform.TransformPoint( g_unitCubeVertices[0] ),
-            transform.TransformPoint( g_unitCubeVertices[1] ),
-            transform.TransformPoint( g_unitCubeVertices[2] ),
-            transform.TransformPoint( g_unitCubeVertices[3] ),
-            transform.TransformPoint( g_unitCubeVertices[4] ),
-            transform.TransformPoint( g_unitCubeVertices[5] ),
-            transform.TransformPoint( g_unitCubeVertices[6] ),
-            transform.TransformPoint( g_unitCubeVertices[7] )
+            transform.TransformPoint( Vector( g_unitCubeVertices[0] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[1] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[2] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[3] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[4] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[5] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[6] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[7] ) * halfsize )
         };
 
         // Register draw commands
@@ -142,19 +142,19 @@ namespace EE::Drawing
         }
     }
 
-    void DrawContext::DrawWireBox( Transform const& transform, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawWireBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
     {
         // Calculate vertices
         Vector verts[8] =
         {
-            transform.TransformPoint( g_unitCubeVertices[0] ),
-            transform.TransformPoint( g_unitCubeVertices[1] ),
-            transform.TransformPoint( g_unitCubeVertices[2] ),
-            transform.TransformPoint( g_unitCubeVertices[3] ),
-            transform.TransformPoint( g_unitCubeVertices[4] ),
-            transform.TransformPoint( g_unitCubeVertices[5] ),
-            transform.TransformPoint( g_unitCubeVertices[6] ),
-            transform.TransformPoint( g_unitCubeVertices[7] )
+            transform.TransformPoint( Vector( g_unitCubeVertices[0] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[1] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[2] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[3] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[4] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[5] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[6] ) * halfsize ),
+            transform.TransformPoint( Vector( g_unitCubeVertices[7] ) * halfsize )
         };
 
         // Register draw commands
@@ -169,7 +169,7 @@ namespace EE::Drawing
     // Sphere / Circle
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawCircle( Transform const& transform, Axis upAxis, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
     {
         if ( !g_circleVerticesInitialized )
         {
@@ -202,7 +202,7 @@ namespace EE::Drawing
         auto verts = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
         for ( auto i = 0; i < g_numCircleVertices; i++ )
         {
-            verts[i] = transform.TransformPoint( pCircleVerts[i] );
+            verts[i] = transform.TransformPoint( pCircleVerts[i] * radius );
         }
 
         // Register line commands
@@ -214,16 +214,16 @@ namespace EE::Drawing
         InternalDrawLine( m_commandBuffer, verts[g_numCircleVertices - 1], verts[0], color, lineThickness, depthTestState, TTL );
     }
 
-    void DrawContext::DrawSphere( Transform const& transform, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
     {
-        DrawCircle( transform, Axis::X, color, lineThickness, depthTestState, TTL );
-        DrawCircle( transform, Axis::Y, color, lineThickness, depthTestState, TTL );
-        DrawCircle( transform, Axis::Z, color, lineThickness, depthTestState, TTL );
+        DrawCircle( transform, Axis::X, radius, color, lineThickness, depthTestState, TTL );
+        DrawCircle( transform, Axis::Y, radius, color, lineThickness, depthTestState, TTL );
+        DrawCircle( transform, Axis::Z, radius, color, lineThickness, depthTestState, TTL );
     }
 
-    void DrawContext::DrawHalfSphere( Transform const& transform, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawHalfSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
     {
-        DrawCircle( transform, Axis::Z, color, lineThickness, depthTestState, TTL );
+        DrawCircle( transform, Axis::Z, radius, color, lineThickness, depthTestState, TTL );
 
         Float4* pCircleVerts = g_circleVerticesXUp;
         auto vertsX = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
@@ -231,8 +231,8 @@ namespace EE::Drawing
 
         for ( auto i = 0; i < g_numCircleVertices; i++ )
         {
-            vertsX[i] = transform.TransformPoint( g_circleVerticesXUp[i] );
-            vertsY[i] = transform.TransformPoint( g_circleVerticesYUp[i] );
+            vertsX[i] = transform.TransformPoint( g_circleVerticesXUp[i] * radius );
+            vertsY[i] = transform.TransformPoint( g_circleVerticesYUp[i] * radius );
         }
 
         for ( auto i = 1; i < ( g_numCircleVertices / 2 ); i++ )
@@ -248,9 +248,9 @@ namespace EE::Drawing
         }
     }
 
-    void DrawContext::DrawHalfSphereYZ( Transform const& transform, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawHalfSphereYZ( Transform const& transform, float radius, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
     {
-        DrawCircle( transform, Axis::X, color, lineThickness, depthTestState, TTL );
+        DrawCircle( transform, Axis::X, radius, color, lineThickness, depthTestState, TTL );
 
         Float4* pCircleVerts = g_circleVerticesZUp;
         auto vertsZ = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
@@ -258,8 +258,8 @@ namespace EE::Drawing
 
         for ( auto i = 0; i < g_numCircleVertices; i++ )
         {
-            vertsZ[i] = transform.TransformPoint( g_circleVerticesZUp[i] );
-            vertsY[i] = transform.TransformPoint( g_circleVerticesYUp[i] );
+            vertsZ[i] = transform.TransformPoint( g_circleVerticesZUp[i] * radius );
+            vertsY[i] = transform.TransformPoint( g_circleVerticesYUp[i] * radius );
         }
 
         for ( auto i = 1; i < g_numCircleVertices / 4; i++ )
@@ -332,8 +332,8 @@ namespace EE::Drawing
         // Caps
         //-------------------------------------------------------------------------
 
-        DrawCircle( cylinderTop, Axis::Z, radius, color, thickness, depthTestState, TTL );
-        DrawCircle( cylinderBottom, Axis::Z, radius, color, thickness, depthTestState, TTL );
+        DrawCircle( cylinderTop.GetTranslation(), Axis::Z, radius, color, thickness, depthTestState, TTL );
+        DrawCircle( cylinderBottom.GetTranslation(), Axis::Z, radius, color, thickness, depthTestState, TTL );
 
         // 8 lines
         //-------------------------------------------------------------------------
@@ -393,9 +393,8 @@ namespace EE::Drawing
         // Caps
         //-------------------------------------------------------------------------
 
-        Float3 const sphereRadius( radius );
-        DrawHalfSphere( cylinderTop, sphereRadius, color, thickness, depthTestState, TTL );
-        DrawHalfSphere( cylinderBottom, sphereRadius, color, thickness, depthTestState, TTL );
+        DrawHalfSphere( cylinderTop, radius, color, thickness, depthTestState, TTL );
+        DrawHalfSphere( cylinderBottom, radius, color, thickness, depthTestState, TTL );
 
         // 8 lines
         //-------------------------------------------------------------------------
@@ -438,9 +437,8 @@ namespace EE::Drawing
         // Caps
         //-------------------------------------------------------------------------
 
-        Float3 const sphereRadius( radius );
-        DrawHalfSphereYZ( cylinderTop, sphereRadius, color, thickness, depthTestState, TTL );
-        DrawHalfSphereYZ( cylinderBottom, sphereRadius, color, thickness, depthTestState, TTL );
+        DrawHalfSphereYZ( cylinderTop, radius, color, thickness, depthTestState, TTL );
+        DrawHalfSphereYZ( cylinderBottom, radius, color, thickness, depthTestState, TTL );
 
         // 8 lines
         //-------------------------------------------------------------------------

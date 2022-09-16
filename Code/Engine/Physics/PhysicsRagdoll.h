@@ -369,7 +369,7 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         void Update( Seconds const deltaTime, Transform const& worldTransform, Animation::Pose* pPose = nullptr, bool initializeBodies = false );
-        bool GetPose( Transform const& inverseWorldTransform, Animation::Pose* pPose ) const;
+        bool GetPose( Transform const& worldTransform, Animation::Pose* pPose ) const;
         void GetRagdollPose( RagdollPose& pose ) const;
 
         // Debug

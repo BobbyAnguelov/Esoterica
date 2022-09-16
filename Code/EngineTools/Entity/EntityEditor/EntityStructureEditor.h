@@ -69,6 +69,9 @@ namespace EE::EntityModel
         // Get all the selected spatial components
         TVector<SpatialEntityComponent*> const& GetSelectedSpatialComponents() const { return m_selectedSpatialComponents; }
 
+        // Fired whenever we change the selection manually or through a user action
+        TEventHandle<IRegisteredType*> OnSelectionManuallyChanged() { return m_onRequestedTypeToEditChanged; }
+
     private:
 
         void EntityUpdateDetected( Entity* pEntityChanged );
@@ -120,8 +123,7 @@ namespace EE::EntityModel
         StringID                                        m_initiallySelectedComponentNameID;
         TVector<SpatialEntityComponent*>                m_selectedSpatialComponents;
         TVector<EntityComponent*>                       m_selectedComponents;
-
-        // Cached filtered lists of addable options
+        TEvent<IRegisteredType*>                        m_onRequestedTypeToEditChanged;
 
         // Operations
         Operation                                       m_activeOperation = Operation::None;

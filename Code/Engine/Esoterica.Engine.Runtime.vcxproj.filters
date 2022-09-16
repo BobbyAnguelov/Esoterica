@@ -520,7 +520,7 @@
     <ClInclude Include="Entity\Entity.h">
       <Filter>Entity</Filter>
     </ClInclude>
-    <ClInclude Include="Entity\EntityActivationContext.h">
+    <ClInclude Include="Entity\EntityContexts.h">
       <Filter>Entity</Filter>
     </ClInclude>
     <ClInclude Include="Entity\EntityComponent.h">
@@ -530,9 +530,6 @@
       <Filter>Entity</Filter>
     </ClInclude>
     <ClInclude Include="Entity\EntityIDs.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityLoadingContext.h">
       <Filter>Entity</Filter>
     </ClInclude>
     <ClInclude Include="Entity\EntityMap.h">

@@ -1,0 +1,6 @@
+{
+    "TypeID": "EE::Render::StaticMeshResourceDescriptor",
+    "m_meshPath": "data://Demo/RenderDemo/matball/matball.gltf",
+    "m_materials": ["data://Demo/RenderDemo/matball/debug_texture.mtrl"],
+    "m_meshName": ""
+}

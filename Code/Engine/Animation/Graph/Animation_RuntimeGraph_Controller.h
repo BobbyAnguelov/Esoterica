@@ -105,12 +105,12 @@ namespace EE::Animation
 
             EE_FORCE_INLINE Vector ConvertWorldSpacePointToCharacterSpace( Vector const& worldPoint ) const
             {
-                return m_pAnimatedMeshComponent->GetWorldTransform().GetInverse().TransformPoint( worldPoint );
+                return m_pAnimatedMeshComponent->GetWorldTransform().InverseTransformPoint( worldPoint );
             }
 
             EE_FORCE_INLINE Vector ConvertWorldSpaceVectorToCharacterSpace( Vector const& worldVector ) const
             {
-                return m_pAnimatedMeshComponent->GetWorldTransform().GetInverse().RotateVector( worldVector );
+                return m_pAnimatedMeshComponent->GetWorldTransform().InverseTransformVector( worldVector );
             }
 
             // Graph Info

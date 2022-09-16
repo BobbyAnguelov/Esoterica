@@ -39,7 +39,7 @@ namespace EE
         inline BoxVolumeComponent( StringID name ) : VolumeComponent( name ) {}
 
         // Get the half-size of the volume!
-        inline Float3 GetVolumeLocalExtents() const { return GetWorldTransform().GetScale(); }
+        inline Float3 GetVolumeLocalExtents() const { return m_extents; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void Draw( Drawing::DrawContext& drawingCtx ) const override;
@@ -48,5 +48,9 @@ namespace EE
     protected:
 
         virtual void Initialize() override;
+
+    protected:
+
+        Float3 m_extents = Float3::One;
     };
 }

@@ -281,7 +281,7 @@ namespace EE::Render
                         {
                             ImGui::NewLine();
                             ImGui::Text( "Local Transform" );
-                            Transform const& localBoneTransform = m_pResource->GetBindPose()[selectedBoneIdx] * m_pResource->GetBindPose()[parentBoneIdx].GetInverse();
+                            Transform const& localBoneTransform = Transform::Delta( m_pResource->GetBindPose()[parentBoneIdx], m_pResource->GetBindPose()[selectedBoneIdx] );
                             ImGuiX::DisplayTransform( localBoneTransform );
                         }
 

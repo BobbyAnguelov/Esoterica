@@ -8,48 +8,40 @@
 #include "System/Math/Transform.h"
 
 //-------------------------------------------------------------------------
+// Entity Map
+//-------------------------------------------------------------------------
+// This is a logical grouping of entities whose lifetime is linked
+// e.g. the game level, a cell in a open world game, etc.
+//
+// * Maps manage lifetime, loading and initialization of entities
+// * All map operations are threadsafe using a standard mutex
+//-------------------------------------------------------------------------
 
 namespace EE
 {
     class Entity;
-    class EntityWorld;
 
     //-------------------------------------------------------------------------
 
     namespace EntityModel
     {
-        struct EntityLoadingContext;
-        struct ActivationContext;
+        struct LoadingContext;
+        struct InitializationContext;
         class SerializedEntityCollection;
 
-        //-------------------------------------------------------------------------
-        // Entity Map
-        //-------------------------------------------------------------------------
-        // This is a logical grouping of entities whose lifetime is linked
-        // e.g. the game level, a cell in a open world game, etc.
-        //
-        // * Maps manage lifetime, loading and activation of entities
-        // * All map operations are threadsafe using a standard mutex
-        //
-        // There are some quirks with the addition/removal of entities:
-        // * When adding an entity, it may take a frame to make it to the actual entities list but is immediately added to the lookup maps
-        // * Removal functions in the opposite manner, entities are only removed from the maps once they are removed entirely from the map
-        //
         //-------------------------------------------------------------------------
 
         class EE_ENGINE_API EntityMap
         {
-            friend EntityWorld;
             friend struct Serializer;
 
             enum class Status
             {
                 LoadFailed = -1,
                 Unloaded = 0,
-                MapDescriptorLoading,
-                MapEntitiesLoading,
+                Loading,
                 Loaded,
-                Activated,
+                Unloading,
             };
 
             struct RemovalRequest
@@ -78,29 +70,25 @@ namespace EE
             inline EntityMapID GetID() const { return m_ID; }
             inline bool IsTransientMap() const { return m_isTransientMap; }
 
-            // Loading and Activation
+            // Loading
             //-------------------------------------------------------------------------
 
-            void Load( EntityLoadingContext const& loadingContext );
-            void Unload( EntityLoadingContext const& loadingContext );
-
-            void Activate( EntityModel::ActivationContext& activationContext );
-            void Deactivate( EntityModel::ActivationContext& activationContext );
+            void Load( LoadingContext const& loadingContext, InitializationContext& initializationContext );
+            void Unload( LoadingContext const& loadingContext, InitializationContext& initializationContext );
 
             // Map State
             //-------------------------------------------------------------------------
 
             // Updates map loading and entity state, returns true if all loading/state changes are complete, false otherwise
-            bool UpdateState( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
+            bool UpdateLoadingAndStateChanges( LoadingContext const& loadingContext, InitializationContext& initializationContext );
 
             // Do we have any pending entity addition or removal requests?
             inline bool HasPendingAddOrRemoveRequests() const { return ( m_entitiesToLoad.size() + m_entitiesToRemove.size() ) > 0; }
 
-            bool IsLoading() const { return m_status == Status::MapDescriptorLoading || m_status == Status::MapEntitiesLoading; }
+            bool IsLoading() const { return m_status == Status::Loading; }
             inline bool IsLoaded() const { return m_status == Status::Loaded; }
             inline bool IsUnloaded() const { return m_status == Status::Unloaded; }
             inline bool HasLoadingFailed() const { return m_status == Status::LoadFailed; }
-            inline bool IsActivated() const { return m_status == Status::Activated; }
 
             //-------------------------------------------------------------------------
             // Entity API
@@ -137,13 +125,17 @@ namespace EE
             void AddEntity( Entity* pEntity );
 
             // Unload and remove an entity from the map - Transfer ownership of the entity to the calling code
-            // May take multiple frames to be fully destroyed, as the deactivation/unload occurs during the loading update
+            // May take multiple frames to be fully destroyed, as the shutdown/unload occurs during the loading update
             // Entity is free to be deleted by the user ONLY once it is in an unloaded state
             Entity* RemoveEntity( EntityID entityID );
 
             // Unload, remove and destroy entity in this map
             // May take multiple frames to be fully destroyed, as the removal occurs during the loading update
             void DestroyEntity( EntityID entityID );
+
+            //-------------------------------------------------------------------------
+            // Tools API
+            //-------------------------------------------------------------------------
 
             #if EE_DEVELOPMENT_TOOLS
             // Gets a unique entity name for this map given a specified desired name
@@ -161,50 +153,34 @@ namespace EE
                 auto iter = m_entityNameLookupMap.find( nameID );
                 return ( iter != m_entityNameLookupMap.end() ) ? iter->second : nullptr;
             }
+
+            // This function will shutdown and unload the entity, allowing its components' properties to be edited safely!
+            void BeginComponentEdit( LoadingContext const& loadingContext, InitializationContext& initializationContext, EntityID const& entityID );
+
+            // Completes a component edit operation
+            void EndComponentEdit( LoadingContext const& loadingContext, InitializationContext& initializationContext, EntityID const& entityID );
+
+            // Shutdown and unload all entities that are affected by the hot-reload
+            void BeginHotReload( LoadingContext const& loadingContext, InitializationContext& initializationContext, TVector<Resource::ResourceRequesterID> const& usersToReload );
+
+            // Load all entities unloaded due to the hot-reload
+            void EndHotReload( LoadingContext const& loadingContext );
             #endif
 
         private:
 
-            //-------------------------------------------------------------------------
-            // Editing / Hot-reloading
-            //-------------------------------------------------------------------------
-            // Editing and hot-reloading are blocking processes that run in stages
-
-            #if EE_DEVELOPMENT_TOOLS
-            // This function will deactivate and unload the specified component, allowing its properties to be edited safely!
-            void ComponentEditingDeactivate( EntityModel::ActivationContext& activationContext, EntityID const& entityID, ComponentID const& componentID );
-
-            // This function will deactivate and unload the specified component, allowing its properties to be edited safely!
-            void ComponentEditingUnload( EntityLoadingContext const& loadingContext, EntityID const& entityID, ComponentID const& componentID );
-
-            // Hot reloading is a blocking process that runs in stages
-            //-------------------------------------------------------------------------
-
-            // 1st Stage: Fills the hot-reload list and request deactivation for any entities that require a hot-reload
-            void HotReloadDeactivateEntities( EntityModel::ActivationContext& activationContext, TVector<Resource::ResourceRequesterID> const& usersToReload );
-
-            // 2nd Stage: Requests unload of all entities required hot-reload
-            void HotReloadUnloadEntities( EntityLoadingContext const& loadingContext );
-
-            // 3rd Stage: Requests load of all entities required hot-reload
-            void HotReloadLoadEntities( EntityLoadingContext const& loadingContext );
-            #endif
-
-            //-------------------------------------------------------------------------
-
             // Called whenever the internal state of an entity changes, schedules the entity for loading
             void OnEntityStateUpdated( Entity* pEntity );
 
-            bool ProcessMapUnloadRequest( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
-            bool ProcessMapLoading( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
-            void ProcessEntityAdditionAndRemoval( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
-            bool ProcessEntityLoadingAndActivation( EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext );
+            void ProcessMapLoading( LoadingContext const& loadingContext );
+            void ProcessMapUnloading( LoadingContext const& loadingContext, InitializationContext& initializationContext );
+            void ProcessEntityRegistrationRequests( InitializationContext& initializationContext );
+            void ProcessEntityShutdownRequests( InitializationContext& initializationContext );
+            void ProcessEntityRemovalRequests( LoadingContext const& loadingContext );
+            void ProcessEntityLoadingAndInitialization( LoadingContext const& loadingContext, InitializationContext& initializationContext );
 
             // Remove entity
             Entity* RemoveEntityInternal( EntityID entityID, bool destroyEntityOnceRemoved );
-
-            // Destroy all created entity instances
-            void DestroyAllEntities();
 
         private:
 
@@ -212,14 +188,12 @@ namespace EE
             Threading::RecursiveMutex                   m_mutex;
             TResourcePtr<SerializedEntityMap>           m_pMapDesc;
             TVector<Entity*>                            m_entities;
-            THashMap<EntityID, Entity*>                 m_entityIDLookupMap; // All activated entities in the map
+            THashMap<EntityID, Entity*>                 m_entityIDLookupMap;
             TVector<Entity*>                            m_entitiesCurrentlyLoading;
             TInlineVector<Entity*, 5>                   m_entitiesToLoad;
             TInlineVector<RemovalRequest, 5>            m_entitiesToRemove;
             EventBindingID                              m_entityUpdateEventBindingID;
             Status                                      m_status = Status::Unloaded;
-            bool                                        m_isUnloadRequested = false;
-            bool                                        m_isMapInstantiated = false;
             bool const                                  m_isTransientMap = false; // If this is set, then this is a transient map i.e.created and managed at runtime and not loaded from disk
 
             #if EE_DEVELOPMENT_TOOLS

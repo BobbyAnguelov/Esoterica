@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "EntityIDs.h"
-#include "EntityLoadingContext.h"
+#include "EntityContexts.h"
 #include "System/TypeSystem/RegisteredType.h"
 
 //-------------------------------------------------------------------------
@@ -12,6 +12,8 @@ namespace EE
     namespace EntityModel
     {
         class EntityMapEditor;
+        class EntityCollection;
+        class EntityMap;
         struct Serializer;
     }
 
@@ -68,10 +70,10 @@ namespace EE
         EntityComponent( StringID name ) : m_name( name ) {}
 
         // Request load of all component data - loading takes time
-        virtual void Load( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) = 0;
+        virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) = 0;
 
         // Request unload of component data, unloading is instant
-        virtual void Unload( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) = 0;
+        virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) = 0;
 
         // Update loading state, this will check all dependencies
         virtual void UpdateLoading() = 0;
@@ -99,8 +101,8 @@ namespace EE
 #define EE_REGISTER_ENTITY_COMPONENT( TypeName ) \
         EE_REGISTER_TYPE( TypeName );\
         protected:\
-        virtual void Load( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
-        virtual void Unload( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
         virtual void UpdateLoading() override;
 
 // Use this macro to create a singleton component (and hierarchy) - Note: All derived types must use the regular registration macro
@@ -108,6 +110,6 @@ namespace EE
         EE_REGISTER_TYPE( TypeName );\
         protected:\
         virtual bool IsSingletonComponent() const override final { return true; }\
-        virtual void Load( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
-        virtual void Unload( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
         virtual void UpdateLoading() override;

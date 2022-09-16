@@ -1,0 +1,4 @@
+{
+  "TypeID": "EE::Render::TextureResourceDescriptor",
+  "m_path": "data://Demo/RenderDemo/matball/debug_texture.png"
+}

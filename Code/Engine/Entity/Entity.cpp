@@ -1,8 +1,7 @@
 #include "Entity.h"
 #include "EntitySystem.h"
 #include "EntityWorldUpdateContext.h"
-#include "EntityActivationContext.h"
-#include "EntityLoadingContext.h"
+#include "EntityContexts.h"
 #include "EntityDescriptors.h"
 #include "EntityLog.h"
 #include "System/Resource/ResourceRequesterID.h"
@@ -15,7 +14,6 @@ namespace EE
 {
     TEvent<Entity*> Entity::s_entityUpdatedEvent;
     TEvent<Entity*> Entity::s_entityInternalStateUpdatedEvent;
-    TEvent<Entity*> Entity::s_entitySpatialAttachmentStateUpdatedEvent;
 
     //-------------------------------------------------------------------------
 
@@ -23,7 +21,7 @@ namespace EE
     {
         EE_ASSERT( m_status == Status::Unloaded );
         EE_ASSERT( !m_isSpatialAttachmentCreated );
-        EE_ASSERT( m_updateRegistrationStatus == RegistrationStatus::Unregistered );
+        EE_ASSERT( m_updateRegistrationStatus == UpdateRegistrationStatus::Unregistered );
 
         // Break all inter-entity links
         if ( IsSpatialEntity() )
@@ -60,7 +58,7 @@ namespace EE
         {
             EE::Delete( pSystem );
         }
-        
+
         m_systems.clear();
 
         // Destroy components
@@ -74,9 +72,10 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Entity::LoadComponents( EntityModel::EntityLoadingContext const& loadingContext )
+    void Entity::LoadComponents( EntityModel::LoadingContext const& loadingContext )
     {
         EE_ASSERT( m_status == Status::Unloaded );
+        Threading::RecursiveScopeLock myLock( m_internalStateMutex );
 
         for ( auto pComponent : m_components )
         {
@@ -87,9 +86,10 @@ namespace EE
         m_status = Status::Loaded;
     }
 
-    void Entity::UnloadComponents( EntityModel::EntityLoadingContext const& loadingContext )
+    void Entity::UnloadComponents( EntityModel::LoadingContext const& loadingContext )
     {
         EE_ASSERT( m_status == Status::Loaded );
+        Threading::RecursiveScopeLock myLock( m_internalStateMutex );
 
         for ( auto pComponent : m_components )
         {
@@ -114,23 +114,30 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Entity::Activate( EntityModel::ActivationContext& activationContext )
+    void Entity::Initialize( EntityModel::InitializationContext& initializationContext )
     {
         EE_ASSERT( m_status == Status::Loaded );
-        EE_ASSERT( m_updateRegistrationStatus == RegistrationStatus::Unregistered );
+        EE_ASSERT( m_updateRegistrationStatus == UpdateRegistrationStatus::Unregistered );
 
-        // Update internal status
-        //-------------------------------------------------------------------------
-
-        m_status = Status::Activated;
+        Threading::RecursiveScopeLock myLock( m_internalStateMutex );
 
         // Initialize spatial hierarchy
         //-------------------------------------------------------------------------
         // Transforms are set at serialization time so we have all information available to update the world transforms
 
+        if ( HasSpatialParent() )
+        {
+            // If we are attached to another entity we CANNOT be initialized if our parent is not. This ensures that attachment chains have consistent initialization state
+            EE_ASSERT( m_pParentSpatialEntity->IsInitialized() );
+
+            if ( !m_isSpatialAttachmentCreated )
+            {
+                CreateSpatialAttachment();
+            }
+        }
+
         if ( IsSpatialEntity() )
         {
-            // Calculate the initial world transform but do not trigger the callback to the components
             m_pRootSpatialComponent->CalculateWorldTransform( false );
         }
 
@@ -147,21 +154,21 @@ namespace EE
             if ( pComponent->IsInitialized() )
             {
                 RegisterComponentWithLocalSystems( pComponent );
-                activationContext.m_componentsToRegister.enqueue( TPair<Entity*, EntityComponent*>( this, pComponent ) );
+                initializationContext.m_componentsToRegister.enqueue( EntityModel::EntityComponentPair( this, pComponent ) );
             }
         }
 
         for ( auto pSystem : m_systems )
         {
-            pSystem->Activate();
+            pSystem->PostComponentRegister();
         }
 
         // Register for system updates
         if ( !m_systems.empty() )
         {
             GenerateSystemUpdateList();
-            activationContext.m_registerForEntityUpdate.enqueue( this );
-            m_updateRegistrationStatus = RegistrationStatus::QueuedForRegister;
+            initializationContext.m_registerForEntityUpdate.enqueue( this );
+            m_updateRegistrationStatus = UpdateRegistrationStatus::QueuedForRegister;
         }
 
         // Spatial Attachments
@@ -169,25 +176,49 @@ namespace EE
         
         if ( IsSpatialEntity() )
         {
-            if ( m_pParentSpatialEntity != nullptr )
-            {
-                CreateSpatialAttachment();
-            }
-
-            //-------------------------------------------------------------------------
-
             RefreshChildSpatialAttachments();
+        }
+
+        // Set initialization state
+        //-------------------------------------------------------------------------
+        // This needs to be done before the initialization of the attached entities since they check this value
+
+        m_status = Status::Initialized;
+
+        // Initialize attached entities
+        //-------------------------------------------------------------------------
+
+        for ( auto pAttachedEntity : m_attachedEntities )
+        {
+            EE_ASSERT( !pAttachedEntity->IsInitialized() );
+            if ( pAttachedEntity->IsLoaded() )
+            {
+                pAttachedEntity->Initialize( initializationContext );
+            }
         }
     }
 
-    void Entity::Deactivate( EntityModel::ActivationContext& activationContext )
+    void Entity::Shutdown( EntityModel::InitializationContext& initializationContext )
     {
-        EE_ASSERT( m_status == Status::Activated );
+        EE_ASSERT( m_status == Status::Initialized );
 
-        // If we are attached to another entity, that entity must also have been activated, else we have a problem in our attachment chains
+        Threading::RecursiveScopeLock myLock( m_internalStateMutex );
+
+        // If we are attached to another entity, that entity must also have been initialized, else we have a problem in our attachment chains
         if ( HasSpatialParent() )
         {
-            EE_ASSERT( m_pParentSpatialEntity->IsActivated() );
+            EE_ASSERT( m_pParentSpatialEntity->IsInitialized() );
+        }
+
+        // Shutdown attached entities
+        //-------------------------------------------------------------------------
+
+        for ( auto pAttachedEntity : m_attachedEntities )
+        {
+            if ( pAttachedEntity->IsInitialized() )
+            {
+                pAttachedEntity->Shutdown( initializationContext );
+            }
         }
 
         // Spatial Attachments
@@ -195,7 +226,7 @@ namespace EE
 
         if ( m_isSpatialAttachmentCreated )
         {
-            DestroySpatialAttachment();
+            DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTranform );
         }
 
         // Systems and Components
@@ -204,10 +235,10 @@ namespace EE
         // Unregister from system updates
         if ( !m_systems.empty() )
         {
-            if ( m_updateRegistrationStatus == RegistrationStatus::Registered )
+            if ( m_updateRegistrationStatus == UpdateRegistrationStatus::Registered )
             {
-                activationContext.m_unregisterForEntityUpdate.enqueue( this );
-                m_updateRegistrationStatus = RegistrationStatus::QueuedForUnregister;
+                initializationContext.m_unregisterForEntityUpdate.enqueue( this );
+                m_updateRegistrationStatus = UpdateRegistrationStatus::QueuedForUnregister;
             }
 
             for ( int8_t i = 0; i < (int8_t) UpdateStage::NumStages; i++ )
@@ -218,14 +249,14 @@ namespace EE
 
         for ( auto pSystem : m_systems )
         {
-            pSystem->Deactivate();
+            pSystem->PreComponentUnregister();
         }
 
         for ( auto pComponent : m_components )
         {
             if ( pComponent->m_isRegisteredWithWorld )
             {
-                activationContext.m_componentsToUnregister.enqueue( TPair<Entity*, EntityComponent*>( this, pComponent ) );
+                initializationContext.m_componentsToUnregister.enqueue( EntityModel::EntityComponentPair( this, pComponent ) );
             }
 
             if ( pComponent->m_isRegisteredWithEntity )
@@ -260,6 +291,8 @@ namespace EE
     {
         EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() && pComponent->m_entityID == m_ID && !pComponent->m_isRegisteredWithEntity );
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         for ( auto pSystem : m_systems )
         {
             pSystem->RegisterComponent( pComponent );
@@ -271,6 +304,8 @@ namespace EE
     {
         EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() && pComponent->m_entityID == m_ID && pComponent->m_isRegisteredWithEntity );
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         for ( auto pSystem : m_systems )
         {
             pSystem->UnregisterComponent( pComponent );
@@ -278,7 +313,7 @@ namespace EE
         }
     }
 
-    bool Entity::UpdateEntityState( EntityModel::EntityLoadingContext const& loadingContext, EntityModel::ActivationContext& activationContext )
+    bool Entity::UpdateEntityState( EntityModel::LoadingContext const& loadingContext, EntityModel::InitializationContext& initializationContext )
     {
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
 
@@ -296,7 +331,8 @@ namespace EE
             {
                 case EntityInternalStateAction::Type::CreateSystem:
                 {
-                    CreateSystemDeferred( loadingContext, (TypeSystem::TypeInfo const*) action.m_ptr );
+                    CreateSystemImmediate( (TypeSystem::TypeInfo const*) action.m_ptr );
+                    GenerateSystemUpdateList();
                     m_deferredActions.erase( m_deferredActions.begin() + i );
                     i--;
                 }
@@ -304,7 +340,8 @@ namespace EE
 
                 case EntityInternalStateAction::Type::DestroySystem:
                 {
-                    DestroySystemDeferred( loadingContext, (TypeSystem::TypeInfo const*) action.m_ptr );
+                    DestroySystemImmediate( (TypeSystem::TypeInfo const*) action.m_ptr );
+                    GenerateSystemUpdateList();
                     m_deferredActions.erase( m_deferredActions.begin() + i );
                     i--;
                 }
@@ -324,7 +361,9 @@ namespace EE
                         EE_ASSERT( pParentComponent != nullptr );
                     }
 
-                    AddComponentDeferred( loadingContext, (EntityComponent*) action.m_ptr, pParentComponent );
+                    auto pComponent = (EntityComponent*) action.m_ptr;
+                    AddComponentImmediate( pComponent, pParentComponent );
+                    pComponent->Load( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
                     m_deferredActions.erase( m_deferredActions.begin() + i );
                     i--;
                 }
@@ -350,7 +389,7 @@ namespace EE
                     // Request unregister from global systems
                     if ( pComponentToDestroy->m_isRegisteredWithWorld )
                     {
-                        activationContext.m_componentsToUnregister.enqueue( TPair<Entity*, EntityComponent*>( this, pComponentToDestroy ) );
+                        initializationContext.m_componentsToUnregister.enqueue( EntityModel::EntityComponentPair( this, pComponentToDestroy ) );
                         action.m_type = EntityInternalStateAction::Type::WaitForComponentUnregistration;
                     }
                 }
@@ -363,7 +402,14 @@ namespace EE
                     // We can destroy the component safely
                     if ( !pComponentToDestroy->m_isRegisteredWithEntity && !pComponentToDestroy->m_isRegisteredWithWorld )
                     {
-                        DestroyComponentDeferred( loadingContext, (EntityComponent*) action.m_ptr );
+                        auto pComponent = (EntityComponent*) action.m_ptr;
+                        if ( pComponent->IsInitialized() )
+                        {
+                            pComponent->Shutdown();
+                        }
+
+                        pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
+                        DestroyComponentImmediate( pComponent );
                         m_deferredActions.erase( m_deferredActions.begin() + i );
                         i--;
                     }
@@ -405,11 +451,11 @@ namespace EE
                     pSpatialComponent->CalculateWorldTransform( false );
                 }
 
-                // If we are already activated, then register with entity systems
-                if ( IsActivated() )
+                // If we are already initialized, then register with entity systems
+                if ( IsInitialized() )
                 {
                     RegisterComponentWithLocalSystems( pComponent );
-                    activationContext.m_componentsToRegister.enqueue( TPair<Entity*, EntityComponent*>( this, pComponent ) );
+                    initializationContext.m_componentsToRegister.enqueue( EntityModel::EntityComponentPair( this, pComponent ) );
                 }
             }
         }
@@ -418,24 +464,24 @@ namespace EE
         // Entity update registration
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( m_updateRegistrationStatus != RegistrationStatus::QueuedForRegister && m_updateRegistrationStatus != RegistrationStatus::QueuedForUnregister );
+        EE_ASSERT( m_updateRegistrationStatus != UpdateRegistrationStatus::QueuedForRegister && m_updateRegistrationStatus != UpdateRegistrationStatus::QueuedForUnregister );
 
-        bool const shouldBeRegisteredForUpdates = IsActivated() && !m_systems.empty() && !HasSpatialParent();
+        bool const shouldBeRegisteredForUpdates = IsInitialized() && !m_systems.empty() && !HasSpatialParent();
 
         if ( shouldBeRegisteredForUpdates )
         {
-            if ( m_updateRegistrationStatus != RegistrationStatus::Registered )
+            if ( m_updateRegistrationStatus != UpdateRegistrationStatus::Registered )
             {
-                activationContext.m_registerForEntityUpdate.enqueue( this );
-                m_updateRegistrationStatus = RegistrationStatus::QueuedForRegister;
+                initializationContext.m_registerForEntityUpdate.enqueue( this );
+                m_updateRegistrationStatus = UpdateRegistrationStatus::QueuedForRegister;
             }
         }
         else // Doesnt require an update
         {
-            if ( m_updateRegistrationStatus == RegistrationStatus::Registered )
+            if ( m_updateRegistrationStatus == UpdateRegistrationStatus::Registered )
             {
-                activationContext.m_unregisterForEntityUpdate.enqueue( this );
-                m_updateRegistrationStatus = RegistrationStatus::QueuedForUnregister;
+                initializationContext.m_unregisterForEntityUpdate.enqueue( this );
+                m_updateRegistrationStatus = UpdateRegistrationStatus::QueuedForUnregister;
             }
         }
 
@@ -473,6 +519,13 @@ namespace EE
         EE_ASSERT( IsSpatialEntity() );
         EE_ASSERT( pParentEntity != nullptr && pParentEntity->IsSpatialEntity() );
         EE_ASSERT( pParentEntity->m_mapID == m_mapID );
+
+        // Ensure that we have consistent attachment chains. i.e. cannot have an uninitialized entity in the middle of an initialized chain!
+        // This can occur when adding entities to a map and immediately setting spatial parents! Either set spatial parents before adding or after entities are initialized!
+        if ( IsInitialized() )
+        {
+            EE_ASSERT( pParentEntity->IsInitialized() );
+        }
 
         Threading::RecursiveScopeLock myLock( m_internalStateMutex );
 
@@ -513,23 +566,18 @@ namespace EE
             Transform const originalWorldTransform = GetWorldTransform();
             Transform const parentWorldTransform = m_pParentSpatialEntity->GetAttachmentSocketTransform( m_parentAttachmentSocketID );
             Transform const newLocalTransform = Transform::Delta( parentWorldTransform, originalWorldTransform );
-            // Directly set the transform to avoid any callbacks firing, if we are activated then the 'CreateSpatialAttachment' function will update the transform hierarchy
+
+            // Directly set the transforms, if we are initialized then the 'CreateSpatialAttachment' function will update the transform hierarchy
             m_pRootSpatialComponent->m_transform = newLocalTransform;
+            m_pRootSpatialComponent->m_worldTransform = newLocalTransform;
         }
 
         //-------------------------------------------------------------------------
 
-        if ( IsActivated() )
-        {
-            CreateSpatialAttachment();
-        }
-
-        //-------------------------------------------------------------------------
-
-        s_entitySpatialAttachmentStateUpdatedEvent.Execute( this );
+        CreateSpatialAttachment();
     }
 
-    void Entity::ClearSpatialParent()
+    void Entity::ClearSpatialParent( SpatialAttachmentRule attachmentRule )
     {
         EE_ASSERT( IsSpatialEntity() );
         EE_ASSERT( HasSpatialParent() );
@@ -540,7 +588,7 @@ namespace EE
 
         if ( m_isSpatialAttachmentCreated )
         {
-            DestroySpatialAttachment();
+            DestroySpatialAttachment( attachmentRule );
         }
 
         // Remove myself from parent's attached entity list
@@ -551,10 +599,6 @@ namespace EE
         // Clear attachment data
         m_parentAttachmentSocketID = StringID();
         m_pParentSpatialEntity = nullptr;
-
-        //-------------------------------------------------------------------------
-
-        s_entitySpatialAttachmentStateUpdatedEvent.Execute( this );
     }
 
     void Entity::CreateSpatialAttachment()
@@ -598,13 +642,11 @@ namespace EE
         //-------------------------------------------------------------------------
 
         m_isSpatialAttachmentCreated = true;
-        s_entitySpatialAttachmentStateUpdatedEvent.Execute( this );
     }
 
-    void Entity::DestroySpatialAttachment()
+    void Entity::DestroySpatialAttachment( SpatialAttachmentRule attachmentRule )
     {
         EE_ASSERT( IsSpatialEntity() );
-        EE_ASSERT( IsActivated() );
         EE_ASSERT( m_pParentSpatialEntity != nullptr && m_isSpatialAttachmentCreated );
 
         Threading::RecursiveScopeLock const myLock( m_internalStateMutex );
@@ -625,12 +667,14 @@ namespace EE
         m_pRootSpatialComponent->m_parentAttachmentSocketID = StringID();
 
         // Keep world position intact
-        m_pRootSpatialComponent->SetLocalTransform( originalWorldTransform );
+        if ( attachmentRule == SpatialAttachmentRule::KeepWorldTransform )
+        {
+            m_pRootSpatialComponent->SetLocalTransform( originalWorldTransform );
+        }
 
         //-------------------------------------------------------------------------
 
         m_isSpatialAttachmentCreated = false;
-        s_entitySpatialAttachmentStateUpdatedEvent.Execute( this );
     }
 
     void Entity::RefreshChildSpatialAttachments()
@@ -641,7 +685,7 @@ namespace EE
             // Only refresh active attachments
             if ( pAttachedEntity->m_isSpatialAttachmentCreated )
             {
-                pAttachedEntity->DestroySpatialAttachment();
+                pAttachedEntity->DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTranform );
                 pAttachedEntity->CreateSpatialAttachment();
             }
         }
@@ -695,6 +739,8 @@ namespace EE
 
     void Entity::GenerateSystemUpdateList()
     {
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         for ( int8_t i = 0; i < (int8_t) UpdateStage::NumStages; i++ )
         {
             m_systemUpdateLists[i].clear();
@@ -723,6 +769,8 @@ namespace EE
     {
         EE_ASSERT( pSystemTypeInfo != nullptr && pSystemTypeInfo->IsDerivedFrom<EntitySystem>() );
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         #if EE_DEVELOPMENT_TOOLS
         // Ensure that we only allow a single system of a specific family
         for ( auto pExistingSystem : m_systems )
@@ -739,31 +787,33 @@ namespace EE
         auto pSystem = (EntitySystem*) pSystemTypeInfo->CreateType();
         m_systems.emplace_back( pSystem );
 
-        if ( IsActivated() )
+        // If the entity is already initialized, then initialize the system
+        if ( IsInitialized() )
         {
-            pSystem->Activate();
-        }
+            pSystem->Initialize();
 
-        // Register all components with the new system
-        for ( auto pComponent : m_components )
-        {
-            if ( pComponent->m_isRegisteredWithEntity )
+            // Register all components with the new system
+            for ( auto pComponent : m_components )
             {
-                pSystem->RegisterComponent( pComponent );
+                if ( pComponent->m_isRegisteredWithEntity )
+                {
+                    pSystem->RegisterComponent( pComponent );
+                }
+            }
+
+            if ( IsInitialized() )
+            {
+                pSystem->PostComponentRegister();
             }
         }
-    }
-
-    void Entity::CreateSystemDeferred( EntityModel::EntityLoadingContext const& loadingContext, TypeSystem::TypeInfo const* pSystemTypeInfo )
-    {
-        CreateSystemImmediate( pSystemTypeInfo );
-        GenerateSystemUpdateList();
     }
 
     void Entity::CreateSystem( TypeSystem::TypeInfo const* pSystemTypeInfo )
     {
         EE_ASSERT( pSystemTypeInfo != nullptr );
         EE_ASSERT( pSystemTypeInfo->IsDerivedFrom( EntitySystem::GetStaticTypeID() ) );
+
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
 
         if ( IsUnloaded() )
         {
@@ -772,7 +822,6 @@ namespace EE
         }
         else
         {
-            Threading::RecursiveScopeLock lock( m_internalStateMutex );
             auto& action = m_deferredActions.emplace_back( EntityInternalStateAction() );
             action.m_type = EntityInternalStateAction::Type::CreateSystem;
             action.m_ptr = pSystemTypeInfo;
@@ -785,6 +834,8 @@ namespace EE
         EE_ASSERT( pSystemTypeInfo != nullptr );
         EE_ASSERT( pSystemTypeInfo->IsDerivedFrom( EntitySystem::GetStaticTypeID() ) );
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         if ( IsUnloaded() )
         {
             DestroySystemImmediate( pSystemTypeInfo );
@@ -792,7 +843,6 @@ namespace EE
         }
         else
         {
-            Threading::RecursiveScopeLock lock( m_internalStateMutex );
             auto& action = m_deferredActions.emplace_back( EntityInternalStateAction() );
             action.m_type = EntityInternalStateAction::Type::DestroySystem;
             action.m_ptr = pSystemTypeInfo;
@@ -819,33 +869,31 @@ namespace EE
     {
         EE_ASSERT( pSystemTypeInfo != nullptr && pSystemTypeInfo->IsDerivedFrom<EntitySystem>() );
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         int32_t const systemIdx = VectorFindIndex( m_systems, pSystemTypeInfo->m_ID, [] ( EntitySystem* pSystem, TypeSystem::TypeID systemTypeID ) { return pSystem->GetTypeInfo()->m_ID == systemTypeID; } );
         EE_ASSERT( systemIdx != InvalidIndex );
         auto pSystem = m_systems[systemIdx];
 
-        // Unregister all components from the system to remove
-        for ( auto pComponent : m_components )
+        if ( IsInitialized() )
         {
-            if ( pComponent->m_isRegisteredWithEntity )
-            {
-                pSystem->UnregisterComponent( pComponent );
-            }
-        }
+            pSystem->PreComponentUnregister();
 
-        if ( IsActivated() )
-        {
-            pSystem->Deactivate();
+            // Unregister all components from the system to remove
+            for ( auto pComponent : m_components )
+            {
+                if ( pComponent->m_isRegisteredWithEntity )
+                {
+                    pSystem->UnregisterComponent( pComponent );
+                }
+            }
+
+            pSystem->Shutdown();
         }
 
         // Destroy the system
         EE::Delete( pSystem );
         m_systems.erase_unsorted( m_systems.begin() + systemIdx );
-    }
-
-    void Entity::DestroySystemDeferred( EntityModel::EntityLoadingContext const& loadingContext, TypeSystem::TypeInfo const* pSystemTypeInfo )
-    {
-        DestroySystemImmediate( pSystemTypeInfo );
-        GenerateSystemUpdateList();
     }
     
     //-------------------------------------------------------------------------
@@ -874,6 +922,10 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
+        //-------------------------------------------------------------------------
+
         SpatialEntityComponent* pSpatialComponent = TryCast<SpatialEntityComponent>( pComponent );
         
         // Parent ID can only be set when adding a spatial component
@@ -896,10 +948,7 @@ namespace EE
         }
 
         // Ensure unique name
-        //-------------------------------------------------------------------------
-
         pComponent->m_name = GenerateUniqueComponentNameID( pComponent, pComponent->m_name );
-
         #endif
 
         //-------------------------------------------------------------------------
@@ -922,8 +971,6 @@ namespace EE
         }
         else // Defer the operation to the next loading phase
         {
-            Threading::RecursiveScopeLock lock( m_internalStateMutex );
-
             EntityInternalStateAction& action = m_deferredActions.emplace_back( EntityInternalStateAction() );
             action.m_type = EntityInternalStateAction::Type::AddComponent;
             action.m_ptr = pComponent;
@@ -943,6 +990,8 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
         if ( IsUnloaded() )
         {
             // Root removal validation
@@ -957,8 +1006,6 @@ namespace EE
         }
         else // Defer the operation to the next loading phase
         {
-            Threading::RecursiveScopeLock lock( m_internalStateMutex );
-
             auto& action = m_deferredActions.emplace_back( EntityInternalStateAction() );
             action.m_type = EntityInternalStateAction::Type::DestroyComponent;
             action.m_ptr = pComponent;
@@ -969,6 +1016,7 @@ namespace EE
 
     void Entity::AddComponentImmediate( EntityComponent* pComponent, SpatialEntityComponent* pParentSpatialComponent )
     {
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
         EE_ASSERT( pComponent != nullptr && pComponent->GetID().IsValid() && !pComponent->m_entityID.IsValid() );
         EE_ASSERT( pComponent->IsUnloaded() && !pComponent->m_isRegisteredWithWorld && !pComponent->m_isRegisteredWithEntity );
 
@@ -996,7 +1044,7 @@ namespace EE
                 m_pRootSpatialComponent = pSpatialEntityComponent;
                 EE_ASSERT( pSpatialEntityComponent->m_pSpatialParent == nullptr );
 
-                if ( IsActivated() && HasSpatialParent() )
+                if ( HasSpatialParent() )
                 {
                     CreateSpatialAttachment();
                 }
@@ -1010,15 +1058,9 @@ namespace EE
         pComponent->m_entityID = m_ID;
     }
 
-    void Entity::AddComponentDeferred( EntityModel::EntityLoadingContext const& loadingContext, EntityComponent* pComponent, SpatialEntityComponent* pParentSpatialComponent )
-    {
-        EE_ASSERT( loadingContext.IsValid() );
-        AddComponentImmediate( pComponent, pParentSpatialComponent );
-        pComponent->Load( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
-    }
-
     void Entity::DestroyComponentImmediate( EntityComponent* pComponent )
     {
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
         EE_ASSERT( pComponent != nullptr );
         EE_ASSERT( pComponent->IsUnloaded() && !pComponent->m_isRegisteredWithWorld && !pComponent->m_isRegisteredWithEntity );
 
@@ -1041,28 +1083,9 @@ namespace EE
         EE::Delete( pComponent );
     }
 
-    void Entity::DestroyComponentDeferred( EntityModel::EntityLoadingContext const& loadingContext, EntityComponent* pComponent )
-    {
-        EE_ASSERT( loadingContext.IsValid() );
-
-        // Shutdown and unload component
-        //-------------------------------------------------------------------------
-
-        if ( pComponent->IsInitialized() )
-        {
-            pComponent->Shutdown();
-        }
-
-        pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
-
-        // Destroy the component
-        //-------------------------------------------------------------------------
-
-        DestroyComponentImmediate( pComponent );
-    }
-
     void Entity::RemoveComponentFromSpatialHierarchy( SpatialEntityComponent* pSpatialComponent )
     {
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
         EE_ASSERT( pSpatialComponent != nullptr );
 
         if ( pSpatialComponent == m_pRootSpatialComponent )
@@ -1073,7 +1096,7 @@ namespace EE
             bool const recreateSpatialAttachment = m_isSpatialAttachmentCreated;
             if ( HasSpatialParent() && m_isSpatialAttachmentCreated )
             {
-                DestroySpatialAttachment();
+                DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTranform );
             }
 
             //-------------------------------------------------------------------------
@@ -1136,50 +1159,6 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void Entity::ComponentEditingDeactivate( EntityModel::ActivationContext& activationContext, ComponentID const& componentID )
-    {
-        auto pComponent = FindComponent( componentID );
-        EE_ASSERT( pComponent != nullptr );
-
-        if ( pComponent->m_isRegisteredWithWorld )
-        {
-            activationContext.m_componentsToUnregister.enqueue( TPair<Entity*, EntityComponent*>( this, pComponent ) );
-        }
-
-        if ( pComponent->m_isRegisteredWithEntity )
-        {
-            UnregisterComponentFromLocalSystems( pComponent );
-        }
-    }
-
-    void Entity::ComponentEditingUnload( EntityModel::EntityLoadingContext const& loadingContext, ComponentID const& componentID )
-    {
-        auto pComponent = FindComponent( componentID );
-        EE_ASSERT( pComponent != nullptr );
-
-        if ( !pComponent->IsUnloaded() )
-        {
-            if ( pComponent->IsInitialized() )
-            {
-                pComponent->Shutdown();
-                EE_ASSERT( !pComponent->IsInitialized() ); // Did you forget to call the parent class shutdown?
-            }
-
-            pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
-        }
-    }
-
-    void Entity::EndComponentEditing( EntityModel::EntityLoadingContext const& loadingContext )
-    {
-        for ( auto pComponent : m_components )
-        {
-            if ( pComponent->IsUnloaded() )
-            {
-                pComponent->Load( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
-            }
-        }
-    }
-
     StringID Entity::GenerateUniqueComponentNameID( EntityComponent* pComponent, StringID desiredNameID ) const
     {
         if ( !desiredNameID.IsValid() )

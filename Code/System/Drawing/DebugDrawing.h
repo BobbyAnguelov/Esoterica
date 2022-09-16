@@ -109,150 +109,77 @@ namespace EE::Drawing
 
         void DrawPlane( Float4 const& planeEquation, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
-        void DrawBox( Transform const& transform, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
+        void DrawBox( Transform const& worldTransform, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
-        void DrawWireBox( Transform const& transform, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
-
-        inline void DrawBox( Transform const& worldTransform, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            auto const transform = Transform::FromScale( halfsize ) * Transform( worldTransform );
-            DrawBox( transform, color, depthTestState, TTL );
-        }
-
-        inline void DrawBox( Float3 const& position, Transform const& rotation, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            Transform transform = Transform::FromScale( halfsize ) * Transform( rotation );
-            transform.SetTranslation( Vector( position, 1.0f ) );
-            DrawBox( transform, color, depthTestState, TTL );
-        }
+        void DrawWireBox( Transform const& worldTransform, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
         inline void DrawBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform transform = Transform::FromScale( halfsize ) * Transform( Quaternion( rotation ) );
-            transform.SetTranslation( Vector( position, 1.0f ) );
-            DrawBox( transform, color, depthTestState, TTL );
+            DrawBox( Transform( rotation, position), halfsize, color, depthTestState, TTL);
         }
 
         inline void DrawBox( OBB const& box, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform const transform( box.m_orientation, box.m_center, box.m_extents );
-            DrawBox( transform, color, depthTestState, TTL );
+            DrawBox( Transform( box.m_orientation, box.m_center ),box.m_extents, color, depthTestState, TTL );
         }
 
         inline void DrawBox( AABB const& box, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform const transform = Transform::FromTranslationAndScale( box.m_center, box.m_extents );
-            DrawBox( transform, color, depthTestState, TTL );
-        }
-
-        inline void DrawWireBox( Transform const& worldTransform, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            auto const transform = Transform::FromScale( halfsize ) * Transform( worldTransform );
-            DrawWireBox( transform, color, lineThickness, depthTestState, TTL );
-        }
-
-        inline void DrawWireBox( Float3 const& position, Transform const& rotation, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            Transform transform = Transform::FromScale( halfsize ) * Transform( rotation );
-            transform.SetTranslation( Vector( position, 1.0f ) );
-            DrawWireBox( transform, color, lineThickness, depthTestState, TTL );
+            DrawBox( Transform( Quaternion::Identity, box.m_center ), box.m_extents, color, depthTestState, TTL );
         }
 
         inline void DrawWireBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform transform = Transform::FromScale( halfsize ) * Transform( Quaternion( rotation ) );
-            transform.SetTranslation( Vector( position, 1.0f ) );
-            DrawWireBox( transform, color, lineThickness, depthTestState, TTL );
+            DrawWireBox( Transform( rotation, position ), halfsize, color, lineThickness, depthTestState, TTL );
         }
 
         inline void DrawWireBox( OBB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform const transform( box.m_orientation, box.m_center, box.m_extents );
-            DrawWireBox( transform, color, lineThickness, depthTestState, TTL );
+            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_extents, color, lineThickness, depthTestState, TTL );
         }
 
         inline void DrawWireBox( AABB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform const transform = Transform::FromTranslationAndScale( box.m_center, box.m_extents );
-            DrawWireBox( transform, color, lineThickness, depthTestState, TTL );
+            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_extents, color, lineThickness, depthTestState, TTL );
         }
 
         //-------------------------------------------------------------------------
         // Sphere / Circle / Cylinder / Capsule
         //-------------------------------------------------------------------------
 
-        void DrawCircle( Transform const& transform, Axis upAxis, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
+        void DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
-        inline void DrawCircle( Float3 const& origin, Axis upAxis, float const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        inline void DrawCircle( Vector const& worldPosition , Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            auto const transform = Transform::FromScale( Vector( radii ) ) * Transform( Quaternion::Identity, origin );
-            DrawCircle( transform, upAxis, color, lineThickness, depthTestState, TTL );
-        }
-
-        inline void DrawCircle( Transform const& worldTransform, Axis upAxis, float const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            auto const transform = Transform::FromScale( Vector( radii ) ) * Transform( worldTransform );
-            DrawCircle( transform, upAxis, color, lineThickness, depthTestState, TTL );
-        }
-
-        inline void DrawCircle( Transform const& worldTransform, Axis upAxis, Float3 const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            auto const transform = Transform::FromScale( Vector( radii ) ) * Transform( worldTransform );
-            DrawCircle( transform, upAxis, color, lineThickness, depthTestState, TTL );
+            DrawCircle( Transform( Quaternion::Identity, worldPosition ), upAxis, radius, color, lineThickness, depthTestState, TTL );
         }
 
         //-------------------------------------------------------------------------
 
-        void DrawSphere( Transform const& transform, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
+        void DrawSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
-        inline void DrawSphere( Transform const& worldTransform, Float3 const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        inline void DrawSphere( Float3 const& position, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            auto const transform = Transform::FromScale( radii ) * Transform( worldTransform );
-            DrawSphere( transform, color, lineThickness, depthTestState, TTL );
+            DrawSphere( Transform( Quaternion::Identity, position ), radius, color, lineThickness, depthTestState, TTL );
         }
 
-        inline void DrawSphere( Float3 const& position, Float3 const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        inline void DrawSphere( Sphere const& sphere, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            Transform transform = Transform::FromScale( radii );
-            transform.SetTranslation( Vector( position, 1.0f ) );
-            DrawSphere( transform, color, lineThickness, depthTestState, TTL );
-        }
-
-        inline void DrawSphere( Sphere const& sphere, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            Transform transform = Transform::FromScale( Vector( sphere.GetRadius() ) );
-            transform.SetTranslation( sphere.GetCenter() );
-            DrawSphere( transform, color, lineThickness, depthTestState, TTL );
+            DrawSphere( Transform( Quaternion::Identity, sphere.GetCenter() ), sphere.GetRadius(), color, lineThickness, depthTestState, TTL );
         }
 
         //-------------------------------------------------------------------------
 
         // A half sphere from the transform point sliced along the XY plane ( Z is up )
-        void DrawHalfSphere( Transform const& transform, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
-
-        // A half sphere from the transform point, with the radius along the +Z axis
-        inline void DrawHalfSphere( Transform const& worldTransform, Float3 const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            auto const transform = Transform::FromScale( radii ) * Transform( worldTransform );
-            DrawHalfSphere( transform, color, lineThickness, depthTestState, TTL );
-        }
+        void DrawHalfSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
         // A half sphere from the transform point sliced along the YZ plane ( X is up )
-        void DrawHalfSphereYZ( Transform const& transform, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
+        void DrawHalfSphereYZ( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
         // A half sphere from the transform point, with the radius along the +Z axis
-        inline void DrawHalfSphereYZ( Transform const& worldTransform, Float3 const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        inline void DrawHalfSphere( Float3 const& position, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            auto const transform = Transform::FromScale( radii ) * Transform( worldTransform );
-            DrawHalfSphereYZ( transform, color, lineThickness, depthTestState, TTL );
-        }
-
-        // A half sphere from the transform point, with the radius along the +Z axis
-        inline void DrawHalfSphere( Float3 const& position, Float3 const& radii, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            Transform transform = Transform::FromScale( radii );
-            transform.SetTranslation( Vector( position, 1.0f ) );
-            DrawHalfSphere( transform, color, lineThickness, depthTestState, TTL );
+            DrawHalfSphere( Transform( Quaternion::Identity, position ), radius, color, lineThickness, depthTestState, TTL );
         }
 
         //-------------------------------------------------------------------------

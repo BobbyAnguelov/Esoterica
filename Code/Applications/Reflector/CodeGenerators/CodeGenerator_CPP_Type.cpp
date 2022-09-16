@@ -942,7 +942,7 @@ namespace EE::CPP
     static void GenerateLoadMethod( std::stringstream& file, ReflectedType const& type )
     {
         file << "\n";
-        file << "    void " << type.m_namespace.c_str() << type.m_name.c_str() << "::Load( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID )\n";
+        file << "    void " << type.m_namespace.c_str() << type.m_name.c_str() << "::Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID )\n";
         file << "    {\n";
 
         if ( !type.m_properties.empty() )
@@ -961,7 +961,7 @@ namespace EE::CPP
     static void GenerateUnloadMethod( std::stringstream& file, ReflectedType const& type )
     {
         file << "\n";
-        file << "    void " << type.m_namespace.c_str() << type.m_name.c_str() << "::Unload( EntityModel::EntityLoadingContext const& context, Resource::ResourceRequesterID const& requesterID )\n";
+        file << "    void " << type.m_namespace.c_str() << type.m_name.c_str() << "::Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID )\n";
         file << "    {\n";
 
         if ( !type.m_properties.empty() )

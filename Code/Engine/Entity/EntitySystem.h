@@ -11,7 +11,6 @@ namespace EE
     class SystemRegistry;
     class EntityWorldUpdateContext;
     class EntityComponent;
-    template<typename T> struct TEntityAccessor;
 
     //-------------------------------------------------------------------------
 
@@ -30,10 +29,10 @@ namespace EE
         virtual void Initialize() {}
 
         // Called after all components have been registered with the system
-        virtual void Activate() {}
+        virtual void PostComponentRegister() {}
 
         // Called before we start unregistering components from this system
-        virtual void Deactivate() {}
+        virtual void PreComponentUnregister() {}
 
         // Called after all components have been unregistered from the system
         virtual void Shutdown() {}
@@ -56,6 +55,5 @@ namespace EE
 
 #define EE_REGISTER_ENTITY_SYSTEM( TypeName, ... )\
         EE_REGISTER_TYPE( TypeName );\
-        template<typename T> friend struct TEntityToolAccessor;\
         virtual UpdatePriorityList const& GetRequiredUpdatePriorities() override { static UpdatePriorityList const priorityList = UpdatePriorityList( __VA_ARGS__ ); return priorityList; };\
         virtual char const* GetName() const override { return #TypeName; }

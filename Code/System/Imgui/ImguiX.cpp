@@ -666,8 +666,9 @@ namespace EE::ImGuiX
                 ImGui::Text( "Scl" );
 
                 ImGui::TableNextColumn();
-                Float3 scale = value.GetScale();
-                if ( ImGuiX::InputFloat3( "S", scale ) )
+                float scale = value.GetScale();
+                ImGui::SetNextItemWidth( -1 );
+                if ( ImGui::InputFloat( "##S", &scale ) )
                 {
                     value.SetScale( scale );
                     valueUpdated = true;
@@ -860,23 +861,7 @@ namespace EE::ImGuiX
                 ImGui::Text( "X:" );
                 ImGui::SameLine( 0, 3 );
             }
-            ImGui::Text( "%.3f, ", t.GetScale().m_x );
-
-            ImGui::TableSetColumnIndex( 2 );
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Medium, Colors::Green );
-                ImGui::Text( "Y:" );
-                ImGui::SameLine( 0, 3 );
-            }
-            ImGui::Text( "%.3f, ", t.GetScale().m_y );
-
-            ImGui::TableSetColumnIndex( 3 );
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Medium, Colors::RoyalBlue );
-                ImGui::Text( "Z:" );
-                ImGui::SameLine( 0, 3 );
-            }
-            ImGui::Text( "%.3f", t.GetScale().m_z );
+            ImGui::Text( "%.3f, ", t.GetScale() );
 
             ImGui::EndTable();
         }

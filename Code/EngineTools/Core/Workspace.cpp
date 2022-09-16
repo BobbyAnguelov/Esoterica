@@ -983,7 +983,7 @@ namespace EE
         }
     }
 
-    void Workspace::InternalSharedUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void Workspace::CommonUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         if ( isFocused )
         {

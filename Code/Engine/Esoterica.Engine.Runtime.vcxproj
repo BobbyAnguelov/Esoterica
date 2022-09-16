@@ -290,11 +290,10 @@
     <ClInclude Include="DebugViews\DebugView_Resource.h" />
     <ClInclude Include="DebugViews\DebugView_System.h" />
     <ClInclude Include="Entity\Entity.h" />
-    <ClInclude Include="Entity\EntityActivationContext.h" />
+    <ClInclude Include="Entity\EntityContexts.h" />
     <ClInclude Include="Entity\EntityComponent.h" />
     <ClInclude Include="Entity\EntityDescriptors.h" />
     <ClInclude Include="Entity\EntityIDs.h" />
-    <ClInclude Include="Entity\EntityLoadingContext.h" />
     <ClInclude Include="Entity\EntityMap.h" />
     <ClInclude Include="Entity\EntitySpatialComponent.h" />
     <ClInclude Include="Entity\EntitySystem.h" />

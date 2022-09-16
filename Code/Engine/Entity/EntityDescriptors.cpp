@@ -25,12 +25,21 @@ namespace EE::EntityModel
 
         return InvalidIndex;
     }
-}
 
-//-------------------------------------------------------------------------
+    #if EE_DEVELOPMENT_TOOLS
+    void SerializedEntityDescriptor::ClearAllSerializedIDs()
+    {
+        m_transientEntityID.Clear();
 
-namespace EE::EntityModel
-{
+        for ( auto& component : m_components )
+        {
+            component.m_transientComponentID.Clear();
+        }
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
     TVector<SerializedEntityCollection::SearchResult> SerializedEntityCollection::GetComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeID typeID, bool allowDerivedTypes )
     {
         TVector<SearchResult> foundComponents;
@@ -64,8 +73,6 @@ namespace EE::EntityModel
 
         return foundComponents;
     }
-
-    //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
     void SerializedEntityCollection::Clear()

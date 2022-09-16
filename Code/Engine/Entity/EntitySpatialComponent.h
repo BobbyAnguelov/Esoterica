@@ -120,8 +120,8 @@ namespace EE
         // Conversion Functions
         //-------------------------------------------------------------------------
 
-        // Convert a world transform to a component local transform 
-        inline Transform ConvertWorldTransformToLocalTransform( Transform const& worldTransform ) const { return worldTransform * m_worldTransform.GetInverse(); }
+        // Convert a world transform to a component local transform
+        inline Transform ConvertWorldTransformToLocalTransform( Transform const& worldTransform ) const { return Transform::Delta( m_worldTransform, worldTransform ); }
 
         // Convert a world point to a component local point 
         inline Vector ConvertWorldPointToLocalPoint( Vector const& worldPoint ) const { return m_worldTransform.GetInverse().TransformPoint( worldPoint ); }
@@ -158,19 +158,19 @@ namespace EE
 
         // This function allows you to directly set the world transform for a component and skip the callback.
         // This must be used with care and so not be exposed externally.
-        inline void SetWorldTransformDirectly( Transform NewWorldTransform, bool triggerCallback = true )
+        inline void SetWorldTransformDirectly( Transform newWorldTransform, bool triggerCallback = true )
         {
             // Only update the transform if we have a parent, if we dont have a parent it means we are the root transform
             if ( m_pSpatialParent != nullptr )
             {
                 auto parentWorldTransform = m_pSpatialParent->GetAttachmentSocketTransform( m_parentAttachmentSocketID );
-                m_worldTransform = NewWorldTransform;
-                m_transform = m_worldTransform * parentWorldTransform.GetInverse();
+                m_worldTransform = newWorldTransform;
+                m_transform = Transform::Delta( parentWorldTransform, m_worldTransform );
             }
             else
             {
-                m_worldTransform = NewWorldTransform;
-                m_transform = NewWorldTransform;
+                m_worldTransform = newWorldTransform;
+                m_transform = newWorldTransform;
             }
 
             // Calculate world bounds

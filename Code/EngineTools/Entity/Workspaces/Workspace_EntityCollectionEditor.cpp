@@ -46,7 +46,7 @@ namespace EE::EntityModel
     bool EntityCollectionEditor::Save()
     {
         auto pEditedMap = m_pWorld->GetFirstNonPersistentMap();
-        if ( pEditedMap == nullptr || !( pEditedMap->IsLoaded() || pEditedMap->IsActivated() ) )
+        if ( pEditedMap == nullptr || !pEditedMap->IsLoaded() )
         {
             return false;
         }

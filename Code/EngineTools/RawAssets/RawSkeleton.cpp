@@ -36,8 +36,7 @@ namespace EE::RawAssets
         for ( auto i = numBones - 1; i > 0; i-- )
         {
             int32_t parentIdx = m_bones[i].m_parentBoneIdx;
-            auto const& parentInverseTransform = m_bones[parentIdx].m_globalTransform.GetInverse();
-            m_bones[i].m_localTransform = m_bones[i].m_globalTransform * parentInverseTransform;
+            m_bones[i].m_localTransform = Transform::Delta( m_bones[parentIdx].m_globalTransform, m_bones[i].m_globalTransform );
         }
     }
 

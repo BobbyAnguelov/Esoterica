@@ -1,0 +1,5 @@
+{
+  "TypeID": "EE::Render::TextureResourceDescriptor",
+  "m_path": "data://Demo/RenderDemo/Floor/Floor.png",
+  "m_resourceTypeID": "TXTR"
+}

@@ -98,10 +98,10 @@ namespace EE::Animation
         }
 
         // Set the scale for a given bone, note will change pose state to "Pose" if not already set
-        inline void SetScale( int32_t boneIdx, Float3 const& scale )
+        inline void SetScale( int32_t boneIdx, float uniformScale )
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
-            m_localTransforms[boneIdx].SetScale( scale );
+            m_localTransforms[boneIdx].SetScale( uniformScale );
             MarkAsValidPose();
         }
 

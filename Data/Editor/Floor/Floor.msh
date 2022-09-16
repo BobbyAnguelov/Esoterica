@@ -1,0 +1,6 @@
+{
+  "TypeID": "EE::Render::StaticMeshResourceDescriptor",
+  "m_meshPath": "data://Editor/Floor/floor.fbx",
+  "m_materials": ["data://Editor/Floor/floor.mtrl"],
+  "m_meshName": ""
+}

@@ -24,9 +24,7 @@ namespace EE::RawAssets
             FloatRange                         m_translationValueRangeX;
             FloatRange                         m_translationValueRangeY;
             FloatRange                         m_translationValueRangeZ;
-            FloatRange                         m_scaleValueRangeX;
-            FloatRange                         m_scaleValueRangeY;
-            FloatRange                         m_scaleValueRangeZ;
+            FloatRange                         m_scaleValueRange;
         };
 
     public:

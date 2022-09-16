@@ -1,8 +1,7 @@
 #pragma once
 
 #include "EntityWorldSystem.h"
-#include "EntityActivationContext.h"
-#include "EntityLoadingContext.h"
+#include "EntityContexts.h"
 #include "Entity.h"
 #include "EntityMap.h"
 #include "Engine/Render/RenderViewport.h"
@@ -35,7 +34,7 @@ namespace EE
 
     public:
 
-        EntityWorld( EntityWorldType worldType = EntityWorldType::Game ) : m_worldType( worldType ) {}
+        EntityWorld( EntityWorldType worldType = EntityWorldType::Game );
         ~EntityWorld();
 
         inline EntityWorldID const& GetID() const { return m_worldID; }
@@ -156,10 +155,10 @@ namespace EE
         bool HasMap( EntityMapID const& mapID ) const;
 
         // Does the specified map exist and is fully loaded
-        bool IsMapActive( ResourceID const& mapResourceID ) const;
+        bool IsMapLoaded( ResourceID const& mapResourceID ) const;
 
         // Does the specified map exist and is fully loaded
-        bool IsMapActive( EntityMapID const& mapID ) const;
+        bool IsMapLoaded( EntityMapID const& mapID ) const;
 
         // These functions queue up load and unload requests to be processed during the next loading update for the world
         EntityMapID LoadMap( ResourceID const& mapResourceID );
@@ -186,12 +185,11 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+        // This function will immediately shutdown and unload the specified component so that its properties can be edited
+        void BeginComponentEdit( EntityComponent* pComponent );
 
-        // This function will immediately unload the specified component so that its properties can be edited
-        void PrepareComponentForEditing( EntityMapID const& mapID, EntityID const& entityID, ComponentID const& componentID );
-
-        // This function will immediately unload the specified component so that its properties can be edited
-        void PrepareComponentForEditing( EntityComponent* pComponent );
+        // End a component edit operation, will request the unloaded component to be reloaded
+        void EndComponentEdit( EntityComponent* pComponent );
 
         // Get all the registered components of the specified type
         inline TVector<EntityComponent const*> const& GetAllRegisteredComponentsOfType( TypeSystem::TypeID typeID ) { return m_componentTypeLookup[typeID]; }
@@ -225,6 +223,16 @@ namespace EE
             }
             return false;
         }
+
+        // This function will update all maps so as to complete any entity removal requests
+        // WARNING!!! Be very careful when you call this
+        inline void ProcessAllRemovalRequests()
+        {
+            // Shutdown Entities
+            UpdateLoading();
+            // Complete Removal
+            UpdateLoading();
+        }
         #endif
 
         //-------------------------------------------------------------------------
@@ -249,7 +257,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        // Starts the hot-reload process - deactivates and unloads all specified entities
+        // Starts the hot-reload process - shuts down and unloads all specified entities
         void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload );
 
         // Ends the hot-reload process - starts re-loading of unloaded entities
@@ -258,19 +266,11 @@ namespace EE
 
     private:
 
-        // Process entity registration/unregistration requests occurring during map loading
-        void ProcessEntityRegistrationRequests();
-
-        // Process component registration/unregistration requests occurring during map loading
-        void ProcessComponentRegistrationRequests();
-
-    private:
-
         EntityWorldID                                                           m_worldID = UUID::GenerateID();
         TaskSystem*                                                             m_pTaskSystem = nullptr;
         Input::InputState                                                       m_inputState;
-        EntityModel::EntityLoadingContext                                       m_loadingContext;
-        EntityModel::ActivationContext                                          m_activationContext;
+        EntityModel::LoadingContext                                             m_loadingContext;
+        EntityModel::InitializationContext                                      m_initializationContext;
         TVector<IEntityWorldSystem*>                                            m_worldSystems;
         EntityWorldType                                                         m_worldType = EntityWorldType::Game;
         bool                                                                    m_initialized = false;
@@ -290,7 +290,7 @@ namespace EE
         bool                                                                    m_timeStepRequested = false;
 
         #if EE_DEVELOPMENT_TOOLS
-        THashMap<TypeSystem::TypeID, TVector<EntityComponent const*>>           m_componentTypeLookup;
+        EntityModel::EntityComponentTypeMap                                     m_componentTypeLookup;
         Drawing::DrawingSystem                                                  m_debugDrawingSystem;
         TVector<EntityWorldDebugView*>                                          m_debugViews;
         String                                                                  m_debugName;

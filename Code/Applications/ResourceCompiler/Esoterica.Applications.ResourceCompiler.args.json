@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "68772666-7f66-44a6-af25-efdc5e6eaf99",
+      "Command": "-compile data://packs/amplify/crouch_idle.anim"
+    },
+    {
       "Id": "59d1d86b-3a8d-4322-ac4e-aeab12b03aa1",
       "Command": "-compile data://maps/br_minimal.map"
     },

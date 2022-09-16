@@ -6,59 +6,94 @@ namespace EE
 {
     UndoStack::~UndoStack()
     {
+        EE_ASSERT( m_pCompoundStackAction == nullptr );
         ClearRedoStack();
         ClearUndoStack();
     }
 
     void UndoStack::Reset()
     {
+        EE_ASSERT( m_pCompoundStackAction == nullptr );
         ClearRedoStack();
         ClearUndoStack();
     }
 
     //-------------------------------------------------------------------------
 
-    IUndoableAction const* UndoStack::Undo()
+    void UndoStack::ExecuteUndo( IUndoableAction* pAction ) const
     {
-        EE_ASSERT( CanUndo() );
-
-        // Pop action off the recorded stack
-        IUndoableAction* pAction = m_recordedActions.back();
-        m_recordedActions.pop_back();
-
         // Notify listeners
         m_preUndoRedoEvent.Execute( Operation::Redo, pAction );
 
         // Undo the action and place it on the undone stack
         pAction->Undo();
-        m_undoneActions.emplace_back( pAction );
 
         // Notify listeners
         m_postUndoRedoEvent.Execute( Operation::Undo, pAction );
         m_actionPerformed.Execute();
+    }
 
+    IUndoableAction const* UndoStack::Undo()
+    {
+        EE_ASSERT( CanUndo() );
+        EE_ASSERT( m_pCompoundStackAction == nullptr );
+
+        // Pop action off the recorded stack
+        IUndoableAction* pAction = m_recordedActions.back();
+        m_recordedActions.pop_back();
+
+        if ( auto pCompoundAction = TryCast<CompoundStackAction>( pAction ) )
+        {
+            // Execute undo actions in reverse
+            for ( int32_t i = (int32_t) pCompoundAction->m_actions.size() - 1; i >= 0; i-- )
+            {
+                ExecuteUndo( pCompoundAction->m_actions[i] );
+            }
+        }
+        else
+        {
+            ExecuteUndo( pAction );
+        }
+
+        m_undoneActions.emplace_back( pAction );
         return pAction;
     }
 
-    IUndoableAction const* UndoStack::Redo()
+    void UndoStack::ExecuteRedo( IUndoableAction* pAction ) const
     {
-        EE_ASSERT( CanRedo() );
-
-        // Pop action off the recorded stack
-        IUndoableAction* pAction = m_undoneActions.back();
-        m_undoneActions.pop_back();
-
         // Notify listeners
         m_preUndoRedoEvent.Execute( Operation::Redo, pAction );
 
         // Undo the action and place it on the undone stack
         pAction->Redo();
-        m_recordedActions.emplace_back( pAction );
 
         // Notify listeners
         m_postUndoRedoEvent.Execute( Operation::Redo, pAction );
         m_actionPerformed.Execute();
+    }
 
+    IUndoableAction const* UndoStack::Redo()
+    {
+        EE_ASSERT( CanRedo() );
+        EE_ASSERT( m_pCompoundStackAction == nullptr );
+
+        // Pop action off the recorded stack
+        IUndoableAction* pAction = m_undoneActions.back();
+        m_undoneActions.pop_back();
+
+        if ( auto pCompoundAction = TryCast<CompoundStackAction>( pAction ) )
+        {
+            for ( auto pSubAction : pCompoundAction->m_actions )
+            {
+                ExecuteRedo( pSubAction );
+            }
+        }
+        else
+        {
+            ExecuteRedo( pAction );
+        }
+
+        m_recordedActions.emplace_back( pAction );
         return pAction;
     }
 
@@ -67,9 +102,32 @@ namespace EE
     void UndoStack::RegisterAction( IUndoableAction* pAction )
     {
         EE_ASSERT( pAction != nullptr );
-        m_recordedActions.emplace_back( pAction );
-        ClearRedoStack();
 
+        if ( m_pCompoundStackAction != nullptr )
+        {
+            m_pCompoundStackAction->AddToStack( pAction );
+        }
+        else
+        {
+            m_recordedActions.emplace_back( pAction );
+            ClearRedoStack();
+            m_actionPerformed.Execute();
+        }
+    }
+
+    void UndoStack::BeginCompoundAction()
+    {
+        EE_ASSERT( m_pCompoundStackAction == nullptr );
+        m_pCompoundStackAction = EE::New<CompoundStackAction>();
+    }
+
+    void UndoStack::EndCompoundAction()
+    {
+        EE_ASSERT( m_pCompoundStackAction != nullptr );
+        m_recordedActions.emplace_back( m_pCompoundStackAction );
+        m_pCompoundStackAction = nullptr;
+
+        ClearRedoStack();
         m_actionPerformed.Execute();
     }
 
@@ -92,5 +150,4 @@ namespace EE
 
         m_undoneActions.clear();
     }
-
 }

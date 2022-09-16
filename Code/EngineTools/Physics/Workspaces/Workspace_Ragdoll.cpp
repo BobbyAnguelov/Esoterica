@@ -541,13 +541,13 @@ namespace EE::Physics
                             case ImGuiX::Gizmo::Result::StartedManipulating :
                             {
                                 BeginDescriptorModification();
-                                body.m_offsetTransform = m_gizmoWorkingTransform * boneTransform.GetInverse();
+                                body.m_offsetTransform = Transform::Delta( boneTransform, m_gizmoWorkingTransform );
                             }
                             break;
 
                             case ImGuiX::Gizmo::Result::Manipulating :
                             {
-                                body.m_offsetTransform = m_gizmoWorkingTransform * boneTransform.GetInverse();
+                                body.m_offsetTransform = Transform::Delta( boneTransform, m_gizmoWorkingTransform );
                             }
                             break;
 
@@ -720,7 +720,7 @@ namespace EE::Physics
 
             // Retrieve the ragdoll pose
             Transform const& worldTransform = m_pMeshComponent->GetWorldTransform();
-            bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform.GetInverse(), m_pPose );
+            bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform, m_pPose );
 
             // Apply physics blend weight
             Animation::Blender::Blend( m_pFinalPose, m_pPose, m_physicsBlendWeight, TBitFlags<Animation::PoseBlendOptions>(), nullptr, m_pFinalPose );
@@ -1070,7 +1070,7 @@ namespace EE::Physics
             bodyGlobalTransform.SetRotation( orientation );
             bodyGlobalTransform.SetTranslation( boneTransform.GetTranslation() + bodyOffset );
 
-            newBody.m_offsetTransform = bodyGlobalTransform * boneTransform.GetInverse();
+            newBody.m_offsetTransform = Transform::Delta( boneTransform, bodyGlobalTransform );
         }
         else // Leaf bone
         {

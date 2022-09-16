@@ -1229,7 +1229,7 @@ namespace EE::Physics
         }
     }
 
-    bool Ragdoll::GetPose( Transform const& inverseWorldTransform, Animation::Pose* pPose ) const
+    bool Ragdoll::GetPose( Transform const& worldTransform, Animation::Pose* pPose ) const
     {
         EE_ASSERT( IsValid() );
         EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
@@ -1259,10 +1259,11 @@ namespace EE::Physics
                     break;
                 }
 
+                // Convert from world space to character space
                 int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
                 Transform const bodyWorldTransform = FromPx( ragdollBodyTransform );
                 Transform const boneWorldTranform = m_pDefinition->m_bodies[bodyIdx].m_inverseOffsetTransform * bodyWorldTransform;
-                m_globalBoneTransforms[boneIdx] = boneWorldTranform * inverseWorldTransform;
+                m_globalBoneTransforms[boneIdx] = Transform::Delta( worldTransform, boneWorldTranform );
             }
         }
 
@@ -1287,7 +1288,7 @@ namespace EE::Physics
             int32_t const parentBoneIdx = m_pDefinition->m_skeleton->GetParentBoneIndex( i );
             if ( parentBoneIdx != InvalidIndex )
             {
-                Transform const boneLocalTransform = m_globalBoneTransforms[i] * m_globalBoneTransforms[parentBoneIdx].GetInverse();
+                Transform const boneLocalTransform = Transform::Delta( m_globalBoneTransforms[parentBoneIdx], m_globalBoneTransforms[i] );
                 pPose->SetTransform( i, boneLocalTransform );
             }
             else

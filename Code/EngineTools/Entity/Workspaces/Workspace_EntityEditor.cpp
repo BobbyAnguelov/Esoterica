@@ -12,6 +12,7 @@
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/FileSystem/FileSystem.h"
 #include "System/Math/Math.h"
+#include "System/Math/MathStringHelpers.h"
 #include "System/Log.h"
 
 #include "Engine/AI/Components/Component_AISpawn.h"
@@ -54,11 +55,12 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         m_entityStructureEditor.Initialize( context, GetID() );
-     
+        m_structureEditorSelectionUpdateEventBindingID = m_entityStructureEditor.OnSelectionManuallyChanged().Bind( [this] ( IRegisteredType* pTypeToEdit ) { OnStructureEditorSelectionChanged( pTypeToEdit ); } );
+
         //-------------------------------------------------------------------------
 
         m_outliner.Initialize( context, GetID() );
-        m_selectionUpdateEventBindingID = m_outliner.OnSelectedChanged().Bind( [this] ( TreeListView::ChangeReason reason ) { OnEntitySelectionChanged( reason ); } );
+        m_outlinerSelectionUpdateEventBindingID = m_outliner.OnSelectedChanged().Bind( [this] ( TreeListView::ChangeReason reason ) { OnOutlinerSelectionChanged( reason ); } );
 
         // Property grid
         //-------------------------------------------------------------------------
@@ -73,11 +75,12 @@ namespace EE::EntityModel
 
     void EntityEditorWorkspace::Shutdown( UpdateContext const& context )
     {
-        m_outliner.OnSelectedChanged().Unbind( m_selectionUpdateEventBindingID );
+        m_outliner.OnSelectedChanged().Unbind( m_outlinerSelectionUpdateEventBindingID );
         m_outliner.Shutdown( context );
 
         //-------------------------------------------------------------------------
 
+        m_entityStructureEditor.OnSelectionManuallyChanged().Unbind( m_structureEditorSelectionUpdateEventBindingID );
         m_entityStructureEditor.Shutdown( context );
 
         //-------------------------------------------------------------------------
@@ -204,7 +207,7 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityEditorWorkspace::OnEntitySelectionChanged( TreeListView::ChangeReason reason )
+    void EntityEditorWorkspace::OnOutlinerSelectionChanged( TreeListView::ChangeReason reason )
     {
         // Notify structure editor
         //-------------------------------------------------------------------------
@@ -213,12 +216,18 @@ namespace EE::EntityModel
         {
             auto const selectedEntities = m_outliner.GetSelectedEntities();
             m_entityStructureEditor.SetEntitiesToEdit( selectedEntities );
+            m_propertyGrid.SetTypeInstanceToEdit( nullptr );
         }
 
         // Update spatial info
         //-------------------------------------------------------------------------
 
         UpdateSelectionSpatialInfo();
+    }
+
+    void EntityEditorWorkspace::OnStructureEditorSelectionChanged( IRegisteredType* pTypeToEdit )
+    {
+        m_propertyGrid.SetTypeInstanceToEdit( pTypeToEdit );
     }
 
     void EntityEditorWorkspace::OnActionPerformed()
@@ -297,10 +306,9 @@ namespace EE::EntityModel
                 m_selectionTransform = Transform( Quaternion::Identity, averagePosition );
 
                 // Calculate the offsets
-                Transform const inverseSelectionTransform = m_selectionTransform.GetInverse();
                 for ( auto& t : m_selectionOffsetTransforms )
                 {
-                    t = t * inverseSelectionTransform;
+                    t = Transform::Delta( m_selectionTransform, t );
                 }
             }
         }
@@ -436,6 +444,47 @@ namespace EE::EntityModel
         }
         ImGuiX::ItemTooltip( "Volume Visualizations" );
         ImGui::PopStyleVar();
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth( 48 );
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4.0f, 4.0f ) );
+        if ( ImGui::BeginCombo( "##Help", EE_ICON_HELP_CIRCLE_OUTLINE, ImGuiComboFlags_HeightLarge ) )
+        {
+            auto DrawHelpRow = [] ( char const* pLabel, char const* pHotkey )
+            {
+                ImGui::TableNextRow();
+                
+                ImGui::TableNextColumn();
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+                    ImGui::Text( pLabel );
+                }
+
+                ImGui::TableNextColumn();
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+                    ImGui::Text( pHotkey );
+                }
+            };
+
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::BeginTable( "HelpTable", 2 ) )
+            {
+                DrawHelpRow( "Switch Gizmo Mode","Spacebar" );
+                DrawHelpRow( "Multi Select", "Ctrl/Shift + Left Click" );
+                DrawHelpRow( "Directly Select Component", "Alt + Left Click" );
+                DrawHelpRow( "Duplicate Selected Entities","Alt + translate" );
+
+                ImGui::EndTable();
+            }
+
+            ImGui::EndCombo();
+        }
+        ImGuiX::ItemTooltip( "Help" );
+        ImGui::PopStyleVar();
     }
 
     void EntityEditorWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -564,6 +613,8 @@ namespace EE::EntityModel
             {
                 if ( pEntity->IsSpatialEntity() )
                 {
+                    /*InlineString debugStr = Math::ToString( pEntity->GetLocalTransform() );
+                    drawingCtx.DrawText3D( pEntity->GetWorldTransform().GetTranslation(), debugStr.c_str(), Colors::Red );*/
                     drawingCtx.DrawWireBox( pEntity->GetCombinedWorldBounds(), Colors::Cyan, 3.0f, Drawing::EnableDepthTest );
                 }
             }
@@ -584,7 +635,8 @@ namespace EE::EntityModel
             {
                 case ImGuiX::Gizmo::Result::StartedManipulating:
                 {
-                    bool const duplicateSelection = ( m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Translation ) && ImGui::GetIO().KeyAlt;
+                    bool const hasSelectedComponent = !m_entityStructureEditor.GetSelectedSpatialComponents().empty(); // Disallow component duplication atm
+                    bool const duplicateSelection = !hasSelectedComponent &&( m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Translation ) && ImGui::GetIO().KeyAlt;
                     BeginTransformManipulation( m_gizmoTransform, duplicateSelection );
                 }
                 break;
@@ -630,8 +682,7 @@ namespace EE::EntityModel
 
     void EntityEditorWorkspace::BeginTransformManipulation( Transform const& newTransform, bool duplicateSelection )
     {
-        auto const selectedEntities = m_outliner.GetSelectedEntities();
-        EE_ASSERT( !selectedEntities.empty() );
+        EE_ASSERT( !m_outliner.GetSelectedEntities().empty() );
         EE_ASSERT( m_pActiveUndoableAction == nullptr );
 
         // Should we duplicate the selection?
@@ -641,6 +692,7 @@ namespace EE::EntityModel
         }
 
         // Create undo action
+        auto const selectedEntities = m_outliner.GetSelectedEntities();
         auto pEntityUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
         pEntityUndoAction->RecordBeginEdit( selectedEntities, duplicateSelection );
         m_pActiveUndoableAction = pEntityUndoAction;
@@ -651,8 +703,6 @@ namespace EE::EntityModel
 
     void EntityEditorWorkspace::ApplyTransformManipulation( Transform const& newTransform )
     {
-        auto const selectedEntities = m_outliner.GetSelectedEntities();
-        EE_ASSERT( !selectedEntities.empty() );
         EE_ASSERT( m_pActiveUndoableAction != nullptr );
 
         // Update all selected components
@@ -662,6 +712,20 @@ namespace EE::EntityModel
             int32_t offsetIdx = 0;
             for ( auto pComponent : selectedSpatialComponents )
             {
+                if ( pComponent->HasSpatialParent() )
+                {
+                    auto Comparator = [] ( SpatialEntityComponent const* pComponent, ComponentID const& ID )
+                    {
+                        return pComponent->GetID() == ID;
+                    };
+
+                    if ( VectorContains( selectedSpatialComponents, pComponent->GetSpatialParentID(), Comparator ) )
+                    {
+                        offsetIdx++;
+                        continue;
+                    }
+                }
+
                 pComponent->SetWorldTransform( m_selectionOffsetTransforms[offsetIdx] * newTransform );
                 offsetIdx++;
             }
@@ -669,13 +733,25 @@ namespace EE::EntityModel
         else // Update all selected entities
         {
             int32_t offsetIdx = 0;
+            auto const selectedEntities = m_outliner.GetSelectedEntities();
             for ( auto pSelectedEntity : selectedEntities )
             {
-                if ( pSelectedEntity->IsSpatialEntity() )
+                if ( !pSelectedEntity->IsSpatialEntity() )
                 {
-                    pSelectedEntity->SetWorldTransform( m_selectionOffsetTransforms[offsetIdx] * newTransform );
-                    offsetIdx++;
+                    continue;
                 }
+
+                if ( pSelectedEntity->HasSpatialParent() )
+                {
+                    if ( VectorContains( selectedEntities, pSelectedEntity->GetSpatialParent() ) )
+                    {
+                        offsetIdx++;
+                        continue;
+                    }
+                }
+                
+                pSelectedEntity->SetWorldTransform( m_selectionOffsetTransforms[offsetIdx] * newTransform );
+                offsetIdx++;
             }
         }
 
