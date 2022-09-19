@@ -320,7 +320,7 @@ namespace EE::EntityModel
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, style.FramePadding );
                 if ( ImGui::BeginChild( "ST", ImVec2( -1, listWidgetHeight ), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding ) )
                 {
-                    TreeListView::Draw( -1.0f );
+                    TreeListView::UpdateAndDraw( -1.0f );
 
                     if ( GetNumItems() == 0 )
                     {

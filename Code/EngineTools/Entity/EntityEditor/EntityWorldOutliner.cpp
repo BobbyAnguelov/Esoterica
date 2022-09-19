@@ -195,7 +195,7 @@ namespace EE::EntityModel
 
                     //-------------------------------------------------------------------------
 
-                    TreeListView::Draw();
+                    TreeListView::UpdateAndDraw();
                 }
             }
 

@@ -4,10 +4,15 @@
 #include "System/Types/StringID.h"
 #include "System/Types/Event.h"
 #include "System/Types/HashMap.h"
+#include "System/Threading/TaskSystem.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem { class TypeRegistry; }
+namespace EE
+{
+    class TaskSystem;
+    namespace TypeSystem { class TypeRegistry; }
+}
 
 //-------------------------------------------------------------------------
 
@@ -15,15 +20,16 @@ namespace EE::Resource
 {
     class EE_ENGINETOOLS_API ResourceDatabase : public FileSystem::IFileSystemChangeListener
     {
-        struct ResourceEntry
+    public:
+
+        struct FileEntry
         {
             ResourceID                                              m_resourceID;
             FileSystem::Path                                        m_filePath;
+            bool                                                    m_isRegisteredResourceType = false;
         };
 
-    private:
-
-        struct Directory
+        struct DirectoryEntry
         {
             void ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath );
             void Clear();
@@ -33,8 +39,9 @@ namespace EE::Resource
 
             StringID                                                m_name;
             FileSystem::Path                                        m_filePath;
-            TVector<Directory>                                      m_directories;
-            TVector<ResourceEntry*>                                 m_files;
+            ResourcePath                                            m_resourcePath;
+            TVector<DirectoryEntry>                                 m_directories;
+            TVector<FileEntry*>                                     m_files;
         };
 
     public:
@@ -42,13 +49,19 @@ namespace EE::Resource
         ~ResourceDatabase();
 
         inline bool IsInitialized() const { return m_pTypeRegistry != nullptr; }
-        void Initialize( TypeSystem::TypeRegistry const* pTypeRegistry, FileSystem::Path const& rawResourceDirPath, FileSystem::Path const& compiledResourceDirPath );
+        void Initialize( TypeSystem::TypeRegistry const* pTypeRegistry, TaskSystem* pTaskSystem, FileSystem::Path const& rawResourceDirPath, FileSystem::Path const& compiledResourceDirPath );
         void Shutdown();
 
         inline FileSystem::Path const& GetRawResourceDirectoryPath() const { return m_rawResourceDirPath; }
+
         inline FileSystem::Path const& GetCompiledResourceDirectoryPath() const { return m_compiledResourceDirPath; }
 
+        inline DirectoryEntry const* GetDataDirectory() const { return &m_rootDir; }
+
         //-------------------------------------------------------------------------
+
+        // Are we currently rebuilding the DB?
+        bool IsRebuilding() const { return m_pRebuildTask != nullptr; }
 
         // Process any filesystem updates, returns true if any changes were detected!
         bool Update();
@@ -57,10 +70,10 @@ namespace EE::Resource
         bool DoesResourceExist( ResourceID const& resourceID ) const;
 
         // Gets the list of all found resources
-        THashMap<ResourceTypeID, TVector<ResourceEntry*>> const& GetAllResources() const { return m_resourcesPerType; }
+        THashMap<ResourceTypeID, TVector<FileEntry*>> const& GetAllResources() const { return m_resourcesPerType; }
 
         // Get a list of all known resource of the specified type
-        TVector<ResourceEntry*> const& GetAllResourcesOfType( ResourceTypeID typeID ) const;
+        TVector<FileEntry*> const& GetAllResourcesOfType( ResourceTypeID typeID ) const;
 
         // Event that fires whenever the database is updated
         TEventHandle<> OnDatabaseUpdated() const { return m_databaseUpdatedEvent; }
@@ -70,12 +83,12 @@ namespace EE::Resource
 
     private:
 
-        void RebuildDatabase();
-        void ClearDatabase();
+        // Trigger a full rebuild of the database, this is done async
+        void RequestDatabaseRebuild();
 
         // Directory operations
-        Directory* FindDirectory( FileSystem::Path const& dirPath );
-        Directory* FindOrCreateDirectory( FileSystem::Path const& dirPath );
+        DirectoryEntry* FindDirectory( FileSystem::Path const& dirPath );
+        DirectoryEntry* FindOrCreateDirectory( FileSystem::Path const& dirPath );
 
         // Add/Remove records
         void AddFileRecord( FileSystem::Path const& path );
@@ -91,14 +104,17 @@ namespace EE::Resource
 
     private:
 
-        TypeSystem::TypeRegistry const*                             m_pTypeRegistry;
+        TypeSystem::TypeRegistry const*                             m_pTypeRegistry = nullptr;
+        TaskSystem*                                                 m_pTaskSystem = nullptr;
         FileSystem::Path                                            m_rawResourceDirPath;
         FileSystem::Path                                            m_compiledResourceDirPath;
         int32_t                                                     m_dataDirectoryPathDepth;
         FileSystem::FileSystemWatcher                               m_fileSystemWatcher;
 
-        Directory                                                   m_rootDir;
-        THashMap<ResourceTypeID, TVector<ResourceEntry*>>           m_resourcesPerType;
+        ITaskSet*                                                   m_pRebuildTask = nullptr;
+
+        DirectoryEntry                                              m_rootDir;
+        THashMap<ResourceTypeID, TVector<FileEntry*>>               m_resourcesPerType;
         mutable TEvent<>                                            m_databaseUpdatedEvent;
         mutable TEvent<ResourceID>                                  m_resourceDeletedEvent;
     };

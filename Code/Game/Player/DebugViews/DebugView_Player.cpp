@@ -337,7 +337,7 @@ namespace EE::Player
             auto pInputSystem = context.GetSystem<Input::InputSystem>();
             if ( pInputSystem->GetControllerState( 0 )->IsHeldDown( Input::ControllerButton::FaceButtonLeft ) )
             {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Huge );
+                ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
                 ImGui::SetCursorPos( windowCenter + ImVec2( 0, 25 ) );
                 ImGui::Text( "Sys Hold Time: %.2f", pInputSystem->GetControllerState( 0 )->GetHeldDuration( Input::ControllerButton::FaceButtonLeft ).ToFloat() );
             }
@@ -345,7 +345,7 @@ namespace EE::Player
             auto pInputState = m_pWorld->GetInputState();
             if ( pInputState->GetControllerState( 0 )->IsHeldDown( Input::ControllerButton::FaceButtonLeft ) )
             {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Huge );
+                ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
                 ImGui::SetCursorPos( windowCenter + ImVec2( 0, 50 ) );
                 ImGui::Text( "World Hold Time: %.2f", pInputState->GetControllerState( 0 )->GetHeldDuration( Input::ControllerButton::FaceButtonLeft ).ToFloat() );
             }

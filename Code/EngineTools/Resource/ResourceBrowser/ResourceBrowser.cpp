@@ -28,22 +28,42 @@ namespace EE
 
     public:
 
-        ResourceBrowserTreeItem( char const* pName, FileSystem::Path const& path, ResourcePath const& resourcePath, ResourceTypeID resourceTypeID = ResourceTypeID() )
+        ResourceBrowserTreeItem( Resource::ResourceDatabase::DirectoryEntry const* pDirectoryEntry )
             : TreeListViewItem()
-            , m_nameID( pName )
-            , m_path( path )
-            , m_resourcePath( resourcePath )
-            , m_resourceTypeID( resourceTypeID )
-            , m_type( path.IsFilePath() ? Type::File : Type::Directory )
+            , m_nameID( pDirectoryEntry->m_filePath.GetDirectoryName() )
+            , m_path( pDirectoryEntry->m_filePath )
+            , m_resourcePath( pDirectoryEntry->m_resourcePath )
+            , m_type( Type::Directory )
         {
             EE_ASSERT( m_path.IsValid() );
             EE_ASSERT( m_resourcePath.IsValid() );
 
-            // Directories are not allowed to have resource type IDs set
-            if ( IsDirectory() )
+            //-------------------------------------------------------------------------
+
+            for ( auto const& childDirectory : pDirectoryEntry->m_directories )
             {
-                EE_ASSERT( !resourceTypeID.IsValid() );
+                CreateChild<ResourceBrowserTreeItem>( &childDirectory );
             }
+
+            //-------------------------------------------------------------------------
+
+            for ( auto pChildFile : pDirectoryEntry->m_files )
+            {
+                CreateChild<ResourceBrowserTreeItem>( pChildFile );
+            }
+
+        }
+
+        ResourceBrowserTreeItem( Resource::ResourceDatabase::FileEntry const* pFileEntry )
+            : TreeListViewItem()
+            , m_nameID( pFileEntry->m_filePath.GetFilename() )
+            , m_path( pFileEntry->m_filePath )
+            , m_resourcePath( pFileEntry->m_resourceID.GetResourcePath() )
+            , m_resourceTypeID( pFileEntry->m_isRegisteredResourceType ? pFileEntry->m_resourceID.GetResourceTypeID() : ResourceTypeID() )
+            , m_type( Type::File )
+        {
+            EE_ASSERT( m_path.IsValid() );
+            EE_ASSERT( m_resourcePath.IsValid() );
         }
 
         virtual StringID GetNameID() const { return m_nameID; }
@@ -116,30 +136,15 @@ namespace EE
         : m_toolsContext( toolsContext )
         , m_dataDirectoryPathDepth( m_toolsContext.GetRawResourceDirectory().GetPathDepth() )
     {
+        m_expandItemsOnlyViaArrow = true;
+
         Memory::MemsetZero( m_nameFilterBuffer, 256 * sizeof( char ) );
         m_onDoubleClickEventID = OnItemDoubleClicked().Bind( [this] ( TreeListViewItem* pItem ) { OnBrowserItemDoubleClicked( pItem ); } );
-        m_resourceDatabaseUpdateEventBindingID = toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Bind( [this] () { RebuildBrowserTree(); } );
+        m_resourceDatabaseUpdateEventBindingID = toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Bind( [this] () { RebuildTree(); } );
 
-        CreateDescriptorCategoryTree();
+        // Create descriptor category tree
+        //-------------------------------------------------------------------------
 
-        // Refresh visual state
-        RebuildBrowserTree();
-        UpdateVisibility();
-    }
-
-    ResourceBrowser::~ResourceBrowser()
-    {
-        OnItemDoubleClicked().Unbind( m_onDoubleClickEventID );
-        m_toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
-
-        EE::Delete( m_pResourceDescriptorCreator );
-        EE::Delete( m_pRawResourceInspector );
-    }
-
-    //-------------------------------------------------------------------------
-
-    void ResourceBrowser::CreateDescriptorCategoryTree()
-    {
         TypeSystem::TypeRegistry const* pTypeRegistry = m_toolsContext.m_pTypeRegistry;
         TVector<TypeSystem::TypeInfo const*> descriptorTypeInfos = pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false );
 
@@ -165,36 +170,62 @@ namespace EE
         }
     }
 
+    ResourceBrowser::~ResourceBrowser()
+    {
+        OnItemDoubleClicked().Unbind( m_onDoubleClickEventID );
+        m_toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
+
+        EE::Delete( m_pResourceDescriptorCreator );
+        EE::Delete( m_pRawResourceInspector );
+    }
+
     //-------------------------------------------------------------------------
 
-    bool ResourceBrowser::Draw( UpdateContext const& context )
+    bool ResourceBrowser::UpdateAndDraw( UpdateContext const& context )
     {
         bool isOpen = true;
         if ( ImGui::Begin( GetWindowName(), &isOpen) )
         {
-            DrawCreationControls( context );
-            DrawFilterOptions( context );
-            TreeListView::Draw();
+            if ( m_toolsContext.m_pResourceDatabase->IsRebuilding() )
+            {
+                ImGui::Indent();
+                ImGuiX::DrawSpinner( "SP" );
+                ImGui::SameLine( 0, 10 );
+                ImGui::Text( "Resource DB building..." );
+                ImGui::Unindent();
+            }
+            else
+            {
+                DrawCreationControls( context );
+                DrawFilterOptions( context );
+                TreeListView::UpdateAndDraw();
+            }
         }
         ImGui::End();
+
+        //-------------------------------------------------------------------------
 
         DrawDialogs();
 
         //-------------------------------------------------------------------------
 
-        if ( m_pResourceDescriptorCreator != nullptr )
+        if ( ImGui::IsKeyReleased( ImGuiKey_Enter ) )
         {
-            if ( !m_pResourceDescriptorCreator->Draw() )
+            auto const& selection = GetSelection();
+            if ( selection.size() == 1 )
             {
-                EE::Delete( m_pResourceDescriptorCreator );
-            }
-        }
-
-        if ( m_pRawResourceInspector != nullptr )
-        {
-            if ( !m_pRawResourceInspector->DrawDialog() )
-            {
-                EE::Delete( m_pRawResourceInspector );
+                auto pResourceItem = static_cast<ResourceBrowserTreeItem*>( selection[0] );
+                if ( pResourceItem->IsResourceFile() )
+                {
+                    m_toolsContext.TryOpenResource( pResourceItem->GetResourceID() );
+                }
+                else if ( pResourceItem->IsFile() )
+                {
+                    if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceItem->GetFilePath() ) )
+                    {
+                        m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceItem->GetFilePath() );
+                    }
+                }
             }
         }
 
@@ -203,41 +234,33 @@ namespace EE
         return isOpen;
     }
 
+    //-------------------------------------------------------------------------
+
     void ResourceBrowser::RebuildTreeUserFunction()
     {
-        if ( !FileSystem::GetDirectoryContents( m_toolsContext.GetRawResourceDirectory(), m_foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand) )
+        EE_ASSERT( !m_toolsContext.m_pResourceDatabase->IsRebuilding() );
+        auto pDataDirectory = m_toolsContext.m_pResourceDatabase->GetDataDirectory();
+
+        //-------------------------------------------------------------------------
+
+        m_rootItem.DestroyChildren();
+
+        for ( auto const& childDirectory : pDataDirectory->m_directories )
         {
-            EE_HALT();
+            m_rootItem.CreateChild<ResourceBrowserTreeItem>( &childDirectory );
         }
 
         //-------------------------------------------------------------------------
 
-        for ( auto const& path : m_foundPaths )
+        for ( auto pChildFile : pDataDirectory->m_files )
         {
-            auto& parentItem = FindOrCreateParentForItem( path );
-            if ( path.IsFilePath() )
-            {
-                // Check if this is a registered resource
-                ResourceTypeID resourceTypeID;
-                auto const extension = path.GetLowercaseExtensionAsString();
-                if ( extension.length() <= 4 )
-                {
-                    resourceTypeID = ResourceTypeID( extension.c_str() );
-                    if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) )
-                    {
-                        resourceTypeID = ResourceTypeID();
-                    }
-                }
-
-                // Create file item
-                parentItem.CreateChild<ResourceBrowserTreeItem>( path.GetFilename().c_str(), path, ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory(), path ), resourceTypeID );
-            }
+            m_rootItem.CreateChild<ResourceBrowserTreeItem>( pChildFile );
         }
+
+        //-------------------------------------------------------------------------
 
         UpdateVisibility();
     }
-
-    //-------------------------------------------------------------------------
 
     void ResourceBrowser::UpdateVisibility()
     {
@@ -294,6 +317,135 @@ namespace EE
         //-------------------------------------------------------------------------
 
         UpdateItemVisibility( VisibilityFunc );
+    }
+
+    void ResourceBrowser::DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
+    {
+        auto pResourceItem = (ResourceBrowserTreeItem*) GetSelection()[0];
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::MenuItem( "Open In Explorer" ) )
+        {
+            Platform::Win32::OpenInExplorer( pResourceItem->GetFilePath() );
+        }
+
+        if ( ImGui::MenuItem( "Copy File Path" ) )
+        {
+            ImGui::SetClipboardText( pResourceItem->GetFilePath().c_str() );
+        }
+
+        if ( ImGui::MenuItem( "Copy Resource Path" ) )
+        {
+            ImGui::SetClipboardText( pResourceItem->GetResourcePath().c_str() );
+        }
+
+        // Directory options
+        //-------------------------------------------------------------------------
+
+        if ( pResourceItem->GetFilePath().IsDirectoryPath() )
+        {
+            ImGui::Separator();
+
+            if ( ImGui::BeginMenu( "Create New Descriptor" ) )
+            {
+                DrawDescriptorMenuCategory( pResourceItem->GetFilePath(), m_categorizedDescriptorTypes.GetRootCategory() );
+                ImGui::EndMenu();
+            }
+        }
+
+        // File options
+        //-------------------------------------------------------------------------
+
+        if ( pResourceItem->GetFilePath().IsFilePath() )
+        {
+            ImGui::Separator();
+
+            if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
+            {
+                m_showDeleteConfirmationDialog = true;
+            }
+        }
+    }
+
+    void ResourceBrowser::OnBrowserItemDoubleClicked( TreeListViewItem* pItem )
+    {
+        auto pResourceFileItem = static_cast<ResourceBrowserTreeItem const*>( pItem );
+        if ( pResourceFileItem->IsDirectory() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( pResourceFileItem->IsResourceFile() )
+        {
+            m_toolsContext.TryOpenResource( pResourceFileItem->GetResourceID() );
+        }
+        else // Try create file inspector
+        {
+            if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceFileItem->GetFilePath() ) )
+            {
+                m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceFileItem->GetFilePath() );
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ResourceBrowser::DrawDialogs()
+    {
+        if ( m_showDeleteConfirmationDialog )
+        {
+            ImGui::OpenPopup( "Delete Resource" );
+            m_showDeleteConfirmationDialog = false;
+        }
+
+        ImGui::SetNextWindowSize( ImVec2( 300, 96 ) );
+        if ( ImGui::BeginPopupModal( "Delete Resource", nullptr, ImGuiWindowFlags_NoResize ) )
+        {
+            ImGui::Text( "Are you sure you want to delete this file?" );
+            ImGui::Text( "This cannot be undone!" );
+
+            if ( ImGui::Button( "Ok", ImVec2( 143, 0 ) ) )
+            {
+                auto pResourceItem = (ResourceBrowserTreeItem*) GetSelection()[0];
+                FileSystem::Path const fileToDelete = pResourceItem->GetFilePath();
+                ClearSelection();
+                FileSystem::EraseFile( fileToDelete );
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine( 0, 6 );
+
+            if ( ImGui::Button( "Cancel", ImVec2( 143, 0 ) ) )
+            {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SetItemDefaultFocus();
+
+            ImGui::EndPopup();
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_pResourceDescriptorCreator != nullptr )
+        {
+            if ( !m_pResourceDescriptorCreator->Draw() )
+            {
+                EE::Delete( m_pResourceDescriptorCreator );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_pRawResourceInspector != nullptr )
+        {
+            if ( !m_pRawResourceInspector->DrawDialog() )
+            {
+                EE::Delete( m_pRawResourceInspector );
+            }
+        }
     }
 
     void ResourceBrowser::DrawCreationControls( UpdateContext const& context )
@@ -454,154 +606,6 @@ namespace EE
 
         return requiresVisibilityUpdate;
     }
-
-    //-------------------------------------------------------------------------
-
-    TreeListViewItem& ResourceBrowser::FindOrCreateParentForItem( FileSystem::Path const& path )
-    {
-        //EE_ASSERT( path.IsFilePath() );
-
-        TreeListViewItem* pCurrentItem = &m_rootItem;
-        FileSystem::Path directoryPath = m_toolsContext.GetRawResourceDirectory();
-        TInlineVector<String, 10> splitPath = path.Split();
-
-        //-------------------------------------------------------------------------
-
-        int32_t const pathDepth = (int32_t) splitPath.size();
-        for ( int32_t i = m_dataDirectoryPathDepth + 1; i < pathDepth; i++ )
-        {
-            directoryPath.Append( splitPath[i] );
-
-            StringID const ID( splitPath[i] );
-            auto searchPredicate = [&ID] ( TreeListViewItem const* pItem ) { return pItem->GetNameID() == ID; };
-
-            auto pFoundChildItem = pCurrentItem->FindChild( searchPredicate );
-            if ( pFoundChildItem == nullptr )
-            {
-                auto pItem = pCurrentItem->CreateChild<ResourceBrowserTreeItem>( splitPath[i].c_str(), directoryPath, ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory(), directoryPath ) );
-                pCurrentItem = pItem;
-            }
-            else
-            {
-                pCurrentItem = pFoundChildItem;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        return *pCurrentItem;
-    }
-
-    void ResourceBrowser::DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
-    {
-        auto pResourceItem = (ResourceBrowserTreeItem*) GetSelection()[0];
-
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::MenuItem( "Open In Explorer" ) )
-        {
-            Platform::Win32::OpenInExplorer( pResourceItem->GetFilePath() );
-        }
-
-        if ( ImGui::MenuItem( "Copy File Path" ) )
-        {
-            ImGui::SetClipboardText( pResourceItem->GetFilePath().c_str() );
-        }
-
-        if ( ImGui::MenuItem( "Copy Resource Path" ) )
-        {
-            ImGui::SetClipboardText( pResourceItem->GetResourcePath().c_str() );
-        }
-
-        // Directory options
-        //-------------------------------------------------------------------------
-
-        if ( pResourceItem->GetFilePath().IsDirectoryPath() )
-        {
-            ImGui::Separator();
-
-            if ( ImGui::BeginMenu( "Create New Descriptor" ) )
-            {
-                DrawDescriptorMenuCategory( pResourceItem->GetFilePath(), m_categorizedDescriptorTypes.GetRootCategory() );
-                ImGui::EndMenu();
-            }
-        }
-
-        // File options
-        //-------------------------------------------------------------------------
-
-        if ( pResourceItem->GetFilePath().IsFilePath() )
-        {
-            ImGui::Separator();
-
-            if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
-            {
-                m_showDeleteConfirmationDialog = true;
-            }
-        }
-    }
-
-    void ResourceBrowser::DrawDialogs()
-    {
-        if ( m_showDeleteConfirmationDialog )
-        {
-            ImGui::OpenPopup( "Delete Resource" );
-            m_showDeleteConfirmationDialog = false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextWindowSize( ImVec2( 300, 96 ) );
-        if ( ImGui::BeginPopupModal( "Delete Resource", nullptr, ImGuiWindowFlags_NoResize ) )
-        {
-            ImGui::Text( "Are you sure you want to delete this file?" );
-            ImGui::Text( "This cannot be undone!" );
-
-            if ( ImGui::Button( "Ok", ImVec2( 143, 0 ) ) )
-            {
-                auto pResourceItem = (ResourceBrowserTreeItem*) GetSelection()[0];
-                FileSystem::Path const fileToDelete = pResourceItem->GetFilePath();
-                ClearSelection();
-                FileSystem::EraseFile( fileToDelete );
-                ImGui::CloseCurrentPopup();
-            }
-
-            ImGui::SameLine( 0, 6 );
-
-            if ( ImGui::Button( "Cancel", ImVec2( 143, 0 ) ) )
-            {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SetItemDefaultFocus();
-
-            ImGui::EndPopup();
-        }
-    }
-
-    void ResourceBrowser::OnBrowserItemDoubleClicked( TreeListViewItem* pItem )
-    {
-        auto pResourceFileItem = static_cast<ResourceBrowserTreeItem const*>( pItem );
-        if ( pResourceFileItem->IsDirectory() )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( pResourceFileItem->IsResourceFile() )
-        {
-            m_toolsContext.TryOpenResource( pResourceFileItem->GetResourceID() );
-        }
-        else // Try create file inspector
-        {
-            if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceFileItem->GetFilePath() ) )
-            {
-                m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceFileItem->GetFilePath() );
-            }
-        }
-    }
-
-    //-------------------------------------------------------------------------
 
     void ResourceBrowser::DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category )
     {

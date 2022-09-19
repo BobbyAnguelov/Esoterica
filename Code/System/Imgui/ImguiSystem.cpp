@@ -126,12 +126,10 @@ namespace EE::ImGuiX
         CreateFont( fontData, 24, 24, Font::Large, "Large", ImVec2( 0, 2 ) );
         CreateFont( boldFontData, 24, 24, Font::LargeBold, "Large Bold", ImVec2( 0, 2 ) );
 
-        CreateFont( fontData, 36, 36, Font::Huge, "Huge", ImVec2( 0, 2 ) );
-        CreateFont( boldFontData, 36, 36, Font::HugeBold, "Huge Bold", ImVec2( 0, 2 ) );
-
         // Build font atlas
         //-------------------------------------------------------------------------
 
+        io.Fonts->TexDesiredWidth = 4096;
         io.Fonts->Build();
         EE_ASSERT( io.Fonts->IsBuilt() );
 
@@ -142,8 +140,6 @@ namespace EE::ImGuiX
         EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::MediumBold]->IsLoaded() );
         EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::Large]->IsLoaded() );
         EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::LargeBold]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::Huge]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::HugeBold]->IsLoaded() );
         #endif
 
         io.FontDefault = SystemFonts::s_fonts[(uint8_t) Font::Medium];

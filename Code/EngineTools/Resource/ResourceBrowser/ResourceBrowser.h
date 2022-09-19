@@ -24,29 +24,28 @@ namespace EE
         ~ResourceBrowser();
 
         char const* const GetWindowName() { return "Resource Browser"; }
-        bool Draw( UpdateContext const& context );
 
-        void RebuildBrowserTree() { RebuildTree(); }
+        bool UpdateAndDraw( UpdateContext const& context );
 
     private:
 
+        // Tree
+        //-------------------------------------------------------------------------
+
         virtual void RebuildTreeUserFunction() override;
         virtual void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) override;
-        void DrawDialogs();
-
         void OnBrowserItemDoubleClicked( TreeListViewItem* pItem );
 
-        TreeListViewItem& FindOrCreateParentForItem( FileSystem::Path const& path );
-
+        // Update visual tree item visibility based on the user filter
         void UpdateVisibility();
+
+        // UI
+        //-------------------------------------------------------------------------
+
+        void DrawDialogs();
         void DrawCreationControls( UpdateContext const& context );
         void DrawFilterOptions( UpdateContext const& context );
         bool DrawResourceTypeFilterMenu( float width );
-
-        // Descriptor Creator
-        //-------------------------------------------------------------------------
-
-        void CreateDescriptorCategoryTree();
         void DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category );
 
     private:

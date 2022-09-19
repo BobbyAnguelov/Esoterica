@@ -240,7 +240,7 @@ namespace EE
         // Visual
         //-------------------------------------------------------------------------
 
-        void Draw( float listHeight = 0.0f );
+        void UpdateAndDraw( float listHeight = 0.0f );
 
         // Selection, Activation and Events
         //-------------------------------------------------------------------------

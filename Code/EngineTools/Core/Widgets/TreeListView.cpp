@@ -704,6 +704,13 @@ namespace EE
                 SetSelectionInternal( pItem, ChangeReason::UserInput );
             }
         }
+        else if ( ImGui::IsItemFocused() )
+        {
+            if ( !isSelectedItem )
+            {
+                SetSelectionInternal( pItem, ChangeReason::UserInput );
+            }
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -878,7 +885,7 @@ namespace EE
         ImGui::PopID();
     }
 
-    void TreeListView::Draw( float listHeight )
+    void TreeListView::UpdateAndDraw( float listHeight )
     {
         if ( m_visualTreeState != VisualTreeState::UpToDate )
         {
@@ -910,7 +917,7 @@ namespace EE
         ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( ImGui::GetStyle().ItemSpacing.x, 0 ) ); // Ensure table border and scrollbar align
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 0, 0 ) );
         ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray2.Value ); // Why does 'header' control selected table row BG?!
-        if( ImGui::BeginChild( "TVC", ImVec2( -1, listHeight ) ) )
+        if( ImGui::BeginChild( "TVC", ImVec2( -1, listHeight ), false ) )
         {
             float const totalVerticalSpaceAvailable = ImGui::GetContentRegionAvail().y;
             float const maxVerticalScrollPosition = ImGui::GetScrollMaxY();

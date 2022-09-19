@@ -51,12 +51,13 @@ namespace EE
         m_pTypeRegistry = context.GetSystem<TypeSystem::TypeRegistry>();
         m_pWorldManager = context.GetSystem<EntityWorldManager>();
         m_pRenderingSystem = context.GetSystem<Render::RenderingSystem>();
+        auto pTaskSystem = context.GetSystem<TaskSystem>();
 
         // Resources
         //-------------------------------------------------------------------------
 
         auto pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
-        m_resourceDB.Initialize( m_pTypeRegistry, pResourceSystem->GetSettings().m_rawResourcePath, pResourceSystem->GetSettings().m_compiledResourcePath );
+        m_resourceDB.Initialize( m_pTypeRegistry, pTaskSystem, pResourceSystem->GetSettings().m_rawResourcePath, pResourceSystem->GetSettings().m_compiledResourcePath );
         m_resourceDeletedEventID = m_resourceDB.OnResourceDeleted().Bind( [this] ( ResourceID const& resourceID ) { OnResourceDeleted( resourceID ); } );
         m_pResourceDatabase = &m_resourceDB;
         m_pResourceBrowser = EE::New<ResourceBrowser>( *this );
@@ -225,7 +226,7 @@ namespace EE
         if ( m_isResourceBrowserWindowOpen )
         {
             ImGui::SetNextWindowClass( &m_editorWindowClass );
-            m_isResourceBrowserWindowOpen = m_pResourceBrowser->Draw( context );
+            m_isResourceBrowserWindowOpen = m_pResourceBrowser->UpdateAndDraw( context );
         }
 
         if ( m_isResourceOverviewWindowOpen )
@@ -673,14 +674,6 @@ namespace EE
                 ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
                 ImGui::Text( EE_ICON_CCTV_OFF"This is a test - Large Bold" );
             }
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Huge );
-                ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Huge" );
-            }
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::HugeBold );
-                ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Huge Bold" );
-            }
 
             //-------------------------------------------------------------------------
 
@@ -712,14 +705,6 @@ namespace EE
                 ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
                 ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Huge );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
-            }
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::HugeBold );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
-            }
 
             //-------------------------------------------------------------------------
 
@@ -751,17 +736,6 @@ namespace EE
 
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-                ImGui::Button( EE_ICON_HAIR_DRYER );
-                ImGui::SameLine();
-                ImGui::Button( EE_ICON_Z_WAVE );
-                ImGui::SameLine();
-                ImGui::Button( EE_ICON_KANGAROO );
-                ImGui::SameLine();
-                ImGui::Button( EE_ICON_YIN_YANG );
-            }
-
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Huge );
                 ImGui::Button( EE_ICON_HAIR_DRYER );
                 ImGui::SameLine();
                 ImGui::Button( EE_ICON_Z_WAVE );

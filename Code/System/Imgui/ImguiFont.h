@@ -24,8 +24,6 @@ namespace EE::ImGuiX
         MediumBold,
         Large,
         LargeBold,
-        Huge,
-        HugeBold,
 
         NumFonts,
         Default = Medium,

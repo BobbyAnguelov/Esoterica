@@ -1,12 +1,13 @@
 #include "ResourceDatabase.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/TypeSystem/TypeRegistry.h"
+#include "System/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
 {
-    void ResourceDatabase::Directory::ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath )
+    void ResourceDatabase::DirectoryEntry::ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath )
     {
         FileSystem::Path const oldPath = m_filePath;
         m_name = StringID( newPath.GetDirectoryName() );
@@ -31,7 +32,7 @@ namespace EE::Resource
         }
     }
 
-    void ResourceDatabase::Directory::Clear()
+    void ResourceDatabase::DirectoryEntry::Clear()
     {
         for ( auto& dir : m_directories )
         {
@@ -60,21 +61,22 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    void ResourceDatabase::Initialize( TypeSystem::TypeRegistry const* pTypeRegistry, FileSystem::Path const& rawResourceDirPath, FileSystem::Path const& compiledResourceDirPath )
+    void ResourceDatabase::Initialize( TypeSystem::TypeRegistry const* pTypeRegistry, TaskSystem* pTaskSystem, FileSystem::Path const& rawResourceDirPath, FileSystem::Path const& compiledResourceDirPath )
     {
-        EE_ASSERT( m_pTypeRegistry == nullptr );
-        EE_ASSERT( pTypeRegistry != nullptr );
+        EE_ASSERT( m_pTypeRegistry == nullptr && pTypeRegistry != nullptr );
+        EE_ASSERT( m_pTaskSystem == nullptr && pTaskSystem != nullptr );
         EE_ASSERT( !m_rawResourceDirPath.IsValid() && FileSystem::Exists( rawResourceDirPath ) );
         EE_ASSERT( !m_compiledResourceDirPath.IsValid() && FileSystem::Exists( compiledResourceDirPath ) );
 
         m_rawResourceDirPath = rawResourceDirPath;
         m_compiledResourceDirPath = compiledResourceDirPath;
         m_dataDirectoryPathDepth = m_rawResourceDirPath.GetDirectoryDepth();
+        m_pTaskSystem = pTaskSystem;
         m_pTypeRegistry = pTypeRegistry;
 
         //-------------------------------------------------------------------------
 
-        RebuildDatabase();
+        RequestDatabaseRebuild();
 
         // Start file watcher
         //-------------------------------------------------------------------------
@@ -93,7 +95,13 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        ClearDatabase();
+        m_resourcesPerType.clear();
+        m_rootDir.Clear();
+
+        if ( m_databaseUpdatedEvent.HasBoundUsers() )
+        {
+            m_databaseUpdatedEvent.Execute();
+        }
 
         //-------------------------------------------------------------------------
 
@@ -103,83 +111,117 @@ namespace EE::Resource
 
     bool ResourceDatabase::Update()
     {
+        // Wait for rebuild to complete
+        //-------------------------------------------------------------------------
+
+        if ( m_pRebuildTask != nullptr )
+        {
+            if ( m_pRebuildTask->GetIsComplete() )
+            {
+                EE::Delete( m_pRebuildTask );
+
+                // Notify users that the DB has been rebuilt
+                m_databaseUpdatedEvent.Execute();
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        // Update file watcher
+        //-------------------------------------------------------------------------
+
         EE_ASSERT( m_fileSystemWatcher.IsWatching() );
-        bool const databaseUpdated = m_fileSystemWatcher.Update();
-        if ( databaseUpdated )
+        bool const fileSystemChangesDetected = m_fileSystemWatcher.Update();
+        if ( fileSystemChangesDetected )
         {
             if ( m_databaseUpdatedEvent.HasBoundUsers() )
             {
                 m_databaseUpdatedEvent.Execute();
             }
         }
-        return databaseUpdated;
+        return fileSystemChangesDetected;
     }
 
     //-------------------------------------------------------------------------
 
-    void ResourceDatabase::ClearDatabase()
+    void ResourceDatabase::RequestDatabaseRebuild()
     {
-        m_resourcesPerType.clear();
-        m_rootDir.Clear();
-
-        if ( m_databaseUpdatedEvent.HasBoundUsers() )
-        {
-            m_databaseUpdatedEvent.Execute();
-        }
-    }
-
-    // TODO: Make this async!
-    void ResourceDatabase::RebuildDatabase()
-    {
-        // Reset the resource type category and add an entry for for every known resource type
+        // Stop file watcher
         //-------------------------------------------------------------------------
 
-        m_resourcesPerType.clear();
-        for ( auto const& resourceInfoPair : m_pTypeRegistry->GetRegisteredResourceTypes() )
+        if ( m_fileSystemWatcher.IsWatching() )
         {
-            auto const& resourceInfo = resourceInfoPair.second;
-            m_resourcesPerType.insert( TPair<ResourceTypeID, TVector<ResourceEntry*>>( resourceInfo.m_resourceTypeID, TVector<ResourceEntry*>() ) );
+            m_fileSystemWatcher.StopWatching();
+            m_fileSystemWatcher.UnregisterChangeListener( this );
         }
 
-        // Reset the root dir
+        // Task Payload
         //-------------------------------------------------------------------------
 
-        m_rootDir.Clear();
-        m_rootDir.m_name = StringID( m_rawResourceDirPath.GetDirectoryName() );
-        m_rootDir.m_filePath = m_rawResourceDirPath;
-
-        // Get all files in the data directory
-        //-------------------------------------------------------------------------
-
-        TVector<FileSystem::Path> foundPaths;
-        if ( !FileSystem::GetDirectoryContents( m_rawResourceDirPath, foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand ) )
+        auto RebuildDatabase = [this] ()
         {
-            EE_HALT();
-        }
+            // Reset the resource type category and add an entry for for every known resource type
+            //-------------------------------------------------------------------------
 
-        // Add record for all files
-        //-------------------------------------------------------------------------
-
-        for ( auto const& filePath : foundPaths )
-        {
-            if ( filePath.IsDirectoryPath() )
+            m_resourcesPerType.clear();
+            for ( auto const& resourceInfoPair : m_pTypeRegistry->GetRegisteredResourceTypes() )
             {
-                Directory* pDirectory = FindOrCreateDirectory( filePath );
-                EE_ASSERT( pDirectory != nullptr );
+                auto const& resourceInfo = resourceInfoPair.second;
+                m_resourcesPerType.insert( TPair<ResourceTypeID, TVector<FileEntry*>>( resourceInfo.m_resourceTypeID, TVector<FileEntry*>() ) );
             }
-            else
-            {
-                AddFileRecord( filePath );
-            }
-        }
 
-        // Notify users that the DB has been rebuilt
+            // Reset the root dir
+            //-------------------------------------------------------------------------
+
+            m_rootDir.Clear();
+            m_rootDir.m_name = StringID( m_rawResourceDirPath.GetDirectoryName() );
+            m_rootDir.m_filePath = m_rawResourceDirPath;
+
+            // Get all files in the data directory
+            //-------------------------------------------------------------------------
+
+            TVector<FileSystem::Path> foundPaths;
+            if ( !FileSystem::GetDirectoryContents( m_rawResourceDirPath, foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand ) )
+            {
+                EE_HALT();
+            }
+
+            // Add record for all files
+            //-------------------------------------------------------------------------
+
+            for ( auto const& filePath : foundPaths )
+            {
+                if ( filePath.IsDirectoryPath() )
+                {
+                    DirectoryEntry* pDirectory = FindOrCreateDirectory( filePath );
+                    EE_ASSERT( pDirectory != nullptr );
+                }
+                else
+                {
+                    AddFileRecord( filePath );
+                }
+            }
+        };
+
         //-------------------------------------------------------------------------
 
-        if ( m_databaseUpdatedEvent.HasBoundUsers() )
+        struct RebuildTask : public ITaskSet
         {
-            m_databaseUpdatedEvent.Execute();
-        }
+            RebuildTask( TFunction<void()>&& func ) : m_function( func ) {}
+
+            virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
+            {
+                m_function();
+            }
+
+            TFunction<void()> m_function;
+        };
+
+        // Kick off rebuild task
+        m_pRebuildTask = EE::New<RebuildTask>( RebuildDatabase );
+        m_pTaskSystem->ScheduleTask( m_pRebuildTask );
     }
 
     //-------------------------------------------------------------------------
@@ -201,7 +243,7 @@ namespace EE::Resource
         return false;
     }
 
-    TVector<ResourceDatabase::ResourceEntry*> const& ResourceDatabase::GetAllResourcesOfType( ResourceTypeID typeID ) const
+    TVector<ResourceDatabase::FileEntry*> const& ResourceDatabase::GetAllResourcesOfType( ResourceTypeID typeID ) const
     {
         EE_ASSERT( m_pTypeRegistry->IsRegisteredResourceType( typeID ) );
         return m_resourcesPerType.at( typeID );
@@ -209,11 +251,11 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    ResourceDatabase::Directory* ResourceDatabase::FindDirectory( FileSystem::Path const& dirPathToFind )
+    ResourceDatabase::DirectoryEntry* ResourceDatabase::FindDirectory( FileSystem::Path const& dirPathToFind )
     {
         EE_ASSERT( dirPathToFind.IsDirectoryPath() );
 
-        Directory* pCurrentDir = &m_rootDir;
+        DirectoryEntry* pCurrentDir = &m_rootDir;
         FileSystem::Path directoryPath = m_rawResourceDirPath;
         TInlineVector<String, 10> splitPath = dirPathToFind.Split();
 
@@ -225,9 +267,9 @@ namespace EE::Resource
             directoryPath.Append( splitPath[i] );
 
             StringID const intermediateName( splitPath[i] );
-            auto searchPredicate = [&intermediateName] ( Directory& dir ) { return dir.m_name == intermediateName; };
+            auto searchPredicate = [&intermediateName] ( DirectoryEntry& dir ) { return dir.m_name == intermediateName; };
 
-            Directory* pFoundDirectory = nullptr;
+            DirectoryEntry* pFoundDirectory = nullptr;
             auto itemIter = eastl::find_if( pCurrentDir->m_directories.begin(), pCurrentDir->m_directories.end(), searchPredicate );
             if ( itemIter != pCurrentDir->m_directories.end() )
             {
@@ -244,11 +286,11 @@ namespace EE::Resource
         return pCurrentDir;
     }
 
-    ResourceDatabase::Directory* ResourceDatabase::FindOrCreateDirectory( FileSystem::Path const& dirPathToFind )
+    ResourceDatabase::DirectoryEntry* ResourceDatabase::FindOrCreateDirectory( FileSystem::Path const& dirPathToFind )
     {
         EE_ASSERT( dirPathToFind.IsDirectoryPath() );
 
-        Directory* pCurrentDir = &m_rootDir;
+        DirectoryEntry* pCurrentDir = &m_rootDir;
         FileSystem::Path directoryPath = m_rawResourceDirPath;
         TInlineVector<String, 10> splitPath = dirPathToFind.Split();
 
@@ -260,9 +302,9 @@ namespace EE::Resource
             directoryPath.Append( splitPath[i] );
 
             StringID const intermediateName( splitPath[i] );
-            auto searchPredicate = [&intermediateName] ( Directory& dir ) { return dir.m_name == intermediateName; };
+            auto searchPredicate = [&intermediateName] ( DirectoryEntry& dir ) { return dir.m_name == intermediateName; };
 
-            Directory* pFoundDirectory = nullptr;
+            DirectoryEntry* pFoundDirectory = nullptr;
             auto itemIter = eastl::find_if( pCurrentDir->m_directories.begin(), pCurrentDir->m_directories.end(), searchPredicate );
             if ( itemIter != pCurrentDir->m_directories.end() )
             {
@@ -270,9 +312,10 @@ namespace EE::Resource
             }
             else
             {
-                auto& newDirectory = pCurrentDir->m_directories.emplace_back( Directory() );
+                auto& newDirectory = pCurrentDir->m_directories.emplace_back( DirectoryEntry() );
                 newDirectory.m_name = StringID( splitPath[i] );
                 newDirectory.m_filePath = directoryPath;
+                newDirectory.m_resourcePath = ResourcePath::FromFileSystemPath( m_rawResourceDirPath, newDirectory.m_filePath );
 
                 pCurrentDir = &newDirectory;
             }
@@ -288,26 +331,27 @@ namespace EE::Resource
         auto const resourcePath = ResourcePath::FromFileSystemPath( m_rawResourceDirPath, path );
         EE_ASSERT( resourcePath.IsFile() );
 
-        auto pNewEntry = EE::New<ResourceEntry>();
+        // Create entry
+        auto pNewEntry = EE::New<FileEntry>();
         pNewEntry->m_filePath = path;
         pNewEntry->m_resourceID = resourcePath;
+        pNewEntry->m_isRegisteredResourceType = m_pTypeRegistry->IsRegisteredResourceType( pNewEntry->m_resourceID.GetResourceTypeID() );
 
         // Add to directory list
-        Directory* pDirectory = FindOrCreateDirectory( path.GetParentDirectory() );
+        DirectoryEntry* pDirectory = FindOrCreateDirectory( path.GetParentDirectory() );
         EE_ASSERT( pDirectory != nullptr );
         pDirectory->m_files.emplace_back( pNewEntry );
 
         // Add to per-type lists
-        ResourceTypeID const typeID = pNewEntry->m_resourceID.GetResourceTypeID();
-        if ( m_pTypeRegistry->IsRegisteredResourceType( typeID ) )
+        if ( pNewEntry->m_isRegisteredResourceType )
         {
-            m_resourcesPerType[typeID].emplace_back( pNewEntry );
+            m_resourcesPerType[pNewEntry->m_resourceID.GetResourceTypeID()].emplace_back( pNewEntry );
         }
     }
 
     void ResourceDatabase::RemoveFileRecord( FileSystem::Path const& path )
     {
-        Directory* pDirectory = FindDirectory( path.GetParentDirectory() );
+        DirectoryEntry* pDirectory = FindDirectory( path.GetParentDirectory() );
         EE_ASSERT( pDirectory != nullptr );
 
         int32_t const numFiles = (int32_t) pDirectory->m_files.size();
@@ -324,7 +368,7 @@ namespace EE::Resource
                     auto iter = m_resourcesPerType.find( typeID );
                     if ( iter != m_resourcesPerType.end() )
                     {
-                        TVector<ResourceEntry*>& category = iter->second;
+                        TVector<FileEntry*>& category = iter->second;
                         category.erase_first_unsorted( pDirectory->m_files[i] );
                     }
 
@@ -368,7 +412,7 @@ namespace EE::Resource
         // If this is an empty directory, add to the directory list
         if ( foundPaths.empty() )
         {
-            Directory* pDirectory = FindOrCreateDirectory( newDirectoryPath );
+            DirectoryEntry* pDirectory = FindOrCreateDirectory( newDirectoryPath );
             EE_ASSERT( pDirectory != nullptr );
         }
         else // Add file records (this will automatically create the directory record)
@@ -403,7 +447,7 @@ namespace EE::Resource
         EE_ASSERT( oldPath.IsDirectoryPath() );
         EE_ASSERT( newPath.IsDirectoryPath() );
 
-        Directory* pDirectory = nullptr;
+        DirectoryEntry* pDirectory = nullptr;
 
         // Check if the directory was also moved
         FileSystem::Path const oldParentPath = oldPath.GetParentDirectory();

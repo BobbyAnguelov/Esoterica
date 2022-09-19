@@ -329,7 +329,7 @@ namespace EE::ImGuiX
 
         //-------------------------------------------------------------------------
 
-        ImGuiX::ScopedFont scopedFont( ImGuiX::Font::Huge );
+        ImGuiX::ScopedFont scopedFont( ImGuiX::Font::Large );
         ImVec2 const textSize = ImGui::CalcTextSize( icon );
         ImVec2 const iconSize = textSize + ( ImGui::GetStyle().FramePadding * 2 );
         ImVec2 const iconHalfSize( iconSize.x / 2, iconSize.y / 2 );

@@ -300,7 +300,7 @@ namespace EE::Animation
             auto size = ImGui::GetContentRegionAvail();
 
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Huge, Colors::Red );
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Large, Colors::Red );
                 static constexpr char const* const msg = "Invalid Descriptor!";
                 auto const ts = ImGui::CalcTextSize( msg );
                 ImGui::SetCursorPosX( ( size.x - ts.x ) / 2 );
@@ -309,7 +309,7 @@ namespace EE::Animation
             }
 
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Small, Colors::Red );
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Large, Colors::Red );
                 static constexpr char const* const msg = "Bone masks need to be based on a skeleton! Please set the skeleton resource in the descriptor!";
                 auto const ts = ImGui::CalcTextSize( msg );
                 ImGui::SetCursorPosX( ( size.x - ts.x ) / 2 );
