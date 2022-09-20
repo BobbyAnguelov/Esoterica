@@ -454,8 +454,8 @@ namespace EE::TypeSystem::Reflection
         m_reflectedHeaders.clear();
         m_reflectedTypes.clear();
 
-        //-------------------------------------------------------------------------
         // Read all projects
+        //-------------------------------------------------------------------------
 
         sqlite3_stmt* pStatement = nullptr;
         FillStatementBuffer( "SELECT * FROM `Modules` ORDER BY `DependencyCount` ASC;" );
@@ -484,8 +484,8 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        //-------------------------------------------------------------------------
         // Read all headers
+        //-------------------------------------------------------------------------
 
         FillStatementBuffer( "SELECT * FROM `HeaderFiles`;" );
         if ( IsValidSQLiteResult( sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr ) ) )
@@ -511,8 +511,8 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        //-------------------------------------------------------------------------
         // Read all types
+        //-------------------------------------------------------------------------
 
         FillStatementBuffer( "SELECT * FROM `Types`;" );
         if ( IsValidSQLiteResult( sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr ) ) )
@@ -557,24 +557,30 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        //-------------------------------------------------------------------------
         // Read all resource types
+        //-------------------------------------------------------------------------
 
         FillStatementBuffer( "SELECT * FROM `ResourceTypes`;" );
         if ( IsValidSQLiteResult( sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr ) ) )
         {
             while ( sqlite3_step( pStatement ) == SQLITE_ROW )
             {
-                ReflectedResourceType header;
-                header.m_typeID = TypeID( (char const*) sqlite3_column_text( pStatement, 0 ) );
-                header.m_resourceTypeID = sqlite3_column_int( pStatement, 1 );
-                header.m_friendlyName = (char const*) sqlite3_column_text( pStatement, 2 );
-                header.m_headerID = StringID( sqlite3_column_int( pStatement, 3 ) );
-                header.m_className = (char const*) sqlite3_column_text( pStatement, 4 );
-                header.m_namespace = (char const*) sqlite3_column_text( pStatement, 5 );
-                header.m_isVirtual = sqlite3_column_int( pStatement, 6 ) != 0;
-                m_reflectedResourceTypes.push_back( header );
+                ReflectedResourceType resourceType;
+                resourceType.m_typeID = TypeID( (char const*) sqlite3_column_text( pStatement, 0 ) );
+                resourceType.m_resourceTypeID = sqlite3_column_int( pStatement, 1 );
+                resourceType.m_friendlyName = (char const*) sqlite3_column_text( pStatement, 2 );
+                resourceType.m_headerID = StringID( sqlite3_column_int( pStatement, 3 ) );
+                resourceType.m_className = (char const*) sqlite3_column_text( pStatement, 4 );
+                resourceType.m_namespace = (char const*) sqlite3_column_text( pStatement, 5 );
+                resourceType.m_isVirtual = sqlite3_column_int( pStatement, 6 ) != 0;
+                m_reflectedResourceTypes.push_back( resourceType );
+
+                if ( !ReadAdditionalResourceTypeData( resourceType ) )
+                {
+                    return false;
+                }
             }
+
             if ( !IsValidSQLiteResult( sqlite3_finalize( pStatement ) ) )
             {
                 return false;
@@ -673,6 +679,11 @@ namespace EE::TypeSystem::Reflection
             {
                 return false;
             }
+
+            if ( !WriteAdditionalResourceTypeData( resourceType ) )
+            {
+                return false;
+            }
         }
 
         // Update database info
@@ -735,6 +746,11 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
+        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `ResourceTypeParents` ( `TypeID` TEXT, `ParentTypeID` TEXT, PRIMARY KEY( TypeID, ParentTypeID ) );" ) )
+        {
+            return false;
+        }
+
         // Database info table
         //-------------------------------------------------------------------------
 
@@ -782,6 +798,11 @@ namespace EE::TypeSystem::Reflection
         }
 
         if ( !ExecuteSimpleQuery( "DROP TABLE IF EXISTS `ResourceTypes`;" ) )
+        {
+            return false;
+        }
+
+        if ( !ExecuteSimpleQuery( "DROP TABLE IF EXISTS `ResourceTypeParents`;" ) )
         {
             return false;
         }
@@ -896,17 +917,44 @@ namespace EE::TypeSystem::Reflection
         return false;
     }
 
-    bool ReflectionDatabase::WriteAdditionalTypeData( ReflectedType const& type )
+    bool ReflectionDatabase::ReadAdditionalResourceTypeData( ReflectedResourceType& type )
     {
-        // Update Type Parents
-        for ( auto& parent : type.m_parents )
+        EE_ASSERT( type.m_typeID.IsValid() );
+
+        sqlite3_stmt* pStatement = nullptr;
+        FillStatementBuffer( "SELECT `ResourceTypeParents`.ParentTypeID FROM `ResourceTypeParents` INNER JOIN `ResourceTypes` ON `ResourceTypes`.TypeID = `ResourceTypeParents`.ParentTypeID WHERE `ResourceTypeParents`.TypeID = \"%s\";", type.m_typeID.c_str() );
+        if ( IsValidSQLiteResult( sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr ) ) )
         {
-            // Delete old parents
-            if ( !ExecuteSimpleQuery( "DELETE FROM `TypeParents` WHERE `TypeID` = %u;", (uint32_t) type.m_ID ) )
+            while ( sqlite3_step( pStatement ) == SQLITE_ROW )
+            {
+                type.m_parents.push_back( TypeSystem::TypeID( (char const*) sqlite3_column_text( pStatement, 0 ) ) );
+            }
+
+            if ( !IsValidSQLiteResult( sqlite3_finalize( pStatement ) ) )
             {
                 return false;
             }
+            pStatement = nullptr;
+        }
+        else
+        {
+            return false;
+        }
 
+        return true;
+    }
+
+    bool ReflectionDatabase::WriteAdditionalTypeData( ReflectedType const& type )
+    {
+        // Delete old parents
+        if ( !ExecuteSimpleQuery( "DELETE FROM `TypeParents` WHERE `TypeID` = %u;", (uint32_t) type.m_ID ) )
+        {
+            return false;
+        }
+
+        // Update Type Parents
+        for ( auto& parent : type.m_parents )
+        {
             if ( !ExecuteSimpleQuery( "INSERT INTO `TypeParents`(`TypeID`, `ParentTypeID`) VALUES ( %u, %u );", (uint32_t) type.m_ID, (uint32_t) parent ) )
             {
                 return false;
@@ -948,5 +996,53 @@ namespace EE::TypeSystem::Reflection
         }
 
         return true;
+    }
+
+    bool ReflectionDatabase::WriteAdditionalResourceTypeData( ReflectedResourceType const& type )
+    {
+        // Delete old parents
+        if ( !ExecuteSimpleQuery( "DELETE FROM `ResourceTypeParents` WHERE `TypeID` = \"%s\";", type.m_typeID.c_str() ) )
+        {
+            return false;
+        }
+
+        // Update Type Parents
+        for ( auto& parent : type.m_parents )
+        {
+            if ( !ExecuteSimpleQuery( "INSERT INTO `ResourceTypeParents`(`TypeID`, `ParentTypeID`) VALUES ( \"%s\", \"%s\" );", type.m_typeID.c_str(), parent.c_str() ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    void ReflectionDatabase::CleanupResourceHierarchy()
+    {
+        static TypeID const baseResourceTypeID( Settings::g_baseResourceFullTypeName );
+
+        auto IsRegisteredResource = [this] ( TypeID typeID )
+        {
+            for ( auto const& resourceType : m_reflectedResourceTypes )
+            {
+                if ( resourceType.m_typeID == typeID )
+                {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        for ( auto& resourceType : m_reflectedResourceTypes )
+        {
+            for ( int32_t i = (int32_t) resourceType.m_parents.size() - 1; i >= 0; i-- )
+            {
+                if ( resourceType.m_parents[i] == baseResourceTypeID || !IsRegisteredResource( resourceType.m_parents[i] ) )
+                {
+                    resourceType.m_parents.erase( resourceType.m_parents.begin() + i );
+                }
+            }
+        }
     }
 }

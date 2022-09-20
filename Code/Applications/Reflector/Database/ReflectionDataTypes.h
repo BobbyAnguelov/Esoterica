@@ -142,6 +142,7 @@ namespace EE::TypeSystem::Reflection
         HeaderID                                        m_headerID;
         String                                          m_className;
         String                                          m_namespace;
+        TVector<TypeID>                                 m_parents;
         bool                                            m_isVirtual = false;
     };
 }

@@ -288,6 +288,11 @@ namespace EE::TypeSystem
         m_registeredResourceTypes.erase( iter );
     }
 
+    bool TypeRegistry::IsRegisteredResourceType( TypeID typeID ) const
+    {
+        return m_registeredResourceTypes.find( typeID ) != m_registeredResourceTypes.end();
+    }
+
     bool TypeRegistry::IsRegisteredResourceType( ResourceTypeID resourceTypeID ) const
     {
         for ( auto const& pair : m_registeredResourceTypes )
@@ -331,6 +336,18 @@ namespace EE::TypeSystem
         return nullptr;
     }
 
+    bool TypeRegistry::IsResourceTypeDerivedFrom( ResourceTypeID childResourceTypeID, ResourceTypeID parentResourceTypeID ) const
+    {
+        if ( childResourceTypeID == parentResourceTypeID )
+        {
+            return true;
+        }
+
+        auto pChildResourceInfo = GetResourceInfoForResourceType( childResourceTypeID );
+        EE_ASSERT( pChildResourceInfo != nullptr );
+        return VectorContains( pChildResourceInfo->m_parentTypes, parentResourceTypeID );
+    }
+
     //-------------------------------------------------------------------------
 
     size_t TypeRegistry::GetTypeByteSize( TypeID typeID ) const
@@ -347,5 +364,24 @@ namespace EE::TypeSystem
             EE_ASSERT( pChildTypeInfo != nullptr );
             return pChildTypeInfo->m_size;
         }
+    }
+
+    TVector<ResourceTypeID> TypeRegistry::GetAllDerivedResourceTypes( ResourceTypeID resourceTypeID ) const
+    {
+        TVector<ResourceTypeID> derivedResourceTypes;
+        for ( auto const& pair: m_registeredResourceTypes )
+        {
+            if ( pair.second.m_resourceTypeID == resourceTypeID )
+            {
+                continue;
+            }
+
+            if ( VectorContains( pair.second.m_parentTypes, resourceTypeID ) )
+            {
+                derivedResourceTypes.emplace_back( pair.second.m_resourceTypeID );
+            }
+        }
+
+        return derivedResourceTypes;
     }
 }

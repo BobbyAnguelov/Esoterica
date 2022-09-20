@@ -65,6 +65,9 @@ namespace EE::TypeSystem::Reflection
         void RegisterResource( ReflectedResourceType const* pDesc );
         TVector<ReflectedResourceType> const& GetAllRegisteredResourceTypes() const { return m_reflectedResourceTypes; }
 
+        // Removes all irrelevant parents from the registered resource types
+        void CleanupResourceHierarchy();
+
         // Cleaning
         //-------------------------------------------------------------------------
 
@@ -82,9 +85,11 @@ namespace EE::TypeSystem::Reflection
 
         bool ReadAdditionalTypeData( ReflectedType& type );
         bool ReadAdditionalEnumData( ReflectedType& type );
+        bool ReadAdditionalResourceTypeData( ReflectedResourceType& type );
 
         bool WriteAdditionalTypeData( ReflectedType const& type );
         bool WriteAdditionalEnumData( ReflectedType const& type );
+        bool WriteAdditionalResourceTypeData( ReflectedResourceType const& type );
 
         // SQLite
         //-------------------------------------------------------------------------

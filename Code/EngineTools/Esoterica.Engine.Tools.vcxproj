@@ -173,7 +173,7 @@
     <ClCompile Include="Resource\ResourceBrowser\ResourceBrowser.cpp" />
     <ClCompile Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.cpp" />
     <ClCompile Include="Resource\ResourceDatabase.cpp" />
-    <ClCompile Include="Resource\ResourceFilePicker.cpp" />
+    <ClCompile Include="Resource\ResourcePicker.cpp" />
     <ClCompile Include="ThirdParty\sqlite\SqliteHelpers.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineTrack.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineEditor.cpp" />
@@ -312,7 +312,7 @@
     <ClInclude Include="Resource\ResourceBrowser\ResourceBrowser.h" />
     <ClInclude Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.h" />
     <ClInclude Include="Resource\ResourceDatabase.h" />
-    <ClInclude Include="Resource\ResourceFilePicker.h" />
+    <ClInclude Include="Resource\ResourcePicker.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf_write.h" />
     <ClInclude Include="ThirdParty\pfd\portable-file-dialogs.h" />

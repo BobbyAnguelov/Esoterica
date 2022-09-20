@@ -5,7 +5,7 @@
 //-------------------------------------------------------------------------
 
 namespace EE { class ToolsContext; }
-namespace EE::Resource { class ResourceFilePicker; }
+namespace EE::Resource { class ResourcePicker; }
 
 //-------------------------------------------------------------------------
 
@@ -14,5 +14,5 @@ namespace EE::TypeSystem
     class PropertyInfo;
     class PropertyEditor;
 
-    PropertyEditor* CreatePropertyEditor( ToolsContext const* pToolsContext, Resource::ResourceFilePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* pPropertyInstance );
+    PropertyEditor* CreatePropertyEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* pPropertyInstance );
 }

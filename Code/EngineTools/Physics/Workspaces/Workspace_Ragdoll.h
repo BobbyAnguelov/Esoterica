@@ -164,8 +164,8 @@ namespace EE::Physics
         bool                                            m_isolateSelectedBody = false;
 
         // Preview
-        Resource::ResourceFilePicker                    m_resourceFilePicker;
-        TResourcePtr<Animation::AnimationClip>          m_pPreviewAnimation;
+        Resource::ResourcePicker                        m_resourceFilePicker;
+        TResourcePtr<Animation::AnimationClip>          m_previewAnimation;
         Animation::Pose*                                m_pPose = nullptr;
         Animation::Pose*                                m_pFinalPose = nullptr;
         Percentage                                      m_animTime = 0.0f;

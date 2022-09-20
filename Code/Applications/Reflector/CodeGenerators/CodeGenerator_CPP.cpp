@@ -164,12 +164,34 @@ namespace EE::CPP
             typeRegistrationStr << "            TypeSystem::ResourceInfo resourceInfo;\n";
         }
 
+        auto GetResourceTypeIDForTypeID = [&registeredResourceTypes] ( TypeID typeID )
+        {
+            for ( auto const& registeredResourceType : registeredResourceTypes )
+            {
+                if ( registeredResourceType.m_typeID == typeID )
+                {
+                    return registeredResourceType.m_resourceTypeID;
+                }
+            }
+
+            EE_UNREACHABLE_CODE();
+            return ResourceTypeID();
+        };
+
         for ( auto& registeredResourceType : registeredResourceTypes )
         {
             typeRegistrationStr << "\n";
             typeRegistrationStr << "            resourceInfo.m_typeID = TypeSystem::TypeID( \"" << registeredResourceType.m_typeID.c_str() << "\");\n";
             typeRegistrationStr << "            resourceInfo.m_resourceTypeID = ResourceTypeID( \"" << registeredResourceType.m_resourceTypeID.ToString().c_str() << "\" );\n";
             typeRegistrationStr << "            resourceInfo.m_isVirtualResource = " << ( registeredResourceType.m_isVirtual ? "true" : "false" ) << ";\n";
+            typeRegistrationStr << "            resourceInfo.m_parentTypes.clear();\n";
+
+            for ( auto const& parentType : registeredResourceType.m_parents )
+            {
+                ResourceTypeID const resourceTypeID = GetResourceTypeIDForTypeID( parentType );
+                typeRegistrationStr << "            resourceInfo.m_parentTypes.emplace_back( ResourceTypeID( \"" << resourceTypeID.ToString().c_str() << "\" ) );\n";
+            }
+
             typeRegistrationStr << "            #if EE_DEVELOPMENT_TOOLS\n";
             typeRegistrationStr << "            resourceInfo.m_friendlyName = \"" << registeredResourceType.m_friendlyName.c_str() << "\";\n";
             typeRegistrationStr << "            #endif\n";

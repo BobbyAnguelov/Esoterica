@@ -56,7 +56,7 @@ namespace EE::Resource
 
     ResourceDatabase::~ResourceDatabase()
     {
-        EE_ASSERT( m_rootDir.IsEmpty() && m_resourcesPerType.empty() );
+        EE_ASSERT( m_rootDir.IsEmpty() && m_resourcesPerType.empty() && m_resourcesPerPath.empty() );
     }
 
     //-------------------------------------------------------------------------
@@ -96,6 +96,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_resourcesPerType.clear();
+        m_resourcesPerPath.clear();
         m_rootDir.Clear();
 
         if ( m_databaseUpdatedEvent.HasBoundUsers() )
@@ -172,6 +173,11 @@ namespace EE::Resource
                 m_resourcesPerType.insert( TPair<ResourceTypeID, TVector<FileEntry*>>( resourceInfo.m_resourceTypeID, TVector<FileEntry*>() ) );
             }
 
+            // Reset file map
+            //-------------------------------------------------------------------------
+
+            m_resourcesPerPath.clear();
+
             // Reset the root dir
             //-------------------------------------------------------------------------
 
@@ -229,24 +235,33 @@ namespace EE::Resource
     bool ResourceDatabase::DoesResourceExist( ResourceID const& resourceID ) const
     {
         EE_ASSERT( resourceID.IsValid() );
-        EE_ASSERT( m_pTypeRegistry->IsRegisteredResourceType( resourceID.GetResourceTypeID() ) );
+        return m_resourcesPerPath.find( resourceID.GetResourcePath() ) != m_resourcesPerPath.end();
+    }
 
-        auto const& allResourcesofSameType = m_resourcesPerType.at( resourceID.GetResourceTypeID() );
-        for ( auto pResourceRecord : allResourcesofSameType )
+    bool ResourceDatabase::DoesResourceExist( ResourcePath const& resourcePath ) const
+    {
+        EE_ASSERT( resourcePath.IsValid() );
+        return m_resourcesPerPath.find( resourcePath ) != m_resourcesPerPath.end();
+    }
+
+    TVector<ResourceDatabase::FileEntry*> ResourceDatabase::GetAllResourcesOfType( ResourceTypeID resourceTypeID, bool includeDerivedTypes ) const
+    {
+        EE_ASSERT( m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) );
+
+        TVector<ResourceDatabase::FileEntry*> results;
+        results = m_resourcesPerType.at( resourceTypeID );
+
+        if ( includeDerivedTypes )
         {
-            if ( pResourceRecord->m_resourceID == resourceID )
+            auto const derivedResourceTypeIDs = m_pTypeRegistry->GetAllDerivedResourceTypes( resourceTypeID );
+            for ( ResourceTypeID derivedResourceTypeID : derivedResourceTypeIDs )
             {
-                return true;
+                auto const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
+                results.insert( results.end(), derivedResources.begin(), derivedResources.end() );
             }
         }
 
-        return false;
-    }
-
-    TVector<ResourceDatabase::FileEntry*> const& ResourceDatabase::GetAllResourcesOfType( ResourceTypeID typeID ) const
-    {
-        EE_ASSERT( m_pTypeRegistry->IsRegisteredResourceType( typeID ) );
-        return m_resourcesPerType.at( typeID );
+        return results;
     }
 
     //-------------------------------------------------------------------------
@@ -347,6 +362,9 @@ namespace EE::Resource
         {
             m_resourcesPerType[pNewEntry->m_resourceID.GetResourceTypeID()].emplace_back( pNewEntry );
         }
+
+        // Add to file map
+        m_resourcesPerPath[resourcePath] = pNewEntry;
     }
 
     void ResourceDatabase::RemoveFileRecord( FileSystem::Path const& path )
@@ -359,6 +377,13 @@ namespace EE::Resource
         {
             if ( pDirectory->m_files[i]->m_filePath == path )
             {
+                // Remove from file map
+                auto fileMapiter = m_resourcesPerPath.find( pDirectory->m_files[i]->m_resourceID.GetResourcePath() );
+                if ( fileMapiter != m_resourcesPerPath.end() )
+                {
+                    m_resourcesPerPath.erase( fileMapiter );
+                }
+
                 // Remove from categorized resource lists
                 ResourceID const& resourceID = pDirectory->m_files[i]->m_resourceID;
                 if ( resourceID.IsValid() )

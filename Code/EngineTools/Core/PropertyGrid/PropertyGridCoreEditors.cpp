@@ -1,7 +1,7 @@
 ﻿#include "PropertyGridCoreEditors.h"
 #include "PropertyGridEditor.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Resource/ResourceFilePicker.h"
+#include "EngineTools/Resource/ResourcePicker.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/Widgets/CurveEditor.h"
 #include "System/Imgui/ImguiX.h"
@@ -1097,7 +1097,7 @@ namespace EE::TypeSystem
     {
     public:
 
-        ResourcePathEditor( ToolsContext const* pToolsContext, Resource::ResourceFilePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* m_pPropertyInstance )
+        ResourcePathEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* m_pPropertyInstance )
             : PropertyEditor( pToolsContext, propertyInfo, m_pPropertyInstance )
             , m_resourceFilePicker( resourcePicker )
         {
@@ -1115,19 +1115,21 @@ namespace EE::TypeSystem
         virtual bool InternalUpdateAndDraw() override
         {
             bool valueChanged = false;
+            ResourcePath newPath;
 
             if ( m_coreType == CoreTypeID::ResourcePath )
             {
-                if ( m_resourceFilePicker.DrawPathPicker( &m_value_imgui ) )
+                if ( m_resourceFilePicker.DrawPicker( m_value_imgui, newPath ) )
                 {
+                    m_value_imgui = newPath;
                     valueChanged = true;
                 }
             }
             else if ( m_coreType == CoreTypeID::ResourceID || m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr )
             {
-                if ( m_resourceFilePicker.DrawResourcePicker( m_resourceTypeID, &m_tempResourceID ) )
+                if ( m_resourceFilePicker.DrawPicker( m_tempResourceID, newPath, m_resourceTypeID ) )
                 {
-                    m_tempResourceID = m_resourceFilePicker.GetSelectedResourceID();
+                    m_tempResourceID = newPath.IsValid() ? newPath : ResourceID();
                     m_value_imgui = m_tempResourceID.GetResourcePath();
                     valueChanged = true;
                 }
@@ -1222,7 +1224,7 @@ namespace EE::TypeSystem
 
     private:
 
-        Resource::ResourceFilePicker&           m_resourceFilePicker;
+        Resource::ResourcePicker&               m_resourceFilePicker;
         ResourceTypeID                          m_resourceTypeID;
         ResourceID                              m_tempResourceID;
         ResourcePath                            m_value_imgui;
@@ -2069,7 +2071,7 @@ namespace EE::TypeSystem
     // Factory Method
     //-------------------------------------------------------------------------
 
-    PropertyEditor* CreatePropertyEditor( ToolsContext const* pToolsContext, Resource::ResourceFilePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* m_pPropertyInstance )
+    PropertyEditor* CreatePropertyEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, uint8_t* m_pPropertyInstance )
     {
         if ( propertyInfo.IsEnumProperty() )
         {

@@ -3262,15 +3262,16 @@ namespace EE::Animation
         ImGui::Text( "Skeleton:" );
         ImGui::SameLine( 0, 0 );
 
+        ResourcePath newPath;
+
         auto pVariation = m_toolsGraph.GetVariation( m_selectedVariationID );
-        ResourceID resourceID = pVariation->m_skeleton.GetResourceID();
-        if ( m_resourcePicker.DrawResourcePicker( Skeleton::GetStaticResourceTypeID(), &resourceID, true ) )
+        if ( m_resourcePicker.DrawPicker( pVariation->m_skeleton, newPath ) )
         {
             VisualGraph::ScopedGraphModification sgm( pRootGraph );
 
-            if ( m_resourcePicker.GetSelectedResourceID().IsValid() )
+            if ( newPath.IsValid() )
             {
-                pVariation->m_skeleton = m_resourcePicker.GetSelectedResourceID();
+                pVariation->m_skeleton = ResourceID( newPath );
             }
             else
             {
@@ -3364,10 +3365,10 @@ namespace EE::Animation
                 // Default variations always have values created
                 if ( isDefaultVariationSelected )
                 {
-                    if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), &pDataSlotNode->GetDefaultValue(), true ) )
+                    if ( m_resourcePicker.DrawPicker( pDataSlotNode->GetDefaultValue(), newPath, pDataSlotNode->GetSlotResourceTypeID() ) )
                     {
                         VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                        pDataSlotNode->SetDefaultValue( m_resourcePicker.GetSelectedResourceID() );
+                        pDataSlotNode->SetDefaultValue( newPath );
                     }
                 }
                 else // Child Variation
@@ -3376,10 +3377,10 @@ namespace EE::Animation
                     if ( hasOverrideForVariation )
                     {
                         EE_ASSERT( pResourceID != nullptr );
-                        if ( m_resourcePicker.DrawResourcePicker( pDataSlotNode->GetSlotResourceTypeID(), pResourceID, true ) )
+                        if ( m_resourcePicker.DrawPicker( *pResourceID, newPath, pDataSlotNode->GetSlotResourceTypeID() ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                            pDataSlotNode->SetOverrideValue( currentVariationID, m_resourcePicker.GetSelectedResourceID() );
+                            pDataSlotNode->SetOverrideValue( currentVariationID, newPath );
                         }
                     }
                     else // Show inherited value

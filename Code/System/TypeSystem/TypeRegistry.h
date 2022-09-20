@@ -82,9 +82,12 @@ namespace EE::TypeSystem
         inline THashMap<TypeID, ResourceInfo> const& GetRegisteredResourceTypes() const { return m_registeredResourceTypes; }
         void RegisterResourceTypeID( ResourceInfo const& resourceInfo );
         void UnregisterResourceTypeID( TypeID typeID );
+        bool IsRegisteredResourceType( TypeID typeID ) const;
         bool IsRegisteredResourceType( ResourceTypeID resourceTypeID ) const;
+        bool IsResourceTypeDerivedFrom( ResourceTypeID resourceTypeID, ResourceTypeID parentResourceTypeID ) const;
         ResourceInfo const* GetResourceInfoForType( TypeID typeID ) const;
         ResourceInfo const* GetResourceInfoForResourceType( ResourceTypeID resourceTypeID ) const;
+        TVector<ResourceTypeID> GetAllDerivedResourceTypes( ResourceTypeID resourceTypeID ) const;
 
     private:
 

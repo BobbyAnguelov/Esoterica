@@ -327,6 +327,31 @@ namespace EE::TypeSystem::Reflection
         return CXChildVisit_Continue;
     }
 
+    CXChildVisitResult VisitResourceStructureContents( CXCursor cr, CXCursor parent, CXClientData pClientData )
+    {
+        auto pContext = reinterpret_cast<ClangParserContext*>( pClientData );
+        auto pResource = reinterpret_cast<ReflectedResourceType*>( pContext->m_pCurrentEntry );
+
+        CXCursorKind kind = clang_getCursorKind( cr );
+        switch ( kind )
+        {
+            case CXCursor_CXXBaseSpecifier:
+            {
+                clang::CXXBaseSpecifier* pBaseSpecifier = (clang::CXXBaseSpecifier*) cr.data[0];
+                if ( !ClangUtils::GetAllBaseClasses( pResource->m_parents, *pBaseSpecifier ) )
+                {
+                    pContext->LogError( "Failed to get all base classes type for resource type: %s", pResource->m_className.c_str() );
+                    return CXChildVisit_Break;
+                }
+            }
+            break;
+
+            default: break;
+        }
+
+        return CXChildVisit_Continue;
+    }
+
     CXChildVisitResult VisitStructure( ClangParserContext* pContext, CXCursor& cr, FileSystem::Path const& headerFilePath, HeaderID const headerID )
     {
         auto cursorName = ClangUtils::GetCursorDisplayName( cr );
@@ -383,6 +408,21 @@ namespace EE::TypeSystem::Reflection
                 resource.m_namespace = pContext->GetCurrentNamespace();
                 resource.m_isVirtual = macro.m_type == ReflectionMacro::RegisterVirtualResource;
 
+                pContext->m_pCurrentEntry = &resource;
+                clang_visitChildren( cr, VisitResourceStructureContents, pContext );
+
+                if ( pContext->ErrorOccured() )
+                {
+                    return CXChildVisit_Break;
+                }
+
+                static TypeSystem::TypeID const resourceTypeID( Settings::g_baseResourceFullTypeName );
+                if ( !VectorContains( resource.m_parents, resourceTypeID ) )
+                {
+                    pContext->LogError( "Resource %s doesnt derive from %s", resource.m_className.c_str(), Settings::g_baseResourceFullTypeName );
+                    return CXChildVisit_Break;
+                }
+
                 if ( !pContext->m_pDatabase->IsResourceRegistered( resource.m_resourceTypeID ) )
                 {
                     pContext->m_pDatabase->RegisterResource( &resource );
@@ -413,6 +453,11 @@ namespace EE::TypeSystem::Reflection
 
                 pContext->m_pCurrentEntry = &classDescriptor;
                 clang_visitChildren( cr, VisitStructureContents, pContext );
+
+                if ( pContext->ErrorOccured() )
+                {
+                    return CXChildVisit_Break;
+                }
 
                 pContext->m_pDatabase->RegisterType( &classDescriptor, pContext->m_detectDevOnlyTypesAndProperties );
             }

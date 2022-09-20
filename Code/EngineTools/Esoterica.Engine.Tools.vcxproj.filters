@@ -166,7 +166,7 @@
     <ClCompile Include="Resource\ResourceDatabase.cpp">
       <Filter>Resource</Filter>
     </ClCompile>
-    <ClCompile Include="Resource\ResourceFilePicker.cpp">
+    <ClCompile Include="Resource\ResourcePicker.cpp">
       <Filter>Resource</Filter>
     </ClCompile>
     <ClCompile Include="Resource\ResourceCompiler.cpp">
@@ -468,7 +468,7 @@
     <ClInclude Include="Resource\ResourceDatabase.h">
       <Filter>Resource</Filter>
     </ClInclude>
-    <ClInclude Include="Resource\ResourceFilePicker.h">
+    <ClInclude Include="Resource\ResourcePicker.h">
       <Filter>Resource</Filter>
     </ClInclude>
     <ClInclude Include="Resource\ResourceCompiler.h">

@@ -230,9 +230,9 @@ namespace EE::Physics
         }
 
         // Unload preview animation
-        if ( m_pPreviewAnimation.IsSet() && !m_pPreviewAnimation.IsUnloaded() )
+        if ( m_previewAnimation.IsSet() && !m_previewAnimation.IsUnloaded() )
         {
-            UnloadResource( &m_pPreviewAnimation );
+            UnloadResource( &m_previewAnimation );
         }
 
         //-------------------------------------------------------------------------
@@ -659,12 +659,12 @@ namespace EE::Physics
         {
             // Update animation time and sample pose
             Percentage const previousAnimTime = m_animTime;
-            bool const hasValidAndLoadedPreviewAnim = m_pPreviewAnimation.IsSet() && m_pPreviewAnimation.IsLoaded();
+            bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
             if ( hasValidAndLoadedPreviewAnim )
             {
                 if ( m_isPlayingAnimation )
                 {
-                    m_animTime = ( m_animTime + deltaTime / ( m_pPreviewAnimation->GetDuration() ) ).GetClamped( m_enableAnimationLooping );
+                    m_animTime = ( m_animTime + deltaTime / ( m_previewAnimation->GetDuration() ) ).GetClamped( m_enableAnimationLooping );
 
                     // Allow reset
                     if ( !m_enableAnimationLooping && m_animTime == 1.0f )
@@ -675,12 +675,12 @@ namespace EE::Physics
                     if ( !updateContext.IsWorldPaused() && m_applyRootMotion )
                     {
                         Transform const& WT = m_pMeshComponent->GetWorldTransform();
-                        Transform const RMD = m_pPreviewAnimation->GetRootMotionDelta( previousAnimTime, m_animTime );
+                        Transform const RMD = m_previewAnimation->GetRootMotionDelta( previousAnimTime, m_animTime );
                         m_pMeshComponent->SetWorldTransform( RMD * WT );
                     }
                 }
 
-                m_pPreviewAnimation->GetPose( m_animTime, m_pPose );
+                m_previewAnimation->GetPose( m_animTime, m_pPose );
             }
             else
             {
@@ -2715,22 +2715,24 @@ namespace EE::Physics
             ImGui::AlignTextToFramePadding();
             ImGui::Text( "Preview Anim:" );
             ImGui::SameLine();
-            if ( m_resourceFilePicker.DrawResourcePicker( Animation::AnimationClip::GetStaticResourceTypeID(), &m_pPreviewAnimation.GetResourceID() ) )
+            
+            ResourcePath newPath;
+            if ( m_resourceFilePicker.DrawPicker( m_previewAnimation, newPath ) )
             {
                 // If we need to change resource ID, switch IDs
-                ResourceID const selectedResourceID = m_resourceFilePicker.GetSelectedResourceID();
-                if ( selectedResourceID != m_pPreviewAnimation.GetResourceID() )
+                ResourceID const selectedResourceID = newPath;
+                if ( selectedResourceID != m_previewAnimation.GetResourceID() )
                 {
-                    if ( m_pPreviewAnimation.IsSet() && m_pPreviewAnimation.WasRequested() )
+                    if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
                     {
-                        UnloadResource( &m_pPreviewAnimation );
+                        UnloadResource( &m_previewAnimation );
                     }
                 
-                    m_pPreviewAnimation = selectedResourceID.IsValid() ? m_resourceFilePicker.GetSelectedResourceID() : nullptr;
+                    m_previewAnimation = selectedResourceID.IsValid() ? selectedResourceID : nullptr;
 
-                    if ( m_pPreviewAnimation.IsSet() )
+                    if ( m_previewAnimation.IsSet() )
                     {
-                        LoadResource( &m_pPreviewAnimation );
+                        LoadResource( &m_previewAnimation );
                     }
                 }
             }
@@ -2741,7 +2743,7 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            bool const hasValidAndLoadedPreviewAnim = m_pPreviewAnimation.IsSet() && m_pPreviewAnimation.IsLoaded();
+            bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
             ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
 
             ImVec2 const buttonSize( 30, 24 );

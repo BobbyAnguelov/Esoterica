@@ -722,8 +722,9 @@ namespace EE::TypeSystem::Reflection
             clangVisitingTime = clangParser.GetVisitingTime();
             std::cout << "Complete! ( P:" << (float) clangParsingTime << "ms, V:" << (float) clangVisitingTime << "ms )" << std::endl;
 
-            // Update module list in database
+            // Finalize database data
             m_database.UpdateProjectList( m_solution.m_projects );
+            m_database.CleanupResourceHierarchy();
         }
 
         //-------------------------------------------------------------------------

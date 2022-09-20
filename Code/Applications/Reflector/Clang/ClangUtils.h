@@ -7,6 +7,7 @@
 #include <clang-c/Index.h>
 
 #include "System/FileSystem/FileSystemPath.h"
+#include "System/TypeSystem/TypeID.h"
 
 //-------------------------------------------------------------------------
 
@@ -60,6 +61,32 @@ namespace EE
         inline bool GetQualifiedNameForType( CXType type, String& qualifiedName )
         {
             return GetQualifiedNameForType( GetQualType( type ), qualifiedName );
+        }
+
+        //-------------------------------------------------------------------------
+        // Misc
+        //-------------------------------------------------------------------------
+
+        inline bool GetAllBaseClasses( TVector<TypeSystem::TypeID>& baseClasses, clang::CXXBaseSpecifier& baseSpecifier )
+        {
+            String fullyQualifiedName;
+            if ( !ClangUtils::GetQualifiedNameForType( baseSpecifier.getType(), fullyQualifiedName ) )
+            {
+                return false;
+            }
+
+            baseClasses.emplace_back( TypeSystem::TypeID( fullyQualifiedName ) );
+
+            clang::CXXRecordDecl* pBaseSpecifierRecordDecl = baseSpecifier.getType()->getAsCXXRecordDecl();
+            for ( auto parentBaseSpecifier : pBaseSpecifierRecordDecl->bases() )
+            {
+                if ( !GetAllBaseClasses( baseClasses, parentBaseSpecifier ) )
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

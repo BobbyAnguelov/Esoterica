@@ -64,14 +64,15 @@ namespace EE::TypeSystem::Reflection
         constexpr static int const g_numAllowedProjects = sizeof( g_allowedProjectNames ) / sizeof( g_allowedProjectNames[0] );
 
         //-------------------------------------------------------------------------
-        // Core class names
+        // Core class and type names
         //-------------------------------------------------------------------------
 
         constexpr static char const* const g_registeredTypeInterfaceClassName = "IRegisteredType";
         constexpr static char const* const g_baseEntityClassName = "Entity";
         constexpr static char const* const g_baseEntityComponentClassName = "EntityComponent";
         constexpr static char const* const g_baseEntitySystemClassName = "IEntitySystem";
-        constexpr static char const* const g_baseResourceClassName = "Resource::IResource";
+
+        constexpr static char const* const g_baseResourceFullTypeName = "EE::Resource::IResource";
 
         //-------------------------------------------------------------------------
         // Clang Parser Settings

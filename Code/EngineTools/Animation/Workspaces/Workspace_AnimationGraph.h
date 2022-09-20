@@ -298,7 +298,7 @@ namespace EE::Animation
         // Variation Editor
         StringID                                                        m_activeOperationVariationID;
         char                                                            m_buffer[255] = { 0 };
-        Resource::ResourceFilePicker                                    m_resourcePicker;
+        Resource::ResourcePicker                                    m_resourcePicker;
 
         // Preview
         Physics::PhysicsSystem*                                         m_pPhysicsSystem = nullptr;

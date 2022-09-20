@@ -69,11 +69,14 @@ namespace EE::Resource
         // Check if this is a existing resource
         bool DoesResourceExist( ResourceID const& resourceID ) const;
 
+        // Check if this is a existing resource
+        bool DoesResourceExist( ResourcePath const& resourcePath ) const;
+
         // Gets the list of all found resources
         THashMap<ResourceTypeID, TVector<FileEntry*>> const& GetAllResources() const { return m_resourcesPerType; }
 
         // Get a list of all known resource of the specified type
-        TVector<FileEntry*> const& GetAllResourcesOfType( ResourceTypeID typeID ) const;
+        TVector<FileEntry*> GetAllResourcesOfType( ResourceTypeID typeID, bool includeDerivedTypes = false ) const;
 
         // Event that fires whenever the database is updated
         TEventHandle<> OnDatabaseUpdated() const { return m_databaseUpdatedEvent; }
@@ -115,6 +118,7 @@ namespace EE::Resource
 
         DirectoryEntry                                              m_rootDir;
         THashMap<ResourceTypeID, TVector<FileEntry*>>               m_resourcesPerType;
+        THashMap<ResourcePath, FileEntry*>                          m_resourcesPerPath;
         mutable TEvent<>                                            m_databaseUpdatedEvent;
         mutable TEvent<ResourceID>                                  m_resourceDeletedEvent;
     };

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "EngineTools/Resource/ResourceFilePicker.h"
+#include "EngineTools/Resource/ResourcePicker.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/TypeSystem/TypeInfo.h"
 #include "System/TypeSystem/RegisteredType.h"
@@ -111,7 +111,7 @@ namespace EE
 
         ToolsContext const*                                         m_pToolsContext;
         TypeSystem::TypeInfo const*                                 m_pTypeInfo = nullptr;
-        Resource::ResourceFilePicker                                m_resourcePicker;
+        Resource::ResourcePicker                                m_resourcePicker;
         IRegisteredType*                                            m_pTypeInstance = nullptr;
         bool                                                        m_isDirty = false;
         bool                                                        m_isControlBarVisible = false;
