@@ -147,7 +147,7 @@ namespace EE
         m_physicsSystem.Initialize();
 
         #if EE_DEVELOPMENT_TOOLS
-        m_imguiSystem.Initialize( m_pRenderDevice, m_imguiViewportsEnabled );
+        m_imguiSystem.Initialize( m_pRenderDevice, &m_inputSystem, m_imguiViewportsEnabled );
         #endif
 
         // Initialize and register renderers

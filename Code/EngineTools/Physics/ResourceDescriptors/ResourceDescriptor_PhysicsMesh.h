@@ -27,5 +27,8 @@ namespace EE::Physics
 
         // Optional: Specifies if the mesh is a convex mesh (meshes are considered triangle meshes by default)
         EE_EXPOSE bool             m_isConvexMesh = false;
+
+        // This allows you to perform non-uniform scaling/mirroring at import time since the engine does not support non-uniform scaling
+        EE_EXPOSE Float3           m_scale = Float3( 1.0f, 1.0f, 1.0f );
     };
 }

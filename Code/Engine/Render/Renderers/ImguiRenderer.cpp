@@ -58,8 +58,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        auto pSecondarySwapChain = (RenderWindow*) pViewport->RendererUserData;
-        pRenderDevice->ResizeWindow( *pSecondarySwapChain, Int2( (int32_t) size.x, (int32_t) size.y ) );
+        auto pSecondaryWindow = (RenderWindow*) pViewport->RendererUserData;
+        pRenderDevice->ResizeWindow( *pSecondaryWindow, Int2( (int32_t) size.x, (int32_t) size.y ) );
     }
 
     //-------------------------------------------------------------------------

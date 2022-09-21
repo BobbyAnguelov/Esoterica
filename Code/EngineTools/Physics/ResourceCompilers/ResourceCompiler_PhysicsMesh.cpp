@@ -56,6 +56,11 @@ namespace EE
                 return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
             }
 
+            if ( Math::IsNearZero( resourceDescriptor.m_scale.m_x ) || Math::IsNearZero( resourceDescriptor.m_scale.m_y ) || Math::IsNearZero( resourceDescriptor.m_scale.m_z ) )
+            {
+                return Error( "Zero Scale is not allowed!", ctx.m_inputFilePath.c_str() );
+            }
+
             // Read mesh data
             //-------------------------------------------------------------------------
 
@@ -73,6 +78,7 @@ namespace EE
             }
 
             EE_ASSERT( pRawMesh->IsValid() );
+            pRawMesh->ApplyScale( resourceDescriptor.m_scale );
 
             // Reflect FBX data into physics format
             //-------------------------------------------------------------------------

@@ -226,6 +226,11 @@ namespace EE::Render
             return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
         }
 
+        if ( Math::IsNearZero( resourceDescriptor.m_scale.m_x ) || Math::IsNearZero( resourceDescriptor.m_scale.m_y ) || Math::IsNearZero( resourceDescriptor.m_scale.m_z ) )
+        {
+            return Error( "Zero Scale is not allowed!", ctx.m_inputFilePath.c_str() );
+        }
+
         // Read mesh data
         //-------------------------------------------------------------------------
 
@@ -243,11 +248,13 @@ namespace EE::Render
         }
 
         EE_ASSERT( pRawMesh->IsValid() );
+        pRawMesh->ApplyScale( resourceDescriptor.m_scale );
 
         // Reflect FBX data into runtime format
         //-------------------------------------------------------------------------
 
         StaticMesh staticMesh;
+
         TransferMeshGeometry( *pRawMesh, staticMesh, 4 );
         OptimizeMeshGeometry( staticMesh );
         SetMeshDefaultMaterials( resourceDescriptor, staticMesh );
@@ -263,12 +270,6 @@ namespace EE::Render
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
-            /*Resource::ResourceHeader hdr2;
-            StaticMesh mesh2;
-            Serialization::BinaryInputArchive in2;
-            in2.ReadFromFile( ctx.m_outputFilePath );
-            in2 << hdr2 << mesh2;*/
-
             if ( pRawMesh->HasWarnings() )
             {
                 return CompilationSucceededWithWarnings( ctx );

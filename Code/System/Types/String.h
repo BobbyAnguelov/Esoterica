@@ -140,6 +140,7 @@ namespace EE
         inline void Split( String const& str, T& results, char const* pDelimiters = " ", bool ignoreEmptyStrings = true )
         {
             size_t idx, lastIdx = 0;
+            results.clear();
 
             while ( true )
             {

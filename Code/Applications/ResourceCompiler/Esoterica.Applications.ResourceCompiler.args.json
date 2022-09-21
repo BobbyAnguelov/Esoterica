@@ -3,14 +3,6 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
-      "Id": "68772666-7f66-44a6-af25-efdc5e6eaf99",
-      "Command": "-compile data://packs/amplify/crouch_idle.anim"
-    },
-    {
-      "Id": "59d1d86b-3a8d-4322-ac4e-aeab12b03aa1",
-      "Command": "-compile data://maps/br_minimal.map"
-    },
-    {
       "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
       "Command": "-shipping"
     },
@@ -61,6 +53,10 @@
         {
           "Id": "7dfd4f5c-9619-4a16-a813-483f2911d7cb",
           "Command": "-compile data://maps/prototype_combat_minimal.map"
+        },
+        {
+          "Id": "59d1d86b-3a8d-4322-ac4e-aeab12b03aa1",
+          "Command": "-compile data://maps/br_minimal.map"
         }
       ]
     },
@@ -94,6 +90,10 @@
       "Id": "6d5842b6-fa07-4879-8e0d-f95505d6c16f",
       "Command": "Render",
       "Items": [
+        {
+          "Id": "fba51866-cc81-4884-9869-7fe6806839a3",
+          "Command": "-compile data://sm_env_vaultdoor_frame_01_scaled.msh"
+        },
         {
           "Id": "73085163-14ce-4413-8623-ba2c65a3a1cd",
           "Command": "-compile data://editor/floor/floor.msh"
@@ -207,6 +207,10 @@
         {
           "Id": "61986e12-b844-4fe5-85ad-5ba8121cb8ad",
           "Command": "-compile data://Packs/SyntyAnims/SyntySkeleton.skel"
+        },
+        {
+          "Id": "68772666-7f66-44a6-af25-efdc5e6eaf99",
+          "Command": "-compile data://packs/amplify/crouch_idle.anim"
         }
       ]
     },

@@ -297,8 +297,10 @@ namespace EE::Animation
 
         // Variation Editor
         StringID                                                        m_activeOperationVariationID;
-        char                                                            m_buffer[255] = { 0 };
-        Resource::ResourcePicker                                    m_resourcePicker;
+        char                                                            m_nameBuffer[255] = { 0 };
+        char                                                            m_filterBuffer[255] = { 0 };
+        TVector<String>                                                 m_splitFilter;
+        Resource::ResourcePicker                                        m_resourcePicker;
 
         // Preview
         Physics::PhysicsSystem*                                         m_pPhysicsSystem = nullptr;

@@ -25,8 +25,8 @@ namespace EE::Math
             auto const& leftNode = m_nodes[currentNode.m_leftNodeIdx];
             auto const& rightNode = m_nodes[currentNode.m_rightNodeIdx];
 
-            float const leftVolume = leftNode.m_bounds.GetMergedBox( newBox ).GetVolume();
-            float const rightVolume = rightNode.m_bounds.GetMergedBox( newBox ).GetVolume();
+            float const leftVolume = AABB::GetCombinedBox( leftNode.m_bounds, newBox ).GetVolume();
+            float const rightVolume = AABB::GetCombinedBox( rightNode.m_bounds, newBox ).GetVolume();
 
             // This currently aims to minimizes the volume that would be created from the sibling pair
             if ( leftVolume <= rightVolume )
@@ -88,7 +88,7 @@ namespace EE::Math
         auto& currentNode = m_nodes[nodeIdx];
         EE_ASSERT( !currentNode.IsLeafNode() );
 
-        currentNode.m_bounds = m_nodes[currentNode.m_leftNodeIdx].m_bounds.GetMergedBox( m_nodes[currentNode.m_rightNodeIdx].m_bounds );
+        currentNode.m_bounds = AABB::GetCombinedBox( m_nodes[currentNode.m_leftNodeIdx].m_bounds, m_nodes[currentNode.m_rightNodeIdx].m_bounds );
         currentNode.m_volume = currentNode.m_bounds.GetVolume();
     }
 

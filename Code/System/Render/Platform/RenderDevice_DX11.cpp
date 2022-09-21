@@ -230,7 +230,7 @@ namespace EE::Render
             #if EE_ENABLE_RENDERDEVICE_DEBUG
             if ( pDebug != nullptr )
             {
-                pDebug->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL );
+                pDebug->ReportLiveDeviceObjects( D3D11_RLDO_SUMMARY | D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL );
                 pDebug->Release();
             }
             #endif
@@ -347,7 +347,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        auto pSC = reinterpret_cast<IDXGISwapChain*>( m_primaryWindow.m_pSwapChain );
+        auto pSC = reinterpret_cast<IDXGISwapChain*>( window.m_pSwapChain );
         pSC->Release();
         window.m_pSwapChain = nullptr;
 

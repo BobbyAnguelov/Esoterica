@@ -141,9 +141,8 @@ namespace EE
         inline ComponentID const& GetRootSpatialComponentID() const { return m_pRootSpatialComponent->GetID(); }
         inline OBB const& GetRootSpatialComponentWorldBounds() const { EE_ASSERT( IsSpatialEntity() ); return m_pRootSpatialComponent->GetWorldBounds(); }
 
-        // Get the world bounds for this entity i.e. the combined bounds of all spatial components
-        // Warning!!! This is incredibly expensive
-        OBB GetCombinedWorldBounds() const;
+        // Get the world AABB for this entity i.e. the combined bounds of all spatial components
+        AABB GetCombinedWorldBounds() const;
 
         // Get the local transform for this entity i.e. the local transform of the root spatial component
         inline Transform const& GetLocalTransform() const { EE_ASSERT( IsSpatialEntity() ); return m_pRootSpatialComponent->GetLocalTransform(); }

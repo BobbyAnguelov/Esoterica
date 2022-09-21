@@ -164,140 +164,142 @@ namespace EE::Resource
         constexpr float const typeLabelWidth = 30;
 
         ImGui::PushID( &resourcePath );
-
-        // Type and path
-        //-------------------------------------------------------------------------
-
+        if( ImGui::BeginChild( "RP", ImVec2( -1, 24 ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
-            ImGuiX::ScopedFont const sf( ImGuiX::Font::TinyBold );
-            ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 6 ) );
+            // Type and path
+            //-------------------------------------------------------------------------
 
-            // Type Label
-
-            if ( restrictToResources )
             {
-                TInlineString<5> const resourceTypeStr = actualResourceTypeID.IsValid() ? actualResourceTypeID.ToString() : "-";
-                ImVec2 const textSize = ImGui::CalcTextSize( resourceTypeStr.c_str() );
-                float const deltaWidth = typeLabelWidth - textSize.x;
-                if ( deltaWidth > 0 )
-                {
-                    ImGui::SameLine( ( deltaWidth / 2 ) );
-                }
-                ImGui::AlignTextToFramePadding();
-                ImGui::TextColored( Colors::LightPink.ToFloat4(), resourceTypeStr.c_str() );
-                ImGui::SameLine( typeLabelWidth, itemSpacing );
-            }
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::TinyBold );
+                ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 6 ) );
 
-            // Calculate size of resource path field
-            float usedWidth = 0;
-            if ( restrictToResources ) // Label and open resource button
-            {
-                usedWidth = ( itemSpacing * 3 ) + ( g_buttonSize.x * 3 ) + typeLabelWidth;
-            }
-            else // No label and no 'open resource button'
-            {
-                usedWidth = ( itemSpacing * 2 ) + ( g_buttonSize.x * 2 );
-            }
-
-            // Resource Path
-            ImGui::SetNextItemWidth( contentRegionAvailableX - usedWidth );
-            ImVec4 const pathColor = validPath ? ImGuiX::Style::s_colorText.Value : Colors::Red.ToFloat4_ABGR();
-            ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
-            ImGui::InputText( "##DataPath", const_cast<char*>( resourcePath.c_str() ), resourcePath.GetString().length(), ImGuiInputTextFlags_ReadOnly );
-            ImGui::PopStyleColor();
-
-            // Tooltip
-            if ( resourcePath.IsValid() )
-            {
-                ImGuiX::ItemTooltip( resourcePath.c_str() );
-            }
-
-            ImGui::PopStyleVar();
-        }
-
-        // Buttons
-        //-------------------------------------------------------------------------
-
-        {
-            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-
-            // Open Resource
-            if ( restrictToResources )
-            {
-                ImGui::SameLine( 0, itemSpacing );
-                ImGui::BeginDisabled( !resourcePath.IsValid() || !validPath );
-                if ( ImGui::Button( EE_ICON_EYE_OUTLINE "##Open", g_buttonSize ) )
-                {
-                    m_toolsContext.TryOpenResource( resourcePath );
-                }
-                ImGuiX::ItemTooltip( "Open Resource" );
-                ImGui::EndDisabled();
-            }
-
-            // Pick Path
-            ImGui::SameLine( 0, itemSpacing );
-            if ( ImGui::Button( EE_ICON_EYEDROPPER "##Pick", g_buttonSize ) )
-            {
-                // Use resource picker
+                // Type Label
                 if ( restrictToResources )
                 {
-                    m_filterBuffer[0] = 0;
-                    m_initializeFocus = true;
-                    GenerateResourceOptionsList( restrictedResourceTypeID );
-                    GeneratedFilteredOptionList();
-                    m_currentlySelectedID = resourcePath.IsValid() ? resourcePath : ResourceID();
-                    ImGui::OpenPopup( "Resource Picker" );
-                }
-                else // Use file picker
-                {
-                    auto const selectedFiles = pfd::open_file( "Choose Data File", m_toolsContext.GetRawResourceDirectory().c_str(), { "All Files", "*" }, pfd::opt::none ).result();
-                    if ( !selectedFiles.empty() )
+                    TInlineString<5> const resourceTypeStr = actualResourceTypeID.IsValid() ? actualResourceTypeID.ToString() : "-";
+                    ImVec2 const textSize = ImGui::CalcTextSize( resourceTypeStr.c_str() );
+                    float const deltaWidth = typeLabelWidth - textSize.x;
+                    if ( deltaWidth > 0 )
                     {
-                        FileSystem::Path const selectedPath( selectedFiles[0].c_str() );
+                        ImGui::SameLine( 0, ( deltaWidth / 2 ) );
+                    }
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::TextColored( Colors::LightPink.ToFloat4(), resourceTypeStr.c_str() );
+                    ImGui::SameLine( typeLabelWidth, 0 );
+                }
 
-                        if ( selectedPath.IsUnderDirectory( m_toolsContext.GetRawResourceDirectory() ) )
+                // Calculate size of resource path field
+                float usedWidth = 0;
+                if ( restrictToResources ) // Label and open resource button
+                {
+                    usedWidth = ( itemSpacing * 3 ) + ( g_buttonSize.x * 3 ) + typeLabelWidth + 1;
+                }
+                else // No label and no 'open resource button'
+                {
+                    usedWidth = ( itemSpacing * 2 ) + ( g_buttonSize.x * 2 ) + 1;
+                }
+
+                // Resource Path
+                ImGui::SetNextItemWidth( contentRegionAvailableX - usedWidth );
+                ImVec4 const pathColor = validPath ? ImGuiX::Style::s_colorText.Value : Colors::Red.ToFloat4_ABGR();
+                ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
+                ImGui::InputText( "##DataPath", const_cast<char*>( resourcePath.c_str() ), resourcePath.GetString().length(), ImGuiInputTextFlags_ReadOnly );
+                ImGui::PopStyleColor();
+
+                // Tooltip
+                if ( resourcePath.IsValid() )
+                {
+                    ImGuiX::ItemTooltip( resourcePath.c_str() );
+                }
+
+                ImGui::PopStyleVar();
+            }
+
+            // Buttons
+            //-------------------------------------------------------------------------
+
+            {
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+
+                // Open Resource
+                if ( restrictToResources )
+                {
+                    ImGui::SameLine( 0, itemSpacing );
+                    ImGui::BeginDisabled( !resourcePath.IsValid() || !validPath );
+                    if ( ImGui::Button( EE_ICON_EYE_OUTLINE "##Open", g_buttonSize ) )
+                    {
+                        m_toolsContext.TryOpenResource( resourcePath );
+                    }
+                    ImGuiX::ItemTooltip( "Open Resource" );
+                    ImGui::EndDisabled();
+                }
+
+                // Pick Path
+                ImGui::SameLine( 0, itemSpacing );
+                if ( ImGui::Button( EE_ICON_EYEDROPPER "##Pick", g_buttonSize ) )
+                {
+                    // Use resource picker
+                    if ( restrictToResources )
+                    {
+                        m_filterBuffer[0] = 0;
+                        m_initializeFocus = true;
+                        GenerateResourceOptionsList( restrictedResourceTypeID );
+                        GeneratedFilteredOptionList();
+                        m_currentlySelectedID = resourcePath.IsValid() ? resourcePath : ResourceID();
+                        ImGui::OpenPopup( "Resource Picker" );
+                    }
+                    else // Use file picker
+                    {
+                        auto const selectedFiles = pfd::open_file( "Choose Data File", m_toolsContext.GetRawResourceDirectory().c_str(), { "All Files", "*" }, pfd::opt::none ).result();
+                        if ( !selectedFiles.empty() )
                         {
-                            outPath = ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory().c_str(), selectedPath );
-                            valueUpdated = true;
-                        }
-                        else
-                        {
-                            pfd::message( "Error", "Selected file is not with the raw resource folder!", pfd::choice::ok, pfd::icon::error ).result();
+                            FileSystem::Path const selectedPath( selectedFiles[0].c_str() );
+
+                            if ( selectedPath.IsUnderDirectory( m_toolsContext.GetRawResourceDirectory() ) )
+                            {
+                                outPath = ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory().c_str(), selectedPath );
+                                valueUpdated = true;
+                            }
+                            else
+                            {
+                                pfd::message( "Error", "Selected file is not with the raw resource folder!", pfd::choice::ok, pfd::icon::error ).result();
+                            }
                         }
                     }
                 }
-            }
-            ImGuiX::ItemTooltip( "Pick Resource" );
+                ImGuiX::ItemTooltip( "Pick Resource" );
 
-            // Options
-            ImGui::SameLine( 0, itemSpacing );
-            ImGui::BeginDisabled( !resourcePath.IsValid() );
-            if ( ImGui::Button( EE_ICON_DOTS_HORIZONTAL "##Options", g_buttonSize ) )
-            {
-                ImGui::OpenPopup( "##ResourcePickerOptions" );
+                // Options
+                ImGui::SameLine( 0, itemSpacing );
+                ImGui::BeginDisabled( !resourcePath.IsValid() );
+                if ( ImGui::Button( EE_ICON_DOTS_HORIZONTAL "##Options", g_buttonSize ) )
+                {
+                    ImGui::OpenPopup( "##ResourcePickerOptions" );
+                }
+                ImGuiX::ItemTooltip( "Options" );
+                ImGui::EndDisabled();
             }
-            ImGuiX::ItemTooltip( "Options" );
-            ImGui::EndDisabled();
+
+            // Options Context Menu
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::BeginPopup( "##ResourcePickerOptions" ) )
+            {
+                if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY " Copy Resource Path" ) )
+                {
+                    ImGui::SetClipboardText( resourcePath.ToFileSystemPath( m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryPath() ).c_str() );
+                }
+
+                if ( ImGui::MenuItem( EE_ICON_ERASER " Clear" ) )
+                {
+                    outPath.Clear();
+                    valueUpdated = true;
+                }
+
+                ImGui::EndPopup();
+            }
         }
-
-        // Options Context Menu
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::BeginPopup( "##ResourcePickerOptions" ) )
-        {
-            if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY " Copy Resource Path" ) )
-            {
-                ImGui::SetClipboardText( resourcePath.ToFileSystemPath( m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryPath() ).c_str() );
-            }
-
-            if ( ImGui::MenuItem( EE_ICON_ERASER " Clear" ) )
-            {
-                outPath.Clear();
-                valueUpdated = true;
-            }
-
-            ImGui::EndPopup();
-        }
+        ImGui::EndChild();
 
         //-------------------------------------------------------------------------
 

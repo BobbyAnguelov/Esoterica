@@ -68,6 +68,16 @@ namespace EE
         OnTeleport();
     }
 
+    void FreeLookCameraComponent::FocusOn( AABB const& bounds )
+    {
+        // TODO: Fix this!
+        Vector const currentForward = GetForwardVector();
+        Vector const newCameraPos = bounds.m_center - ( currentForward * 5 );
+        SetPositionAndLookAtDirection( newCameraPos, currentForward );
+
+        OnTeleport();
+    }
+
     void FreeLookCameraComponent::SetPositionAndLookAtTarget( Vector const& cameraPosition, Vector const& lookAtTarget )
     {
         if ( cameraPosition.IsNearEqual3( lookAtTarget ) )

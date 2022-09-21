@@ -45,6 +45,11 @@ namespace EE::Render
 
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return StaticMesh::GetStaticResourceTypeID(); }
+
+    public:
+
+        // This allows you to perform non-uniform scaling/mirroring at import time since the engine does not support non-uniform scaling
+        EE_EXPOSE Float3                               m_scale = Float3( 1.0f, 1.0f, 1.0f );
     };
 
     //-------------------------------------------------------------------------

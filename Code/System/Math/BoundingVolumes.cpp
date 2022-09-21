@@ -254,6 +254,8 @@ namespace EE
     // result in better bounding box but the computation is more complex.
     // Exact computation of the minimum oriented bounding box is possible but the
     // best know algorithm is O(N^3) and is significantly more complex to implement.
+    //
+    // WARNING: this doesnt handle symmetric point clounds very well!!!!
     //-----------------------------------------------------------------------------
 
     OBB::OBB( Vector const* pPoints, uint32_t numPoints )
@@ -331,14 +333,13 @@ namespace EE
             vMax = Vector::Max( vMax, rotatedPoint );
         }
 
-        // Rotate the center into world space.
-        Vector vCenter = ( vMin + vMax ) * Vector::Half;
-        vCenter = R.RotateVector( vCenter );
-
-        // Store center, extents, and orientation.
-        m_center = vCenter;
-        m_orientation = vOrientation;
         m_extents = ( vMax - vMin ) * Vector::Half;
+        m_orientation = vOrientation;
+
+        // Rotate the center into world space.
+        Vector vCenter = vMin + m_extents;
+        vCenter = R.RotateVector( vCenter );
+        m_center = vCenter;
     }
 
     void OBB::ApplyTransform( Transform const& transform )

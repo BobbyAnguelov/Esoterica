@@ -10,7 +10,13 @@
 // Base ImGui integration
 //-------------------------------------------------------------------------
 
-namespace EE::Render { class RenderDevice; }
+namespace EE
+{
+    namespace Render{ class RenderDevice; }
+    namespace Input{ class InputSystem; }
+}
+
+//-------------------------------------------------------------------------
 
 namespace EE::ImGuiX
 {
@@ -19,18 +25,24 @@ namespace EE::ImGuiX
 
     public:
 
+        bool Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem = nullptr, bool enableViewports = false);
+        void Shutdown();
+
         void StartFrame( float deltaTime );
         void EndFrame();
 
-        bool Initialize( Render::RenderDevice* pRenderDevice, bool enableViewports = false );
-        void Shutdown();
-
     private:
+
+        void InitializePlatform();
+        void ShutdownPlatform();
+        void PlatformUpdate();
 
         void InitializeFonts();
+        void ShutdownFonts();
 
     private:
 
+        Input::InputSystem*     m_pInputSystem = nullptr;
         String                  m_iniFilename;
         String                  m_logFilename;
     };

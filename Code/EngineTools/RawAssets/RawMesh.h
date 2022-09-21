@@ -36,7 +36,7 @@ namespace EE::RawAssets
             TInlineVector<Float2, 3>            m_texCoords;
 
             // Optional skinning data
-            TVector<int32_t>                      m_boneIndices;
+            TVector<int32_t>                    m_boneIndices;
             TVector<float>                      m_boneWeights;
         };
 
@@ -53,8 +53,8 @@ namespace EE::RawAssets
 
             String                              m_name;
             TVector<VertexData>                 m_vertices;
-            TVector<uint32_t>                     m_indices;
-            int32_t                               m_numUVChannels = 0;
+            TVector<uint32_t>                   m_indices;
+            int32_t                             m_numUVChannels = 0;
 
             bool                                m_clockwiseWinding = false;
         };
@@ -72,14 +72,16 @@ namespace EE::RawAssets
         inline int32_t GetNumBones() const { EE_ASSERT( IsSkeletalMesh() ); return m_skeleton.GetNumBones(); }
         inline int32_t GetNumBoneInfluencesPerVertex() const { EE_ASSERT( IsSkeletalMesh() ); return m_maxNumberOfBoneInfluences; }
 
+        void ApplyScale( Float3 const& scale );
+
     protected:
 
-        TVector<GeometrySection>            m_geometrySections;
-        TVector<String>                     m_warnings;
-        TVector<String>                     m_errors;
+        TVector<GeometrySection>                m_geometrySections;
+        TVector<String>                         m_warnings;
+        TVector<String>                         m_errors;
 
-        RawSkeleton                         m_skeleton;
-        int32_t                               m_maxNumberOfBoneInfluences = 0;
-        bool                                m_isSkeletalMesh = false;
+        RawSkeleton                             m_skeleton;
+        int32_t                                 m_maxNumberOfBoneInfluences = 0;
+        bool                                    m_isSkeletalMesh = false;
     };
 }

@@ -26,6 +26,8 @@ namespace EE::Render
 
         Entity*         m_pPreviewEntity = nullptr;
         String          m_infoWindowName;
+        bool            m_showOrigin = true;
+        bool            m_showBounds = true;
         bool            m_showVertices = false;
         bool            m_showNormals = false;
     };

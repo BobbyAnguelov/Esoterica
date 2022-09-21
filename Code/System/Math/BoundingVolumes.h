@@ -84,6 +84,31 @@ namespace EE
             return AABB( center, extents );
         }
 
+        // Get the combined box of two AABBs
+        inline static AABB GetCombinedBox( AABB const& a, AABB const& b )
+        {
+            EE_ASSERT( a.IsValid() && b.IsValid() );
+
+            Vector const newMin = Vector::Min( a.GetMin(), b.GetMin() );
+            Vector const newMax = Vector::Max( a.GetMax(), b.GetMax() );
+            return AABB::FromMinMax( newMin, newMax );
+        }
+
+        // Get the intersection of two AABBs
+        inline static AABB GetIntersectionBox( AABB const& a, AABB const& b )
+        {
+            EE_ASSERT( a.IsValid() && b.IsValid() );
+
+            if ( !a.Overlaps( b ) )
+            {
+                return AABB();
+            }
+
+            Vector const newMin = Vector::Max( a.GetMin(), b.GetMin() );
+            Vector const newMax = Vector::Min( a.GetMax(), b.GetMax() );
+            return AABB::FromMinMax( newMin, newMax );
+        }
+
     public:
 
         AABB() = default;
@@ -159,22 +184,6 @@ namespace EE
         EE_FORCE_INLINE bool Overlaps( Sphere const& sphere ) const;
         EE_FORCE_INLINE bool Overlaps( OBB const& box ) const;
 
-        //-------------------------------------------------------------------------
-
-        EE_FORCE_INLINE AABB GetMergedBox( AABB const& other ) const
-        {
-            Vector const newMin = Vector::Min( GetMin(), other.GetMin() );
-            Vector const newMax = Vector::Max( GetMax(), other.GetMax() );
-            return AABB::FromMinMax( newMin, newMax );
-        }
-
-        EE_FORCE_INLINE AABB GetIntersectionBox( AABB const& other ) const
-        {
-            Vector const newMin = Vector::Max( GetMin(), other.GetMin() );
-            Vector const newMax = Vector::Min( GetMax(), other.GetMax() );
-            return AABB::FromMinMax( newMin, newMax );
-        }
-
     public:
 
         Vector          m_center = Vector::UnitW;
@@ -196,6 +205,8 @@ namespace EE
         explicit OBB( AABB const& aabb, Transform const& transform );
 
         //-------------------------------------------------------------------------
+
+        inline bool IsValid() const { return m_extents.IsGreaterThanEqual3( Vector::Zero ); }
 
         EE_FORCE_INLINE void Reset() { m_orientation = Quaternion::Identity; m_center = m_extents = Vector::Zero; }
 

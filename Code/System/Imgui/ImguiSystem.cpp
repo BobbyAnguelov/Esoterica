@@ -11,7 +11,6 @@
 //-------------------------------------------------------------------------
 
 #if _WIN32
-#include "Platform/ImguiPlatform_Win32.h"
 #include "System/ThirdParty/imgui/misc/freetype/imgui_freetype.h"
 #endif
 
@@ -19,8 +18,14 @@
 
 namespace EE::ImGuiX
 {
-    bool ImguiSystem::Initialize( Render::RenderDevice* pRenderDevice, bool enableViewports )
+    bool ImguiSystem::Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem, bool enableViewports )
     {
+        EE_ASSERT( pRenderDevice != nullptr  );
+
+        m_pInputSystem = pInputSystem;
+
+        //-------------------------------------------------------------------------
+
         ImGui::CreateContext();
 
         //-------------------------------------------------------------------------
@@ -54,7 +59,7 @@ namespace EE::ImGuiX
 
         //-------------------------------------------------------------------------
 
-        Platform::InitializePlatform();
+        InitializePlatform();
         InitializeFonts();
 
         //-------------------------------------------------------------------------
@@ -66,12 +71,8 @@ namespace EE::ImGuiX
 
     void ImguiSystem::Shutdown()
     {
-        for ( int i = 0; i < (int8_t) Font::NumFonts; i++ )
-        {
-            SystemFonts::s_fonts[i] = nullptr;
-        }
-
-        Platform::ShutdownPlatform();
+        ShutdownFonts();
+        ShutdownPlatform();
         ImGui::DestroyContext();
     }
 
@@ -145,16 +146,21 @@ namespace EE::ImGuiX
         io.FontDefault = SystemFonts::s_fonts[(uint8_t) Font::Medium];
     }
 
+    void ImguiSystem::ShutdownFonts()
+    {
+        for ( int i = 0; i < (int8_t) Font::NumFonts; i++ )
+        {
+            SystemFonts::s_fonts[i] = nullptr;
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void ImguiSystem::StartFrame( float deltaTime )
     {
         ImGuiIO& io = ImGui::GetIO();
         io.DeltaTime = deltaTime;
-
-        Platform::UpdateDisplayInformation();
-        Platform::UpdateInputInformation();
-
+        PlatformUpdate();
         ImGui::NewFrame();
     }
 

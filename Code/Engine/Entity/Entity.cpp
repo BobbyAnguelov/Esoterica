@@ -709,28 +709,28 @@ namespace EE
         return false;
     }
 
-    OBB Entity::GetCombinedWorldBounds() const
+    AABB Entity::GetCombinedWorldBounds() const
     {
         EE_ASSERT( IsSpatialEntity() );
 
-        TInlineVector<Vector, 64> points;
+        AABB combinedBounds = m_pRootSpatialComponent->GetWorldBounds().GetAABB();
 
         for ( auto pComponent : m_components )
         {
+            if ( pComponent == m_pRootSpatialComponent )
+            {
+                continue;
+            }
+
             if ( auto pSC = TryCast<SpatialEntityComponent>( pComponent ) )
             {
-                Vector corners[8];
-                pSC->GetWorldBounds().GetCorners( corners );
-                for ( auto i = 0; i < 8; i++ )
-                {
-                    points.emplace_back( corners[i] );
-                }
+                EE_ASSERT( pSC->GetWorldBounds().IsValid() );
+                AABB const componentBounds = pSC->GetWorldBounds().GetAABB();
+                combinedBounds = AABB::GetCombinedBox( combinedBounds, componentBounds );
             }
         }
 
-        EE_ASSERT( !points.empty() );
-        OBB const worldBounds( points.data(), (uint32_t) points.size() );
-        return worldBounds;
+        return combinedBounds;
     }
 
     //-------------------------------------------------------------------------

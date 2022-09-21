@@ -3090,7 +3090,7 @@ namespace EE::Animation
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
         m_activeOperation = GraphOperationType::CreateVariation;
-        strncpy_s( m_buffer, "NewChildVariation", 255 );
+        strncpy_s( m_nameBuffer, "NewChildVariation", 255 );
     }
 
     void AnimationGraphWorkspace::StartRename( StringID variationID )
@@ -3098,7 +3098,7 @@ namespace EE::Animation
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
         m_activeOperation = GraphOperationType::RenameVariation;
-        strncpy_s( m_buffer, variationID.c_str(), 255 );
+        strncpy_s( m_nameBuffer, variationID.c_str(), 255 );
     }
 
     void AnimationGraphWorkspace::StartDelete( StringID variationID )
@@ -3256,14 +3256,11 @@ namespace EE::Animation
         auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         bool isDefaultVariationSelected = IsDefaultVariationSelected();
 
+        // Skeleton Picker
         //-------------------------------------------------------------------------
 
         ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Skeleton:" );
-        ImGui::SameLine( 0, 0 );
-
         ResourcePath newPath;
-
         auto pVariation = m_toolsGraph.GetVariation( m_selectedVariationID );
         if ( m_resourcePicker.DrawPicker( pVariation->m_skeleton, newPath ) )
         {
@@ -3279,8 +3276,34 @@ namespace EE::Animation
             }
         }
 
+        // Filter
         //-------------------------------------------------------------------------
 
+        ImGui::Separator();
+
+        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 27 - ImGui::GetStyle().ItemSpacing.x );
+        if ( ImGui::InputText( "##VariationFilter", m_filterBuffer, 255 ) )
+        {
+            StringUtils::Split( m_filterBuffer, m_splitFilter );
+
+            for ( auto& token : m_splitFilter )
+            {
+                token.make_lower();
+            }
+        }
+
+        ImGui::SameLine();
+        if ( ImGui::Button( EE_ICON_CLOSE_CIRCLE"##Clear", ImVec2( 26, 24 ) ) )
+        {
+            m_filterBuffer[0] = 0;
+            m_splitFilter.clear();
+        }
+
+        // Overrides
+        //-------------------------------------------------------------------------
+
+        ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
         if ( ImGui::BeginTable( "SourceTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX ) )
         {
             ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
@@ -3295,6 +3318,47 @@ namespace EE::Animation
 
             for ( auto pDataSlotNode : dataSlotNodes )
             {
+                String const nodePath = pDataSlotNode->GetPathFromRoot();
+            
+                // Apply filter
+                //-------------------------------------------------------------------------
+
+                if ( !m_splitFilter.empty() )
+                {
+                    // Check name
+                    String nameLower( pDataSlotNode->GetName() );
+                    nameLower.make_lower();
+                    bool nameFailedFilter = false;
+                    for ( auto const& token : m_splitFilter )
+                    {
+                        if ( nameLower.find( token ) == String::npos )
+                        { 
+                            nameFailedFilter = true;
+                            break;
+                        }
+                    }
+
+                    // Check path
+                    String nodePathLower = nodePath;
+                    nodePathLower.make_lower();
+                    bool pathFailedFilter = false;
+                    for ( auto const& token : m_splitFilter )
+                    {
+                        if ( nodePathLower.find( token ) == String::npos )
+                        {
+                            pathFailedFilter = true;
+                            break;
+                        }
+                    }
+
+                    if ( pathFailedFilter && nameFailedFilter )
+                    {
+                        continue;
+                    }
+                }
+
+                //-------------------------------------------------------------------------
+
                 ImGui::PushID( pDataSlotNode );
                 ImGui::TableNextRow();
 
@@ -3350,12 +3414,13 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
+                if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN"##FN", ImVec2( 24, 24 ) ) )
                 {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-                    ImGui::AlignTextToFramePadding();
-                    ImGui::Text( pDataSlotNode->GetPathFromRoot().c_str() );
-                    ImGuiX::TextTooltip( pDataSlotNode->GetPathFromRoot().c_str() );
+                    NavigateTo( pDataSlotNode );
                 }
+                ImGui::SameLine();
+                ImGui::Text( nodePath.c_str() );
+                ImGuiX::TextTooltip( nodePath.c_str() );
 
                 // Resource Picker
                 //-------------------------------------------------------------------------
@@ -3385,7 +3450,6 @@ namespace EE::Animation
                     }
                     else // Show inherited value
                     {
-                        ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
                         auto& variationHierarchy = m_toolsGraph.GetVariationHierarchy();
                         ResourceID const resolvedResourceID = pDataSlotNode->GetResourceID( variationHierarchy, currentVariationID );
                         ImGui::Text( resolvedResourceID.c_str() );
@@ -3402,6 +3466,7 @@ namespace EE::Animation
 
             ImGui::EndTable();
         }
+        ImGui::PopStyleVar();
     }
 
     bool AnimationGraphWorkspace::DrawVariationNameEditor()
@@ -3414,7 +3479,7 @@ namespace EE::Animation
 
         auto ValidateVariationName = [this, isRenameOp] ()
         {
-            size_t const bufferLen = strlen( m_buffer );
+            size_t const bufferLen = strlen( m_nameBuffer );
 
             if ( bufferLen == 0 )
             {
@@ -3424,14 +3489,14 @@ namespace EE::Animation
             // Check for invalid chars
             for ( auto i = 0; i < bufferLen; i++ )
             {
-                if ( !ImGuiX::IsValidNameIDChar( m_buffer[i] ) )
+                if ( !ImGuiX::IsValidNameIDChar( m_nameBuffer[i] ) )
                 {
                     return false;
                 }
             }
 
             // Check for existing variations with the same name but different casing
-            String newVariationName( m_buffer );
+            String newVariationName( m_nameBuffer );
             auto const& variationHierarchy = m_toolsGraph.GetVariationHierarchy();
             for ( auto const& variation : variationHierarchy.GetAllVariations() )
             {
@@ -3450,7 +3515,7 @@ namespace EE::Animation
 
         bool isValidVariationName = ValidateVariationName();
         ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImGuiX::ConvertColor( Colors::Red ).Value );
-        if ( ImGui::InputText( "##VariationName", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars ) )
+        if ( ImGui::InputText( "##VariationName", m_nameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars ) )
         {
             nameChangeConfirmed = true;
         }
@@ -3496,7 +3561,7 @@ namespace EE::Animation
     {
         if ( DrawVariationNameEditor() )
         {
-            StringID newVariationID( m_buffer );
+            StringID newVariationID( m_nameBuffer );
             CreateVariation( newVariationID, m_activeOperationVariationID );
             m_activeOperationVariationID = StringID();
             m_activeOperation = GraphOperationType::None;
@@ -3507,7 +3572,7 @@ namespace EE::Animation
     {
         if ( DrawVariationNameEditor() )
         {
-            StringID newVariationID( m_buffer );
+            StringID newVariationID( m_nameBuffer );
             RenameVariation( m_activeOperationVariationID, newVariationID );
             m_activeOperationVariationID = StringID();
             m_activeOperation = GraphOperationType::None;

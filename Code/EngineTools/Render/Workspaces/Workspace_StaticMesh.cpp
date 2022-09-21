@@ -51,6 +51,8 @@ namespace EE::Render
         ImGui::SetNextItemWidth( 46 );
         if ( ImGui::BeginCombo( "##AnimOptions", EE_ICON_COG, ImGuiComboFlags_HeightLarge ) )
         {
+            ImGui::MenuItem( "Show Origin", nullptr, &m_showOrigin );
+            ImGui::MenuItem( "Show Bounds", nullptr, &m_showBounds );
             ImGui::MenuItem( "Show Normals", nullptr, &m_showNormals );
             ImGui::MenuItem( "Show Vertices", nullptr, &m_showVertices );
 
@@ -154,23 +156,37 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        if ( IsResourceLoaded() && ( m_showVertices || m_showNormals ) )
+        if ( IsResourceLoaded() )
         {
             auto drawingContext = GetDrawingContext();
-            auto pVertex = reinterpret_cast<StaticMeshVertex const*>( m_pResource->GetVertexData().data() );
-            for ( auto i = 0; i < m_pResource->GetNumVertices(); i++ )
+
+            if ( m_showOrigin )
             {
-                if ( m_showVertices )
-                {
-                    drawingContext.DrawPoint( pVertex->m_position, Colors::Cyan );
-                }
+                drawingContext.DrawAxis( Transform::Identity, 0.25f, 3.0f );
+            }
 
-                if ( m_showNormals )
-                {
-                    drawingContext.DrawLine( pVertex->m_position, pVertex->m_position + ( pVertex->m_normal * 0.15f ), Colors::Yellow );
-                }
+            if ( m_showBounds )
+            {
+                drawingContext.DrawWireBox( m_pResource->GetBounds(), Colors::Cyan );
+            }
 
-                pVertex++;
+            if ( ( m_showVertices || m_showNormals ) )
+            {
+                auto pVertex = reinterpret_cast<StaticMeshVertex const*>( m_pResource->GetVertexData().data() );
+                for ( auto i = 0; i < m_pResource->GetNumVertices(); i++ )
+                {
+                    if ( m_showVertices )
+                    {
+                        drawingContext.DrawPoint( pVertex->m_position, Colors::Cyan );
+                    }
+
+                    if ( m_showNormals )
+                    {
+                        drawingContext.DrawLine( pVertex->m_position, pVertex->m_position + ( pVertex->m_normal * 0.15f ), Colors::Yellow );
+                    }
+
+                    pVertex++;
+                }
             }
         }
     }

@@ -615,6 +615,8 @@ namespace EE::EntityModel
                 {
                     /*InlineString debugStr = Math::ToString( pEntity->GetLocalTransform() );
                     drawingCtx.DrawText3D( pEntity->GetWorldTransform().GetTranslation(), debugStr.c_str(), Colors::Red );*/
+
+                    //drawingCtx.DrawWireBox( pEntity->GetRootSpatialComponent()->GetWorldBounds(), Colors::HotPink, 3.0f, Drawing::EnableDepthTest);
                     drawingCtx.DrawWireBox( pEntity->GetCombinedWorldBounds(), Colors::Cyan, 3.0f, Drawing::EnableDepthTest );
                 }
             }

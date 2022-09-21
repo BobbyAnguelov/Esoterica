@@ -29,6 +29,9 @@ namespace EE
         // Focus the camera to the specified bounds
         void FocusOn( OBB const& bounds );
 
+        // Focus the camera to the specified bounds
+        void FocusOn( AABB const& bounds );
+
         // Set the camera world position and world look at target
         void SetPositionAndLookAtTarget( Vector const& cameraPosition, Vector const& lookatTarget );
 

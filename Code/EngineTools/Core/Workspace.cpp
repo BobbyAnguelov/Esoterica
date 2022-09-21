@@ -579,7 +579,7 @@ namespace EE
         }
 
         EE_ASSERT( m_pCamera != nullptr );
-        OBB const worldBounds = pTarget->GetCombinedWorldBounds();
+        AABB const worldBounds = pTarget->GetCombinedWorldBounds();
         m_pCamera->FocusOn( worldBounds );
     }
 

@@ -137,7 +137,7 @@ namespace EE
         inline Vector TranslateVector( Vector const& vector ) const;
         inline Vector RotateVector( Vector const& vector ) const;       // Out: W=0
         inline Vector TransformPoint( Vector const& point ) const;      // Out: W=1
-        inline Vector ApplyTransform( Vector const& vector ) const;     // Out: W=W
+        inline Vector TransformVector( Vector const& vector ) const;     // Out: W=W
 
         Vector& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return m_rows[i]; }
         Vector const operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return m_rows[i]; }
@@ -599,7 +599,7 @@ namespace EE
         return vResult;
     }
 
-    inline Vector Matrix::ApplyTransform( Vector const& V ) const
+    inline Vector Matrix::TransformVector( Vector const& V ) const
     {
         // Splat m_x,m_y,m_z and m_w
         Vector vTempX = V.GetSplatX();
