@@ -866,6 +866,7 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
+    #if EE_DEVELOPMENT_TOOLS
     void ImguiSystem::InitializePlatform()
     {
         ImGuiIO& io = ImGui::GetIO();
@@ -971,5 +972,6 @@ namespace EE::ImGuiX
         Platform::UpdateDisplayInformation();
         Platform::UpdateInputInformation();
     }
+    #endif
 }
 #endif
