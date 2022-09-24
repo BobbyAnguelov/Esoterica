@@ -55,7 +55,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // This function will reset the current graph state
-        void ResetGraphState();
+        void ResetGraphState() { m_graphStateResetRequested = true; }
 
         // This function will evaluate the graph and produce the desired root motion delta for the character
         void EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene );
@@ -136,5 +136,6 @@ namespace EE::Animation
         Transform                                               m_rootMotionDelta = Transform::Identity;
         EE_EXPOSE bool                                          m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?
         EE_EXPOSE bool                                          m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+        bool                                                    m_graphStateResetRequested = false;
     };
 }

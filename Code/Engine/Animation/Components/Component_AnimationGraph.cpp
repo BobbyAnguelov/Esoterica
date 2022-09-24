@@ -51,23 +51,11 @@ namespace EE::Animation
         return m_pGraphInstance->GetPose();
     }
 
-    void AnimationGraphComponent::ResetGraphState()
-    {
-        if ( m_pGraphInstance != nullptr )
-        {
-            EE_ASSERT( m_pGraphInstance->IsInitialized() );
-            m_pGraphInstance->ResetGraphState();
-        }
-        else
-        {
-            EE_LOG_ENTITY_ERROR( this, "Animation", "TODO", "Trying to reset graph state on a animgraph component that has no state!" );
-        }
-    }
-
     void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene )
     {
         EE_ASSERT( HasGraph() );
-        auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsScene );
+        auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsScene, m_graphStateResetRequested );
+        m_graphStateResetRequested = false;
         m_rootMotionDelta = result.m_rootMotionDelta;
     }
 

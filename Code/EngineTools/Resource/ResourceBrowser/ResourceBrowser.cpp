@@ -184,6 +184,7 @@ namespace EE
     bool ResourceBrowser::UpdateAndDraw( UpdateContext const& context )
     {
         bool isOpen = true;
+        bool isFocused = false;
         if ( ImGui::Begin( GetWindowName(), &isOpen) )
         {
             if ( m_toolsContext.m_pResourceDatabase->IsRebuilding() )
@@ -200,6 +201,8 @@ namespace EE
                 DrawFilterOptions( context );
                 TreeListView::UpdateAndDraw();
             }
+
+            isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows );
         }
         ImGui::End();
 
@@ -209,21 +212,24 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::IsKeyReleased( ImGuiKey_Enter ) )
+        if ( isFocused )
         {
-            auto const& selection = GetSelection();
-            if ( selection.size() == 1 )
+            if ( ImGui::IsKeyReleased( ImGuiKey_Enter ) )
             {
-                auto pResourceItem = static_cast<ResourceBrowserTreeItem*>( selection[0] );
-                if ( pResourceItem->IsResourceFile() )
+                auto const& selection = GetSelection();
+                if ( selection.size() == 1 )
                 {
-                    m_toolsContext.TryOpenResource( pResourceItem->GetResourceID() );
-                }
-                else if ( pResourceItem->IsFile() )
-                {
-                    if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceItem->GetFilePath() ) )
+                    auto pResourceItem = static_cast<ResourceBrowserTreeItem*>( selection[0] );
+                    if ( pResourceItem->IsResourceFile() )
                     {
-                        m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceItem->GetFilePath() );
+                        m_toolsContext.TryOpenResource( pResourceItem->GetResourceID() );
+                    }
+                    else if ( pResourceItem->IsFile() )
+                    {
+                        if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceItem->GetFilePath() ) )
+                        {
+                            m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceItem->GetFilePath() );
+                        }
                     }
                 }
             }

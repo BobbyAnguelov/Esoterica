@@ -246,7 +246,7 @@ namespace EE::Resource
                         GenerateResourceOptionsList( restrictedResourceTypeID );
                         GeneratedFilteredOptionList();
                         m_currentlySelectedID = resourcePath.IsValid() ? resourcePath : ResourceID();
-                        ImGui::OpenPopup( "Resource Picker" );
+                        m_shouldOpenPickerDialog = true;
                     }
                     else // Use file picker
                     {
@@ -320,6 +320,13 @@ namespace EE::Resource
     {
         bool selectionMade = false;
         bool isDialogOpen = true;
+
+        if ( m_shouldOpenPickerDialog )
+        {
+            ImGui::OpenPopup( "Resource Picker" );
+            m_shouldOpenPickerDialog = false;
+        }
+
         ImGui::SetNextWindowSize( ImVec2( 1000, 400 ), ImGuiCond_FirstUseEver );
         ImGui::SetNextWindowSizeConstraints( ImVec2( 400, 400 ), ImVec2( FLT_MAX, FLT_MAX ) );
         if ( ImGui::BeginPopupModal( "Resource Picker", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings ) )

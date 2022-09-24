@@ -1,4 +1,4 @@
-#include "Animation_RuntimeGraphNode_Ragdoll.h"
+#include "Animation_RuntimeGraphNode_PoweredRagdoll.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"

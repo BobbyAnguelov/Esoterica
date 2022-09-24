@@ -93,5 +93,6 @@ namespace EE::Resource
         TVector<PickerOption>           m_filteredResourceIDs;
         ResourceID                      m_currentlySelectedID;
         bool                            m_initializeFocus = false;
+        bool                            m_shouldOpenPickerDialog = false;
     };
 }

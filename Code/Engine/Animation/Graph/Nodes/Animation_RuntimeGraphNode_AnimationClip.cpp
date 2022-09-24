@@ -58,7 +58,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context )
     {
-        EE_ASSERT( context.IsValid() );
+        EE_ASSERT( context.IsValid() && IsInitialized() );
 
         if ( !IsValid() )
         {
@@ -111,7 +111,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
-        EE_ASSERT( context.IsValid() );
+        EE_ASSERT( context.IsValid() && IsInitialized() );
 
         if ( !IsValid() )
         {

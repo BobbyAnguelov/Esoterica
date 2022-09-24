@@ -251,7 +251,7 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_IDs.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Layers.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Pose.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Ragdoll.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Ragdolls.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_RootMotionOverride.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Selector.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_SpeedScale.cpp" />
@@ -575,7 +575,7 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_IDs.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Layers.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Pose.h" />
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Ragdoll.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Ragdolls.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_RootMotionOverride.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Selector.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_SpeedScale.h" />

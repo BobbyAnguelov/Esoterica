@@ -42,5 +42,6 @@ namespace EE::Animation::GraphNodes
     private:
 
         GraphInstance*          m_pGraphInstance = nullptr;
+        bool                    m_isFirstUpdate = false;
     };
 }

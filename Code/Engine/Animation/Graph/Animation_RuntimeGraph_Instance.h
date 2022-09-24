@@ -86,14 +86,11 @@ namespace EE::Animation
         // Is this a valid instance that has been correctly initialized
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
 
-        // Fully reset all nodes in the graph
-        void ResetGraphState();
-
         // Run the graph logic - returns the root motion delta for the update
-        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene );
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, bool resetGraphState = false );
 
         // Run the graph logic synchronized (needed for external graph support) - returns the root motion delta for the update
-        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange );
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange, bool resetGraphState = false );
 
         // Execute any pre-physics pose tasks (assumes the character is at its final position for this frame)
         void ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform );

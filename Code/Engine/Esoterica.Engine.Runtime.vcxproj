@@ -75,6 +75,8 @@
     <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.cpp" />
@@ -98,7 +100,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Parameters.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Passthrough.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Pose.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Ragdoll.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_PoweredRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_RootMotionOverride.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Selector.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SpeedScale.cpp" />
@@ -108,7 +110,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Targets.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Transition.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Vectors.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Warping.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\AnimationClipLoader.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\AnimationGraphLoader.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\AnimationSkeletonLoader.cpp" />
@@ -225,6 +227,8 @@
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.h" />
@@ -248,7 +252,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Parameters.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Passthrough.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Pose.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Ragdoll.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_PoweredRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_RootMotionOverride.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Selector.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SpeedScale.h" />
@@ -258,7 +262,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Targets.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Transition.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Vectors.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Warping.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.h" />
     <ClInclude Include="Animation\ResourceLoaders\AnimationClipLoader.h" />
     <ClInclude Include="Animation\ResourceLoaders\AnimationGraphLoader.h" />
     <ClInclude Include="Animation\ResourceLoaders\AnimationSkeletonLoader.h" />

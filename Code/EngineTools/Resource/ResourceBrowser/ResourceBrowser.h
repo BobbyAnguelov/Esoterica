@@ -25,6 +25,7 @@ namespace EE
 
         char const* const GetWindowName() { return "Resource Browser"; }
 
+        // Returns true if the browser is still open
         bool UpdateAndDraw( UpdateContext const& context );
 
     private:

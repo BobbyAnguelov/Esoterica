@@ -64,7 +64,7 @@ namespace EE::Animation
     private:
 
         virtual Status GetValidationStatus() const override;
-        virtual ImRect DrawDurationItem( ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState );
+        virtual ImRect DrawDurationItem( ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState ) override;
         virtual float GetTrackHeight() const override { return 70; }
     };
 }

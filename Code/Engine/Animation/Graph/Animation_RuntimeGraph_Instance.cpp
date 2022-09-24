@@ -280,17 +280,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void GraphInstance::ResetGraphState()
-    {
-        if ( m_pRootNode->IsInitialized() )
-        {
-            m_pRootNode->Shutdown( m_graphContext );
-        }
-
-        m_pRootNode->Initialize( m_graphContext, SyncTrackTime() );
-    }
-
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene )
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
         #if EE_DEVELOPMENT_TOOLS
@@ -306,10 +296,23 @@ namespace EE::Animation
         }
 
         m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsScene );
+
+        //-------------------------------------------------------------------------
+
+        if ( resetGraphState )
+        {
+            if ( m_pRootNode->IsInitialized() )
+            {
+                m_pRootNode->Shutdown( m_graphContext );
+            }
+
+            m_pRootNode->Initialize( m_graphContext, SyncTrackTime() );
+        }
+
         return m_pRootNode->Update( m_graphContext );
     }
 
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange )
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
 
@@ -326,6 +329,19 @@ namespace EE::Animation
         }
 
         m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsScene );
+
+        //-------------------------------------------------------------------------
+
+        if ( resetGraphState )
+        {
+            if ( m_pRootNode->IsInitialized() )
+            {
+                m_pRootNode->Shutdown( m_graphContext );
+            }
+
+            m_pRootNode->Initialize( m_graphContext, SyncTrackTime() );
+        }
+
         return m_pRootNode->Update( m_graphContext, updateRange );
     }
 

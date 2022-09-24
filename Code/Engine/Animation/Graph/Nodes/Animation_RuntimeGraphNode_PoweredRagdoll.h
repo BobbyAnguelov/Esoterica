@@ -25,11 +25,11 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                 m_physicsBlendWeightNodeIdx = InvalidIndex;
-            int16_t                 m_dataSlotIdx = InvalidIndex;
-            StringID                m_profileID;
-            float                   m_physicsBlendWeight = 1.0f;
-            bool                    m_isGravityEnabled;
+            int16_t                                         m_physicsBlendWeightNodeIdx = InvalidIndex;
+            int16_t                                         m_dataSlotIdx = InvalidIndex;
+            StringID                                        m_profileID;
+            float                                           m_physicsBlendWeight = 1.0f;
+            bool                                            m_isGravityEnabled;
         };
 
     private:
@@ -44,9 +44,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        Physics::RagdollDefinition const*       m_pRagdollDefinition = nullptr;
-        FloatValueNode*                         m_pBlendWeightValueNode = nullptr;
-        Physics::Ragdoll*                       m_pRagdoll = nullptr;
-        bool                                    m_isFirstUpdate = false;
+        Physics::RagdollDefinition const*                   m_pRagdollDefinition = nullptr;
+        FloatValueNode*                                     m_pBlendWeightValueNode = nullptr;
+        Physics::Ragdoll*                                   m_pRagdoll = nullptr;
+        bool                                                m_isFirstUpdate = false;
     };
 }

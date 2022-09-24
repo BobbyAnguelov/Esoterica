@@ -290,7 +290,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Pose.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Ragdoll.cpp">
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_PoweredRagdoll.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_RootMotionOverride.cpp">
@@ -320,7 +320,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Vectors.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Warping.cpp">
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp">
@@ -407,6 +407,8 @@
     <ClCompile Include="Entity\EntityIDs.cpp">
       <Filter>Entity</Filter>
     </ClCompile>
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -748,7 +750,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Pose.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Ragdoll.h">
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_PoweredRagdoll.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_RootMotionOverride.h">
@@ -778,7 +780,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Vectors.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Warping.h">
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h">
@@ -867,6 +869,8 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
     <ClInclude Include="Entity\EntitySerialization.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

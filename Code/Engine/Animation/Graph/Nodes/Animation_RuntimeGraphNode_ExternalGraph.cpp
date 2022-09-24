@@ -37,8 +37,6 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pGraphInstance != nullptr )
         {
-            m_pGraphInstance->ResetGraphState();
-
             auto pRootNode = m_pGraphInstance->GetRootNode();
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
@@ -49,6 +47,8 @@ namespace EE::Animation::GraphNodes
             m_previousTime = m_currentTime = 0.0f;
             m_duration = 0.0f;
         }
+
+        m_isFirstUpdate = true;
     }
 
     //-------------------------------------------------------------------------
@@ -96,7 +96,8 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene, m_isFirstUpdate );
+            m_isFirstUpdate = false;
             TransferGraphInstanceData( context, result );
         }
         return result;
@@ -115,7 +116,8 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene, updateRange );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene, updateRange, m_isFirstUpdate );
+            m_isFirstUpdate = false;
             TransferGraphInstanceData( context, result );
         }
         return result;
