@@ -94,15 +94,10 @@ namespace EE
         {
             SetTypeToEdit( nullptr );
         }
-        else
+        else if( pTypeInstance != m_pTypeInstance )
         {
-            if ( pTypeInstance != m_pTypeInstance )
-            {
-                m_pTypeInfo = pTypeInstance->GetTypeInfo();
-                m_pTypeInstance = pTypeInstance;
-            }
-
-            // Always reset editors and dirty flag
+            m_pTypeInfo = pTypeInstance->GetTypeInfo();
+            m_pTypeInstance = pTypeInstance;
             DestroyPropertyEditors();
             m_isDirty = false;
         }

@@ -372,11 +372,17 @@ namespace EE::Animation
                 auto const& selectedItems = m_eventEditor.GetSelectedItems();
                 if ( !selectedItems.empty() )
                 {
-                    m_propertyGrid.SetTypeToEdit( selectedItems.back()->GetData() );
+                    if ( selectedItems.back()->GetData() != m_propertyGrid.GetEditedType() )
+                    {
+                        m_propertyGrid.SetTypeToEdit( selectedItems.back()->GetData() );
+                    }
                 }
                 else // Clear property grid
                 {
-                    m_propertyGrid.SetTypeToEdit( nullptr );
+                    if ( m_propertyGrid.GetEditedType() != nullptr )
+                    {
+                        m_propertyGrid.SetTypeToEdit( nullptr );
+                    }
                 }
             }
         }

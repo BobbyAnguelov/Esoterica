@@ -1254,16 +1254,25 @@ namespace EE::Physics
             int32_t const bodyIdx = pRagdollDefinition->GetBodyIndexForBoneID( m_selectedBoneID );
             if ( bodyIdx != InvalidIndex )
             {
-                m_bodyEditorPropertyGrid.SetTypeToEdit( &pRagdollDefinition->m_bodies[bodyIdx] );
+                if ( m_bodyEditorPropertyGrid.GetEditedType() != &pRagdollDefinition->m_bodies[bodyIdx] )
+                {
+                    m_bodyEditorPropertyGrid.SetTypeToEdit( &pRagdollDefinition->m_bodies[bodyIdx] );
+                }
             }
             else
             {
-                m_bodyEditorPropertyGrid.SetTypeToEdit( nullptr );
+                if ( m_bodyEditorPropertyGrid.GetEditedType() != nullptr )
+                {
+                    m_bodyEditorPropertyGrid.SetTypeToEdit( nullptr );
+                }
             }
         }
         else
         {
-            m_bodyEditorPropertyGrid.SetTypeToEdit( nullptr );
+            if ( m_bodyEditorPropertyGrid.GetEditedType() != nullptr )
+            {
+                m_bodyEditorPropertyGrid.SetTypeToEdit( nullptr );
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -1566,12 +1575,18 @@ namespace EE::Physics
             if ( pActiveProfile == nullptr )
             {
                 ImGui::TextColored( Colors::Red.ToFloat4(), "Invalid Definition" );
-                m_solverSettingsGrid.SetTypeToEdit( nullptr );
+                if ( m_solverSettingsGrid.GetEditedType() != nullptr )
+                {
+                    m_solverSettingsGrid.SetTypeToEdit( nullptr );
+                }
             }
             else if ( pRagdollDefinition->GetNumBodies() == 0 )
             {
                 ImGui::TextColored( Colors::Yellow.ToFloat4(), "No Bodies" );
-                m_solverSettingsGrid.SetTypeToEdit( nullptr );
+                if ( m_solverSettingsGrid.GetEditedType() != nullptr )
+                {
+                    m_solverSettingsGrid.SetTypeToEdit( nullptr );
+                }
             }
             else
             {

@@ -104,18 +104,8 @@ namespace EE
         }
         else
         {
-            // Evaluate curve
-            constexpr static float const numPointsToEvaluate = 150;
-            FloatRange const parameterRange = m_curve.GetParameterRange();
-            float const stepT = parameterRange.GetLength() / numPointsToEvaluate;
-            m_verticalViewRange = FloatRange( m_curve.Evaluate( 0.0f ) );
-            for ( auto i = 1; i < numPointsToEvaluate; i++ )
-            {
-                float const t = parameterRange.m_begin + ( i * stepT );
-                m_verticalViewRange.GrowRange( m_curve.Evaluate( t ) );
-            }
+            m_verticalViewRange = m_curve.GetValueRange();
 
-            // Set range
             float const valueRangeLength = m_verticalViewRange.GetLength();
             if ( Math::IsNearZero( valueRangeLength ) )
             {

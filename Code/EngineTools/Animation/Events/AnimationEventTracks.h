@@ -5,6 +5,8 @@
 #include "Engine/Animation/Events/AnimationEvent_ID.h"
 #include "Engine/Animation/Events/AnimationEvent_Foot.h"
 #include "Engine/Animation/Events/AnimationEvent_Warp.h"
+#include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
+#include "EngineTools/Core/Widgets/CurveEditor.h"
 
 //-------------------------------------------------------------------------
 // Animation Event Tracks
@@ -12,7 +14,7 @@
 
 namespace EE::Animation
 {
-    class IDEventTrack : public EventTrack
+    class IDEventTrack final : public EventTrack
     {
         EE_REGISTER_TYPE( IDEventTrack );
 
@@ -25,7 +27,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class FootEventTrack : public EventTrack
+    class FootEventTrack final : public EventTrack
     {
         EE_REGISTER_TYPE( FootEventTrack );
 
@@ -37,7 +39,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class WarpEventTrack : public EventTrack
+    class WarpEventTrack final : public EventTrack
     {
         EE_REGISTER_TYPE( WarpEventTrack );
 
@@ -47,4 +49,22 @@ namespace EE::Animation
     };
 
     //-------------------------------------------------------------------------
+
+    class RagdollEventTrack final : public EventTrack
+    {
+        EE_REGISTER_TYPE( RagdollEventTrack );
+
+        virtual const char* GetTypeName() const override { return "Ragdoll"; }
+        virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual EventType GetAllowedEventType() const override { return EventType::Duration; }
+        virtual bool AllowMultipleTracks() const override { return false; }
+        virtual bool CanCreateNewItems() const override;
+        virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
+
+    private:
+
+        virtual Status GetValidationStatus() const override;
+        virtual ImRect DrawDurationItem( ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState );
+        virtual float GetTrackHeight() const override { return 70; }
+    };
 }

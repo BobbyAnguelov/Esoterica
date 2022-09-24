@@ -64,15 +64,34 @@ namespace EE
         inline int32_t const GetNumPoints() const { return (int32_t) m_points.size(); }
         Point const& GetPoint( int32_t pointIdx ) const { EE_ASSERT( pointIdx >= 0 && pointIdx < GetNumPoints() ); return m_points[pointIdx]; }
 
-        // Get the range for the parameters that this curve covers - all values outside this range are clamped to the extremity points
+        // Get the range for the parameters that this curve covers
         inline FloatRange GetParameterRange() const 
         {
-            FloatRange range(0, 0);
-            if ( !m_points.empty() )
+            FloatRange range;
+            for( auto i = 0; i < m_points.size(); i++ )
             {
-                range = FloatRange( m_points[0].m_parameter, m_points.back().m_parameter );
+                range.m_begin = Math::Min( range.m_begin, m_points[i].m_parameter );
+                range.m_end = Math::Max( range.m_end, m_points[i].m_parameter );
             }
             return range;
+        }
+
+        // Get the range for the values that this curve covers
+        // Note: this will evaluate the curve to find the actual value range and so is pretty expensive!
+        inline FloatRange GetValueRange() const
+        {
+            constexpr static float const numPointsToEvaluate = 150;
+            FloatRange const parameterRange = GetParameterRange();
+            float const stepT = parameterRange.GetLength() / numPointsToEvaluate;
+
+            FloatRange valueRange( Evaluate( 0.0f ) );
+            for ( auto i = 1; i < numPointsToEvaluate; i++ )
+            {
+                float const t = parameterRange.m_begin + ( i * stepT );
+                valueRange.GrowRange( Evaluate( t ) );
+            }
+
+            return valueRange;
         }
 
         // Evaluate the curve and return the value for the specified input parameter

@@ -37,10 +37,7 @@ namespace EE::Timeline
 
     //-------------------------------------------------------------------------
 
-    constexpr static float g_trackHeight = 30;
-    constexpr static float const g_itemMarginY = 2;
     constexpr static float const g_itemHandleWidth = 4;
-    constexpr static float const g_immediateItemHalfWidth = 5;
     static ImColor const g_trackSeparatorColor( 0xFF808080 );
 
     //-------------------------------------------------------------------------
@@ -610,7 +607,7 @@ namespace EE::Timeline
         {
             auto pTrack = m_trackContainer.GetTrack( i );
 
-            float const trackEndY = trackStartY + g_trackHeight;
+            float const trackEndY = trackStartY + pTrack->GetTrackHeight();
 
             // Terminate loop as soon as a track is no longer visible
             if ( trackStartY > fullTrackAreaRect.GetBR().y )
@@ -622,7 +619,7 @@ namespace EE::Timeline
 
             ImRect const trackRect( ImVec2( fullTrackAreaRect.GetTL().x, trackStartY ), ImVec2( fullTrackAreaRect.GetBR().x, trackEndY ) );
             ImRect const trackHeaderRect( ImVec2( fullTrackAreaRect.GetTL().x, trackStartY ), ImVec2( fullTrackAreaRect.GetTL().x + g_trackHeaderWidth, trackEndY ) );
-            ImRect const trackAreaRect( ImVec2( fullTrackAreaRect.GetTL().x + g_trackHeaderWidth, trackStartY ), ImVec2( fullTrackAreaRect.GetBR().x, trackEndY ) );
+            ImRect const trackAreaRect( ImVec2( fullTrackAreaRect.GetTL().x + g_trackHeaderWidth + g_playheadHalfWidth, trackStartY ), ImVec2( fullTrackAreaRect.GetBR().x, trackEndY ) );
 
             // Are we hovered over this track?
             if ( trackRect.Contains( mousePos ) )
@@ -670,13 +667,13 @@ namespace EE::Timeline
                 {
                     ImColor selectedTrackColor = ImGuiX::Style::s_colorGray2;
                     selectedTrackColor.Value.w = 0.2f;
-                    pDrawList->AddRectFilled( trackAreaRect.GetTL(), trackAreaRect.GetBR(), selectedTrackColor );
+                    pDrawList->AddRectFilled( trackAreaRect.GetTL(), trackAreaRect.GetBR(), selectedTrackColor);
                 }
 
                 // Draw items
                 //-------------------------------------------------------------------------
 
-                ImGui::PushClipRect( trackAreaRect.GetTL(), trackAreaRect.GetBR(), false );
+                ImGui::PushClipRect( trackAreaRect.GetTL() - ImVec2( g_playheadHalfWidth, 0 ), trackAreaRect.GetBR(), false );
 
                 for ( auto const pItem : pTrack->GetItems() )
                 {
@@ -688,58 +685,50 @@ namespace EE::Timeline
 
                     //-------------------------------------------------------------------------
 
-                    Color const itemColor = pTrack->GetItemColor( pItem );
-                    bool const isItemSelected = IsSelected( pItem );
+                    Track::ItemState itemState = Track::ItemState::None;
 
-                    ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
+                    if ( m_itemEditState.m_pEditedItem == pItem )
+                    {
+                        itemState = Track::ItemState::Edited;
+                    }
+                    else if ( IsSelected( pItem ) )
+                    {
+                        itemState = Track::ItemState::Selected;
+                    }
+
+                    //-------------------------------------------------------------------------
 
                     if ( pItem->IsImmediateItem() )
                     {
-                        float const itemPosX = trackAreaRect.GetTL().x + ( itemTimeRange.m_begin - m_viewRange.m_begin ) * m_pixelsPerFrame;
-                        float const itemPosTopY = trackAreaRect.GetTL().y + g_itemMarginY;
-                        float const itemPosBottomY = trackAreaRect.GetBR().y + g_itemMarginY;
+                        Float2 itemPos;
+                        itemPos.m_x = trackAreaRect.GetTL().x + ( itemTimeRange.m_begin - m_viewRange.m_begin ) * m_pixelsPerFrame;
+                        itemPos.m_y = trackAreaRect.GetTL().y;
 
-                        ImVec2 const base( itemPosX, itemPosBottomY );
-                        ImVec2 const topLeft( itemPosX - g_immediateItemHalfWidth, itemPosTopY + 3 );
-                        ImVec2 const topRight( itemPosX + g_immediateItemHalfWidth, itemPosTopY + 3 );
-
-                        ImVec2 const capTopLeft( itemPosX - g_immediateItemHalfWidth, itemPosTopY );
-                        ImVec2 const capBottomRight = topRight;
-
-                        ImRect const itemRect( ImVec2( itemPosX - g_immediateItemHalfWidth, itemPosTopY ), ImVec2( itemPosX + g_immediateItemHalfWidth, itemPosBottomY ) );
-                        bool const isItemHovered = itemRect.Contains( mousePos );
-
-                        if ( isItemHovered )
+                        ImRect const itemRect = pTrack->DrawImmediateItem( pDrawList, pItem, itemPos, itemState );
+                        if ( itemRect.Contains( mousePos ) )
                         {
                             m_mouseState.m_pHoveredItem = pItem;
                             m_mouseState.m_hoveredItemMode = ItemEditMode::Move;
                         }
-
-                        pDrawList->AddRectFilled( capTopLeft, capBottomRight, itemColor.ToUInt32_ABGR() );
-                        pDrawList->AddTriangleFilled( topLeft, topRight, base, GetItemBaseColor( isItemSelected, isItemHovered ) );
-
-                        InlineString const itemLabel = pTrack->GetItemLabel( pItem );
-                        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-                        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 4, 0 ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
                     }
                     else // Draw Duration Item
                     {
-                        float itemEndTime = itemTimeRange.m_end;
-                        float const itemStartX = trackAreaRect.GetTL().x + ( itemTimeRange.m_begin - m_viewRange.m_begin ) * m_pixelsPerFrame;
-                        float const itemEndX = trackAreaRect.GetTL().x + ( itemEndTime - m_viewRange.m_begin ) * m_pixelsPerFrame;
-                        float const itemStartY = trackAreaRect.GetTL().y + g_itemMarginY;
-                        float const itemEndY = trackAreaRect.GetBR().y - g_itemMarginY;
+                        Float2 itemStartPos;
+                        itemStartPos.m_x = trackAreaRect.GetTL().x + ( itemTimeRange.m_begin - m_viewRange.m_begin ) * m_pixelsPerFrame;
+                        itemStartPos.m_y = trackAreaRect.GetTL().y;
 
-                        ImVec2 const itemStart( itemStartX, itemStartY );
-                        ImVec2 const itemEnd( itemEndX, itemEndY );
-                        ImRect const itemRect( itemStart, itemEnd );
-                        bool const isItemHovered = itemRect.Contains( mousePos );
+                        Float2 itemEndPos;
+                        itemEndPos.m_x = trackAreaRect.GetTL().x + ( itemTimeRange.m_end - m_viewRange.m_begin ) * m_pixelsPerFrame;
+                        itemEndPos.m_y = trackAreaRect.GetBR().y;
 
-                        bool const isHoveredOverLeftHandle = ( !pItem->IsImmediateItem() && isItemHovered ) ? ImRect( itemStart, ImVec2( itemStart.x + g_itemHandleWidth, itemEnd.y ) ).Contains( mousePos ) : false;
-                        bool const isHoveredOverRightHandle = ( !pItem->IsImmediateItem() && isItemHovered && !isHoveredOverLeftHandle ) ? ImRect( ImVec2( itemEnd.x - g_itemHandleWidth, itemStart.y ), itemEnd ).Contains( mousePos ) : false;
-
-                        if ( isItemHovered )
+                        ImRect const itemRect = pTrack->DrawDurationItem( pDrawList, pItem, itemStartPos, itemEndPos, itemState );
+                        if ( itemRect.Contains( mousePos ) )
                         {
+                            ImVec2 const visualItemStart = itemRect.GetTL();
+                            ImVec2 const visualItemEnd = itemRect.GetBR();
+                            bool const isHoveredOverLeftHandle = ImRect( visualItemStart, ImVec2( visualItemStart.x + g_itemHandleWidth, visualItemEnd.y ) ).Contains( mousePos );
+                            bool const isHoveredOverRightHandle = ( !isHoveredOverLeftHandle ) ? ImRect( ImVec2( visualItemEnd.x - g_itemHandleWidth, visualItemStart.y ), visualItemEnd ).Contains( mousePos ) : false;
+
                             m_mouseState.m_pHoveredItem = pItem;
 
                             if ( isHoveredOverLeftHandle )
@@ -755,13 +744,6 @@ namespace EE::Timeline
                                 m_mouseState.m_hoveredItemMode = ItemEditMode::Move;
                             }
                         }
-
-                        pDrawList->AddRectFilled( itemStart, itemEnd, itemColor.ToUInt32_ABGR(), 4.0f, ImDrawFlags_RoundCornersBottom );
-                        pDrawList->AddRectFilled( itemStart, itemEnd - ImVec2( 0, 3 ), GetItemBaseColor( isItemSelected, isItemHovered ), 4.0f, ImDrawFlags_RoundCornersBottom );
-
-                        InlineString const itemLabel = pTrack->GetItemLabel( pItem );
-                        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, itemStart + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-                        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, itemStart + ImVec2( 4, 0 ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
                     }
                 }
 
@@ -926,7 +908,7 @@ namespace EE::Timeline
             ImRect const timelineControlsRect( canvasPos, ImVec2( canvasPos.x + g_trackHeaderWidth, canvasPos.y + g_headerHeight ) );
             DrawTimelineControls( timelineControlsRect );
 
-            m_timelineRect = ImRect( ImVec2( canvasPos.x + g_trackHeaderWidth, canvasPos.y ), ImVec2( canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y - horizontalScrollBarHeight ) );
+            m_timelineRect = ImRect( ImVec2( canvasPos.x + g_playheadHalfWidth + g_trackHeaderWidth, canvasPos.y ), ImVec2( canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y - horizontalScrollBarHeight ) );
             DrawTimeline( m_timelineRect );
 
             //-------------------------------------------------------------------------
@@ -1061,92 +1043,59 @@ namespace EE::Timeline
                     m_itemEditState.m_isEditing = true;
                 }
 
-                // Calculate valid range for modifications
-                //-------------------------------------------------------------------------
-
-                FloatRange validEventRange = m_viewRange;
-                for ( auto const pOtherItem : m_itemEditState.m_pTrackForEditedItem->GetItems() )
-                {
-                    FloatRange const otherItemTimeRange = pOtherItem->GetTimeRange();
-
-                    if ( pOtherItem == pEditedItem )
-                    {
-                        continue;
-                    }
-
-                    if ( otherItemTimeRange.m_end < m_itemEditState.m_originalTimeRange.m_begin && otherItemTimeRange.m_end > validEventRange.m_begin )
-                    {
-                        validEventRange.m_begin = otherItemTimeRange.m_end;
-                    }
-
-                    if ( otherItemTimeRange.m_begin > m_itemEditState.m_originalTimeRange.m_end && otherItemTimeRange.m_begin < validEventRange.m_end )
-                    {
-                        validEventRange.m_end = otherItemTimeRange.m_begin;
-                    }
-                }
-
-                // Prevent immediate items ending up on top of other items or outside the range
-                if ( pEditedItem->IsImmediateItem() )
-                {
-                    validEventRange.m_end -= 1;
-                }
-
                 // Apply mouse delta to item
                 //-------------------------------------------------------------------------
 
-                if ( validEventRange.IsSetAndValid() )
+                float const pixelOffset = ImGui::GetMouseDragDelta().x;
+                float const timeOffset = pixelOffset / m_pixelsPerFrame;
+
+                FloatRange editedItemTimeRange = pEditedItem->GetTimeRange();
+
+                if ( m_itemEditState.m_mode == ItemEditMode::Move )
                 {
-                    float const pixelOffset = ImGui::GetMouseDragDelta().x;
-                    float const timeOffset = pixelOffset / m_pixelsPerFrame;
-
-                    FloatRange editedItemTimeRange = pEditedItem->GetTimeRange();
-
-                    if ( m_itemEditState.m_mode == ItemEditMode::Move )
+                    // Create a new range to clamp the event start time to
+                    FloatRange validEventStartRange = m_timeRange;
+                    if ( pEditedItem->IsDurationItem() )
                     {
-                        // Create a new range to clamp the event start time to
-                        FloatRange validEventStartRange = validEventRange;
-                        if ( pEditedItem->IsDurationItem() )
-                        {
-                            validEventStartRange.m_end = validEventStartRange.m_end - m_itemEditState.m_originalTimeRange.GetLength();
-                        }
-
-                        float newTime = m_itemEditState.m_originalTimeRange.m_begin + timeOffset;
-                        if ( m_isFrameSnappingEnabled )
-                        {
-                            newTime = Math::Round( newTime );
-                        }
-
-                        editedItemTimeRange.m_begin = validEventStartRange.GetClampedValue( newTime );
-                        editedItemTimeRange.m_end = editedItemTimeRange.m_begin + m_itemEditState.m_originalTimeRange.GetLength();
-                        SetCurrentTime( editedItemTimeRange.m_begin );
-                    }
-                    else if ( m_itemEditState.m_mode == ItemEditMode::ResizeLeft )
-                    {
-                        float newTime = m_itemEditState.m_originalTimeRange.m_begin + timeOffset;
-                        if ( m_isFrameSnappingEnabled )
-                        {
-                            newTime = Math::Round( newTime );
-                        }
-
-                        editedItemTimeRange.m_begin = Math::Min( m_itemEditState.m_originalTimeRange.m_end - 1, newTime );
-                        editedItemTimeRange.m_begin = Math::Max( validEventRange.m_begin, editedItemTimeRange.m_begin );
-                        SetCurrentTime( editedItemTimeRange.m_begin );
-                    }
-                    else if ( m_itemEditState.m_mode == ItemEditMode::ResizeRight )
-                    {
-                        float newTime = m_itemEditState.m_originalTimeRange.m_end + timeOffset;
-                        if ( m_isFrameSnappingEnabled )
-                        {
-                            newTime = Math::Round( newTime );
-                        }
-
-                        editedItemTimeRange.m_end = Math::Max( m_itemEditState.m_originalTimeRange.m_begin + 1, newTime );
-                        editedItemTimeRange.m_end = Math::Min( validEventRange.m_end, editedItemTimeRange.m_end );
-                        SetCurrentTime( editedItemTimeRange.m_end );
+                        validEventStartRange.m_end = validEventStartRange.m_end - m_itemEditState.m_originalTimeRange.GetLength();
                     }
 
-                    m_trackContainer.UpdateItemTimeRange( pEditedItem, editedItemTimeRange );
+                    float newTime = m_itemEditState.m_originalTimeRange.m_begin + timeOffset;
+                    if ( m_isFrameSnappingEnabled )
+                    {
+                        newTime = Math::Round( newTime );
+                    }
+
+                    editedItemTimeRange.m_begin = validEventStartRange.GetClampedValue( newTime );
+                    editedItemTimeRange.m_end = editedItemTimeRange.m_begin + m_itemEditState.m_originalTimeRange.GetLength();
+                    SetCurrentTime( editedItemTimeRange.m_begin );
                 }
+                else if ( m_itemEditState.m_mode == ItemEditMode::ResizeLeft )
+                {
+                    float newTime = m_itemEditState.m_originalTimeRange.m_begin + timeOffset;
+                    if ( m_isFrameSnappingEnabled )
+                    {
+                        newTime = Math::Round( newTime );
+                    }
+
+                    editedItemTimeRange.m_begin = Math::Min( m_itemEditState.m_originalTimeRange.m_end - 1, newTime );
+                    editedItemTimeRange.m_begin = Math::Max( m_timeRange.m_begin, editedItemTimeRange.m_begin );
+                    SetCurrentTime( editedItemTimeRange.m_begin );
+                }
+                else if ( m_itemEditState.m_mode == ItemEditMode::ResizeRight )
+                {
+                    float newTime = m_itemEditState.m_originalTimeRange.m_end + timeOffset;
+                    if ( m_isFrameSnappingEnabled )
+                    {
+                        newTime = Math::Round( newTime );
+                    }
+
+                    editedItemTimeRange.m_end = Math::Max( m_itemEditState.m_originalTimeRange.m_begin + 1, newTime );
+                    editedItemTimeRange.m_end = Math::Min( m_timeRange.m_end, editedItemTimeRange.m_end );
+                    SetCurrentTime( editedItemTimeRange.m_end );
+                }
+
+                m_trackContainer.UpdateItemTimeRange( pEditedItem, editedItemTimeRange );
             }
             else if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
             {

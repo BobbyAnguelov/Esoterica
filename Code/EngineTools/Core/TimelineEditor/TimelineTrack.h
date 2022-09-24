@@ -10,6 +10,7 @@
 //-------------------------------------------------------------------------
 
 struct ImRect;
+struct ImDrawList;
 
 //-------------------------------------------------------------------------
 
@@ -101,9 +102,16 @@ namespace EE::Timeline
             HasErrors
         };
 
+        enum class ItemState
+        {
+            None,
+            Selected,
+            Edited
+        };
+
     public:
 
-        Track() = default;
+        Track() { ResetStatusMessage(); }
         virtual ~Track();
 
         //-------------------------------------------------------------------------
@@ -135,19 +143,33 @@ namespace EE::Timeline
         void ClearDirtyFlags();
         inline void MarkDirty() { m_isDirty = true; }
 
-        // UI
+        // Visuals
         //-------------------------------------------------------------------------
 
         void DrawHeader( ImRect const& headerRect );
+
+        virtual float GetTrackHeight() const { return 30.0f; }
         virtual bool HasContextMenu() const { return false; }
         virtual void DrawContextMenu( TVector<Track*>& tracks, float playheadPosition ) {}
+
+        // Draws an immediate item and returns the hover rect for the drawn item. This rect defines drag zone.
+        virtual ImRect DrawImmediateItem( ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemPos, ItemState itemState );
+
+        // Draws a duration item and returns the hover/interaction rect for the drawn item. This rect defines the resize handle locations and drag zone.
+        virtual ImRect DrawDurationItem( ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState );
 
         // Items
         //-------------------------------------------------------------------------
         // Item details are provided by the track so that when we implement new item types we only need to derive the track
 
-        inline bool Contains( TrackItem const* pItem ) const { return eastl::find( m_items.begin(), m_items.end(), pItem ) != m_items.end(); }
+        // Get the number of items in this track
+        inline int32_t GetNumItems() const { return (int32_t) m_items.size(); }
+
+        // Get all the items in this track
         inline TVector<TrackItem*> const& GetItems() const { return m_items; }
+
+        // Does this track contain a specific item
+        inline bool Contains( TrackItem const* pItem ) const { return eastl::find( m_items.begin(), m_items.end(), pItem ) != m_items.end(); }
 
         // Get the label for a given item
         virtual InlineString GetItemLabel( TrackItem const* pItem ) const { return "Item"; }
@@ -174,6 +196,10 @@ namespace EE::Timeline
 
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) {}
 
+        static uint32_t GetItemBackgroundColor( ItemState itemState, bool isHovered );
+
+        void ResetStatusMessage() const { m_statusMessage = "Track is Valid"; }
+
     private:
 
         // Create a new item at the specified start time
@@ -194,7 +220,7 @@ namespace EE::Timeline
     protected:
 
         TVector<TrackItem*>      m_items;
-        mutable String           m_statusMessage = "Track is Valid";
+        mutable String           m_statusMessage;
         bool                     m_isDirty = false;
     };
 }

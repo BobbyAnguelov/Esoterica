@@ -83,13 +83,20 @@ namespace EE::Animation::GraphNodes
         else // Skip the blend tree
         {
             auto resultNodes = GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>();
-            EE_ASSERT( resultNodes.size() == 1 );
-            auto pStateMachineNode = resultNodes[0];
-
-            auto pChildGraph = pStateMachineNode->GetChildGraph();
-            if ( pChildGraph != nullptr )
+            if ( resultNodes.size() == 0 )
             {
-                pUserContext->NavigateTo( pChildGraph );
+                // Off-state so do nothing!
+            }
+            else
+            {
+                EE_ASSERT( resultNodes.size() == 1 );
+                auto pStateMachineNode = resultNodes[0];
+
+                auto pChildGraph = pStateMachineNode->GetChildGraph();
+                if ( pChildGraph != nullptr )
+                {
+                    pUserContext->NavigateTo( pChildGraph );
+                }
             }
         }
     }

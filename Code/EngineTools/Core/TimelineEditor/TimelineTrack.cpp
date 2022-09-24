@@ -137,4 +137,88 @@ namespace EE::Timeline
 
         return false;
     }
+
+    //-------------------------------------------------------------------------
+
+    uint32_t Track::GetItemBackgroundColor( ItemState itemState, bool isHovered )
+    {
+        Float4 baseItemColor = ImGuiX::Style::s_colorGray0.Value;
+
+        float originalAlpha = baseItemColor.m_w;
+
+        if ( itemState == Track::ItemState::Selected || itemState == Track::ItemState::Edited )
+        {
+            baseItemColor = baseItemColor * 1.45f;
+        }
+        else if ( isHovered )
+        {
+            baseItemColor = baseItemColor * 1.15f;
+        }
+
+        baseItemColor.m_w = originalAlpha;
+
+        return (uint32_t) ImColor( baseItemColor );
+    }
+
+    ImRect Track::DrawImmediateItem( ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemPos, ItemState itemState )
+    {
+        EE_ASSERT( pItem != nullptr && Contains( pItem ) );
+
+        constexpr float itemHalfWidth = 5.0f;
+        constexpr static float const itemMarginY = 2;
+
+        float const itemPosTopY = itemPos.m_y + itemMarginY;
+        float const itemPosBottomY = itemPosTopY + GetTrackHeight() - itemMarginY;
+        ImRect const itemRect( ImVec2( itemPos.m_x - itemHalfWidth, itemPosTopY ), ImVec2( itemPos.m_x + itemHalfWidth, itemPosBottomY ) );
+
+        //-------------------------------------------------------------------------
+
+        ImVec2 const base( itemPos.m_x, itemPosBottomY );
+        ImVec2 const topLeft( itemPos.m_x - itemHalfWidth, itemPosTopY + 3 );
+        ImVec2 const topRight( itemPos.m_x + itemHalfWidth, itemPosTopY + 3 );
+
+        ImVec2 const capTopLeft( itemPos.m_x - itemHalfWidth, itemPosTopY );
+        ImVec2 const capBottomRight = topRight;
+
+        //-------------------------------------------------------------------------
+
+        Color const itemColor = GetItemColor( pItem );
+        pDrawList->AddRectFilled( capTopLeft, capBottomRight, itemColor.ToUInt32_ABGR() );
+        pDrawList->AddTriangleFilled( topLeft, topRight, base, GetItemBackgroundColor( itemState, itemRect.Contains( ImGui::GetMousePos() ) ) );
+
+        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
+        InlineString const itemLabel = GetItemLabel( pItem );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 4, 0 ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
+
+        //-------------------------------------------------------------------------
+
+        return itemRect;
+    }
+
+    ImRect Track::DrawDurationItem( ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState )
+    {
+        EE_ASSERT( pItem != nullptr && Contains( pItem ) );
+
+        constexpr static float const itemMarginY = 2;
+
+        ImVec2 const adjustedItemStartPos = ImVec2( itemStartPos ) + ImVec2( 0, itemMarginY );
+        ImVec2 const adjustedItemEndPos = ImVec2( itemEndPos ) - ImVec2( 0, itemMarginY );
+        ImRect const itemRect( adjustedItemStartPos, adjustedItemEndPos );
+
+        //-------------------------------------------------------------------------
+
+        Color const itemColor = GetItemColor( pItem );
+        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos, itemColor.ToUInt32_ABGR(), 4.0f, ImDrawFlags_RoundCornersBottom );
+        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState, itemRect.Contains( ImGui::GetMousePos() ) ), 4.0f, ImDrawFlags_RoundCornersBottom );
+
+        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
+        InlineString const itemLabel = GetItemLabel( pItem );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 4, 0 ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
+
+        //-------------------------------------------------------------------------
+
+        return itemRect;
+    }
 }

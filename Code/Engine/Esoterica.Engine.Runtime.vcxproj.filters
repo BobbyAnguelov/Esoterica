@@ -326,9 +326,6 @@
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Events\AnimationEvent_ID.cpp">
-      <Filter>Animation\Events</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
@@ -869,6 +866,7 @@
     <ClInclude Include="Entity\EntityLog.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
     <ClInclude Include="Entity\EntitySerialization.h" />
+    <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">
