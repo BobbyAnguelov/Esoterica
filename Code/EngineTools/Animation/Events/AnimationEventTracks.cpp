@@ -37,15 +37,118 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    TypeSystem::TypeInfo const* WarpEventTrack::GetEventTypeInfo() const
+    TypeSystem::TypeInfo const* OrientationWarpEventTrack::GetEventTypeInfo() const
     {
-        return WarpEvent::s_pTypeInfo;
+        return OrientationWarpEvent::s_pTypeInfo;
     }
 
-    InlineString WarpEventTrack::GetItemLabel( Timeline::TrackItem const * pItem ) const
+    bool OrientationWarpEventTrack::CanCreateNewItems() const
     {
-        auto pAnimEvent = GetAnimEvent<WarpEvent>( pItem );
+        return m_items.empty();
+    }
+
+    Timeline::Track::Status OrientationWarpEventTrack::GetValidationStatus( float timelineLength ) const
+    {
+        for ( auto pItem : m_items )
+        {
+            if ( pItem->GetStartTime() < 1.0f || pItem->GetEndTime() > ( timelineLength - 1 ) )
+            {
+                m_statusMessage = "Warp event is not allowed to be within the first or last frame!";
+                return Status::HasErrors;
+            }
+        }
+
+        return Status::Valid;
+    }
+
+    //-------------------------------------------------------------------------
+
+    TypeSystem::TypeInfo const* TargetWarpEventTrack::GetEventTypeInfo() const
+    {
+        return TargetWarpEvent::s_pTypeInfo;
+    }
+
+    InlineString TargetWarpEventTrack::GetItemLabel( Timeline::TrackItem const * pItem ) const
+    {
+        auto pAnimEvent = GetAnimEvent<TargetWarpEvent>( pItem );
         return pAnimEvent->GetDebugText();
+    }
+
+    Timeline::Track::Status TargetWarpEventTrack::GetValidationStatus( float timelineLength ) const
+    {
+        int32_t numTransXY = 0;
+        int32_t numTransZ = 0;
+        int32_t numRot = 0;
+
+        for ( auto pItem : m_items )
+        {
+            auto pEvent = GetAnimEvent<TargetWarpEvent>( pItem );
+            TargetWarpRule const warpRule = pEvent->GetRule();
+
+            switch ( warpRule )
+            {
+                case TargetWarpRule::WarpXY :
+                {
+                    numTransXY++;
+                }
+                break;
+
+                case TargetWarpRule::WarpZ:
+                {
+                    numTransZ++;
+                }
+                break;
+
+                case TargetWarpRule::WarpXYZ :
+                {
+                    numTransXY++;
+                    numTransZ++;
+                }
+                break;
+
+                case TargetWarpRule::RotationOnly:
+                {
+                    numRot++;
+                }
+                break;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( numTransXY == 0 )
+        {
+            m_statusMessage = "Target warps required at least one translation XY event!";
+            return Status::HasErrors;
+        }
+
+        if ( numTransXY > 1 )
+        {
+            m_statusMessage = "More than one translation XY event detected! This is not supported!";
+            return Status::HasErrors;
+        }
+
+        if ( numRot > 1 )
+        {
+            m_statusMessage = "More than one rotation event detected! This is not supported!";
+            return Status::HasErrors;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( numTransZ == 0 )
+        {
+            m_statusMessage = "Missing vertical warp translation event! Will only warp in XY!";
+            return Status::HasWarnings;
+        }
+
+        return Status::Valid;
+    }
+
+    Color TargetWarpEventTrack::GetItemColor( Timeline::TrackItem const * pItem ) const
+    {
+        auto pEvent = GetAnimEvent<TargetWarpEvent>( pItem );
+        return GetDebugForWarpRule( pEvent->GetRule() );
     }
 
     //-------------------------------------------------------------------------
@@ -145,7 +248,7 @@ namespace EE::Animation
         return itemRect;
     }
 
-    Timeline::Track::Status RagdollEventTrack::GetValidationStatus() const
+    Timeline::Track::Status RagdollEventTrack::GetValidationStatus( float timelineLength ) const
     {
         int32_t const numItems = GetNumItems();
         if ( numItems == 1 )

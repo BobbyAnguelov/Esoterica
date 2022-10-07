@@ -39,13 +39,33 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class WarpEventTrack final : public EventTrack
+    class OrientationWarpEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( WarpEventTrack );
+        EE_REGISTER_TYPE( OrientationWarpEventTrack );
 
-        virtual const char* GetTypeName() const override { return "Warp"; }
+        virtual const char* GetTypeName() const override { return "Orientation Warp"; }
+        virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual bool CanCreateNewItems() const override;
+
+    private:
+
+        virtual Status GetValidationStatus( float timelineLength ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class TargetWarpEventTrack final : public EventTrack
+    {
+        EE_REGISTER_TYPE( TargetWarpEventTrack );
+
+        virtual const char* GetTypeName() const override { return "Target Warp"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
+        virtual Color GetItemColor( Timeline::TrackItem const* pItem ) const override;
+
+    private:
+
+        virtual Status GetValidationStatus( float timelineLength ) const override;
     };
 
     //-------------------------------------------------------------------------
@@ -63,7 +83,7 @@ namespace EE::Animation
 
     private:
 
-        virtual Status GetValidationStatus() const override;
+        virtual Status GetValidationStatus( float timelineLength ) const override;
         virtual ImRect DrawDurationItem( ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState ) override;
         virtual float GetTrackHeight() const override { return 70; }
     };

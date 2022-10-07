@@ -55,6 +55,13 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE StringID                m_profileID;
+        // The profile to use when initializing the ragdoll simulation
+        EE_EXPOSE StringID                m_entryProfileID;
+
+        // The profile to use when "fully simulated"
+        EE_EXPOSE StringID                m_simulatedProfileID;
+
+        // The profile to use when leaving "fully simulated"
+        EE_EXPOSE StringID                m_exitProfileID;
     };
 }

@@ -79,7 +79,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
-    <ClCompile Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.cpp" />
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Contexts.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Controller.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Events.cpp" />
@@ -111,9 +111,9 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Transition.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Vectors.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.cpp" />
-    <ClCompile Include="Animation\ResourceLoaders\AnimationClipLoader.cpp" />
-    <ClCompile Include="Animation\ResourceLoaders\AnimationGraphLoader.cpp" />
-    <ClCompile Include="Animation\ResourceLoaders\AnimationSkeletonLoader.cpp" />
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.cpp" />
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.cpp" />
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.cpp" />
     <ClCompile Include="Animation\Systems\EntitySystem_Animation.cpp" />
     <ClCompile Include="Animation\Systems\WorldSystem_Animation.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
@@ -231,7 +231,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
-    <ClInclude Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.h" />
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Contexts.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Controller.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Events.h" />
@@ -263,9 +263,9 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Transition.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Vectors.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.h" />
-    <ClInclude Include="Animation\ResourceLoaders\AnimationClipLoader.h" />
-    <ClInclude Include="Animation\ResourceLoaders\AnimationGraphLoader.h" />
-    <ClInclude Include="Animation\ResourceLoaders\AnimationSkeletonLoader.h" />
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.h" />
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.h" />
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.h" />
     <ClInclude Include="Animation\Systems\EntitySystem_Animation.h" />
     <ClInclude Include="Animation\Systems\WorldSystem_Animation.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />

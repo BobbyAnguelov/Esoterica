@@ -14,7 +14,14 @@ namespace EE::Animation
 
     public:
 
-         virtual bool IsValid() const override{ return m_physicsWeightCurve.GetNumPoints() > 0; }
+        virtual bool IsValid() const override{ return m_physicsWeightCurve.GetNumPoints() > 0; }
+
+        // Evaluate the curve to the get the desired weight
+        inline float GetPhysicsBlendWeight( Percentage percentageThrough ) const
+        {
+            EE_ASSERT( m_physicsWeightCurve.GetNumPoints() > 0 );
+            return m_physicsWeightCurve.Evaluate( percentageThrough.ToFloat() );
+        }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual InlineString GetDebugText() const override { return ""; }

@@ -368,13 +368,13 @@
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.cpp">
       <Filter>Animation\TaskSystem\Tasks</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceLoaders\AnimationClipLoader.cpp">
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.cpp">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceLoaders\AnimationGraphLoader.cpp">
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.cpp">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceLoaders\AnimationSkeletonLoader.cpp">
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.cpp">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClCompile>
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp">
@@ -392,7 +392,7 @@
     <ClCompile Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.cpp">
       <Filter>ResourceLoaders</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.cpp" />
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
     <ClCompile Include="Animation\AnimationPose.cpp" />
     <ClCompile Include="Animation\AnimationSkeleton.cpp" />
@@ -831,13 +831,13 @@
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.h">
       <Filter>Animation\TaskSystem\Tasks</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceLoaders\AnimationClipLoader.h">
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.h">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceLoaders\AnimationGraphLoader.h">
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.h">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceLoaders\AnimationSkeletonLoader.h">
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.h">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClInclude>
     <ClInclude Include="Volumes\Components\Component_Volumes.h">
@@ -855,7 +855,7 @@
     <ClInclude Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.h">
       <Filter>ResourceLoaders</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceLoaders\AnimationBoneMaskLoader.h" />
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />
     <ClInclude Include="Animation\AnimationPose.h" />
     <ClInclude Include="Animation\AnimationSkeleton.h" />

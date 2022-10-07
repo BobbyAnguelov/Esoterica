@@ -613,7 +613,9 @@ namespace EE::EntityModel
 
             while ( initializationContext.m_registerForEntityUpdate.try_dequeue( pEntity ) )
             {
-                EE_ASSERT( pEntity != nullptr && pEntity->IsInitialized() && pEntity->m_updateRegistrationStatus == Entity::UpdateRegistrationStatus::QueuedForRegister );
+                EE_ASSERT( pEntity != nullptr );
+                EE_ASSERT( pEntity->IsInitialized() );
+                EE_ASSERT( pEntity->m_updateRegistrationStatus == Entity::UpdateRegistrationStatus::QueuedForRegister );
                 EE_ASSERT( !pEntity->HasSpatialParent() ); // Attached entities are not allowed to be directly updated
                 initializationContext.m_entityUpdateList.push_back( pEntity );
                 pEntity->m_updateRegistrationStatus = Entity::UpdateRegistrationStatus::Registered;
@@ -794,6 +796,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         ProcessEntityLoadingAndInitialization( loadingContext, initializationContext );
+        ProcessEntityRegistrationRequests( initializationContext );
 
         // Return status
         //-------------------------------------------------------------------------
@@ -922,6 +925,13 @@ namespace EE::EntityModel
         EE_ASSERT( m_entitiesToHotReload.empty() );
 
         Threading::RecursiveScopeLock lock( m_mutex );
+
+        // Run map loading code to ensure that any destroy entity request (that might be unloading resources are executed!)
+        UpdateLoadingAndStateChanges( loadingContext, initializationContext );
+
+        // There should never be any queued registration request at this stage!
+        EE_ASSERT( initializationContext.m_registerForEntityUpdate.size_approx() == 0 && initializationContext.m_unregisterForEntityUpdate.size_approx() == 0 );
+        EE_ASSERT( initializationContext.m_componentsToRegister.size_approx() == 0 && initializationContext.m_componentsToUnregister.size_approx() == 0 );
 
         // Generate list of entities to be reloaded
         for ( auto const& requesterID : usersToReload )

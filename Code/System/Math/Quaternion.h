@@ -59,7 +59,11 @@ namespace EE
         EE_FORCE_INLINE operator __m128 const&() const { return m_data; }
 
         inline Vector Length() { return ToVector().Length4(); }
+
         inline float GetLength() const { return ToVector().GetLength4(); }
+
+        // Get the angle this rotation represents around the specified axis
+        inline Radians GetAngle() const { return Radians( 2.0f * Math::ACos( m_w ) ); }
 
         inline Float4 ToFloat4() const { return Float4( m_x, m_y, m_z, m_w ); }
         inline Vector const& ToVector() const { return reinterpret_cast<Vector const&>( *this ); }

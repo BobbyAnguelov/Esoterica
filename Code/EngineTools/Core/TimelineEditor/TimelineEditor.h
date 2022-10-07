@@ -78,9 +78,18 @@ namespace EE::Timeline
         TimelineEditor( FloatRange const& inTimeRange );
         virtual ~TimelineEditor();
 
-        TrackContainer const* GetTrackContainer() const { return &m_trackContainer; }
-
         inline bool IsFocused() const { return m_isFocused; }
+
+        // Tracks
+        //-------------------------------------------------------------------------
+
+        inline TrackContainer const* GetTrackContainer() const { return &m_trackContainer; }
+
+        // Get the overall status for the track container
+        inline Track::Status GetTrackContainerValidationStatus() const { return m_trackContainer.GetValidationStatus( m_timeRange.m_end ); }
+
+        // Update
+        //-------------------------------------------------------------------------
 
         inline void TogglePlayState() { IsPlaying() ? m_playState = PlayState::Paused : m_playState = PlayState::Playing; }
         inline void Play() {  m_playState = PlayState::Playing; }
@@ -93,9 +102,6 @@ namespace EE::Timeline
 
         inline bool IsFrameSnappingEnabled() const { return m_isFrameSnappingEnabled; }
         inline void SetFrameSnapping( bool enabled ) { m_isFrameSnappingEnabled = enabled; }
-
-        // Update
-        //-------------------------------------------------------------------------
 
         // Update and draw the timeline
         void UpdateAndDraw( Seconds deltaTime );

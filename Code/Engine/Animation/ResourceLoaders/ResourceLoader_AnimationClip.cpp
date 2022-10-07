@@ -1,4 +1,4 @@
-#include "AnimationClipLoader.h"
+#include "ResourceLoader_AnimationClip.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "System/TypeSystem/TypeDescriptors.h"
 #include "System/Serialization/BinarySerialization.h"

@@ -13,8 +13,116 @@ namespace EE::Animation
         m_totalDelta = Transform::Identity;
     }
 
+    Vector RootMotionData::GetIncomingHeadingDirection2DAtFrame( int32_t frameIdx ) const
+    {
+        EE_ASSERT( frameIdx >= 0 && frameIdx < m_transforms.size() );
+
+        Vector result;
+
+        if ( frameIdx == 0 )
+        {
+            result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+        }
+        else
+        {
+            Vector const headingDelta = m_transforms[frameIdx].GetTranslation() - m_transforms[frameIdx - 1].GetTranslation();
+            if ( headingDelta.IsNearZero2() )
+            {
+                result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+            }
+            else
+            {
+                result = headingDelta.GetNormalized2();
+            }
+        }
+
+        return result;
+    }
+
+    Quaternion RootMotionData::GetIncomingHeadingOrientation2DAtFrame( int32_t frameIdx ) const
+    {
+        EE_ASSERT( frameIdx >= 0 && frameIdx < m_transforms.size() );
+
+        Quaternion result;
+
+        if ( frameIdx == 0 )
+        {
+            result = m_transforms[frameIdx].GetRotation();
+        }
+        else
+        {
+            Vector const headingDelta = m_transforms[frameIdx].GetTranslation() - m_transforms[frameIdx - 1].GetTranslation();
+            if ( headingDelta.IsNearZero2() )
+            {
+                result = m_transforms[frameIdx].GetRotation();
+            }
+            else
+            {
+                result = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, headingDelta.GetNormalized2() );
+            }
+        }
+
+        return result;
+    }
+
+    Vector RootMotionData::GetOutgoingHeadingDirection2DAtFrame( int32_t frameIdx ) const
+    {
+        int32_t const numFrames = (int32_t) m_transforms.size();
+        EE_ASSERT( frameIdx >= 0 && frameIdx < numFrames );
+
+        Vector result;
+
+        if ( frameIdx == ( numFrames - 1 ) )
+        {
+            result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+        }
+        else
+        {
+            Vector const headingDelta = m_transforms[frameIdx + 1].GetTranslation() - m_transforms[frameIdx].GetTranslation();
+            if ( headingDelta.IsNearZero2() )
+            {
+                result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+            }
+            else
+            {
+                result = headingDelta.GetNormalized2();
+            }
+        }
+
+        return result;
+    }
+
+    Quaternion RootMotionData::GetOutgoingHeadingOrientation2DAtFrame( int32_t frameIdx ) const
+    {
+        int32_t const numFrames = (int32_t) m_transforms.size();
+        EE_ASSERT( frameIdx >= 0 && frameIdx < numFrames );
+
+        Quaternion result;
+
+        if ( frameIdx == ( numFrames - 1 ) )
+        {
+            result = m_transforms[frameIdx].GetRotation();
+        }
+        else
+        {
+            Vector const headingDelta = m_transforms[frameIdx + 1].GetTranslation() - m_transforms[frameIdx].GetTranslation();
+            if ( headingDelta.IsNearZero2() )
+            {
+                result = m_transforms[frameIdx].GetRotation();
+            }
+            else
+            {
+                result = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, headingDelta.GetNormalized2() );
+            }
+        }
+
+        return result;
+    }
+
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
-    void RootMotionData::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform ) const
+    void RootMotionData::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color0, Color color1 ) const
     {
         constexpr static float const axisSize = 0.025f;
         constexpr static float const axisThickness = 4.0f;
@@ -31,7 +139,7 @@ namespace EE::Animation
         for ( auto i = 1; i < numTransforms; i++ )
         {
             auto const worldRootMotionTransform = m_transforms[i] * worldTransform;
-            ctx.DrawLine( previousWorldRootMotionTransform.GetTranslation(), worldRootMotionTransform.GetTranslation(), ( i % 2 == 0 ) ? Colors::Yellow : Colors::Cyan, 1.5f );
+            ctx.DrawLine( previousWorldRootMotionTransform.GetTranslation(), worldRootMotionTransform.GetTranslation(), ( i % 2 == 0 ) ? color0 : color1, 1.5f );
             ctx.DrawAxis( worldRootMotionTransform, axisSize, axisThickness );
             previousWorldRootMotionTransform = worldRootMotionTransform;
         }

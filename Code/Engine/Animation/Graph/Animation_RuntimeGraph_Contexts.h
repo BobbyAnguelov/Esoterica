@@ -22,6 +22,18 @@ namespace EE::Animation
     class GraphInstance;
 
     //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    struct GraphLogEntry
+    {
+        uint32_t        m_updateID;
+        Log::Severity   m_severity;
+        uint16_t        m_nodeIdx;
+        String          m_message;
+    };
+    #endif
+
+    //-------------------------------------------------------------------------
     // Instantiation Context
     //-------------------------------------------------------------------------
 
@@ -83,13 +95,24 @@ namespace EE::Animation
             return m_pDataSet->GetResource<T>( ID );
         }
 
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        void LogWarning( char const* pFormat, ... ) const;
+        #endif
+
     public:
 
+        int16_t                                     m_currentNodeIdx;
         TVector<GraphNode*> const&                  m_nodePtrs;
         TInlineVector<GraphInstance*, 20> const&    m_childGraphInstances;
         THashMap<StringID, int16_t> const&          m_parameterLookupMap;
         GraphDataSet const*                         m_pDataSet;
         uint64_t                                    m_userID;
+
+        #if EE_DEVELOPMENT_TOOLS
+        TVector<GraphLogEntry>*                     m_pLog;
+        #endif
     };
 
     //-------------------------------------------------------------------------
@@ -156,6 +179,12 @@ namespace EE::Animation
 
         // Root Motion
         inline RootMotionDebugger* GetRootMotionDebugger() { return m_pRootMotionDebugger; }
+
+        // Log a graph warning
+        void LogWarning( int16_t nodeIdx, char const* pFormat, ... );
+
+        // Log a graph error
+        void LogError( int16_t nodeIdx, char const* pFormat, ... );
         #endif
 
     private:
@@ -164,7 +193,7 @@ namespace EE::Animation
         GraphContext& operator=( GraphContext& ) = delete;
 
         #if EE_DEVELOPMENT_TOOLS
-        void SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList );
+        void SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList, TVector<GraphLogEntry>* pLog );
         #endif
 
     public:
@@ -193,6 +222,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         RootMotionDebugger*                     m_pRootMotionDebugger = nullptr; // Allows nodes to record root motion operations
         TVector<int16_t>*                       m_pActiveNodes = nullptr;
+        TVector<GraphLogEntry>*                 m_pLog = nullptr;
         #endif
     };
 }

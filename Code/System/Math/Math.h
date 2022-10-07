@@ -190,6 +190,24 @@ namespace EE
             return n % 2 == 0; 
         }
 
+        template<typename T>
+        EE_FORCE_INLINE bool IsNaN( T n )
+        {
+            return isnan( n );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE bool IsInf( T n )
+        {
+            return isinf( n );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE bool IsNaNOrInf( T n )
+        {
+            return isnan( n ) || isinf( n );
+        }
+
         //-------------------------------------------------------------------------
 
         // Note: returns true for 0

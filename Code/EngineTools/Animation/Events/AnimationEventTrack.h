@@ -51,7 +51,7 @@ namespace EE::Animation
 
     protected:
 
-        virtual Status GetValidationStatus() const override;
+        virtual Status GetValidationStatus( float timelineLength ) const override;
         virtual bool HasContextMenu() const override { return true; }
         virtual void DrawContextMenu( TVector<Track*>& tracks, float playheadPosition ) override;
         virtual Timeline::TrackItem* CreateItemInternal( float itemStartTime ) override;

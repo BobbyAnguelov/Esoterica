@@ -237,9 +237,9 @@ namespace EE::Animation
         EE_FORCE_INLINE T GetValue( GraphContext& context )
         {
             EE_ASSERT( ValueTypeValidation<T>::Type == GetValueType() );
-            T Value;
-            GetValueInternal( context, &Value );
-            return Value;
+            T value;
+            GetValueInternal( context, &value );
+            return value;
         }
 
         template<typename T>

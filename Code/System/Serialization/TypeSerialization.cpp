@@ -549,7 +549,7 @@ namespace EE::Serialization
         outString = writer.GetStringBuffer().GetString();
     }
 
-    IRegisteredType* CreateAndReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
+    IRegisteredType* TryCreateAndReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
     {
         auto const typeIDIter = typeObjectValue.FindMember( s_typeIDKey );
         if ( typeIDIter == typeObjectValue.MemberEnd() )

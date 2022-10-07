@@ -18,12 +18,14 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_clipReferenceNodeIdx, m_angleOffsetValueNodeIdx );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_isOffsetNode, m_isOffsetRelativeToCharacter );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                     m_clipReferenceNodeIdx = InvalidIndex;
-            int16_t                     m_angleOffsetValueNodeIdx = InvalidIndex;
+            int16_t                     m_targetValueNodeIdx = InvalidIndex;
+            bool                        m_isOffsetNode = false;
+            bool                        m_isOffsetRelativeToCharacter = true;
         };
 
     private:
@@ -35,11 +37,21 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
         void PerformWarp( GraphContext& context );
-        Transform SampleWarpedRootMotion( GraphContext& context ) const;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
+        #endif
 
     private:
 
         AnimationClipReferenceNode*     m_pClipReferenceNode = nullptr;
-        FloatValueNode*                 m_pAngleOffsetValueNode = nullptr;
+        ValueNode*                      m_pTargetValueNode = nullptr;
+        RootMotionData                  m_warpedRootMotion;
+
+        #if EE_DEVELOPMENT_TOOLS
+        Transform                       m_warpStartWorldTransform;
+        Vector                          m_debugCharacterOffsetPosWS;
+        Vector                          m_debugTargetDirWS;
+        #endif
     };
 }

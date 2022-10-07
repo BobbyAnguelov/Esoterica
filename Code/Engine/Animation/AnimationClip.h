@@ -119,6 +119,7 @@ namespace EE::Animation
         inline uint32_t GetNumFrames() const { return m_numFrames; }
         inline Seconds GetDuration() const { return m_duration; }
         inline Seconds GetTime( uint32_t frame ) const { return Seconds( GetPercentageThrough( frame ).ToFloat() * m_duration ); }
+        inline Seconds GetTime( Percentage percentageThrough ) const { return Seconds( percentageThrough.ToFloat() * m_duration ); }
         inline Percentage GetPercentageThrough( uint32_t frame ) const { return Percentage( ( (float) frame ) / m_numFrames ); }
         inline FrameTime GetFrameTime( Percentage const percentageThrough ) const { return FrameTime( percentageThrough, GetNumFrames() ); }
         inline FrameTime GetFrameTime( Seconds const timeThroughAnimation ) const { return GetFrameTime( Percentage( timeThroughAnimation / m_duration ) ); }

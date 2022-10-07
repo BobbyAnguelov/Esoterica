@@ -11,6 +11,14 @@ namespace EE::Animation::GraphNodes
     {
         EE_REGISTER_TYPE( OrientationWarpToolsNode );
 
+        enum class OffsetType
+        {
+            EE_REGISTER_ENUM
+
+            RelativeToCharacter,
+            RelativeToOriginalRootMotion
+        };
+
     public:
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
@@ -19,6 +27,10 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Motion Warping"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+    private:
+
+        EE_EXPOSE OffsetType m_offsetType = OffsetType::RelativeToCharacter;
     };
 
     //-------------------------------------------------------------------------
@@ -38,8 +50,13 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        // Can this warp be updated when the target changes?
         EE_EXPOSE bool                             m_allowTargetUpdate = false;
+
+        // The sampling mode for the warped motion
         EE_EXPOSE TargetWarpNode::SamplingMode     m_samplingMode;
+
+        // What's the error threshold we need to exceed, when accurately sampling, before we switch to inaccurate sampling
         EE_EXPOSE float                            m_samplingPositionErrorThreshold = 0.05f;
     };
 }

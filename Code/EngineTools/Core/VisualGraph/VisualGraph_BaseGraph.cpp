@@ -52,21 +52,33 @@ namespace EE::VisualGraph
         m_ID.Clear();
     }
 
-    BaseNode* BaseNode::CreateNodeFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue, BaseGraph* pParentGraph )
+    BaseNode* BaseNode::TryCreateNodeFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue, BaseGraph* pParentGraph )
     {
         auto const& typeDataObjectValue = nodeObjectValue[s_typeDataKey];
-        EE_ASSERT( typeDataObjectValue.IsObject() );
+        if ( !typeDataObjectValue.IsObject() )
+        {
+            return nullptr;
+        }
 
         auto const& typeIDValue = typeDataObjectValue[Serialization::s_typeIDKey];
-        EE_ASSERT( typeIDValue.IsString() );
+        if ( !typeIDValue.IsString() )
+        {
+            return nullptr;
+        }
 
         TypeSystem::TypeID const nodeTypeID = typeIDValue.GetString();
         auto pTypeInfo = typeRegistry.GetTypeInfo( nodeTypeID );
-        EE_ASSERT( pTypeInfo != nullptr );
+        if ( pTypeInfo == nullptr )
+        {
+            return nullptr;
+        }
 
-        BaseNode* pNode = Serialization::CreateAndReadNativeType<BaseNode>( typeRegistry, nodeObjectValue[s_typeDataKey] );
-        pNode->m_pParentGraph = pParentGraph;
-        pNode->Serialize( typeRegistry, nodeObjectValue );
+        BaseNode* pNode = Serialization::TryCreateAndReadNativeType<BaseNode>( typeRegistry, nodeObjectValue[s_typeDataKey] );
+        if ( pNode != nullptr )
+        {
+            pNode->m_pParentGraph = pParentGraph;
+            pNode->Serialize( typeRegistry, nodeObjectValue );
+        }
         return pNode;
     }
 
@@ -415,7 +427,8 @@ namespace EE::VisualGraph
         auto pTypeInfo = typeRegistry.GetTypeInfo( graphTypeID );
         EE_ASSERT( pTypeInfo != nullptr );
 
-        BaseGraph* pGraph = Serialization::CreateAndReadNativeType<BaseGraph>( typeRegistry, graphObjectValue[BaseNode::s_typeDataKey] );
+        BaseGraph* pGraph = Serialization::TryCreateAndReadNativeType<BaseGraph>( typeRegistry, graphObjectValue[BaseNode::s_typeDataKey] );
+        EE_ASSERT( pGraph != nullptr );
         pGraph->m_pParentNode = pParentNode;
         pGraph->Serialize( typeRegistry, graphObjectValue );
         return pGraph;
@@ -456,7 +469,11 @@ namespace EE::VisualGraph
 
         for ( auto& nodeObjectValue : graphObjectValue[s_nodesKey].GetArray() )
         {
-            m_nodes.emplace_back( BaseNode::CreateNodeFromSerializedData( typeRegistry, nodeObjectValue, this ) );
+            auto pNode = BaseNode::TryCreateNodeFromSerializedData( typeRegistry, nodeObjectValue, this );
+            if ( pNode != nullptr )
+            {
+                m_nodes.emplace_back( pNode );
+            }
         }
 
         // Custom Data

@@ -113,7 +113,6 @@ namespace EE::Animation
         auto const resultNodes = pRootGraph->FindAllNodesOfType<ResultToolsNode>();
         EE_ASSERT( resultNodes.size() == 1 );
         int16_t const rootNodeIdx = resultNodes[0]->Compile( m_context );
-        m_context.m_persistentNodeIndices.emplace_back( rootNodeIdx );
 
         // Fill runtime definition
         //-------------------------------------------------------------------------

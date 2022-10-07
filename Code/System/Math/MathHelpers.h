@@ -70,15 +70,15 @@ namespace EE::Math
         return dot.ToFloat() > 0.0f;
     }
 
-    inline bool AreVectorsParallel2D( Vector const& a, Vector const& b )
+    inline bool IsVectorInTheSameHemisphere2D( Vector const& reference, Vector const& v )
     {
-        Vector const na = a.GetNormalized2();
-        Vector const nb = b.GetNormalized2();
+        Vector const na = reference.GetNormalized2();
+        Vector const nb = v.GetNormalized2();
         Vector const dot = Vector::Dot3( na, nb );
         return dot.ToFloat() > 0.0f;
     }
 
-    inline bool IsVectorInTheOppositeDirection2D( Vector const& reference, Vector const& v )
+    inline bool IsVectorInTheOppositeHemisphere2D( Vector const& reference, Vector const& v )
     {
         Vector const nr = reference.GetNormalized2();
         Vector const nv = v.GetNormalized2();
@@ -116,7 +116,7 @@ namespace EE::Math
         return GetAngleBetweenNormalizedVectors( a.GetNormalized3(), b.GetNormalized3() );
     }
 
-    // Returns the angle between two 2D vectors, relative to the reference vector (i.e. negative values means to the left of reference, positive means to the right)
+    // Returns the angle between two vectors, relative to the reference vector (i.e. negative values means to the left of reference, positive means to the right)
     inline Radians GetYawAngleBetweenVectors( Vector const& reference, Vector const& v )
     {
         Vector const nr = reference.GetNormalized2();
@@ -133,13 +133,15 @@ namespace EE::Math
         return horizontalAngle;
     }
 
-    // Returns the angle between two 2D vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
+    // Returns the angle between two vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
     inline Radians GetPitchAngleBetweenNormalizedVectors( Vector const& reference, Vector const& v )
     {
-        return Radians( Math::ASin( v.m_z ) - Math::ASin( reference.m_z ) );
+        float const vElevationAngle = Math::ASin( v.m_z );
+        float const referenceElevationAngle = Math::ASin( reference.m_z );
+        return Radians( vElevationAngle - referenceElevationAngle );
     }
 
-    // Returns the angle between two 2D vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
+    // Returns the angle between two vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
     inline Radians GetPitchAngleBetweenVectors( Vector const& reference, Vector const& v )
     {
         Vector const nr = reference.GetNormalized3();

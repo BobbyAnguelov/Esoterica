@@ -76,5 +76,6 @@ namespace EE::Animation
         Percentage                      m_currentAnimTime = 0.0f;
         bool                            m_isRootMotionEnabled = true;
         bool                            m_isPoseDrawingEnabled = true;
+        bool                            m_characterPoseUpdateRequested = false;
     };
 }

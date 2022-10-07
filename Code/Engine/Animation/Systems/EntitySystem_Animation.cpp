@@ -34,7 +34,6 @@ namespace EE::Animation
         else if ( auto pGraphComponent = TryCast<AnimationGraphComponent>( pComponent ) )
         {
             m_animGraphs.emplace_back( pGraphComponent );
-            pGraphComponent->ResetGraphState();
         }
 
         //-------------------------------------------------------------------------

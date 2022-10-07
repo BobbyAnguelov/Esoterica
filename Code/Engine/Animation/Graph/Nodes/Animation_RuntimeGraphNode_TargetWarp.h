@@ -16,15 +16,20 @@ namespace EE::Animation::GraphNodes
             // Ensure that the section is at least 3 frames in length (i.e. a single warp frame)
             inline bool HasValidFrameRange() const{ return m_endFrame > m_startFrame + 1; }
 
+            // Get number of warpable frames (including last frame)
+            inline int32_t GetNumWarpableFrames() const { return m_endFrame - m_startFrame; }
+
         public:
 
             int32_t                             m_startFrame = 0;
             int32_t                             m_endFrame = 0;
             Transform                           m_deltaTransform;
-            TVector<float>                      m_progressPerFrameAlongSection;
-            float                               m_length = 0;
-            WarpEvent::Type                     m_type;
-            WarpEvent::TranslationWarpMode      m_translationWarpMode;
+            TVector<float>                      m_totalProgress; // The total progress along the section for each frame
+            float                               m_distanceCovered = 0.0f;
+            TargetWarpRule                      m_warpRule;
+            TargetWarpAlgorithm                 m_translationAlgorithm;
+            bool                                m_isFixedSection = false; // Is this a fixed (unwarpable) section between other warp sections?
+            bool                                m_hasTranslation = false;
 
             #if EE_DEVELOPMENT_TOOLS
             mutable Vector                      m_debugPoints[4];
@@ -46,11 +51,11 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                     m_clipReferenceNodeIdx = InvalidIndex;
-            int16_t                     m_targetValueNodeIdx = InvalidIndex;
-            float                       m_samplingPositionErrorThresholdSq = 0.0f; // The threshold at which we switch from accurate to inaccurate sampling
-            SamplingMode                m_samplingMode = SamplingMode::Inaccurate;
-            bool                        m_allowTargetUpdate = false;
+            int16_t                             m_clipReferenceNodeIdx = InvalidIndex;
+            int16_t                             m_targetValueNodeIdx = InvalidIndex;
+            float                               m_samplingPositionErrorThresholdSq = 0.0f; // The threshold at which we switch from accurate to inaccurate sampling
+            SamplingMode                        m_samplingMode = SamplingMode::Inaccurate;
+            bool                                m_allowTargetUpdate = false;
         };
 
     private:
@@ -64,16 +69,21 @@ namespace EE::Animation::GraphNodes
         void UpdateShared( GraphContext& context, GraphPoseNodeResult& result );
 
         bool TryReadTarget( GraphContext& context );
-        bool CalculateWarpedRootMotion( GraphContext& context, Percentage startTime );
         void UpdateWarp( GraphContext& context );
 
-        // Orientation Warp
-        void WarpOrientation( WarpSection const& ws, Transform const& orientationTarget );
+        // Create the warp sections
+        bool GenerateWarpInfo( GraphContext& context, Percentage startTime );
 
-        // Translation Warps
-        void WarpTranslationBezier( WarpSection const& ws, Transform const& sectionEndTransform );
-        void WarpTranslationHermite( WarpSection const& ws, Transform const& sectionEndTransform );
-        void WarpTranslationFeaturePreserving( WarpSection const& ws, Transform const& sectionEndTransform );
+        // Generate the actual warp root motion
+        bool GenerateWarpedRootMotion( GraphContext& context, Percentage startTime );
+
+        // Section Solvers
+        //-------------------------------------------------------------------------
+
+        void SolveFixedSection( GraphContext& context, WarpSection const& section, Transform const& startTransform );
+        void SolveTranslationZSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, float correctionZ );
+        void SolveTranslationSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, Transform const& endTransform );
+        void SolveRotationSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, Quaternion const& correction );
 
         //-------------------------------------------------------------------------
 
@@ -83,18 +93,28 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        AnimationClipReferenceNode*     m_pClipReferenceNode = nullptr;
-        TargetValueNode*                m_pTargetValueNode = nullptr;
-        Transform                       m_warpTarget;
-        Transform                       m_warpStartTransform;
-        TVector<Transform>              m_deltaTransforms;
-        TVector<Transform>              m_inverseDeltaTransforms;
-        RootMotionData                  m_warpedRootMotion;
-        TInlineVector<WarpSection, 3>   m_warpSections;
-        SamplingMode                    m_samplingMode;
+        AnimationClipReferenceNode*             m_pClipReferenceNode = nullptr;
+        TargetValueNode*                        m_pTargetValueNode = nullptr;
+        SamplingMode                            m_samplingMode;
+
+        int8_t                                  m_translationXYSectionIdx = InvalidIndex;
+        int8_t                                  m_rotationSectionIdx = InvalidIndex;
+        bool                                    m_isTranslationAllowedZ = false;
+        int8_t                                  m_numSectionZ = 0;
+        int32_t                                 m_totalNumWarpableZFrames = 0;
+
+        Transform                               m_requestedWarpTarget; //The warp target that was requested
+        Transform                               m_warpTarget; // The actual warp target we can achieve based on events
+
+        Transform                               m_warpStartTransform;
+        TVector<Transform>                      m_deltaTransforms;
+        TVector<Transform>                      m_inverseDeltaTransforms;
+        RootMotionData                          m_warpedRootMotion;
+
+        TInlineVector<WarpSection, 3>           m_warpSections;
 
         #if EE_DEVELOPMENT_TOOLS
-        Transform                       m_characterStartTransform;
+        Transform                               m_characterStartTransform;
         #endif
     };
 }

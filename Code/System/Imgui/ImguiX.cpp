@@ -795,7 +795,7 @@ namespace EE::ImGuiX
                 ImGui::Text( "X:" );
                 ImGui::SameLine( 0, 3 );
             }
-            ImGui::Text( "%.3f, ", rotation.m_x );
+            ImGui::Text( "%.3f", rotation.m_x );
 
             ImGui::TableSetColumnIndex( 2 );
             {
@@ -803,7 +803,7 @@ namespace EE::ImGuiX
                 ImGui::Text( "Y:" );
                 ImGui::SameLine( 0, 3 );
             }
-            ImGui::Text( "%.3f, ", rotation.m_y );
+            ImGui::Text( "%.3f", rotation.m_y );
 
             ImGui::TableSetColumnIndex( 3 );
             {
@@ -828,7 +828,7 @@ namespace EE::ImGuiX
                 ImGui::Text( "X:" );
                 ImGui::SameLine( 0, 3 );
             }
-            ImGui::Text( "%.3f, ", t.GetTranslation().m_x);
+            ImGui::Text( "%.3f", t.GetTranslation().m_x);
 
             ImGui::TableSetColumnIndex( 2 );
             {
@@ -836,7 +836,7 @@ namespace EE::ImGuiX
                 ImGui::Text( "Y:" );
                 ImGui::SameLine( 0, 3 );
             }
-            ImGui::Text( "%.3f, ", t.GetTranslation().m_y );
+            ImGui::Text( "%.3f", t.GetTranslation().m_y );
 
             ImGui::TableSetColumnIndex( 3 );
             {
@@ -861,7 +861,7 @@ namespace EE::ImGuiX
                 ImGui::Text( "X:" );
                 ImGui::SameLine( 0, 3 );
             }
-            ImGui::Text( "%.3f, ", t.GetScale() );
+            ImGui::Text( "%.3f", t.GetScale() );
 
             ImGui::EndTable();
         }

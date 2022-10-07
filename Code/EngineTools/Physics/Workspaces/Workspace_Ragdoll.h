@@ -36,6 +36,7 @@ namespace EE::Physics
         {
             None,
             CreateProfile,
+            DuplicateProfile,
             RenameProfile,
         };
 
@@ -121,7 +122,8 @@ namespace EE::Physics
         void DrawJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
         void DrawMaterialSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
 
-        StringID CreateProfile( String const ID );
+        StringID CreateProfile( String const newProfileName );
+        StringID DuplicateProfile( StringID originalProfileID, String duplicateProfileName );
         void ResetProfile( RagdollDefinition::Profile& profile ) const;
         void DestroyProfile( StringID profileID );
         String GetUniqueProfileName( String const& desiredName ) const;

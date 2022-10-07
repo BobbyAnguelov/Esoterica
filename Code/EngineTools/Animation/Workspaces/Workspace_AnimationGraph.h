@@ -143,7 +143,7 @@ namespace EE::Animation
         // Compilation Log
         //-------------------------------------------------------------------------
 
-        void DrawCompilationLog( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawGraphLog( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         // Control Parameter Editor
         //-------------------------------------------------------------------------
@@ -212,6 +212,9 @@ namespace EE::Animation
         inline bool IsPreviewDebugSession() const { return m_debugMode == DebugMode::Preview; }
         inline bool IsLiveDebugSession() const { return m_debugMode == DebugMode::LiveDebug; }
 
+        // Hot Reload
+        virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
+
         // Starts a debugging session. If a target component is provided we assume we are attaching to a live game 
         void StartDebugging( UpdateContext const& context, DebugTarget target );
 
@@ -233,7 +236,7 @@ namespace EE::Animation
         String                                                          m_graphViewWindowName;
         String                                                          m_propertyGridWindowName;
         String                                                          m_variationEditorWindowName;
-        String                                                          m_compilationLogWindowName;
+        String                                                          m_graphLogWindowName;
         String                                                          m_debuggerWindowName;
         PropertyGrid                                                    m_propertyGrid;
         Transform                                                       m_gizmoTransform;
@@ -280,6 +283,10 @@ namespace EE::Animation
         GraphDebugMode                                                  m_graphDebugMode = GraphDebugMode::On;
         RootMotionDebugMode                                             m_rootMotionDebugMode = RootMotionDebugMode::Off;
         TaskSystemDebugMode                                             m_taskSystemDebugMode = TaskSystemDebugMode::Off;
+        bool                                                            m_showPreviewCapsule = false;
+        float                                                           m_previewCapsuleHalfHeight = 0.65f;
+        float                                                           m_previewCapsuleRadius = 0.35f;
+        TResourcePtr<GraphVariation>                                    m_previewGraphVariationPtr;
 
         // Compilation Log
         TVector<NodeCompilationLogEntry>                                m_compilationLog;

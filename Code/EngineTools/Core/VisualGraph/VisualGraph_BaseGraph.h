@@ -41,7 +41,7 @@ namespace EE::VisualGraph
 
         EE_REGISTER_TYPE( BaseNode );
 
-        static BaseNode* CreateNodeFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue, BaseGraph* pParentGraph );
+        static BaseNode* TryCreateNodeFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue, BaseGraph* pParentGraph );
 
     public:
 

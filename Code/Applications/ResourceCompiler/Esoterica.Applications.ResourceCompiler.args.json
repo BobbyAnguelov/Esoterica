@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "8de22930-80a5-42d3-8f7e-89bf78eb602e",
+      "Command": "-compile data://packs/amplify/ss_heavy01.anim"
+    },
+    {
       "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
       "Command": "-shipping"
     },
@@ -148,6 +152,10 @@
       "Id": "c375fed6-8f52-4aa2-9ce9-12b2e4723ce7",
       "Command": "Animation",
       "Items": [
+        {
+          "Id": "bff7ef6c-ad70-4445-88e6-93505661e5eb",
+          "Command": "-compile data://packs/amplify/death_bwd.anim"
+        },
         {
           "Id": "dca273b1-f463-42fd-ae8a-7ac559dfe196",
           "Command": "-compile data://interaction@default.agv"

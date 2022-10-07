@@ -51,7 +51,7 @@ namespace EE::Animation
         return pCreatedItem;
     };
 
-    Timeline::Track::Status EventTrack::GetValidationStatus() const
+    Timeline::Track::Status EventTrack::GetValidationStatus( float timelineLength ) const
     {
         bool hasValidEvents = false;
         bool hasInvalidEvents = false;

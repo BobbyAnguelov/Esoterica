@@ -24,7 +24,7 @@ namespace EE::Render
         m_pPreviewComponent = EE::New<StaticMeshComponent>( StringID( "Static Mesh Component" ) );
         m_pPreviewComponent->SetMesh( "data://Editor/MaterialBall/MaterialBall.msh" );
         m_pPreviewComponent->SetWorldTransform( Transform( Quaternion::Identity, Vector( 0, 0, 1 ) ) );
-        m_pPreviewComponent->SetMaterialOverride( 0, m_pResource.GetResourceID() );
+        m_pPreviewComponent->SetMaterialOverride( 0, m_workspaceResource.GetResourceID() );
 
         // We dont own the entity as soon as we add it to the map
         auto pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
@@ -62,7 +62,7 @@ namespace EE::Render
             }
             else if ( HasLoadingFailed() )
             {
-                ImGui::Text( "Loading Failed: %s", m_pResource.GetResourceID().c_str() );
+                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
                 return;
             }
             else

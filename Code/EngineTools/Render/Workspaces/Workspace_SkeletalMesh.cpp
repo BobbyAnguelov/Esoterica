@@ -33,7 +33,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         m_pMeshComponent = EE::New<SkeletalMeshComponent>( StringID( "Skeletal Mesh Component" ) );
-        m_pMeshComponent->SetMesh( m_pResource.GetResourceID() );
+        m_pMeshComponent->SetMesh( m_workspaceResource.GetResourceID() );
 
         // We dont own the entity as soon as we add it to the map
         m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
@@ -93,12 +93,12 @@ namespace EE::Render
 
             if ( m_showBounds )
             {
-                drawingCtx.DrawWireBox( m_pResource->GetBounds(), Colors::Cyan );
+                drawingCtx.DrawWireBox( m_workspaceResource->GetBounds(), Colors::Cyan );
             }
 
             if ( m_showBindPose )
             {
-                m_pResource->DrawBindPose( drawingCtx, Transform::Identity );
+                m_workspaceResource->DrawBindPose( drawingCtx, Transform::Identity );
             }
 
             if ( m_showBindPose )
@@ -111,8 +111,8 @@ namespace EE::Render
 
             if ( m_showVertices || m_showNormals )
             {
-                auto pVertex = reinterpret_cast<StaticMeshVertex const*>( m_pResource->GetVertexData().data() );
-                for ( auto i = 0; i < m_pResource->GetNumVertices(); i++ )
+                auto pVertex = reinterpret_cast<StaticMeshVertex const*>( m_workspaceResource->GetVertexData().data() );
+                for ( auto i = 0; i < m_workspaceResource->GetNumVertices(); i++ )
                 {
                     if ( m_showVertices )
                     {
@@ -129,10 +129,10 @@ namespace EE::Render
 
             if ( m_selectedBoneID.IsValid() )
             {
-                int32_t const selectedBoneIdx = m_pResource->GetBoneIndex( m_selectedBoneID );
+                int32_t const selectedBoneIdx = m_workspaceResource->GetBoneIndex( m_selectedBoneID );
                 if ( selectedBoneIdx != InvalidIndex )
                 {
-                    Transform const& globalBoneTransform = m_pResource->GetBindPose()[selectedBoneIdx];
+                    Transform const& globalBoneTransform = m_workspaceResource->GetBindPose()[selectedBoneIdx];
                     drawingCtx.DrawAxis( globalBoneTransform, 0.25f, 3.0f );
 
                     Vector textLocation = globalBoneTransform.GetTranslation();
@@ -168,11 +168,11 @@ namespace EE::Render
             }
             else if ( HasLoadingFailed() )
             {
-                ImGui::Text( "Loading Failed: %s", m_pResource.GetResourceID().c_str() );
+                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
             }
             else // Draw UI
             {
-                auto pMesh = m_pResource.GetPtr();
+                auto pMesh = m_workspaceResource.GetPtr();
                 EE_ASSERT( pMesh != nullptr );
 
                 //-------------------------------------------------------------------------
@@ -268,26 +268,26 @@ namespace EE::Render
             {
                 if ( m_selectedBoneID.IsValid() )
                 {
-                    int32_t const selectedBoneIdx = m_pResource->GetBoneIndex( m_selectedBoneID );
+                    int32_t const selectedBoneIdx = m_workspaceResource->GetBoneIndex( m_selectedBoneID );
                     if ( selectedBoneIdx != InvalidIndex )
                     {
                         {
                             ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                            ImGui::Text( "%d. %s", selectedBoneIdx, m_pResource->GetBoneID( selectedBoneIdx ).c_str() );
+                            ImGui::Text( "%d. %s", selectedBoneIdx, m_workspaceResource->GetBoneID( selectedBoneIdx ).c_str() );
                         }
 
-                        int32_t const parentBoneIdx = m_pResource->GetParentBoneIndex( selectedBoneIdx );
+                        int32_t const parentBoneIdx = m_workspaceResource->GetParentBoneIndex( selectedBoneIdx );
                         if ( parentBoneIdx != InvalidIndex )
                         {
                             ImGui::NewLine();
                             ImGui::Text( "Local Transform" );
-                            Transform const& localBoneTransform = Transform::Delta( m_pResource->GetBindPose()[parentBoneIdx], m_pResource->GetBindPose()[selectedBoneIdx] );
+                            Transform const& localBoneTransform = Transform::Delta( m_workspaceResource->GetBindPose()[parentBoneIdx], m_workspaceResource->GetBindPose()[selectedBoneIdx] );
                             ImGuiX::DisplayTransform( localBoneTransform );
                         }
 
                         ImGui::NewLine();
                         ImGui::Text( "Global Transform" );
-                        Transform const& globalBoneTransform = m_pResource->GetBindPose()[selectedBoneIdx];
+                        Transform const& globalBoneTransform = m_workspaceResource->GetBindPose()[selectedBoneIdx];
                         ImGuiX::DisplayTransform( globalBoneTransform );
                     }
                 }
@@ -304,7 +304,7 @@ namespace EE::Render
         TVector<BoneInfo*> boneInfos;
 
         // Create all infos
-        int32_t const numBones = m_pResource->GetNumBones();
+        int32_t const numBones = m_workspaceResource->GetNumBones();
         for ( auto i = 0; i < numBones; i++ )
         {
             auto& pBoneInfo = boneInfos.emplace_back( EE::New<BoneInfo>() );
@@ -314,7 +314,7 @@ namespace EE::Render
         // Create hierarchy
         for ( auto i = 1; i < numBones; i++ )
         {
-            int32_t const parentBoneIdx = m_pResource->GetParentBoneIndex( i );
+            int32_t const parentBoneIdx = m_workspaceResource->GetParentBoneIndex( i );
             EE_ASSERT( parentBoneIdx != InvalidIndex );
             boneInfos[parentBoneIdx]->m_children.emplace_back( boneInfos[i] );
         }
@@ -334,7 +334,7 @@ namespace EE::Render
 
     ImRect SkeletalMeshWorkspace::RenderSkeletonTree( BoneInfo* pBone )
     {
-        StringID const currentBoneID = m_pResource->GetBoneID( pBone->m_boneIdx );
+        StringID const currentBoneID = m_workspaceResource->GetBoneID( pBone->m_boneIdx );
         ImGui::SetNextItemOpen( pBone->m_isExpanded );
 
         int32_t treeNodeFlags = ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -350,13 +350,13 @@ namespace EE::Render
         }
 
         InlineString boneLabel;
-        boneLabel.sprintf( "%d. %s", pBone->m_boneIdx, m_pResource->GetBoneID( pBone->m_boneIdx ).c_str() );
+        boneLabel.sprintf( "%d. %s", pBone->m_boneIdx, m_workspaceResource->GetBoneID( pBone->m_boneIdx ).c_str() );
         pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
 
         // Handle bone selection
         if ( ImGui::IsItemClicked() )
         {
-            m_selectedBoneID = m_pResource->GetBoneID( pBone->m_boneIdx );
+            m_selectedBoneID = m_workspaceResource->GetBoneID( pBone->m_boneIdx );
         }
 
         //-------------------------------------------------------------------------

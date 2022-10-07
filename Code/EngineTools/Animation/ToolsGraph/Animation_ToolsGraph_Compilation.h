@@ -227,6 +227,9 @@ namespace EE::Animation
 
     class GraphDefinitionCompiler
     {
+    public:
+
+        constexpr static const int32_t s_version = 2;
 
     public:
 

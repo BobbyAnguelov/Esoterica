@@ -45,7 +45,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        void ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& NodeResult ) const;
+        void ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult ) const;
 
     private:
 

@@ -159,7 +159,7 @@ namespace EE::Physics
 
         auto OnSolverPreEdit = [this] ( PropertyEditInfo const& info )
         {
-            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            EE_ASSERT( m_pActiveUndoableAction == nullptr );
             BeginDescriptorModification();
         };
 
@@ -834,6 +834,13 @@ namespace EE::Physics
                 }
                 break;
 
+                case Operation::DuplicateProfile:
+                {
+                    StringID const newProfileID = DuplicateProfile( m_activeProfileID, m_profileNameBuffer );
+                    SetActiveProfile( newProfileID );
+                }
+                break;
+
                 case Operation::RenameProfile:
                 {
                     ScopedRagdollSettingsModification const sdm( this );
@@ -1497,15 +1504,32 @@ namespace EE::Physics
         return uniqueName;
     }
 
-    StringID RagdollWorkspace::CreateProfile( String const ID )
+    StringID RagdollWorkspace::CreateProfile( String const newProfileName )
     {
-        auto const uniqueNameID = GetUniqueProfileName( ID.c_str() );
+        auto const uniqueNameID = GetUniqueProfileName( newProfileName.c_str() );
 
         ScopedRagdollSettingsModification const sdm( this );
         auto pRagdollDefinition = GetRagdollDefinition();
         auto& profile = pRagdollDefinition->m_profiles.emplace_back();
-        profile.m_ID = StringID( ID.c_str() );
+        profile.m_ID = StringID( uniqueNameID.c_str() );
         ResetProfile( profile );
+        return profile.m_ID;
+    }
+
+    StringID RagdollWorkspace::DuplicateProfile( StringID originalProfileID, String duplicateProfileName )
+    {
+        auto const uniqueNameID = GetUniqueProfileName( duplicateProfileName.c_str() );
+
+        auto pRagdollDefinition = GetRagdollDefinition();
+        auto pOriginalProfile = pRagdollDefinition->GetProfile( originalProfileID );
+        EE_ASSERT( pOriginalProfile != nullptr );
+
+        //-------------------------------------------------------------------------
+
+        ScopedRagdollSettingsModification const sdm( this );
+        auto& profile = pRagdollDefinition->m_profiles.emplace_back();
+        profile.m_ID = StringID( uniqueNameID.c_str() );
+        profile.CopySettingsFrom( *pOriginalProfile );
         return profile.m_ID;
     }
 
@@ -1641,7 +1665,7 @@ namespace EE::Physics
         // Profile Selector
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( createButtonWidth + spacing ) - ( 2 * ( iconButtonWidth + spacing ) ) );
+        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( createButtonWidth + spacing ) - ( 3 * ( iconButtonWidth + spacing ) ) );
         if ( ImGui::BeginCombo( "##ProfileSelector", m_activeProfileID.IsValid() ? m_activeProfileID.c_str() : "Invalid Profile ID" ) )
         {
             for ( auto const& profile : pRagdollDefinition->m_profiles )
@@ -1677,6 +1701,16 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
+            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_CONTENT_COPY"##Duplicate", ImVec2( iconButtonWidth, 0 ) ) )
+            {
+                auto const newUniqueName = GetUniqueProfileName( m_activeProfileID.c_str() );
+                Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
+                m_activeOperation = Operation::DuplicateProfile;
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SameLine();
             if ( ImGuiX::ColoredButton( Colors::RoyalBlue, Colors::White, EE_ICON_RENAME_BOX"##Rename", ImVec2( iconButtonWidth, 0 ) ) )
             {
                 Printf( m_profileNameBuffer, 256, m_activeProfileID.c_str() );
@@ -1704,13 +1738,13 @@ namespace EE::Physics
 
     void RagdollWorkspace::DrawRootControlBodySettings( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
     {
-        static char const* const rootControlBodyDriveComboOptions[3] = { "None", "Distance", "Spring" };
+        static char const* const rootControlBodyDriveComboOptions[] = { "None", "Kinematic", "Distance", "Spring" };
 
         EE_ASSERT( pProfile != nullptr );
         auto pRagdollDefinition = GetRagdollDefinition();
 
         ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-        if ( ImGui::BeginTable( "BodySettingsTable", 9, ImGuiTableFlags_BordersInnerV ) )
+        if ( ImGui::BeginTable( "RBT", 9, ImGuiTableFlags_BordersInnerV ) )
         {
             ImGui::TableSetupColumn( "Root Body", ImGuiTableColumnFlags_WidthFixed, 120 );
             ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
@@ -1749,7 +1783,7 @@ namespace EE::Physics
             ImGui::SetNextItemWidth( -1 );
             if ( ImGui::InputFloat( "##Mass", &cachedBodySettings.m_mass, 0.0f, 0.0f, "%.2f" ) )
             {
-                cachedBodySettings.m_mass = Math::Clamp( cachedBodySettings.m_mass, 0.0f, 1000000.0f );
+                cachedBodySettings.m_mass = Math::Clamp( cachedBodySettings.m_mass, 0.01f, 1000000.0f );
             }
             if ( ImGui::IsItemDeactivatedAfterEdit() )
             {
@@ -1800,9 +1834,12 @@ namespace EE::Physics
 
             ImGuiX::ItemTooltip( "The drive mode for the root control body's joint" );
 
+            bool const isSpringDrive = realSettings.m_driveType == RagdollRootControlBodySettings::DriveType::Spring;
+            bool const isDistanceDrive = realSettings.m_driveType == RagdollRootControlBodySettings::DriveType::Distance;
+
             //-------------------------------------------------------------------------
 
-            ImGui::BeginDisabled( realSettings.m_driveType != RagdollRootControlBodySettings::DriveType::Spring );
+            ImGui::BeginDisabled( !isSpringDrive );
 
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth( -1 );
@@ -1836,7 +1873,7 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            ImGui::BeginDisabled( realSettings.m_driveType == RagdollRootControlBodySettings::DriveType::None );
+            ImGui::BeginDisabled( !isSpringDrive && !isDistanceDrive );
 
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth( -1 );
@@ -1881,8 +1918,13 @@ namespace EE::Physics
         EE_ASSERT( pProfile != nullptr );
         auto pRagdollDefinition = GetRagdollDefinition();
 
+        int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+        int32_t const numJoints = numBodies - 1;
+
+        //-------------------------------------------------------------------------
+
         ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-        if ( ImGui::BeginTable( "BodySettingsTable", 19, ImGuiTableFlags_BordersInnerV ) )
+        if ( ImGui::BeginTable( "BST", 19, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, ImGui::GetContentRegionAvail().y ) ) )
         {
             ImGui::TableSetupColumn( "Body", ImGuiTableColumnFlags_WidthFixed, 120 );
             ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
@@ -1911,8 +1953,6 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            int32_t const numBodies = pRagdollDefinition->GetNumBodies();
-            int32_t const numJoints = numBodies - 1;
             for ( auto bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
             {
                 auto& cachedBodySettings = m_workingProfileCopy.m_bodySettings[bodyIdx];
@@ -1946,7 +1986,7 @@ namespace EE::Physics
                     ScopedRagdollSettingsModification const sdm( this );
                     realBodySettings.m_mass = cachedBodySettings.m_mass;
                 }
-                ImGuiX::ItemTooltip( "The mass of the body" );
+                ImGuiX::ItemTooltip( "The mass of the body. Note that physx articulations take into account the masses of all bodies in the articulation!" );
 
                 //-------------------------------------------------------------------------
 
@@ -1982,7 +2022,7 @@ namespace EE::Physics
                     ScopedRagdollSettingsModification const sdm( this );
                     realJointSettings.m_internalCompliance = cachedJointSettings.m_internalCompliance;
                 }
-                ImGuiX::ItemTooltip( "Compliance determines the extent to which the joint resists acceleration caused by internal forces generated from other joints." );
+                ImGuiX::ItemTooltip( "How much resistance does this joint have to internal (joint drive) forces. 0 = max resistance, 1 = no resistance." );
 
                 if ( ImGui::BeginPopupContextItem() )
                 {
@@ -2009,7 +2049,7 @@ namespace EE::Physics
                     ScopedRagdollSettingsModification const sdm( this );
                     realJointSettings.m_externalCompliance = cachedJointSettings.m_externalCompliance;
                 }
-                ImGuiX::ItemTooltip( "Compliance determines the extent to which the joint resists acceleration caused by external forces such as gravity and contact forces" );
+                ImGuiX::ItemTooltip( "How much resistance does this joint have to internal (gravity/contact) forces. 0 = max resistance, 1 = no resistance" );
 
                 if ( ImGui::BeginPopupContextItem() )
                 {
@@ -2039,7 +2079,7 @@ namespace EE::Physics
                     realJointSettings.m_driveType = cachedJointSettings.m_driveType;
                 }
 
-                ImGuiX::ItemTooltip( "The drive mode for this body's joint" );
+                ImGuiX::ItemTooltip( "The drive mode for this body's joint. Kinematic joints are set directly to target positions. Springs only set a target orientation, while velocity set a target orientation and velocity!" );
 
                 if ( ImGui::BeginPopupContextItem() )
                 {
@@ -2683,7 +2723,7 @@ namespace EE::Physics
             if ( ImGui::Button( "Reset Ragdoll State", ImVec2( -1, 0 ) ) )
             {
                 m_pRagdoll->ResetState();
-                m_pMeshComponent->SetWorldTransform( Transform::Identity );
+                m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
                 m_initializeRagdollPose = true;
             }
             ImGui::EndDisabled();
@@ -2781,6 +2821,7 @@ namespace EE::Physics
                     }
                 }
             }
+            ImGui::EndDisabled();
 
             ImGui::SameLine();
             ImGui::SetNextItemWidth( -1 );
@@ -2791,7 +2832,6 @@ namespace EE::Physics
                 m_animTime = currentAnimTime;
             }
 
-            ImGui::EndDisabled();
         }
         ImGui::End();
     }
@@ -2857,12 +2897,14 @@ namespace EE::Physics
         EE::Delete( m_pRagdoll );
 
         auto pRagdollDefinition = GetRagdollDefinition();
-        UnloadResource( &pRagdollDefinition->m_skeleton );
+        if ( pRagdollDefinition->m_skeleton.WasRequested() )
+        {
+            UnloadResource( &pRagdollDefinition->m_skeleton );
+        }
 
         //-------------------------------------------------------------------------
 
         EE::Delete( m_pPose );
         EE::Delete( m_pFinalPose );
     }
-
 }

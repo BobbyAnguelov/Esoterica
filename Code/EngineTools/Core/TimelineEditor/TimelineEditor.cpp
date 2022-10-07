@@ -171,8 +171,6 @@ namespace EE::Timeline
         OnPlayStateChanged();
     }
 
-    //-------------------------------------------------------------------------
-
     void TimelineEditor::UpdateViewRange()
     {
         ImVec2 const canvasSize = ImGui::GetContentRegionAvail();
@@ -237,8 +235,6 @@ namespace EE::Timeline
             break;
         }
     }
-
-    //-------------------------------------------------------------------------
 
     void TimelineEditor::SetCurrentTime( float inPosition )
     {
@@ -654,7 +650,7 @@ namespace EE::Timeline
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 0 ) );
                 if( ImGui::BeginChild( headerID, trackHeaderRect.GetSize(), false, headerFlags) )
                 {
-                    pTrack->DrawHeader( trackHeaderRect );
+                    pTrack->DrawHeader( trackHeaderRect, m_timeRange );
                 }
                 ImGui::EndChild();
                 ImGui::PopStyleVar( 2 );

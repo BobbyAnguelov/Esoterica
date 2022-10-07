@@ -12,7 +12,7 @@ namespace EE::TypeSystem { class TypeRegistry; }
 
 namespace EE::EntityModel
 {
-    class EE_ENGINE_API EntityCollectionLoader : public Resource::ResourceLoader
+    class EntityCollectionLoader : public Resource::ResourceLoader
     {
     public:
 

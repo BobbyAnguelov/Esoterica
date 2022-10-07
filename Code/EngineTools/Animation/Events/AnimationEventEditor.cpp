@@ -115,7 +115,7 @@ namespace EE::Animation
         int32_t numSyncTracks = 0;
         for ( auto pTrack : m_trackContainer.m_tracks )
         {
-            auto pEventTrack = reinterpret_cast<EventTrack*>( pTrack );
+            auto pEventTrack = static_cast<EventTrack*>( pTrack );
             if ( pEventTrack->m_isSyncTrack )
             {
                 numSyncTracks++;

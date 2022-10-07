@@ -967,7 +967,7 @@ namespace EE::VisualGraph
         TInlineVector<BaseNode*, 20> pastedNodes;
         for ( auto& nodeObjectValue : copiedNodesArrayIter->value.GetArray() )
         {
-            auto pPastedNode = BaseNode::CreateNodeFromSerializedData( typeRegistry, nodeObjectValue, m_pGraph );
+            auto pPastedNode = BaseNode::TryCreateNodeFromSerializedData( typeRegistry, nodeObjectValue, m_pGraph );
 
             if ( m_pGraph->CanCreateNode( pPastedNode->GetTypeInfo() ) )
             {

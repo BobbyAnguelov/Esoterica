@@ -40,8 +40,8 @@ namespace EE::Render
         {
             if ( IsResourceLoaded() )
             {
-                ImTextureID const textureID = (void*) &m_pResource->GetShaderResourceView();
-                ImGui::Image( textureID, Float2( m_pResource->GetDimensions() ) );
+                ImTextureID const textureID = (void*) &m_workspaceResource->GetShaderResourceView();
+                ImGui::Image( textureID, Float2( m_workspaceResource->GetDimensions() ) );
             }
         }
         ImGui::End();
@@ -59,11 +59,11 @@ namespace EE::Render
             }
             else if ( HasLoadingFailed() )
             {
-                ImGui::Text( "Loading Failed: %s", m_pResource.GetResourceID().c_str() );
+                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
             }
             else
             {
-                ImGui::Text( "Dimensions: %d x %d", m_pResource->GetDimensions().m_x, m_pResource->GetDimensions().m_y );
+                ImGui::Text( "Dimensions: %d x %d", m_workspaceResource->GetDimensions().m_x, m_workspaceResource->GetDimensions().m_y );
             }
         }
         ImGui::End();

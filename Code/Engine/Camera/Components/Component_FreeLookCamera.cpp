@@ -15,9 +15,10 @@ namespace EE
 
     static void GetYawPitchDeltas( Vector const& dir, Radians& outYaw, Radians& outPitch )
     {
-        EE_ASSERT( dir.IsNormalized3() );
-        outYaw = Math::GetYawAngleBetweenVectors( Vector::WorldForward, dir );
-        outPitch = Math::GetPitchAngleBetweenNormalizedVectors( Vector::WorldForward, dir );
+        Vector lookDir = dir.GetNormalized3();
+        outYaw = Math::GetYawAngleBetweenVectors( Vector::WorldForward, lookDir );
+        outPitch = Math::GetPitchAngleBetweenNormalizedVectors( Vector::WorldForward, lookDir );
+        EE_ASSERT( !Math::IsNaNOrInf( outYaw.ToFloat() ) && !Math::IsNaNOrInf( outPitch.ToFloat() ) );
     }
 
     //-------------------------------------------------------------------------
@@ -46,8 +47,17 @@ namespace EE
         m_pitch += pitchDelta;
         m_pitch.ClampPositive360();
 
+        // We need to make a copy since the local transform update will re-generate the pitch/yaw values
+        auto const yawCopy = m_yaw;
+        auto const pitchCopy = m_pitch;
+
+        // Update the camera transform
         Transform const newCameraTransform = CalculateFreeLookCameraTransform( GetLocalTransform().GetTranslation(), m_yaw, m_pitch );
         SetLocalTransform( newCameraTransform );
+
+        // Set back the correct pitch and yaw values
+        m_yaw = yawCopy;
+        m_pitch = pitchCopy;
     }
 
     //-------------------------------------------------------------------------

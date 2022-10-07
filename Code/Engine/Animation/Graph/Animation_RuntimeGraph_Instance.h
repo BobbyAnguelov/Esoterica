@@ -242,6 +242,9 @@ namespace EE::Animation
             return pValueNode->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
         }
 
+        // Get the runtime log for this graph instance
+        TVector<GraphLogEntry> const& GetLog() const { return m_log; }
+
         // Draw graph debug visualizations
         void DrawDebug( Drawing::DrawContext& drawContext );
         #endif
@@ -278,6 +281,7 @@ namespace EE::Animation
         GraphDebugMode                          m_debugMode = GraphDebugMode::Off;
         RootMotionDebugger                      m_rootMotionDebugger; // Allows nodes to record root motion operations
         TVector<int16_t>                        m_debugFilterNodes; // The list of nodes that are allowed to debug draw (if this is empty all nodes will draw)
+        TVector<GraphLogEntry>                  m_log;
         #endif
     };
 }

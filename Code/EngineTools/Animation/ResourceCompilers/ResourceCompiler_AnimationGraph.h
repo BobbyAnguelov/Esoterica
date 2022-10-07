@@ -2,13 +2,13 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceCompiler.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
     class ToolsGraphDefinition;
-    class GraphDefinitionCompiler;
     class GraphDataSet;
 
     //-------------------------------------------------------------------------
@@ -16,7 +16,7 @@ namespace EE::Animation
     class AnimationGraphCompiler final : public Resource::Compiler
     {
         EE_REGISTER_TYPE( AnimationGraphCompiler );
-        static const int32_t s_version = 10;
+        constexpr static const int32_t s_version = 10 + GraphDefinitionCompiler::s_version;
 
     public:
 

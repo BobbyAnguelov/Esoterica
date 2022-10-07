@@ -49,14 +49,25 @@ namespace EE::Serialization
     EE_SYSTEM_API void WriteNativeTypeToString( TypeSystem::TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, String& outString );
 
     // Create a new instance of a type from a supplied JSON version
-    EE_SYSTEM_API IRegisteredType* CreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue );
+    EE_SYSTEM_API IRegisteredType* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue );
 
     // Create a new instance of a type from a supplied JSON version
     template<typename T>
-    T* CreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
+    T* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
     {
-        auto pCreatedType = CreateAndReadNativeType( typeRegistry, typeObjectValue );
-        return Cast<T>( pCreatedType );
+        IRegisteredType* pCreatedType = TryCreateAndReadNativeType( typeRegistry, typeObjectValue );
+        if ( pCreatedType != nullptr )
+        {
+            if ( IsOfType<T>( pCreatedType ) )
+            {
+                return static_cast<T*>( pCreatedType );
+            }
+            else
+            {
+                EE::Delete( pCreatedType );
+            }
+        }
+        return nullptr;
     }
 
     //-------------------------------------------------------------------------

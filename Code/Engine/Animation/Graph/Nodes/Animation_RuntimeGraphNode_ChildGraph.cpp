@@ -41,7 +41,7 @@ namespace EE::Animation::GraphNodes
                     else
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", "Child Graph Node", "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pNode->m_pGraphInstance->GetDefinitionResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
+                        context.LogWarning( "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pNode->m_pGraphInstance->GetDefinitionResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
                         #endif 
                     }
                 }

@@ -33,11 +33,17 @@ namespace EE::Timeline
         // Info
         //-------------------------------------------------------------------------
 
+        // Return the start time of the item in timeline units
+        inline float GetStartTime() const { return m_startTime; }
+
+        // Return the end time of the item in timeline units
+        inline float GetEndTime() const { return m_startTime + m_duration; }
+
         // Return the time range of the item in timeline units
         inline FloatRange GetTimeRange() const { return FloatRange( m_startTime, m_startTime + m_duration ); };
 
-        // Get the length of the item in timeline units
-        inline float GetLength() const { return GetTimeRange().GetLength(); }
+        // Get the duration of the item in timeline units
+        inline float GetDuration() const { return m_duration; }
 
         // Is this an immediate (duration = 0) item
         inline bool IsImmediateItem() const { return GetTimeRange().m_begin == GetTimeRange().m_end; }
@@ -80,8 +86,8 @@ namespace EE::Timeline
 
     private:
 
-        EE_EXPOSE float         m_startTime = 0.0f;
-        EE_EXPOSE float         m_duration = 0.0f;
+        EE_EXPOSE float         m_startTime = 0.0f; // Timeline units
+        EE_EXPOSE float         m_duration = 0.0f; // Timeline units
         IRegisteredType*        m_pData = nullptr;
         bool                    m_isDirty = false;
     };
@@ -131,7 +137,7 @@ namespace EE::Timeline
         virtual void SetName( String const& newName ) { EE_UNREACHABLE_CODE(); }
 
         // Get the track status
-        virtual Status GetValidationStatus() const { return Status::Valid; }
+        virtual Status GetValidationStatus( float timelineLength ) const { return Status::Valid; }
 
         // Get the message to show in the status indicator tooltip
         String const& GetStatusMessage() const { return m_statusMessage; }
@@ -146,7 +152,7 @@ namespace EE::Timeline
         // Visuals
         //-------------------------------------------------------------------------
 
-        void DrawHeader( ImRect const& headerRect );
+        void DrawHeader( ImRect const& headerRect, FloatRange const& timelineRange );
 
         virtual float GetTrackHeight() const { return 30.0f; }
         virtual bool HasContextMenu() const { return false; }
@@ -172,7 +178,7 @@ namespace EE::Timeline
         inline bool Contains( TrackItem const* pItem ) const { return eastl::find( m_items.begin(), m_items.end(), pItem ) != m_items.end(); }
 
         // Get the label for a given item
-        virtual InlineString GetItemLabel( TrackItem const* pItem ) const { return "Item"; }
+        virtual InlineString GetItemLabel( TrackItem const* pItem ) const { return ""; }
 
         // Get the color for a given item
         virtual Color GetItemColor( TrackItem const* pItem ) const { return Color( 0xAAAAAAFF ); }

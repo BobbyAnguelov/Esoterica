@@ -29,7 +29,7 @@ namespace EE::Render
         m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
 
         auto pStaticMeshComponent = EE::New<StaticMeshComponent>( StringID( "Static Mesh Component" ) );
-        pStaticMeshComponent->SetMesh( m_pResource.GetResourceID() );
+        pStaticMeshComponent->SetMesh( m_workspaceResource.GetResourceID() );
         m_pPreviewEntity->AddComponent( pStaticMeshComponent );
 
         AddEntityToWorld( m_pPreviewEntity );
@@ -78,14 +78,14 @@ namespace EE::Render
 
             if ( HasLoadingFailed() )
             {
-                ImGui::Text( "Loading Failed: %s", m_pResource.GetResourceID().c_str() );
+                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
                 return;
             }
 
             //-------------------------------------------------------------------------
 
-            auto pMesh = m_pResource.GetPtr();
-            EE_ASSERT( m_pResource.IsLoaded() );
+            auto pMesh = m_workspaceResource.GetPtr();
+            EE_ASSERT( m_workspaceResource.IsLoaded() );
             EE_ASSERT( pMesh != nullptr );
 
             ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
@@ -167,13 +167,13 @@ namespace EE::Render
 
             if ( m_showBounds )
             {
-                drawingContext.DrawWireBox( m_pResource->GetBounds(), Colors::Cyan );
+                drawingContext.DrawWireBox( m_workspaceResource->GetBounds(), Colors::Cyan );
             }
 
             if ( ( m_showVertices || m_showNormals ) )
             {
-                auto pVertex = reinterpret_cast<StaticMeshVertex const*>( m_pResource->GetVertexData().data() );
-                for ( auto i = 0; i < m_pResource->GetNumVertices(); i++ )
+                auto pVertex = reinterpret_cast<StaticMeshVertex const*>( m_workspaceResource->GetVertexData().data() );
+                for ( auto i = 0; i < m_workspaceResource->GetNumVertices(); i++ )
                 {
                     if ( m_showVertices )
                     {

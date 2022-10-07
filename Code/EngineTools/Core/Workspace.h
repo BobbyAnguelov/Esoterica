@@ -448,7 +448,7 @@ private:
         // Specify whether to initially load the resource, this is not necessary for all editors
         TWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID, bool shouldAutoLoadResource = true )
             : Workspace( pToolsContext, pWorld, resourceID )
-            , m_pResource( resourceID )
+            , m_workspaceResource( resourceID )
             , m_shouldAutoLoadResource( shouldAutoLoadResource )
         {
             EE_ASSERT( resourceID.IsValid() );
@@ -460,15 +460,15 @@ private:
 
             if ( m_shouldAutoLoadResource )
             {
-                LoadResource( &m_pResource );
+                LoadResource( &m_workspaceResource );
             }
         }
 
         virtual void Shutdown( UpdateContext const& context ) override
         {
-            if ( m_pResource.WasRequested() )
+            if ( m_workspaceResource.WasRequested() )
             {
-                UnloadResource( &m_pResource );
+                UnloadResource( &m_workspaceResource );
             }
 
             Workspace::Shutdown( context );
@@ -478,15 +478,15 @@ private:
         virtual bool HasViewportToolbar() const override { return true; }
 
         // Resource Status
-        inline bool IsLoading() const { return m_pResource.IsLoading(); }
-        inline bool IsUnloaded() const { return m_pResource.IsUnloaded(); }
-        inline bool IsResourceLoaded() const { return m_pResource.IsLoaded(); }
-        inline bool IsWaitingForResource() const { return IsLoading() || IsUnloaded() || m_pResource.IsUnloading(); }
-        inline bool HasLoadingFailed() const { return m_pResource.HasLoadingFailed(); }
+        inline bool IsLoading() const { return m_workspaceResource.IsLoading(); }
+        inline bool IsUnloaded() const { return m_workspaceResource.IsUnloaded(); }
+        inline bool IsResourceLoaded() const { return m_workspaceResource.IsLoaded(); }
+        inline bool IsWaitingForResource() const { return IsLoading() || IsUnloaded() || m_workspaceResource.IsUnloading(); }
+        inline bool HasLoadingFailed() const { return m_workspaceResource.HasLoadingFailed(); }
 
     protected:
 
-        TResourcePtr<T>                     m_pResource;
+        TResourcePtr<T>                     m_workspaceResource;
         bool                                m_shouldAutoLoadResource = true;
     };
 

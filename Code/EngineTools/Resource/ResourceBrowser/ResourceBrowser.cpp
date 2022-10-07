@@ -376,23 +376,32 @@ namespace EE
 
     void ResourceBrowser::OnBrowserItemDoubleClicked( TreeListViewItem* pItem )
     {
-        auto pResourceFileItem = static_cast<ResourceBrowserTreeItem const*>( pItem );
+        auto pResourceFileItem = static_cast<ResourceBrowserTreeItem*>( pItem );
         if ( pResourceFileItem->IsDirectory() )
         {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( pResourceFileItem->IsResourceFile() )
-        {
-            m_toolsContext.TryOpenResource( pResourceFileItem->GetResourceID() );
-        }
-        else // Try create file inspector
-        {
-            if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceFileItem->GetFilePath() ) )
+            if ( pResourceFileItem->IsExpanded() )
             {
-                m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceFileItem->GetFilePath() );
+                pResourceFileItem->SetExpanded( false );
+                RefreshVisualState();
+            }
+            else
+            {
+                pResourceFileItem->SetExpanded( true );
+                RefreshVisualState();
+            }
+        }
+        else // Files
+        {
+            if ( pResourceFileItem->IsResourceFile() )
+            {
+                m_toolsContext.TryOpenResource( pResourceFileItem->GetResourceID() );
+            }
+            else // Try create file inspector
+            {
+                if ( Resource::RawFileInspectorFactory::CanCreateInspector( pResourceFileItem->GetFilePath() ) )
+                {
+                    m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( &m_toolsContext, pResourceFileItem->GetFilePath() );
+                }
             }
         }
     }

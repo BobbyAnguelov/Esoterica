@@ -464,7 +464,7 @@ namespace EE::Animation
         // Load graph from descriptor
         //-------------------------------------------------------------------------
 
-        m_graphFilePath = GetFileSystemPath( m_pResource.GetResourcePath() );
+        m_graphFilePath = GetFileSystemPath( m_workspaceResource.GetResourcePath() );
         if ( m_graphFilePath.IsValid() )
         {
             bool graphLoadFailed = false;
@@ -512,14 +512,6 @@ namespace EE::Animation
 
     AnimationGraphWorkspace::~AnimationGraphWorkspace()
     {
-        if ( IsDebugging() )
-        {
-            StopDebugging();
-        }
-
-        // Unbind Events
-        //-------------------------------------------------------------------------
-
         VisualGraph::BaseGraph::OnBeginModification().Unbind( m_rootGraphBeginModificationBindingID );
         VisualGraph::BaseGraph::OnEndModification().Unbind( m_rootGraphEndModificationBindingID );
     }
@@ -538,7 +530,7 @@ namespace EE::Animation
         m_graphViewWindowName.sprintf( "Graph View##%u", GetID() );
         m_propertyGridWindowName.sprintf( "Details##%u", GetID() );
         m_variationEditorWindowName.sprintf( "Variation Editor##%u", GetID() );
-        m_compilationLogWindowName.sprintf( "Compilation Log##%u", GetID() );
+        m_graphLogWindowName.sprintf( "Log##%u", GetID() );
         m_debuggerWindowName.sprintf( "Debugger##%u", GetID() );
 
         //-------------------------------------------------------------------------
@@ -564,14 +556,25 @@ namespace EE::Animation
         ImGui::DockBuilderDockWindow( m_propertyGridWindowName.c_str(), bottomLeftDockID );
         ImGui::DockBuilderDockWindow( m_graphViewWindowName.c_str(), centerDockID );
         ImGui::DockBuilderDockWindow( m_variationEditorWindowName.c_str(), centerDockID );
-        ImGui::DockBuilderDockWindow( m_compilationLogWindowName.c_str(), bottomLeftDockID );
+        ImGui::DockBuilderDockWindow( m_graphLogWindowName.c_str(), bottomLeftDockID );
     }
 
     void AnimationGraphWorkspace::Shutdown( UpdateContext const& context )
     {
+        if ( IsDebugging() )
+        {
+            StopDebugging();
+        }
+
+        EE_ASSERT( !m_previewGraphVariationPtr.IsSet() );
+
+        //-------------------------------------------------------------------------
+
         ShutdownControlParameterEditor();
         ShutdownUserContext();
         ShutdownPropertyGrid();
+
+        //-------------------------------------------------------------------------
 
         TWorkspace<GraphDefinition>::Shutdown( context );
     }
@@ -582,7 +585,7 @@ namespace EE::Animation
         DrawVariationEditor( context, pWindowClass );
         DrawControlParameterEditor( context, pWindowClass );
         DrawPropertyGrid( context, pWindowClass );
-        DrawCompilationLog( context, pWindowClass );
+        DrawGraphLog( context, pWindowClass );
         DrawDebuggerWindow( context, pWindowClass );
         DrawGraphView( context, pWindowClass );
         DrawDialogs( context );
@@ -703,6 +706,26 @@ namespace EE::Animation
             if ( ImGui::RadioButton( "Detailed Pose Tree", isDetailedPoseTreeEnabled ) )
             {
                 m_taskSystemDebugMode = TaskSystemDebugMode::DetailedPoseTree;
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "Capsule Debug" );
+
+            ImGui::Checkbox( "Show Preview Capsule", &m_showPreviewCapsule );
+
+            ImGui::Text( "Half-Height" ); 
+            ImGui::SameLine( 90 );
+            if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
+            {
+                m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
+            }
+
+            ImGui::Text( "Radius" );
+            ImGui::SameLine( 90 );
+            if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
+            {
+                m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
             }
 
             //-------------------------------------------------------------------------
@@ -871,6 +894,16 @@ namespace EE::Animation
                     break;
                 }
             }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( IsDebugging() && m_showPreviewCapsule )
+        {
+            auto drawContext = GetDrawingContext();
+            Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
+            capsuleTransform.AddTranslation( capsuleTransform.GetUpVector() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
+            drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
         }
     }
 
@@ -1093,6 +1126,16 @@ namespace EE::Animation
         TWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
     }
 
+    void AnimationGraphWorkspace::OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded )
+    {
+        TWorkspace<GraphDefinition>::OnHotReloadStarted( descriptorNeedsReload, resourcesToBeReloaded );
+
+        if( IsPreviewDebugSession() && !m_isFirstPreviewFrame )
+        {
+            StopDebugging();
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void AnimationGraphWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
@@ -1270,7 +1313,7 @@ namespace EE::Animation
         if ( !graphCompiledSuccessfully )
         {
             pfd::message( "Compile Error!", "The graph failed to compile! Please check the compilation log for details!", pfd::choice::ok, pfd::icon::error ).result();
-            ImGui::SetWindowFocus( m_compilationLogWindowName.c_str() );
+            ImGui::SetWindowFocus( m_graphLogWindowName.c_str() );
             return;
         }
 
@@ -1289,9 +1332,16 @@ namespace EE::Animation
             // Ensure that we save the graph and re-generate the dataset on preview
             Save();
 
+            // Trigger a wait to give the resource server some time to recompile the graph resources
+            Threading::Sleep( 250 );
+
             // Create Preview Graph Component
             String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, m_selectedVariationID );
             ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
+
+            EE_ASSERT( !m_previewGraphVariationPtr.IsSet() );
+            m_previewGraphVariationPtr = TResourcePtr<GraphVariation>( graphVariationResourceID );
+            LoadResource( &m_previewGraphVariationPtr );
 
             m_pDebugGraphComponent = EE::New<AnimationGraphComponent>( StringID( "Animation Component" ) );
             m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
@@ -1455,6 +1505,16 @@ namespace EE::Animation
         m_userContext.m_pGraphInstance = nullptr;
         m_userContext.m_nodeIDtoIndexMap.clear();
 
+        // Release variation reference
+        //-------------------------------------------------------------------------
+
+        if ( IsPreviewDebugSession() )
+        {
+            EE_ASSERT( m_previewGraphVariationPtr.IsSet() );
+            UnloadResource( &m_previewGraphVariationPtr );
+            m_previewGraphVariationPtr.Clear();
+        }
+
         // Reset debug mode
         //-------------------------------------------------------------------------
 
@@ -1464,6 +1524,8 @@ namespace EE::Animation
             m_previousCameraTransform = m_cameraOffsetTransform;
             ResetCameraView();
         }
+
+        //-------------------------------------------------------------------------
 
         m_debugMode = DebugMode::None;
     }
@@ -1541,7 +1603,7 @@ namespace EE::Animation
             {
                 // Check main instance
                 GraphInstance const* pGraphInstance = pGraphComponent->GetDebugGraphInstance();
-                if ( pGraphInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
+                if ( pGraphInstance->GetDefinitionResourceID() == m_workspaceResource.GetResourceID() )
                 {
                     Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
                     InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str() );
@@ -1561,7 +1623,7 @@ namespace EE::Animation
                 pGraphInstance->GetChildGraphsForDebug( childGraphs );
                 for ( auto const& childGraph : childGraphs )
                 {
-                    if ( childGraph.m_pInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
+                    if ( childGraph.m_pInstance->GetDefinitionResourceID() == m_workspaceResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
                         InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Path: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), childGraph.m_pathToInstance.c_str() );
@@ -1582,7 +1644,7 @@ namespace EE::Animation
                 auto const& externalGraphs = pGraphInstance->GetExternalGraphsForDebug();
                 for ( auto const& externalGraph : externalGraphs )
                 {
-                    if ( externalGraph.m_pInstance->GetDefinitionResourceID() == m_pResource.GetResourceID() )
+                    if ( externalGraph.m_pInstance->GetDefinitionResourceID() == m_workspaceResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
                         InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Slot: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), externalGraph.m_slotID.c_str() );
@@ -2121,26 +2183,19 @@ namespace EE::Animation
     }
 
     //-------------------------------------------------------------------------
-    // Compilation Log
+    // Graph Log
     //-------------------------------------------------------------------------
 
-    void AnimationGraphWorkspace::DrawCompilationLog( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void AnimationGraphWorkspace::DrawGraphLog( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         int32_t windowFlags = 0;
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
         ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_compilationLogWindowName.c_str(), nullptr, windowFlags ) )
+        if ( ImGui::Begin( m_graphLogWindowName.c_str(), nullptr, windowFlags ) )
         {
-            if ( m_compilationLog.empty() )
+            if ( IsDebugging() && m_pDebugGraphInstance != nullptr )
             {
-                ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_CHECK );
-                ImGui::SameLine();
-                ImGui::Text( "Graph Compiled Successfully" );
-            }
-            else
-            {
-                ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 6 ) );
-                if ( ImGui::BeginTable( "Compilation Log Table", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
+                if ( ImGui::BeginTable( "RTLog", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
                 {
                     ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
                     ImGui::TableSetupColumn( "Message", ImGuiTableColumnFlags_WidthStretch );
@@ -2152,13 +2207,17 @@ namespace EE::Animation
 
                     //-------------------------------------------------------------------------
 
+                    auto const& runtimeLog = m_pDebugGraphInstance->GetLog();
+
+                    //-------------------------------------------------------------------------
+
                     ImGuiListClipper clipper;
-                    clipper.Begin( (int32_t) m_compilationLog.size() );
+                    clipper.Begin( (int32_t) runtimeLog.size() );
                     while ( clipper.Step() )
                     {
                         for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                         {
-                            auto const& entry = m_compilationLog[i];
+                            auto const& entry = runtimeLog[i];
 
                             ImGui::TableNextRow();
 
@@ -2187,10 +2246,18 @@ namespace EE::Animation
                             {
                                 if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
                                 {
-                                    auto pFoundNode = m_toolsGraph.GetRootGraph()->FindNode( entry.m_nodeID );
-                                    if ( pFoundNode != nullptr )
+                                    for ( auto const& pair : m_userContext.m_nodeIDtoIndexMap )
                                     {
-                                        NavigateTo( pFoundNode );
+                                        if ( pair.second == entry.m_nodeIdx )
+                                        {
+                                            auto pFoundNode = m_toolsGraph.GetRootGraph()->FindNode( pair.first, true );
+                                            if ( pFoundNode != nullptr )
+                                            {
+                                                NavigateTo( pFoundNode );
+                                            }
+
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -2205,7 +2272,85 @@ namespace EE::Animation
 
                     ImGui::EndTable();
                 }
-                ImGui::PopStyleVar();
+            }
+            else
+            {
+                if ( m_compilationLog.empty() )
+                {
+                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_CHECK );
+                    ImGui::SameLine();
+                    ImGui::Text( "Graph Compiled Successfully" );
+                }
+                else
+                {
+                    ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 6 ) );
+                    if ( ImGui::BeginTable( "CLog", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
+                    {
+                        ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+                        ImGui::TableSetupColumn( "Message", ImGuiTableColumnFlags_WidthStretch );
+                        ImGui::TableSetupScrollFreeze( 0, 1 );
+
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableHeadersRow();
+
+                        //-------------------------------------------------------------------------
+
+                        ImGuiListClipper clipper;
+                        clipper.Begin( (int32_t) m_compilationLog.size() );
+                        while ( clipper.Step() )
+                        {
+                            for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                            {
+                                auto const& entry = m_compilationLog[i];
+
+                                ImGui::TableNextRow();
+
+                                //-------------------------------------------------------------------------
+
+                                ImGui::TableSetColumnIndex( 0 );
+                                switch ( entry.m_severity )
+                                {
+                                    case Log::Severity::Warning:
+                                    ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_ALERT_OCTAGON );
+                                    break;
+
+                                    case Log::Severity::Error:
+                                    ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT );
+                                    break;
+
+                                    case Log::Severity::Message:
+                                    ImGui::Text( "Message" );
+                                    break;
+                                }
+
+                                //-------------------------------------------------------------------------
+
+                                ImGui::TableSetColumnIndex( 1 );
+                                if ( ImGui::Selectable( entry.m_message.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick ) )
+                                {
+                                    if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                                    {
+                                        auto pFoundNode = m_toolsGraph.GetRootGraph()->FindNode( entry.m_nodeID, true );
+                                        if ( pFoundNode != nullptr )
+                                        {
+                                            NavigateTo( pFoundNode );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Auto scroll the table
+                        if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
+                        {
+                            ImGui::SetScrollHereY( 1.0f );
+                        }
+
+                        ImGui::EndTable();
+                    }
+                    ImGui::PopStyleVar();
+                }
             }
         }
         ImGui::End();

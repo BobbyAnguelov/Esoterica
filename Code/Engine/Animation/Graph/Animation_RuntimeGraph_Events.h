@@ -65,7 +65,7 @@ namespace EE::Animation
 
         // Checks if the sampled event is of a specified runtime type
         template<typename T>
-        inline T const* IsEventOfType() const
+        inline bool IsEventOfType() const
         {
             EE_ASSERT( !IsStateEvent() );
             return IsOfType<T>( m_eventData.m_pEvent );

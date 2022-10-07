@@ -91,7 +91,7 @@ namespace EE::TypeSystem::Reflection
     {
         if ( result != SQLITE_OK )
         {
-            m_errorMessage.sprintf( "%s ( %s )", sqlite3_errstr(result), sqlite3_errmsg(m_pDatabase) );
+            m_errorMessage.sprintf( "%s ( %s )", sqlite3_errstr( result ), sqlite3_errmsg( m_pDatabase ) );
             return false;
         }
 
@@ -119,7 +119,15 @@ namespace EE::TypeSystem::Reflection
         sqlite3_vsnprintf( s_defaultStatementBufferSize, m_statementBuffer, pFormat, args );
         va_end( args );
 
-        return IsValidSQLiteResult( sqlite3_exec( m_pDatabase, m_statementBuffer, nullptr, nullptr, nullptr ) );
+        // Execute statement
+        if ( !IsValidSQLiteResult( sqlite3_exec( m_pDatabase, m_statementBuffer, nullptr, nullptr, nullptr ) ) )
+        {
+            String const sqlStatementStr( String::CtorSprintf(), " ( SQL: %s )", m_statementBuffer );
+            m_errorMessage.append( sqlStatementStr.c_str() );
+            return false;
+        }
+        
+        return true;
     }
 
     bool ReflectionDatabase::BeginTransaction() const
@@ -970,7 +978,10 @@ namespace EE::TypeSystem::Reflection
         // Update properties
         for ( auto& propertyDesc : type.m_properties )
         {
-            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `Properties`(`PropertyID`, `LineNumber`, `OwnerTypeID`,`TypeID`,`Name`,`Description`,`TypeName`,`TemplateTypeName`,`PropertyFlags`,`ArraySize`) VALUES ( %u, %d, %u, %u, \"%s\", \"%s\", \"%s\", \"%s\", %u, %d );", (uint32_t) propertyDesc.m_propertyID, propertyDesc.m_lineNumber, (uint32_t) type.m_ID, (uint32_t) propertyDesc.m_typeID, propertyDesc.m_name.c_str(), propertyDesc.m_description.c_str(), propertyDesc.m_typeName.c_str(), propertyDesc.m_templateArgTypeName.c_str(), (uint32_t) propertyDesc.m_flags, propertyDesc.m_arraySize ) )
+            String escapedDescription = propertyDesc.m_description;
+            StringUtils::ReplaceAllOccurrencesInPlace( escapedDescription, "\"", "\"\"" );
+
+            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `Properties`(`PropertyID`, `LineNumber`, `OwnerTypeID`,`TypeID`,`Name`,`Description`,`TypeName`,`TemplateTypeName`,`PropertyFlags`,`ArraySize`) VALUES ( %u, %d, %u, %u, \"%s\", \"%s\", \"%s\", \"%s\", %u, %d );", (uint32_t) propertyDesc.m_propertyID, propertyDesc.m_lineNumber, (uint32_t) type.m_ID, (uint32_t) propertyDesc.m_typeID, propertyDesc.m_name.c_str(), escapedDescription.c_str(), propertyDesc.m_typeName.c_str(), propertyDesc.m_templateArgTypeName.c_str(), (uint32_t) propertyDesc.m_flags, propertyDesc.m_arraySize ) )
             {
                 return false;
             }

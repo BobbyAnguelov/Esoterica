@@ -347,7 +347,9 @@ namespace EE::Animation::GraphNodes
                 {
                     if ( Math::IsNearZero( valueB ) )
                     {
-                        EE_LOG_WARNING( "Animation", "TODO", "Dividing by zero in FloatMathNode" );
+                        #if EE_DEVELOPMENT_TOOLS
+                        context.LogWarning( GetNodeIndex(), "Dividing by zero in FloatMathNode" );
+                        #endif
                         m_value = FLT_MAX;
                     }
                     else

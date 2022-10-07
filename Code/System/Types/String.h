@@ -61,12 +61,14 @@ namespace EE
                 return originalString;
             }
 
+            int32_t const replacementLength = ( pReplacement == nullptr ) ? 1 : (int32_t) strlen( pReplacement ) + 1;
+
             String copiedString = originalString;
             auto idx = originalString.find( pSearchString );
             while ( idx != String::npos )
             {
                 copiedString.replace( idx, searchLength, pReplacement == nullptr ? "" : pReplacement );
-                idx = copiedString.find( pSearchString, idx );
+                idx = copiedString.find( pSearchString, idx + replacementLength );
             }
 
             return copiedString;
@@ -81,11 +83,13 @@ namespace EE
                 return originalString;
             }
 
+            int32_t const replacementLength = ( pReplacement == nullptr ) ? 1 : (int32_t) strlen( pReplacement ) + 1;
+
             auto idx = originalString.find( pSearchString );
             while ( idx != String::npos )
             {
                 originalString.replace( idx, searchLength, pReplacement == nullptr ? "" : pReplacement );
-                idx = originalString.find( pSearchString, idx );
+                idx = originalString.find( pSearchString, idx + replacementLength );
             }
 
             return originalString;

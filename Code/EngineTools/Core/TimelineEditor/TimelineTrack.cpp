@@ -21,7 +21,8 @@ namespace EE::Timeline
 
     void TrackItem::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
     {
-        m_pData = Serialization::CreateAndReadNativeType( typeRegistry, typeObjectValue[s_itemDataKey] );
+        m_pData = Serialization::TryCreateAndReadNativeType( typeRegistry, typeObjectValue[s_itemDataKey] );
+        EE_ASSERT( m_pData != nullptr );
     }
 
     void TrackItem::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const
@@ -47,7 +48,7 @@ namespace EE::Timeline
         return "Track";
     }
 
-    void Track::DrawHeader( ImRect const& headerRect )
+    void Track::DrawHeader( ImRect const& headerRect, FloatRange const& timelineRange )
     {
         ImVec2 const initialCursorPos = ImGui::GetCursorPos();
         float const lineHeight = ImGui::GetTextLineHeightWithSpacing();
@@ -68,7 +69,7 @@ namespace EE::Timeline
 
         constexpr static char const* const statusIcons[3] = { EE_ICON_CHECK, EE_ICON_ALERT_RHOMBUS, EE_ICON_ALERT };
         static Color statusColors[3] = { Colors::LimeGreen, Colors::Gold, Colors::Red };
-        auto const status = GetValidationStatus();
+        auto const status = GetValidationStatus( timelineRange.m_end );
 
         float const iconWidth = ImGui::CalcTextSize( statusIcons[(int32_t) status] ).x + 2;
         ImGui::PushStyleColor( ImGuiCol_Text, statusColors[(int32_t) status].ToUInt32_ABGR() );
@@ -201,6 +202,7 @@ namespace EE::Timeline
         EE_ASSERT( pItem != nullptr && Contains( pItem ) );
 
         constexpr static float const itemMarginY = 2;
+        constexpr static float const textMarginY = 3;
 
         ImVec2 const adjustedItemStartPos = ImVec2( itemStartPos ) + ImVec2( 0, itemMarginY );
         ImVec2 const adjustedItemEndPos = ImVec2( itemEndPos ) - ImVec2( 0, itemMarginY );
@@ -214,8 +216,8 @@ namespace EE::Timeline
 
         ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
         InlineString const itemLabel = GetItemLabel( pItem );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 4, 0 ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 5, textMarginY + 1 ), 0xFF000000, itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 4, textMarginY ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
 
         //-------------------------------------------------------------------------
 

@@ -472,7 +472,7 @@ namespace EE::VisualGraph
         for ( auto& connectionObjectValue : graphObjectValue[s_connectionsKey].GetArray() )
         {
             EE_ASSERT( connectionObjectValue.IsObject() );
-            Connection& connection = m_connections.emplace_back();
+            Connection connection;
 
             UUID const startNodeID = UUID( connectionObjectValue[Connection::s_startNodeKey].GetString() );
             UUID const endNodeID = UUID( connectionObjectValue[Connection::s_endNodeKey].GetString() );
@@ -482,7 +482,10 @@ namespace EE::VisualGraph
             connection.m_startPinID = UUID( connectionObjectValue[Connection::s_startPinKey].GetString() );
             connection.m_endPinID = UUID( connectionObjectValue[Connection::s_endPinKey].GetString() );
 
-            EE_ASSERT( connection.m_pStartNode != nullptr && connection.m_pEndNode != nullptr );
+            if ( connection.m_pStartNode != nullptr && connection.m_pEndNode != nullptr )
+            {
+                m_connections.emplace_back( connection );
+            }
         }
     }
 

@@ -12,7 +12,8 @@ namespace EE::Animation::GraphNodes
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, false );
         CreateInputPin( "Input", GraphValueType::Pose );
-        CreateInputPin( "Angle Offset", GraphValueType::Float );
+        CreateInputPin( "Direction (Character)", GraphValueType::Vector );
+        CreateInputPin( "Angle Offset (Deg)", GraphValueType::Float );
     }
 
     int16_t OrientationWarpToolsNode::Compile( GraphCompilationContext& context ) const
@@ -42,24 +43,54 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pInputNode = GetConnectedInputNode<FlowToolsNode>( 1 );
-            if ( pInputNode != nullptr )
+            auto pDirectionNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            auto pOffsetNode = GetConnectedInputNode<FlowToolsNode>( 2 );
+
+            if ( pDirectionNode != nullptr && pOffsetNode != nullptr )
             {
-                int16_t const compiledNodeIdx = pInputNode->Compile( context );
+                context.LogError( this, "Cannot have both the direction and the offset inputs set, these are mutually exclusive!" );
+                return InvalidIndex;
+            }
+
+            if ( pDirectionNode == nullptr && pOffsetNode == nullptr )
+            {
+                context.LogError( this, "You need to have either the direction or the offset node connected!" );
+                return InvalidIndex;
+            }
+
+            //-------------------------------------------------------------------------
+
+            // Direction
+            if ( pDirectionNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pDirectionNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_angleOffsetValueNodeIdx = compiledNodeIdx;
+                    pSettings->m_targetValueNodeIdx = compiledNodeIdx;
+                    pSettings->m_isOffsetNode = false;
                 }
                 else
                 {
                     return InvalidIndex;
                 }
             }
-            else
+            else // Offset node
             {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
+                int16_t const compiledNodeIdx = pOffsetNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pSettings->m_targetValueNodeIdx = compiledNodeIdx;
+                    pSettings->m_isOffsetNode = true;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
             }
+
+            //-------------------------------------------------------------------------
+
+            pSettings->m_isOffsetRelativeToCharacter = ( m_offsetType == OffsetType::RelativeToCharacter );
         }
         return pSettings->m_nodeIdx;
     }

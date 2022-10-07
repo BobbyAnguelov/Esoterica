@@ -82,11 +82,16 @@ namespace EE::Animation
         // Instantiate individual nodes
         //-------------------------------------------------------------------------
 
-        InstantiationContext context = { m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, &m_pGraphVariation->m_dataSet, m_userID };
+        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, &m_pGraphVariation->m_dataSet, m_userID };
 
-        for ( auto i = 0; i < numNodes; i++ )
+        #if EE_DEVELOPMENT_TOOLS
+        instantiationContext.m_pLog = &m_log;
+        #endif
+
+        for ( int16_t i = 0; i < numNodes; i++ )
         {
-            pGraphDef->m_nodeSettings[i]->InstantiateNode( context, InstantiationOptions::CreateNode );
+            instantiationContext.m_currentNodeIdx = i;
+            pGraphDef->m_nodeSettings[i]->InstantiateNode( instantiationContext, InstantiationOptions::CreateNode );
         }
 
         // Set up graph context
@@ -97,7 +102,7 @@ namespace EE::Animation
         EE_ASSERT( m_graphContext.IsValid() );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_graphContext.SetDebugSystems( &m_rootMotionDebugger, &m_activeNodes );
+        m_graphContext.SetDebugSystems( &m_rootMotionDebugger, &m_activeNodes, &m_log );
         m_activeNodes.reserve( 50 );
         #endif
 
@@ -112,7 +117,7 @@ namespace EE::Animation
 
         // Set root node
         m_pRootNode = static_cast<PoseNode*>( m_nodes[pGraphDef->m_rootNodeIdx] );
-        EE_ASSERT( m_pRootNode->IsInitialized() );
+        EE_ASSERT( !m_pRootNode->IsInitialized() );
     }
 
     GraphInstance::~GraphInstance()
@@ -127,8 +132,12 @@ namespace EE::Animation
             m_nodes[nodeIdx]->Shutdown( m_graphContext );
         }
 
-        // Clear root node
-        EE_ASSERT( !m_pRootNode->IsInitialized() );
+        // shutdown and clear root node
+        if ( m_pRootNode->IsInitialized() )
+        {
+            m_pRootNode->Shutdown( m_graphContext );
+        }
+
         m_pRootNode = nullptr;
 
         // Shutdown context
@@ -299,7 +308,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( resetGraphState )
+        if ( resetGraphState || !m_pRootNode->IsInitialized() )
         {
             if ( m_pRootNode->IsInitialized() )
             {
@@ -308,6 +317,8 @@ namespace EE::Animation
 
             m_pRootNode->Initialize( m_graphContext, SyncTrackTime() );
         }
+
+        //-------------------------------------------------------------------------
 
         return m_pRootNode->Update( m_graphContext );
     }
@@ -332,7 +343,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( resetGraphState )
+        if ( resetGraphState || !m_pRootNode->IsInitialized() )
         {
             if ( m_pRootNode->IsInitialized() )
             {
@@ -341,6 +352,8 @@ namespace EE::Animation
 
             m_pRootNode->Initialize( m_graphContext, SyncTrackTime() );
         }
+
+        //-------------------------------------------------------------------------
 
         return m_pRootNode->Update( m_graphContext, updateRange );
     }

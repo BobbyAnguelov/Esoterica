@@ -4,36 +4,57 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE{ struct Color; }
+
+//-------------------------------------------------------------------------
+
 namespace EE::Animation
 {
-    class EE_ENGINE_API WarpEvent final : public Event
+    class EE_ENGINE_API OrientationWarpEvent final : public Event
     {
-        EE_REGISTER_TYPE( WarpEvent );
+        EE_REGISTER_TYPE( OrientationWarpEvent );
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual InlineString GetDebugText() const override { return "Warp"; }
+        #endif
+    };
+
+    //-------------------------------------------------------------------------
+
+    enum class TargetWarpRule : uint8_t
+    {
+        EE_REGISTER_ENUM
+
+        WarpXY = 0,
+        WarpZ,
+        WarpXYZ,
+        RotationOnly
+    };
+
+    #if EE_DEVELOPMENT_TOOLS
+    EE_ENGINE_API Color GetDebugForWarpRule( TargetWarpRule rule );
+    #endif
+
+    enum class TargetWarpAlgorithm : uint8_t
+    {
+        EE_REGISTER_ENUM
+
+        Lerp,
+        Hermite,
+        Bezier,
+        FeaturePreserving
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API TargetWarpEvent final : public Event
+    {
+        EE_REGISTER_TYPE( TargetWarpEvent );
 
     public:
 
-        // The type of warping we are allowed to perform for this event
-        enum class Type : uint8_t
-        {
-            EE_REGISTER_ENUM
-
-            Full = 0, // Allows both rotating and stretching/compressing the original motion
-            RotationOnly, // Only allows for rotation adjustment of the original motion
-        };
-
-        enum class TranslationWarpMode
-        {
-            EE_REGISTER_ENUM
-
-            Hermite,
-            Bezier,
-            FeaturePreserving
-        };
-
-    public:
-
-        inline Type GetWarpAdjustmentType() const { return m_type; }
-        inline TranslationWarpMode GetTranslationWarpMode() const { return m_translationMode; }
+        inline TargetWarpRule GetRule() const { return m_rule; }
+        inline TargetWarpAlgorithm GetTranslationAlgorithm() const { return m_algorithm; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual InlineString GetDebugText() const override;
@@ -41,8 +62,7 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE Type                 m_type = Type::Full;
-        EE_EXPOSE TranslationWarpMode  m_translationMode = TranslationWarpMode::Hermite;
-        EE_EXPOSE bool                 m_allowWarpInZ = true;
+        EE_EXPOSE TargetWarpRule        m_rule = TargetWarpRule::WarpXYZ;
+        EE_EXPOSE TargetWarpAlgorithm   m_algorithm = TargetWarpAlgorithm::Bezier;
     };
-} 
+}

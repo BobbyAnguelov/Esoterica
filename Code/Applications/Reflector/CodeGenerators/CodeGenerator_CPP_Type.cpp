@@ -1074,7 +1074,10 @@ namespace EE::CPP
             file << "                #if EE_DEVELOPMENT_TOOLS\n";
             file << "                propertyInfo.m_friendlyName = \"" << prop.GetFriendlyName().c_str() << "\";\n";
             file << "                propertyInfo.m_category = \"" << prop.GetCategory().c_str() << "\";\n";
-            file << "                propertyInfo.m_description = \"" << prop.m_description.c_str() << "\";\n";
+
+            String escapedDescription = prop.m_description;
+            StringUtils::ReplaceAllOccurrencesInPlace( escapedDescription, "\"", "\\\"" );
+            file << "                propertyInfo.m_description = \"" << escapedDescription.c_str() << "\";\n";
 
             if ( prop.m_isDevOnly )
             {

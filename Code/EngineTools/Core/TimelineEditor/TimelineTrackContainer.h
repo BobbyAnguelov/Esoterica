@@ -48,6 +48,9 @@ namespace EE::Timeline
         // Does this container own this item?
         bool Contains( TrackItem const* pItem ) const;
 
+        // Get the overall status for all tracks
+        Track::Status GetValidationStatus( float timelineLength ) const;
+
         // Track Manipulation
         //-------------------------------------------------------------------------
 

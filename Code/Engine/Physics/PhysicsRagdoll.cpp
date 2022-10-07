@@ -834,7 +834,7 @@ namespace EE::Physics
             return;
         }
 
-        if ( m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::None )
+        if ( m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::None || m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::Kinematic )
         {
             return;
         }
@@ -965,6 +965,8 @@ namespace EE::Physics
             // Set Mass and other properties
             PxRigidBodyExt::setMassAndUpdateInertia( *m_links[bodyIdx], m_pProfile->m_bodySettings[bodyIdx].m_mass );
             m_links[bodyIdx]->setRigidBodyFlag( PxRigidBodyFlag::eENABLE_CCD, m_pProfile->m_bodySettings[bodyIdx].m_enableCCD );
+            m_links[bodyIdx]->setMaxAngularVelocity( PX_MAX_F32 );
+            m_links[bodyIdx]->setMaxLinearVelocity( PX_MAX_F32 );
 
             // Create new material
             auto const& materialSettings = m_pProfile->m_materialSettings[bodyIdx];
@@ -1016,29 +1018,37 @@ namespace EE::Physics
         {
             int32_t const jointIdx = bodyIdx - 1;
             auto const& jointSettings = m_pProfile->m_jointSettings[jointIdx];
-
-            //-------------------------------------------------------------------------
-
             PxArticulationJoint* pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
-            pJoint->setDriveType( PxArticulationJointDriveType::eTARGET );
 
-            pJoint->setDamping( jointSettings.m_damping );
-            pJoint->setStiffness( jointSettings.m_stiffness );
+            // Shared Settings
+            //-------------------------------------------------------------------------
 
             pJoint->setInternalCompliance( jointSettings.m_internalCompliance );
             pJoint->setExternalCompliance( jointSettings.m_externalCompliance );
-
-            //-------------------------------------------------------------------------
-
-            pJoint->setTwistLimitEnabled( jointSettings.m_twistLimitEnabled );
-            pJoint->setTwistLimit( Math::DegreesToRadians * jointSettings.m_twistLimitMin, Math::DegreesToRadians * jointSettings.m_twistLimitMax );
-            pJoint->setTwistLimitContactDistance( Math::DegreesToRadians * jointSettings.m_twistLimitContactDistance );
-
-            pJoint->setSwingLimitEnabled( jointSettings.m_swingLimitEnabled );
-            pJoint->setSwingLimit( Math::DegreesToRadians * jointSettings.m_swingLimitZ, Math::DegreesToRadians * jointSettings.m_swingLimitY );
-            pJoint->setSwingLimitContactDistance( Math::DegreesToRadians * jointSettings.m_swingLimitContactDistance );
+            pJoint->setDriveType( PxArticulationJointDriveType::eTARGET );
+            pJoint->setDamping( jointSettings.m_damping );
+            pJoint->setStiffness( jointSettings.m_stiffness );
             pJoint->setTangentialStiffness( jointSettings.m_tangentialStiffness );
             pJoint->setTangentialDamping( jointSettings.m_tangentialDamping );
+
+            // Drive specific Settings
+            //-------------------------------------------------------------------------
+
+            if ( jointSettings.m_driveType == RagdollJointSettings::DriveType::Kinematic )
+            {
+                pJoint->setTwistLimitEnabled( false );
+                pJoint->setSwingLimitEnabled( false );
+            }
+            else
+            {
+                pJoint->setTwistLimitEnabled( jointSettings.m_twistLimitEnabled );
+                pJoint->setTwistLimit( Math::DegreesToRadians * jointSettings.m_twistLimitMin, Math::DegreesToRadians * jointSettings.m_twistLimitMax );
+                pJoint->setTwistLimitContactDistance( Math::DegreesToRadians * jointSettings.m_twistLimitContactDistance );
+
+                pJoint->setSwingLimitEnabled( jointSettings.m_swingLimitEnabled );
+                pJoint->setSwingLimit( Math::DegreesToRadians * jointSettings.m_swingLimitZ, Math::DegreesToRadians * jointSettings.m_swingLimitY );
+                pJoint->setSwingLimitContactDistance( Math::DegreesToRadians * jointSettings.m_swingLimitContactDistance );
+            }
         }
     }
 
@@ -1152,6 +1162,7 @@ namespace EE::Physics
             // Update root control body
             //-------------------------------------------------------------------------
 
+            bool const isKinematicRoot = m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::Kinematic;
             if ( m_pRootControlActor != nullptr )
             {
                 int32_t const rootBoneIdx = m_pDefinition->m_bodyToBoneMap[0];
@@ -1160,11 +1171,22 @@ namespace EE::Physics
                 m_pRootControlActor->setKinematicTarget( ToPx( rootBodyWorldTransform ) );
             }
 
+            // Update root body
+            //-------------------------------------------------------------------------
+
+            if ( initializeBodies || isKinematicRoot )
+            {
+                int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[0];
+                Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
+                Transform const bodyWorldTransform = m_pDefinition->m_bodies[0].m_offsetTransform * boneWorldTransform;
+                m_links[0]->setGlobalPose( ToPx( bodyWorldTransform ) );
+            }
+
             // Update bodies and joint Targets
             //-------------------------------------------------------------------------
 
             int32_t const numBodies = (int32_t) m_links.size();
-            for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
+            for ( int32_t bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
             {
                 int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
                 Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
@@ -1173,15 +1195,11 @@ namespace EE::Physics
                 if ( initializeBodies )
                 {
                     m_links[bodyIdx]->setGlobalPose( ToPx( bodyWorldTransform ) );
+                    m_links[bodyIdx]->setLinearVelocity( PxZero );
+                    m_links[bodyIdx]->setAngularVelocity( PxZero );
                 }
 
                 //-------------------------------------------------------------------------
-
-                // Skip joint setting for root body
-                if ( bodyIdx == 0 )
-                {
-                    continue;
-                }
 
                 int32_t const jointIdx = bodyIdx - 1;
                 auto pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
@@ -1191,10 +1209,6 @@ namespace EE::Physics
                 if ( jointSettings.m_driveType == RagdollJointSettings::Kinematic )
                 {
                     m_links[bodyIdx]->setGlobalPose( ToPx( bodyWorldTransform ) );
-                    m_links[bodyIdx]->setLinearVelocity( PxZero );
-                    m_links[bodyIdx]->setAngularVelocity( PxZero );
-                    pJoint->setTargetVelocity( PxZero );
-                    pJoint->setTargetOrientation( PxIdentity );
                 }
                 else // Driven
                 {

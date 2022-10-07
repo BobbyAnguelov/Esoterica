@@ -48,6 +48,20 @@ namespace EE::Timeline
         return GetTrackForItem( pItem ) != nullptr;
     }
 
+    Track::Status TrackContainer::GetValidationStatus( float timelineLength ) const
+    {
+        for ( auto pTrack : m_tracks )
+        {
+            Track::Status const status = pTrack->GetValidationStatus( timelineLength );
+            if ( status != Track::Status::Valid )
+            {
+                return status;
+            }
+        }
+
+        return Track::Status::Valid;
+    }
+
     //-------------------------------------------------------------------------
 
     Track* TrackContainer::CreateTrack( TypeSystem::TypeInfo const* pTrackTypeInfo )
@@ -207,7 +221,12 @@ namespace EE::Timeline
             }
 
             // Create track
-            Track* pTrack = Serialization::CreateAndReadNativeType<Track>( typeRegistry, trackDataIter->value );
+            Track* pTrack = Serialization::TryCreateAndReadNativeType<Track>( typeRegistry, trackDataIter->value );
+            if ( pTrack == nullptr )
+            {
+                EE_LOG_WARNING( "Serialization", "Timeline Track Container", "Invalid serialized track type! This track was ignored!" );
+                continue;
+            }
             m_tracks.emplace_back( pTrack );
 
             // Custom serialization
@@ -235,9 +254,16 @@ namespace EE::Timeline
                 }
 
                 // Create item
-                TrackItem* pItem = Serialization::CreateAndReadNativeType<TrackItem>( typeRegistry, itemDataIter->value );
-                pItem->SerializeCustom( typeRegistry, itemObjectValue );
-                pTrack->m_items.emplace_back( pItem );
+                TrackItem* pItem = Serialization::TryCreateAndReadNativeType<TrackItem>( typeRegistry, itemDataIter->value );
+                if ( pItem != nullptr )
+                {
+                    pItem->SerializeCustom( typeRegistry, itemObjectValue );
+                    pTrack->m_items.emplace_back( pItem );
+                }
+                else
+                {
+                    EE_LOG_WARNING( "Serialization", "Timeline Track Container", "Invalid serialized item type! This item was ignored!" );
+                }
             }
 
             if ( failed )

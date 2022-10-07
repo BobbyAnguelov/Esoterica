@@ -1,4 +1,4 @@
-#include "AnimationGraphLoader.h"
+#include "ResourceLoader_AnimationGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "System/Serialization/BinarySerialization.h"
 #include "System/TypeSystem/TypeDescriptors.h"

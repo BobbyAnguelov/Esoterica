@@ -44,10 +44,20 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pInputNode = GetConnectedInputNode<FlowToolsNode>( 1 );
-            if ( pInputNode != nullptr )
+            auto pHeadingNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            auto pFacingNode = GetConnectedInputNode<FlowToolsNode>( 2 );
+
+            if ( pHeadingNode == nullptr && pFacingNode == nullptr )
             {
-                int16_t const compiledNodeIdx = pInputNode->Compile( context );
+                context.LogError( this, "You need to connect at least one of the heading/facing input pins!" );
+                return InvalidIndex;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( pHeadingNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pHeadingNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
                     pSettings->m_desiredHeadingVelocityNodeIdx = compiledNodeIdx;
@@ -57,18 +67,12 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
-            else
-            {
-                context.LogError( this, "Disconnected Heading Velocity pin!" );
-                return InvalidIndex;
-            }
 
             //-------------------------------------------------------------------------
 
-            pInputNode = GetConnectedInputNode<FlowToolsNode>( 2 );
-            if ( pInputNode != nullptr )
+            if ( pFacingNode != nullptr )
             {
-                int16_t const compiledNodeIdx = pInputNode->Compile( context );
+                int16_t const compiledNodeIdx = pFacingNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
                     pSettings->m_desiredFacingDirectionNodeIdx = compiledNodeIdx;
@@ -77,11 +81,6 @@ namespace EE::Animation::GraphNodes
                 {
                     return InvalidIndex;
                 }
-            }
-            else
-            {
-                context.LogError( this, "Disconnected Facing Direction pin!" );
-                return InvalidIndex;
             }
 
             //-------------------------------------------------------------------------

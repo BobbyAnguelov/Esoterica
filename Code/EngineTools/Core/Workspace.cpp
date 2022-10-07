@@ -187,6 +187,15 @@ namespace EE
         if ( IsADescriptorWorkspace() )
         {
             EE_ASSERT( IsDescriptorLoaded() );
+
+            Serialization::JsonArchiveReader archive;
+            if ( !archive.ReadFromFile( m_descriptorPath ) )
+            {
+                EE_LOG_ERROR( "Tools", "Resource Workspace", "Failed to read resource descriptor file: %s", m_descriptorPath.c_str() );
+                return;
+            }
+
+            ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
         }
 
         //-------------------------------------------------------------------------
@@ -916,13 +925,8 @@ namespace EE
         }
 
         auto const& document = archive.GetDocument();
-        m_pDescriptor = Cast<Resource::ResourceDescriptor>( Serialization::CreateAndReadNativeType( *m_pToolsContext->m_pTypeRegistry, document ) );
+        m_pDescriptor = Serialization::TryCreateAndReadNativeType<Resource::ResourceDescriptor>( *m_pToolsContext->m_pTypeRegistry, document );
         m_pDescriptorPropertyGrid->SetTypeToEdit( m_pDescriptor );
-
-        if ( m_pDescriptor != nullptr )
-        {
-            ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, document );
-        }
     }
 
     bool Workspace::DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow )

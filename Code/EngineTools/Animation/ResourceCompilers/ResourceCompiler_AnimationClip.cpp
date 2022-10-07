@@ -446,10 +446,14 @@ namespace EE::Animation
         int32_t numSyncTracks = 0;
         float const numIntervals = float( rawAnimData.GetNumFrames() - 1 );
         TVector<Event*> events;
-        FloatRange const animationTimeRange( 0, numIntervals );
+        FloatRange const animationTimeRange( 0, numIntervals ); // In Frames
         for ( Timeline::Track* pTrack : trackContainer.m_tracks )
         {
-            if ( pTrack->GetValidationStatus() == Timeline::Track::Status::HasErrors )
+            auto trackStatus = pTrack->GetValidationStatus( numIntervals );
+
+            //-------------------------------------------------------------------------
+
+            if ( trackStatus == Timeline::Track::Status::HasErrors )
             {
                 if ( pTrack->IsRenameable() )
                 {
@@ -466,7 +470,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            if ( pTrack->GetValidationStatus() != Timeline::Track::Status::HasWarnings )
+            if ( trackStatus != Timeline::Track::Status::HasWarnings )
             {
                 if ( pTrack->IsRenameable() )
                 {
@@ -501,15 +505,15 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 // Ignore any event entirely outside the animation time range
-                if ( !animationTimeRange.Overlaps( pEvent->GetTimeRange() ) )
+                FloatRange eventTimeRange = pItem->GetTimeRange();
+                if ( !animationTimeRange.Overlaps( eventTimeRange ) )
                 {
                     Warning( "Event detected outside animation time range, event will be ignored" );
                     continue;
                 }
 
                 // Clamp events that extend out of the animation time range to the animation time range
-                FloatRange eventTimeRange = pEvent->GetTimeRange();
-                if ( !animationTimeRange.ContainsInclusive( pEvent->GetTimeRange() ) )
+                if ( !animationTimeRange.ContainsInclusive( eventTimeRange ) )
                 {
                     Warning( "Event extend outside the valid animation time range, event will be clamped to animation range" );
 
@@ -518,9 +522,9 @@ namespace EE::Animation
                     EE_ASSERT( eventTimeRange.IsSetAndValid() );
                 }
 
-                // Set event time and add new event
-                pEvent->m_startTime = eventTimeRange.m_begin / numIntervals;
-                pEvent->m_duration = eventTimeRange.GetLength() / numIntervals;
+                // Set event time (in Seconds) and add new event
+                pEvent->m_startTime = ( eventTimeRange.m_begin / numIntervals ) * rawAnimData.GetDuration();
+                pEvent->m_duration = ( eventTimeRange.GetLength() / numIntervals ) * rawAnimData.GetDuration();
                 events.emplace_back( pEvent );
 
                 // Create sync event

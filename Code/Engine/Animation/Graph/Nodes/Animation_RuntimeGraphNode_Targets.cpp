@@ -221,7 +221,9 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                EE_LOG_WARNING( "Animation", "TODO", "Trying to set an offset on an unset node!" );
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( GetNodeIndex(), "Trying to set an offset on an unset node!" );
+                #endif
             }
         }
 

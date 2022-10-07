@@ -69,14 +69,14 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::ShutdownInternal( context );
     }
 
-    void RootMotionOverrideNode::ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& NodeResult ) const
+    void RootMotionOverrideNode::ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult ) const
     {
         auto pSettings = GetSettings<RootMotionOverrideNode>();
         EE_ASSERT( context.IsValid() && pSettings != nullptr );
 
         //-------------------------------------------------------------------------
 
-        Transform AdjustedDisplacementDelta = NodeResult.m_rootMotionDelta;
+        Transform adjustedDisplacementDelta = nodeResult.m_rootMotionDelta;
 
         // Heading
         //-------------------------------------------------------------------------
@@ -87,7 +87,7 @@ namespace EE::Animation::GraphNodes
             Vector const desiredHeadingVelocity = m_pDesiredHeadingVelocityNode->GetValue<Vector>( context );
 
             // Override the request axes with the desired heading
-            Vector translation = NodeResult.m_rootMotionDelta.GetTranslation();
+            Vector translation = nodeResult.m_rootMotionDelta.GetTranslation();
             translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::HeadingX ) ? desiredHeadingVelocity.m_x * context.m_deltaTime : translation.m_x;
             translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::HeadingY ) ? desiredHeadingVelocity.m_y * context.m_deltaTime : translation.m_y;
             translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::HeadingZ ) ? desiredHeadingVelocity.m_z * context.m_deltaTime : translation.m_z;
@@ -109,7 +109,7 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            AdjustedDisplacementDelta.SetTranslation( translation );
+            adjustedDisplacementDelta.SetTranslation( translation );
         }
 
         // Facing
@@ -148,16 +148,16 @@ namespace EE::Animation::GraphNodes
                     }
                 }
 
-                AdjustedDisplacementDelta.SetRotation( deltaRotation );
+                adjustedDisplacementDelta.SetRotation( deltaRotation );
             }
         }
 
         //-------------------------------------------------------------------------
 
-        NodeResult.m_rootMotionDelta = AdjustedDisplacementDelta;
+        nodeResult.m_rootMotionDelta = adjustedDisplacementDelta;
 
         #if EE_DEVELOPMENT_TOOLS
-        context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), NodeResult.m_rootMotionDelta );
+        context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), nodeResult.m_rootMotionDelta );
         #endif
     }
 

@@ -96,6 +96,18 @@ namespace EE::Animation::GraphNodes
         NodeCompilationState const state = context.GetSettings<SimulatedRagdollNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
+            if ( !m_entryProfileID.IsValid() )
+            {
+                context.LogError( this, "Invalid entry profile ID" );
+                return InvalidIndex;
+            }
+
+            if ( !m_simulatedProfileID.IsValid() )
+            {
+                context.LogError( this, "Invalid simulated profile ID" );
+                return InvalidIndex;
+            }
+
             // Entry
             //-------------------------------------------------------------------------
 
@@ -138,10 +150,21 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
+            if ( !pSettings->m_exitOptionNodeIndices.empty() )
+            {
+                if ( !m_exitProfileID.IsValid() )
+                {
+                    context.LogError( this, "Invalid exit profile ID" );
+                    return InvalidIndex;
+                }
+            }
+
             //-------------------------------------------------------------------------
 
             pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
-            pSettings->m_profileID = m_profileID;
+            pSettings->m_entryProfileID = m_entryProfileID;
+            pSettings->m_simulatedProfileID = m_simulatedProfileID;
+            pSettings->m_exitProfileID = m_exitProfileID;
         }
         return pSettings->m_nodeIdx;
     }

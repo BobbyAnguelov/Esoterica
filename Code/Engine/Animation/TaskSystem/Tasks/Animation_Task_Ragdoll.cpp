@@ -43,7 +43,7 @@ namespace EE::Animation::Tasks
 
     void RagdollGetPoseTask::Execute( TaskContext const& context )
     {
-        if ( context.m_dependencies[0] == nullptr )
+        if ( context.m_dependencies.empty() )
         {
             auto pResultBuffer = GetNewPoseBuffer( context );
             pResultBuffer->m_pose.CalculateGlobalTransforms();

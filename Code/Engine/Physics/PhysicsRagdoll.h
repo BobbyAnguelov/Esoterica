@@ -65,8 +65,9 @@ namespace EE::Physics
             EE_REGISTER_ENUM
 
             None = 0,
-            Distance = 1,
-            Spring = 2
+            Kinematic,
+            Distance,
+            Spring
         };
 
     public:
@@ -218,6 +219,26 @@ namespace EE::Physics
                 EE_ASSERT( bodyIdx0 < m_selfCollisionRules.size() && bodyIdx1 < m_selfCollisionRules.size() );
                 uint64_t const result = m_selfCollisionRules[bodyIdx0] & ( 1ULL << bodyIdx1 );
                 return result != 0;
+            }
+
+            // Copy ragdoll settings
+            inline void CopySettingsFrom( Profile const& other )
+            {
+                m_rootControlBodySettings = other.m_rootControlBodySettings;
+                m_bodySettings = other.m_bodySettings;
+                m_jointSettings = other.m_jointSettings;
+                m_materialSettings = other.m_materialSettings;
+
+                m_solverPositionIterations = other.m_solverPositionIterations;
+                m_solverVelocityIterations = other.m_solverVelocityIterations;
+                m_maxProjectionIterations = other.m_maxProjectionIterations;
+                m_internalDriveIterations = other.m_internalDriveIterations;
+                m_externalDriveIterations = other.m_externalDriveIterations;
+                m_separationTolerance = other.m_separationTolerance;
+                m_stabilizationThreshold = other.m_stabilizationThreshold;
+                m_sleepThreshold = other.m_sleepThreshold;
+
+                m_selfCollisionRules = other.m_selfCollisionRules;
             }
 
         public:

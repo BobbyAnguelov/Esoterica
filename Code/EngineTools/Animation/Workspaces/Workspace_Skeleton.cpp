@@ -98,15 +98,15 @@ namespace EE::Animation
             auto drawingCtx = GetDrawingContext();
 
             // Draw skeleton
-            drawingCtx.Draw( *m_pResource.GetPtr(), Transform::Identity );
+            drawingCtx.Draw( *m_workspaceResource.GetPtr(), Transform::Identity );
 
             // Draw selected bone
             if ( m_selectedBoneID.IsValid() )
             {
-                int32_t const boneIdx = m_pResource->GetBoneIndex( m_selectedBoneID );
+                int32_t const boneIdx = m_workspaceResource->GetBoneIndex( m_selectedBoneID );
                 if ( boneIdx != InvalidIndex )
                 {
-                    Transform const globalBoneTransform = m_pResource->GetBoneGlobalTransform( boneIdx );
+                    Transform const globalBoneTransform = m_workspaceResource->GetBoneGlobalTransform( boneIdx );
                     drawingCtx.DrawAxis( globalBoneTransform, 0.25f, 3.0f );
 
                     Vector textLocation = globalBoneTransform.GetTranslation();
@@ -132,22 +132,22 @@ namespace EE::Animation
         {
             if ( m_selectedBoneID.IsValid() )
             {
-                int32_t const selectedBoneIdx = m_pResource->GetBoneIndex( m_selectedBoneID );
+                int32_t const selectedBoneIdx = m_workspaceResource->GetBoneIndex( m_selectedBoneID );
                 EE_ASSERT( selectedBoneIdx != InvalidIndex );
 
                 {
                     ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                    ImGui::Text( "%d. %s", selectedBoneIdx, m_pResource->GetBoneID( selectedBoneIdx ).c_str() );
+                    ImGui::Text( "%d. %s", selectedBoneIdx, m_workspaceResource->GetBoneID( selectedBoneIdx ).c_str() );
                 }
 
                 ImGui::NewLine();
                 ImGui::Text( "Local Transform" );
-                Transform const& localBoneTransform = m_pResource->GetLocalReferencePose()[selectedBoneIdx];
+                Transform const& localBoneTransform = m_workspaceResource->GetLocalReferencePose()[selectedBoneIdx];
                 ImGuiX::DisplayTransform( localBoneTransform );
 
                 ImGui::NewLine();
                 ImGui::Text( "Global Transform" );
-                Transform const& globalBoneTransform = m_pResource->GetGlobalReferencePose()[selectedBoneIdx];
+                Transform const& globalBoneTransform = m_workspaceResource->GetGlobalReferencePose()[selectedBoneIdx];
                 ImGuiX::DisplayTransform( globalBoneTransform );
             }
         }
@@ -166,8 +166,8 @@ namespace EE::Animation
                     CreateSkeletonTree();
                 }
 
-                ImGui::Text( "Skeleton ID: %s", m_pResource->GetResourceID().c_str() );
-                ImGui::Text( "Num Bones: %d", m_pResource->GetNumBones() );
+                ImGui::Text( "Skeleton ID: %s", m_workspaceResource->GetResourceID().c_str() );
+                ImGui::Text( "Num Bones: %d", m_workspaceResource->GetNumBones() );
 
                 ImGui::Separator();
 
@@ -185,7 +185,7 @@ namespace EE::Animation
         TVector<BoneInfo*> boneInfos;
 
         // Create all infos
-        int32_t const numBones = m_pResource->GetNumBones();
+        int32_t const numBones = m_workspaceResource->GetNumBones();
         for ( auto i = 0; i < numBones; i++ )
         {
             auto& pBoneInfo = boneInfos.emplace_back( EE::New<BoneInfo>() );
@@ -195,7 +195,7 @@ namespace EE::Animation
         // Create hierarchy
         for ( auto i = 1; i < numBones; i++ )
         {
-            int32_t const parentBoneIdx = m_pResource->GetParentBoneIndex( i );
+            int32_t const parentBoneIdx = m_workspaceResource->GetParentBoneIndex( i );
             EE_ASSERT( parentBoneIdx != InvalidIndex );
             boneInfos[parentBoneIdx]->m_children.emplace_back( boneInfos[i] );
         }
@@ -215,7 +215,7 @@ namespace EE::Animation
 
     ImRect SkeletonWorkspace::DrawBone( BoneInfo* pBone )
     {
-        StringID const currentBoneID = m_pResource->GetBoneID( pBone->m_boneIdx );
+        StringID const currentBoneID = m_workspaceResource->GetBoneID( pBone->m_boneIdx );
 
         ImGui::SetNextItemOpen( pBone->m_isExpanded );
         int32_t treeNodeFlags = ImGuiTreeNodeFlags_OpenOnDoubleClick;

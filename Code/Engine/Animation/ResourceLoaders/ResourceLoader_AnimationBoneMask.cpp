@@ -1,4 +1,4 @@
-#include "AnimationBoneMaskLoader.h"
+#include "ResourceLoader_AnimationBoneMask.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "System/Serialization/BinarySerialization.h"
 

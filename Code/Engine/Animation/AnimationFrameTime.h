@@ -42,6 +42,10 @@ namespace EE::Animation
                 percent.Clamp( true );
                 float integerPortion = 0;
                 m_percentageThrough = Percentage( Math::ModF( percent.ToFloat() * lastFrameIdx, &integerPortion ) );
+                if ( Math::IsNearZero( m_percentageThrough, Math::LargeEpsilon ) )
+                {
+                    m_percentageThrough = 0.0f;
+                }
                 m_frameIndex = (uint32_t) integerPortion;
             }
         }
@@ -59,7 +63,7 @@ namespace EE::Animation
         inline uint32_t GetLowerBoundFrameIndex() const { return m_frameIndex; }
 
         // Get the upper bound frame index for the current time
-        inline uint32_t GetUpperBoundFrameIndex() const { return m_frameIndex + 1; }
+        inline uint32_t GetUpperBoundFrameIndex() const { return ( m_percentageThrough > 0.0f ) ? m_frameIndex + 1 : m_frameIndex; }
 
         inline float ToFloat() const { return m_percentageThrough.ToFloat() + m_frameIndex; }
 

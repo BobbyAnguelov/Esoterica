@@ -10,6 +10,7 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "System/Math/MathStringHelpers.h"
+#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 
 //-------------------------------------------------------------------------
 
@@ -126,7 +127,7 @@ namespace EE::Animation
 
         // Create animation component
         m_pAnimationComponent = EE::New<AnimationClipPlayerComponent>( StringID( "Animation Component" ) );
-        m_pAnimationComponent->SetAnimation( m_pResource.GetResourceID() );
+        m_pAnimationComponent->SetAnimation( m_workspaceResource.GetResourceID() );
         m_pAnimationComponent->SetPlayMode( AnimationClipPlayerComponent::PlayMode::Posed );
 
         // Create entity
@@ -224,6 +225,8 @@ namespace EE::Animation
         {
             CreatePreviewMeshComponent();
         }
+
+        m_characterPoseUpdateRequested = true;
     }
 
     //-------------------------------------------------------------------------
@@ -232,7 +235,7 @@ namespace EE::Animation
     {
         if ( IsResourceLoaded() )
         {
-            m_eventEditor.SetAnimationInfo( m_pResource->GetNumFrames(), m_pResource->GetFPS() );
+            m_eventEditor.SetAnimationInfo( m_workspaceResource->GetNumFrames(), m_workspaceResource->GetFPS() );
         }
 
         // Draw UI
@@ -258,24 +261,26 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             Percentage const percentageThroughAnimation = m_eventEditor.GetCurrentTimeAsPercentage();
-            if ( m_currentAnimTime != percentageThroughAnimation )
+            if ( m_currentAnimTime != percentageThroughAnimation || m_characterPoseUpdateRequested )
             {
                 m_currentAnimTime = percentageThroughAnimation;
                 m_pAnimationComponent->SetAnimTime( percentageThroughAnimation );
-                m_characterTransform = m_isRootMotionEnabled ? m_pResource->GetRootTransform( percentageThroughAnimation ) : Transform::Identity;
+                m_characterTransform = m_isRootMotionEnabled ? m_workspaceResource->GetRootTransform( percentageThroughAnimation ) : Transform::Identity;
 
                 // Update character preview position
                 if ( m_pMeshComponent != nullptr )
                 {
                     m_pMeshComponent->SetWorldTransform( m_characterTransform );
                 }
+
+                m_characterPoseUpdateRequested = false;
             }
             
             // Draw root motion in viewport
             //-------------------------------------------------------------------------
 
             auto drawingCtx = GetDrawingContext();
-            m_pResource->GetRootMotion().DrawDebug( drawingCtx, Transform::Identity );
+            m_workspaceResource->GetRootMotion().DrawDebug( drawingCtx, Transform::Identity );
 
             if ( m_isPoseDrawingEnabled && m_pAnimationComponent != nullptr )
             {
@@ -303,15 +308,16 @@ namespace EE::Animation
         auto PrintAnimDetails = [this] ( Color color )
         {
             Percentage const currentTime = m_eventEditor.GetCurrentTimeAsPercentage();
-            uint32_t const numFrames = m_pResource->GetNumFrames();
-            FrameTime const frameTime = m_pResource->GetFrameTime( currentTime );
+            uint32_t const numFrames = m_workspaceResource->GetNumFrames();
+            FrameTime const frameTime = m_workspaceResource->GetFrameTime( currentTime );
 
             ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold, color );
-            ImGui::Text( "Avg Linear Velocity: %.2f m/s", m_pResource->GetAverageLinearVelocity() );
-            ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_pResource->GetAverageAngularVelocity().ToFloat() );
-            ImGui::Text( "Distance Covered: %.2fm", m_pResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
+            ImGui::Text( "Avg Linear Velocity: %.2f m/s", m_workspaceResource->GetAverageLinearVelocity() );
+            ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_workspaceResource->GetAverageAngularVelocity().ToFloat() );
+            ImGui::Text( "Distance Covered: %.2fm", m_workspaceResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
             ImGui::Text( "Frame: %.2f/%d (%.2f/%d)", frameTime.ToFloat(), numFrames - 1, frameTime.ToFloat() + 1.0f, numFrames ); // Draw offset time too to match DCC timelines that start at 1
-            ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * m_pResource->GetDuration(), m_pResource->GetDuration().ToFloat() );
+            ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * m_workspaceResource->GetDuration(), m_workspaceResource->GetDuration().ToFloat() );
+            ImGui::Text( "Percentage: %.2f%%", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * 100 );
         };
 
         ImVec2 const cursorPos = ImGui::GetCursorPos();
@@ -353,7 +359,7 @@ namespace EE::Animation
             }
             else if ( HasLoadingFailed() )
             {
-                ImGui::Text( "Loading Failed: %s", m_pResource.GetResourceID().c_str() );
+                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
             }
             else
             {
@@ -418,7 +424,7 @@ namespace EE::Animation
                         {
                             for ( int boneIdx = clipper.DisplayStart; boneIdx < clipper.DisplayEnd; boneIdx++ )
                             {
-                                Transform const& boneTransform = ( boneIdx == 0 ) ? m_pResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetGlobalTransform( boneIdx );
+                                Transform const& boneTransform = ( boneIdx == 0 ) ? m_workspaceResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetGlobalTransform( boneIdx );
 
                                 ImGui::TableNextColumn();
                                 ImGui::Text( "%d. %s", boneIdx, pSkeleton->GetBoneID( boneIdx ).c_str() );
@@ -469,6 +475,12 @@ namespace EE::Animation
 
     bool AnimationClipWorkspace::Save()
     {
+        auto const status = m_eventEditor.GetTrackContainerValidationStatus();
+        if ( status == Timeline::Track::Status::HasErrors )
+        {
+            pfd::message( "Invalid Events", "This animation clip has one or more invalid event tracks. These events will not be available in the game!", pfd::choice::ok, pfd::icon::error ).result();
+        }
+
         if ( !TWorkspace<AnimationClip>::Save() )
         {
             return false;

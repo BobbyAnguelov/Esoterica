@@ -78,8 +78,12 @@ namespace EE
         EE_FORCE_INLINE static Vector Min( Vector const& v0, Vector const& v1 );
         EE_FORCE_INLINE static Vector Max( Vector const& v0, Vector const& v1 );
         EE_FORCE_INLINE static Vector Clamp( Vector const& v, Vector const& min, Vector const& max );
-        EE_FORCE_INLINE static Vector MultiplyAdd( Vector const& vec, Vector const& multiplier, Vector const& add );
-        EE_FORCE_INLINE static Vector NegativeMultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& subtrahend );
+        // Add the multiplied results to a vector: ( vec * mul ) + addend
+        EE_FORCE_INLINE static Vector MultiplyAdd( Vector const& vec, Vector const& multiplier, Vector const& addend );
+        // Subtract a vector from the multiplied result: (vec * mul ) - subtrahend
+        EE_FORCE_INLINE static Vector MultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& subtrahend );
+        // Subtract the multiplied result from a vector: minuend - (vec * mul )
+        EE_FORCE_INLINE static Vector NegativeMultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& minuend );
         EE_FORCE_INLINE static Vector Xor( Vector const& vec0, Vector const& vec1 );
         EE_FORCE_INLINE static Vector LinearCombination( Vector const& v0, Vector const& v1, float scale0, float scale1 ) { return ( v0 * scale0 ) + ( v1 * scale1 ); }
 
@@ -984,19 +988,27 @@ namespace EE
         return result;
     }
 
-    EE_FORCE_INLINE Vector Vector::MultiplyAdd( Vector const& v, Vector const& multiplier, Vector const& add )
+    EE_FORCE_INLINE Vector Vector::MultiplyAdd( Vector const& v, Vector const& multiplier, Vector const& addend )
     {
+        // result = addend + ( vec * multiplier )
         Vector result;
         result = _mm_mul_ps( v, multiplier );
-        result = _mm_add_ps( result, add );
+        result = _mm_add_ps( result, addend );
         return result;
     }
 
-    EE_FORCE_INLINE Vector Vector::NegativeMultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& subtrahend )
+    EE_FORCE_INLINE Vector Vector::MultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& subtrahend )
     {
-        // result = subtrahend - ( vec * multiplier )
+        // result = ( vec * multiplier ) - subtrahend
         auto r = _mm_mul_ps( vec, multiplier );
-        return _mm_sub_ps( subtrahend, r );
+        return _mm_sub_ps( r, subtrahend );
+    }
+
+    EE_FORCE_INLINE Vector Vector::NegativeMultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& minuend )
+    {
+        // result = minuend - ( vec * multiplier )
+        auto r = _mm_mul_ps( vec, multiplier );
+        return _mm_sub_ps( minuend, r );
     }
 
     EE_FORCE_INLINE Vector Vector::Xor( Vector const& v0, Vector const& v1 )

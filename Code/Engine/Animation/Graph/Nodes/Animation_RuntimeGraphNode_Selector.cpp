@@ -91,7 +91,9 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            EE_LOG_WARNING( "Animation", "TODO", "Failed to select a valid option!" );
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Failed to select a valid option!" );
+            #endif
         }
     }
 
@@ -252,7 +254,9 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            EE_LOG_WARNING( "Animation", "TODO", "Failed to select a valid option!" );
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Failed to select a valid option!" );
+            #endif
         }
     }
 

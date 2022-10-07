@@ -20,18 +20,30 @@ namespace EE::Animation::GraphNodes
 
     class EE_ENGINE_API SimulatedRagdollNode final : public PoseNode
     {
+        enum class Stage
+        {
+            Invalid,
+            FullyInEntryAnim,
+            BlendToRagdoll,
+            FullyInRagdoll,
+            BlendOutOfRagdoll,
+            FullyInExitAnim,
+        };
+
     public:
 
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_entryNodeIdx, m_dataSlotIdx, m_profileID, m_exitOptionNodeIndices );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_entryNodeIdx, m_dataSlotIdx, m_entryProfileID, m_simulatedProfileID, m_exitProfileID, m_exitOptionNodeIndices );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                                         m_entryNodeIdx = InvalidIndex;
             int16_t                                         m_dataSlotIdx = InvalidIndex;
-            StringID                                        m_profileID;
+            StringID                                        m_entryProfileID;
+            StringID                                        m_simulatedProfileID;
+            StringID                                        m_exitProfileID;
             TInlineVector<int16_t, 3>                       m_exitOptionNodeIndices;
         };
 
@@ -41,10 +53,17 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override;
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        GraphPoseNodeResult RegisterRagdollTasks( GraphContext& context, GraphPoseNodeResult const& childResult );
+        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
+
+        // We dont support synchronization for this node!
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override { return Update( context ); }
+
+        //-------------------------------------------------------------------------
+
+        GraphPoseNodeResult UpdateEntry( GraphContext& context );
+        GraphPoseNodeResult UpdateSimulated( GraphContext& context );
+        GraphPoseNodeResult UpdateExit( GraphContext& context );
 
     private:
 
@@ -52,6 +71,7 @@ namespace EE::Animation::GraphNodes
         Physics::Ragdoll*                                   m_pRagdoll = nullptr;
         AnimationClipReferenceNode*                         m_pEntryNode = nullptr;
         TInlineVector<AnimationClipReferenceNode*, 3>       m_exitNodeOptions;
-        bool                                                m_isFirstUpdate = false;
+        Stage                                               m_stage = Stage::Invalid;
+        bool                                                m_isFirstRagdollUpdate = false;
     };
 }

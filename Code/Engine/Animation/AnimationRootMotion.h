@@ -3,6 +3,7 @@
 #include "AnimationFrameTime.h"
 #include "System/Math/Transform.h"
 #include "System/Types/Arrays.h"
+#include "System/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
@@ -56,10 +57,22 @@ namespace EE::Animation
         // Get the rotation delta for this animation
         inline Quaternion const& GetRotationDelta() const { return m_totalDelta.GetRotation(); }
 
+        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
+        Vector GetIncomingHeadingDirection2DAtFrame( int32_t frameIdx ) const;
+
+        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
+        Quaternion GetIncomingHeadingOrientation2DAtFrame( int32_t frameIdx ) const;
+
+        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
+        Vector GetOutgoingHeadingDirection2DAtFrame( int32_t frameIdx ) const;
+
+        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
+        Quaternion GetOutgoingHeadingOrientation2DAtFrame( int32_t frameIdx ) const;
+
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform ) const;
+        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color0 = Colors::Yellow, Color color1 = Colors::Cyan ) const;
         #endif
 
     private:
