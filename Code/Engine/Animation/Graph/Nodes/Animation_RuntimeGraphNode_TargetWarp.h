@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
             #endif
         };
 
-        enum class SamplingMode
+        enum class SamplingMode : uint8_t
         {
             EE_REGISTER_ENUM
 
@@ -47,13 +47,17 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_samplingPositionErrorThresholdSq, m_samplingMode, m_allowTargetUpdate );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_samplingPositionErrorThresholdSq, m_maxTangentLength, m_lerpFallbackDistanceThreshold, m_targetUpdateDistanceThreshold, m_targetUpdateAngleThresholdRadians, m_samplingMode, m_allowTargetUpdate );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                             m_clipReferenceNodeIdx = InvalidIndex;
             int16_t                             m_targetValueNodeIdx = InvalidIndex;
             float                               m_samplingPositionErrorThresholdSq = 0.0f; // The threshold at which we switch from accurate to inaccurate sampling
+            float                               m_maxTangentLength = 1.25f;
+            float                               m_lerpFallbackDistanceThreshold = 0.1f;
+            float                               m_targetUpdateDistanceThreshold = 0.1f;
+            float                               m_targetUpdateAngleThresholdRadians = Math::DegreesToRadians * 5.0f;
             SamplingMode                        m_samplingMode = SamplingMode::Inaccurate;
             bool                                m_allowTargetUpdate = false;
         };
@@ -69,10 +73,10 @@ namespace EE::Animation::GraphNodes
         void UpdateShared( GraphContext& context, GraphPoseNodeResult& result );
 
         bool TryReadTarget( GraphContext& context );
-        void UpdateWarp( GraphContext& context );
+        bool UpdateWarp( GraphContext& context );
 
-        // Create the warp sections
         bool GenerateWarpInfo( GraphContext& context, Percentage startTime );
+        void ClearWarpInfo();
 
         // Generate the actual warp root motion
         bool GenerateWarpedRootMotion( GraphContext& context, Percentage startTime );

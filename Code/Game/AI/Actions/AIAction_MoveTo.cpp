@@ -70,7 +70,7 @@ namespace EE::AI
         Vector currentPosition;
         if ( !currentSegmentStartPos.IsNearEqual3( currentSegmentEndPos ) )
         {
-            currentPosition = Line( currentSegmentStartPos, currentSegmentEndPos ).GetClosestPointOnLine( ctx.m_pCharacter->GetPosition() );
+            currentPosition = Line( Line::StartEnd, currentSegmentStartPos, currentSegmentEndPos ).GetClosestPointOnLine( ctx.m_pCharacter->GetPosition() );
         }
         else
         {

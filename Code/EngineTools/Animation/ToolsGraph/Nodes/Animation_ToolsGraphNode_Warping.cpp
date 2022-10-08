@@ -168,6 +168,10 @@ namespace EE::Animation::GraphNodes
         pSettings->m_allowTargetUpdate = m_allowTargetUpdate;
         pSettings->m_samplingMode = m_samplingMode;
         pSettings->m_samplingPositionErrorThresholdSq = Math::Sqr( m_samplingPositionErrorThreshold );
+        pSettings->m_maxTangentLength = m_maxTangentLength;
+        pSettings->m_lerpFallbackDistanceThreshold = m_lerpFallbackDistanceThreshold;
+        pSettings->m_targetUpdateDistanceThreshold = m_targetUpdateDistanceThreshold;
+        pSettings->m_targetUpdateAngleThresholdRadians = m_targetUpdateAngleThreshold.ToRadians().ToFloat();
 
         return pSettings->m_nodeIdx;
     }

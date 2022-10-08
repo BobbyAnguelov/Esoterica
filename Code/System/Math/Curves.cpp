@@ -22,6 +22,58 @@ namespace EE::Math
 
     //-------------------------------------------------------------------------
 
+    float QuadraticBezier::GetEstimatedLength( Vector const& p0, Vector const& cp, Vector const& p1, uint32_t numDiscretizations )
+    {
+        float distance = 0;
+        float step = 1.0f / numDiscretizations;
+        float currentT = step;
+        Vector previousPoint = p0;
+
+        while ( true )
+        {
+            auto currentPoint = GetPoint( p0, cp, p1, currentT );
+            distance += previousPoint.GetDistance3( currentPoint );
+            previousPoint = currentPoint;
+
+            if ( currentT == 1.0f )
+            {
+                break;
+            }
+
+            currentT = Math::Min( currentT + step, 1.0f );
+        }
+
+        return distance;
+    }
+
+    //-------------------------------------------------------------------------
+
+    float CubicBezier::GetEstimatedLength( Vector const& p0, Vector const& cp0, Vector const& cp1, Vector const& p1, uint32_t numDiscretizations )
+    {
+        float distance = 0;
+        float step = 1.0f / numDiscretizations;
+        float currentT = step;
+        Vector previousPoint = p0;
+
+        while ( true )
+        {
+            auto currentPoint = GetPoint( p0, cp0, cp1, p1, currentT );
+            distance += previousPoint.GetDistance3( currentPoint );
+            previousPoint = currentPoint;
+
+            if ( currentT == 1.0f )
+            {
+                break;
+            }
+
+            currentT = Math::Min( currentT + step, 1.0f );
+        }
+
+        return distance;
+    }
+
+    //-------------------------------------------------------------------------
+
     float CubicHermite::GetSplineLength( Vector const& point0, Vector const& tangent0, Vector const& point1, Vector const& tangent1 )
     {
         Vector const c0 = tangent0;

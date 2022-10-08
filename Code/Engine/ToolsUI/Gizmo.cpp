@@ -386,7 +386,7 @@ namespace EE::ImGuiX
         {
             Vector const mousePos = ImGui::GetMousePos();
             LineSegment const arrowLine( offsetStart, end );
-            float const mouseToLineDistance = arrowLine.GetDistanceBetweenSegmentAndPoint( mousePos );
+            float const mouseToLineDistance = arrowLine.GetDistanceFromSegmentToPoint( mousePos );
             isHovered = mouseToLineDistance < ( ( g_axisThickness / 2 ) + 3.0f );
         }
 

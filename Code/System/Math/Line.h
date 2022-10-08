@@ -3,48 +3,51 @@
 #include "System/Math/Matrix.h"
 
 //-------------------------------------------------------------------------
+// Line Helpers
+//-------------------------------------------------------------------------
 
 namespace EE
 {
-    //-------------------------------------------------------------------------
-    // Line - start point and infinite length in both directions
+    // Line - an infinite line defined by a start point and direction
     //-------------------------------------------------------------------------
 
     class Line
     {
-        friend class Ray;
+    public:
+
+        enum CtorStartEnd
+        {
+            StartEnd,
+        };
+
+        enum CtorStartDirection
+        {
+            StartDirection,
+        };
 
     public:
 
-        static inline Line FromTwoPoints( Vector const& startPoint, Vector const& endPoint )
-        {
-            return Line( startPoint, endPoint );
-        }
-        
-        static inline Line FromPointAndDirection( Vector const& startPoint, Vector const& direction )
-        {
-            EE_ASSERT( !direction.IsNearZero3() );
-            Line line;
-            line.m_startPoint = startPoint;
-            line.m_direction = direction;
-            return line;
-        }
-
-    public:
-
-        Line( Vector const& startPoint, Vector const& endPoint )
+        Line( CtorStartDirection, Vector const& startPoint, Vector const& direction )
             : m_startPoint( startPoint )
+            , m_direction( direction )
         {
-            EE_ASSERT( !startPoint.IsNearEqual3( endPoint ) );
-            m_direction = ( endPoint - startPoint ).GetNormalized3();
+            EE_ASSERT( m_direction.IsNormalized3() );
+        }
+
+        Line( CtorStartEnd, Vector const& startPoint, Vector const& endPoint )
+            : m_startPoint( startPoint )
+            , m_direction( ( endPoint - startPoint ).GetNormalized3() )
+        {
+            EE_ASSERT( m_direction.IsNormalized3() );
         }
 
         inline Vector GetStartPoint() const { return m_startPoint; }
+
         inline Vector GetDirection() const { return m_direction; }
 
         //-------------------------------------------------------------------------
 
-        inline float ScalarProjectionOnLine( Vector const point ) const
+        inline float ScalarProjectionOnLine( Vector const& point ) const
         {
             auto const dot = Vector::Dot3( ( point - m_startPoint ), m_direction );
             return dot.ToFloat();
@@ -55,7 +58,7 @@ namespace EE
             return Vector::MultiplyAdd( m_direction, Vector( distanceFromStartPoint ), m_startPoint );
         }
 
-        inline Vector VectorProjectionOnLine( Vector const point, float& outScalarResolute ) const
+        inline Vector VectorProjectionOnLine( Vector const& point, float& outScalarResolute ) const
         {
             outScalarResolute = ScalarProjectionOnLine( point );
             return GetPointAlongLine( outScalarResolute );
@@ -67,7 +70,7 @@ namespace EE
             return VectorProjectionOnLine( point, scalarResolute );
         }
 
-        inline Vector GetDistanceAlongLine( Vector const& point ) const
+        inline Vector GetDistanceOnLineFromStartPoint( Vector const& point ) const
         {
             return Vector( ScalarProjectionOnLine( point ) );
         }
@@ -79,7 +82,7 @@ namespace EE
         }
 
         // Return the intersection point between two lines in 2D
-        inline Vector Intersect2D( Line const& other ) const
+        inline Vector IntersectLine2D( Line const& other ) const
         {
             Vector V = m_startPoint - other.m_startPoint;
             Vector C1 = Vector::Cross2( m_direction, other.m_direction );
@@ -118,8 +121,7 @@ namespace EE
         Vector m_direction;
     };
 
-    //-------------------------------------------------------------------------
-    // A directed line segment
+    // Line Segment - a line with a fixed start and end points
     //-------------------------------------------------------------------------
 
     class LineSegment : public Line
@@ -129,17 +131,19 @@ namespace EE
     public:
 
         LineSegment( Vector startPoint, Vector endPoint )
-            : Line( startPoint, endPoint )
+            : Line( Line::StartEnd, startPoint, endPoint )
             , m_endPoint( endPoint )
             , m_length( startPoint.GetDistance3( endPoint ) )
         {}
 
         inline Vector GetEndPoint() const { return m_endPoint; }
+
         inline float GetLength() const { return m_length.ToFloat(); }
 
         //-------------------------------------------------------------------------
 
-        inline float ScalarProjectionOnSegment( Vector const point ) const
+        // The scalar project aka distance along the segment (clamped between start and end point)
+        inline float ScalarProjectionOnSegment( Vector const& point ) const
         {
             auto const dot = Vector::Dot3( ( point - m_startPoint ), m_direction );
             float distance = Math::Clamp( dot.ToFloat(), 0.0f, GetLength() );
@@ -154,24 +158,26 @@ namespace EE
             return Vector::MultiplyAdd( m_direction, distance, m_startPoint );
         }
 
-        inline Vector VectorProjectionOnSegment( Vector const point, float& outScalarResolute ) const
+        inline Vector VectorProjectionOnSegment( Vector const& point, float& outScalarResolute ) const
         {
             outScalarResolute = ScalarProjectionOnSegment( point );
             return GetPointAlongLine( outScalarResolute );
         }
 
-        inline Vector GetClosestPointOnSegment( Vector point ) const
+        inline Vector GetClosestPointOnSegment( Vector const& point ) const
         {
             float scalarResolute;
             return VectorProjectionOnSegment( point, scalarResolute );
         }
 
-        inline Vector GetDistanceAlongLine( Vector const& point ) const
+        // Get the distance along the segment starting at the start point. Always returns a positive value >= 0
+        inline Vector GetDistanceAlongSegment( Vector const& point ) const
         {
             return Vector( ScalarProjectionOnSegment( point ) );
         }
 
-        inline float GetDistanceBetweenSegmentAndPoint( Vector point ) const
+        // Returns the shortest distance between the segment and the specified point
+        inline float GetDistanceFromSegmentToPoint( Vector const& point ) const
         {
             Vector const closestPointOnSegment = GetClosestPointOnSegment( point );
             return closestPointOnSegment.GetDistance3( point );
@@ -205,8 +211,6 @@ namespace EE
         Vector m_length;
     };
 
-
-    //-------------------------------------------------------------------------
     // Ray - a line that is infinite in one direction
     //-------------------------------------------------------------------------
 
@@ -224,8 +228,8 @@ namespace EE
 
         Ray( Line const& line )
         {
-            m_startPoint = line.m_startPoint;
-            m_direction = line.m_direction;
+            m_startPoint = line.GetStartPoint();
+            m_direction = line.GetDirection();
         }
 
         Ray( LineSegment const& lineSegment )
@@ -236,6 +240,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        // The scalar project aka distance along the ray (all points behind the ray are clamped to 0)
         inline float ScalarProjectionOnRay( Vector const point ) const
         {
             auto const dot = Vector::Dot3( ( point - m_startPoint ), m_direction );
@@ -255,6 +260,7 @@ namespace EE
             return GetPointAlongRay( outScalarResolute );
         }
 
+        // Always returns distance >= 0
         inline float GetDistanceAlongRay( Vector const point ) const { return ScalarProjectionOnRay( point ); }
 
         inline Vector GetClosestPointOnRay( Vector const point ) const 

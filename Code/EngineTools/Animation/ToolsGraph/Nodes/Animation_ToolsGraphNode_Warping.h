@@ -58,5 +58,17 @@ namespace EE::Animation::GraphNodes
 
         // What's the error threshold we need to exceed, when accurately sampling, before we switch to inaccurate sampling
         EE_EXPOSE float                            m_samplingPositionErrorThreshold = 0.05f;
+
+        // Length limit on generated Bezier/Hermite warp curve tangents. The lower the length the lower the curvature.
+        EE_EXPOSE float                            m_maxTangentLength = 1.25f;
+
+        // The distance under which we fallback to LERPing the XY translation instead of generating a curve
+        EE_EXPOSE float                            m_lerpFallbackDistanceThreshold = 0.1f;
+
+        // The difference between the new target and the original target before we update the warp
+        EE_EXPOSE float                            m_targetUpdateDistanceThreshold = 0.1f;
+
+        // The difference between the new target and the original target before we update the warp
+        EE_EXPOSE Degrees                           m_targetUpdateAngleThreshold = 5.0f;
     };
 }

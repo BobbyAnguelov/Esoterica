@@ -22,7 +22,7 @@ namespace EE::Math
 
     //-------------------------------------------------------------------------
 
-    class QuadraticBezier
+    class EE_SYSTEM_API QuadraticBezier
     {
         // Simple static evaluation function
         template<typename T>
@@ -79,11 +79,14 @@ namespace EE::Math
 
             return result;
         };
+
+        // Returns the estimated length of the curve by discretizing it into N steps and calculating the distance between those points
+        static float GetEstimatedLength( Vector const& p0, Vector const& cp, Vector const& p1, uint32_t numDiscretizations = 10 );
     };
 
     //-------------------------------------------------------------------------
 
-    class CubicBezier
+    class EE_SYSTEM_API CubicBezier
     {
     public:
 
@@ -156,6 +159,9 @@ namespace EE::Math
 
             return result;
         };
+
+        // Returns the estimated length of the curve by discretizing it into N steps and calculating the distance between those points
+        static float GetEstimatedLength( Vector const& p0, Vector const& cp0, Vector const& cp1, Vector const& p1, uint32_t numDiscretizations = 10 );
     };
 
     //-------------------------------------------------------------------------

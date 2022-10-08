@@ -136,8 +136,12 @@ namespace EE::Math
     // Returns the angle between two vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
     inline Radians GetPitchAngleBetweenNormalizedVectors( Vector const& reference, Vector const& v )
     {
-        float const vElevationAngle = Math::ASin( v.m_z );
-        float const referenceElevationAngle = Math::ASin( reference.m_z );
+        float const clampedVZ = Math::Clamp( v.m_z, -1.0f, 1.0f );
+        float const vElevationAngle = Math::ASin( clampedVZ );
+
+        float const clampedReferenceZ = Math::Clamp( reference.m_z, -1.0f, 1.0f );
+        float const referenceElevationAngle = Math::ASin( clampedReferenceZ );
+
         return Radians( vElevationAngle - referenceElevationAngle );
     }
 

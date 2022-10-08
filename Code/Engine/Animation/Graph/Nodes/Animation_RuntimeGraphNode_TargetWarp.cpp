@@ -11,6 +11,10 @@
 
 namespace EE::Animation::GraphNodes
 {
+    constexpr float const g_curveBlowoutDetectionThreshold = 2.5f;
+
+    constexpr float const g_minAllowedRootMotionScale = 0.05f;
+
     static Quaternion CalculateWarpedOrientationForFrame( RootMotionData const& originalRM, RootMotionData const& warpedRM, int32_t frameIdx )
     {
         EE_ASSERT( frameIdx > 0 && frameIdx < originalRM.GetNumFrames() );
@@ -70,15 +74,6 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto pSettings = GetSettings<TargetWarpNode>();
-        m_samplingMode = pSettings->m_samplingMode;
-        m_warpStartTransform = context.m_worldTransform;
-
-        m_warpSections.clear();
-        m_warpedRootMotion.Clear();
-
-        //-------------------------------------------------------------------------
-
         if ( m_pClipReferenceNode->IsValid() )
         {
             auto pAnimation = m_pClipReferenceNode->GetAnimation();
@@ -98,14 +93,10 @@ namespace EE::Animation::GraphNodes
     void TargetWarpNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        EE_ASSERT( m_pTargetValueNode != nullptr );
+
+        ClearWarpInfo();
         m_pTargetValueNode->Shutdown( context );
         m_pClipReferenceNode->Shutdown( context );
-
-        m_warpedRootMotion.Clear();
-        m_warpSections.clear();
-        m_deltaTransforms.clear();
-        m_inverseDeltaTransforms.clear();
 
         PoseNode::ShutdownInternal( context );
     }
@@ -198,6 +189,8 @@ namespace EE::Animation::GraphNodes
 
     void TargetWarpNode::SolveTranslationSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, Transform const& endTransform )
     {
+        auto pSettings = GetSettings<TargetWarpNode>();
+
         EE_ASSERT( section.m_warpRule == TargetWarpRule::WarpXY || section.m_warpRule == TargetWarpRule::WarpXYZ );
 
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
@@ -210,186 +203,245 @@ namespace EE::Animation::GraphNodes
 
         Vector const& startPoint = startTransform.GetTranslation();
         Vector const& endPoint = endTransform.GetTranslation();
+        float const desiredDistanceToCover = startPoint.GetDistance3( endPoint );
 
         auto& warpedTransforms = m_warpedRootMotion.m_transforms;
         warpedTransforms[section.m_startFrame] = startTransform;
         warpedTransforms[section.m_endFrame] = endTransform;
 
+        // Fallback Checks
         //-------------------------------------------------------------------------
 
-        // Feature Preserving
+        // If this section has no displacement, no matter what we do it will be weird, so just LERP
         bool triggerFallback = false;
-        if( section.m_translationAlgorithm == TargetWarpAlgorithm::FeaturePreserving )
+
+        if ( Math::IsNearZero( section.m_distanceCovered ) )
         {
-            // Calculate the straight path that describes the total displacement of this section
-            //-------------------------------------------------------------------------
+            triggerFallback = true;
 
-            // Get the original endpoint of the root motion relative to the current world space position
-            Vector const originalEndPoint = ( section.m_deltaTransform * startTransform ).GetTranslation();
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Target Warp: trying to XY warp a section with no displacement, falling back to LERP!" );
+            #endif
+        }
 
-            // Calculate the overall displacement for this section
-            Vector sectionDeltaDirection;
-            float sectionDeltaDistance;
-            ( originalEndPoint - startTransform.GetTranslation() ).ToDirectionAndLength3( sectionDeltaDirection, sectionDeltaDistance );
+        // If the distance to be covered is under the threshold, then just LERP as trying to fit a curve will look ugly
+        if ( !triggerFallback && desiredDistanceToCover <= pSettings->m_lerpFallbackDistanceThreshold )
+        {
+            triggerFallback = true;
 
-            // If we have no displacement then no matter what we do it's gonna be weird so just LERP
-            if ( !Math::IsNearZero( sectionDeltaDistance ) )
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Target Warp: trying to XY warp to under the distance threshold, falling back to LERP!" );
+            #endif
+        }
+
+        auto EnsureValidCurve = [&] ( float curveLength )
+        {
+            EE_ASSERT( !triggerFallback );
+
+            // If the curve end ups significantly longer than the straight distance then we likely have some loops or blowouts and it's going to create an ugly result so just LERP
+            EE_ASSERT( desiredDistanceToCover > 0 );
+            float const guideCurveRatio = curveLength / desiredDistanceToCover;
+            if ( guideCurveRatio >= g_curveBlowoutDetectionThreshold )
             {
-                // Calculate curve parameters
-                //-------------------------------------------------------------------------
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( GetNodeIndex(), "Target Warp: XY warp curve blowout detected! Falling back to LERP!" );
+                #endif
 
-                Vector endDirection;
+                triggerFallback = true;
+            }
 
-                // End direction - ideally use the direction of the next segment of the path to try to smooth out the motion
-                if ( size_t( section.m_endFrame + 1 ) < m_deltaTransforms.size() )
-                {
-                    Transform const endPlusOne = m_deltaTransforms[section.m_endFrame + 1] * endTransform;
-                    endDirection = ( endPlusOne.GetTranslation() - endPoint ).GetNormalized3();
-                }
-                else // This is the last segment so just use in the entry direction
-                {
-                    Transform const endMinusOne = m_inverseDeltaTransforms[section.m_endFrame - 1] * endTransform;
-                    endDirection = ( endPoint - endMinusOne.GetTranslation() ).GetNormalized3();
-                }
+            return !triggerFallback;
+        };
 
-                if ( endDirection.IsNearZero3() )
-                {
-                    endDirection = endTransform.GetForwardVector();
-                }
+        // Basic Curve Generation
+        //-------------------------------------------------------------------------
 
-                // TODO: scale tangents?!?!
-                float const curveLength = Math::CubicHermite::GetSplineLength( startPoint, sectionDeltaDirection, endPoint, endDirection );
+        if ( !triggerFallback && ( section.m_translationAlgorithm == TargetWarpAlgorithm::Hermite || section.m_translationAlgorithm == TargetWarpAlgorithm::Bezier ) )
+        {
+            // Calculate the tangents for the curves
+            Vector startTangent = ( ( m_deltaTransforms[section.m_startFrame + 1] * startTransform ).GetTranslation() - startTransform.GetTranslation() ).GetNormalized3();
+            Vector endTangent = ( endTransform.GetTranslation() - ( m_inverseDeltaTransforms[section.m_endFrame] * endTransform ).GetTranslation() ).GetNormalized3();
 
-                // If we end up trying to scale too small, it's going to create an ugly result so just LERP
-                float const scaleFactor = curveLength / sectionDeltaDistance;
-                if ( scaleFactor < 0.1f )
+            // If the tangents are in the same direction but we are moving in the opposite direction of the start tangent and the original displacement isnt similar then just LERP
+            bool const tangentsInSameHemisphere = Math::IsVectorInTheSameHemisphere2D( startTangent, endTangent );
+            if ( tangentsInSameHemisphere )
+            {
+                if ( Line( Line::StartDirection, startPoint, startTangent ).GetDistanceOnLineFromStartPoint( endPoint ).ToFloat() <= 0 )
                 {
                     triggerFallback = true;
-                }
-                else // Scale and generate curve
-                {
+
                     #if EE_DEVELOPMENT_TOOLS
-                    section.m_debugPoints[0] = startPoint;
-                    section.m_debugPoints[1] = sectionDeltaDirection;
-                    section.m_debugPoints[2] = endPoint;
-                    section.m_debugPoints[3] = endDirection;
+                    context.LogWarning( GetNodeIndex(), "Target Warp: Trying to XY warp backwards, falling back to LERP!" );
                     #endif
+                }
+            }
 
-                    Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, sectionDeltaDirection );
-                    Vector const scaledOriginalEndPoint = originalEndPoint * scaleFactor;
-                    int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
+            if ( !triggerFallback )
+            {
+                // Scale tangents - We use a half distance value clamped to the specified max length in the settings
+                float const scalingFactor = Math::Min( pSettings->m_maxTangentLength, endPoint.GetDistance3( startPoint ) / 2 );
+                startTangent *= scalingFactor;
+                endTangent *= scalingFactor;
 
-                    Transform currentTransform = startTransform;
-                    for ( auto i = 1; i <= numWarpFrames; i++ )
+                // Hermite
+                if ( section.m_translationAlgorithm == TargetWarpAlgorithm::Hermite )
+                {
+                    float const curveLength = Math::CubicHermite::GetSplineLength( startPoint, startTangent, endPoint, endTangent );
+                    if ( EnsureValidCurve( curveLength ) )
                     {
-                        int32_t const frameIdx = section.m_startFrame + i;
-                        float const percentageAlongCurve = section.m_totalProgress[i];
+                        #if EE_DEVELOPMENT_TOOLS
+                        section.m_debugPoints[0] = startPoint;
+                        section.m_debugPoints[1] = startTangent;
+                        section.m_debugPoints[2] = endPoint;
+                        section.m_debugPoints[3] = endTangent;
+                        #endif
 
-                        // Calculate original path delta from the displacement line
-                        currentTransform = m_deltaTransforms[frameIdx] * currentTransform;
-                        Transform const scaledCurrentTransform( currentTransform.GetRotation(), currentTransform.GetTranslation() * scaleFactor );
-                        Transform const straightTransform( sectionDeltaOrientation, Vector::Lerp( startPoint, scaledOriginalEndPoint, percentageAlongCurve ) );
-                        Transform const curveDelta = Transform::Delta( straightTransform, scaledCurrentTransform );
+                        //-------------------------------------------------------------------------
 
-                        // Calculate new curved path
-                        auto const pt = Math::CubicHermite::GetPointAndTangent( startPoint, sectionDeltaDirection, endPoint, endDirection, percentageAlongCurve );
-                        Quaternion const curveTangentOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, pt.m_tangent.GetNormalized2() );
-                        Transform const curveTangentTransform( curveTangentOrientation, pt.m_point );
+                        int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
+                        for ( auto i = 1; i < numWarpFrames; i++ )
+                        {
+                            int32_t const frameIdx = section.m_startFrame + i;
 
-                        // Calculate final path point
-                        Transform const finalTransform = curveDelta * curveTangentTransform;
-                        warpedTransforms[frameIdx] = finalTransform;
+                            Vector const curvePoint = Math::CubicHermite::GetPoint( startPoint, startTangent, endPoint, endTangent, section.m_totalProgress[i] );
+                            warpedTransforms[frameIdx].SetTranslation( curvePoint );
+
+                            Quaternion const orientation = CalculateWarpedOrientationForFrame( originalRM, m_warpedRootMotion, frameIdx );
+                            warpedTransforms[frameIdx].SetRotation( orientation );
+                        }
+                    }
+                }
+                // Bezier
+                else if ( section.m_translationAlgorithm == TargetWarpAlgorithm::Bezier )
+                {
+                    Vector const cp0 = startPoint + startTangent;
+                    Vector const cp1 = endPoint - endTangent;
+
+                    float const curveLength = Math::CubicBezier::GetEstimatedLength( startPoint, startTangent, endPoint, endTangent );
+                    if ( EnsureValidCurve( curveLength ) )
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        section.m_debugPoints[0] = startPoint;
+                        section.m_debugPoints[1] = cp0;
+                        section.m_debugPoints[2] = cp1;
+                        section.m_debugPoints[3] = endPoint;
+                        #endif
+
+                        int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
+                        for ( auto i = 1; i < numWarpFrames; i++ )
+                        {
+                            int32_t const frameIdx = section.m_startFrame + i;
+
+                            Vector const curvePoint = Math::CubicBezier::GetPoint( startPoint, cp0, cp1, endPoint, section.m_totalProgress[i] );
+                            warpedTransforms[frameIdx].SetTranslation( curvePoint );
+
+                            Quaternion const orientation = CalculateWarpedOrientationForFrame( originalRM, m_warpedRootMotion, frameIdx );
+                            warpedTransforms[frameIdx].SetRotation( orientation );
+                        }
                     }
                 }
             }
-            else
-            {
-                triggerFallback = true;
-            }
-        }
-        // Hermite
-        else if ( section.m_translationAlgorithm == TargetWarpAlgorithm::Hermite )
-        {
-            Vector startTangent = ( ( m_deltaTransforms[section.m_startFrame + 1] * startTransform ).GetTranslation() - startTransform.GetTranslation() ).GetNormalized3();
-
-            // This is arbitrary value that should remove a lot of the ugly curves generated
-            // Should this be exposed?
-            Ray const ray( startTransform.GetTranslation(), startTangent );
-            float const tangentScalingFactor = ray.GetDistanceAlongRay( endTransform.GetTranslation() );
-            if ( tangentScalingFactor > 0.1f )
-            {
-                startTangent *= tangentScalingFactor;
-                Vector const endTangent = ( endTransform.GetTranslation() - ( m_inverseDeltaTransforms[section.m_endFrame] * endTransform ).GetTranslation() ).GetNormalized3() * tangentScalingFactor;
-
-                #if EE_DEVELOPMENT_TOOLS
-                section.m_debugPoints[0] = startPoint;
-                section.m_debugPoints[1] = startTangent;
-                section.m_debugPoints[2] = endPoint;
-                section.m_debugPoints[3] = endTangent;
-                #endif
-
-                //-------------------------------------------------------------------------
-
-                int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
-                for ( auto i = 1; i < numWarpFrames; i++ )
-                {
-                    int32_t const frameIdx = section.m_startFrame + i;
-
-                    Vector const curvePoint = Math::CubicHermite::GetPoint( startPoint, startTangent, endPoint, endTangent, section.m_totalProgress[i] );
-                    warpedTransforms[frameIdx].SetTranslation( curvePoint );
-
-                    Quaternion const orientation = CalculateWarpedOrientationForFrame( originalRM, m_warpedRootMotion, frameIdx );
-                    warpedTransforms[frameIdx].SetRotation( orientation );
-                }
-            }
-            else // We're gonna get a strange curve so just LERP!
-            {
-                triggerFallback = true;
-            }
-        }
-        // Bezier
-        else if ( section.m_translationAlgorithm == TargetWarpAlgorithm::Bezier )
-        {
-            Vector const startTangent = ( ( m_deltaTransforms[section.m_startFrame + 1] * startTransform ).GetTranslation() - startTransform.GetTranslation() ).GetNormalized3();
-            Vector const endTangent = ( ( m_inverseDeltaTransforms[section.m_endFrame] * endTransform ).GetTranslation() - endTransform.GetTranslation() ).GetNormalized3();
-
-            // If we need to move backwards and end up in similar orientation, then just LERP as this is a better choice than the S-curve that will result from the bezier
-            if ( Math::IsVectorInTheOppositeHemisphere2D( startTangent, endTangent ) && Ray( startPoint, startTangent ).GetDistanceAlongRay( endPoint ) == 0 )
-            {
-                triggerFallback = true;
-            }
-            else
-            {
-                // This is arbitrary value that should cover most gameplay use cases resulting in reduced curvature for the bezier curves
-                // Should this be exposed?
-                float const scalingFactor = Math::Min( 1.25f, endPoint.GetDistance3( startPoint ) / 2 );
-                Vector const cp0 = startPoint + ( startTangent * scalingFactor );
-                Vector const cp1 = endPoint + ( endTangent * scalingFactor );
-
-                #if EE_DEVELOPMENT_TOOLS
-                section.m_debugPoints[0] = startPoint;
-                section.m_debugPoints[1] = cp0;
-                section.m_debugPoints[2] = cp1;
-                section.m_debugPoints[3] = endPoint;
-                #endif
-
-                int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
-                for ( auto i = 1; i < numWarpFrames; i++ )
-                {
-                    int32_t const frameIdx = section.m_startFrame + i;
-
-                    Vector const curvePoint = Math::CubicBezier::GetPoint( startPoint, cp0, cp1, endPoint, section.m_totalProgress[i] );
-                    warpedTransforms[frameIdx].SetTranslation( curvePoint );
-
-                    Quaternion const orientation = CalculateWarpedOrientationForFrame( originalRM, m_warpedRootMotion, frameIdx );
-                    warpedTransforms[frameIdx].SetRotation( orientation );
-                }
-            }
         }
 
+        // Feature Preserving Curve Generation
         //-------------------------------------------------------------------------
 
-        if ( section.m_translationAlgorithm == TargetWarpAlgorithm::Lerp || triggerFallback )
+        else if ( section.m_translationAlgorithm == TargetWarpAlgorithm::HermiteFeaturePreserving )
+        {
+            // Calculate guide curve start tangent
+            //-------------------------------------------------------------------------
+
+            Vector hermiteStartTangent;
+            float sectionDeltaDistance;
+            Vector const unwarpedEndPoint = ( section.m_deltaTransform * startTransform ).GetTranslation();
+            ( unwarpedEndPoint - startTransform.GetTranslation() ).ToDirectionAndLength3( hermiteStartTangent, sectionDeltaDistance );
+
+            // Calculate guide curve end tangent
+            //-------------------------------------------------------------------------
+
+            Vector hermiteEndTangent;
+
+            // End direction - ideally use the direction of the next segment of the path to try to smooth out the motion
+            if ( size_t( section.m_endFrame + 1 ) < m_deltaTransforms.size() )
+            {
+                Transform const endPlusOne = m_deltaTransforms[section.m_endFrame + 1] * endTransform;
+                hermiteEndTangent = ( endPlusOne.GetTranslation() - endPoint ).GetNormalized3();
+            }
+            else // This is the last segment so just use in the entry direction
+            {
+                Transform const endMinusOne = m_inverseDeltaTransforms[section.m_endFrame - 1] * endTransform;
+                hermiteEndTangent = ( endPoint - endMinusOne.GetTranslation() ).GetNormalized3();
+            }
+
+            if ( hermiteEndTangent.IsNearZero3() )
+            {
+                hermiteEndTangent = endTransform.GetForwardVector();
+            }
+
+            // Scale guide curve tangents
+            //-------------------------------------------------------------------------
+ 
+            float const scalingFactor = Math::Min( pSettings->m_maxTangentLength, endPoint.GetDistance3( startPoint ) / 2 );
+            hermiteStartTangent *= scalingFactor;
+            hermiteEndTangent *= scalingFactor;
+
+            // Calculate original RM scale factor
+            //-------------------------------------------------------------------------
+
+            float const curveLength = Math::CubicHermite::GetSplineLength( startPoint, hermiteStartTangent, endPoint, hermiteEndTangent );
+            float const rootMotionScaleFactor = curveLength / sectionDeltaDistance;
+            if ( rootMotionScaleFactor < g_minAllowedRootMotionScale )
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( GetNodeIndex(), "Target Warp: Feature preserving XY warp required scaling is lower than the minimum allowed threshold. Falling back to LERP!" );
+                #endif
+
+                triggerFallback = true;
+            }
+
+            //-------------------------------------------------------------------------
+            
+            if ( !triggerFallback && EnsureValidCurve( curveLength ) )
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                section.m_debugPoints[0] = startPoint;
+                section.m_debugPoints[1] = hermiteStartTangent;
+                section.m_debugPoints[2] = endPoint;
+                section.m_debugPoints[3] = hermiteEndTangent;
+                #endif
+
+                Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, hermiteStartTangent );
+                Vector const scaledUnwarpedEndPoint = unwarpedEndPoint * rootMotionScaleFactor;
+                int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
+
+                Transform currentTransform = startTransform;
+                for ( auto i = 1; i <= numWarpFrames; i++ )
+                {
+                    int32_t const frameIdx = section.m_startFrame + i;
+                    float const percentageAlongCurve = section.m_totalProgress[i];
+
+                    // Calculate original path delta from the displacement line
+                    currentTransform = m_deltaTransforms[frameIdx] * currentTransform;
+                    Transform const scaledCurrentTransform( currentTransform.GetRotation(), currentTransform.GetTranslation() * rootMotionScaleFactor );
+                    Transform const straightTransform( sectionDeltaOrientation, Vector::Lerp( startPoint, scaledUnwarpedEndPoint, percentageAlongCurve ) );
+                    Transform const curveDelta = Transform::Delta( straightTransform, scaledCurrentTransform );
+
+                    // Calculate new curved path
+                    auto const pt = Math::CubicHermite::GetPointAndTangent( startPoint, hermiteStartTangent, endPoint, hermiteEndTangent, percentageAlongCurve );
+                    Quaternion const curveTangentOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, pt.m_tangent.GetNormalized2() );
+                    Transform const curveTangentTransform( curveTangentOrientation, pt.m_point );
+
+                    // Calculate final path point
+                    Transform const finalTransform = curveDelta * curveTangentTransform;
+                    warpedTransforms[frameIdx] = finalTransform;
+                }
+            }
+        }
+
+        // Lerp / Fallback
+        //-------------------------------------------------------------------------
+
+        if ( triggerFallback || section.m_translationAlgorithm == TargetWarpAlgorithm::Lerp )
         {
             int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
             for ( auto i = 1; i < numWarpFrames; i++ )
@@ -402,8 +454,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    void TargetWarpNode::ClearWarpInfo()
+    {
+        m_warpedRootMotion.Clear();
+        m_warpSections.clear();
+        m_deltaTransforms.clear();
+        m_inverseDeltaTransforms.clear();
+    }
+
     bool TargetWarpNode::GenerateWarpInfo( GraphContext& context, Percentage startTime )
     {
+        EE_ASSERT( m_warpSections.empty() && m_warpedRootMotion.GetNumFrames() == 0 );
+
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
 
@@ -638,6 +700,8 @@ namespace EE::Animation::GraphNodes
 
     bool TargetWarpNode::GenerateWarpedRootMotion( GraphContext& context, Percentage startTime )
     {
+        auto pSettings = GetSettings<TargetWarpNode>();
+
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
 
@@ -649,6 +713,9 @@ namespace EE::Animation::GraphNodes
 
         // Prepare for warping and handle start time
         //-------------------------------------------------------------------------
+
+        m_samplingMode = pSettings->m_samplingMode;
+        m_warpStartTransform = context.m_worldTransform;
 
         // Create storage for warped root motion
         m_warpedRootMotion.Clear();
@@ -908,17 +975,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetWarpNode::UpdateWarp( GraphContext& context )
+    bool TargetWarpNode::UpdateWarp( GraphContext& context )
     {
-        if ( !GetSettings<TargetWarpNode>()->m_allowTargetUpdate )
+        auto pSettings = GetSettings<TargetWarpNode>();
+        if ( !pSettings->m_allowTargetUpdate )
         {
-            return;
+            return false;
         }
 
         // Cannot update an invalid warp
         if ( !m_warpedRootMotion.IsValid() )
         {
-            return;
+            return false;
         }
 
         // Cannot update a warp that is past all the warp events
@@ -927,7 +995,7 @@ namespace EE::Animation::GraphNodes
         auto currentFrame = (int32_t) pAnimation->GetFrameTime( m_currentTime ).GetUpperBoundFrameIndex();
         if ( m_warpSections.back().m_endFrame < currentFrame )
         {
-            return;
+            return false;
         }
 
         // Check if the target has changed
@@ -936,36 +1004,44 @@ namespace EE::Animation::GraphNodes
         Transform const previousRequestedTarget = m_requestedWarpTarget;
         if ( !TryReadTarget( context ) )
         {
-            return;
+            return false;
         }
 
         Radians const deltaAngle = Quaternion::Distance( m_requestedWarpTarget.GetRotation(), previousRequestedTarget.GetRotation() );
-        bool shouldUpdate = deltaAngle > Math::DegreesToRadians * 2.5f;
+        bool shouldUpdate = deltaAngle > pSettings->m_targetUpdateAngleThresholdRadians;
 
         if ( !shouldUpdate && m_translationXYSectionIdx != InvalidIndex )
         {
             float const deltaDistanceXY = m_requestedWarpTarget.GetTranslation().GetDistance2( previousRequestedTarget.GetTranslation() );
-            shouldUpdate = deltaDistanceXY > 5.0f;
+            shouldUpdate = deltaDistanceXY > pSettings->m_targetUpdateDistanceThreshold;
         }
 
         if ( !shouldUpdate && m_isTranslationAllowedZ )
         {
             float const deltaDistanceZ = m_requestedWarpTarget.GetTranslation().m_z - previousRequestedTarget.GetTranslation().m_z;
-            shouldUpdate = deltaDistanceZ > 5.0f;
+            shouldUpdate = deltaDistanceZ > pSettings->m_targetUpdateDistanceThreshold;
         }
 
+        //-------------------------------------------------------------------------
+
+        // If no change, then reset the requested target back to the original value and return
         if ( !shouldUpdate )
         {
-            return;
+            m_requestedWarpTarget = previousRequestedTarget;
+            return false;
         }
 
         // Recalculate the warp
         //-------------------------------------------------------------------------
 
+        ClearWarpInfo();
+
         if ( GenerateWarpInfo( context, m_currentTime ) )
         {
             GenerateWarpedRootMotion( context, m_currentTime );
         }
+
+        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -1003,15 +1079,15 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        UpdateWarp( context );
+        bool const wasWarpUpdated = UpdateWarp( context );
 
         // If we are sampling accurately then we need to match the exact world space position each update
         if( m_samplingMode == SamplingMode::Accurate )
         {
-            // Calculate error between current and expected position
+            // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
             Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
             float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
-            if( positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
+            if( wasWarpUpdated || positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
             {
                 Transform const desiredFinalTransform = m_warpedRootMotion.GetTransform( m_currentTime );
                 result.m_rootMotionDelta = Transform::Delta( context.m_worldTransform, desiredFinalTransform );
@@ -1019,13 +1095,25 @@ namespace EE::Animation::GraphNodes
             else // Exceeded the error threshold, so fallback to inaccurate sampling
             {
                 m_samplingMode = SamplingMode::Inaccurate;
+
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( GetNodeIndex(), "Target warp exceed accurate sampling error threshold! Switching to inaccurate sampling!" );
+                #endif
             }
         }
 
         // Just sample the delta and return that
         if ( m_samplingMode == SamplingMode::Inaccurate )
         {
-            result.m_rootMotionDelta = m_warpedRootMotion.GetDelta( m_pClipReferenceNode->GetPreviousTime(), m_pClipReferenceNode->GetCurrentTime() );
+            if ( wasWarpUpdated )
+            {
+                Transform const desiredFinalTransform = m_warpedRootMotion.GetTransform( m_currentTime );
+                result.m_rootMotionDelta = Transform::Delta( context.m_worldTransform, desiredFinalTransform );
+            }
+            else
+            {
+                result.m_rootMotionDelta = m_warpedRootMotion.GetDelta( m_pClipReferenceNode->GetPreviousTime(), m_pClipReferenceNode->GetCurrentTime() );
+            }
         }
     }
 

@@ -41,8 +41,8 @@ namespace EE::Animation
 
         Lerp,
         Hermite,
+        HermiteFeaturePreserving,
         Bezier,
-        FeaturePreserving
     };
 
     //-------------------------------------------------------------------------
