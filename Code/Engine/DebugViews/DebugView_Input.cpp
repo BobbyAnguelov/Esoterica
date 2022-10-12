@@ -290,7 +290,6 @@ namespace EE::Input
         if ( numControllers > 0 )
         {
             TInlineString<100> str;
-            bool noControllersConnected = true;
             for ( uint32_t i = 0u; i < numControllers; i++ )
             {
                 str.sprintf( "Show Controller State: %d", i );

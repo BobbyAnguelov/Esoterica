@@ -74,9 +74,13 @@ namespace EE::Animation
                 return "Pose";
             }
             break;
-        }
 
-        return "Unknown";
+            default:
+            {
+                return "Unknown";
+            }
+            break;
+        }
     }
     #endif
 

@@ -10,7 +10,7 @@ namespace EE::Animation::GraphNodes
 {
     void ZeroPoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ZeroPoseNode>( context, options );
+        CreateNode<ZeroPoseNode>( context, options );
     }
 
     void ZeroPoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -23,7 +23,6 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
-        auto pSettings = GetSettings<ZeroPoseNode>();
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
@@ -35,7 +34,7 @@ namespace EE::Animation::GraphNodes
 
     void ReferencePoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ReferencePoseNode>( context, options );
+        CreateNode<ReferencePoseNode>( context, options );
     }
 
     void ReferencePoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -48,7 +47,6 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
-        auto pSettings = GetSettings<ReferencePoseNode>();
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
@@ -73,8 +71,6 @@ namespace EE::Animation::GraphNodes
     void AnimationPoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() && m_pPoseTimeValue != nullptr );
-        auto pSettings = GetSettings<AnimationPoseNode>();
-
         PoseNode::InitializeInternal( context, initialTime );
         m_pPoseTimeValue->Initialize( context );
     }
@@ -89,7 +85,6 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult AnimationPoseNode::Update( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        auto Settings = GetSettings<PoseNode>();
 
         GraphPoseNodeResult result;
         if ( !IsValid() )

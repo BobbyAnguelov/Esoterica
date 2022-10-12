@@ -233,6 +233,9 @@ namespace EE::Timeline
                 }
             }
             break;
+
+            default:
+            break;
         }
     }
 
@@ -329,8 +332,6 @@ namespace EE::Timeline
 
     void TimelineEditor::DrawTimelineControls( ImRect const& controlsRect )
     {
-        auto const& style = ImGui::GetStyle();
-
         ImGui::PushStyleColor( ImGuiCol_Button, (ImVec4) g_headerBackgroundColor );
         ImGui::PushStyleColor( ImGuiCol_ChildBg, (uint32_t) g_headerBackgroundColor );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 2 ) );
@@ -983,7 +984,6 @@ namespace EE::Timeline
             }
 
             bool const isMouseWithinTimeline = m_timelineRect.Contains( mousePos );
-            bool const isMouseWithinTimelineHeader = isMouseWithinTimeline && mousePos.y < ( m_timelineRect.Min.y + g_headerHeight );
             bool const isMouseClicked = ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right );
 
             // Handle clicks

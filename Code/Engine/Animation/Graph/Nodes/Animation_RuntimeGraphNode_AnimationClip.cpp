@@ -151,7 +151,6 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult AnimationClipNode::CalculateResult( GraphContext& context, bool isSynchronizedUpdate ) const
     {
         EE_ASSERT( m_pAnimation != nullptr );
-        auto pSettings = GetSettings<AnimationClipNode>();
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.m_sampledEventsBuffer.GetNumEvents();
@@ -184,7 +183,7 @@ namespace EE::Animation::GraphNodes
 
             if ( pEvent->IsDurationEvent() )
             {
-                Seconds const currentAnimTimeSeconds = actualAnimationSampleEndTime * m_pAnimation->GetDuration();
+                Seconds const currentAnimTimeSeconds( m_pAnimation->GetDuration() * actualAnimationSampleEndTime.ToFloat() );
                 percentageThroughEvent = pEvent->GetTimeRange().GetPercentageThrough( currentAnimTimeSeconds );
 
                 if ( m_shouldPlayInReverse )

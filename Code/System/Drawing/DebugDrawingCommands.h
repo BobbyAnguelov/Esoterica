@@ -65,41 +65,41 @@ namespace EE::Drawing
     {
         LineCommand( Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float lineThickness, Seconds TTL )
             : m_startPosition( startPosition )
-            , m_endPosition( endPosition )
-            , m_startColor( color )
-            , m_endColor( color )
             , m_startThickness( lineThickness )
+            , m_startColor( color )
+            , m_endPosition( endPosition )
             , m_endThickness( lineThickness )
+            , m_endColor( color )
             , m_TTL( TTL )
         {}
 
         LineCommand( Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float lineThickness, Seconds TTL )
             : m_startPosition( startPosition )
-            , m_endPosition( endPosition )
-            , m_startColor( startColor )
-            , m_endColor( endColor )
             , m_startThickness( lineThickness )
+            , m_startColor( startColor )
+            , m_endPosition( endPosition )
             , m_endThickness( lineThickness )
+            , m_endColor( endColor )
             , m_TTL( TTL )
         {}
 
         LineCommand( Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float startThickness, float endThickness, Seconds TTL )
             : m_startPosition( startPosition )
-            , m_endPosition( endPosition )
-            , m_startColor( color )
-            , m_endColor( color )
             , m_startThickness( startThickness )
+            , m_startColor( color )
+            , m_endPosition( endPosition )
             , m_endThickness( endThickness )
+            , m_endColor( color )
             , m_TTL( TTL )
         {}
 
         LineCommand( Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float startThickness, float endThickness, Seconds TTL )
             : m_startPosition( startPosition )
-            , m_endPosition( endPosition )
-            , m_startColor( startColor )
-            , m_endColor( endColor )
             , m_startThickness( startThickness )
+            , m_startColor( startColor )
+            , m_endPosition( endPosition )
             , m_endThickness( endThickness )
+            , m_endColor( endColor )
             , m_TTL( TTL )
         {}
 
@@ -121,20 +121,20 @@ namespace EE::Drawing
     {
         TriangleCommand( Float3 const& V0, Float3 const& V1, Float3 const& V2, Float4 const& color, Seconds TTL )
             : m_vertex0( V0 )
-            , m_vertex1( V1 )
-            , m_vertex2( V2 )
             , m_color0( color )
+            , m_vertex1( V1 )
             , m_color1( color )
+            , m_vertex2( V2 )
             , m_color2( color )
             , m_TTL( TTL )
         {}
 
         TriangleCommand( Float3 const& V0, Float3 const& V1, Float3 const& V2, Float4 const& color0, Float4 const& color1, Float4 const& color2, Seconds TTL )
             : m_vertex0( V0 )
-            , m_vertex1( V1 )
-            , m_vertex2( V2 )
             , m_color0( color0 )
+            , m_vertex1( V1 )
             , m_color1( color1 )
+            , m_vertex2( V2 )
             , m_color2( color2 )
             , m_TTL( TTL )
         {}
@@ -157,24 +157,24 @@ namespace EE::Drawing
     struct TextCommand
     {
         TextCommand( Float2 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, bool background, Seconds TTL )
-            : m_position( position.m_x, position.m_y, 0 )
-            , m_text( pText )
-            , m_color( color )
+            : m_color( color )
+            , m_position( position.m_x, position.m_y, 0 )
             , m_fontSize( size )
             , m_alignment( alignment )
-            , m_hasBackground( background )
             , m_isScreenText( true )
+            , m_hasBackground( background )
+            , m_text( pText )
             , m_TTL( TTL )
         {}
 
         TextCommand( Float3 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, bool background, Seconds TTL )
-            : m_position( position )
-            , m_text( pText )
-            , m_color( color )
+            : m_color( color )
+            , m_position( position )
             , m_fontSize( size )
             , m_alignment( alignment )
-            , m_hasBackground( background )
             , m_isScreenText( false )
+            , m_hasBackground( background )
+            , m_text( pText )
             , m_TTL( TTL )
         {}
 
@@ -186,7 +186,7 @@ namespace EE::Drawing
         TextAlignment               m_alignment;
         bool                        m_isScreenText;
         bool                        m_hasBackground;
-        TInlineString<24>            m_text;
+        TInlineString<24>           m_text;
         Seconds                     m_TTL;
     };
 

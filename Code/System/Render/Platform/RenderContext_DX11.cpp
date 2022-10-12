@@ -169,7 +169,7 @@ namespace EE::Render
             m_pDeviceContext->CSSetShaderResources( slot, 1, (ID3D11ShaderResourceView* const*) &pSRV );
             break;
 
-            case PipelineStage::None:
+            default:
             EE_HALT();
             break;
         }
@@ -203,7 +203,7 @@ namespace EE::Render
             m_pDeviceContext->CSSetShaderResources( slot, 1, noSRV );
             break;
 
-            case PipelineStage::None:
+            default:
             EE_HALT();
             break;
         }
@@ -251,10 +251,6 @@ namespace EE::Render
 
         switch ( stage )
         {
-            case PipelineStage::None:
-            EE_HALT();
-            break;
-
             case PipelineStage::Vertex:
             m_pDeviceContext->VSSetSamplers( slot, 1, (ID3D11SamplerState* const*) &state.GetResourceHandle().m_pData );
             break;
@@ -273,6 +269,10 @@ namespace EE::Render
 
             case PipelineStage::Compute:
             m_pDeviceContext->CSSetSamplers( slot, 1, (ID3D11SamplerState* const*) &state.GetResourceHandle().m_pData );
+            break;
+
+            default:
+            EE_HALT();
             break;
         }
     }
@@ -474,6 +474,10 @@ namespace EE::Render
 
             case Topology::TriangleStrip:
             d3dTopology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+            break;
+
+            default:
+            EE_UNREACHABLE_CODE();
             break;
         }
 

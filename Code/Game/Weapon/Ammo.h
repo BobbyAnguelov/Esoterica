@@ -13,8 +13,8 @@ namespace EE
 
 namespace EE::Weapon
 {
-    //-------------------------------------------------------------------------
     // Provides the common set of systems and components needed for ammo
+    //-------------------------------------------------------------------------
 
     struct AmmoContext
     {
@@ -34,6 +34,8 @@ namespace EE::Weapon
         Physics::Scene* m_pPhysicsScene = nullptr;
     };
 
+    //-------------------------------------------------------------------------
+
     class Ammo
     {
     public:
@@ -47,6 +49,7 @@ namespace EE::Weapon
 
     public:
 
+        virtual ~Ammo() = default;
         virtual bool Shoot(AmmoContext const& ctx, RangedWeaponInfo weaponDamage, Vector origin, Vector target);
 
     private:

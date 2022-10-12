@@ -681,7 +681,6 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        auto pMap = GetMapForEntity( pEntity );
         auto pActiveUndoableAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
         pActiveUndoableAction->RecordBeginEdit( { pEntity } );
 
@@ -703,7 +702,6 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        auto pMap = GetMapForEntity( pEntity );
         auto pActiveUndoableAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
         pActiveUndoableAction->RecordBeginEdit( { pEntity } );
 

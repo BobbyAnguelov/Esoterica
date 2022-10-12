@@ -58,10 +58,10 @@ namespace EE
     //-------------------------------------------------------------------------
 
     Win32Application::Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID, bool startMinimized )
-        : m_pInstance( hInstance )
-        , m_applicationName( applicationName )
+        : m_applicationName( applicationName )
         , m_applicationNameNoWhitespace( StringUtils::StripWhitespace( applicationName ) )
         , m_applicationIconResourceID( iconResourceID )
+        , m_pInstance( hInstance )
         , m_startMinimized( startMinimized )
     {
         Memory::MemsetZero( &m_message, sizeof( m_message ) );

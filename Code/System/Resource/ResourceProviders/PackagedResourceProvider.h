@@ -15,7 +15,7 @@ namespace EE::Resource
 
     public:
 
-        using ResourceProvider::ResourceProvider;
+        PackagedResourceProvider( ResourceSettings const& settings ) : ResourceProvider( settings ) {}
         virtual bool IsReady() const override final;
 
     private:

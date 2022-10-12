@@ -49,6 +49,8 @@ namespace EE
 
         public:
 
+            virtual ~ResourceLoader() = default;
+
             TVector<ResourceTypeID> const& GetLoadableTypes() const { return m_loadableTypes; }
 
             // This function loads is responsible to deserialize the compiled resource data, read the resource header for install dependencies and to create the new runtime resource object

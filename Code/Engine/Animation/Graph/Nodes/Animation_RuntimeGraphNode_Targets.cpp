@@ -29,7 +29,6 @@ namespace EE::Animation::GraphNodes
     void IsTargetSetNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<IsTargetSetNode>();
 
         if ( !WasUpdated( context ) )
         {

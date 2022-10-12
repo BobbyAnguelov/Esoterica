@@ -174,7 +174,6 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         int32_t numGlyphsDrawn = 0;
-        int32_t const numCommands = (int32_t) cmdRange.GetLength();
         for ( auto c = cmdRange.m_begin; c < cmdRange.m_end; c++ )
         {
             auto const& cmd = commands[c];

@@ -571,8 +571,6 @@ namespace EE::Animation::GraphNodes
     {
         GraphPoseNodeResult result;
 
-        auto pSettings = GetSettings<TransitionNode>();
-
         // Layer context
         //-------------------------------------------------------------------------
 
@@ -718,9 +716,6 @@ namespace EE::Animation::GraphNodes
 
         // Update source state in a synchronous manner
         //-------------------------------------------------------------------------
-
-        SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
-        SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
 
         // Update range is for the target - so remove the transition sync event offset to calculate the source update range
         SyncTrackTimeRange sourceUpdateRange;

@@ -453,7 +453,6 @@ namespace EE::Math
         Vector const center( aabb.GetCenter() );
         Vector const extents( aabb.GetExtents() );
 
-        auto result = 0; // inside
         for ( auto i = 0u; i < 6; i++ )
         {
             Plane plane( m_viewPlanes[i] );
@@ -480,7 +479,6 @@ namespace EE::Math
 
     ViewVolume::IntersectionResult ViewVolume::Intersect( Vector const& point ) const
     {
-        auto result = 0; // inside
         for ( auto i = 0u; i < 6; i++ )
         {
             Plane plane( m_viewPlanes[i] );

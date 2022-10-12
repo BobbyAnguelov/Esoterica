@@ -7,7 +7,5 @@ namespace EE
     void TestComponent::Initialize()
     {
         EntityComponent::Initialize();
-        int i = 5;
-
     }
 }

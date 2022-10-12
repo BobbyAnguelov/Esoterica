@@ -24,6 +24,9 @@ namespace EE
                 color = ImGuiX::Style::s_colorAccent0;
             }
             break;
+
+            default:
+            break;
         }
 
         return color;
@@ -975,7 +978,6 @@ namespace EE
                 m_firstVisibleRowItemIdx = Math::Clamp( m_firstVisibleRowItemIdx, 0, (int32_t) m_visualTree.size() - 1 );
 
                 // Calculate draw range
-                bool shouldDrawDummyRow = false;
                 int32_t const itemsToDrawStartIdx = m_firstVisibleRowItemIdx;
                 int32_t itemsToDrawEndIdx = Math::Min( itemsToDrawStartIdx + maxNumDrawableRows, (int32_t) m_visualTree.size() - 1 );
 

@@ -20,10 +20,8 @@ namespace EE
             int32_t const numEntries = requiredSize / sizeof( SYSTEM_LOGICAL_PROCESSOR_INFORMATION );
 
             auto pProcInfos = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION*>( alloca( sizeof( SYSTEM_LOGICAL_PROCESSOR_INFORMATION ) * numEntries ) );
-            auto const result = GetLogicalProcessorInformation( pProcInfos, &requiredSize );
-
-            uint32_t numLogicalProcessors = 0;
-            uint32_t numCores = 0;
+            bool const result = GetLogicalProcessorInformation( pProcInfos, &requiredSize );
+            EE_ASSERT( result );
 
             //-------------------------------------------------------------------------
 
@@ -72,7 +70,6 @@ namespace EE
             EE_ASSERT( pName != nullptr );
             wchar_t wThreadName[255];
             auto pNativeThreadHandle = GetCurrentThread();
-            DWORD const nativeThreadID = GetThreadId( pNativeThreadHandle );
             MultiByteToWideChar( CP_ACP, MB_PRECOMPOSED, pName, -1, wThreadName, 255 );
             SetThreadDescription( pNativeThreadHandle, wThreadName );
         }

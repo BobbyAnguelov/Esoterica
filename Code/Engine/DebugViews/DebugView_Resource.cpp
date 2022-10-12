@@ -223,7 +223,6 @@ namespace EE::Resource
 
                 ImGuiListClipper clipper;
                 clipper.Begin( numEntries );
-                bool isFirstStep = true;
                 while ( clipper.Step() )
                 {
                     for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )

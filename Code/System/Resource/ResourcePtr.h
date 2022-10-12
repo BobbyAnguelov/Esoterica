@@ -141,7 +141,7 @@ namespace EE
             {
                 if ( rhs.GetResourceTypeID() == T::GetStaticResourceTypeID() )
                 {
-                    TResourcePtr<T> const& castPtr = reinterpret_cast<TResourcePtr<T> const&>( rhs );
+                    TResourcePtr<T> const& castPtr = static_cast<TResourcePtr<T> const&>( rhs );
                     m_resourceID = castPtr.m_resourceID;
                     m_pResourceRecord = castPtr.m_pResourceRecord;
                 }

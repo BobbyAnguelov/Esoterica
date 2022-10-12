@@ -1082,7 +1082,7 @@ namespace EE::EntityModel
         auto const& selection = GetSelection();
         for( auto pSelectedItem : selection )
         {
-            auto pSCItem = static_cast<SpatialComponentItem*>( selection[0] );
+            auto pSCItem = static_cast<SpatialComponentItem*>( pSelectedItem );
             m_selectedSpatialComponents.emplace_back( pSCItem->m_pComponent );
         }
 

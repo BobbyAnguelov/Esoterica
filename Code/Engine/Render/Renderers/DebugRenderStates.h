@@ -179,7 +179,7 @@ namespace EE::Render
 
     struct EE_ENGINE_API DebugTextRenderState
     {
-        constexpr static uint32_t const MaxGlyphsPerDrawCall = 10000;
+        constexpr static int32_t const MaxGlyphsPerDrawCall = 10000;
         static Float4 const ClipSpaceTopLeft;
 
     public:

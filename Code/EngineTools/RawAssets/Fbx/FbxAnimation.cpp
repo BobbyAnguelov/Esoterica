@@ -83,7 +83,6 @@ namespace EE::RawAssets
 
                 // Calculate frame rate
                 FbxTime::EMode mode = duration.GetGlobalTimeMode();
-                double frameRate = duration.GetFrameRate( mode );
 
                 // Set sampling rate and allocate memory
                 pRawAnimation->m_samplingFrameRate = (float) duration.GetFrameRate( mode );
@@ -148,8 +147,6 @@ namespace EE::RawAssets
                 }
                 else
                 {
-                    bool const isChildOfRoot = rawAnimation.m_skeleton.GetParentBoneIndex( boneIdx ) == 0;
-
                     // Reserve keys in animation tracks
                     animTrack.m_localTransforms.reserve( maxKeys );
 

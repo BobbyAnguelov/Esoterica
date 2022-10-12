@@ -20,7 +20,7 @@ namespace EE::Resource
 
     public:
 
-        using ResourceProvider::ResourceProvider;
+        NetworkResourceProvider( ResourceSettings const& settings ) : ResourceProvider( settings ) {}
         virtual bool IsReady() const override final;
 
     private:

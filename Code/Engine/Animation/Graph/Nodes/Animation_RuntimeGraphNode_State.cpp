@@ -31,7 +31,6 @@ namespace EE::Animation::GraphNodes
     void StateNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() );
-        auto pStateSettings = GetSettings<StateNode>();
 
         PoseNode::InitializeInternal( context, initialTime );
         m_transitionState = TransitionState::None;
@@ -159,7 +158,7 @@ namespace EE::Animation::GraphNodes
         // Sample Timed Events
         //-------------------------------------------------------------------------
 
-        Seconds const currentTimeElapsed = m_currentTime * m_duration;
+        Seconds const currentTimeElapsed( m_duration * m_currentTime.ToFloat() );
         for ( auto const& timedEvent : pStateSettings->m_timedElapsedEvents )
         {
             if ( currentTimeElapsed >= timedEvent.m_timeValue )

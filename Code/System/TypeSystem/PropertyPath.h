@@ -114,13 +114,13 @@ namespace EE::TypeSystem
 
         inline bool operator==( PropertyPath const& other ) const
         {
-            int32_t const numElements = (int32_t) m_pathElements.size();
+            size_t const numElements = m_pathElements.size();
             if ( numElements != other.GetNumElements() )
             {
                 return false;
             }
 
-            for ( auto i = 0; i < numElements; i++ )
+            for ( auto i = 0u; i < numElements; i++ )
             {
                 if ( m_pathElements[i] != other.m_pathElements[i] )
                 {

@@ -178,6 +178,9 @@ namespace EE::RawAssets
                         }
                     }
                     break;
+
+                    default:
+                    break;
                 }
             }
 

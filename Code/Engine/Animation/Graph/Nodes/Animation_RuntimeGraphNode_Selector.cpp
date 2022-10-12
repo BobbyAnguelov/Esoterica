@@ -23,7 +23,6 @@ namespace EE::Animation::GraphNodes
     int32_t SelectorNode::SelectOption( GraphContext& context ) const
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<SelectorNode>();
 
         // Select a valid option
         if ( m_optionNodes.size() > 0 )
@@ -66,7 +65,6 @@ namespace EE::Animation::GraphNodes
     void SelectorNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<SelectorNode>();
 
         PoseNode::InitializeInternal( context, initialTime );
 
@@ -187,7 +185,6 @@ namespace EE::Animation::GraphNodes
     int32_t AnimationClipSelectorNode::SelectOption( GraphContext& context ) const
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<SelectorNode>();
 
         // Select a valid option
         if ( m_optionNodes.size() > 0 )
@@ -229,7 +226,6 @@ namespace EE::Animation::GraphNodes
     void AnimationClipSelectorNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<SelectorNode>();
 
         PoseNode::InitializeInternal( context, initialTime );
 

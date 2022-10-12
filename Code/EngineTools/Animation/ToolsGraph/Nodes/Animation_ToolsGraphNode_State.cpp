@@ -114,7 +114,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Draw runtime node index
-            auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+            auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
             if ( pGraphNodeContext->HasDebugData() )
             {
                 int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
@@ -284,7 +284,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         bool shouldDrawEmptyDebugInfoBlock = true;
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );

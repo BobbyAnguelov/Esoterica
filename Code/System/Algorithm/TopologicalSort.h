@@ -21,12 +21,12 @@ namespace EE
                 Temporary,
             };
 
-            Node() : m_mark( Mark::None ), m_ID( -1 ) {}
-            Node( int32_t ID ) : m_mark( Mark::None ), m_ID( ID ) {}
+            Node() : m_ID( -1 ), m_mark( Mark::None ) {}
+            Node( int32_t ID ) : m_ID( ID ), m_mark( Mark::None ) {}
 
             int32_t             m_ID;           // Some way to identify the actual data this refers to
-            TVector<Node*>  m_children;     // The children of this node
-            Mark            m_mark;         // Marking mechanism for algorithm
+            TVector<Node*>      m_children;     // The children of this node
+            Mark                m_mark;         // Marking mechanism for algorithm
         };
 
         //-------------------------------------------------------------------------

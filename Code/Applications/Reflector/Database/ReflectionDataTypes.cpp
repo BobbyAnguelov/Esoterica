@@ -117,6 +117,73 @@ namespace EE::TypeSystem::Reflection
         return category;
     }
 
+    bool ReflectedType::HasArrayProperties() const
+    {
+        for ( auto& propertyDesc : m_properties )
+        {
+            if ( propertyDesc.IsArrayProperty() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool ReflectedType::HasDynamicArrayProperties() const
+    {
+        for ( auto& propertyDesc : m_properties )
+        {
+            if ( propertyDesc.IsDynamicArrayProperty() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool ReflectedType::HasResourcePtrProperties() const
+    {
+        for ( auto& propertyDesc : m_properties )
+        {
+            if ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+            {
+                return true;
+            }
+
+            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool ReflectedType::HasResourcePtrOrStructProperties() const
+    {
+        for ( auto& propertyDesc : m_properties )
+        {
+            if ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+            {
+                return true;
+            }
+
+            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+            {
+                return true;
+            }
+
+            if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     //-------------------------------------------------------------------------
 
     bool ReflectedResourceType::TryParseResourceRegistrationMacroString( String const& registrationStr )

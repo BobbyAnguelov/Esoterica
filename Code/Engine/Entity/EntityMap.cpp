@@ -783,6 +783,9 @@ namespace EE::EntityModel
                 ProcessMapLoading( loadingContext );
             }
             break;
+
+            default:
+            break;
         }
 
         // Process entity removal requests

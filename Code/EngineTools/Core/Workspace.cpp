@@ -93,8 +93,8 @@ namespace EE
     //-------------------------------------------------------------------------
 
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : m_pToolsContext( pToolsContext )
-        , m_pWorld( pWorld )
+        : m_pWorld( pWorld )
+        , m_pToolsContext( pToolsContext )
         , m_displayName( resourceID.GetFileNameWithoutExtension() )
         , m_descriptorID( resourceID )
         , m_descriptorPath( GetFileSystemPath( resourceID ) )
@@ -136,8 +136,8 @@ namespace EE
     }
 
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
-        : m_pToolsContext( pToolsContext )
-        , m_pWorld( pWorld )
+        : m_pWorld( pWorld )
+        , m_pToolsContext( pToolsContext )
         , m_displayName( displayName )
     {
         EE_ASSERT( m_pWorld != nullptr );

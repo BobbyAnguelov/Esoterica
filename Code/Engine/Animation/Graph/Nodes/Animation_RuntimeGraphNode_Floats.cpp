@@ -148,7 +148,6 @@ namespace EE::Animation::GraphNodes
     void FloatAbsNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatAbsNode>();
 
         if ( !WasUpdated( context ) )
         {

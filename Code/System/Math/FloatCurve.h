@@ -68,7 +68,7 @@ namespace EE
         inline FloatRange GetParameterRange() const 
         {
             FloatRange range;
-            for( auto i = 0; i < m_points.size(); i++ )
+            for( auto i = 0u; i < m_points.size(); i++ )
             {
                 range.m_begin = Math::Min( range.m_begin, m_points[i].m_parameter );
                 range.m_end = Math::Max( range.m_end, m_points[i].m_parameter );

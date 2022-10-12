@@ -34,7 +34,7 @@ namespace EE
 
         EE_FORCE_INLINE float AddToMovingAverage( float currentAverage, uint64_t numCurrentSamples, float newValue )
         {
-            return currentAverage + ( ( newValue - currentAverage ) / ( numCurrentSamples + 1 ) );
+            return currentAverage + ( ( newValue - currentAverage ) / float( numCurrentSamples + 1 ) );
         }
 
         EE_FORCE_INLINE float Reciprocal( float r ) { return 1.0f / r; }

@@ -225,7 +225,6 @@ namespace EE::Drawing
     {
         DrawCircle( transform, Axis::Z, radius, color, lineThickness, depthTestState, TTL );
 
-        Float4* pCircleVerts = g_circleVerticesXUp;
         auto vertsX = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
         auto vertsY = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
 
@@ -252,7 +251,6 @@ namespace EE::Drawing
     {
         DrawCircle( transform, Axis::X, radius, color, lineThickness, depthTestState, TTL );
 
-        Float4* pCircleVerts = g_circleVerticesZUp;
         auto vertsZ = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
         auto vertsY = EE_STACK_ARRAY_ALLOC( Vector, g_numCircleVertices );
 

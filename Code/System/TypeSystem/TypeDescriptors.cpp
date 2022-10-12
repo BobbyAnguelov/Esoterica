@@ -36,7 +36,6 @@ namespace EE::TypeSystem
 
             // Resolve property path
             size_t const numPathElements = path.GetNumElements();
-            size_t const lastElementIdx = numPathElements - 1;
             for ( size_t i = 0; i < numPathElements; i++ )
             {
                 EE_ASSERT( pResolvedTypeInfo != nullptr );
@@ -105,7 +104,7 @@ namespace EE::TypeSystem
                             uint8_t const* pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( const_cast<IRegisteredType*>( pTypeInstance ), propInfo.m_ID, 0 );
 
                             // Write array elements
-                            for ( auto i = 0; i < numArrayElements; i++ )
+                            for ( auto i = 0u; i < numArrayElements; i++ )
                             {
                                 path.Append( propInfo.m_ID, i );
                                 DescribeProperty( typeRegistry, typeDesc, pTypeInfo, pTypeInstance, propInfo, shouldSetPropertyStringValues, pArrayElementAddress, path, i );

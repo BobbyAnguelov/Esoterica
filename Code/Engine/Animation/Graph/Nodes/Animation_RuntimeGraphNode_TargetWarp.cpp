@@ -821,7 +821,6 @@ namespace EE::Animation::GraphNodes
                 Transform const& startTransformT = warpedTransforms[m_warpSections[tIdx].m_startFrame];
                 
                 // Calculate the delta between the XY section and the rotation (including the rotation section)
-                bool const isFinalSegmentPostT = ( i == ( tIdx + 1 ) );
                 Transform unwarpedDeltaPostT = m_warpSections[tIdx + 1].m_deltaTransform;
                 for ( auto j = tIdx + 2; j <= i; j++ )
                 {

@@ -20,6 +20,7 @@ namespace EE
     using IPinnedTask = enki::IPinnedTask;
     using AsyncTask = enki::TaskSet;
     using TaskSetPartition = enki::TaskSetPartition;
+    using TaskFunction = enki::TaskSetFunction;
 
     //-------------------------------------------------------------------------
 

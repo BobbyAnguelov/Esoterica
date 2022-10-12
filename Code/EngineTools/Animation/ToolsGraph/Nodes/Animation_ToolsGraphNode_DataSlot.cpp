@@ -183,7 +183,7 @@ namespace EE::Animation::GraphNodes
 
     void DataSlotToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
 
         // Draw separator
         //-------------------------------------------------------------------------
@@ -250,7 +250,7 @@ namespace EE::Animation::GraphNodes
 
     void DataSlotToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
         if ( resourceID.IsValid() )
         {

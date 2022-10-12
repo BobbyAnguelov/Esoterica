@@ -162,7 +162,6 @@ namespace EE::Animation::GraphNodes
 
     void StateMachineNode::EvaluateTransitions( GraphContext& context, GraphPoseNodeResult& sourceNodeResult )
     {
-        auto pSettings = GetSettings<StateMachineNode>();
         auto const& currentlyActiveState = m_states[m_activeStateIndex];
 
         //-------------------------------------------------------------------------

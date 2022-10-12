@@ -606,10 +606,6 @@ namespace EE::TypeSystem::Reflection
     {
         EE_ASSERT( databasePath.IsFilePath() );
 
-        char* pErrorMessage = nullptr;
-        char statement[s_defaultStatementBufferSize] = { 0 };
-        int result = 0;
-
         databasePath.EnsureDirectoryExists();
         if ( !Connect( databasePath, false ) )
         {
@@ -773,7 +769,6 @@ namespace EE::TypeSystem::Reflection
     bool ReflectionDatabase::DropTables()
     {
         EE_ASSERT( m_pDatabase != nullptr );
-        char* pErrorMessage = nullptr;
 
         if ( !ExecuteSimpleQuery( "DROP TABLE IF EXISTS `Modules`;" ) )
         {
@@ -859,9 +854,6 @@ namespace EE::TypeSystem::Reflection
         FillStatementBuffer( "SELECT * FROM `Properties` WHERE `OwnerTypeID` = %u;", (uint32_t) type.m_ID );
         if ( IsValidSQLiteResult( sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr ) ) )
         {
-            char arrayQueryStatement[s_defaultStatementBufferSize];
-            sqlite3_stmt* pArrayQueryStatement = nullptr;
-
             while ( sqlite3_step( pStatement ) == SQLITE_ROW )
             {
                 ReflectedProperty propDesc;

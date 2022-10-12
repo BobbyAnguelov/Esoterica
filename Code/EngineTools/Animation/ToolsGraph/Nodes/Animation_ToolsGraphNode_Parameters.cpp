@@ -65,10 +65,12 @@ namespace EE::Animation::GraphNodes
                 return pSettings->m_nodeIdx;
             }
             break;
-        }
 
-        EE_UNREACHABLE_CODE();
-        return InvalidIndex;
+            default:
+            EE_UNREACHABLE_CODE();
+            return InvalidIndex;
+            break;
+        }
     }
 
     void ControlParameterToolsNode::Rename( String const& name, String const& category )

@@ -56,7 +56,7 @@ namespace EE::Network
 
         inline ClientInfo const& GetConnectedClientInfo( int32_t clientIdx ) const 
         {
-            EE_ASSERT( clientIdx >= 0 && clientIdx < m_connectedClients.size() );
+            EE_ASSERT( clientIdx >= 0 && clientIdx < (int32_t) m_connectedClients.size() );
             return m_connectedClients[clientIdx]; 
         }
 

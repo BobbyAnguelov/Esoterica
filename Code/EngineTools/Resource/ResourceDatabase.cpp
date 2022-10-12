@@ -284,7 +284,6 @@ namespace EE::Resource
             StringID const intermediateName( splitPath[i] );
             auto searchPredicate = [&intermediateName] ( DirectoryEntry& dir ) { return dir.m_name == intermediateName; };
 
-            DirectoryEntry* pFoundDirectory = nullptr;
             auto itemIter = eastl::find_if( pCurrentDir->m_directories.begin(), pCurrentDir->m_directories.end(), searchPredicate );
             if ( itemIter != pCurrentDir->m_directories.end() )
             {
@@ -319,7 +318,6 @@ namespace EE::Resource
             StringID const intermediateName( splitPath[i] );
             auto searchPredicate = [&intermediateName] ( DirectoryEntry& dir ) { return dir.m_name == intermediateName; };
 
-            DirectoryEntry* pFoundDirectory = nullptr;
             auto itemIter = eastl::find_if( pCurrentDir->m_directories.begin(), pCurrentDir->m_directories.end(), searchPredicate );
             if ( itemIter != pCurrentDir->m_directories.end() )
             {

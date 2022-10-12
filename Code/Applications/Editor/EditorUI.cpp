@@ -474,6 +474,7 @@ namespace EE
                 break;
 
                 case pfd::button::cancel:
+                default:
                 {
                     return;
                 }
@@ -583,7 +584,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         bool enableCameraUpdate = false;
-        auto pWorldManager = context.GetSystem<EntityWorldManager>();
         auto pWorld = pWorkspace->GetWorld();
 
         if ( shouldDrawWindowContents )

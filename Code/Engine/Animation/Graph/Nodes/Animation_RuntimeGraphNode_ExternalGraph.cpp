@@ -9,7 +9,7 @@ namespace EE::Animation::GraphNodes
 {
     void ExternalGraphNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ExternalGraphNode>( context, options );
+        CreateNode<ExternalGraphNode>( context, options );
     }
 
     ExternalGraphNode::~ExternalGraphNode()

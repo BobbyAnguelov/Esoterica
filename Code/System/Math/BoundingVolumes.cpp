@@ -185,7 +185,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        Vector insideAll = SIMD::g_trueMask;
+        Vector insideAll( SIMD::g_trueMask );
         for ( uint32_t i = 0; i < 8; i++ )
         {
             Vector const c = box.m_center + box.m_orientation.RotateVector( box.m_extents * Vector::BoxCorners[i] );
@@ -221,9 +221,9 @@ namespace EE
     //-------------------------------------------------------------------------
 
     OBB::OBB( AABB const& aabb )
-        : m_center( aabb.GetCenter() )
+        : m_orientation( Quaternion::Identity )
+        , m_center( aabb.GetCenter() )
         , m_extents( aabb.GetExtents() )
-        , m_orientation( Quaternion::Identity )
     {}
 
     OBB::OBB( AABB const& aabb, Transform const& transform )
@@ -236,9 +236,9 @@ namespace EE
     }
 
     OBB::OBB( Vector center, Vector extents, Quaternion orientation )
-        : m_center( center )
+        : m_orientation( orientation )
+        , m_center( center )
         , m_extents( extents )
-        , m_orientation( orientation )
     {
         EE_ASSERT( m_extents.IsGreaterThanEqual3( Vector::Zero ) && m_orientation.IsNormalized() );
     }
@@ -593,7 +593,7 @@ namespace EE
         Vector const sphereRadiusSq = sphere.m_radius * sphere.m_radius;
         if ( d2.IsGreaterThan4( sphereRadiusSq ) )
         {
-            OverlapResult::NoOverlap;
+            return OverlapResult::NoOverlap;
         }
 
         // See if we are completely inside the box

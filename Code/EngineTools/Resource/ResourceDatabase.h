@@ -18,7 +18,7 @@ namespace EE
 
 namespace EE::Resource
 {
-    class EE_ENGINETOOLS_API ResourceDatabase : public FileSystem::IFileSystemChangeListener
+    class EE_ENGINETOOLS_API ResourceDatabase final : public FileSystem::IFileSystemChangeListener
     {
     public:
 

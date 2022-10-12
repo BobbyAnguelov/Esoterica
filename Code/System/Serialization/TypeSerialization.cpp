@@ -343,14 +343,14 @@ namespace EE::Serialization
                     // Static array
                     if ( propInfo.IsStaticArrayProperty() )
                     {
-                        if ( propInfo.m_arraySize < numJSONArrayElements )
+                        if ( propInfo.m_arraySize < (int32_t) numJSONArrayElements )
                         {
                             EE_LOG_ERROR( "TypeSystem", "Serialization", "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, (int32_t) numJSONArrayElements );
                             return false;
                         }
 
                         uint8_t* pArrayElementAddress = reinterpret_cast<uint8_t*>( pPropertyDataAddress );
-                        for ( auto i = 0; i < numJSONArrayElements; i++ )
+                        for ( auto i = 0u; i < numJSONArrayElements; i++ )
                         {
                             if ( !ReadProperty( typeRegistry, jsonArrayValue[i], propInfo, pArrayElementAddress ) )
                             {
@@ -494,7 +494,7 @@ namespace EE::Serialization
                     }
 
                     // Write array elements
-                    for ( auto i = 0; i < numArrayElements; i++ )
+                    for ( auto i = 0u; i < numArrayElements; i++ )
                     {
                         WriteProperty( typeRegistry, writer, scratchBuffer, propInfo, pElementAddress );
                         pElementAddress += elementByteSize;

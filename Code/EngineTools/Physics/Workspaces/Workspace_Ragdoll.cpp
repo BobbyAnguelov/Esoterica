@@ -556,6 +556,9 @@ namespace EE::Physics
                                 EndDescriptorModification();
                             }
                             break;
+
+                            default:
+                            break;
                         }
                     }
                     else
@@ -581,6 +584,9 @@ namespace EE::Physics
                             {
                                 EndDescriptorModification();
                             }
+                            break;
+
+                            default:
                             break;
                         }
                     }
@@ -1441,7 +1447,6 @@ namespace EE::Physics
 
     void RagdollWorkspace::SetActiveProfile( StringID profileID )
     {
-        auto pRagdollDefinition = GetRagdollDefinition();
         m_activeProfileID = profileID;
         UpdateProfileWorkingCopy();
 
@@ -2892,7 +2897,6 @@ namespace EE::Physics
         m_pMeshComponent->FinalizePose();
         m_pMeshComponent->SetWorldTransform( Transform::Identity );
 
-        auto pPhysicsWorldSystem = m_pWorld->GetWorldSystem<PhysicsWorldSystem>();
         m_pRagdoll->RemoveFromScene();
         EE::Delete( m_pRagdoll );
 

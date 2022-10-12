@@ -12,6 +12,11 @@
 
 #pragma once
 
+#if _MSC_VER
+#pragma warning(push, 0)
+#pragma warning( disable : 5204 )
+#endif
+
 #if _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #   define WIN32_LEAN_AND_MEAN 1
@@ -1645,3 +1650,6 @@ inline std::string select_folder::result()
 
 } // namespace pfd
 
+#if _MSC_VER
+#pragma warning(pop)
+#endif

@@ -22,9 +22,9 @@
 namespace EE::Navmesh
 {
     NavmeshGenerator::NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::SerializedEntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings )
-        : m_typeRegistry( typeRegistry )
-        , m_rawResourceDirectoryPath( rawResourceDirectoryPath )
+        : m_rawResourceDirectoryPath( rawResourceDirectoryPath )
         , m_outputPath( outputPath )
+        , m_typeRegistry( typeRegistry )
         , m_entityCollection( entityCollection )
         , m_buildSettings( buildSettings )
         , m_asyncTask( [this] ( TaskSetPartition range, uint32_t threadnum ) { GenerateSync(); } )

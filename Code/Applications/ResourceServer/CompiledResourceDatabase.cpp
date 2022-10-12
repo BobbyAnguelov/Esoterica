@@ -59,7 +59,6 @@ namespace EE
         bool CompiledResourceDatabase::DropTables()
         {
             EE_ASSERT( m_pDatabase != nullptr );
-            char* pErrorMessage = nullptr;
 
             if ( !ExecuteSimpleQuery( "DROP TABLE IF EXISTS `CompiledResources`;" ) )
             {
@@ -83,9 +82,11 @@ namespace EE
             {
                 while ( sqlite3_step( pStatement ) == SQLITE_ROW )
                 {
-                    String resourcePath = ( char const*) sqlite3_column_text( pStatement, 0 );
-                    int32_t resourceType = sqlite3_column_int( pStatement, 1 );
+                    String const resourcePath = (char const*) sqlite3_column_text( pStatement, 0 );
                     record.m_resourceID = ResourceID( resourcePath );
+
+                    uint32_t const resourceType( sqlite3_column_int( pStatement, 1 ) );
+                    EE_ASSERT( record.m_resourceID.GetResourceTypeID().m_ID == resourceType );
 
                     record.m_compilerVersion = sqlite3_column_int( pStatement, 2 );
                     record.m_fileTimestamp = sqlite3_column_int64( pStatement, 3 );

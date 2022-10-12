@@ -186,10 +186,11 @@ namespace EE::Physics
             TInlineVector<int32_t, 100> glyphIndices;
             m_textRS.m_fontAtlas.GetGlyphsForString( 0, debugText.string, glyphIndices );
 
-            size_t glyphCount = glyphIndices.size();
+            int32_t const glyphCount = (int32_t) glyphIndices.size();
+            int32_t const remainingGlyphsPerDrawCall = ( DebugTextRenderState::MaxGlyphsPerDrawCall - numGlyphsDrawn - glyphCount );
 
             // If we are going to overflow the buffer, draw all previously recorded glyphs
-            if ( ( DebugTextRenderState::MaxGlyphsPerDrawCall - numGlyphsDrawn - glyphCount ) < 0 )
+            if ( remainingGlyphsPerDrawCall < 0 )
             {
                 renderContext.WriteToBuffer( m_textRS.m_vertexBuffer, pVertexData, vertexDataSize );
                 renderContext.WriteToBuffer( m_textRS.m_indexBuffer, pIndexData, indexDataSize );

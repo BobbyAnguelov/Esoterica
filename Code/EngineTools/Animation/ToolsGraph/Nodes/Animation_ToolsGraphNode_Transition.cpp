@@ -32,6 +32,10 @@ namespace EE::Animation::GraphNodes
             ImGui::Text( "Blend Root Motion" );
             break;
 
+            case RootMotionBlendMode::Additive:
+            ImGui::Text( "Blend Root Motion (Additive)" );
+            break;
+
             case RootMotionBlendMode::IgnoreSource:
             ImGui::Text( "Ignore Source Root Motion" );
             break;
@@ -104,7 +108,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Is this transition active?
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             bool isActive = false;

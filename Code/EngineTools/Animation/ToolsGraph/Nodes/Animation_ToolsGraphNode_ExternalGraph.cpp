@@ -18,7 +18,10 @@ namespace EE::Animation::GraphNodes
     {
         ExternalGraphNode::Settings* pSettings = nullptr;
         NodeCompilationState const state = context.GetSettings<ExternalGraphNode>( this, pSettings );
-        context.RegisterExternalGraphSlotNode( pSettings->m_nodeIdx, StringID( GetName() ) );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            context.RegisterExternalGraphSlotNode( pSettings->m_nodeIdx, StringID( GetName() ) );
+        }
         return pSettings->m_nodeIdx;
     }
 
@@ -40,7 +43,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
@@ -108,7 +111,7 @@ namespace EE::Animation::GraphNodes
 
     void ExternalGraphToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );

@@ -141,7 +141,7 @@ namespace EE::FileSystem
     {
         // TODO: replace with appropriate windows call
         std::error_code ec;
-        auto const result = std::filesystem::remove_all( path, ec );
+        std::filesystem::remove_all( path, ec );
         return ec.value() == 0;
     }
 

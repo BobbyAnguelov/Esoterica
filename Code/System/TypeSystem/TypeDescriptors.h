@@ -153,7 +153,7 @@ namespace EE::TypeSystem
 
             // Set properties
             SetPropertyValues( typeRegistry, pTypeInfo, pAllocatedMemoryForInstance );
-            return reinterpret_cast<T*>( pAllocatedMemoryForInstance );
+            return static_cast<T*>( pAllocatedMemoryForInstance );
         }
 
         // This will create a new instance of the described type in the memory block provided

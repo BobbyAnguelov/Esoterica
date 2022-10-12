@@ -6,7 +6,7 @@ namespace EE::Animation::GraphNodes
 {
     void ControlParameterBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterBoolNode>( context, options );
+        CreateNode<ControlParameterBoolNode>( context, options );
     }
 
     void ControlParameterBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterIDNode>( context, options );
+        CreateNode<ControlParameterIDNode>( context, options );
     }
 
     void ControlParameterIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -40,7 +40,7 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterIntNode>( context, options );
+        CreateNode<ControlParameterIntNode>( context, options );
     }
 
     void ControlParameterIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -57,7 +57,7 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterFloatNode>( context, options );
+        CreateNode<ControlParameterFloatNode>( context, options );
     }
 
     void ControlParameterFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -74,7 +74,7 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterVectorNode>( context, options );
+        CreateNode<ControlParameterVectorNode>( context, options );
     }
 
     void ControlParameterVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -91,7 +91,7 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ControlParameterTargetNode>( context, options );
+        CreateNode<ControlParameterTargetNode>( context, options );
     }
 
     void ControlParameterTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )

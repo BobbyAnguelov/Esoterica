@@ -8,7 +8,7 @@ namespace EE::Network::IPC
 {
     void Server::SendNetworkMessage( Message&& message )
     {
-        auto& outgoingMessage = m_outgoingMessages.emplace_back( eastl::move( message ) );
+        m_outgoingMessages.emplace_back( eastl::move( message ) );
     }
 
     void Server::ProcessMessage( uint32_t connectionID, void* pData, size_t size )

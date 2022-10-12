@@ -6,7 +6,7 @@ namespace EE::Animation::GraphNodes
 {
     void ConstBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstBoolNode>( context, options );
+        CreateNode<ConstBoolNode>( context, options );
     }
 
     void ConstBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstIDNode>( context, options );
+        CreateNode<ConstIDNode>( context, options );
     }
 
     void ConstIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -30,7 +30,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstIntNode>( context, options );
+        CreateNode<ConstIntNode>( context, options );
     }
 
     void ConstIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstFloatNode>( context, options );
+        CreateNode<ConstFloatNode>( context, options );
     }
 
     void ConstFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -54,7 +54,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstVectorNode>( context, options );
+        CreateNode<ConstVectorNode>( context, options );
     }
 
     void ConstVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
@@ -66,7 +66,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ConstTargetNode>( context, options );
+        CreateNode<ConstTargetNode>( context, options );
     }
 
     void ConstTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )

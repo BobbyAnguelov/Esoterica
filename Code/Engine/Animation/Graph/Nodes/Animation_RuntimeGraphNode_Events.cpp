@@ -539,7 +539,6 @@ namespace EE::Animation::GraphNodes
     void CurrentSyncEventNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        auto pSettings = GetSettings<SyncEventConditionNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )

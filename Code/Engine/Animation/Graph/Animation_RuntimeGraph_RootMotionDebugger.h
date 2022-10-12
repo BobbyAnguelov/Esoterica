@@ -117,7 +117,7 @@ namespace EE::Animation
             // It's possible for the use to only have a single source for a blend since not all nodes register root motion actions
             if ( originalRootMotionActionIdx0 == originalRootMotionActionIdx1 )
             {
-                action.m_dependencies.emplace_back( InvalidIndex );
+                action.m_dependencies.emplace_back( (int16_t) InvalidIndex );
             }
             else
             {

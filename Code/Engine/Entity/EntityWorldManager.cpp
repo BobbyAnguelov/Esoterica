@@ -63,12 +63,12 @@ namespace EE
 
     void EntityWorldManager::StartFrame()
     {
+        #if EE_DEVELOPMENT_TOOLS
         for ( auto& pWorld : m_worlds )
         {
-            #if EE_DEVELOPMENT_TOOLS
             pWorld->ResetDebugDrawingSystem();
-            #endif
         }
+        #endif
     }
 
     void EntityWorldManager::EndFrame()

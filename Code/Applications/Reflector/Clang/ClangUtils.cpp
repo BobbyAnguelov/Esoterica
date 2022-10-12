@@ -119,7 +119,7 @@ namespace EE
             else if ( pType->isPointerType() || pType->isReferenceType() )
             {
                 auto p = pType->getPointeeType();
-                clang::Type const* pClangType2 = p.getTypePtr();
+                //clang::Type const* pClangType = p.getTypePtr();
             }
             else if ( pType->isRecordType() )
             {

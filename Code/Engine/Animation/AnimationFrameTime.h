@@ -18,7 +18,6 @@ namespace EE::Animation
             : m_frameIndex( frameIndex )
             , m_percentageThrough( percentageThrough )
         {
-            EE_ASSERT( frameIndex >= 0 );
             EE_ASSERT( percentageThrough.ToFloat() >= 0.0f && percentageThrough < 1.0f );
         }
 

@@ -96,7 +96,6 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult LayerBlendNode::Update( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<LayerBlendNode>();
 
         GraphPoseNodeResult Result;
 
@@ -134,7 +133,6 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult LayerBlendNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<LayerBlendNode>();
 
         GraphPoseNodeResult result;
 

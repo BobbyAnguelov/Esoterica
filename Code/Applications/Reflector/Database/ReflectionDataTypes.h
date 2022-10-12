@@ -108,6 +108,13 @@ namespace EE::TypeSystem::Reflection
         String GetFriendlyName() const;
         String GetCategory() const;
 
+        // Generate additional type info
+        inline bool HasProperties() const { return !m_properties.empty(); }
+        bool HasArrayProperties() const;
+        bool HasDynamicArrayProperties() const;
+        bool HasResourcePtrProperties() const;
+        bool HasResourcePtrOrStructProperties() const;
+
     public:
 
         TypeID                                          m_ID;

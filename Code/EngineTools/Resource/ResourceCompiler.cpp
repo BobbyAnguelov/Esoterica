@@ -7,8 +7,8 @@ namespace EE::Resource
 {
     CompileContext::CompileContext( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForShippingBuild )
         : m_compiledResourceDirectoryPath( compiledResourceDirectoryPath )
-        , m_resourceID( resourceToCompile )
         , m_isCompilingForPackagedBuild( isCompilingForShippingBuild )
+        , m_resourceID( resourceToCompile )
     {
         EE_ASSERT( rawResourceDirectoryPath.IsDirectoryPath() && FileSystem::Exists( rawResourceDirectoryPath ) && resourceToCompile.IsValid() );
 

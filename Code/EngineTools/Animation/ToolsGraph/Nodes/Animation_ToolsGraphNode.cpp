@@ -97,7 +97,7 @@ namespace EE::Animation::GraphNodes
 
     void FlowToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
         int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
@@ -213,7 +213,7 @@ namespace EE::Animation::GraphNodes
 
     bool FlowToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const
     {
-        auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
         {
             // Some nodes dont have runtime representations
@@ -252,7 +252,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Draw runtime node index
-            auto pGraphNodeContext = reinterpret_cast<ToolsGraphUserContext*>( pUserContext );
+            auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
             if ( pGraphNodeContext->HasDebugData() )
             {
                 int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );

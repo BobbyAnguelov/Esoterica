@@ -25,8 +25,6 @@ namespace EE::Network
         static void NetworkDebugOutputFunction( ESteamNetworkingSocketsDebugOutputType type, char const* pMessage )
         {
             EE_ASSERT( g_pNetworkState != nullptr );
-            SteamNetworkingMicroseconds const currentTime = SteamNetworkingUtils()->GetLocalTimestamp() - g_pNetworkState->m_logTimeZero;
-
             EE_TRACE_MSG( pMessage );
 
             // TODO: initialize rpmalloc for the steam network thread
@@ -344,6 +342,7 @@ namespace EE::Network
 
             case k_ESteamNetworkingConnectionState_ClosedByPeer:
             case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+            default:
             {
                 EE_UNREACHABLE_CODE();
             }

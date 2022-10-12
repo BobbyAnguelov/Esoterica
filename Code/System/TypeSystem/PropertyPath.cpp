@@ -12,7 +12,7 @@ namespace EE::TypeSystem
         EE_ASSERT( !pathStrings.empty() );
 
         auto const numPathEntries = pathStrings.size();
-        for ( auto i = 0; i < numPathEntries; i++ )
+        for ( auto i = 0u; i < numPathEntries; i++ )
         {
             if ( isdigit( pathStrings[i][0] ) )
             {

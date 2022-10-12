@@ -415,6 +415,10 @@ namespace EE
                     }
                 }
                 break;
+
+                default:
+                EE_UNREACHABLE_CODE();
+                break;
             }
         }
 

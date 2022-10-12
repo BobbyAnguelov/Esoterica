@@ -21,6 +21,7 @@ namespace EE
     {
     public:
 
+        virtual ~ToolsContext() = default;
         inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pResourceDatabase != nullptr; }
         FileSystem::Path const& GetRawResourceDirectory() const;
         FileSystem::Path const& GetCompiledResourceDirectory() const;

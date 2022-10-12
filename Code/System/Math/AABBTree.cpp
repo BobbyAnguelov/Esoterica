@@ -62,7 +62,8 @@ namespace EE::Math
         EE_ASSERT( newBox.IsValid() );
 
         // All boxes must have a non-zero unique userdata value as that is also used as the ID
-        EE_ASSERT( userData != 0 && !VectorContains( m_nodes, userData, [] ( Node const& node, uint64_t userData ) { return !node.m_isFree && node.IsLeafNode() && node.m_userData == userData; } ) );
+        auto const Comparator = [] ( Node const& node, uint64_t userData ) { return !node.m_isFree && node.IsLeafNode() && node.m_userData == userData; };
+        EE_ASSERT( userData != 0 && !VectorContains( m_nodes, userData, Comparator ) );
 
         // First box
         if ( m_rootNodeIdx == InvalidIndex )
@@ -212,7 +213,8 @@ namespace EE::Math
         m_nodes[freeNodeIdx].m_isFree = false;
 
         // Try to find the next free node idx
-        for ( ++m_freeNodeIdx; m_freeNodeIdx < m_nodes.size(); m_freeNodeIdx++ )
+        int32_t const numNodes = (int32_t) m_nodes.size();
+        for ( ++m_freeNodeIdx; m_freeNodeIdx < numNodes; m_freeNodeIdx++ )
         {
             if ( m_nodes[m_freeNodeIdx].m_isFree )
             {
@@ -221,7 +223,7 @@ namespace EE::Math
         }
 
         // Allocate additional node memory
-        if ( m_freeNodeIdx == m_nodes.size() )
+        if ( m_freeNodeIdx == numNodes )
         {
             m_nodes.resize( Math::FloorToInt( m_nodes.size() * 1.25f ) );
         }
@@ -231,7 +233,7 @@ namespace EE::Math
 
     void AABBTree::ReleaseNode( int32_t nodeIdx )
     {
-        EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodes.size() && !m_nodes[nodeIdx].m_isFree );
+        EE_ASSERT( nodeIdx >= 0 && nodeIdx < (int32_t) m_nodes.size() && !m_nodes[nodeIdx].m_isFree );
         m_nodes[nodeIdx].m_isFree = true;
         m_freeNodeIdx = Math::Min( m_freeNodeIdx, nodeIdx );
     }

@@ -17,7 +17,6 @@ namespace EE::AI
         //-------------------------------------------------------------------------
 
         float const sphereRadiusReduction = 0.2f;
-        float const sphereRadius = m_pCharacterComponent->GetCapsuleRadius() - sphereRadiusReduction;
         Vector const sphereOrigin = capsuleWorldTransform.GetTranslation();
 
         // Attempt a sweep from current position to the bottom of the capsule including some "gravity"

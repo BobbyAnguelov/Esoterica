@@ -417,7 +417,6 @@ namespace EE::CPP
             }
 
             // Generate code files for the dirty headers
-            bool result = true;
             for ( auto& dirtyHeaderIdx : prj.m_dirtyHeaders )
             {
                 auto& headerInfo = prj.m_headerFiles[dirtyHeaderIdx];

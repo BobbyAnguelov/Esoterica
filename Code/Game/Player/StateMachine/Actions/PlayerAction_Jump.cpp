@@ -120,7 +120,6 @@ namespace EE::Player
             // Use last frame camera orientation
             Vector const CurrentVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
             Vector const CurrentVelocity2D = CurrentVelocity * Vector( 1.0f, 1.0f, 0.0f );
-            float const CurrentSpeed2D = CurrentVelocity2D.GetLength2();
 
             Vector const forward = camFwd * movementInputs.m_y;
             Vector const right = camRight * movementInputs.m_x;

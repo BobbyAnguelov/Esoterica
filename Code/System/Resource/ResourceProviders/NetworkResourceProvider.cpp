@@ -108,6 +108,9 @@ namespace EE::Resource
                     #endif
                 }
                 break;
+
+                default:
+                break;
             };
         };
 

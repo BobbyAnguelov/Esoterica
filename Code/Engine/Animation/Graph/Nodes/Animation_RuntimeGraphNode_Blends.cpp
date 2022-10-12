@@ -411,7 +411,7 @@ namespace EE::Animation::GraphNodes
 
     void RangedBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<RangedBlendNode>( context, options );
+        CreateNode<RangedBlendNode>( context, options );
         ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
@@ -419,7 +419,7 @@ namespace EE::Animation::GraphNodes
 
     void VelocityBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<VelocityBlendNode>( context, options );
+        CreateNode<VelocityBlendNode>( context, options );
         ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 

@@ -21,7 +21,6 @@ namespace EE::Navmesh
 
     void NavmeshLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
     {
-        auto pNavmeshData = pResourceRecord->GetResourceData<NavmeshData>();
         ResourceLoader::UnloadInternal( resID, pResourceRecord );
     }
 }

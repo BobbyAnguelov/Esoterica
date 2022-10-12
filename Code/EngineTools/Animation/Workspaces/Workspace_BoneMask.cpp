@@ -367,7 +367,6 @@ namespace EE::Animation
     void BoneMaskWorkspace::DrawBoneWeightEditor( BoneInfo* pBone )
     {
         EE_ASSERT( pBone != nullptr );
-        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
 
         //-------------------------------------------------------------------------
 
@@ -538,7 +537,6 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pBoneMaskDesc = GetDescriptor<BoneMaskResourceDescriptor>();
         auto drawingCtx = GetDrawingContext();
         auto const& localRefPose = m_skeleton->GetLocalReferencePose();
         auto const& parentIndices = m_skeleton->GetParentBoneIndices();

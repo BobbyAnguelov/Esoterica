@@ -61,7 +61,6 @@ namespace EE
     {
         EE_ASSERT( !path.empty() );
 
-        size_t const numPathLevels = path.size();
         int32_t currentPathLevel = 0;
 
         Menu* pCurrentMenu = this;

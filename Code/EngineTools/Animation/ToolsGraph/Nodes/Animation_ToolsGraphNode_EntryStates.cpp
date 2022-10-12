@@ -18,8 +18,6 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        int32_t const numOriginalInputPins = GetNumInputPins();
-
         TInlineVector<StateToolsNode*, 20> pinsToCreate;
         TInlineVector<UUID, 20> pinsToRemove;
 

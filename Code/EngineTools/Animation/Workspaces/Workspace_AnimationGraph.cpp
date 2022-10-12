@@ -892,6 +892,9 @@ namespace EE::Animation
                         }
                     }
                     break;
+
+                    default:
+                    break;
                 }
             }
         }
@@ -1806,7 +1809,6 @@ namespace EE::Animation
 
         float const buttonHeight = navBarDimensions.y;
         float const statemachineNavRequiredSpace = m_primaryGraphView.IsViewingStateMachineGraph() ? ( stateMachineNavButtonWidth * 2 ) : 0;
-        float const breadcrumbAvailableSpace = navBarDimensions.x - homeButtonWidth - statemachineNavRequiredSpace;
 
         // Get all entries for breadcrumb
         //-------------------------------------------------------------------------
@@ -1997,8 +1999,6 @@ namespace EE::Animation
     void AnimationGraphWorkspace::DrawGraphView( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         EE_ASSERT( &m_userContext != nullptr );
-
-        auto pRootGraph = m_toolsGraph.GetRootGraph();
 
         //-------------------------------------------------------------------------
 
@@ -2237,6 +2237,9 @@ namespace EE::Animation
                                 case Log::Severity::Message:
                                 ImGui::Text( "Message" );
                                 break;
+
+                                default:
+                                break;
                             }
 
                             //-------------------------------------------------------------------------
@@ -2321,6 +2324,9 @@ namespace EE::Animation
 
                                     case Log::Severity::Message:
                                     ImGui::Text( "Message" );
+                                    break;
+
+                                    default:
                                     break;
                                 }
 
@@ -2859,7 +2865,6 @@ namespace EE::Animation
         auto DrawControlParameterEditorRow = [this] ( ControlParameterPreviewState* pPreviewState )
         {
             auto pControlParameter = pPreviewState->m_pParameter;
-            int16_t const parameterIdx = m_userContext.GetRuntimeGraphNodeIndex( pControlParameter->GetID() );
 
             ImGui::PushID( pControlParameter );
             ImGui::TableNextRow();
@@ -3170,6 +3175,10 @@ namespace EE::Animation
                 {
                     m_parameterPreviewStates.emplace_back( EE::New<TargetParameterState>( pControlParameter ) );
                 }
+                break;
+
+                default:
+                EE_UNREACHABLE_CODE();
                 break;
             }
         }

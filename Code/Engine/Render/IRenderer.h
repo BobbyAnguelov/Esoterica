@@ -35,6 +35,7 @@ namespace EE::Render
 
     public:
 
+        virtual ~IRenderer() = default;
         virtual uint32_t GetRendererID() const = 0;
         virtual int32_t GetPriority() const = 0;
 

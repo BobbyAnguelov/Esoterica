@@ -14,9 +14,9 @@ namespace EE::Navmesh
     NavmeshGeneratorDialog::NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::SerializedEntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath )
         : m_pToolsContext( pToolsContext )
         , m_buildSettings( initialBuildSettings )
-        , m_propertyGrid( pToolsContext )
-        , m_navmeshOutputPath( navmeshOutputPath )
         , m_entityCollection( entityCollection )
+        , m_navmeshOutputPath( navmeshOutputPath )
+        , m_propertyGrid( pToolsContext )
     {
         m_propertyGrid.SetTypeToEdit( &m_buildSettings );
         m_propertyGrid.ExpandAllPropertyViews();

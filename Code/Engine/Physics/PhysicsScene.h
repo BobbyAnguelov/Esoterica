@@ -57,7 +57,7 @@ namespace EE::Physics
         template<int N>
         bool RayCast( Vector const& start, Vector const& end, QueryFilter& filter, RayCastResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_start = start;
             outResults.m_end = end;
@@ -71,7 +71,7 @@ namespace EE::Physics
         template<int N>
         bool RayCast( Vector const& start, Vector const& unitDirection, float distance, QueryFilter& filter, RayCastResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             EE_ASSERT( unitDirection.IsNormalized3() && distance > 0 );
 
             outResults.m_start = start;
@@ -87,7 +87,7 @@ namespace EE::Physics
         template<int N>
         bool SphereSweep( float radius, Vector const& start, Vector const& end, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_sweepStart = start;
             outResults.m_sweepEnd = end;
@@ -105,8 +105,7 @@ namespace EE::Physics
         template<int N>
         bool SphereSweep( float radius, Vector const& start, Vector const& unitDirection, float distance, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
-            EE_ASSERT( unitDirection.IsNormalized3() && distance > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_sweepStart = start;
             outResults.m_sweepEnd = Vector::MultiplyAdd( unitDirection, Vector( distance ), start );
@@ -122,7 +121,7 @@ namespace EE::Physics
         template<int N>
         bool SphereOverlap( float radius, Vector const& position, QueryFilter& filter, OverlapResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_position = position;
 
@@ -140,7 +139,7 @@ namespace EE::Physics
         template<int N>
         bool CapsuleSweep( float cylinderPortionHalfHeight, float radius, Quaternion const& orientation, Vector const& start, Vector const& end, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_sweepStart = start;
             outResults.m_sweepEnd = end;
@@ -164,7 +163,7 @@ namespace EE::Physics
         template<int N>
         bool CapsuleSweep( float cylinderPortionHalfHeight, float radius, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             EE_ASSERT( unitDirection.IsNormalized3() && distance > 0 );
 
             outResults.m_sweepStart = start;
@@ -185,7 +184,7 @@ namespace EE::Physics
         template<int N>
         bool CapsuleOverlap( float cylinderPortionHalfHeight, float radius, Quaternion const& orientation, Vector const& position, QueryFilter& filter, OverlapResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_position = position;
             outResults.m_orientation = orientation;
@@ -202,7 +201,7 @@ namespace EE::Physics
         template<int N>
         bool CylinderSweep( float halfHeight, float radius, Quaternion const& orientation, Vector const& start, Vector const& end, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             outResults.m_sweepStart = start;
             outResults.m_sweepEnd = end;
             outResults.m_orientation = orientation;
@@ -220,7 +219,7 @@ namespace EE::Physics
         template<int N>
         bool CylinderSweep( float halfHeight, float radius, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             EE_ASSERT( unitDirection.IsNormalized3() && distance > 0 );
             EE_ASSERT( SharedMeshes::s_pUnitCylinderMesh != nullptr );
 
@@ -239,7 +238,7 @@ namespace EE::Physics
         template<int N>
         bool CylinderOverlap( float halfHeight, float radius, Quaternion const& orientation, Vector const& position, QueryFilter& filter, OverlapResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_position = position;
             outResults.m_orientation = orientation;
@@ -256,7 +255,7 @@ namespace EE::Physics
         template<int N>
         bool BoxSweep( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             EE_ASSERT( unitDirection.IsNormalized3() && distance > 0 );
 
             outResults.m_sweepStart = start;
@@ -272,7 +271,7 @@ namespace EE::Physics
         template<int N>
         bool BoxSweep( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& end, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             Vector unitDirection; float distance;
             ( end - start ).ToDirectionAndLength3( unitDirection, distance );
@@ -293,7 +292,7 @@ namespace EE::Physics
         template<int N>
         bool BoxOverlap( Vector halfExtents, Quaternion const& orientation, Vector const& position, QueryFilter& filter, OverlapResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_position = position;
             outResults.m_orientation = orientation;
@@ -310,7 +309,7 @@ namespace EE::Physics
         template<int N>
         bool ShapeSweep( physx::PxShape* pShape, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             EE_ASSERT( unitDirection.IsNormalized3() && distance > 0 );
 
             outResults.m_sweepStart = start;
@@ -325,7 +324,7 @@ namespace EE::Physics
         template<int N>
         bool ShapeSweep( physx::PxShape* pShape, Quaternion const& orientation, Vector const& start, Vector const& end, QueryFilter& filter, SweepResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
             Vector unitDirection; float distance;
             ( end - start ).ToDirectionAndLength3( unitDirection, distance );
             EE_ASSERT( !unitDirection.IsNearZero3() );
@@ -344,7 +343,7 @@ namespace EE::Physics
         template<int N>
         bool ShapeOverlap( physx::PxShape* pShape, Quaternion const& orientation, Vector const& start, QueryFilter& filter, OverlapResultBuffer<N>& outResults )
         {
-            EE_ASSERT( m_readLockCount > 0 );
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_readLockCount > 0 ) );
 
             outResults.m_position = start;
             outResults.m_orientation = orientation;

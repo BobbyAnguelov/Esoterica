@@ -579,7 +579,6 @@ namespace EE::ImGuiX
         LineSegment mouseRay = viewport.ScreenSpaceToWorldSpace( m_rotationStartMousePosition );
         Plane planeOfRotation = Plane::FromNormalAndPoint( axisOfRotation_ws, m_origin_WS );
         Vector intersectionPoint;
-        bool const intersectionResult = planeOfRotation.IntersectLine( mouseRay, intersectionPoint );
 
         //-------------------------------------------------------------------------
 
@@ -690,7 +689,6 @@ namespace EE::ImGuiX
         EE_ASSERT( m_gizmoMode == GizmoMode::Rotation );
 
         ImGuiIO& io = ImGui::GetIO();
-        auto pDrawList = ImGui::GetWindowDrawList();
 
         if ( m_manipulationMode == ManipulationMode::None )
         {
@@ -757,8 +755,6 @@ namespace EE::ImGuiX
     void Gizmo::Rotation_Update( Render::Viewport const& viewport )
     {
         EE_ASSERT( m_gizmoMode == GizmoMode::Rotation );
-
-        auto pDrawList = ImGui::GetWindowDrawList();
 
         Vector const viewForwardDir_WS = viewport.GetViewForwardDirection();
 
@@ -1124,7 +1120,6 @@ namespace EE::ImGuiX
 
         //-------------------------------------------------------------------------
 
-        Vector const& origin = m_manipulationTransform.GetTranslation();
         Vector const mousePos( io.MousePos.x, io.MousePos.y, 0, 1.0f );
         LineSegment const mouseWorldRay = viewport.ScreenSpaceToWorldSpace( mousePos );
         Vector projectedPoint;

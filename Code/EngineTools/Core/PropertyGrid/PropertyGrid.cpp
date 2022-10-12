@@ -325,7 +325,6 @@ namespace EE
         if ( propertyInfo.IsDynamicArrayProperty() )
         {
             EE_ASSERT( arrayIdx != InvalidIndex );
-            auto const pArrayElementInstance = pTypeInfo->GetArrayElementDataPtr( pTypeInstance, propertyInfo.m_ID, arrayIdx );
             if ( ImGuiX::FlatButtonColored( Colors::PaleVioletRed.ToFloat4(), EE_ICON_MINUS, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 command = Command::RemoveElement;
@@ -396,6 +395,9 @@ namespace EE
                 }
             }
             break;
+
+            default:
+            break;
         }
     }
 
@@ -439,8 +441,6 @@ namespace EE
             float const itemSpacing = ImGui::GetStyle().ItemSpacing.x / 2;
             float const buttonAreaWidth = 21;
             float const textAreaWidth = cellContentWidth - buttonAreaWidth - itemSpacing;
-            float const buttonStartPosX = textAreaWidth + itemSpacing;
-
 
             ImGui::AlignTextToFramePadding();
             ImGui::TextColored( Colors::Gray.ToFloat4(), "%d Elements - %s", arraySize, friendlyTypeName.c_str() );

@@ -654,6 +654,9 @@ namespace EE::EntityModel
                     EndTransformManipulation( m_gizmoTransform );
                 }
                 break;
+
+                default:
+                break;
             }
         }
     }

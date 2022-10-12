@@ -301,8 +301,6 @@ namespace EE::Render
             return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
         }
 
-        bool const isSkeletalMesh = ( ctx.m_resourceID.GetResourceTypeID() == SkeletalMesh::GetStaticResourceTypeID() );
-
         // Read mesh data
         //-------------------------------------------------------------------------
 

@@ -391,7 +391,6 @@ namespace EE::Render
     void RenderDevice::ResizeWindow( RenderWindow& window, Int2 const& dimensions )
     {
         EE_ASSERT( window.IsValid() );
-        auto pSC = reinterpret_cast<IDXGISwapChain*>( window.m_pSwapChain );
 
         // Release render target and depth stencil
         m_immediateContext.SetRenderTarget( nullptr );

@@ -78,6 +78,7 @@ namespace EE::Resource
 
     public:
 
+        virtual ~RawFileInspectorFactory() = default;
         static bool CanCreateInspector( FileSystem::Path const& filePath );
         static RawFileInspector* TryCreateInspector( ToolsContext const* pToolsContext, FileSystem::Path const& filePath );
 

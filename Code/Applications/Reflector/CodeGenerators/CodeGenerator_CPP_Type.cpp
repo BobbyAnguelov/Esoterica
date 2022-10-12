@@ -50,51 +50,55 @@ namespace EE::CPP
     {
         file << "            virtual uint8_t* GetArrayElementDataPtr( IRegisteredType* pType, uint32_t arrayID, size_t arrayIdx ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasArrayProperties() )
         {
-            if ( propertyDesc.IsDynamicArrayProperty() )
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
+
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_isDevOnly )
+                if ( propertyDesc.IsDynamicArrayProperty() )
                 {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    if ( ( arrayIdx + 1 ) >= pActualType->" << propertyDesc.m_name.c_str() << ".size() )\n";
+                    file << "                    {\n";
+                    file << "                        pActualType->" << propertyDesc.m_name.c_str() << ".resize( arrayIdx + 1 );\n";
+                    file << "                    }\n\n";
+                    file << "                    return (uint8_t*) &pActualType->" << propertyDesc.m_name.c_str() << "[arrayIdx];\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    if ( ( arrayIdx + 1 ) >= pActualType->" << propertyDesc.m_name.c_str() << ".size() )\n";
-                file << "                    {\n";
-                file << "                        pActualType->" << propertyDesc.m_name.c_str() << ".resize( arrayIdx + 1 );\n";
-                file << "                    }\n\n";
-                file << "                    return (uint8_t*) &pActualType->" << propertyDesc.m_name.c_str() << "[arrayIdx];\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
+                else if ( propertyDesc.IsStaticArrayProperty() )
                 {
-                    file << "                #endif\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    return (uint8_t*) &pActualType->" << propertyDesc.m_name.c_str() << "[arrayIdx];\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "\n";
-            }
-            else if ( propertyDesc.IsStaticArrayProperty() )
-            {
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
-                }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    return (uint8_t*) &pActualType->" << propertyDesc.m_name.c_str() << "[arrayIdx];\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
             }
         }
 
@@ -108,47 +112,51 @@ namespace EE::CPP
     {
         file << "            virtual size_t GetArraySize( IRegisteredType const* pTypeInstance, uint32_t arrayID ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasArrayProperties() )
         {
-            if ( propertyDesc.IsDynamicArrayProperty() )
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n\n";
+
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_isDevOnly )
+                if ( propertyDesc.IsDynamicArrayProperty() )
                 {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    return pActualType->" << propertyDesc.m_name.c_str() << ".size();\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    return pActualType->" << propertyDesc.m_name.c_str() << ".size();\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
+                else if ( propertyDesc.IsStaticArrayProperty() )
                 {
-                    file << "                #endif\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    return " << propertyDesc.GetArraySize() << ";\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "\n";
-            }
-            else if ( propertyDesc.IsStaticArrayProperty() )
-            {
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
-                }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    return " << propertyDesc.GetArraySize() << ";\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
             }
         }
 
@@ -198,29 +206,33 @@ namespace EE::CPP
     {
         file << "            virtual void ClearArray( IRegisteredType* pTypeInstance, uint32_t arrayID ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasDynamicArrayProperties() )
         {
-            if ( propertyDesc.IsDynamicArrayProperty() )
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_isDevOnly )
+                if ( propertyDesc.IsDynamicArrayProperty() )
                 {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    pActualType->" << propertyDesc.m_name.c_str() << ".clear();\n";
+                    file << "                    return;\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    pActualType->" << propertyDesc.m_name.c_str() << ".clear();\n";
-                file << "                    return;\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
             }
         }
 
@@ -233,29 +245,33 @@ namespace EE::CPP
     {
         file << "            virtual void AddArrayElement( IRegisteredType* pTypeInstance, uint32_t arrayID ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasDynamicArrayProperties() )
         {
-            if ( propertyDesc.IsDynamicArrayProperty() )
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_isDevOnly )
+                if ( propertyDesc.IsDynamicArrayProperty() )
                 {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    pActualType->" << propertyDesc.m_name.c_str() << ".emplace_back();\n";
+                    file << "                    return;\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    pActualType->" << propertyDesc.m_name.c_str() << ".emplace_back();\n";
-                file << "                    return;\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
             }
         }
 
@@ -268,29 +284,33 @@ namespace EE::CPP
     {
         file << "            virtual void RemoveArrayElement( IRegisteredType* pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasDynamicArrayProperties() )
         {
-            if ( propertyDesc.IsDynamicArrayProperty() )
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_isDevOnly )
+                if ( propertyDesc.IsDynamicArrayProperty() )
                 {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
+                    file << "                {\n";
+                    file << "                    pActualType->" << propertyDesc.m_name.c_str() << ".erase( pActualType->" << propertyDesc.m_name.c_str() << ".begin() + arrayIdx );\n";
+                    file << "                    return;\n";
+                    file << "                }\n";
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
                 }
-
-                file << "                if ( arrayID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    pActualType->" << propertyDesc.m_name.c_str() << ".erase( pActualType->" << propertyDesc.m_name.c_str() << ".begin() + arrayIdx );\n";
-                file << "                    return;\n";
-                file << "                }\n";
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
             }
         }
 
@@ -307,24 +327,28 @@ namespace EE::CPP
     {
         file << "            virtual bool AreAllPropertyValuesEqual( IRegisteredType const* pTypeInstance, IRegisteredType const* pOtherTypeInstance ) const override final\n";
         file << "            {\n";
-        file << "                auto pType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
-        file << "                auto pOtherType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasProperties() )
         {
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #if EE_DEVELOPMENT_TOOLS\n";
-            }
+            file << "                auto pType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
+            file << "                auto pOtherType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
 
-            file << "                if( !IsPropertyValueEqual( pType, pOtherType, " << propertyDesc.m_propertyID << " ) )\n";
-            file << "                {\n";
-            file << "                    return false;\n";
-            file << "                }\n\n";
-
-            if ( propertyDesc.m_isDevOnly )
+            for ( auto& propertyDesc : type.m_properties )
             {
-                file << "                #endif\n";
+                if ( propertyDesc.m_isDevOnly )
+                {
+                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                }
+
+                file << "                if( !IsPropertyValueEqual( pType, pOtherType, " << propertyDesc.m_propertyID << " ) )\n";
+                file << "                {\n";
+                file << "                    return false;\n";
+                file << "                }\n\n";
+
+                if ( propertyDesc.m_isDevOnly )
+                {
+                    file << "                #endif\n";
+                }
             }
         }
 
@@ -336,121 +360,129 @@ namespace EE::CPP
     {
         file << "            virtual bool IsPropertyValueEqual( IRegisteredType const* pTypeInstance, IRegisteredType const* pOtherTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const override final\n";
         file << "            {\n";
-        file << "                auto pType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
-        file << "                auto pOtherType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasProperties() )
         {
-            InlineString propertyTypeName = propertyDesc.m_typeName.c_str();
-            if ( !propertyDesc.m_templateArgTypeName.empty() )
+            file << "                auto pType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
+            file << "                auto pOtherType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
+
+            for ( auto& propertyDesc : type.m_properties )
             {
-                propertyTypeName += "<";
-                propertyTypeName += propertyDesc.m_templateArgTypeName.c_str();
-                propertyTypeName += ">";
-            }
+                InlineString propertyTypeName = propertyDesc.m_typeName.c_str();
+                if ( !propertyDesc.m_templateArgTypeName.empty() )
+                {
+                    propertyTypeName += "<";
+                    propertyTypeName += propertyDesc.m_templateArgTypeName.c_str();
+                    propertyTypeName += ">";
+                }
 
-            //-------------------------------------------------------------------------
-
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #if EE_DEVELOPMENT_TOOLS\n";
-            }
-
-            file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
-            file << "                {\n";
-
-            // Arrays
-            if ( propertyDesc.IsArrayProperty() )
-            {
-                // Handle individual element comparison
                 //-------------------------------------------------------------------------
 
-                file << "                    // Compare array elements\n";
-                file << "                    if ( arrayIdx != InvalidIndex )\n";
-                file << "                    {\n";
-
-                // If it's a dynamic array check the sizes first
-                if ( propertyDesc.IsDynamicArrayProperty() )
+                if ( propertyDesc.m_isDevOnly )
                 {
-                    file << "                        if ( arrayIdx >= pOtherType->" << propertyDesc.m_name.c_str() << ".size() )\n";
+                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                }
+
+                file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
+                file << "                {\n";
+
+                // Arrays
+                if ( propertyDesc.IsArrayProperty() )
+                {
+                    // Handle individual element comparison
+                    //-------------------------------------------------------------------------
+
+                    file << "                    // Compare array elements\n";
+                    file << "                    if ( arrayIdx != InvalidIndex )\n";
+                    file << "                    {\n";
+
+                    // If it's a dynamic array check the sizes first
+                    if ( propertyDesc.IsDynamicArrayProperty() )
+                    {
+                        file << "                        if ( arrayIdx >= pOtherType->" << propertyDesc.m_name.c_str() << ".size() )\n";
+                        file << "                        {\n";
+                        file << "                        return false;\n";
+                        file << "                        }\n\n";
+                    }
+
+                    if ( propertyDesc.IsStructureProperty() )
+                    {
+                        file << "                        return " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->AreAllPropertyValuesEqual( &pType->" << propertyDesc.m_name.c_str() << "[arrayIdx], &pOtherType->" << propertyDesc.m_name.c_str() << "[arrayIdx] );\n";
+                    }
+                    else
+                    {
+                        file << "                        return pType->" << propertyDesc.m_name.c_str() << "[arrayIdx] == pOtherType->" << propertyDesc.m_name.c_str() << "[arrayIdx];\n";
+                    }
+                    file << "                    }\n";
+
+                    // Handle array comparison
+                    //-------------------------------------------------------------------------
+
+                    file << "                    else // Compare entire array contents\n";
+                    file << "                    {\n";
+
+                    // If it's a dynamic array check the sizes first
+                    if ( propertyDesc.IsDynamicArrayProperty() )
+                    {
+                        file << "                        if ( pType->" << propertyDesc.m_name.c_str() << ".size() != pOtherType->" << propertyDesc.m_name.c_str() << ".size() )\n";
+                        file << "                        {\n";
+                        file << "                        return false;\n";
+                        file << "                        }\n\n";
+
+                        file << "                        for ( size_t i = 0; i < pType->" << propertyDesc.m_name.c_str() << ".size(); i++ )\n";
+                    }
+                    else
+                    {
+                        file << "                        for ( size_t i = 0; i < " << propertyDesc.GetArraySize() << "; i++ )\n";
+                    }
+
                     file << "                        {\n";
-                    file << "                        return false;\n";
+
+                    if ( propertyDesc.IsStructureProperty() )
+                    {
+                        file << "                        if( !" << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->AreAllPropertyValuesEqual( &pType->" << propertyDesc.m_name.c_str() << "[i], &pOtherType->" << propertyDesc.m_name.c_str() << "[i] ) )\n";
+                        file << "                        {\n";
+                        file << "                            return false;\n";
+                        file << "                        }\n";
+                    }
+                    else
+                    {
+                        file << "                        if( pType->" << propertyDesc.m_name.c_str() << "[i] != pOtherType->" << propertyDesc.m_name.c_str() << "[i] )\n";
+                        file << "                        {\n";
+                        file << "                            return false;\n";
+                        file << "                        }\n";
+                    }
+
                     file << "                        }\n\n";
-                }
 
-                if ( propertyDesc.IsStructureProperty() )
+                    file << "                        return true;\n";
+                    file << "                    }\n";
+                }
+                else // Non-Array properties
                 {
-                    file << "                        return " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->AreAllPropertyValuesEqual( &pType->" << propertyDesc.m_name.c_str() << "[arrayIdx], &pOtherType->" << propertyDesc.m_name.c_str() << "[arrayIdx] );\n";
+                    if ( propertyDesc.IsStructureProperty() )
+                    {
+                        file << "                    return " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->AreAllPropertyValuesEqual( &pType->" << propertyDesc.m_name.c_str() << ", &pOtherType->" << propertyDesc.m_name.c_str() << " );\n";
+                    }
+                    else
+                    {
+                        file << "                    return pType->" << propertyDesc.m_name.c_str() << " == pOtherType->" << propertyDesc.m_name.c_str() << ";\n";
+                    }
                 }
-                else
+
+                file << "                }\n";
+
+                if ( propertyDesc.m_isDevOnly )
                 {
-                    file << "                        return pType->" << propertyDesc.m_name.c_str() << "[arrayIdx] == pOtherType->" << propertyDesc.m_name.c_str() << "[arrayIdx];\n";
-                }
-                file << "                    }\n";
-
-                // Handle array comparison
-                //-------------------------------------------------------------------------
-
-                file << "                    else // Compare entire array contents\n";
-                file << "                    {\n";
-
-                // If it's a dynamic array check the sizes first
-                if ( propertyDesc.IsDynamicArrayProperty() )
-                {
-                    file << "                        if ( pType->" << propertyDesc.m_name.c_str() << ".size() != pOtherType->" << propertyDesc.m_name.c_str() << ".size() )\n";
-                    file << "                        {\n";
-                    file << "                        return false;\n";
-                    file << "                        }\n\n";
-
-                    file << "                        for ( size_t i = 0; i < pType->" << propertyDesc.m_name.c_str() << ".size(); i++ )\n";
-                }
-                else
-                {
-                    file << "                        for ( size_t i = 0; i < " << propertyDesc.GetArraySize() << "; i++ )\n";
+                    file << "                #endif\n";
                 }
 
-                file << "                        {\n";
-
-                if ( propertyDesc.IsStructureProperty() )
-                {
-                    file << "                        if( !" << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->AreAllPropertyValuesEqual( &pType->" << propertyDesc.m_name.c_str() << "[i], &pOtherType->" << propertyDesc.m_name.c_str() << "[i] ) )\n";
-                    file << "                        {\n";
-                    file << "                            return false;\n";
-                    file << "                        }\n";
-                }
-                else
-                {
-                    file << "                        if( pType->" << propertyDesc.m_name.c_str() << "[i] != pOtherType->" << propertyDesc.m_name.c_str() << "[i] )\n";
-                    file << "                        {\n";
-                    file << "                            return false;\n";
-                    file << "                        }\n";
-                }
-
-                file << "                        }\n\n";
-
-                file << "                        return true;\n";
-                file << "                    }\n";
+                file << "\n";
             }
-            else // Non-Array properties
-            {
-                if ( propertyDesc.IsStructureProperty() )
-                {
-                    file << "                    return " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->AreAllPropertyValuesEqual( &pType->" << propertyDesc.m_name.c_str() << ", &pOtherType->" << propertyDesc.m_name.c_str() << " );\n";
-                }
-                else
-                {
-                    file << "                    return pType->" << propertyDesc.m_name.c_str() << " == pOtherType->" << propertyDesc.m_name.c_str() << ";\n";
-                }
-            }
-
-            file << "                }\n";
-
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #endif\n";
-            }
-
-            file << "\n";
+        }
+        else
+        {
+            file << "                EE_UNREACHABLE_CODE();\n";
         }
 
         file << "                return false;\n";
@@ -461,41 +493,45 @@ namespace EE::CPP
     {
         file << "            virtual void ResetToDefault( IRegisteredType* pTypeInstance, uint32_t propertyID ) const override final\n";
         file << "            {\n";
-        file << "                auto pDefaultType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasProperties() )
         {
-            if ( propertyDesc.m_isDevOnly )
-            {
-            file << "                #if EE_DEVELOPMENT_TOOLS\n";
-            }
+            file << "                auto pDefaultType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
-            file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
-            file << "                {\n";
+            for ( auto& propertyDesc : type.m_properties )
+            {
+                if ( propertyDesc.m_isDevOnly )
+                {
+                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                }
 
-            if ( propertyDesc.IsStaticArrayProperty() )
-            {
-            for ( auto i = 0u; i < propertyDesc.GetArraySize(); i++ )
-            {
-            file << "                    pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] = pDefaultType->" << propertyDesc.m_name.c_str() << "[" << i << "];\n";
-            }
-            }
-            else
-            {
-            file << "                    pActualType->" << propertyDesc.m_name.c_str() << " = pDefaultType->" << propertyDesc.m_name.c_str() << ";\n";
-            }
+                file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
+                file << "                {\n";
 
-            file << "                    return;\n";
-            file << "                }\n";
+                if ( propertyDesc.IsStaticArrayProperty() )
+                {
+                    for ( auto i = 0u; i < propertyDesc.GetArraySize(); i++ )
+                    {
+                        file << "                    pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] = pDefaultType->" << propertyDesc.m_name.c_str() << "[" << i << "];\n";
+                    }
+                }
+                else
+                {
+                    file << "                    pActualType->" << propertyDesc.m_name.c_str() << " = pDefaultType->" << propertyDesc.m_name.c_str() << ";\n";
+                }
 
-            if ( propertyDesc.m_isDevOnly )
-            {
-            file << "                #endif\n";
+                file << "                    return;\n";
+                file << "                }\n";
+
+                if ( propertyDesc.m_isDevOnly )
+                {
+                    file << "                #endif\n";
+                }
             }
         }
 
-        file << "            }\n\n";
+        file << "            }\n";
     }
 
     //-------------------------------------------------------------------------
@@ -506,33 +542,43 @@ namespace EE::CPP
     {
         file << "            virtual ResourceTypeID GetExpectedResourceTypeForProperty( IRegisteredType* pType, uint32_t propertyID ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasResourcePtrProperties() )
         {
-            if ( propertyDesc.m_isDevOnly )
+            for ( auto& propertyDesc : type.m_properties )
             {
-                file << "                #if EE_DEVELOPMENT_TOOLS\n";
-            }
+                bool const isResourceProp = ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr ) || ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr );
+                if ( isResourceProp )
+                {
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
 
-            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
-            {
-                file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                    return " << propertyDesc.m_templateArgTypeName.c_str() << "::GetStaticResourceTypeID();\n";
-                file << "                }\n\n";
-            }
-            else if ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
-            {
-                file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
-                file << "                {\n";
-                file << "                        return ResourceTypeID();\n";
-                file << "            }\n\n";
-            }
+                    if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+                    {
+                        file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
+                        file << "                {\n";
+                        file << "                    return " << propertyDesc.m_templateArgTypeName.c_str() << "::GetStaticResourceTypeID();\n";
+                        file << "                }\n";
+                    }
+                    else if ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+                    {
+                        file << "                if ( propertyID == " << propertyDesc.m_propertyID << " )\n";
+                        file << "                {\n";
+                        file << "                        return ResourceTypeID();\n";
+                        file << "            }\n";
+                    }
 
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                    #endif\n\n";
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n\n";
+                    }
+                    else
+                    {
+                        file << "\n";
+                    }
+                }
             }
         }
 
@@ -546,77 +592,81 @@ namespace EE::CPP
     {
         file << "            virtual void LoadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IRegisteredType* pType ) const override final\n";
         file << "            {\n";
-        file << "                EE_ASSERT( pResourceSystem != nullptr );\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasResourcePtrOrStructProperties() )
         {
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #if EE_DEVELOPMENT_TOOLS\n";
-            }
+            file << "                EE_ASSERT( pResourceSystem != nullptr );\n";
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
-            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.IsArrayProperty() )
+                if ( propertyDesc.m_isDevOnly )
                 {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
+                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                }
+
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr || propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+                {
+                    if ( propertyDesc.IsArrayProperty() )
                     {
-                        file << "                for ( auto& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    if ( resourcePtr.IsSet() )\n";
-                        file << "                    {\n";
-                        file << "                        pResourceSystem->LoadResource( resourcePtr, requesterID );\n";
-                        file << "                    }\n";
-                        file << "                }\n\n";
-                    }
-                    else // Static array
-                    {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        if ( propertyDesc.IsDynamicArrayProperty() )
                         {
-                            file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsSet() )\n";
+                            file << "                for ( auto& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
                             file << "                {\n";
-                            file << "                    pResourceSystem->LoadResource( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "], requesterID );\n";
+                            file << "                    if ( resourcePtr.IsSet() )\n";
+                            file << "                    {\n";
+                            file << "                        pResourceSystem->LoadResource( resourcePtr, requesterID );\n";
+                            file << "                    }\n";
                             file << "                }\n\n";
                         }
-                    }
-                }
-                else
-                {
-                    file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() )\n";
-                    file << "                {\n";
-                    file << "                    pResourceSystem->LoadResource( pActualType->" << propertyDesc.m_name.c_str() << ", requesterID );\n";
-                    file << "                }\n\n";
-                }
-            }
-            else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
-            {
-                if ( propertyDesc.IsArrayProperty() )
-                {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
-                    {
-                        file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->LoadResources( pResourceSystem, requesterID, &propertyValue );\n";
-                        file << "                }\n\n";
-                    }
-                    else // Static array
-                    {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        else // Static array
                         {
-                            file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->LoadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] );\n\n";
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsSet() )\n";
+                                file << "                {\n";
+                                file << "                    pResourceSystem->LoadResource( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "], requesterID );\n";
+                                file << "                }\n\n";
+                            }
                         }
                     }
+                    else
+                    {
+                        file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() )\n";
+                        file << "                {\n";
+                        file << "                    pResourceSystem->LoadResource( pActualType->" << propertyDesc.m_name.c_str() << ", requesterID );\n";
+                        file << "                }\n\n";
+                    }
                 }
-                else
+                else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
                 {
-                    file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->LoadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << " );\n\n";
+                    if ( propertyDesc.IsArrayProperty() )
+                    {
+                        if ( propertyDesc.IsDynamicArrayProperty() )
+                        {
+                            file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
+                            file << "                {\n";
+                            file << "                    " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->LoadResources( pResourceSystem, requesterID, &propertyValue );\n";
+                            file << "                }\n\n";
+                        }
+                        else // Static array
+                        {
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->LoadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] );\n\n";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->LoadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << " );\n\n";
+                    }
                 }
-            }
 
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #endif\n\n";
+                if ( propertyDesc.m_isDevOnly )
+                {
+                    file << "                #endif\n\n";
+                }
             }
         }
 
@@ -627,77 +677,81 @@ namespace EE::CPP
     {
         file << "            virtual void UnloadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IRegisteredType* pType ) const override final\n";
         file << "            {\n";
-        file << "                EE_ASSERT( pResourceSystem != nullptr );\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasResourcePtrOrStructProperties() )
         {
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #if EE_DEVELOPMENT_TOOLS\n";
-            }
+            file << "                EE_ASSERT( pResourceSystem != nullptr );\n";
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
-            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+            for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.IsArrayProperty() )
+                if ( propertyDesc.m_isDevOnly )
                 {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
+                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                }
+
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr || propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+                {
+                    if ( propertyDesc.IsArrayProperty() )
                     {
-                        file << "                for ( auto& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    if ( resourcePtr.IsSet() )\n";
-                        file << "                    {\n";
-                        file << "                        pResourceSystem->UnloadResource( resourcePtr, requesterID );\n";
-                        file << "                    }\n";
-                        file << "                }\n\n";
-                    }
-                    else // Static array
-                    {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        if ( propertyDesc.IsDynamicArrayProperty() )
                         {
-                            file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsSet() )\n";
+                            file << "                for ( auto& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
                             file << "                {\n";
-                            file << "                    pResourceSystem->UnloadResource( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "], requesterID );\n";
+                            file << "                    if ( resourcePtr.IsSet() )\n";
+                            file << "                    {\n";
+                            file << "                        pResourceSystem->UnloadResource( resourcePtr, requesterID );\n";
+                            file << "                    }\n";
                             file << "                }\n\n";
                         }
-                    }
-                }
-                else
-                {
-                    file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() )\n";
-                    file << "                {\n";
-                    file << "                    pResourceSystem->UnloadResource( pActualType->" << propertyDesc.m_name.c_str() << ", requesterID );\n";
-                    file << "                }\n\n";
-                }
-            }
-            else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
-            {
-                if ( propertyDesc.IsArrayProperty() )
-                {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
-                    {
-                        file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->UnloadResources( pResourceSystem, requesterID, &propertyValue );\n";
-                        file << "                }\n\n";
-                    }
-                    else // Static array
-                    {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        else // Static array
                         {
-                            file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->UnloadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] );\n\n";
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsSet() )\n";
+                                file << "                {\n";
+                                file << "                    pResourceSystem->UnloadResource( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "], requesterID );\n";
+                                file << "                }\n\n";
+                            }
                         }
                     }
+                    else
+                    {
+                        file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() )\n";
+                        file << "                {\n";
+                        file << "                    pResourceSystem->UnloadResource( pActualType->" << propertyDesc.m_name.c_str() << ", requesterID );\n";
+                        file << "                }\n\n";
+                    }
                 }
-                else
+                else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
                 {
-                    file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->UnloadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << " );\n\n";
+                    if ( propertyDesc.IsArrayProperty() )
+                    {
+                        if ( propertyDesc.IsDynamicArrayProperty() )
+                        {
+                            file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
+                            file << "                {\n";
+                            file << "                    " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->UnloadResources( pResourceSystem, requesterID, &propertyValue );\n";
+                            file << "                }\n\n";
+                        }
+                        else // Static array
+                        {
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->UnloadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] );\n\n";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->UnloadResources( pResourceSystem, requesterID, &pActualType->" << propertyDesc.m_name.c_str() << " );\n\n";
+                    }
                 }
-            }
 
-            if ( propertyDesc.m_isDevOnly )
-            {
-                file << "                #endif\n\n";
+                if ( propertyDesc.m_isDevOnly )
+                {
+                    file << "                #endif\n\n";
+                }
             }
         }
 
@@ -708,115 +762,120 @@ namespace EE::CPP
     {
         file << "            virtual LoadingStatus GetResourceLoadingStatus( IRegisteredType* pType ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
-        file << "                LoadingStatus status = LoadingStatus::Loaded;\n\n";
+        file << "                LoadingStatus status = LoadingStatus::Loaded;\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasResourcePtrOrStructProperties() )
         {
-            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
-            {
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
-                }
+            file << "\n";
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
 
-                if ( propertyDesc.IsArrayProperty() )
+            for ( auto& propertyDesc : type.m_properties )
+            {
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
                 {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
+                    if ( propertyDesc.m_isDevOnly )
                     {
-                        file << "                for ( auto const& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    if ( resourcePtr.HasLoadingFailed() )\n";
-                        file << "                    {\n";
-                        file << "                        status = LoadingStatus::Failed;\n";
-                        file << "                    }\n";
-                        file << "                    else if ( resourcePtr.IsSet() && !resourcePtr.IsLoaded() )\n";
-                        file << "                    {\n";
-                        file << "                        return LoadingStatus::Loading;\n";
-                        file << "                    }\n";
-                        file << "                }\n";
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
                     }
-                    else // Static array
+
+                    if ( propertyDesc.IsArrayProperty() )
                     {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        if ( propertyDesc.IsDynamicArrayProperty() )
                         {
-                            file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].HasLoadingFailed() )\n";
+                            file << "                for ( auto const& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
                             file << "                {\n";
-                            file << "                    status = LoadingStatus::Failed;\n";
-                            file << "                }\n";
-                            file << "                else if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() && !pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsLoaded() )\n";
-                            file << "                {\n";
-                            file << "                    return LoadingStatus::Loading;\n";
+                            file << "                    if ( resourcePtr.HasLoadingFailed() )\n";
+                            file << "                    {\n";
+                            file << "                        status = LoadingStatus::Failed;\n";
+                            file << "                    }\n";
+                            file << "                    else if ( resourcePtr.IsSet() && !resourcePtr.IsLoaded() )\n";
+                            file << "                    {\n";
+                            file << "                        return LoadingStatus::Loading;\n";
+                            file << "                    }\n";
                             file << "                }\n";
                         }
-                    }
-                }
-                else
-                {
-                    file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".HasLoadingFailed() )\n";
-                    file << "                {\n";
-                    file << "                    status = LoadingStatus::Failed;\n";
-                    file << "                }\n";
-                    file << "                else if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() && !pActualType->" << propertyDesc.m_name.c_str() << ".IsLoaded() )\n";
-                    file << "                {\n";
-                    file << "                    return LoadingStatus::Loading;\n";
-                    file << "                }\n";
-                }
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
-            }
-            else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
-            {
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
-                }
-
-                if ( propertyDesc.IsArrayProperty() )
-                {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
-                    {
-                        file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( &propertyValue );\n";
-                        file << "                    if ( status == LoadingStatus::Loading )\n";
-                        file << "                    {\n";
-                        file << "                        return LoadingStatus::Loading;\n";
-                        file << "                    }\n";
-                        file << "                }\n";
-                    }
-                    else // Static array
-                    {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        else // Static array
                         {
-                            file << "                status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] ); \n";
-                            file << "                if ( status == LoadingStatus::Loading )\n";
-                            file << "                {\n";
-                            file << "                    return LoadingStatus::Loading;\n";
-                            file << "                }\n";
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].HasLoadingFailed() )\n";
+                                file << "                {\n";
+                                file << "                    status = LoadingStatus::Failed;\n";
+                                file << "                }\n";
+                                file << "                else if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() && !pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsLoaded() )\n";
+                                file << "                {\n";
+                                file << "                    return LoadingStatus::Loading;\n";
+                                file << "                }\n";
+                            }
                         }
                     }
-                }
-                else
-                {
-                    file << "                status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << " );\n";
-                    file << "                if ( status == LoadingStatus::Loading )\n";
-                    file << "                {\n";
-                    file << "                    return LoadingStatus::Loading;\n";
-                    file << "                }\n";
-                }
+                    else
+                    {
+                        file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".HasLoadingFailed() )\n";
+                        file << "                {\n";
+                        file << "                    status = LoadingStatus::Failed;\n";
+                        file << "                }\n";
+                        file << "                else if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() && !pActualType->" << propertyDesc.m_name.c_str() << ".IsLoaded() )\n";
+                        file << "                {\n";
+                        file << "                    return LoadingStatus::Loading;\n";
+                        file << "                }\n";
+                    }
 
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
 
-                file << "\n";
+                    file << "\n";
+                }
+                else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
+                {
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    if ( propertyDesc.IsArrayProperty() )
+                    {
+                        if ( propertyDesc.IsDynamicArrayProperty() )
+                        {
+                            file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
+                            file << "                {\n";
+                            file << "                    status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( &propertyValue );\n";
+                            file << "                    if ( status == LoadingStatus::Loading )\n";
+                            file << "                    {\n";
+                            file << "                        return LoadingStatus::Loading;\n";
+                            file << "                    }\n";
+                            file << "                }\n";
+                        }
+                        else // Static array
+                        {
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] ); \n";
+                                file << "                if ( status == LoadingStatus::Loading )\n";
+                                file << "                {\n";
+                                file << "                    return LoadingStatus::Loading;\n";
+                                file << "                }\n";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        file << "                status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << " );\n";
+                        file << "                if ( status == LoadingStatus::Loading )\n";
+                        file << "                {\n";
+                        file << "                    return LoadingStatus::Loading;\n";
+                        file << "                }\n";
+                    }
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
+                }
             }
         }
 
@@ -828,106 +887,112 @@ namespace EE::CPP
     {
         file << "            virtual LoadingStatus GetResourceUnloadingStatus( IRegisteredType* pType ) const override final\n";
         file << "            {\n";
-        file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
-        file << "                LoadingStatus status = LoadingStatus::Unloading;\n\n";
 
-        for ( auto& propertyDesc : type.m_properties )
+        if ( type.HasResourcePtrOrStructProperties() )
         {
-            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
-            {
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
-                }
+            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
-                if ( propertyDesc.IsArrayProperty() )
+            for ( auto& propertyDesc : type.m_properties )
+            {
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
                 {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
+                    if ( propertyDesc.m_isDevOnly )
                     {
-                        file << "                for ( auto const& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    EE_ASSERT( !resourcePtr.IsLoading() );\n";
-                        file << "                    if ( !resourcePtr.IsUnloaded() )\n";
-                        file << "                    {\n";
-                        file << "                        return LoadingStatus::Unloading;\n";
-                        file << "                    }\n";
-                        file << "                }\n";
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
                     }
-                    else // Static array
+
+                    if ( propertyDesc.IsArrayProperty() )
                     {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        if ( propertyDesc.IsDynamicArrayProperty() )
                         {
-                            file << "                EE_ASSERT( !pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsLoading() );\n";
-                            file << "                if ( !pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsUnloaded() )\n";
+                            file << "                for ( auto const& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
                             file << "                {\n";
-                            file << "                    return LoadingStatus::Unloading;\n";
+                            file << "                    EE_ASSERT( !resourcePtr.IsLoading() );\n";
+                            file << "                    if ( !resourcePtr.IsUnloaded() )\n";
+                            file << "                    {\n";
+                            file << "                        return LoadingStatus::Unloading;\n";
+                            file << "                    }\n";
                             file << "                }\n";
                         }
-                    }
-                }
-                else
-                {
-                    file << "                EE_ASSERT( !pActualType->" << propertyDesc.m_name.c_str() << ".IsLoading() );\n";
-                    file << "                if ( !pActualType->" << propertyDesc.m_name.c_str() << ".IsUnloaded() )\n";
-                    file << "                {\n";
-                    file << "                    return LoadingStatus::Unloading;\n";
-                    file << "                }\n";
-                }
-
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
-
-                file << "\n";
-            }
-            else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
-            {
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #if EE_DEVELOPMENT_TOOLS\n";
-                }
-
-                if ( propertyDesc.IsArrayProperty() )
-                {
-                    if ( propertyDesc.IsDynamicArrayProperty() )
-                    {
-                        file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
-                        file << "                {\n";
-                        file << "                    status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceUnloadingStatus( &propertyValue );\n";
-                        file << "                    if ( status != LoadingStatus::Unloaded )\n";
-                        file << "                    {\n";
-                        file << "                        return LoadingStatus::Unloading;\n";
-                        file << "                    }\n";
-                        file << "                }\n";
-                    }
-                    else // Static array
-                    {
-                        for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                        else // Static array
                         {
-                            file << "                status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceUnloadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] ); \n";
-                            file << "                if ( status != LoadingStatus::Unloaded )\n";
-                            file << "                {\n";
-                            file << "                    return LoadingStatus::Unloading;\n";
-                            file << "                }\n";
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                EE_ASSERT( !pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsLoading() );\n";
+                                file << "                if ( !pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsUnloaded() )\n";
+                                file << "                {\n";
+                                file << "                    return LoadingStatus::Unloading;\n";
+                                file << "                }\n";
+                            }
                         }
                     }
-                }
-                else
-                {
-                    file << "                status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceUnloadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << " );\n";
-                    file << "                if ( status != LoadingStatus::Unloaded )\n";
-                    file << "                {\n";
-                    file << "                    return LoadingStatus::Unloading;\n";
-                    file << "                }\n";
-                }
+                    else
+                    {
+                        file << "                EE_ASSERT( !pActualType->" << propertyDesc.m_name.c_str() << ".IsLoading() );\n";
+                        file << "                if ( !pActualType->" << propertyDesc.m_name.c_str() << ".IsUnloaded() )\n";
+                        file << "                {\n";
+                        file << "                    return LoadingStatus::Unloading;\n";
+                        file << "                }\n";
+                    }
 
-                if ( propertyDesc.m_isDevOnly )
-                {
-                    file << "                #endif\n";
-                }
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
 
-                file << "\n";
+                    file << "\n";
+                }
+                else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
+                {
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    if ( propertyDesc.IsArrayProperty() )
+                    {
+                        if ( propertyDesc.IsDynamicArrayProperty() )
+                        {
+                            file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
+                            file << "                {\n";
+                            file << "                    LoadingStatus const status = " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceUnloadingStatus( &propertyValue );\n";
+                            file << "                    if ( status != LoadingStatus::Unloaded )\n";
+                            file << "                    {\n";
+                            file << "                        return LoadingStatus::Unloading;\n";
+                            file << "                    }\n";
+                            file << "                }\n";
+                        }
+                        else // Static array
+                        {
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                if ( " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceUnloadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "] ) != LoadingStatus::Unloaded )\n";
+                                file << "                {\n";
+                                file << "                    return LoadingStatus::Unloading;\n";
+                                file << "                }\n";
+
+                                if ( i == propertyDesc.m_arraySize - 1 )
+                                {
+                                    file << "\n";
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        file << "                if ( " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetResourceUnloadingStatus( &pActualType->" << propertyDesc.m_name.c_str() << " ) != LoadingStatus::Unloaded )\n";
+                        file << "                {\n";
+                        file << "                    return LoadingStatus::Unloading;\n";
+                        file << "                }\n";
+                    }
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
+                }
             }
         }
 
@@ -945,7 +1010,7 @@ namespace EE::CPP
         file << "    void " << type.m_namespace.c_str() << type.m_name.c_str() << "::Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID )\n";
         file << "    {\n";
 
-        if ( !type.m_properties.empty() )
+        if ( type.HasProperties() )
         {
             file << "            " << type.m_namespace.c_str() << type.m_name.c_str() << "::s_pTypeInfo->LoadResources( context.m_pResourceSystem, requesterID, this );\n";
             file << "            m_status = Status::Loading;\n";
@@ -964,7 +1029,7 @@ namespace EE::CPP
         file << "    void " << type.m_namespace.c_str() << type.m_name.c_str() << "::Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID )\n";
         file << "    {\n";
 
-        if ( !type.m_properties.empty() )
+        if ( type.HasProperties() )
         {
             file << "        " << type.m_namespace.c_str() << type.m_name.c_str() << "::s_pTypeInfo->UnloadResources( context.m_pResourceSystem, requesterID, this );\n";
         }
@@ -982,7 +1047,7 @@ namespace EE::CPP
         file << "        {\n";
 
         {
-            if ( !type.m_properties.empty() )
+            if ( type.HasProperties() )
             {
             // Wait for resources to be loaded
             file << "            auto const resourceLoadingStatus = " << type.m_namespace.c_str() << type.m_name.c_str() << "::s_pTypeInfo->GetResourceLoadingStatus( this );\n";
@@ -1139,17 +1204,14 @@ namespace EE::CPP
 
         // Set default instance
         file << "                m_pDefaultInstance = pDefaultInstance;\n";
-        file << "                auto pActualDefaultInstance = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
 
         // Add type metadata
         if ( type.IsAbstract() )
         {
-            file << "                m_metadata.SetFlag( TypeInfoMetaData::Abstract );\n\n";
+            file << "                m_metadata.SetFlag( TypeInfoMetaData::Abstract );\n";
         }
-        else
-        {
-            file << "\n";
-        }
+
+        file << "\n";
 
         // Create dev tools info
         file << "                #if EE_DEVELOPMENT_TOOLS\n";
@@ -1163,7 +1225,7 @@ namespace EE::CPP
 
         file << "                #endif\n\n";
 
-        // Add interfaces
+        // Add hierarchy info
         if ( !type.m_parents.empty() )
         {
             file << "                // Parent types\n";
@@ -1174,20 +1236,28 @@ namespace EE::CPP
             {
                 file << "                pParentType = " << parent.m_namespace.c_str() << parent.m_name.c_str() << "::s_pTypeInfo;\n";
                 file << "                EE_ASSERT( pParentType != nullptr );\n";
-                file << "                m_parentTypes.push_back( pParentType );\n\n";
+                file << "                m_parentTypes.push_back( pParentType );\n";
             }
         }
 
-        file << "                // Register properties and type\n";
-        file << "                //-------------------------------------------------------------------------\n\n";
-
-        //-------------------------------------------------------------------------;
-
-        file << "                PropertyInfo propertyInfo;\n";
-
-        for ( auto& prop : type.m_properties )
+        // Add properties
+        if ( type.HasProperties() )
         {
-            GeneratePropertyRegistrationCode( prop );
+            file << "\n";
+            file << "                // Register properties and type\n";
+            file << "                //-------------------------------------------------------------------------\n\n";
+
+            if ( !type.IsAbstract() )
+            {
+                file << "                auto pActualDefaultInstance = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
+            }
+            
+            file << "                PropertyInfo propertyInfo;\n";
+
+            for ( auto& prop : type.m_properties )
+            {
+                GeneratePropertyRegistrationCode( prop );
+            }
         }
 
         file << "            }\n\n";

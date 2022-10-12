@@ -758,8 +758,7 @@ namespace EE::Physics
 
             // Create shape
             PxCapsuleGeometry const capsuleGeo( bodyDefinition.m_radius, bodyDefinition.m_halfHeight );
-            auto pShape = PxRigidActorExt::createExclusiveShape( *pLink, capsuleGeo, *pMaterial );
-
+            /*auto pShape =*/ PxRigidActorExt::createExclusiveShape( *pLink, capsuleGeo, *pMaterial );
             //pShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
             //pShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
             //pShape->userData = this;

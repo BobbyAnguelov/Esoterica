@@ -79,7 +79,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         auto const controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        uint32_t const numControlParameters = (uint32_t) controlParameters.size();
         for ( auto pParameter : controlParameters )
         {
             if ( pParameter->Compile( m_context ) == InvalidIndex )
@@ -94,7 +93,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         auto const virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
-        uint32_t const numVirtualParameters = (uint32_t) controlParameters.size();
         for ( auto pParameter : virtualParameters )
         {
             int16_t const parameterIdx = pParameter->Compile( m_context );

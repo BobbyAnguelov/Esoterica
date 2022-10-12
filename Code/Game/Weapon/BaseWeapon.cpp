@@ -21,8 +21,6 @@ bool BaseWeapon::Shoot(AmmoContext const& ctx, Vector origin, Vector target)
 	}
 
 	m_currentAmmoNum--;
-
-	bool const bShotSomething = m_pCurrentAmmo->Shoot(ctx, m_weaponDamage, origin, target);
-
+	m_pCurrentAmmo->Shoot(ctx, m_weaponDamage, origin, target);
 	return true;
 }

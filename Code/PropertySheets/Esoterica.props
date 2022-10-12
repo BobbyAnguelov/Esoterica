@@ -22,7 +22,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/Zo /Zc:inline %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(SolutionDir)Code;$(EE_SYSTEM_THIRDPARTY_INCLUDE_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -34,7 +34,7 @@
       <WholeProgramOptimization Condition="$(Configuration) == 'Debug'">false</WholeProgramOptimization>
       <WholeProgramOptimization Condition="$(Configuration) == 'Release'">false</WholeProgramOptimization>
       <WholeProgramOptimization Condition="$(Configuration) == 'Shipping'">true</WholeProgramOptimization>
-      <DisableSpecificWarnings>4505;4251;4100;4127;4189;4101;4201;4577;4464;4668;4710;4820;5052;4619;4625;4626;5026;5027;5045;26495;</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4191;5220;4266;4623;4711;4388;4355;5031;4774;4582;4365;5246;4061;5219;4514;4505;4251;4100;4127;4201;4577;4464;4668;4710;4820;5052;4619;4625;4626;5026;5027;5045;26495;</DisableSpecificWarnings>
       <IntrinsicFunctions Condition="$(Configuration) == 'Debug'">true</IntrinsicFunctions>
       <IntrinsicFunctions Condition="$(Configuration) != 'Debug'">false</IntrinsicFunctions>
       <FunctionLevelLinking Condition="$(Configuration) == 'Debug'">true</FunctionLevelLinking>

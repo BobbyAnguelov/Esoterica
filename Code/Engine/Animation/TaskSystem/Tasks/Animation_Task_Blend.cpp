@@ -6,8 +6,8 @@ namespace EE::Animation::Tasks
 {
     BlendTask::BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, TBitFlags<PoseBlendOptions> blendOptions, BoneMask const* pBoneMask )
         : Task( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
-        , m_blendWeight( blendWeight )
         , m_pBoneMask( pBoneMask )
+        , m_blendWeight( blendWeight )
         , m_blendOptions( blendOptions )
     {
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );

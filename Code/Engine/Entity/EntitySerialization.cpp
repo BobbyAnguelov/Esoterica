@@ -23,7 +23,7 @@ namespace EE::EntityModel
         // Create new entity
         //-------------------------------------------------------------------------
 
-        auto pEntity = reinterpret_cast<Entity*>( pEntityTypeInfo->CreateType() );
+        auto pEntity = static_cast<Entity*>( pEntityTypeInfo->CreateType() );
         pEntity->m_name = entityDesc.m_name;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -79,7 +79,6 @@ namespace EE::EntityModel
         // Create component spatial hierarchy
         //-------------------------------------------------------------------------
 
-        int32_t const numComponents = (int32_t) pEntity->m_components.size();
         for ( int32_t spatialComponentIdx = 0; spatialComponentIdx < entityDesc.m_numSpatialComponents; spatialComponentIdx++ )
         {
             EntityModel::SerializedComponentDescriptor const& spatialComponentDesc = entityDesc.m_components[spatialComponentIdx];
@@ -120,7 +119,7 @@ namespace EE::EntityModel
         for ( auto const& systemDesc : entityDesc.m_systems )
         {
             TypeSystem::TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( systemDesc.m_typeID );
-            auto pEntitySystem = reinterpret_cast<EntitySystem*>( pTypeInfo->CreateType() );
+            auto pEntitySystem = static_cast<EntitySystem*>( pTypeInfo->CreateType() );
             EE_ASSERT( pEntitySystem != nullptr );
 
             pEntity->m_systems.push_back( pEntitySystem );

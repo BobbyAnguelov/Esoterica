@@ -49,7 +49,7 @@ namespace EE::Render
         EE_ASSERT( pShaderReflection != nullptr );
 
         D3D11_SHADER_DESC shaderDesc;
-        auto result = pShaderReflection->GetDesc( &shaderDesc );
+        HRESULT result = pShaderReflection->GetDesc( &shaderDesc );
 
         if ( FAILED( result ) )
         {
@@ -60,7 +60,7 @@ namespace EE::Render
         {
             D3D11_SHADER_INPUT_BIND_DESC desc;
             result = pShaderReflection->GetResourceBindingDesc( i, &desc );
-            if ( result )
+            if ( SUCCEEDED( result ) )
             {
                 Shader::ResourceBinding binding = { Hash::GetHash32( desc.Name ), desc.BindPoint };
                 resourceBindings.push_back( binding );

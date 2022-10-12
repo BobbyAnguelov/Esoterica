@@ -15,7 +15,7 @@ namespace EE::Animation::GraphNodes
     int16_t ZeroPoseToolsNode::Compile( GraphCompilationContext& context ) const
     {
         ZeroPoseNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ZeroPoseNode>( this, pSettings );
+        context.GetSettings<ZeroPoseNode>( this, pSettings );
         return pSettings->m_nodeIdx;
     }
 
@@ -30,7 +30,7 @@ namespace EE::Animation::GraphNodes
     int16_t ReferencePoseToolsNode::Compile( GraphCompilationContext& context ) const
     {
         ReferencePoseNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ReferencePoseNode>( this, pSettings );
+        context.GetSettings<ReferencePoseNode>( this, pSettings );
         return pSettings->m_nodeIdx;
     }
 

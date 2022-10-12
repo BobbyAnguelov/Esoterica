@@ -46,6 +46,9 @@ namespace EE
                                 data = pElement->GetDirectArray().GetAt( dataElementIdx );
                             }
                             break;
+
+                            default:
+                            break;
                         }
                     }
                     break;
@@ -66,8 +69,14 @@ namespace EE
                                 data = pElement->GetDirectArray().GetAt( dataElementIdx );
                             }
                             break;
+
+                            default:
+                            break;
                         }
                     }
+                    break;
+
+                    default:
                     break;
                 }
 
@@ -366,6 +375,9 @@ namespace EE
                                             texCoord = pTexcoordElement->GetDirectArray().GetAt( texCoordIdx );
                                         }
                                         break;
+
+                                        default:
+                                        break;
                                     }
                                 }
                                 break;
@@ -382,8 +394,16 @@ namespace EE
                                             texCoord = pTexcoordElement->GetDirectArray().GetAt( textureUVIndex );
                                         }
                                         break;
+
+                                        default:
+                                        break;
                                     }
                                 }
+                                break;
+
+                                //-------------------------------------------------------------------------
+
+                                default:
                                 break;
                             }
 
@@ -534,7 +554,6 @@ namespace EE
 
                 FbxRawSkeleton& rawSkeleton = static_cast<FbxRawSkeleton&>( rawMesh.m_skeleton );
 
-                auto const numVertices = geometryData.m_vertices.size();
                 auto const numClusters = pSkin->GetClusterCount();
                 for ( auto c = 0; c < numClusters; c++ )
                 {

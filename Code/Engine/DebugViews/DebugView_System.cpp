@@ -142,6 +142,9 @@ namespace EE
                                 continue;
                             }
                             break;
+
+                            default:
+                            break;
                         }
 
                         //-------------------------------------------------------------------------
@@ -164,6 +167,9 @@ namespace EE
 
                             case Log::Severity::Error:
                             ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT_CIRCLE_OUTLINE );
+                            break;
+
+                            default:
                             break;
                         }
                         //-------------------------------------------------------------------------

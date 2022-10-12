@@ -18,6 +18,8 @@ namespace EE::FileSystem
     {
     public:
 
+        virtual ~IFileSystemChangeListener() = default;
+
         virtual void OnFileCreated( FileSystem::Path const& path ) {};
         virtual void OnFileDeleted( FileSystem::Path const& path ) {};
         virtual void OnFileRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) {};

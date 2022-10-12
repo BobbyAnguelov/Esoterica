@@ -501,6 +501,8 @@ private:
 
     public:
 
+        virtual ~ResourceWorkspaceFactory() = default;
+
         static bool CanCreateWorkspace( ToolsContext const* pToolsContext, ResourceID const& resourceID );
         static Workspace* CreateWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
 

@@ -594,6 +594,11 @@ namespace EE::Resource
             size_t const readLength = fread( fileContents.data(), 1, filesize, fp );
             fclose( fp );
 
+            if ( readLength == 0 )
+            {
+                return false;
+            }
+
             ResourceDescriptor::ReadCompileDependencies( fileContents, outDependencies );
         }
         else

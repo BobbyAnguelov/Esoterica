@@ -18,8 +18,8 @@ namespace EE::Math
         public:
 
             Node() = default;
-            Node( AABB&& bounds, uint64_t userData = 0 ) : m_bounds( bounds ), m_userData( userData ), m_volume( bounds.GetVolume() ) {}
-            Node( AABB const& bounds, uint64_t userData = 0 ) : m_bounds( bounds ), m_userData( userData ), m_volume( bounds.GetVolume() ) {}
+            Node( AABB&& bounds, uint64_t userData = 0 ) : m_bounds( bounds ), m_volume( bounds.GetVolume() ), m_userData( userData ) {}
+            Node( AABB const& bounds, uint64_t userData = 0 ) : m_bounds( bounds ), m_volume( bounds.GetVolume() ), m_userData( userData ) {}
 
             inline bool IsLeafNode() const { return m_rightNodeIdx == InvalidIndex; }
 
@@ -27,12 +27,12 @@ namespace EE::Math
 
             AABB            m_bounds = AABB( Vector::Zero );
 
-            int32_t           m_leftNodeIdx = InvalidIndex;
-            int32_t           m_rightNodeIdx = InvalidIndex;
-            int32_t           m_parentNodeIdx = InvalidIndex;
+            int32_t         m_leftNodeIdx = InvalidIndex;
+            int32_t         m_rightNodeIdx = InvalidIndex;
+            int32_t         m_parentNodeIdx = InvalidIndex;
             float           m_volume = 0;
 
-            uint64_t          m_userData = 0xFFFFFFFFFFFFFFFF;
+            uint64_t        m_userData = 0xFFFFFFFFFFFFFFFF;
             bool            m_isFree = true;
         };
 

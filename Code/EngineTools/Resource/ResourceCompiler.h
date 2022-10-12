@@ -47,7 +47,7 @@ namespace EE::Resource
 
     public:
 
-        Compiler( String const& name, int32_t version ) : m_name( name ), m_version( version ) {}
+        Compiler( String const& name, int32_t version ) : m_version( version ), m_name( name ) {}
         virtual ~Compiler() {}
         virtual CompilationResult Compile( CompileContext const& ctx ) const = 0;
 

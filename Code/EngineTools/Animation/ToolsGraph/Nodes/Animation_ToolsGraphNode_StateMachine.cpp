@@ -33,7 +33,6 @@ namespace EE::Animation::GraphNodes
     void StateMachineToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
     {
         FlowToolsNode::OnShowNode( pUserContext );
-        auto pStateMachineGraph = Cast<StateMachineGraph>( GetChildGraph() );
         GetEntryStateOverrideConduit()->UpdateConditionsNode();
         GetGlobalTransitionConduit()->UpdateTransitionNodes();
     }

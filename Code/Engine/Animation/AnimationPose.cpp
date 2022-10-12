@@ -142,7 +142,7 @@ namespace EE::Animation
                 int32_t arrayIdx = nextEntry - 1;
                 parentIdx = boneParents[arrayIdx--];
                 auto parentGlobalTransform = m_localTransforms[parentIdx];
-                for ( arrayIdx; arrayIdx >= 0; arrayIdx-- )
+                for ( ; arrayIdx >= 0; arrayIdx-- )
                 {
                     int32_t const nextIdx = boneParents[arrayIdx];
                     auto const nextTransform = m_localTransforms[nextIdx];

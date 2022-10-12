@@ -11,8 +11,8 @@
 namespace EE
 {
     EntityWorld::EntityWorld( EntityWorldType worldType )
-        : m_worldType( worldType )
-        , m_initializationContext( m_worldSystems, m_entityUpdateList )
+        : m_initializationContext( m_worldSystems, m_entityUpdateList )
+        , m_worldType( worldType )
     {}
 
     EntityWorld::~EntityWorld()

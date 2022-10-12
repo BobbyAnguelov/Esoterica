@@ -297,7 +297,6 @@ namespace EE::Player
 
         if ( !ctx.m_pPlayerComponent->m_crouchFlag )
         {
-            float const currentLinearSpeed = ctx.m_pCharacterComponent->GetCharacterVelocity().GetLength3();
             if ( stickAmplitude > g_sprintStickAmplitude ) // TODO: check if we are colliding with something
             {
                 if ( !ctx.m_pPlayerComponent->m_sprintFlag )

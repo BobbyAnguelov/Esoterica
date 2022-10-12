@@ -22,8 +22,8 @@ namespace EE::Animation
 
     AnimationClipWorkspace::AnimationClipWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
         : TWorkspace<AnimationClip>( pToolsContext, pWorld, resourceID )
-        , m_propertyGrid( m_pToolsContext )
         , m_eventEditor( *pToolsContext->m_pTypeRegistry )
+        , m_propertyGrid( m_pToolsContext )
     {
         auto OnBeginMod = [this]( Timeline::TrackContainer* pContainer )
         {

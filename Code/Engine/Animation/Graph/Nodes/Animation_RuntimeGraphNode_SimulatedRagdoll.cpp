@@ -156,6 +156,10 @@ namespace EE::Animation::GraphNodes
                     result = UpdateExit( context );
                 }
                 break;
+
+                default:
+                EE_UNREACHABLE_CODE();
+                break;
             }
         }
         else

@@ -40,6 +40,7 @@ namespace EE::TypeSystem
     public:
 
         TypeInfo() = default;
+        virtual ~TypeInfo() = default;
 
         inline IRegisteredType const* GetDefaultInstance() const { return m_pDefaultInstance; }
 

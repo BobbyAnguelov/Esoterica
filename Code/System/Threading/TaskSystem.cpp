@@ -41,8 +41,8 @@ namespace EE
     {
         // Get number of worker threads that we should create (excluding main thread)
         auto const processorInfo = Threading::GetProcessorInfo();
+        EE_ASSERT( processorInfo.m_numPhysicalCores >= 1 );
         const_cast<uint32_t&>( m_numWorkers ) = processorInfo.m_numPhysicalCores - 1;
-        EE_ASSERT( m_numWorkers >= 0 );
     }
 
     TaskSystem::~TaskSystem()

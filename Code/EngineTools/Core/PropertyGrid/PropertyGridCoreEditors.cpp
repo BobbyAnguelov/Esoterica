@@ -2276,6 +2276,10 @@ namespace EE::TypeSystem
                     return EE::New<FloatCurveEditor>( pToolsContext, propertyInfo, m_pPropertyInstance );
                 }
                 break;
+
+                default:
+                EE_UNREACHABLE_CODE();
+                break;
             }
         }
 

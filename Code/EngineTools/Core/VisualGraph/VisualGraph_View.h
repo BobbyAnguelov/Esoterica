@@ -105,6 +105,8 @@ namespace EE::VisualGraph
 
     public:
 
+        virtual ~GraphView() = default;
+
         bool HasFocus() const { return m_hasFocus; }
 
         //-------------------------------------------------------------------------

@@ -58,7 +58,7 @@ namespace EE
     void GamePreviewer::InitializeDockingLayout( ImGuiID dockspaceID ) const
     {
         ImGuiID topDockID = 0;
-        ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
+        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock viewport
         ImGuiDockNode* pTopNode = ImGui::DockBuilderGetNode( topDockID );

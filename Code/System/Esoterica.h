@@ -65,7 +65,7 @@ using nullptr_t = decltype( nullptr );
 
     // Platform specific, need to be defined in Platform/Defines_XXX.h
 
-    #define EE_ASSERT( cond )
+    #define EE_ASSERT( cond ) do { (void)sizeof( cond );} while (0)
     #define EE_TRACE_MSG_WIN32( msg )
     #define EE_BREAK()
     #define EE_HALT()

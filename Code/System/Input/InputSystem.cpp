@@ -132,13 +132,13 @@ namespace EE::Input
         outReflectedState.m_mouseState.ReflectFrom( deltaTime, timeScale, *GetMouseState() );
         outReflectedState.m_keyboardState.ReflectFrom( deltaTime, timeScale, *GetKeyboardState() );
 
-        int32_t const numControllerStates = (int32_t) GetNumConnectedControllers();
+        uint32_t const numControllerStates = GetNumConnectedControllers();
         if ( outReflectedState.m_controllerStates.size() != numControllerStates )
         {
             outReflectedState.m_controllerStates.resize( numControllerStates );
         }
 
-        for ( int32_t i = 0; i < numControllerStates; i++ )
+        for ( auto i = 0u; i < numControllerStates; i++ )
         {
             outReflectedState.m_controllerStates[i].ReflectFrom( deltaTime, timeScale, *GetControllerState( i ) );
         }
