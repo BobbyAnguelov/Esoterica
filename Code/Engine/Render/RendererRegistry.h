@@ -29,7 +29,7 @@ namespace EE::Render
             {
                 if ( pRenderer->GetRendererID() == T::RendererID )
                 {
-                    return static_cast<T*>( pRenderer );
+                    return reinterpret_cast<T*>( pRenderer );
                 }
             }
 

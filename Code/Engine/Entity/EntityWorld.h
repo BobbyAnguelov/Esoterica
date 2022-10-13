@@ -70,7 +70,7 @@ namespace EE
         IEntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
 
         template<typename T>
-        inline T* GetWorldSystem() const { return static_cast<T*>( GetWorldSystem( T::s_entitySystemID ) ); }
+        inline T* GetWorldSystem() const { return reinterpret_cast<T*>( GetWorldSystem( T::s_entitySystemID ) ); }
 
         //-------------------------------------------------------------------------
         // Input
@@ -201,7 +201,7 @@ namespace EE
             TInlineVector<T const*, 20> results;
             for ( auto pComponent : m_componentTypeLookup[T::GetStaticTypeID()] )
             {
-                results.emplace_back( static_cast<T const*>( pComponent ) );
+                results.emplace_back( reinterpret_cast<T const*>( pComponent ) );
             }
             return results;
         }

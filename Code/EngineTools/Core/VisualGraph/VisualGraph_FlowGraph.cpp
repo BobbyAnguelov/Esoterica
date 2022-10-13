@@ -82,7 +82,7 @@ namespace EE::VisualGraph::Flow
     {
         EE_ASSERT( pinIdx >= 0 && pinIdx < m_inputPins.size() );
         ScopedNodeModification snm( this );
-        static_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( m_inputPins[pinIdx].m_ID );
+        reinterpret_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( m_inputPins[pinIdx].m_ID );
         m_inputPins.erase( m_inputPins.begin() + pinIdx );
     }
 
@@ -90,7 +90,7 @@ namespace EE::VisualGraph::Flow
     {
         EE_ASSERT( pinIdx >= 0 && pinIdx < m_outputPins.size() );
         ScopedNodeModification snm( this );
-        static_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( m_outputPins[pinIdx].m_ID );
+        reinterpret_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( m_outputPins[pinIdx].m_ID );
         m_outputPins.erase( m_outputPins.begin() + pinIdx );
     }
 
@@ -101,7 +101,7 @@ namespace EE::VisualGraph::Flow
             if ( iter->m_ID == pinID )
             {
                 ScopedNodeModification snm( this );
-                static_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( pinID );
+                reinterpret_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( pinID );
                 m_inputPins.erase( iter );
                 return;
             }
@@ -112,7 +112,7 @@ namespace EE::VisualGraph::Flow
             if ( iter->m_ID == pinID )
             {
                 ScopedNodeModification snm( this );
-                static_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( pinID );
+                reinterpret_cast<FlowGraph*>( GetParentGraph() )->BreakAnyConnectionsForPin( pinID );
                 m_outputPins.erase( iter );
                 return;
             }

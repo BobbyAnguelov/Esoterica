@@ -93,17 +93,13 @@ namespace EE::Animation::GraphNodes
 
         void UpdateProgress( GraphContext& context, bool isInitializing = false );
         void UpdateProgressClampedSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange, bool isInitializing = false );
-
         void UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext, GraphLayerContext const& targetLayerContext );
-
-        void EndSourceTransition( GraphContext& context );
 
         GraphPoseNodeResult UpdateUnsynchronized( GraphContext& context );
         GraphPoseNodeResult UpdateSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange );
 
         void UpdateCachedPoseBufferIDState( GraphContext& context );
         void TransferAdditionalPoseBufferIDs( TInlineVector<UUID, 2>& outInheritedCachedPoseBufferIDs );
-
         void RegisterPoseTasksAndUpdateRootMotion( GraphContext& context, GraphPoseNodeResult const& sourceResult, GraphPoseNodeResult const& targetResult, GraphPoseNodeResult& outResult );
 
         inline void CalculateBlendWeight()
@@ -112,6 +108,15 @@ namespace EE::Animation::GraphNodes
             m_blendWeight = EvaluateEasingFunction( pSettings->m_blendWeightEasingType, m_transitionProgress );
             m_blendWeight = Math::Clamp( m_blendWeight, 0.0f, 1.0f );
         }
+
+        // Source Node
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE TransitionNode* GetSourceTransitionNode() { EE_ASSERT( IsSourceATransition() ); return reinterpret_cast<TransitionNode*>( m_pSourceNode ); }
+
+        EE_FORCE_INLINE StateNode* GetSourceStateNode() { EE_ASSERT( IsSourceATransition() ); return reinterpret_cast<StateNode*>( m_pSourceNode ); }
+
+        void EndSourceTransition( GraphContext& context );
 
     private:
 

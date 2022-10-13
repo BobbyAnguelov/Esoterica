@@ -40,7 +40,7 @@ namespace EE::Resource
         inline void SetResourceData( IResource* pResourceData ) { m_pResource = pResourceData; }
 
         template<typename T>
-        inline T* GetResourceData() { return static_cast<T*>( m_pResource ); }
+        inline T* GetResourceData() { return reinterpret_cast<T*>( m_pResource ); }
 
         //-------------------------------------------------------------------------
 

@@ -76,7 +76,7 @@ namespace EE::Animation
             template<typename T>
             EE_FORCE_INLINE T* CreateNode( InstantiationContext const& context, InstantiationOptions options ) const
             {
-                T* pNode = static_cast<T*>( context.m_nodePtrs[m_nodeIdx] );
+                T* pNode = reinterpret_cast<T*>( context.m_nodePtrs[m_nodeIdx] );
 
                 if ( options == InstantiationOptions::CreateNode )
                 {
@@ -128,7 +128,7 @@ namespace EE::Animation
         template<typename T>
         EE_FORCE_INLINE typename T::Settings const* GetSettings() const
         {
-            return static_cast<typename T::Settings const*>( m_pSettings );
+            return reinterpret_cast<typename T::Settings const*>( m_pSettings );
         }
 
     private:

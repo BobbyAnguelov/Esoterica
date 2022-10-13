@@ -497,6 +497,6 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer )
     {
-        static_cast<Timeline::TimelineEditor&>( m_eventEditor ).Serialize( typeRegistry, writer );
+        reinterpret_cast<Timeline::TimelineEditor&>( m_eventEditor ).Serialize( typeRegistry, writer );
     }
 }

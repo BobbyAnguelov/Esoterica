@@ -7,7 +7,7 @@ namespace EE::Animation::GraphNodes
     void PassthroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         EE_ASSERT( options == InstantiationOptions::NodeAlreadyCreated );
-        auto pNode = static_cast<PassthroughNode*>( context.m_nodePtrs[m_nodeIdx] );
+        auto pNode = reinterpret_cast<PassthroughNode*>( context.m_nodePtrs[m_nodeIdx] );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
     }
 

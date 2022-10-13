@@ -356,12 +356,15 @@ namespace EE::Animation::GraphNodes
 
     void TransitionNode::EndSourceTransition( GraphContext& context )
     {
-        EE_ASSERT( IsSourceATransition() && static_cast<TransitionNode*>( m_pSourceNode )->m_pTargetNode->IsInitialized() );
+        EE_ASSERT( IsSourceATransition() );
 
-        auto SourceTargetState = static_cast<TransitionNode*>( m_pSourceNode )->m_pTargetNode;
+        auto pSourceTransitionNode = GetSourceTransitionNode();
+        auto pSourceTransitionTargetState = pSourceTransitionNode->m_pTargetNode;
+        pSourceTransitionTargetState->SetTransitioningState( StateNode::TransitionState::TransitioningOut );
+
+        // Set the source node to the target state of the source transition
         m_pSourceNode->Shutdown( context );
-        m_pSourceNode = SourceTargetState;
-        static_cast<StateNode*>( m_pSourceNode )->SetTransitioningState( StateNode::TransitionState::TransitioningOut );
+        m_pSourceNode = pSourceTransitionTargetState;
         m_sourceType = SourceType::State;
     }
 
@@ -373,7 +376,7 @@ namespace EE::Animation::GraphNodes
         // Only allowed if we are not initializing a transition - if we are initializing, this means the source node has been updated and may have tasks registered
         if ( !isInitializing )
         {
-            if ( IsSourceATransition() && static_cast<TransitionNode*>( m_pSourceNode )->IsComplete() )
+            if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete() )
             {
                 EndSourceTransition( context );
             }
@@ -400,7 +403,7 @@ namespace EE::Animation::GraphNodes
         // Only allowed if we are not initializing a transition - if we are initializing, this means the source node has been updated and may have tasks registered
         if ( !isInitializing )
         {
-            if ( IsSourceATransition() && static_cast<TransitionNode*>( m_pSourceNode )->IsComplete() )
+            if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete() )
             {
                 EndSourceTransition( context );
             }
@@ -464,7 +467,7 @@ namespace EE::Animation::GraphNodes
         // Collect any additional pose buffer IDs
         if ( IsSourceATransition() )
         {
-            auto pSourceTransition = static_cast<TransitionNode*>( m_pSourceNode );
+            auto pSourceTransition = GetSourceTransitionNode();
             pSourceTransition->TransferAdditionalPoseBufferIDs( outInheritedCachedPoseBufferIDs );
         }
 
@@ -663,7 +666,6 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult TransitionNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
         EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete() );
-        EE_ASSERT( ( IsSourceATransition() ? static_cast<TransitionNode*>( m_pSourceNode )->m_pTargetNode : static_cast<StateNode*>( m_pSourceNode ) ) != nullptr );
         auto pSettings = GetSettings<TransitionNode>();
 
         UpdateCachedPoseBufferIDState( context );
@@ -847,7 +849,7 @@ namespace EE::Animation::GraphNodes
             else if ( targetLayerContext.m_pLayerMask != nullptr )
             {
                 // Keep the target bone mask if the source is an off state
-                if ( IsSourceAState() && static_cast<StateNode*>( m_pSourceNode )->IsOffState() )
+                if ( IsSourceAState() && GetSourceStateNode()->IsOffState() )
                 {
                     context.m_layerContext.m_pLayerMask = targetLayerContext.m_pLayerMask;
                 }

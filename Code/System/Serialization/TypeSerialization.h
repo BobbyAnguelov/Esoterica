@@ -60,7 +60,7 @@ namespace EE::Serialization
         {
             if ( IsOfType<T>( pCreatedType ) )
             {
-                return static_cast<T*>( pCreatedType );
+                return reinterpret_cast<T*>( pCreatedType );
             }
             else
             {

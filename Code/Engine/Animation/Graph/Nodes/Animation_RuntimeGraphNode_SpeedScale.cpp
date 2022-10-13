@@ -160,10 +160,7 @@ namespace EE::Animation::GraphNodes
                 float const desiredVelocity = m_pDesiredVelocityValueNode->GetValue<float>( context );
                 if ( desiredVelocity > 0.0f )
                 {
-                    auto const pReferenceNode = static_cast<AnimationClipReferenceNode*>( m_pChildNode );
-                    EE_ASSERT( pReferenceNode->IsValid() );
-
-                    float const averageVelocity = pReferenceNode->GetAnimation()->GetAverageLinearVelocity();
+                    float const averageVelocity = m_pChildNode->GetAnimation()->GetAverageLinearVelocity();
                     if ( !Math::IsNearZero( averageVelocity ) )
                     {
                         speedMultiplier = desiredVelocity / averageVelocity;

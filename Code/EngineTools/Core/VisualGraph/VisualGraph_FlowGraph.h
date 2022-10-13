@@ -268,7 +268,7 @@ namespace EE::VisualGraph
         // Destroys and deletes the specified node
         virtual void PreDestroyNode( BaseNode* pNode ) override;
 
-        Flow::Node* GetNode( UUID const& nodeID ) const { return static_cast<Flow::Node*>( FindNode( nodeID ) ); }
+        Flow::Node* GetNode( UUID const& nodeID ) const { return reinterpret_cast<Flow::Node*>( FindNode( nodeID ) ); }
         Flow::Node* GetNodeForPinID( UUID const& pinID ) const;
 
         void CreateDynamicPin( UUID const& nodeID );

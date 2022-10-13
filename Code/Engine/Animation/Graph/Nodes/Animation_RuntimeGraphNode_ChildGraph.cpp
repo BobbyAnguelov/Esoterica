@@ -29,7 +29,7 @@ namespace EE::Animation::GraphNodes
                 if ( foundParamIter != context.m_parameterLookupMap.end() )
                 {
                     int16_t const parentParamIdx = foundParamIter->second;
-                    ValueNode* pParentParameterNode = static_cast<ValueNode*>( context.m_nodePtrs[parentParamIdx] );
+                    ValueNode* pParentParameterNode = reinterpret_cast<ValueNode*>( context.m_nodePtrs[parentParamIdx] );
 
                     // Check value types
                     auto const parentParamType = pParentParameterNode->GetValueType();

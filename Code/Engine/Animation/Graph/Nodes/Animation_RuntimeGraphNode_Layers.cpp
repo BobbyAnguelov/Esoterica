@@ -87,7 +87,7 @@ namespace EE::Animation::GraphNodes
             auto const numLayers = m_layers.size();
             for ( auto i = 0; i < numLayers; i++ )
             {
-                static_cast<PoseNode*>( m_layers[i] )->DeactivateBranch( context );
+                m_layers[i]->DeactivateBranch( context );
             }
         }
     }
@@ -206,11 +206,11 @@ namespace EE::Animation::GraphNodes
 
             if ( pSettings->m_layerSettings[i].m_isSynchronized )
             {
-                layerResult = static_cast<PoseNode*>( pLayerStateMachine )->Update( context, layerUpdateRange );
+                layerResult = pLayerStateMachine->Update( context, layerUpdateRange );
             }
             else
             {
-                layerResult = static_cast<PoseNode*>( pLayerStateMachine )->Update( context );
+                layerResult = pLayerStateMachine->Update( context );
             }
 
             #if EE_DEVELOPMENT_TOOLS

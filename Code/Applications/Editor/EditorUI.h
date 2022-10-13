@@ -52,7 +52,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Immediately destroy a workspace
-        void DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace );
+        void DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace, bool isEditorShutdown = false );
 
         // Queues a workspace destruction request till the next update
         void QueueDestroyWorkspace( Workspace* pWorkspace );

@@ -66,17 +66,19 @@ namespace EE::Animation::GraphNodes
             TInlineVector<TransitionInfo, 5>                        m_transitions;
         };
 
-    private:
+    public:
 
-        virtual SyncTrack const& GetSyncTrack() const override;
         virtual bool IsValid() const override;
-
-        virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual SyncTrack const& GetSyncTrack() const override;
+        virtual void DeactivateBranch( GraphContext& context ) override;
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
 
         StateIndex SelectDefaultState( GraphContext& context ) const;
 

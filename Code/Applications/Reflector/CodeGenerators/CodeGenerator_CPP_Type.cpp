@@ -53,7 +53,7 @@ namespace EE::CPP
 
         if ( type.HasArrayProperties() )
         {
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -115,7 +115,7 @@ namespace EE::CPP
 
         if ( type.HasArrayProperties() )
         {
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -209,7 +209,7 @@ namespace EE::CPP
 
         if ( type.HasDynamicArrayProperties() )
         {
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -248,7 +248,7 @@ namespace EE::CPP
 
         if ( type.HasDynamicArrayProperties() )
         {
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -287,7 +287,7 @@ namespace EE::CPP
 
         if ( type.HasDynamicArrayProperties() )
         {
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -330,8 +330,8 @@ namespace EE::CPP
 
         if ( type.HasProperties() )
         {
-            file << "                auto pType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
-            file << "                auto pOtherType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
+            file << "                auto pType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
+            file << "                auto pOtherType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -363,8 +363,8 @@ namespace EE::CPP
 
         if ( type.HasProperties() )
         {
-            file << "                auto pType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
-            file << "                auto pOtherType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
+            file << "                auto pType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pTypeInstance );\n";
+            file << "                auto pOtherType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( pOtherTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -496,8 +496,8 @@ namespace EE::CPP
 
         if ( type.HasProperties() )
         {
-            file << "                auto pDefaultType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
+            file << "                auto pDefaultType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pTypeInstance );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -596,7 +596,7 @@ namespace EE::CPP
         if ( type.HasResourcePtrOrStructProperties() )
         {
             file << "                EE_ASSERT( pResourceSystem != nullptr );\n";
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -681,7 +681,7 @@ namespace EE::CPP
         if ( type.HasResourcePtrOrStructProperties() )
         {
             file << "                EE_ASSERT( pResourceSystem != nullptr );\n";
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -767,7 +767,7 @@ namespace EE::CPP
         if ( type.HasResourcePtrOrStructProperties() )
         {
             file << "\n";
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -890,7 +890,7 @@ namespace EE::CPP
 
         if ( type.HasResourcePtrOrStructProperties() )
         {
-            file << "                auto pActualType = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n\n";
 
             for ( auto& propertyDesc : type.m_properties )
             {
@@ -1249,7 +1249,7 @@ namespace EE::CPP
 
             if ( !type.IsAbstract() )
             {
-                file << "                auto pActualDefaultInstance = static_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
+                file << "                auto pActualDefaultInstance = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << " const*>( m_pDefaultInstance );\n";
             }
             
             file << "                PropertyInfo propertyInfo;\n";

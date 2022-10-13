@@ -1173,6 +1173,8 @@ namespace EE::Physics
             // Update root body
             //-------------------------------------------------------------------------
 
+            // drive via velocity/angular velocity
+
             if ( initializeBodies || isKinematicRoot )
             {
                 int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[0];
@@ -1189,11 +1191,11 @@ namespace EE::Physics
             {
                 int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
                 Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
-                Transform const bodyWorldTransform = m_pDefinition->m_bodies[bodyIdx].m_offsetTransform * boneWorldTransform;
+                Transform const desiredBodyWorldTransform = m_pDefinition->m_bodies[bodyIdx].m_offsetTransform * boneWorldTransform;
 
                 if ( initializeBodies )
                 {
-                    m_links[bodyIdx]->setGlobalPose( ToPx( bodyWorldTransform ) );
+                    m_links[bodyIdx]->setGlobalPose( ToPx( desiredBodyWorldTransform ) );
                     m_links[bodyIdx]->setLinearVelocity( PxZero );
                     m_links[bodyIdx]->setAngularVelocity( PxZero );
                 }
@@ -1207,7 +1209,15 @@ namespace EE::Physics
                 // Kinematic
                 if ( jointSettings.m_driveType == RagdollJointSettings::Kinematic )
                 {
-                    m_links[bodyIdx]->setGlobalPose( ToPx( bodyWorldTransform ) );
+                    Transform const currentBodyTransform = FromPx( m_links[bodyIdx]->getGlobalPose() );
+
+                    Vector const linearVelocity = ( desiredBodyWorldTransform.GetTranslation() - currentBodyTransform.GetTranslation() ) / deltaTime;
+                    m_links[bodyIdx]->setLinearVelocity( ToPx( linearVelocity ) );
+
+                    Vector const angularVelocity = Math::CalculateAngularVelocity( currentBodyTransform.GetRotation(), desiredBodyWorldTransform.GetRotation(), deltaTime );
+                    m_links[bodyIdx]->setAngularVelocity( ToPx( angularVelocity ) );
+
+                    pJoint->setTargetVelocity( PxZero );
                 }
                 else // Driven
                 {
@@ -1215,7 +1225,7 @@ namespace EE::Physics
                     Transform const parentBoneWorldTransform = pPose->GetGlobalTransform( parentBoneIdx ) * worldTransform;
                     Transform const parentBodyWorldTransform = m_pDefinition->m_bodies[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx].m_offsetTransform * parentBoneWorldTransform;
 
-                    Transform const jointWorldTransformRelativeToBody = m_pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform * bodyWorldTransform;
+                    Transform const jointWorldTransformRelativeToBody = m_pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform * desiredBodyWorldTransform;
                     Transform const jointWorldTransformRelativeToParentBody = m_pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform * parentBodyWorldTransform;
 
                     // Get the delta rotation and ensure that it's the shortest path rotation

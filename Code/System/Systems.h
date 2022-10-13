@@ -48,7 +48,7 @@ namespace EE
             {
                 if ( pSystem->GetSystemID() == T::s_systemID )
                 {
-                    return static_cast<T*>( pSystem );
+                    return reinterpret_cast<T*>( pSystem );
                 }
             }
 

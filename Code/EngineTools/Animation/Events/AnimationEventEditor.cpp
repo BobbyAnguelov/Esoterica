@@ -49,7 +49,7 @@ namespace EE::Animation
                 // Check if a track of this type already exists
                 for ( auto pTrack : m_trackContainer.GetTracks() )
                 {
-                    auto pExistingEventTrack = static_cast<EventTrack*>( pTrack );
+                    auto pExistingEventTrack = reinterpret_cast<EventTrack*>( pTrack );
                     if ( pExistingEventTrack->GetTypeInfo() == pDefaultTrackInstance->GetTypeInfo() )
                     {
                         isAllowedTrackType = false;
@@ -115,7 +115,7 @@ namespace EE::Animation
         int32_t numSyncTracks = 0;
         for ( auto pTrack : m_trackContainer.m_tracks )
         {
-            auto pEventTrack = static_cast<EventTrack*>( pTrack );
+            auto pEventTrack = reinterpret_cast<EventTrack*>( pTrack );
             if ( pEventTrack->m_isSyncTrack )
             {
                 numSyncTracks++;

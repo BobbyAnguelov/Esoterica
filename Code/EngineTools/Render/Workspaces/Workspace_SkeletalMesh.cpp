@@ -197,7 +197,7 @@ namespace EE::Render
 
                     //-------------------------------------------------------------------------
 
-                    auto const pSkeletalMesh = static_cast<SkeletalMesh const*>( pMesh );
+                    auto const pSkeletalMesh = reinterpret_cast<SkeletalMesh const*>( pMesh );
 
                     ImGui::TableNextRow();
 

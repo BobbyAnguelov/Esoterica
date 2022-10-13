@@ -116,7 +116,7 @@ namespace EE::Animation
         }
 
         // Set root node
-        m_pRootNode = static_cast<PoseNode*>( m_nodes[pGraphDef->m_rootNodeIdx] );
+        m_pRootNode = reinterpret_cast<PoseNode*>( m_nodes[pGraphDef->m_rootNodeIdx] );
         EE_ASSERT( !m_pRootNode->IsInitialized() );
     }
 
@@ -253,7 +253,7 @@ namespace EE::Animation
         // Attach instance to the node
         //-------------------------------------------------------------------------
 
-        auto pExternalGraphNode = static_cast<GraphNodes::ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
+        auto pExternalGraphNode = reinterpret_cast<GraphNodes::ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
         pExternalGraphNode->AttachGraphInstance( m_graphContext, connectedGraph.m_pInstance );
 
         //-------------------------------------------------------------------------
@@ -274,7 +274,7 @@ namespace EE::Animation
         // Detach from node and destroy graph instance
         //-------------------------------------------------------------------------
 
-        auto pExternalGraphNode = static_cast<GraphNodes::ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
+        auto pExternalGraphNode = reinterpret_cast<GraphNodes::ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
         pExternalGraphNode->DetachExternalGraphInstance( m_graphContext );
 
         connectedGraph.m_pInstance->~GraphInstance();
@@ -475,7 +475,7 @@ namespace EE::Animation
                 auto pGraphNode = m_nodes[graphNodeIdx];
                 if ( pGraphNode->GetValueType() == GraphValueType::Pose )
                 {
-                    auto pPoseNode = static_cast<PoseNode*>( pGraphNode );
+                    auto pPoseNode = reinterpret_cast<PoseNode*>( pGraphNode );
                     pPoseNode->DrawDebug( m_graphContext, drawContext );
                 }
             }

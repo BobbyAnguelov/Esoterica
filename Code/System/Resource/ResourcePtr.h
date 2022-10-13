@@ -127,8 +127,8 @@ namespace EE
         inline bool operator==( TResourcePtr const& rhs ) const { return m_resourceID == rhs.m_resourceID; }
         inline bool operator!=( TResourcePtr const& rhs ) const { return m_resourceID != rhs.m_resourceID; }
 
-        inline T const* operator->() const { EE_ASSERT( m_pResourceRecord != nullptr ); return static_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
-        inline T const* GetPtr() const { EE_ASSERT( m_pResourceRecord != nullptr ); return static_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
+        inline T const* operator->() const { EE_ASSERT( m_pResourceRecord != nullptr ); return reinterpret_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
+        inline T const* GetPtr() const { EE_ASSERT( m_pResourceRecord != nullptr ); return reinterpret_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
 
         inline ResourceTypeID GetSpecializedResourceTypeID() const { return T::GetStaticResourceTypeID(); }
 
@@ -141,9 +141,7 @@ namespace EE
             {
                 if ( rhs.GetResourceTypeID() == T::GetStaticResourceTypeID() )
                 {
-                    TResourcePtr<T> const& castPtr = static_cast<TResourcePtr<T> const&>( rhs );
-                    m_resourceID = castPtr.m_resourceID;
-                    m_pResourceRecord = castPtr.m_pResourceRecord;
+                    ResourcePtr::operator=( rhs );
                 }
                 else // Invalid Assignment
                 {

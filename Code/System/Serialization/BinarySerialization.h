@@ -114,8 +114,8 @@ namespace EE::Serialization
         template<typename Base>
         struct SerializeBaseType
         {
-            template<typename Derived> SerializeBaseType( Derived* pDerived ) : m_instance( *static_cast<Base*>( pDerived ) ) {}
-            template<typename Derived> SerializeBaseType( Derived const* pDerived ) : m_instance( const_cast<Base&>( *static_cast<Base const*>( pDerived ) ) ) {}
+            template<typename Derived> SerializeBaseType( Derived* pDerived ) : m_instance( *reinterpret_cast<Base*>( pDerived ) ) {}
+            template<typename Derived> SerializeBaseType( Derived const* pDerived ) : m_instance( const_cast<Base&>( *reinterpret_cast<Base const*>( pDerived ) ) ) {}
             Base& m_instance;
         };
 

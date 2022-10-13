@@ -247,7 +247,7 @@ namespace EE
             {
                 if ( pSystem->GetTypeInfo()->m_ID == T::GetStaticTypeID() )
                 {
-                    return static_cast<T*>( pSystem );
+                    return reinterpret_cast<T*>( pSystem );
                 }
             }
 

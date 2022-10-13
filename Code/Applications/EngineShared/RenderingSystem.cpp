@@ -127,7 +127,7 @@ namespace EE::Render
             if ( pRenderer->GetRendererID() == WorldRenderer::RendererID )
             {
                 EE_ASSERT( m_pWorldRenderer == nullptr );
-                m_pWorldRenderer = static_cast<WorldRenderer*>( pRenderer );
+                m_pWorldRenderer = reinterpret_cast<WorldRenderer*>( pRenderer );
                 continue;
             }
 
@@ -137,14 +137,14 @@ namespace EE::Render
             if ( pRenderer->GetRendererID() == ImguiRenderer::RendererID )
             {
                 EE_ASSERT( m_pImguiRenderer == nullptr );
-                m_pImguiRenderer = static_cast<ImguiRenderer*>( pRenderer );
+                m_pImguiRenderer = reinterpret_cast<ImguiRenderer*>( pRenderer );
                 continue;
             }
 
             if ( pRenderer->GetRendererID() == DebugRenderer::RendererID )
             {
                 EE_ASSERT( m_pDebugRenderer == nullptr );
-                m_pDebugRenderer = static_cast<DebugRenderer*>( pRenderer );
+                m_pDebugRenderer = reinterpret_cast<DebugRenderer*>( pRenderer );
                 continue;
             }
             #endif

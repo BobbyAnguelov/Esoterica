@@ -72,7 +72,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( options == InstantiationOptions::NodeAlreadyCreated );
 
-        auto pNode = static_cast<ParameterizedBlendNode*>( context.m_nodePtrs[m_nodeIdx] );
+        auto pNode = reinterpret_cast<ParameterizedBlendNode*>( context.m_nodePtrs[m_nodeIdx] );
         context.SetNodePtrFromIndex( m_inputParameterValueNodeIdx, pNode->m_pInputParameterValueNode );
 
         pNode->m_sourceNodes.reserve( m_sourceNodeIndices.size() );
@@ -324,7 +324,7 @@ namespace EE::Animation::GraphNodes
                 if ( pSourceNode != pSource0 && pSourceNode != pSource1 )
                 {
                     auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
-                    GraphPoseNodeResult const updateResult = static_cast<PoseNode*>( pSourceNode )->Update( context );
+                    GraphPoseNodeResult const updateResult = pSourceNode->Update( context );
                     context.m_sampledEventsBuffer.UpdateWeights( updateResult.m_sampledEventRange, 0.0f ); // Add ignored flag
                     context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
                 }
@@ -437,7 +437,7 @@ namespace EE::Animation::GraphNodes
             for ( int16_t i = 0; i < numSources; i++ )
             {
                 // The editor tooling guarantees that the source nodes are actually clip references!
-                AnimationClip const* pAnimation = static_cast<AnimationClipReferenceNode const*>( m_sourceNodes[i] )->GetAnimation();
+                AnimationClip const* pAnimation = reinterpret_cast<AnimationClipReferenceNode const*>( m_sourceNodes[i] )->GetAnimation();
                 EE_ASSERT( pAnimation != nullptr );
                 values.emplace_back( pAnimation->GetAverageLinearVelocity() );
             }

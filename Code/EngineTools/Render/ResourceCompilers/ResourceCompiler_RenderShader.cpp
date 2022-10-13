@@ -265,7 +265,7 @@ namespace EE::Render
         // If vertex shader
         if ( pShader->GetPipelineStage() == PipelineStage::Vertex )
         {
-            auto pVertexShader = static_cast<VertexShader*>( pShader );
+            auto pVertexShader = reinterpret_cast<VertexShader*>( pShader );
             // Get vertex buffer input element descs
             if ( !GetInputLayoutDesc( pShaderReflection, pVertexShader->m_vertexLayoutDesc ) )
             {

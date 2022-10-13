@@ -49,14 +49,14 @@ namespace EE::Animation
         EE_FORCE_INLINE void SetNodePtrFromIndex( int16_t nodeIdx, T*& pTargetPtr ) const
         {
             EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
-            pTargetPtr = static_cast<T*>( m_nodePtrs[nodeIdx] );
+            pTargetPtr = reinterpret_cast<T*>( m_nodePtrs[nodeIdx] );
         }
 
         template<typename T>
         EE_FORCE_INLINE void SetNodePtrFromIndex( int16_t nodeIdx, T const*& pTargetPtr ) const
         {
             EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
-            pTargetPtr = static_cast<T const*>( m_nodePtrs[nodeIdx] );
+            pTargetPtr = reinterpret_cast<T const*>( m_nodePtrs[nodeIdx] );
         }
 
         template<typename T>
@@ -69,7 +69,7 @@ namespace EE::Animation
             else
             {
                 EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
-                pTargetPtr = static_cast<T*>( m_nodePtrs[nodeIdx] );
+                pTargetPtr = reinterpret_cast<T*>( m_nodePtrs[nodeIdx] );
             }
         }
 
@@ -83,7 +83,7 @@ namespace EE::Animation
             else
             {
                 EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
-                pTargetPtr = static_cast<T const*>( m_nodePtrs[nodeIdx] );
+                pTargetPtr = reinterpret_cast<T const*>( m_nodePtrs[nodeIdx] );
             }
         }
 

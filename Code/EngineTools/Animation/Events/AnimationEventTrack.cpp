@@ -33,7 +33,7 @@ namespace EE::Animation
                 // Clear sync track from any other track
                 for ( auto pTrack : tracks )
                 {
-                    static_cast<EventTrack*>( pTrack )->m_isSyncTrack = false;
+                    reinterpret_cast<EventTrack*>( pTrack )->m_isSyncTrack = false;
                 }
 
                 m_isSyncTrack = true;

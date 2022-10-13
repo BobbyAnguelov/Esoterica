@@ -60,7 +60,7 @@ namespace EE
     {
         EE_ASSERT( pType != nullptr );
         EE_ASSERT( pType->GetTypeInfo()->IsDerivedFrom( T::GetStaticTypeID() ) );
-        return static_cast<T*>( pType );
+        return reinterpret_cast<T*>( pType );
     }
 
     // This is a assumed safe cast, it will validate the cast only in dev builds. Doesnt accept null arguments
@@ -69,7 +69,7 @@ namespace EE
     {
         EE_ASSERT( pType != nullptr );
         EE_ASSERT( pType->GetTypeInfo()->IsDerivedFrom( T::GetStaticTypeID() ) );
-        return static_cast<T const*>( pType );
+        return reinterpret_cast<T const*>( pType );
     }
 
     // This will try to cast to the specified type but can fail. Also accepts null arguments
@@ -78,7 +78,7 @@ namespace EE
     {
         if ( pType != nullptr && pType->GetTypeInfo()->IsDerivedFrom( T::GetStaticTypeID() ) )
         {
-            return static_cast<T*>( pType );
+            return reinterpret_cast<T*>( pType );
         }
 
         return nullptr;
@@ -90,7 +90,7 @@ namespace EE
     {
         if ( pType != nullptr && pType->GetTypeInfo()->IsDerivedFrom( T::GetStaticTypeID() ) )
         {
-            return static_cast<T const*>( pType );
+            return reinterpret_cast<T const*>( pType );
         }
 
         return nullptr;

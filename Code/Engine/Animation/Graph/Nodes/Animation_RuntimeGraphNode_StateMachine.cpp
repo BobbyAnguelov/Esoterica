@@ -260,16 +260,17 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult result;
         if ( m_pActiveTransition == nullptr )
         {
-            result = static_cast<PoseNode*>( m_states[m_activeStateIndex].m_pStateNode )->Update( context );
+            auto pActiveState = m_states[m_activeStateIndex].m_pStateNode;
+            result = pActiveState->Update( context );
 
             // Update node time
-            m_duration = m_states[m_activeStateIndex].m_pStateNode->GetDuration();
-            m_previousTime = m_states[m_activeStateIndex].m_pStateNode->GetPreviousTime();
-            m_currentTime = m_states[m_activeStateIndex].m_pStateNode->GetCurrentTime();
+            m_duration = pActiveState->GetDuration();
+            m_previousTime = pActiveState->GetPreviousTime();
+            m_currentTime = pActiveState->GetCurrentTime();
         }
         else // Update the transition
         {
-            result = static_cast<PoseNode*>( m_pActiveTransition )->Update( context );
+            result = m_pActiveTransition->Update( context );
 
             // Update node time
             m_duration = m_pActiveTransition->GetDuration();

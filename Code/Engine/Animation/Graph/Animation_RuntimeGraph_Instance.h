@@ -146,21 +146,21 @@ namespace EE::Animation
         inline GraphValueType GetControlParameterType( int16_t parameterNodeIdx )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            return static_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValueType();
+            return reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValueType();
         }
 
         template<typename T>
         inline void SetControlParameterValue( int16_t parameterNodeIdx, T const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            static_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->SetValue<T>( value );
+            reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->SetValue<T>( value );
         }
 
         template<typename T>
         inline T GetControlParameterValue( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            return static_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
+            return reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
         }
 
         // External Graphs
@@ -217,7 +217,7 @@ namespace EE::Animation
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
             EE_ASSERT( m_nodes[nodeIdx]->GetValueType() == GraphValueType::Pose );
-            auto pNode = static_cast<PoseNode const*>( m_nodes[nodeIdx] );
+            auto pNode = reinterpret_cast<PoseNode const*>( m_nodes[nodeIdx] );
             return pNode->GetDebugInfo();
         }
 
@@ -238,7 +238,7 @@ namespace EE::Animation
         inline T GetRuntimeNodeDebugValue( int16_t nodeIdx ) const
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
-            auto pValueNode = static_cast<ValueNode*>( const_cast<GraphNode*>( m_nodes[nodeIdx] ) );
+            auto pValueNode = reinterpret_cast<ValueNode*>( const_cast<GraphNode*>( m_nodes[nodeIdx] ) );
             return pValueNode->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
         }
 

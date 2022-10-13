@@ -105,7 +105,7 @@ namespace EE
 
         while ( !m_workspaces.empty() )
         {
-            DestroyWorkspace( context, m_workspaces[0] );
+            DestroyWorkspace( context, m_workspaces[0], true );
         }
 
         m_workspaces.clear();
@@ -451,7 +451,7 @@ namespace EE
         m_workspaceCreationRequests.emplace_back( resourceID );
     }
 
-    void EditorUI::DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace )
+    void EditorUI::DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace, bool isEditorShutdown )
     {
         EE_ASSERT( m_pMapEditor != pWorkspace );
         EE_ASSERT( pWorkspace != nullptr );
@@ -461,7 +461,7 @@ namespace EE
 
         if ( pWorkspace->IsDirty() )
         {
-            auto messageDialog = pfd::message( "Unsaved Changes", "You have unsaved changes!\nDo you wish to save these changes before closing?", pfd::choice::yes_no_cancel );
+            auto messageDialog = pfd::message( "Unsaved Changes", "You have unsaved changes!\nDo you wish to save these changes before closing?", isEditorShutdown ? pfd::choice::yes_no : pfd::choice::yes_no_cancel );
             switch ( messageDialog.result() )
             {
                 case pfd::button::yes:
@@ -474,9 +474,15 @@ namespace EE
                 break;
 
                 case pfd::button::cancel:
-                default:
                 {
                     return;
+                }
+                break;
+
+                case pfd::button::no:
+                default:
+                {
+                    // Do Nothing
                 }
                 break;
             }

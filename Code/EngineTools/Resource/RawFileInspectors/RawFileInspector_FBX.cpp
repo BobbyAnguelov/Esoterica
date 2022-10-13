@@ -55,7 +55,7 @@ namespace EE::Resource
             auto pGeometry = m_sceneContext.m_pScene->GetGeometry( i );
             if ( pGeometry->Is<FbxMesh>() )
             {
-                FbxMesh* pMesh = static_cast<FbxMesh*>( pGeometry );
+                FbxMesh* pMesh = reinterpret_cast<FbxMesh*>( pGeometry );
 
                 auto& meshInfo = m_meshes.emplace_back();
                 StringID t( pMesh->GetNode()->GetNameWithNameSpacePrefix() );

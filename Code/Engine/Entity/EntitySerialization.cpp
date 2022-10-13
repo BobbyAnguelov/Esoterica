@@ -23,7 +23,7 @@ namespace EE::EntityModel
         // Create new entity
         //-------------------------------------------------------------------------
 
-        auto pEntity = static_cast<Entity*>( pEntityTypeInfo->CreateType() );
+        auto pEntity = reinterpret_cast<Entity*>( pEntityTypeInfo->CreateType() );
         pEntity->m_name = entityDesc.m_name;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -64,7 +64,7 @@ namespace EE::EntityModel
             if ( componentDesc.IsSpatialComponent() )
             {
                 // Set parent socket ID
-                auto pSpatialEntityComponent = static_cast<SpatialEntityComponent*>( pEntityComponent );
+                auto pSpatialEntityComponent = reinterpret_cast<SpatialEntityComponent*>( pEntityComponent );
                 pSpatialEntityComponent->m_parentAttachmentSocketID = componentDesc.m_attachmentSocketID;
 
                 // Set as root component
@@ -95,10 +95,10 @@ namespace EE::EntityModel
             int32_t const parentComponentIdx = entityDesc.FindComponentIndex( spatialComponentDesc.m_spatialParentName );
             EE_ASSERT( parentComponentIdx != InvalidIndex );
 
-            auto pParentSpatialComponent = static_cast<SpatialEntityComponent*>( pEntity->m_components[parentComponentIdx] );
+            auto pParentSpatialComponent = reinterpret_cast<SpatialEntityComponent*>( pEntity->m_components[parentComponentIdx] );
             if ( spatialComponentDesc.m_spatialParentName == pParentSpatialComponent->GetNameID() )
             {
-                auto pSpatialComponent = static_cast<SpatialEntityComponent*>( pEntity->m_components[spatialComponentIdx] );
+                auto pSpatialComponent = reinterpret_cast<SpatialEntityComponent*>( pEntity->m_components[spatialComponentIdx] );
                 pSpatialComponent->m_pSpatialParent = pParentSpatialComponent;
 
                 pParentSpatialComponent->m_spatialChildren.emplace_back( pSpatialComponent );
@@ -119,7 +119,7 @@ namespace EE::EntityModel
         for ( auto const& systemDesc : entityDesc.m_systems )
         {
             TypeSystem::TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( systemDesc.m_typeID );
-            auto pEntitySystem = static_cast<EntitySystem*>( pTypeInfo->CreateType() );
+            auto pEntitySystem = reinterpret_cast<EntitySystem*>( pTypeInfo->CreateType() );
             EE_ASSERT( pEntitySystem != nullptr );
 
             pEntity->m_systems.push_back( pEntitySystem );

@@ -208,7 +208,7 @@ namespace EE::Animation
             {
                 if ( pController->GetSubGraphControllerID() == T::s_subGraphControllerID )
                 {
-                    return static_cast<T*>( pController );
+                    return reinterpret_cast<T*>( pController );
                 }
             }
             return nullptr;
