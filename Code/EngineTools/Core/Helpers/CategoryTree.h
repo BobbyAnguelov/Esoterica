@@ -19,6 +19,8 @@ namespace EE
         T                       m_data;
     };
 
+    //-------------------------------------------------------------------------
+
     template<typename T>
     struct Category
     {
@@ -31,6 +33,17 @@ namespace EE
             : m_name( name )
             , m_depth( depth )
         {}
+
+        void Clear()
+        {
+            m_childCategories.clear();
+            m_items.clear();
+        }
+
+        bool IsEmpty() const
+        {
+            return m_childCategories.empty() && m_items.empty();
+        }
 
         bool HasItemsThatMatchFilter( TFunction<bool( CategoryItem<T> const& )> const& filter ) const
         {
@@ -57,12 +70,36 @@ namespace EE
             return false;
         }
 
+        void RemoveAllItems()
+        {
+            for ( auto& childCategory : m_childCategories )
+            {
+                childCategory.RemoveAllItems();
+            }
+
+            m_items.clear();
+        }
+
+        void RemoveAllEmptyChildCategories()
+        {
+            for ( auto i = int32_t( m_childCategories.size() ) - 1; i >= 0; i-- )
+            {
+                m_childCategories[i].RemoveAllEmptyChildCategories();
+
+                if ( m_childCategories[i].IsEmpty() )
+                {
+                    m_childCategories.erase( m_childCategories.begin() + i );
+                }
+            }
+        }
+
     public:
 
         String                      m_name;
         TVector<Category<T>>        m_childCategories;
         TVector<CategoryItem<T>>    m_items;
         int32_t                     m_depth = -1;
+        bool                        m_isCollapsed = false;
     };
 
     // Category Tree
@@ -78,7 +115,14 @@ namespace EE
             : m_rootCategory( "" )
         {}
 
+        // Get the root category
         Category<T> const& GetRootCategory() const { return m_rootCategory; }
+
+        // Get the root category
+        Category<T>& GetRootCategory() { return m_rootCategory; }
+
+        // Clear the tree
+        void Clear() { m_rootCategory.Clear(); }
 
         // Add a new item
         void AddItem( String const& path, String const& itemName, T const& item )
@@ -150,6 +194,18 @@ namespace EE
             }
 
             return pFoundCategory;
+        }
+
+        // Remove all items but keep categories
+        void RemoveAllItems()
+        {
+            m_rootCategory.RemoveAllItems();
+        }
+
+        // Remove all empty categories
+        void RemoveEmptyCategories()
+        {
+            m_rootCategory.RemoveAllEmptyChildCategories();
         }
 
     private:

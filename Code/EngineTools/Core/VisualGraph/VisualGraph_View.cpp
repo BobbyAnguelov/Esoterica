@@ -677,7 +677,7 @@ namespace EE::VisualGraph
                     if ( m_hasFocus && IsHoveredOverCurve( p1, p2, p3, p4, drawingContext.m_mouseScreenPos, VisualSettings::s_connectionSelectionExtraRadius ) )
                     {
                         m_hoveredConnectionID = connection.m_ID;
-                        connectionColor = ImGuiX::ConvertColor( VisualSettings::s_connectionColorHovered );
+                        connectionColor = ImColor( VisualSettings::s_connectionColorHovered );
                     }
 
                     drawingContext.m_pDrawList->AddBezierCubic( p1, p2, p3, p4, connectionColor, 3.0f );

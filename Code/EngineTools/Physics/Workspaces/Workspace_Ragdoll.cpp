@@ -1623,7 +1623,6 @@ namespace EE::Physics
                 {
                     if ( ImGui::BeginTabItem( "Body/Joint Settings" ) )
                     {
-                        DrawRootControlBodySettings( context, pActiveProfile );
                         DrawJointSettingsTable( context, pActiveProfile );
                         ImGui::EndTabItem();
                     }
@@ -1741,185 +1740,8 @@ namespace EE::Physics
         ImGui::EndDisabled();
     }
 
-    void RagdollWorkspace::DrawRootControlBodySettings( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
-    {
-        static char const* const rootControlBodyDriveComboOptions[] = { "None", "Kinematic", "Distance", "Spring" };
-
-        EE_ASSERT( pProfile != nullptr );
-        auto pRagdollDefinition = GetRagdollDefinition();
-
-        ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-        if ( ImGui::BeginTable( "RBT", 9, ImGuiTableFlags_BordersInnerV ) )
-        {
-            ImGui::TableSetupColumn( "Root Body", ImGuiTableColumnFlags_WidthFixed, 120 );
-            ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
-            ImGui::TableSetupColumn( "CCD", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Self Collision", ImGuiTableColumnFlags_WidthFixed, 30 );
-
-            ImGui::TableSetupColumn( "Drive", ImGuiTableColumnFlags_WidthFixed, 75 );
-
-            ImGui::TableSetupColumn( "Stiffness", ImGuiTableColumnFlags_WidthFixed, 70 );
-            ImGui::TableSetupColumn( "Damping", ImGuiTableColumnFlags_WidthFixed, 70 );
-
-            ImGui::TableSetupColumn( "Max Distance", ImGuiTableColumnFlags_WidthFixed, 70 );
-            ImGui::TableSetupColumn( "Tolerance", ImGuiTableColumnFlags_WidthFixed, 70 );
-
-            ImGui::TableHeadersRow();
-
-            //-------------------------------------------------------------------------
-
-            auto& cachedBodySettings = m_workingProfileCopy.m_bodySettings[0];
-            auto& realBodySettings = pProfile->m_bodySettings[0];
-
-            auto& cachedSettings = m_workingProfileCopy.m_rootControlBodySettings;
-            auto& realSettings = pProfile->m_rootControlBodySettings;
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextRow();
-
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( pRagdollDefinition->m_bodies[0].m_boneID.c_str() );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth( -1 );
-            if ( ImGui::InputFloat( "##Mass", &cachedBodySettings.m_mass, 0.0f, 0.0f, "%.2f" ) )
-            {
-                cachedBodySettings.m_mass = Math::Clamp( cachedBodySettings.m_mass, 0.01f, 1000000.0f );
-            }
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realBodySettings.m_mass = cachedBodySettings.m_mass;
-            }
-            ImGuiX::ItemTooltip( "The mass of the body" );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::Checkbox( "##CCD", &cachedBodySettings.m_enableCCD );
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realBodySettings.m_enableCCD = cachedBodySettings.m_enableCCD;
-            }
-            ImGuiX::ItemTooltip( "Enable continuous collision detection for this body" );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::Checkbox( "##SC", &cachedBodySettings.m_enableSelfCollision );
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realBodySettings.m_enableSelfCollision = cachedBodySettings.m_enableSelfCollision;
-            }
-            ImGuiX::ItemTooltip( "Should this body collide with other bodies in the ragdoll" );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth( -1 );
-
-            int32_t dt = (int32_t) cachedSettings.m_driveType;
-            if ( ImGui::Combo( "##DriveMode", &dt, rootControlBodyDriveComboOptions, 3 ) )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                cachedSettings.m_driveType = (RagdollRootControlBodySettings::DriveType) dt;
-                realSettings.m_driveType = cachedSettings.m_driveType;
-
-                if ( IsPreviewing() )
-                {
-                    m_pRagdoll->RecreateRootControlBody();
-                }
-            }
-
-            ImGuiX::ItemTooltip( "The drive mode for the root control body's joint" );
-
-            bool const isSpringDrive = realSettings.m_driveType == RagdollRootControlBodySettings::DriveType::Spring;
-            bool const isDistanceDrive = realSettings.m_driveType == RagdollRootControlBodySettings::DriveType::Distance;
-
-            //-------------------------------------------------------------------------
-
-            ImGui::BeginDisabled( !isSpringDrive );
-
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth( -1 );
-            if ( ImGui::InputFloat( "##Stiffness", &cachedSettings.m_stiffness, 0.0f, 0.0f, "%.1f" ) )
-            {
-                cachedSettings.m_stiffness = Math::Clamp( cachedSettings.m_stiffness, 0.0f, 1000000.0f );
-            }
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realSettings.m_stiffness = cachedSettings.m_stiffness;
-            }
-            ImGuiX::ItemTooltip( "The stiffness of the spring used to correct the root body once the limit is exceeded" );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth( -1 );
-            if ( ImGui::InputFloat( "##Damping", &cachedSettings.m_damping, 0.0f, 0.0f, "%.1f" ) )
-            {
-                cachedSettings.m_damping = Math::Clamp( cachedSettings.m_damping, 0.0f, 1000000.0f );
-            }
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realSettings.m_damping = cachedSettings.m_damping;
-            }
-            ImGuiX::ItemTooltip( "The damping of the spring used to correct the root body once the limit is exceeded" );
-
-            ImGui::EndDisabled();
-
-            //-------------------------------------------------------------------------
-
-            ImGui::BeginDisabled( !isSpringDrive && !isDistanceDrive );
-
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth( -1 );
-            if ( ImGui::InputFloat( "##Max Distance", &cachedSettings.m_maxDistance, 0.0f, 0.0f, "%.3f" ) )
-            {
-                cachedSettings.m_maxDistance = Math::Clamp( cachedSettings.m_maxDistance, 0.0f, 5.0f );
-            }
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realSettings.m_maxDistance = cachedSettings.m_maxDistance;
-            }
-            ImGuiX::ItemTooltip( "The max distance the root body can drift from the control body" );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth( -1 );
-            if ( ImGui::InputFloat( "##Tolerance", &cachedSettings.m_tolerance, 0.0f, 0.0f, "%.3f" ) )
-            {
-                cachedSettings.m_tolerance = Math::Clamp( cachedSettings.m_tolerance, 0.0f, 1.0f );
-            }
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                ScopedRagdollSettingsModification const sdm( this );
-                realSettings.m_tolerance = cachedSettings.m_tolerance;
-            }
-            ImGuiX::ItemTooltip( "The acceptance error tolerance before the position is corrected" );
-
-            ImGui::EndDisabled();
-
-            //-------------------------------------------------------------------------
-
-            ImGui::EndTable();
-        }
-    }
-
     void RagdollWorkspace::DrawJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
     {
-        static char const* const driveComboOptions[3] = { "Kinematic", "Spring", "Velocity" };
-
         EE_ASSERT( pProfile != nullptr );
         auto pRagdollDefinition = GetRagdollDefinition();
 
@@ -1935,10 +1757,11 @@ namespace EE::Physics
             ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
             ImGui::TableSetupColumn( "CCD", ImGuiTableColumnFlags_WidthFixed, 20 );
             ImGui::TableSetupColumn( "Self Collision", ImGuiTableColumnFlags_WidthFixed, 30 );
+            ImGui::TableSetupColumn( "Follow Pose", ImGuiTableColumnFlags_WidthFixed, 30 );
+            
             ImGui::TableSetupColumn( "Int. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
             ImGui::TableSetupColumn( "Ext. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
 
-            ImGui::TableSetupColumn( "Drive", ImGuiTableColumnFlags_WidthFixed, 75 );
             ImGui::TableSetupColumn( "Stiffness", ImGuiTableColumnFlags_WidthFixed, 50 );
             ImGui::TableSetupColumn( "Damping", ImGuiTableColumnFlags_WidthFixed, 50 );
 
@@ -1958,20 +1781,16 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            for ( auto bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
+            for ( auto bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
             {
                 auto& cachedBodySettings = m_workingProfileCopy.m_bodySettings[bodyIdx];
                 auto& realBodySettings = pProfile->m_bodySettings[bodyIdx];
-
-                int32_t const jointIdx = bodyIdx - 1;
-                auto& cachedJointSettings = m_workingProfileCopy.m_jointSettings[jointIdx];
-                auto& realJointSettings = pProfile->m_jointSettings[jointIdx];
 
                 //-------------------------------------------------------------------------
                 // Body Settings
                 //-------------------------------------------------------------------------
 
-                ImGui::PushID( &cachedJointSettings );
+                ImGui::PushID( &cachedBodySettings );
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
@@ -2016,8 +1835,44 @@ namespace EE::Physics
                 ImGuiX::ItemTooltip( "Should this body collide with other bodies in the ragdoll" );
 
                 //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+
+                if ( ImGui::Checkbox( "##FP", &cachedBodySettings.m_followPose ) )
+                {
+                    ScopedRagdollSettingsModification const sdm( this );
+                    realBodySettings.m_followPose = cachedBodySettings.m_followPose;
+                }
+
+                ImGuiX::ItemTooltip( "The should this body be driven towards the target pose via linear/angular velocities!" );
+
+                if ( ImGui::BeginPopupContextItem() )
+                {
+                    if ( ImGui::MenuItem( "Set To All" ) )
+                    {
+                        ScopedRagdollSettingsModification const sdm( this );
+                        for ( int32_t i = 0; i < numBodies; i++ )
+                        {
+                            m_workingProfileCopy.m_bodySettings[i].m_followPose = cachedBodySettings.m_followPose;
+                            pProfile->m_bodySettings[i].m_followPose = cachedBodySettings.m_followPose;
+                        }
+                    }
+                    ImGui::EndPopup();
+                }
+
+                if ( bodyIdx == 0 )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
                 // Joint Settings
                 //-------------------------------------------------------------------------
+
+                int32_t const jointIdx = bodyIdx - 1;
+                auto& cachedJointSettings = m_workingProfileCopy.m_jointSettings[jointIdx];
+                auto& realJointSettings = pProfile->m_jointSettings[jointIdx];
 
                 ImGui::TableNextColumn();
                 ImGui::SetNextItemWidth( -1 );
@@ -2066,36 +1921,6 @@ namespace EE::Physics
                         {
                             m_workingProfileCopy.m_jointSettings[i].m_externalCompliance = value;
                             pProfile->m_jointSettings[i].m_externalCompliance = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-
-                int32_t dt = (int32_t) cachedJointSettings.m_driveType;
-                if( ImGui::Combo( "##DriveMode", &dt, driveComboOptions, 3 ) )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    cachedJointSettings.m_driveType = (RagdollJointSettings::DriveType) dt;
-                    realJointSettings.m_driveType = cachedJointSettings.m_driveType;
-                }
-
-                ImGuiX::ItemTooltip( "The drive mode for this body's joint. Kinematic joints are set directly to target positions. Springs only set a target orientation, while velocity set a target orientation and velocity!" );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        RagdollJointSettings::DriveType value = cachedJointSettings.m_driveType;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_driveType = value;
-                            pProfile->m_jointSettings[i].m_driveType = value;
                         }
                     }
                     ImGui::EndPopup();
@@ -2694,149 +2519,186 @@ namespace EE::Physics
             // General Settings
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Start Transform" );
-            ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, -1.0f );
-
-            if ( ImGui::Button( "Reset Start Transform", ImVec2( -1, 0 ) ) )
+            ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+            if ( ImGui::CollapsingHeader( "Start Transform" ) )
             {
-                m_previewStartTransform = Transform::Identity;
+                ImGui::Indent();
+
+                ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, -1.0f );
+
+                if ( ImGui::Button( EE_ICON_RESTART" Reset Start Transform", ImVec2( -1, 0 ) ) )
+                {
+                    m_previewStartTransform = Transform::Identity;
+                }
+
+                ImGui::Unindent();
             }
 
             //-------------------------------------------------------------------------
             // Ragdoll
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Ragdoll" );
-
-            if ( ImGui::Checkbox( "Enable Gravity", &m_enableGravity ) )
+            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+            if ( ImGui::CollapsingHeader( "Ragdoll Settings" ) )
             {
-                if ( IsPreviewing() )
+                ImGui::Indent();
+
+                if ( ImGui::Checkbox( "Enable Gravity", &m_enableGravity ) )
                 {
-                    m_pRagdoll->SetGravityEnabled( m_enableGravity );
+                    if ( IsPreviewing() )
+                    {
+                        m_pRagdoll->SetGravityEnabled( m_enableGravity );
+                    }
                 }
-            }
 
-            if ( ImGui::Checkbox( "Enable Pose Following", &m_enablePoseFollowing  ) )
-            {
-                if ( IsPreviewing() )
+                if ( ImGui::Checkbox( "Enable Pose Following", &m_enablePoseFollowing ) )
                 {
-                    m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
+                    if ( IsPreviewing() )
+                    {
+                        m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
+                    }
                 }
-            }
 
-            ImGui::BeginDisabled( !IsPreviewing() );
-            if ( ImGui::Button( "Reset Ragdoll State", ImVec2( -1, 0 ) ) )
-            {
-                m_pRagdoll->ResetState();
-                m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
-                m_initializeRagdollPose = true;
-            }
-            ImGui::EndDisabled();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Blend Weight:" );
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##PhysicsWeight", &m_physicsBlendWeight, 0, 1, "%.3f", ImGuiSliderFlags_NoInput );
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Blend Weight:" );
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##PhysicsWeight", &m_physicsBlendWeight, 0, 1, "%.3f", ImGuiSliderFlags_NoInput );
-
-            //-------------------------------------------------------------------------
-            // PVD
-            //-------------------------------------------------------------------------
-
-            ImGuiX::TextSeparator( "PhysX Visual Debugger" );
-
-            ImGui::BeginDisabled( IsPreviewing() );
-            ImGui::Checkbox( "Auto Connect to PVD", &m_autoConnectToPVD );
-            ImGui::EndDisabled();
-
-            ImGui::BeginDisabled( !IsPreviewing() );
-            if ( m_pPhysicsSystem != nullptr && m_pPhysicsSystem->IsConnectedToPVD() )
-            {
-                if ( ImGui::Button( "Disconnect From PVD", ImVec2( -1, 0 ) ) )
+                ImGui::BeginDisabled( !IsPreviewing() );
+                if ( ImGui::Button( EE_ICON_RESTART" Reset Ragdoll State", ImVec2( -1, 0 ) ) )
                 {
-                    m_pPhysicsSystem->DisconnectFromPVD();
+                    m_pRagdoll->ResetState();
+                    m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
+                    m_initializeRagdollPose = true;
                 }
+                ImGui::EndDisabled();
+
+                ImGui::Unindent();
             }
-            else
-            {
-                if ( ImGui::Button( "Connect To PVD", ImVec2( -1, 0 ) ) )
-                {
-                    m_pPhysicsSystem->ConnectToPVD();
-                }
-            }
-            ImGui::EndDisabled();
 
             //-------------------------------------------------------------------------
             // Animation
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Animation" );
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Preview Anim:" );
-            ImGui::SameLine();
-            
-            ResourcePath newPath;
-            if ( m_resourceFilePicker.DrawPicker( m_previewAnimation, newPath ) )
+            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+            if ( ImGui::CollapsingHeader( "Animation" ) )
             {
-                // If we need to change resource ID, switch IDs
-                ResourceID const selectedResourceID = newPath;
-                if ( selectedResourceID != m_previewAnimation.GetResourceID() )
-                {
-                    if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
-                    {
-                        UnloadResource( &m_previewAnimation );
-                    }
-                
-                    m_previewAnimation = selectedResourceID.IsValid() ? selectedResourceID : nullptr;
+                ImGui::Indent();
 
-                    if ( m_previewAnimation.IsSet() )
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Preview Anim:" );
+                ImGui::SameLine();
+
+                ResourcePath newPath;
+                if ( m_resourceFilePicker.DrawPicker( m_previewAnimation, newPath ) )
+                {
+                    // If we need to change resource ID, switch IDs
+                    ResourceID const selectedResourceID = newPath;
+                    if ( selectedResourceID != m_previewAnimation.GetResourceID() )
                     {
-                        LoadResource( &m_previewAnimation );
+                        if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
+                        {
+                            UnloadResource( &m_previewAnimation );
+                        }
+
+                        m_previewAnimation = selectedResourceID.IsValid() ? selectedResourceID : nullptr;
+
+                        if ( m_previewAnimation.IsSet() )
+                        {
+                            LoadResource( &m_previewAnimation );
+                        }
                     }
                 }
-            }
 
-            ImGui::Checkbox( "Enable Looping", &m_enableAnimationLooping );
-            ImGui::Checkbox( "Apply Root Motion", &m_applyRootMotion );
-            ImGui::Checkbox( "Auto Start", &m_autoPlayAnimation );
+                ImGui::Checkbox( "Enable Looping", &m_enableAnimationLooping );
+                ImGui::Checkbox( "Apply Root Motion", &m_applyRootMotion );
+                ImGui::Checkbox( "Auto Start", &m_autoPlayAnimation );
 
-            //-------------------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
-            bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
-            ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
+                bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
+                ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
 
-            ImVec2 const buttonSize( 30, 24 );
-            if ( m_isPlayingAnimation )
-            {
-                if ( ImGui::Button( EE_ICON_STOP"##StopAnim", buttonSize ) )
+                ImVec2 const buttonSize( 30, 24 );
+                if ( m_isPlayingAnimation )
+                {
+                    if ( ImGui::Button( EE_ICON_STOP"##StopAnim", buttonSize ) )
+                    {
+                        m_isPlayingAnimation = false;
+                    }
+                }
+                else
+                {
+                    if ( ImGui::Button( EE_ICON_PLAY"##PlayAnim", buttonSize ) )
+                    {
+                        m_isPlayingAnimation = true;
+
+                        if ( !m_enableAnimationLooping && m_animTime == 1.0f )
+                        {
+                            m_animTime = 0.0f;
+                        }
+                    }
+                }
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth( -1 );
+                float currentAnimTime = m_animTime.ToFloat();
+                if ( ImGui::SliderFloat( "##AnimTime", &currentAnimTime, 0, 1, "%.3f", ImGuiSliderFlags_NoInput ) )
                 {
                     m_isPlayingAnimation = false;
+                    m_animTime = currentAnimTime;
                 }
-            }
-            else
-            {
-                if ( ImGui::Button( EE_ICON_PLAY"##PlayAnim", buttonSize ) )
-                {
-                    m_isPlayingAnimation = true;
 
-                    if ( !m_enableAnimationLooping && m_animTime == 1.0f )
+                ImGui::Unindent();
+            }
+
+            //-------------------------------------------------------------------------
+            //
+            //-------------------------------------------------------------------------
+            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+            if ( ImGui::CollapsingHeader( "Manipulation" ) )
+            {
+                ImGui::Indent();
+
+                ImGui::Text( EE_ICON_WRENCH" TODO" );
+
+                ImGui::Unindent();
+            }
+
+            //-------------------------------------------------------------------------
+            // PVD
+            //-------------------------------------------------------------------------
+
+            ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+            if ( ImGui::CollapsingHeader( "PhysX Visual Debugger" ) )
+            {
+                ImGui::Indent();
+
+                ImGui::BeginDisabled( IsPreviewing() );
+                ImGui::Checkbox( "Auto Connect to PVD", &m_autoConnectToPVD );
+                ImGui::EndDisabled();
+
+                ImGui::BeginDisabled( !IsPreviewing() );
+                if ( m_pPhysicsSystem != nullptr && m_pPhysicsSystem->IsConnectedToPVD() )
+                {
+                    if ( ImGui::Button( "Disconnect From PVD", ImVec2( -1, 0 ) ) )
                     {
-                        m_animTime = 0.0f;
+                        m_pPhysicsSystem->DisconnectFromPVD();
                     }
                 }
-            }
-            ImGui::EndDisabled();
+                else
+                {
+                    if ( ImGui::Button( "Connect To PVD", ImVec2( -1, 0 ) ) )
+                    {
+                        m_pPhysicsSystem->ConnectToPVD();
+                    }
+                }
+                ImGui::EndDisabled();
 
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth( -1 );
-            float currentAnimTime = m_animTime.ToFloat();
-            if ( ImGui::SliderFloat( "##AnimTime", &currentAnimTime, 0, 1, "%.3f", ImGuiSliderFlags_NoInput ) )
-            {
-                m_isPlayingAnimation = false;
-                m_animTime = currentAnimTime;
+                ImGui::Unindent();
             }
-
         }
         ImGui::End();
     }

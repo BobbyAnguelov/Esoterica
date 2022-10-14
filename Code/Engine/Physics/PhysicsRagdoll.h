@@ -55,39 +55,9 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    struct EE_ENGINE_API RagdollRootControlBodySettings : public IRegisteredType
-    {
-        EE_SERIALIZE( m_driveType, m_maxDistance, m_tolerance, m_stiffness, m_damping );
-        EE_REGISTER_TYPE( RagdollRootControlBodySettings );
-
-        enum DriveType : uint8_t
-        {
-            EE_REGISTER_ENUM
-
-            None = 0,
-            Kinematic,
-            Distance,
-            Spring
-        };
-
-    public:
-
-        bool IsValid() const;
-
-    public:
-
-        EE_EXPOSE DriveType                                m_driveType = DriveType::None;
-        EE_EXPOSE float                                    m_maxDistance = 0.05f;
-        EE_EXPOSE float                                    m_tolerance = 0.01f;
-        EE_EXPOSE float                                    m_stiffness = 0.0f;
-        EE_EXPOSE float                                    m_damping = 0.0f;
-    };
-
-    //-------------------------------------------------------------------------
-
     struct EE_ENGINE_API RagdollBodySettings : public IRegisteredType
     {
-        EE_SERIALIZE( m_mass, m_enableCCD, m_enableSelfCollision );
+        EE_SERIALIZE( m_mass, m_enableCCD, m_enableSelfCollision, m_followPose );
         EE_REGISTER_TYPE( RagdollBodySettings );
 
         // Are all the settings valid
@@ -101,25 +71,18 @@ namespace EE::Physics
         EE_REGISTER float                                  m_mass = 1.0f;
         EE_REGISTER bool                                   m_enableCCD = false;
         EE_REGISTER bool                                   m_enableSelfCollision = false;
+        EE_REGISTER bool                                   m_followPose = false; // Should this body be externally driven towards to the pose
     };
 
     //-------------------------------------------------------------------------
 
     struct EE_ENGINE_API RagdollJointSettings : public IRegisteredType
     {
-        EE_SERIALIZE(  m_driveType, m_stiffness, m_damping, m_internalCompliance, m_externalCompliance,
-                                m_twistLimitEnabled, m_twistLimitMin, m_twistLimitMax, m_twistLimitContactDistance,
-                                m_swingLimitEnabled, m_swingLimitY, m_swingLimitZ, m_tangentialStiffness, m_tangentialDamping, m_swingLimitContactDistance );
+        EE_SERIALIZE(   m_stiffness, m_damping, m_internalCompliance, m_externalCompliance,
+                        m_twistLimitEnabled, m_twistLimitMin, m_twistLimitMax, m_twistLimitContactDistance,
+                        m_swingLimitEnabled, m_swingLimitY, m_swingLimitZ, m_tangentialStiffness, m_tangentialDamping, m_swingLimitContactDistance );
+
         EE_REGISTER_TYPE( RagdollJointSettings );
-
-        enum DriveType : uint8_t
-        {
-            EE_REGISTER_ENUM
-
-            Kinematic = 0,
-            Spring = 1,
-            Velocity = 2,
-        };
 
     public:
 
@@ -134,7 +97,6 @@ namespace EE::Physics
 
     public:
 
-        EE_REGISTER DriveType                                m_driveType = DriveType::Kinematic;
         EE_REGISTER bool                                     m_twistLimitEnabled = false;
         EE_REGISTER bool                                     m_swingLimitEnabled = false;
 
@@ -196,7 +158,7 @@ namespace EE::Physics
         {
             EE_SERIALIZE
             (
-                m_ID, m_rootControlBodySettings, m_bodySettings, m_jointSettings, m_materialSettings,
+                m_ID, m_bodySettings, m_jointSettings, m_materialSettings,
                 m_solverPositionIterations, m_solverVelocityIterations, m_maxProjectionIterations, m_internalDriveIterations, m_externalDriveIterations, m_separationTolerance, m_stabilizationThreshold, m_sleepThreshold
             );
             EE_REGISTER_TYPE( Profile );
@@ -224,7 +186,6 @@ namespace EE::Physics
             // Copy ragdoll settings
             inline void CopySettingsFrom( Profile const& other )
             {
-                m_rootControlBodySettings = other.m_rootControlBodySettings;
                 m_bodySettings = other.m_bodySettings;
                 m_jointSettings = other.m_jointSettings;
                 m_materialSettings = other.m_materialSettings;
@@ -244,7 +205,6 @@ namespace EE::Physics
         public:
 
             EE_REGISTER StringID                                m_ID = StringID( s_defaultProfileID );
-            EE_REGISTER RagdollRootControlBodySettings          m_rootControlBodySettings;
             EE_REGISTER TVector<RagdollBodySettings>            m_bodySettings;
             EE_REGISTER TVector<RagdollJointSettings>           m_jointSettings;
             EE_REGISTER TVector<RagdollBodyMaterialSettings>    m_materialSettings;
@@ -398,15 +358,11 @@ namespace EE::Physics
 
         #if EE_DEVELOPMENT_TOOLS
         void RefreshSettings();
-        void RecreateRootControlBody();
         void ResetState();
         void DrawDebug( Drawing::DrawContext& ctx ) const;
         #endif
 
     private:
-
-        void TryCreateRootControlBody();
-        void DestroyRootControlBody();
 
         void UpdateBodySettings();
         void UpdateSolverSettings();
@@ -425,9 +381,6 @@ namespace EE::Physics
         physx::PxArticulation*                                  m_pArticulation = nullptr;
         uint64_t                                                m_userID = 0;
         TVector<physx::PxArticulationLink*>                     m_links;
-
-        physx::PxRigidDynamic*                                  m_pRootControlActor = nullptr;
-        physx::PxDistanceJoint*                                 m_pRootTargetJoint = nullptr;
 
         bool                                                    m_shouldFollowPose = false;
         bool                                                    m_gravityEnabled = true;

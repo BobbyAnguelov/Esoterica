@@ -86,6 +86,12 @@ namespace EE
         inline Quaternion& Normalize();
         inline Quaternion GetNormalized() const;
 
+        // Ensure that this rotation is the shortest in terms of the angle (i.e. -5 instead of 355)
+        inline Quaternion& MakeShortestPath();
+
+        // Ensure that this rotation is the shortest in terms of the angle (i.e. -5 instead of 355)
+        inline Quaternion GetShortestPath() const;
+
         // This function will return the estimated normalized quaternion, this is not super accurate but a lot faster (use with care)
         inline Quaternion& NormalizeInaccurate();
 
@@ -207,6 +213,25 @@ namespace EE
         result.m_data = _mm_rsqrt_ps( vLengthSq );
         result.m_data = _mm_mul_ps( result.m_data, m_data );
         return result;
+    }
+
+    inline Quaternion& Quaternion::MakeShortestPath()
+    {
+        // If we have a > 180 angle, negate
+        // w < 0.0f is the same as dot( identity, q ) < 0
+        if ( m_w < 0.0f )
+        {
+            Negate();
+        }
+
+        return *this;
+    }
+
+    inline Quaternion Quaternion::GetShortestPath() const
+    { 
+        Quaternion sp = *this;
+        sp.MakeShortestPath();
+        return sp;
     }
 
     //-------------------------------------------------------------------------

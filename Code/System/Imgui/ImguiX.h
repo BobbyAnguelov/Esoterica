@@ -29,6 +29,11 @@ namespace EE::ImGuiX
         return IM_COL32( color.m_byteColor.m_r, color.m_byteColor.m_g, color.m_byteColor.m_b, color.m_byteColor.m_a );
     }
 
+    EE_FORCE_INLINE Color ConvertColor( ImColor const& color )
+    {
+        return Color( uint8_t( color.Value.x * 255 ), uint8_t( color.Value.y * 255 ), uint8_t( color.Value.z * 255 ), uint8_t( color.Value.w * 255 ) );
+    }
+
     // Adjust the brightness of color by a multiplier
     EE_FORCE_INLINE ImColor AdjustColorBrightness( ImColor const& color, float multiplier )
     {

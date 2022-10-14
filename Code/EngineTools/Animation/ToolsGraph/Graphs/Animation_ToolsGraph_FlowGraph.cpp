@@ -241,11 +241,11 @@ namespace EE::Animation
                 return;
             }
 
-            InlineString payloadStr = (char*) payload->Data;
+            char* pPayloadStr = (char*) payload->Data;
 
             for ( auto pControlParameter : pToolsGraphContext->GetControlParameters() )
             {
-                if ( payloadStr == pControlParameter->GetName() )
+                if ( pControlParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
                 {
                     VisualGraph::ScopedGraphModification sgm( this );
                     auto pNode = CreateNode<GraphNodes::ParameterReferenceToolsNode>( pControlParameter );
@@ -256,7 +256,7 @@ namespace EE::Animation
 
             for ( auto pVirtualParameter : pToolsGraphContext->GetVirtualParameters() )
             {
-                if ( payloadStr == pVirtualParameter->GetName() )
+                if ( pVirtualParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
                 {
                     VisualGraph::ScopedGraphModification sgm( this );
                     auto pNode = CreateNode<GraphNodes::ParameterReferenceToolsNode>( pVirtualParameter );

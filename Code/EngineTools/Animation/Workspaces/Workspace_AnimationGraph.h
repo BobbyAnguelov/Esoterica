@@ -157,12 +157,14 @@ namespace EE::Animation
         void DestroyControlParameterPreviewStates();
 
         void RefreshControlParameterCache();
+        void RefreshParameterCategoryTree();
         void DrawParameterList();
-        void DrawParameterPreviewControls();
-        void DrawAddParameterCombo();
+        void DrawParameterPreviewControls( UpdateContext const& context );
 
         void DrawDeleteParameterDialogWindow();
         void DrawRenameParameterDialogWindow();
+
+        void ControlParameterCategoryDragAndDropHandler( Category<GraphNodes::FlowToolsNode*>& category );
 
         void StartParameterRename( UUID const& parameterID );
         void StartParameterDelete( UUID const& parameterID );
@@ -173,13 +175,14 @@ namespace EE::Animation
         void CreateControlParameter( GraphValueType type );
         void CreateVirtualParameter( GraphValueType type );
 
-        void RenameControlParameter( UUID parameterID, String const& newName, String const& category );
-        void RenameVirtualParameter( UUID parameterID, String const& newName, String const& category );
+        void RenameControlParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName );
+        void RenameVirtualParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName );
 
         void DestroyControlParameter( UUID parameterID );
         void DestroyVirtualParameter( UUID parameterID );
 
-        void EnsureUniqueParameterName( String& parameterName ) const;
+        void EnsureUniqueParameterName( String& desiredParameterName ) const;
+        void ResolveCategoryName( String& desiredCategoryName ) const;
 
         // Variation Editor
         //-------------------------------------------------------------------------
@@ -300,7 +303,8 @@ namespace EE::Animation
         char                                                            m_parameterCategoryBuffer[255];
         TVector<ControlParameterPreviewState*>                          m_parameterPreviewStates;
         THashMap<UUID, int32_t>                                         m_cachedNumUses;
-        CountdownTimer<EngineClock>                                     m_updateCacheTimer;
+        CategoryTree<GraphNodes::FlowToolsNode*>                        m_parameterCategoryTree;
+        CategoryTree<ControlParameterPreviewState*>                     m_previewParameterCategoryTree;
 
         // Variation Editor
         StringID                                                        m_activeOperationVariationID;

@@ -59,13 +59,6 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    bool RagdollRootControlBodySettings::IsValid() const
-    {
-        return true;
-    }
-
-    //-------------------------------------------------------------------------
-
     bool RagdollBodySettings::IsValid() const
     {
         if ( m_mass <= 0.0f )
@@ -376,11 +369,6 @@ namespace EE::Physics
         }
 
         //-------------------------------------------------------------------------
-
-        if ( !m_rootControlBodySettings.IsValid() )
-        {
-            return false;
-        }
 
         for ( auto& bodySettings : m_bodySettings )
         {
@@ -784,7 +772,6 @@ namespace EE::Physics
     Ragdoll::~Ragdoll()
     {
         EE_ASSERT( m_pArticulation->getScene() == nullptr );
-        EE_ASSERT( m_pRootControlActor == nullptr );
 
         m_pArticulation->release();
         m_pArticulation = nullptr;
@@ -799,11 +786,9 @@ namespace EE::Physics
     void Ragdoll::AddToScene( physx::PxScene* pScene )
     {
         EE_ASSERT( pScene != nullptr && m_pArticulation->getScene() == nullptr );
-        EE_ASSERT( m_pRootControlActor == nullptr );
 
         pScene->lockWrite();
         pScene->addArticulation( *m_pArticulation );
-        TryCreateRootControlBody();
         pScene->unlockWrite();
     }
 
@@ -813,100 +798,8 @@ namespace EE::Physics
         EE_ASSERT( pScene != nullptr );
 
         pScene->lockWrite();
-        DestroyRootControlBody();
         pScene->removeArticulation( *m_pArticulation );
         pScene->unlockWrite();
-    }
-
-    //-------------------------------------------------------------------------
-
-    void Ragdoll::TryCreateRootControlBody()
-    {
-        EE_ASSERT( m_pArticulation != nullptr );
-        EE_ASSERT( m_pRootControlActor == nullptr && m_pRootTargetJoint == nullptr );
-
-        //-------------------------------------------------------------------------
-
-        auto pScene = m_pArticulation->getScene();
-        if ( pScene == nullptr )
-        {
-            return;
-        }
-
-        if ( m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::None || m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::Kinematic )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-        // Target Actor
-        //-------------------------------------------------------------------------
-
-        auto pMaterial = m_pPhysics->createMaterial( 0.0f, 0.0f, 0.0f );
-        pMaterial->setFrictionCombineMode( PxCombineMode::eMIN );
-        pMaterial->setRestitutionCombineMode( PxCombineMode::eMIN );
-
-        auto const& rootBodyDefinition = m_pDefinition->m_bodies[0];
-        PxCapsuleGeometry const capsuleGeo( rootBodyDefinition.m_radius, rootBodyDefinition.m_halfHeight );
-        auto pShape = m_pPhysics->createShape( capsuleGeo, &pMaterial, 1, true, PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSIMULATION_SHAPE );
-        pMaterial->release();
-
-        //pShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-        //pShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-        //pShape->userData = this;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pShape->setName( "Root Body Target" );
-        #endif
-
-        //-------------------------------------------------------------------------
-
-        // Create rigid body actor - target actor isnt affected by gravity
-        m_pRootControlActor = m_pPhysics->createRigidDynamic( ToPx( rootBodyDefinition.m_initialGlobalTransform ) );
-        m_pRootControlActor->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, true );
-        m_pRootControlActor->setRigidBodyFlag( physx::PxRigidBodyFlag::eKINEMATIC, true );
-        m_pRootControlActor->attachShape( *pShape );
-        pShape->release();
-
-
-        //-------------------------------------------------------------------------
-        // Joint
-        //-------------------------------------------------------------------------
-
-        static PxTransform const I( PxIdentity );
-
-        ScopedWriteLock const sl( this );
-        pScene->addActor( *m_pRootControlActor );
-
-        PxDistanceJointFlags flags = PxDistanceJointFlag::eMAX_DISTANCE_ENABLED;
-        if( m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::Spring )
-        {
-            flags |= PxDistanceJointFlag::eSPRING_ENABLED;
-        }
-
-        m_pRootTargetJoint = PxDistanceJointCreate( *m_pPhysics, m_pRootControlActor, I, m_links[0], I );
-        m_pRootTargetJoint->setDistanceJointFlags( flags );
-
-        auto const& controlBodySettings = m_pProfile->m_rootControlBodySettings;
-        m_pRootTargetJoint->setMaxDistance( controlBodySettings.m_maxDistance );
-        m_pRootTargetJoint->setTolerance( controlBodySettings.m_tolerance );
-        m_pRootTargetJoint->setStiffness( controlBodySettings.m_stiffness );
-        m_pRootTargetJoint->setDamping( controlBodySettings.m_damping );
-    }
-
-    void Ragdoll::DestroyRootControlBody()
-    {
-        if ( m_pRootControlActor != nullptr )
-        {
-            EE_ASSERT( m_pRootTargetJoint != nullptr );
-
-            ScopedWriteLock const sl( this );
-            m_pRootTargetJoint->release();
-            m_pRootTargetJoint = nullptr;
-
-            m_pRootControlActor->release();
-            m_pRootControlActor = nullptr;
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -915,16 +808,12 @@ namespace EE::Physics
     {
         ScopedWriteLock const sl( this );
 
-        DestroyRootControlBody();
-
         m_pProfile = m_pDefinition->GetProfile( newProfileID );
         EE_ASSERT( m_pProfile != nullptr );
 
         UpdateSolverSettings();
         UpdateBodySettings();
         UpdateJointSettings();
-
-        TryCreateRootControlBody();
     }
 
     void Ragdoll::UpdateSolverSettings()
@@ -950,16 +839,8 @@ namespace EE::Physics
         ScopedWriteLock const sl( this );
         for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
         {
-            if ( bodyIdx == 0 )
-            {
-                bool const isGravityDisabled = ( m_pRootControlActor != nullptr ) || !m_gravityEnabled;
-                m_links[bodyIdx]->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, isGravityDisabled );
-            }
-            else
-            {
-                bool const isGravityDisabled = ( m_pProfile->m_jointSettings[bodyIdx - 1].m_driveType == RagdollJointSettings::Kinematic ) || !m_gravityEnabled;
-                m_links[bodyIdx]->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, isGravityDisabled );
-            }
+            // Gravity
+            m_links[bodyIdx]->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, !m_gravityEnabled );
 
             // Set Mass and other properties
             PxRigidBodyExt::setMassAndUpdateInertia( *m_links[bodyIdx], m_pProfile->m_bodySettings[bodyIdx].m_mass );
@@ -989,26 +870,6 @@ namespace EE::Physics
 
         ScopedWriteLock const sl( this );
 
-        // Root body
-        //-------------------------------------------------------------------------
-
-        if ( m_pRootControlActor != nullptr )
-        {
-            auto const& controlBodySettings = m_pProfile->m_rootControlBodySettings;
-
-            PxDistanceJointFlags flags = PxDistanceJointFlag::eMAX_DISTANCE_ENABLED;
-            if ( m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::Spring )
-            {
-                flags |= PxDistanceJointFlag::eSPRING_ENABLED;
-            }
-
-            m_pRootTargetJoint->setDistanceJointFlags( flags );
-            m_pRootTargetJoint->setMaxDistance( controlBodySettings.m_maxDistance );
-            m_pRootTargetJoint->setTolerance( controlBodySettings.m_tolerance );
-            m_pRootTargetJoint->setStiffness( controlBodySettings.m_stiffness );
-            m_pRootTargetJoint->setDamping( controlBodySettings.m_damping );
-        }
-
         // Body and joint setting
         //-------------------------------------------------------------------------
 
@@ -1019,35 +880,25 @@ namespace EE::Physics
             auto const& jointSettings = m_pProfile->m_jointSettings[jointIdx];
             PxArticulationJoint* pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
 
-            // Shared Settings
             //-------------------------------------------------------------------------
 
             pJoint->setInternalCompliance( jointSettings.m_internalCompliance );
             pJoint->setExternalCompliance( jointSettings.m_externalCompliance );
             pJoint->setDriveType( PxArticulationJointDriveType::eTARGET );
+
             pJoint->setDamping( jointSettings.m_damping );
             pJoint->setStiffness( jointSettings.m_stiffness );
+
+            pJoint->setTwistLimitEnabled( jointSettings.m_twistLimitEnabled );
+            pJoint->setTwistLimit( Math::DegreesToRadians * jointSettings.m_twistLimitMin, Math::DegreesToRadians * jointSettings.m_twistLimitMax );
+            pJoint->setTwistLimitContactDistance( Math::DegreesToRadians * jointSettings.m_twistLimitContactDistance );
+
+            pJoint->setSwingLimitEnabled( jointSettings.m_swingLimitEnabled );
+            pJoint->setSwingLimit( Math::DegreesToRadians * jointSettings.m_swingLimitZ, Math::DegreesToRadians * jointSettings.m_swingLimitY );
+            pJoint->setSwingLimitContactDistance( Math::DegreesToRadians * jointSettings.m_swingLimitContactDistance );
+
             pJoint->setTangentialStiffness( jointSettings.m_tangentialStiffness );
             pJoint->setTangentialDamping( jointSettings.m_tangentialDamping );
-
-            // Drive specific Settings
-            //-------------------------------------------------------------------------
-
-            if ( jointSettings.m_driveType == RagdollJointSettings::DriveType::Kinematic )
-            {
-                pJoint->setTwistLimitEnabled( false );
-                pJoint->setSwingLimitEnabled( false );
-            }
-            else
-            {
-                pJoint->setTwistLimitEnabled( jointSettings.m_twistLimitEnabled );
-                pJoint->setTwistLimit( Math::DegreesToRadians * jointSettings.m_twistLimitMin, Math::DegreesToRadians * jointSettings.m_twistLimitMax );
-                pJoint->setTwistLimitContactDistance( Math::DegreesToRadians * jointSettings.m_twistLimitContactDistance );
-
-                pJoint->setSwingLimitEnabled( jointSettings.m_swingLimitEnabled );
-                pJoint->setSwingLimit( Math::DegreesToRadians * jointSettings.m_swingLimitZ, Math::DegreesToRadians * jointSettings.m_swingLimitY );
-                pJoint->setSwingLimitContactDistance( Math::DegreesToRadians * jointSettings.m_swingLimitContactDistance );
-            }
         }
     }
 
@@ -1083,26 +934,15 @@ namespace EE::Physics
             return;
         }
 
-        //-------------------------------------------------------------------------
-
         m_gravityEnabled = isGravityEnabled;
+
+        //-------------------------------------------------------------------------
 
         ScopedWriteLock const sl( this );
         int32_t const numBodies = (int32_t) m_links.size();
         for ( auto bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
         {
-            if ( bodyIdx == 0 )
-            {
-                bool const isBodyGravityDisabled = ( m_pProfile->m_rootControlBodySettings.m_driveType != RagdollRootControlBodySettings::None ) || !m_gravityEnabled;
-                m_links[bodyIdx]->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, isBodyGravityDisabled );
-            }
-            else
-            {
-                int32_t const jointIdx = bodyIdx - 1;
-                auto const& jointSettings = m_pProfile->m_jointSettings[jointIdx];
-                bool const isBodyGravityDisabled = ( jointSettings.m_driveType == RagdollJointSettings::Kinematic) || !m_gravityEnabled;
-                m_links[bodyIdx]->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, isBodyGravityDisabled );
-            }
+            m_links[bodyIdx]->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, !m_gravityEnabled );
         }
     }
 
@@ -1116,138 +956,85 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         m_shouldFollowPose = shouldFollowPose;
-
-        if ( m_shouldFollowPose ) 
-        {
-            DestroyRootControlBody();
-            TryCreateRootControlBody();
-        }
-        else // Clear any set targets when disabling pose following
-        {
-            ScopedWriteLock const sl( this );
-            int32_t const numBodies = (int32_t) m_links.size();
-
-            // Destroy root control body
-            DestroyRootControlBody();
-
-            // Clear joint velocities
-            for ( int32_t i = 1; i < numBodies; i++ )
-            {
-                auto pJoint = static_cast<PxArticulationJoint*>( m_links[i]->getInboundJoint() );
-                pJoint->setTargetVelocity( PxZero );
-                pJoint->setTargetOrientation( PxIdentity );
-            }
-        }
     }
 
     //-------------------------------------------------------------------------
 
-    void Ragdoll::Update( Seconds const deltaTime, Transform const& worldTransform, Animation::Pose* pPose, bool initializeBodies )
+    void Ragdoll::Update( Seconds const deltaTime, Transform const& worldTransform, Animation::Pose* pPose, bool shouldInitializeBodies )
     {
         EE_ASSERT( IsValid() );
 
         //-------------------------------------------------------------------------
 
-        if ( m_shouldFollowPose )
+        if ( !m_shouldFollowPose && !shouldInitializeBodies )
         {
-            EE_ASSERT( pPose != nullptr );
-            EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
-            EE_ASSERT( pPose->HasGlobalTransforms() );
+            return;
+        }
 
-            ScopedWriteLock const sl( this );
+        //-------------------------------------------------------------------------
 
-            m_pArticulation->wakeUp();
+        EE_ASSERT( pPose != nullptr );
+        EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
+        EE_ASSERT( pPose->HasGlobalTransforms() );
 
-            // Update root control body
+        ScopedWriteLock const sl( this );
+
+        m_pArticulation->wakeUp();
+
+        // Update bodies and joint Targets
+        //-------------------------------------------------------------------------
+
+        int32_t const numBodies = (int32_t) m_links.size();
+        for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
+        {
+            int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
+            Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
+            Transform const desiredBodyWorldTransform = m_pDefinition->m_bodies[bodyIdx].m_offsetTransform * boneWorldTransform;
+
             //-------------------------------------------------------------------------
 
-            bool const isKinematicRoot = m_pProfile->m_rootControlBodySettings.m_driveType == RagdollRootControlBodySettings::Kinematic;
-            if ( m_pRootControlActor != nullptr )
+            if ( shouldInitializeBodies )
             {
-                int32_t const rootBoneIdx = m_pDefinition->m_bodyToBoneMap[0];
-                Transform const rootAnimWorldTransform = pPose->GetGlobalTransform( rootBoneIdx ) * worldTransform;
-                Transform const rootBodyWorldTransform = m_pDefinition->m_bodies[0].m_offsetTransform * rootAnimWorldTransform;
-                m_pRootControlActor->setKinematicTarget( ToPx( rootBodyWorldTransform ) );
+                m_links[bodyIdx]->setGlobalPose( ToPx( desiredBodyWorldTransform ) );
             }
 
-            // Update root body
+            // Drive Body
             //-------------------------------------------------------------------------
 
-            // drive via velocity/angular velocity
-
-            if ( initializeBodies || isKinematicRoot )
+            if ( m_pProfile->m_bodySettings[bodyIdx].m_followPose )
             {
-                int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[0];
-                Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
-                Transform const bodyWorldTransform = m_pDefinition->m_bodies[0].m_offsetTransform * boneWorldTransform;
-                m_links[0]->setGlobalPose( ToPx( bodyWorldTransform ) );
+                Transform const currentBodyTransform = FromPx( m_links[bodyIdx]->getGlobalPose() );
+
+                Vector const linearVelocity = ( desiredBodyWorldTransform.GetTranslation() - currentBodyTransform.GetTranslation() ) / deltaTime;
+                m_links[bodyIdx]->setLinearVelocity( ToPx( linearVelocity ) );
+
+                Vector const angularVelocity = Math::CalculateAngularVelocity( currentBodyTransform.GetRotation(), desiredBodyWorldTransform.GetRotation(), deltaTime );
+                m_links[bodyIdx]->setAngularVelocity( ToPx( angularVelocity ) );
             }
 
-            // Update bodies and joint Targets
+            // Drive Joint
             //-------------------------------------------------------------------------
 
-            int32_t const numBodies = (int32_t) m_links.size();
-            for ( int32_t bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
+            if ( bodyIdx > 0 )
             {
-                int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
-                Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
-                Transform const desiredBodyWorldTransform = m_pDefinition->m_bodies[bodyIdx].m_offsetTransform * boneWorldTransform;
-
-                if ( initializeBodies )
-                {
-                    m_links[bodyIdx]->setGlobalPose( ToPx( desiredBodyWorldTransform ) );
-                    m_links[bodyIdx]->setLinearVelocity( PxZero );
-                    m_links[bodyIdx]->setAngularVelocity( PxZero );
-                }
-
-                //-------------------------------------------------------------------------
-
-                int32_t const jointIdx = bodyIdx - 1;
                 auto pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
-                auto const& jointSettings = m_pProfile->m_jointSettings[jointIdx];
 
-                // Kinematic
-                if ( jointSettings.m_driveType == RagdollJointSettings::Kinematic )
-                {
-                    Transform const currentBodyTransform = FromPx( m_links[bodyIdx]->getGlobalPose() );
+                int32_t const parentBoneIdx = m_pDefinition->m_bodyToBoneMap[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx];
+                Transform const parentBoneWorldTransform = pPose->GetGlobalTransform( parentBoneIdx ) * worldTransform;
+                Transform const parentBodyWorldTransform = m_pDefinition->m_bodies[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx].m_offsetTransform * parentBoneWorldTransform;
 
-                    Vector const linearVelocity = ( desiredBodyWorldTransform.GetTranslation() - currentBodyTransform.GetTranslation() ) / deltaTime;
-                    m_links[bodyIdx]->setLinearVelocity( ToPx( linearVelocity ) );
+                Transform const jointWorldTransformRelativeToBody = m_pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform * desiredBodyWorldTransform;
+                Transform const jointWorldTransformRelativeToParentBody = m_pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform * parentBodyWorldTransform;
 
-                    Vector const angularVelocity = Math::CalculateAngularVelocity( currentBodyTransform.GetRotation(), desiredBodyWorldTransform.GetRotation(), deltaTime );
-                    m_links[bodyIdx]->setAngularVelocity( ToPx( angularVelocity ) );
+                // Set Orientation Target
+                // Get the delta rotation and ensure that it's the shortest path rotation
+                Quaternion jointDeltaRotation = Quaternion::Delta( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation() );
+                jointDeltaRotation.MakeShortestPath();
+                pJoint->setTargetOrientation( ToPx( jointDeltaRotation ) );
 
-                    pJoint->setTargetVelocity( PxZero );
-                }
-                else // Driven
-                {
-                    int32_t const parentBoneIdx = m_pDefinition->m_bodyToBoneMap[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx];
-                    Transform const parentBoneWorldTransform = pPose->GetGlobalTransform( parentBoneIdx ) * worldTransform;
-                    Transform const parentBodyWorldTransform = m_pDefinition->m_bodies[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx].m_offsetTransform * parentBoneWorldTransform;
-
-                    Transform const jointWorldTransformRelativeToBody = m_pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform * desiredBodyWorldTransform;
-                    Transform const jointWorldTransformRelativeToParentBody = m_pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform * parentBodyWorldTransform;
-
-                    // Get the delta rotation and ensure that it's the shortest path rotation
-                    Quaternion jointDeltaRotation = Quaternion::Delta( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation() );
-                    if ( jointDeltaRotation.m_w < 0.0f )
-                    {
-                        jointDeltaRotation.Negate();
-                    }
-
-                    if ( jointSettings.m_driveType == RagdollJointSettings::Spring )
-                    {
-                        pJoint->setTargetOrientation( ToPx( jointDeltaRotation ) );
-                        pJoint->setTargetVelocity( PxZero );
-                    }
-                    else if ( jointSettings.m_driveType == RagdollJointSettings::Velocity )
-                    {
-                        pJoint->setTargetOrientation( ToPx( jointDeltaRotation ) );
-
-                        Vector const angularVelocity = Math::CalculateAngularVelocity( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation(), deltaTime );
-                        pJoint->setTargetVelocity( ToPx( angularVelocity ) * 0.1f );
-                    }
-                }
+                // Set angular velocity
+                Vector const angularVelocity = Math::CalculateAngularVelocity( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation(), deltaTime );
+                pJoint->setTargetVelocity( ToPx( angularVelocity ) * 0.1f );
             }
         }
     }
@@ -1377,19 +1164,9 @@ namespace EE::Physics
     void Ragdoll::RefreshSettings()
     {
         ScopedWriteLock const sl( this );
-
-        // TODO: handle root changes
-
         UpdateSolverSettings();
         UpdateJointSettings();
         UpdateBodySettings();
-    }
-
-    void Ragdoll::RecreateRootControlBody()
-    {
-        ScopedWriteLock const sl( this );
-        DestroyRootControlBody();
-        TryCreateRootControlBody();
     }
 
     void Ragdoll::ResetState()
@@ -1413,27 +1190,13 @@ namespace EE::Physics
     void Ragdoll::DrawDebug( Drawing::DrawContext& ctx ) const
     {
         RagdollPose pose;
-        Transform rootTargetWorldTransform;
 
         // Get transforms
         //-------------------------------------------------------------------------
 
         {
             ScopedReadLock const sl( this );
-            if ( m_pRootControlActor != nullptr )
-            {
-                rootTargetWorldTransform = FromPx( m_pRootControlActor->getGlobalPose() );
-            }
             GetRagdollPose( pose );
-        }
-
-        // Draw Root Target
-        //-------------------------------------------------------------------------
-
-        if ( m_pRootControlActor != nullptr )
-        {
-            auto const& bodySettings = m_pDefinition->m_bodies[0];
-            ctx.DrawCapsuleHeightX( rootTargetWorldTransform, bodySettings.m_radius, bodySettings.m_halfHeight, Colors::Lime, 2.0f );
         }
 
         // Draw Ragdoll Bodies

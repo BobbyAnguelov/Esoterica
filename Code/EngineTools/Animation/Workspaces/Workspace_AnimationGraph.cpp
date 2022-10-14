@@ -81,7 +81,7 @@ namespace EE::Animation
         ControlParameterPreviewState( GraphNodes::ControlParameterToolsNode* pParameter ) : m_pParameter( pParameter ) { EE_ASSERT( m_pParameter != nullptr ); }
         virtual ~ControlParameterPreviewState() = default;
 
-        virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) = 0;
+        virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) = 0;
 
     public:
 
@@ -94,7 +94,7 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -111,7 +111,7 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -135,7 +135,7 @@ namespace EE::Animation
                 m_max = pFloatParameter->GetPreviewRangeMax();
             }
 
-            virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -191,25 +191,185 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
 
+                // Basic Editor
+                //-------------------------------------------------------------------------
+
                 Vector value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
-                ImGui::SetNextItemWidth( -1 );
+                ImGui::BeginDisabled( m_showAdvancedEditor );
+                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
                 if ( ImGui::InputFloat4( "##vp", &value.m_x ) )
                 {
                     pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
                 }
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+
+                Color const buttonColor = m_showAdvancedEditor ? Colors::Green : ImGuiX::ConvertColor( ImGuiX::Style::s_colorGray1 );
+                if ( ImGuiX::ColoredButton( buttonColor, Colors::White, EE_ICON_COG, ImVec2( 24, 0 ) ) )
+                {
+                    m_showAdvancedEditor = !m_showAdvancedEditor;
+                    m_maxLength = 1.0f;
+                    m_selectedStickComboItem = 0;
+                    m_isEditingValueWithMouse = false;
+                }
+                ImGuiX::ItemTooltip( "Advanced Editor" );
+
+                // Advanced Editor
+                //-------------------------------------------------------------------------
+
+                if ( m_showAdvancedEditor )
+                {
+                    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 2, 2 ) );
+                    if ( ImGui::BeginChild( "#CW", ImVec2( 0, 80 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+                    {
+                        char const* const comboOptions[] = { "Mouse", "Left Stick", "Right Stick" };
+                        constexpr float const labelOffset = 80.0f;
+                        constexpr float const widgetOffset = 145;
+
+                        Vector const previousValueRatio = value.Get2D() / m_maxLength;
+
+                        ImGui::SameLine( labelOffset );
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( "XY Radius" );
+                        ImGui::SameLine( widgetOffset );
+                        ImGui::SetNextItemWidth( -1 );
+                        if ( ImGui::InputFloat( "##L", &m_maxLength ) )
+                        {
+                            if ( m_maxLength <= 0.0 )
+                            {
+                                m_maxLength = 0.01f;
+                            }
+
+                            value.m_x = previousValueRatio.m_x * m_maxLength;
+                            value.m_y = previousValueRatio.m_y * m_maxLength;
+                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                        }
+                        ImGuiX::ItemTooltip( "Max Length" );
+
+                        ImGui::NewLine();
+
+                        ImGui::SameLine( labelOffset );
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( "Z" );
+                        ImGui::SameLine( widgetOffset );
+                        ImGui::SetNextItemWidth( -1 );
+                        if ( ImGui::DragFloat( "##Z", &value.m_z, 0.01f ) )
+                        {
+                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                        }
+                        ImGuiX::ItemTooltip( "Z-Value" );
+
+                        ImGui::NewLine();
+
+                        ImGui::SameLine( labelOffset );
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( "Control" );
+                        ImGui::SameLine( widgetOffset );
+                        ImGui::SetNextItemWidth( -1 );
+                        ImGui::Combo( "##SC", &m_selectedStickComboItem, comboOptions, 3 );
+                        ImGuiX::ItemTooltip( "Control" );
+
+                        //-------------------------------------------------------------------------
+
+                        constexpr float const circleRadius = 35.0f;
+                        constexpr float const dotRadius = 5.0f;
+                        ImVec2 const circleOrigin = ImGui::GetWindowPos() + ImVec2( circleRadius + 5, circleRadius + 5 );
+
+                        auto pDrawList = ImGui::GetWindowDrawList();
+                        pDrawList->AddCircle( circleOrigin, circleRadius, 0xFFFFFFFF, 0, 2.0f );
+                        pDrawList->AddCircleFilled( circleOrigin, 1, 0xFFFFFFFF, 0 );
+
+                        // Stick Control
+                        //-------------------------------------------------------------------------
+
+                        if ( m_selectedStickComboItem != 0 )
+                        {
+                            Float2 scaledStickValue( 0, 0 );
+
+                            auto pInputState = context.GetSystem<Input::InputSystem>()->GetControllerState( 0 );
+                            if ( m_selectedStickComboItem == 1 )
+                            {
+                                scaledStickValue = pInputState->GetLeftAnalogStickValue() * m_maxLength;
+                            }
+                            else // Right stick
+                            {
+                                scaledStickValue = pInputState->GetRightAnalogStickValue() * m_maxLength;
+                            }
+
+                            value.m_x = scaledStickValue.m_x;
+                            value.m_y = scaledStickValue.m_y;
+                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+
+                            //-------------------------------------------------------------------------
+
+                            ImVec2 const offset = Vector( value.m_x, -value.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
+                            ImVec2 const dotOrigin = circleOrigin + offset;
+                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ConvertColor( Colors::LimeGreen ) );
+                        }
+                        else // Mouse Control
+                        {
+                            Vector const mousePos = ImGui::GetMousePos();
+
+                            constexpr float const editRegionRadius = 10.0f;
+                            float const distanceFromCircleOrigin = mousePos.GetDistance2( circleOrigin );
+   
+                            // Manage edit state
+                            if ( !m_isEditingValueWithMouse )
+                            {
+                                // Should we start editing
+                                if ( ImGui::IsWindowFocused() && distanceFromCircleOrigin < ( circleRadius + editRegionRadius ) && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 2.0f ) )
+                                {
+                                    m_isEditingValueWithMouse = true;
+                                }
+                            }
+                            else // Check if we should stop editing
+                            {
+                                if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
+                                {
+                                    m_isEditingValueWithMouse = false;
+                                }
+                            }
+
+                            // Update the value
+                            if ( m_isEditingValueWithMouse )
+                            {
+                                float const distanceFromCircleOriginPercentage = Math::Min( 1.0f, distanceFromCircleOrigin / circleRadius );
+                                Vector const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
+                                value.m_x = newValue.m_x;
+                                value.m_y = -newValue.m_y;
+                                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                            }
+
+                            // Calculate offset and dot position and draw dot
+                            ImVec2 const offset = Vector( value.m_x, -value.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
+                            ImVec2 const dotOrigin = circleOrigin + offset;
+                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ConvertColor( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
+                        }
+                    }
+                    ImGui::EndChild();
+                    ImGui::PopStyleVar();
+                }
             }
+
+        public:
+
+            bool        m_showAdvancedEditor = false;
+            float       m_maxLength = 1.0f;
+            int32_t     m_selectedStickComboItem = 0;
+            bool        m_isEditingValueWithMouse = false;
         };
 
         struct IDParameterState : public ControlParameterPreviewState
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -240,7 +400,7 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( ToolsGraphUserContext* pGraphNodeContext ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -1263,6 +1423,8 @@ namespace EE::Animation
             m_undoStack.RegisterAction( m_pActiveUndoableAction );
             m_pActiveUndoableAction = nullptr;
             MarkDirty();
+
+            RefreshControlParameterCache();
         }
     }
 
@@ -2384,7 +2546,7 @@ namespace EE::Animation
                     CreateControlParameterPreviewStates();
                 }
 
-                DrawParameterPreviewControls();
+                DrawParameterPreviewControls( context );
             }
             else
             {
@@ -2407,12 +2569,11 @@ namespace EE::Animation
     void AnimationGraphWorkspace::InitializeControlParameterEditor()
     {
         RefreshControlParameterCache();
-        m_updateCacheTimer.Start( 0.0f );
     }
 
     void AnimationGraphWorkspace::ShutdownControlParameterEditor()
     {
-        DestroyControlParameterPreviewStates();;
+        DestroyControlParameterPreviewStates();
     }
 
     void AnimationGraphWorkspace::RefreshControlParameterCache()
@@ -2423,10 +2584,210 @@ namespace EE::Animation
         auto pRootGraph = m_toolsGraph.GetRootGraph();
         m_controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         m_virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+
+        RefreshParameterCategoryTree();
     }
 
-    void AnimationGraphWorkspace::DrawAddParameterCombo()
+    void AnimationGraphWorkspace::RefreshParameterCategoryTree()
     {
+        m_parameterCategoryTree.RemoveAllItems();
+
+        for ( auto pControlParameter : m_controlParameters )
+        {
+            m_parameterCategoryTree.AddItem( pControlParameter->GetParameterCategory(), pControlParameter->GetName(), pControlParameter );
+        }
+
+        for ( auto pVirtualParameter : m_virtualParameters )
+        {
+            m_parameterCategoryTree.AddItem( pVirtualParameter->GetParameterCategory(), pVirtualParameter->GetName(), pVirtualParameter );
+        }
+
+        m_parameterCategoryTree.RemoveEmptyCategories();
+
+        //-------------------------------------------------------------------------
+
+        m_cachedNumUses.clear();
+
+        auto pRootGraph = m_toolsGraph.GetRootGraph();
+        auto referenceNodes = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive );
+        for ( auto pReferenceNode : referenceNodes )
+        {
+            auto const& ID = pReferenceNode->GetReferencedParameter()->GetID();
+            auto iter = m_cachedNumUses.find( ID );
+            if ( iter == m_cachedNumUses.end() )
+            {
+                m_cachedNumUses.insert( TPair<UUID, int32_t>( ID, 0 ) );
+                iter = m_cachedNumUses.find( ID );
+            }
+
+            iter->second++;
+        }
+    }
+
+    void AnimationGraphWorkspace::DrawRenameParameterDialogWindow()
+    {
+        EE_ASSERT( m_activeOperation == GraphOperationType::RenameParameter );
+        bool updateConfirmed = false;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Name: " );
+        ImGui::SameLine( 80 );
+
+        if ( ImGui::IsWindowAppearing() )
+        {
+            ImGui::SetKeyboardFocusHere();
+        }
+
+        ImGui::SetNextItemWidth( -1 );
+        if ( ImGui::InputText( "##ParameterName", m_parameterNameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+        {
+            updateConfirmed = true;
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Category: " );
+        ImGui::SameLine( 80 );
+
+        ImGui::SetNextItemWidth( -1 );
+        if ( ImGui::InputText( "##ParameterCategory", m_parameterCategoryBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+        {
+            updateConfirmed = true;
+        }
+
+        ImGui::NewLine();
+
+        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        ImGui::SameLine( 0, dialogWidth - 104 );
+
+        //-------------------------------------------------------------------------
+
+        if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
+        {
+            bool const isTheSame = ( pControlParameter->GetParameterName().comparei( m_parameterNameBuffer ) == 0 && pControlParameter->GetParameterCategory().comparei( m_parameterCategoryBuffer ) == 0 );
+
+            ImGui::BeginDisabled( isTheSame );
+            if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
+            {
+                RenameControlParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
+                m_activeOperation = GraphOperationType::None;
+            }
+            ImGui::EndDisabled();
+        }
+        else
+        {
+            auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID );
+            EE_ASSERT( pVirtualParameter != nullptr );
+
+            bool const isTheSame = ( pVirtualParameter->GetParameterName().comparei( m_parameterNameBuffer ) == 0 && pVirtualParameter->GetParameterCategory().comparei( m_parameterCategoryBuffer ) == 0 );
+
+            ImGui::BeginDisabled( isTheSame );
+            if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
+            {
+                RenameVirtualParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
+                m_activeOperation = GraphOperationType::None;
+            }
+            ImGui::EndDisabled();
+        }
+
+        ImGui::SameLine( 0, 4 );
+
+        if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
+        {
+            m_activeOperation = GraphOperationType::None;
+        }
+    }
+
+    void AnimationGraphWorkspace::DrawDeleteParameterDialogWindow()
+    {
+        EE_ASSERT( m_activeOperation == GraphOperationType::DeleteParameter );
+
+        auto iter = m_cachedNumUses.find( m_currentOperationParameterID );
+        ImGui::Text( "This parameter is used in %d places.", iter != m_cachedNumUses.end() ? iter->second : 0 );
+        ImGui::Text( "Are you sure you want to delete this parameter?" );
+        ImGui::NewLine();
+
+        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        ImGui::SameLine( 0, dialogWidth - 64 );
+
+        if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
+        {
+            if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
+            {
+                DestroyControlParameter( m_currentOperationParameterID );
+            }
+            else if ( auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID ) )
+            {
+                DestroyVirtualParameter( m_currentOperationParameterID );
+            }
+            else
+            {
+                EE_UNREACHABLE_CODE();
+            }
+
+            m_activeOperation = GraphOperationType::None;
+        }
+
+        ImGui::SameLine( 0, 4 );
+
+        if ( ImGui::Button( "No", ImVec2( 30, 0 ) ) )
+        {
+            m_activeOperation = GraphOperationType::None;
+        }
+    }
+
+    void AnimationGraphWorkspace::ControlParameterCategoryDragAndDropHandler( Category<GraphNodes::FlowToolsNode*>& category )
+    {
+        InlineString payloadString;
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginDragDropTarget() )
+        {
+            if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( "AnimGraphParameter", ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+            {
+                if ( payload->IsDelivery() )
+                {
+                    payloadString = (char*) payload->Data;
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( !payloadString.empty() )
+        {
+            for ( auto pControlParameter : m_controlParameters )
+            {
+                if ( pControlParameter->GetParameterName().comparei( payloadString.c_str() ) == 0 )
+                {
+                    if ( pControlParameter->GetCategory() != category.m_name )
+                    {
+                        RenameControlParameter( pControlParameter->GetID(), pControlParameter->GetParameterName(), category.m_name );
+                        return;
+                    }
+                }
+            }
+
+            for ( auto pVirtualParameter : m_virtualParameters )
+            {
+                if ( pVirtualParameter->GetParameterName().comparei( payloadString.c_str() ) == 0 )
+                {
+                    if ( pVirtualParameter->GetCategory() != category.m_name )
+                    {
+                        RenameVirtualParameter( pVirtualParameter->GetID(), pVirtualParameter->GetParameterName(), category.m_name );
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    void AnimationGraphWorkspace::DrawParameterList()
+    {
+        // Draw Control Bar
+        //-------------------------------------------------------------------------
+
         if ( ImGui::Button( "Add New Parameter", ImVec2( -1, 0 ) ) )
         {
             ImGui::OpenPopup( "AddParameterPopup" );
@@ -2507,166 +2868,11 @@ namespace EE::Animation
 
             ImGui::EndPopup();
         }
-    }
 
-    void AnimationGraphWorkspace::DrawRenameParameterDialogWindow()
-    {
-        EE_ASSERT( m_activeOperation == GraphOperationType::RenameParameter );
-        bool updateConfirmed = false;
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Name: " );
-        ImGui::SameLine( 80 );
-
-        if ( ImGui::IsWindowAppearing() )
-        {
-            ImGui::SetKeyboardFocusHere();
-        }
-
-        ImGui::SetNextItemWidth( -1 );
-        if ( ImGui::InputText( "##ParameterName", m_parameterNameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
-        {
-            updateConfirmed = true;
-        }
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Category: " );
-        ImGui::SameLine( 80 );
-
-        ImGui::SetNextItemWidth( -1 );
-        if ( ImGui::InputText( "##ParameterCategory", m_parameterCategoryBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
-        {
-            updateConfirmed = true;
-        }
-
-        ImGui::NewLine();
-
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
-        ImGui::SameLine( 0, dialogWidth - 104 );
-
-        if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
-        {
-            if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
-            {
-                RenameControlParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
-            }
-            else if ( auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID ) )
-            {
-                RenameVirtualParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
-            }
-            else
-            {
-                EE_UNREACHABLE_CODE();
-            }
-
-            m_activeOperation = GraphOperationType::None;
-        }
-
-        ImGui::SameLine( 0, 4 );
-
-        if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
-        {
-            m_activeOperation = GraphOperationType::None;
-        }
-    }
-
-    void AnimationGraphWorkspace::DrawDeleteParameterDialogWindow()
-    {
-        EE_ASSERT( m_activeOperation == GraphOperationType::DeleteParameter );
-
-        auto iter = m_cachedNumUses.find( m_currentOperationParameterID );
-        ImGui::Text( "This parameter is used in %d places.", iter != m_cachedNumUses.end() ? iter->second : 0 );
-        ImGui::Text( "Are you sure you want to delete this parameter?" );
-        ImGui::NewLine();
-
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
-        ImGui::SameLine( 0, dialogWidth - 64 );
-
-        if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
-        {
-            if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
-            {
-                DestroyControlParameter( m_currentOperationParameterID );
-            }
-            else if ( auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID ) )
-            {
-                DestroyVirtualParameter( m_currentOperationParameterID );
-            }
-            else
-            {
-                EE_UNREACHABLE_CODE();
-            }
-
-            m_activeOperation = GraphOperationType::None;
-        }
-
-        ImGui::SameLine( 0, 4 );
-
-        if ( ImGui::Button( "No", ImVec2( 30, 0 ) ) )
-        {
-            m_activeOperation = GraphOperationType::None;
-        }
-    }
-
-    void AnimationGraphWorkspace::DrawParameterList()
-    {
-        auto pRootGraph = m_toolsGraph.GetRootGraph();
-
-        // Create parameter tree
-        //-------------------------------------------------------------------------
-
-        CategoryTree<GraphNodes::FlowToolsNode*> parameterTree;
-
-        for ( auto pControlParameter : m_controlParameters)
-        {
-            parameterTree.AddItem( pControlParameter->GetParameterCategory(), pControlParameter->GetName(), pControlParameter );
-        }
-
-        for ( auto pVirtualParameter : m_virtualParameters )
-        {
-            parameterTree.AddItem( pVirtualParameter->GetParameterCategory(), pVirtualParameter->GetName(), pVirtualParameter );
-        }
-
-        // Update references cache
-        //-------------------------------------------------------------------------
-
-        if ( m_updateCacheTimer.Update() )
-        {
-            m_cachedNumUses.clear();
-
-            auto referenceNodes = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive );
-            for ( auto pReferenceNode : referenceNodes )
-            {
-                auto const& ID = pReferenceNode->GetReferencedParameter()->GetID();
-                auto iter = m_cachedNumUses.find( ID );
-                if ( iter == m_cachedNumUses.end() )
-                {
-                    m_cachedNumUses.insert( TPair<UUID, int32_t>( ID, 0 ) );
-                    iter = m_cachedNumUses.find( ID );
-                }
-
-                iter->second++;
-            }
-
-            m_updateCacheTimer.Start( 0.25f );
-        }
-
-        // Draw UI
-        //-------------------------------------------------------------------------
-
-        DrawAddParameterCombo();
-
+        // Draw Parameters
         //-------------------------------------------------------------------------
 
         constexpr float const iconWidth = 20;
-
-        auto DrawCategoryRow = [] ( String const& categoryName )
-        {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( categoryName.c_str() );
-        };
 
         auto DrawControlParameterRow = [this, iconWidth] ( GraphNodes::ControlParameterToolsNode* pControlParameter )
         {
@@ -2792,37 +2998,19 @@ namespace EE::Animation
             ImGui::PopID();
         };
 
+        // Uncategorized
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginTable( "CPT", 3, 0 ) )
+        ImGui::SetNextItemOpen( !m_parameterCategoryTree.GetRootCategory().m_isCollapsed );
+        if ( ImGui::CollapsingHeader( "General" ) )
         {
-            ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-            ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
-
-            //-------------------------------------------------------------------------
-
-            DrawCategoryRow( "General" );
-
-            for ( auto const& item : parameterTree.GetRootCategory().m_items )
+            if ( ImGui::BeginTable( "CPGT", 3, 0 ) )
             {
-                if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
-                {
-                    DrawControlParameterRow( pCP );
-                }
-                else
-                {
-                    DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
-                }
-            }
+                ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+                ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
 
-            //-------------------------------------------------------------------------
-
-            for ( auto const& category : parameterTree.GetRootCategory().m_childCategories )
-            {
-                DrawCategoryRow( category.m_name );
-
-                for ( auto const& item : category.m_items )
+                for ( auto const& item : m_parameterCategoryTree.GetRootCategory().m_items )
                 {
                     if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
                     {
@@ -2833,36 +3021,68 @@ namespace EE::Animation
                         DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
                     }
                 }
+
+                ImGui::EndTable();
             }
 
-            ImGui::EndTable();
+            ControlParameterCategoryDragAndDropHandler( m_parameterCategoryTree.GetRootCategory() );
+
+            m_parameterCategoryTree.GetRootCategory().m_isCollapsed = false;
+        }
+        else
+        {
+            m_parameterCategoryTree.GetRootCategory().m_isCollapsed = true;
+        }
+
+        // Child Categories
+        //-------------------------------------------------------------------------
+
+        for ( auto& category : m_parameterCategoryTree.GetRootCategory().m_childCategories )
+        {
+            ImGui::SetNextItemOpen( !category.m_isCollapsed );
+            if ( ImGui::CollapsingHeader( category.m_name.c_str() ) )
+            {
+                if ( ImGui::BeginTable( "CPT", 3, 0 ) )
+                {
+                    ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+                    ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+
+                    //-------------------------------------------------------------------------
+
+                    for ( auto const& item : category.m_items )
+                    {
+                        if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                        {
+                            DrawControlParameterRow( pCP );
+                        }
+                        else
+                        {
+                            DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
+                        }
+                    }
+
+                    ImGui::EndTable();
+                }
+
+                ControlParameterCategoryDragAndDropHandler( category );
+
+                category.m_isCollapsed = false;
+            }
+            else
+            {
+                category.m_isCollapsed = true;
+            }
         }
     }
 
-    void AnimationGraphWorkspace::DrawParameterPreviewControls()
+    void AnimationGraphWorkspace::DrawParameterPreviewControls( UpdateContext const& context )
     {
         ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
 
         //-------------------------------------------------------------------------
 
-        CategoryTree<ControlParameterPreviewState*> parameterTree;
-        for ( auto pPreviewState : m_parameterPreviewStates )
-        {
-            auto pControlParameter = pPreviewState->m_pParameter;
-            parameterTree.AddItem( pControlParameter->GetParameterCategory(), pControlParameter->GetName(), pPreviewState );
-        }
-
-        //-------------------------------------------------------------------------
-
-        auto DrawCategoryRow = [] ( String const& categoryName )
-        {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( categoryName.c_str() );
-        };
-
-        auto DrawControlParameterEditorRow = [this] ( ControlParameterPreviewState* pPreviewState )
+        auto DrawControlParameterEditorRow = [this, &context] ( ControlParameterPreviewState* pPreviewState )
         {
             auto pControlParameter = pPreviewState->m_pParameter;
 
@@ -2878,40 +3098,72 @@ namespace EE::Animation
             ImGui::PopStyleColor();
 
             ImGui::TableSetColumnIndex( 1 );
-            pPreviewState->DrawPreviewEditor( &m_userContext );
+            pPreviewState->DrawPreviewEditor( context, &m_userContext, IsLiveDebugSession() );
             ImGui::PopID();
         };
 
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 4 ) );
+
+        // Uncategorized
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginTable( "Parameter Preview", 2, ImGuiTableFlags_Resizable, ImVec2( -1, -1 ) ) )
+        ImGui::SetNextItemOpen( !m_previewParameterCategoryTree.GetRootCategory().m_isCollapsed );
+        if ( ImGui::CollapsingHeader( "General" ) )
         {
-            ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "Editor", ImGuiTableColumnFlags_WidthStretch );
-
-            //-------------------------------------------------------------------------
-
-            DrawCategoryRow( "General" );
-
-            for ( auto const& item : parameterTree.GetRootCategory().m_items )
+            if ( ImGui::BeginTable( "Parameter Preview", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerH ) )
             {
-                DrawControlParameterEditorRow( item.m_data );
-            }
+                ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "Editor", ImGuiTableColumnFlags_WidthStretch );
 
-            //-------------------------------------------------------------------------
-
-            for ( auto const& category : parameterTree.GetRootCategory().m_childCategories )
-            {
-                DrawCategoryRow( category.m_name );
-
-                for ( auto const& item : category.m_items )
+                for ( auto const& item : m_previewParameterCategoryTree.GetRootCategory().m_items )
                 {
                     DrawControlParameterEditorRow( item.m_data );
                 }
+
+                ImGui::EndTable();
             }
 
-            ImGui::EndTable();
+            m_previewParameterCategoryTree.GetRootCategory().m_isCollapsed = false;
         }
+        else
+        {
+            m_previewParameterCategoryTree.GetRootCategory().m_isCollapsed = true;
+        }
+
+        // Child Categories
+        //-------------------------------------------------------------------------
+
+        for ( auto& category : m_previewParameterCategoryTree.GetRootCategory().m_childCategories )
+        {
+            ImGui::SetNextItemOpen( !category.m_isCollapsed );
+            if ( ImGui::CollapsingHeader( category.m_name.c_str() ) )
+            {
+                if ( ImGui::BeginTable( "Parameter Preview", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerH ) )
+                {
+                    ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "Editor", ImGuiTableColumnFlags_WidthStretch );
+
+                    //-------------------------------------------------------------------------
+
+                    for ( auto const& item : category.m_items )
+                    {
+                        DrawControlParameterEditorRow( item.m_data );
+                    }
+
+                    ImGui::EndTable();
+                }
+
+                category.m_isCollapsed = false;
+            }
+            else
+            {
+                category.m_isCollapsed = true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::PopStyleVar();
     }
 
     void AnimationGraphWorkspace::CreateControlParameter( GraphValueType type )
@@ -2961,6 +3213,8 @@ namespace EE::Animation
 
         EE_ASSERT( pParameter != nullptr );
         m_controlParameters.emplace_back( pParameter );
+
+        RefreshParameterCategoryTree();
     }
 
     void AnimationGraphWorkspace::CreateVirtualParameter( GraphValueType type )
@@ -2972,32 +3226,72 @@ namespace EE::Animation
         VisualGraph::ScopedGraphModification gm( pRootGraph );
         auto pParameter = pRootGraph->CreateNode<GraphNodes::VirtualParameterToolsNode>( parameterName, type );
         m_virtualParameters.emplace_back( pParameter );
+
+        RefreshParameterCategoryTree();
     }
 
-    void AnimationGraphWorkspace::RenameControlParameter( UUID parameterID, String const& newName, String const& category )
+    void AnimationGraphWorkspace::RenameControlParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName )
     {
         auto pParameter = FindControlParameter( parameterID );
         EE_ASSERT( pParameter != nullptr );
 
-        String uniqueName = newName;
-        EnsureUniqueParameterName( uniqueName );
+        // Check if we actually need to do anything
+        bool const requiresNameChange = pParameter->GetParameterName().comparei( desiredParameterName ) != 0;
+        if ( !requiresNameChange && pParameter->GetParameterCategory().comparei( desiredCategoryName ) == 0 )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        String finalParameterName = desiredParameterName;
+        if ( requiresNameChange )
+        {
+            EnsureUniqueParameterName( finalParameterName );
+        }
+
+        //-------------------------------------------------------------------------
+
+        String finalCategoryName = desiredCategoryName;
+        ResolveCategoryName( finalCategoryName );
+
+        //-------------------------------------------------------------------------
 
         auto pRootGraph = m_toolsGraph.GetRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
-        pParameter->Rename( uniqueName, category );
+        pParameter->Rename( finalParameterName, finalCategoryName );
     }
 
-    void AnimationGraphWorkspace::RenameVirtualParameter( UUID parameterID, String const& newName, String const& category )
+    void AnimationGraphWorkspace::RenameVirtualParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName )
     {
         auto pParameter = FindVirtualParameter( parameterID );
         EE_ASSERT( pParameter != nullptr );
 
-        String uniqueName = newName;
-        EnsureUniqueParameterName( uniqueName );
+        // Check if we actually need to do anything
+        bool const requiresNameChange = pParameter->GetParameterName().comparei( desiredParameterName ) != 0;
+        if ( !requiresNameChange && pParameter->GetParameterCategory().comparei( desiredCategoryName ) == 0 )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        String finalParameterName = desiredParameterName;
+        if ( requiresNameChange )
+        {
+            EnsureUniqueParameterName( finalParameterName );
+        }
+
+        //-------------------------------------------------------------------------
+
+        String finalCategoryName = desiredCategoryName;
+        ResolveCategoryName( finalCategoryName );
+
+        //-------------------------------------------------------------------------
 
         auto pRootGraph = m_toolsGraph.GetRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
-        pParameter->Rename( uniqueName, category );
+        pParameter->Rename( finalParameterName, finalCategoryName );
     }
 
     void AnimationGraphWorkspace::DestroyControlParameter( UUID parameterID )
@@ -3030,6 +3324,8 @@ namespace EE::Animation
                 break;
             }
         }
+
+        RefreshParameterCategoryTree();
     }
 
     void AnimationGraphWorkspace::DestroyVirtualParameter( UUID parameterID )
@@ -3062,6 +3358,8 @@ namespace EE::Animation
                 break;
             }
         }
+
+        RefreshParameterCategoryTree();
     }
 
     void AnimationGraphWorkspace::EnsureUniqueParameterName( String& parameterName ) const
@@ -3077,7 +3375,7 @@ namespace EE::Animation
             // Check control parameters
             for ( auto pParameter : m_controlParameters )
             {
-                if ( pParameter->GetParameterName() == tempString )
+                if ( pParameter->GetParameterName().comparei( tempString ) == 0 )
                 {
                     isNameUnique = false;
                     break;
@@ -3089,7 +3387,7 @@ namespace EE::Animation
             {
                 for ( auto pParameter : m_virtualParameters )
                 {
-                    if ( pParameter->GetParameterName() == tempString )
+                    if ( pParameter->GetParameterName().comparei( tempString ) == 0 )
                     {
                         isNameUnique = false;
                         break;
@@ -3107,6 +3405,18 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         parameterName = tempString;
+    }
+
+    void AnimationGraphWorkspace::ResolveCategoryName( String& desiredCategoryName ) const
+    {
+        for ( auto const& category : m_parameterCategoryTree.GetRootCategory().m_childCategories )
+        {
+            if ( category.m_name.comparei( desiredCategoryName ) == 0 )
+            {
+                desiredCategoryName = category.m_name;
+                return;
+            }
+        }
     }
 
     GraphNodes::ControlParameterToolsNode* AnimationGraphWorkspace::FindControlParameter( UUID parameterID ) const
@@ -3182,10 +3492,22 @@ namespace EE::Animation
                 break;
             }
         }
+
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_previewParameterCategoryTree.GetRootCategory().IsEmpty() );
+
+        for ( auto pPreviewState : m_parameterPreviewStates )
+        {
+            auto pControlParameter = pPreviewState->m_pParameter;
+            m_previewParameterCategoryTree.AddItem( pControlParameter->GetParameterCategory(), pControlParameter->GetName(), pPreviewState );
+        }
     }
 
     void AnimationGraphWorkspace::DestroyControlParameterPreviewStates()
     {
+        m_previewParameterCategoryTree.Clear();
+
         for ( auto& pPreviewState : m_parameterPreviewStates )
         {
             EE::Delete( pPreviewState );

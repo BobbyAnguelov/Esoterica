@@ -118,7 +118,6 @@ namespace EE::Physics
 
         void DrawProfileEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         void DrawProfileManager();
-        void DrawRootControlBodySettings( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
         void DrawJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
         void DrawMaterialSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
 
