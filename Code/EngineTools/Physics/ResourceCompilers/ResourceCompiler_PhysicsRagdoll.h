@@ -9,7 +9,7 @@ namespace EE::Physics
     class RagdollCompiler : public Resource::Compiler
     {
         EE_REGISTER_TYPE( RagdollCompiler );
-        static const int32_t s_version = 5;
+        static const int32_t s_version = 6;
 
     public:
 

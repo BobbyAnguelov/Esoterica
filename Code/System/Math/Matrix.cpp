@@ -14,13 +14,10 @@ namespace EE
         m_rows[1] = Vector( v10, v11, v12, v13 );
         m_rows[2] = Vector( v20, v21, v22, v23 );
         m_rows[3] = Vector( v30, v31, v32, v33 );
-
-        EE_ASSERT( GetScale() );
     }
 
     Matrix::Matrix( Vector const& xAxis, Vector const& yAxis, Vector const& zAxis )
     {
-        EE_ASSERT( xAxis.IsNormalized3() && yAxis.IsNormalized3() && zAxis.IsNormalized3() );
         m_rows[0] = xAxis;
         m_rows[1] = yAxis;
         m_rows[2] = zAxis;
@@ -29,8 +26,6 @@ namespace EE
 
     Matrix::Matrix( Vector const& xAxis, Vector const& yAxis, Vector const& zAxis, Vector const& translation )
     {
-        EE_ASSERT( xAxis.IsNormalized3() && yAxis.IsNormalized3() && zAxis.IsNormalized3() );
-
         m_rows[0] = xAxis;
         m_rows[1] = yAxis;
         m_rows[2] = zAxis;
@@ -233,22 +228,18 @@ namespace EE
         return true;
     }
 
-    bool Matrix::Decompose( Quaternion& outRotation, Vector& outTranslation, float& outScale ) const
+    bool Matrix::Decompose( Quaternion& outRotation, Vector& outTranslation, Vector& outScale ) const
     {
         Matrix copy = *this;
         Vector shr = Vector::Zero;
-        Vector scale = Vector::Zero;
+        outScale = Vector::Zero;
 
         // Extract and remove scale and shear from matrix
-        if ( ExtractAndRemoveScalingAndShear( copy, scale, shr ) )
+        if ( ExtractAndRemoveScalingAndShear( copy, outScale, shr ) )
         {
-            EE_ASSERT( !scale.IsAnyEqualToZero3() );
-            EE_ASSERT( scale.m_x == scale.m_y && scale.m_y == scale.m_z );
-
             // Extract rotation and translation from unscaled matrix
             outRotation = copy.GetRotation();
             outTranslation = copy.GetTranslation().GetWithW0();
-            outScale = scale.GetX();
             return true;
         }
 
@@ -257,7 +248,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    float Matrix::GetScale() const
+    Vector Matrix::GetScale() const
     {
         Matrix copy = *this;
         Vector scale = Vector::Zero, shear;
@@ -269,13 +260,10 @@ namespace EE
             scale = Vector( lengthX, lengthY, lengthZ, 0.0f );
         }
 
-        // Ensure we have a valid scale
-        EE_ASSERT( !scale.IsAnyEqualToZero3() );
-        EE_ASSERT( scale.m_x == scale.m_y && scale.m_y == scale.m_z );
-        return scale.m_x;
+        return scale;
     }
 
-    Matrix& Matrix::SetScale( float uniformScale )
+    Matrix& Matrix::SetScale( Vector const& newScale )
     {
         Vector scale, shear;
         bool result = ExtractAndRemoveScalingAndShear( *this, scale, shear );
@@ -283,9 +271,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        m_rows[0] = m_rows[0] * uniformScale;
-        m_rows[1] = m_rows[1] * uniformScale;
-        m_rows[2] = m_rows[2] * uniformScale;
+        m_rows[0] = m_rows[0] * newScale.m_x;
+        m_rows[1] = m_rows[1] * newScale.m_y;
+        m_rows[2] = m_rows[2] * newScale.m_z;
         return *this;
     }
 

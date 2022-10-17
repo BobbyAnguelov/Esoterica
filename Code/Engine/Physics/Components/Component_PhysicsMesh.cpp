@@ -44,7 +44,17 @@ namespace EE::Physics
     void PhysicsMeshComponent::Initialize()
     {
         PhysicsShapeComponent::Initialize();
-
         EE_ASSERT( !m_physicsMesh.IsSet() || m_physicsMesh.IsLoaded() );
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void PhysicsMeshComponent::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
+    {
+        PhysicsShapeComponent::PostPropertyEdit( pPropertyEdited );
+
+        if ( Math::IsNearZero( m_localScale.m_x ) ) m_localScale.m_x = 0.1f;
+        if ( Math::IsNearZero( m_localScale.m_y ) ) m_localScale.m_y = 0.1f;
+        if ( Math::IsNearZero( m_localScale.m_z ) ) m_localScale.m_z = 0.1f;
+    }
+    #endif
 }

@@ -1,6 +1,7 @@
 #include "ResourceLoader_PhysicsMesh.h"
 #include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Physics/PhysicsMesh.h"
+#include "Engine/Physics/PhysX.h"
 #include "System/Serialization/BinarySerialization.h"
 
 #include <PxPhysics.h>
@@ -64,11 +65,15 @@ namespace EE::Physics
 
             if ( pPhysicsMesh->m_isConvexMesh )
             {
-                pPhysicsMesh->m_pMesh = pPhysics->createConvexMesh( cooked );
+                auto pConvexMesh = pPhysics->createConvexMesh( cooked );
+                pPhysicsMesh->m_bounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
+                pPhysicsMesh->m_pMesh = pConvexMesh;
             }
             else
             {
-                pPhysicsMesh->m_pMesh = pPhysics->createTriangleMesh( cooked );
+                auto pTriMesh = pPhysics->createTriangleMesh( cooked );
+                pPhysicsMesh->m_bounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
+                pPhysicsMesh->m_pMesh = pTriMesh;
             }
         }
 

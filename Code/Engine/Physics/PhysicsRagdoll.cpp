@@ -746,10 +746,10 @@ namespace EE::Physics
 
             // Create shape
             PxCapsuleGeometry const capsuleGeo( bodyDefinition.m_radius, bodyDefinition.m_halfHeight );
-            /*auto pShape =*/ PxRigidActorExt::createExclusiveShape( *pLink, capsuleGeo, *pMaterial );
+            auto pShape = PxRigidActorExt::createExclusiveShape( *pLink, capsuleGeo, *pMaterial );
+            pShape->setFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
             //pShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
             //pShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-            //pShape->userData = this;
 
             pMaterial->release();
         }
@@ -899,6 +899,13 @@ namespace EE::Physics
 
             pJoint->setTangentialStiffness( jointSettings.m_tangentialStiffness );
             pJoint->setTangentialDamping( jointSettings.m_tangentialDamping );
+
+            //-------------------------------------------------------------------------
+
+            if ( !jointSettings.m_useVelocity )
+            {
+                pJoint->setTargetVelocity( PxVec3( 0, 0, 0 ) );
+            }
         }
     }
 
@@ -956,6 +963,133 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         m_shouldFollowPose = shouldFollowPose;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void Ragdoll::ApplyImpulse( Vector const& impulseSourceWS, Vector const& dirWS, float strength )
+    {
+        EE_ASSERT( dirWS.IsNormalized3() );
+        EE_ASSERT( strength > 0 );
+
+        PxArticulationLink* pHitLink = nullptr;
+        PxVec3 hitLocation;
+
+        //-------------------------------------------------------------------------
+
+        {
+            ScopedReadLock const sl( this );
+            PxVec3 const rayOrigin = ToPx( impulseSourceWS );
+            PxVec3 const rayDir = ToPx( dirWS );
+            PxShape* shapeBuffer[1];
+            PxRaycastHit hitBuffer[1];
+
+            float closestDistanceHit = FLT_MAX;
+
+            for ( auto pLink : m_links )
+            {
+                pLink->getShapes( shapeBuffer, 1 );
+                PxTransform pose = pLink->getGlobalPose();
+                auto Q = FromPx( pose.q ).GetNormalized();
+                pose.q = pose.q.getNormalized(); // Workaround for too strict tolerance in unit quat check: https://github.com/NVIDIAGameWorks/PhysX/issues/523
+                EE_ASSERT( pose.q.isUnit() );
+
+                int32_t const numHits = PxGeometryQuery::raycast( rayOrigin, rayDir, shapeBuffer[0]->getGeometry().any(), pose, 100, PxHitFlag::ePOSITION, 1, hitBuffer );
+                if ( numHits > 0 )
+                {
+                    if ( hitBuffer[0].distance < closestDistanceHit )
+                    {
+                        pHitLink = pLink;
+                        closestDistanceHit = hitBuffer[0].distance;
+                        hitLocation = hitBuffer->position;
+                    }
+                }
+            }
+        }
+
+        // Apply impulse
+        //-------------------------------------------------------------------------
+
+        if( pHitLink != nullptr )
+        {
+            PxVec3 const impulse = ToPx( dirWS * strength );
+            ScopedWriteLock const sl( this );
+            PxRigidBodyExt::addForceAtPos( *pHitLink, impulse, hitLocation, PxForceMode::eIMPULSE );
+        }
+    }
+
+    void Ragdoll::ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseSourceWS, Vector const& dirWS, float strength )
+    {
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_links.size() );
+
+        PxArticulationLink* pLink = m_links[bodyIdx];
+        PxVec3 hitLocation;
+        bool applyImpulse = false;
+
+        PxVec3 const rayOrigin = ToPx( impulseSourceWS );
+        PxVec3 const rayDir = ToPx( dirWS );
+
+        PxShape* shapeBuffer[1];
+        pLink->getShapes( shapeBuffer, 1 );
+
+        PxTransform pose = pLink->getGlobalPose();
+        auto Q = FromPx( pose.q ).GetNormalized();
+        pose.q = pose.q.getNormalized(); // Workaround for too strict tolerance in unit quat check: https://github.com/NVIDIAGameWorks/PhysX/issues/523
+        EE_ASSERT( pose.q.isUnit() );
+
+        {
+            PxRaycastHit hitBuffer[1];
+            ScopedReadLock const sl( this );
+            int32_t const numHits = PxGeometryQuery::raycast( rayOrigin, rayDir, shapeBuffer[0]->getGeometry().any(), pose, 100, PxHitFlag::ePOSITION, 1, hitBuffer );
+            if ( numHits > 0 )
+            {
+                hitLocation = hitBuffer->position;
+                applyImpulse = true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if( applyImpulse )
+        {
+            PxVec3 const impulse = ToPx( dirWS * strength );
+            ScopedWriteLock const sl( this );
+            PxRigidBodyExt::addForceAtPos( *pLink, impulse, hitLocation, PxForceMode::eIMPULSE );
+        }
+    }
+
+    void Ragdoll::ApplyImpulseToBody( StringID boneID, Vector const& impulseSourceWS, Vector const& dirWS, float strength )
+    {
+        int32_t boneIdx = m_pDefinition->m_skeleton->GetBoneIndex( boneID );
+        EE_ASSERT( boneIdx != InvalidIndex );
+
+        // Body index can be invalid since we dont always have a body per bone
+        int32_t bodyIdx = m_pDefinition->m_boneToBodyMap[boneIdx];
+        if ( bodyIdx != InvalidIndex )
+        {
+            ApplyImpulseToBody( bodyIdx, impulseSourceWS, dirWS, strength );
+        }
+    }
+
+    void Ragdoll::ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& dirWS, float strength )
+    {
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_links.size() );
+        ScopedWriteLock const sl( this );
+        PxVec3 const impulse = ToPx( dirWS * strength );
+        m_links[bodyIdx]->addForce( impulse, PxForceMode::eIMPULSE );
+    }
+
+    void Ragdoll::ApplyImpulseToBodyCOM( StringID boneID, Vector const& dirWS, float strength )
+    {
+        int32_t boneIdx = m_pDefinition->m_skeleton->GetBoneIndex( boneID );
+        EE_ASSERT( boneIdx != InvalidIndex );
+
+        // Body index can be invalid since we dont always have a body per bone
+        int32_t bodyIdx = m_pDefinition->m_boneToBodyMap[boneIdx];
+        if ( bodyIdx != InvalidIndex )
+        {
+            ApplyImpulseToBodyCOM( bodyIdx, dirWS, strength );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -1033,8 +1167,11 @@ namespace EE::Physics
                 pJoint->setTargetOrientation( ToPx( jointDeltaRotation ) );
 
                 // Set angular velocity
-                Vector const angularVelocity = Math::CalculateAngularVelocity( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation(), deltaTime );
-                pJoint->setTargetVelocity( ToPx( angularVelocity ) * 0.1f );
+                if ( m_pProfile->m_jointSettings[bodyIdx - 1].m_useVelocity )
+                {
+                    Vector const angularVelocity = Math::CalculateAngularVelocity( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation(), deltaTime );
+                    pJoint->setTargetVelocity( ToPx( angularVelocity ) * 0.1f );
+                }
             }
         }
     }

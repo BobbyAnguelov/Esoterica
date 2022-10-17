@@ -842,7 +842,7 @@ namespace EE::TypeSystem::Conversion
                         float floatData[7];
                         (Float3&) floatData = Float3( (float) eulerAngles.m_x.ToDegrees(), (float) eulerAngles.m_y.ToDegrees(), (float) eulerAngles.m_z.ToDegrees() );
                         (Float3&) floatData[3] = value.GetTranslation().ToFloat3();
-                        floatData[6] = value.GetScale();
+                        floatData[6] = value.GetScale().m_x;
 
                         FloatArrayToString( floatData, 7, strValue );
                     }

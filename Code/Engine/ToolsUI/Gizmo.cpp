@@ -541,10 +541,10 @@ namespace EE::ImGuiX
         return isHovered;
     }
 
-    void Gizmo::Rotation_DrawManipulationWidget( Render::Viewport const& viewport, Vector const& axisOfRotation_ws, Vector const& axisOfRotation_ss, Color color )
+    void Gizmo::Rotation_DrawManipulationWidget( Render::Viewport const& viewport, Vector const& axisOfRotation_WS, Vector const& axisOfRotation_ss, Color color )
     {
         EE_ASSERT( m_gizmoMode == GizmoMode::Rotation );
-        EE_ASSERT( axisOfRotation_ws.IsNormalized3() );
+        EE_ASSERT( axisOfRotation_WS.IsNormalized3() );
 
         static float const gizmoRadius = 40.0f;
         static float const gizmoThickness = 3.0f;
@@ -563,7 +563,7 @@ namespace EE::ImGuiX
         auto lineLength = ( axisOfRotation_ss * 10000 );
         auto lineStart = m_origin_SS + lineLength;
         auto lineEnd = m_origin_SS - lineLength;
-        pDrawList->AddLine( lineStart.ToFloat2(), lineEnd.ToFloat2(), axisOfRotationColorAlpha, 1.0f );
+        pDrawList->AddLine( lineStart.ToFloat2(), lineEnd.ToFloat2(), axisOfRotationColorAlpha, 2.0f );
 
         //-------------------------------------------------------------------------
 
@@ -577,8 +577,9 @@ namespace EE::ImGuiX
 
         // Find the start point on the rotation plane
         LineSegment mouseRay = viewport.ScreenSpaceToWorldSpace( m_rotationStartMousePosition );
-        Plane planeOfRotation = Plane::FromNormalAndPoint( axisOfRotation_ws, m_origin_WS );
+        Plane planeOfRotation = Plane::FromNormalAndPoint( axisOfRotation_WS, m_origin_WS );
         Vector intersectionPoint;
+        planeOfRotation.IntersectLine( mouseRay, intersectionPoint );
 
         //-------------------------------------------------------------------------
 
@@ -588,7 +589,7 @@ namespace EE::ImGuiX
         Radians angleStepDelta = Radians::TwoPi / (float) ( g_halfCircleSegmentCount * 2 - 1 );
         for ( auto i = 0; i < g_halfCircleSegmentCount * 2; i++ )
         {
-            Quaternion deltaRot = Quaternion( axisOfRotation_ws, angleStepDelta * i );
+            Quaternion deltaRot = Quaternion( axisOfRotation_WS, angleStepDelta * i );
             Vector pointOnCircle_WS = m_origin_WS + ( ( deltaRot.RotateVector( startRotationVector ).GetNormalized3() ) * scaleMultiplier );
             Float2 pointOnCircle_SS = viewport.WorldSpaceToScreenSpace( pointOnCircle_WS );
             outerCirclePointsSS[i] = pointOnCircle_SS;
@@ -614,7 +615,7 @@ namespace EE::ImGuiX
             angleStepDelta = m_rotationDeltaAngle / (float) numCoveredCirclePoints;
             for ( auto i = 0u; i < numCoveredCirclePoints; i++ )
             {
-                Quaternion deltaRot = Quaternion( axisOfRotation_ws, angleStepDelta * (float) i );
+                Quaternion deltaRot = Quaternion( axisOfRotation_WS, angleStepDelta * (float) i );
                 Vector pointOnCircle_WS = m_origin_WS + ( ( deltaRot.RotateVector( startRotationVector ).GetNormalized3() ) * scaleMultiplier );
                 Float2 pointOnCircle_SS = viewport.WorldSpaceToScreenSpace( pointOnCircle_WS );
                 innerCirclePointsSS[i] = pointOnCircle_SS;
@@ -761,7 +762,7 @@ namespace EE::ImGuiX
         // Draw orientation guide
         //-------------------------------------------------------------------------
 
-        auto axis_WS_NegY = m_origin_WS - ( m_axisDir_WS_Y * 1.01f );
+        auto axis_WS_NegY = m_origin_WS - ( m_pTargetTransform->GetAxisY() * 1.01f );
         auto axisEndPoint_SS_NegY = Vector( viewport.WorldSpaceToScreenSpace( axis_WS_NegY ) );
         Vector ndir; float nlen;
         ( axisEndPoint_SS_NegY - m_origin_SS ).ToDirectionAndLength2( ndir, nlen );

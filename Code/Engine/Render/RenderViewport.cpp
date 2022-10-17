@@ -40,7 +40,7 @@ namespace EE::Render
 
     Vector Viewport::WorldSpaceToClipSpace( Vector const& pointWS ) const
     {
-        Vector pointCS = m_viewVolume.GetViewProjectionMatrix().TransformPoint( pointWS.GetWithW1() );
+        Vector pointCS = m_viewVolume.GetViewProjectionMatrix().TransformVector3( pointWS );
         Vector const W = pointCS.GetSplatW().Abs();
         if ( !W.IsZero4() )
         {
@@ -89,10 +89,10 @@ namespace EE::Render
         Vector farPoint( pointCS.m_x, pointCS.m_y, 1.0f, 1.0f );
 
         Matrix const& invViewProj = m_viewVolume.GetInverseViewProjectionMatrix();
-        nearPoint = invViewProj.TransformPoint( nearPoint );
+        nearPoint = invViewProj.TransformVector3( nearPoint );
         nearPoint /= nearPoint.GetSplatW();
 
-        farPoint = invViewProj.TransformPoint( farPoint );
+        farPoint = invViewProj.TransformVector3( farPoint );
         farPoint /= farPoint.GetSplatW();
 
         return LineSegment( nearPoint, farPoint );
@@ -102,7 +102,7 @@ namespace EE::Render
     {
         Vector pointCS = ScreenSpaceToClipSpace( pointSS ).SetW1();
         pointCS.m_z = 0.0f;
-        pointCS = m_viewVolume.GetInverseViewProjectionMatrix().TransformPoint( pointCS );
+        pointCS = m_viewVolume.GetInverseViewProjectionMatrix().TransformVector4( pointCS );
         pointCS /= pointCS.GetSplatW();
         return pointCS;
     }
@@ -111,7 +111,7 @@ namespace EE::Render
     {
         Vector pointCS = ScreenSpaceToClipSpace( pointSS ).SetW1();
         pointCS.m_z = 1.0f;
-        pointCS = m_viewVolume.GetInverseViewProjectionMatrix().TransformPoint( pointCS );
+        pointCS = m_viewVolume.GetInverseViewProjectionMatrix().TransformVector4( pointCS );
         pointCS /= pointCS.GetSplatW();
         return pointCS;
     }

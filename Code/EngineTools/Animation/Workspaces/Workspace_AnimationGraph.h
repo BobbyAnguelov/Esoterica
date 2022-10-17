@@ -159,7 +159,7 @@ namespace EE::Animation
         void RefreshControlParameterCache();
         void RefreshParameterCategoryTree();
         void DrawParameterList();
-        void DrawParameterPreviewControls( UpdateContext const& context );
+        void DrawPreviewParameterList( UpdateContext const& context );
 
         void DrawDeleteParameterDialogWindow();
         void DrawRenameParameterDialogWindow();
@@ -275,7 +275,29 @@ namespace EE::Animation
         UUID                                                            m_primaryViewGraphID;
         VisualGraph::BaseNode*                                          m_pBreadcrumbPopupContext = nullptr;
 
-        // Debug
+        // Compilation Log
+        TVector<NodeCompilationLogEntry>                                m_compilationLog;
+
+        // Control Parameter Editor
+        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
+        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
+        GraphNodes::VirtualParameterToolsNode*                          m_pVirtualParamaterToEdit = nullptr;
+        UUID                                                            m_currentOperationParameterID;
+        char                                                            m_parameterNameBuffer[255];
+        char                                                            m_parameterCategoryBuffer[255];
+        THashMap<UUID, int32_t>                                         m_cachedNumUses;
+        CategoryTree<GraphNodes::FlowToolsNode*>                        m_parameterCategoryTree;
+        TVector<ControlParameterPreviewState*>                          m_previewParameterStates;
+        CategoryTree<ControlParameterPreviewState*>                     m_previewParameterCategoryTree;
+
+        // Variation Editor
+        StringID                                                        m_activeOperationVariationID;
+        char                                                            m_nameBuffer[255] = { 0 };
+        char                                                            m_filterBuffer[255] = { 0 };
+        TVector<String>                                                 m_splitFilter;
+        Resource::ResourcePicker                                        m_resourcePicker;
+
+        // Preview/Debug
         DebugMode                                                       m_debugMode = DebugMode::None;
         EntityID                                                        m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
         ComponentID                                                     m_debuggedComponentID;
@@ -290,30 +312,6 @@ namespace EE::Animation
         float                                                           m_previewCapsuleHalfHeight = 0.65f;
         float                                                           m_previewCapsuleRadius = 0.35f;
         TResourcePtr<GraphVariation>                                    m_previewGraphVariationPtr;
-
-        // Compilation Log
-        TVector<NodeCompilationLogEntry>                                m_compilationLog;
-
-        // Control Parameter Editor
-        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
-        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
-        GraphNodes::VirtualParameterToolsNode*                          m_pVirtualParamaterToEdit = nullptr;
-        UUID                                                            m_currentOperationParameterID;
-        char                                                            m_parameterNameBuffer[255];
-        char                                                            m_parameterCategoryBuffer[255];
-        TVector<ControlParameterPreviewState*>                          m_parameterPreviewStates;
-        THashMap<UUID, int32_t>                                         m_cachedNumUses;
-        CategoryTree<GraphNodes::FlowToolsNode*>                        m_parameterCategoryTree;
-        CategoryTree<ControlParameterPreviewState*>                     m_previewParameterCategoryTree;
-
-        // Variation Editor
-        StringID                                                        m_activeOperationVariationID;
-        char                                                            m_nameBuffer[255] = { 0 };
-        char                                                            m_filterBuffer[255] = { 0 };
-        TVector<String>                                                 m_splitFilter;
-        Resource::ResourcePicker                                        m_resourcePicker;
-
-        // Preview
         Physics::PhysicsSystem*                                         m_pPhysicsSystem = nullptr;
         Entity*                                                         m_pPreviewEntity = nullptr;
         Transform                                                       m_previewStartTransform = Transform::Identity;

@@ -120,12 +120,10 @@ namespace EE::Animation::GraphNodes
             pSettings->m_maxLinearVelocity = m_maxLinearVelocity;
             pSettings->m_maxAngularVelocity = m_maxAngularVelocity;
 
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::HeadingX, m_overrideHeadingX );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::HeadingY, m_overrideHeadingY );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::HeadingZ, m_overrideHeadingZ );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::FacingX, m_overrideFacingX );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::FacingY, m_overrideFacingY );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::FacingZ, m_overrideFacingZ );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingX, m_overrideHeadingX );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingY, m_overrideHeadingY );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingZ, m_overrideHeadingZ );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowFacingPitch, m_allowPitchForFacing );
         }
         return pSettings->m_nodeIdx;
     }

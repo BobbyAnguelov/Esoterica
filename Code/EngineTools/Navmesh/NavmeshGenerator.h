@@ -37,6 +37,12 @@ namespace EE::Navmesh
             CompletedFailure
         };
 
+        struct CollisionMesh
+        {
+            Transform   m_worldTransform;
+            Vector      m_localScale;
+        };
+
     public:
 
         NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::SerializedEntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings );
@@ -81,7 +87,7 @@ namespace EE::Navmesh
         
         // Build transient data
         bfx::Instance*                                  m_pNavpowerInstance = nullptr;
-        THashMap<ResourcePath, TVector<Transform>>      m_collisionPrimitives;
+        THashMap<ResourcePath, TVector<CollisionMesh>>  m_collisionPrimitives;
         size_t                                          m_numCollisionPrimitivesToProcess = 0;
         TVector<bfx::BuildFace>                         m_buildFaces;
 

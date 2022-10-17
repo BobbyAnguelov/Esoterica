@@ -81,7 +81,7 @@ namespace EE::Animation
         ControlParameterPreviewState( GraphNodes::ControlParameterToolsNode* pParameter ) : m_pParameter( pParameter ) { EE_ASSERT( m_pParameter != nullptr ); }
         virtual ~ControlParameterPreviewState() = default;
 
-        virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) = 0;
+        virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) = 0;
 
     public:
 
@@ -94,7 +94,7 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -111,7 +111,7 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -135,7 +135,7 @@ namespace EE::Animation
                 m_max = pFloatParameter->GetPreviewRangeMax();
             }
 
-            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -191,20 +191,21 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
 
+                Vector basicEditorValue = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
+
                 // Basic Editor
                 //-------------------------------------------------------------------------
 
-                Vector value = pGraphNodeContext->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
                 ImGui::BeginDisabled( m_showAdvancedEditor );
                 ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
-                if ( ImGui::InputFloat4( "##vp", &value.m_x ) )
+                if ( ImGui::InputFloat4( "##vp", &basicEditorValue.m_x ) )
                 {
-                    pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                    pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, basicEditorValue );
                 }
                 ImGui::EndDisabled();
 
@@ -216,7 +217,9 @@ namespace EE::Animation
                     m_showAdvancedEditor = !m_showAdvancedEditor;
                     m_maxLength = 1.0f;
                     m_selectedStickComboItem = 0;
+                    m_convertToCharacterSpace = false;
                     m_isEditingValueWithMouse = false;
+                    m_invertStickX = m_invertStickY = false;
                 }
                 ImGuiX::ItemTooltip( "Advanced Editor" );
 
@@ -225,14 +228,24 @@ namespace EE::Animation
 
                 if ( m_showAdvancedEditor )
                 {
+                    Vector advancedEditorValue = basicEditorValue;
+
+                    if ( m_convertToCharacterSpace )
+                    {
+                        advancedEditorValue = characterWorldTransform.RotateVector( advancedEditorValue );
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
                     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 2, 2 ) );
-                    if ( ImGui::BeginChild( "#CW", ImVec2( 0, 80 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+                    if ( ImGui::BeginChild( "#CW", ImVec2( 0, 100 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
                     {
                         char const* const comboOptions[] = { "Mouse", "Left Stick", "Right Stick" };
-                        constexpr float const labelOffset = 80.0f;
-                        constexpr float const widgetOffset = 145;
+                        constexpr float const labelOffset = 110.0f;
+                        constexpr float const widgetOffset = 175;
 
-                        Vector const previousValueRatio = value.Get2D() / m_maxLength;
+                        Vector const previousValueRatio = advancedEditorValue.Get2D() / m_maxLength;
 
                         ImGui::SameLine( labelOffset );
                         ImGui::AlignTextToFramePadding();
@@ -246,9 +259,18 @@ namespace EE::Animation
                                 m_maxLength = 0.01f;
                             }
 
-                            value.m_x = previousValueRatio.m_x * m_maxLength;
-                            value.m_y = previousValueRatio.m_y * m_maxLength;
-                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                            advancedEditorValue.m_x = previousValueRatio.m_x * m_maxLength;
+                            advancedEditorValue.m_y = previousValueRatio.m_y * m_maxLength;
+
+                            if ( m_convertToCharacterSpace )
+                            {
+                                Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
+                                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, paramValue );
+                            }
+                            else
+                            {
+                                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, advancedEditorValue );
+                            }
                         }
                         ImGuiX::ItemTooltip( "Max Length" );
 
@@ -259,9 +281,9 @@ namespace EE::Animation
                         ImGui::Text( "Z" );
                         ImGui::SameLine( widgetOffset );
                         ImGui::SetNextItemWidth( -1 );
-                        if ( ImGui::DragFloat( "##Z", &value.m_z, 0.01f ) )
+                        if ( ImGui::DragFloat( "##Z", &advancedEditorValue.m_z, 0.01f ) )
                         {
-                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, advancedEditorValue );
                         }
                         ImGuiX::ItemTooltip( "Z-Value" );
 
@@ -275,9 +297,32 @@ namespace EE::Animation
                         ImGui::Combo( "##SC", &m_selectedStickComboItem, comboOptions, 3 );
                         ImGuiX::ItemTooltip( "Control" );
 
+                        ImGui::NewLine();
+
+                        ImGui::SameLine( labelOffset );
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( "Convert CS" );
+                        ImGui::SameLine( widgetOffset );
+                        ImGui::Checkbox( "##WS", &m_convertToCharacterSpace );
+                        ImGuiX::ItemTooltip( "Convert this (world space) vector to character space" );
+
+                        ImGui::BeginDisabled( m_selectedStickComboItem == 0 );
+                        ImGui::SameLine( 0, 10 );
+                        ImGui::Text( "Inv. X" );
+                        ImGui::SameLine();
+                        ImGui::Checkbox( "##ISX", &m_invertStickX );
+                        ImGuiX::ItemTooltip( "Invert the stick X axis" );
+
+                        ImGui::SameLine( 0, 10 );
+                        ImGui::Text( "Inv. Y" );
+                        ImGui::SameLine();
+                        ImGui::Checkbox( "##ISY", &m_invertStickY );
+                        ImGuiX::ItemTooltip( "Invert the stick Y axis" );
+                        ImGui::EndDisabled();
+
                         //-------------------------------------------------------------------------
 
-                        constexpr float const circleRadius = 35.0f;
+                        constexpr float const circleRadius = 45.0f;
                         constexpr float const dotRadius = 5.0f;
                         ImVec2 const circleOrigin = ImGui::GetWindowPos() + ImVec2( circleRadius + 5, circleRadius + 5 );
 
@@ -302,13 +347,30 @@ namespace EE::Animation
                                 scaledStickValue = pInputState->GetRightAnalogStickValue() * m_maxLength;
                             }
 
-                            value.m_x = scaledStickValue.m_x;
-                            value.m_y = scaledStickValue.m_y;
-                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                            advancedEditorValue.m_x = scaledStickValue.m_x;
+                            advancedEditorValue.m_y = scaledStickValue.m_y;
+
+                            Vector paramValue = advancedEditorValue;
+                            if ( m_invertStickX )
+                            {
+                                paramValue.m_x = -paramValue.m_x;
+                            }
+
+                            if ( m_invertStickY )
+                            {
+                                paramValue.m_y = -paramValue.m_y;
+                            }
+
+                            if ( m_convertToCharacterSpace )
+                            {
+                                paramValue = characterWorldTransform.InverseRotateVector( paramValue );
+                            }
+
+                            pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, paramValue );
 
                             //-------------------------------------------------------------------------
 
-                            ImVec2 const offset = Vector( value.m_x, -value.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
+                            ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
                             ImVec2 const dotOrigin = circleOrigin + offset;
                             pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ConvertColor( Colors::LimeGreen ) );
                         }
@@ -341,13 +403,22 @@ namespace EE::Animation
                             {
                                 float const distanceFromCircleOriginPercentage = Math::Min( 1.0f, distanceFromCircleOrigin / circleRadius );
                                 Vector const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
-                                value.m_x = newValue.m_x;
-                                value.m_y = -newValue.m_y;
-                                pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
+                                advancedEditorValue.m_x = newValue.m_x;
+                                advancedEditorValue.m_y = -newValue.m_y;
+
+                                if ( m_convertToCharacterSpace )
+                                {
+                                    Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
+                                    pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, paramValue );
+                                }
+                                else
+                                {
+                                    pGraphNodeContext->m_pGraphInstance->SetControlParameterValue( parameterIdx, advancedEditorValue );
+                                }
                             }
 
                             // Calculate offset and dot position and draw dot
-                            ImVec2 const offset = Vector( value.m_x, -value.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
+                            ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
                             ImVec2 const dotOrigin = circleOrigin + offset;
                             pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ConvertColor( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
                         }
@@ -362,14 +433,17 @@ namespace EE::Animation
             bool        m_showAdvancedEditor = false;
             float       m_maxLength = 1.0f;
             int32_t     m_selectedStickComboItem = 0;
+            bool        m_convertToCharacterSpace = false;
             bool        m_isEditingValueWithMouse = false;
+            bool        m_invertStickX = true;
+            bool        m_invertStickY = true;
         };
 
         struct IDParameterState : public ControlParameterPreviewState
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -400,7 +474,7 @@ namespace EE::Animation
         {
             using ControlParameterPreviewState::ControlParameterPreviewState;
 
-            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, bool isLiveDebug ) override
+            virtual void DrawPreviewEditor( UpdateContext const& context, ToolsGraphUserContext* pGraphNodeContext, Transform const& characterWorldTransform, bool isLiveDebug ) override
             {
                 int16_t const parameterIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
@@ -1321,6 +1395,10 @@ namespace EE::Animation
                 m_userContext.m_pGraphInstance = m_pDebugGraphInstance;
                 m_isFirstPreviewFrame = false;
             }
+
+            //-------------------------------------------------------------------------
+
+            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
         }
         else if ( IsLiveDebugSession() )
         {
@@ -2541,16 +2619,16 @@ namespace EE::Animation
             bool const isPreviewing = m_userContext.HasDebugData();
             if ( isPreviewing )
             {
-                if ( m_parameterPreviewStates.empty() )
+                if ( m_previewParameterStates.empty() )
                 {
                     CreateControlParameterPreviewStates();
                 }
 
-                DrawParameterPreviewControls( context );
+                DrawPreviewParameterList( context );
             }
             else
             {
-                if ( !m_parameterPreviewStates.empty() )
+                if ( !m_previewParameterStates.empty() )
                 {
                     DestroyControlParameterPreviewStates();
                 }
@@ -3076,7 +3154,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphWorkspace::DrawParameterPreviewControls( UpdateContext const& context )
+    void AnimationGraphWorkspace::DrawPreviewParameterList( UpdateContext const& context )
     {
         ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
 
@@ -3098,7 +3176,7 @@ namespace EE::Animation
             ImGui::PopStyleColor();
 
             ImGui::TableSetColumnIndex( 1 );
-            pPreviewState->DrawPreviewEditor( context, &m_userContext, IsLiveDebugSession() );
+            pPreviewState->DrawPreviewEditor( context, &m_userContext, m_characterTransform, IsLiveDebugSession() );
             ImGui::PopID();
         };
 
@@ -3453,37 +3531,37 @@ namespace EE::Animation
             {
                 case GraphValueType::Bool:
                 {
-                    m_parameterPreviewStates.emplace_back( EE::New<BoolParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<BoolParameterState>( pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Int:
                 {
-                    m_parameterPreviewStates.emplace_back( EE::New<IntParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<IntParameterState>( pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Float:
                 {
-                    m_parameterPreviewStates.emplace_back( EE::New<FloatParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<FloatParameterState>( pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Vector:
                 {
-                    m_parameterPreviewStates.emplace_back( EE::New<VectorParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<VectorParameterState>( pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::ID:
                 {
-                    m_parameterPreviewStates.emplace_back( EE::New<IDParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<IDParameterState>( pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Target:
                 {
-                    m_parameterPreviewStates.emplace_back( EE::New<TargetParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<TargetParameterState>( pControlParameter ) );
                 }
                 break;
 
@@ -3497,7 +3575,7 @@ namespace EE::Animation
 
         EE_ASSERT( m_previewParameterCategoryTree.GetRootCategory().IsEmpty() );
 
-        for ( auto pPreviewState : m_parameterPreviewStates )
+        for ( auto pPreviewState : m_previewParameterStates )
         {
             auto pControlParameter = pPreviewState->m_pParameter;
             m_previewParameterCategoryTree.AddItem( pControlParameter->GetParameterCategory(), pControlParameter->GetName(), pPreviewState );
@@ -3508,12 +3586,12 @@ namespace EE::Animation
     {
         m_previewParameterCategoryTree.Clear();
 
-        for ( auto& pPreviewState : m_parameterPreviewStates )
+        for ( auto& pPreviewState : m_previewParameterStates )
         {
             EE::Delete( pPreviewState );
         }
 
-        m_parameterPreviewStates.clear();
+        m_previewParameterStates.clear();
     }
 
     void AnimationGraphWorkspace::StartParameterRename( UUID const& parameterID )

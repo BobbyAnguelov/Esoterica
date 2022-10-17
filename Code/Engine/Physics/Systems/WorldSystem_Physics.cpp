@@ -331,20 +331,24 @@ namespace EE::Physics
         {
             EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
 
+            Vector const finalScale = pMeshComponent->GetLocalScale() * scale;
+
             // Triangle Mesh
             if ( pMeshComponent->m_physicsMesh->IsTriangleMesh() )
             {
                 PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
-                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( scale ) );
+                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
                 pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
                 localBounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
+                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
             else // Convex Mesh
             {
                 PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
-                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( scale ) );
+                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
                 pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
                 localBounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
+                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
         }
         else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
@@ -408,20 +412,24 @@ namespace EE::Physics
         {
             EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
 
+            Vector const finalScale = pMeshComponent->GetLocalScale() * scale;
+
             // Triangle Mesh
             if ( pMeshComponent->m_physicsMesh->IsTriangleMesh() )
             {
                 PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
-                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( scale ) );
+                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
                 pComponent->m_pPhysicsShape->setGeometry( meshGeo );
                 localBounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
+                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
             else // Convex Mesh
             {
                 PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
-                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( scale ) );
+                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
                 pComponent->m_pPhysicsShape->setGeometry( meshGeo );
                 localBounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
+                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
         }
         else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
@@ -573,9 +581,7 @@ namespace EE::Physics
 
         if ( m_physicsShapeComponents.HasItemForID( pComponent->GetID() ) )
         {
-            EE_ASSERT( pComponent->IsInitialized() );
             EE_ASSERT( pComponent->GetActorType() == ActorType::Static );
-
             m_staticActorShapeUpdateList.emplace_back( pComponent );
         }
     }

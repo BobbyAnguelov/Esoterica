@@ -78,9 +78,10 @@ namespace EE::Physics
 
     struct EE_ENGINE_API RagdollJointSettings : public IRegisteredType
     {
-        EE_SERIALIZE(   m_stiffness, m_damping, m_internalCompliance, m_externalCompliance,
-                        m_twistLimitEnabled, m_twistLimitMin, m_twistLimitMax, m_twistLimitContactDistance,
-                        m_swingLimitEnabled, m_swingLimitY, m_swingLimitZ, m_tangentialStiffness, m_tangentialDamping, m_swingLimitContactDistance );
+        EE_SERIALIZE(   m_useVelocity, m_twistLimitEnabled, m_swingLimitEnabled,
+                        m_stiffness, m_damping, m_internalCompliance, m_externalCompliance,
+                        m_twistLimitMin, m_twistLimitMax, m_twistLimitContactDistance,
+                        m_swingLimitY, m_swingLimitZ, m_tangentialStiffness, m_tangentialDamping, m_swingLimitContactDistance );
 
         EE_REGISTER_TYPE( RagdollJointSettings );
 
@@ -97,6 +98,7 @@ namespace EE::Physics
 
     public:
 
+        EE_REGISTER bool                                     m_useVelocity = true;
         EE_REGISTER bool                                     m_twistLimitEnabled = false;
         EE_REGISTER bool                                     m_swingLimitEnabled = false;
 
@@ -345,6 +347,21 @@ namespace EE::Physics
         bool IsSleeping() const;
         void PutToSleep();
         void WakeUp();
+
+        // Apply an impulse from a specific source and direction. Will raycast to find affected body and apply impulse to it directly
+        void ApplyImpulse( Vector const& impulseSourceWS, Vector const& dirWS, float strength );
+
+        // Apply an impulse directly to a body - the impulse might not affect though
+        void ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseSourceWS, Vector const& dirWS, float strength );
+
+        // Apply an impulse directly to a body - the impulse might not affect though
+        void ApplyImpulseToBody( StringID boneID, Vector const& impulseSourceWS, Vector const& dirWS, float strength );
+
+        // Apply an impulse directly to a body's COM
+        void ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& dirWS, float strength );
+
+        // Apply an impulse directly to a body's COM
+        void ApplyImpulseToBodyCOM( StringID boneID, Vector const& dirWS, float strength );
 
         // Update / Results
         //-------------------------------------------------------------------------

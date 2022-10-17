@@ -97,7 +97,7 @@ namespace EE::RawAssets
             for ( VertexData& vertex : GS.m_vertices )
             {
                 vertex.m_position = scalingMatrix.TransformPoint( vertex.m_position );
-                vertex.m_normal = normalScalingMatrix.TransformVector( vertex.m_normal ).GetNormalized3();
+                vertex.m_normal = normalScalingMatrix.TransformNormal( vertex.m_normal ).GetNormalized3();
                 vertex.m_tangent = normalScalingMatrix.TransformPoint( vertex.m_tangent ).GetNormalized3();
                 vertex.m_binormal = normalScalingMatrix.TransformPoint( vertex.m_binormal ).GetNormalized3();
             }

@@ -35,6 +35,8 @@ namespace EE::Physics
         Scene( physx::PxScene* pScene );
         ~Scene();
 
+        inline physx::PxScene* GetPxScene() { return m_pScene; }
+
         // Locks
         //-------------------------------------------------------------------------
 

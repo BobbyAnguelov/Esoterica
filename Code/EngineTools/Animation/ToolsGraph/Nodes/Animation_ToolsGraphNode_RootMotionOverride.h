@@ -26,11 +26,10 @@ namespace EE::Animation::GraphNodes
         // Set to negative to disable the velocity limiter
         EE_EXPOSE float                m_maxAngularVelocity = -1.0f;
 
+        // Limits
         EE_EXPOSE bool                 m_overrideHeadingX = true;
         EE_EXPOSE bool                 m_overrideHeadingY = true;
         EE_EXPOSE bool                 m_overrideHeadingZ = true;
-        EE_EXPOSE bool                 m_overrideFacingX = true;
-        EE_EXPOSE bool                 m_overrideFacingY = true;
-        EE_EXPOSE bool                 m_overrideFacingZ = true;
+        EE_EXPOSE bool                 m_allowPitchForFacing = false;
     };
 }

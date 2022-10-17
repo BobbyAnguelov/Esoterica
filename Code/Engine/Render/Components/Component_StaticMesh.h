@@ -34,6 +34,15 @@ namespace EE::Render
 
         using MeshComponent::MeshComponent;
 
+        // Local Scale
+        //-------------------------------------------------------------------------
+
+        // Get the local scaling multiplier
+        inline Float3 const& GetLocalScale() const { return m_localScale; }
+
+        // Do we have a local scale set?
+        inline bool HasLocalScale() const { return m_localScale != Float3::One; }
+
         // Mesh Data
         //-------------------------------------------------------------------------
 
@@ -65,9 +74,21 @@ namespace EE::Render
         virtual void Initialize() override final;
         virtual void OnWorldTransformUpdated() override final;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+        #endif
+
+    protected:
+
+        // A local scale that doesnt propagate but that can allow for non-uniform scaling of meshes
+        EE_EXPOSE Float3                                m_localScale = Float3::One;
+
     private:
 
-        EE_EXPOSE TResourcePtr<StaticMesh>               m_mesh;
-        EE_EXPOSE Mobility                               m_mobility = Mobility::Static;
+        // The mesh resource for this component
+        EE_EXPOSE TResourcePtr<StaticMesh>              m_mesh;
+
+        // Is this component expected to be static (immovable) or dynamic (allowed to move)
+        EE_EXPOSE Mobility                              m_mobility = Mobility::Static;
     };
 }

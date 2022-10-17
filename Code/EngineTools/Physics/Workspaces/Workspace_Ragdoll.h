@@ -40,6 +40,13 @@ namespace EE::Physics
             RenameProfile,
         };
 
+        struct CollisionActor
+        {
+            physx::PxRigidDynamic*  m_pActor;
+            float                   m_radius;
+            float                   m_TTL;
+        };
+
     public:
 
         RagdollWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID, bool shouldLoadResource = true );
@@ -56,6 +63,7 @@ namespace EE::Physics
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
+        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
         virtual bool HasViewportToolbar() const override { return true; }
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
@@ -118,7 +126,7 @@ namespace EE::Physics
 
         void DrawProfileEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         void DrawProfileManager();
-        void DrawJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
+        void DrawBodyAndJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
         void DrawMaterialSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile );
 
         StringID CreateProfile( String const newProfileName );
@@ -134,6 +142,10 @@ namespace EE::Physics
         inline bool IsPreviewing() const { return m_pRagdoll != nullptr; }
         void StartPreview( UpdateContext const& context );
         void StopPreview();
+
+        void SpawnCollisionActor( Vector const& startPos, Vector const& initialVelocity );
+        void UpdateSpawnedCollisionActors( Drawing::DrawContext& drawingContext, Seconds deltaTime );
+        void DestroySpawnedCollisionActors();
 
     private:
 
@@ -187,6 +199,13 @@ namespace EE::Physics
         Render::SkeletalMeshComponent*                  m_pMeshComponent = nullptr;
         ImGuiX::Gizmo                                   m_previewGizmo;
         Transform                                       m_previewGizmoTransform;
+        float                                           m_impulseStrength = 10.0f;
+        float                                           m_collisionActorRadius = 0.25f;
+        float                                           m_collisionActorMass = 50.0f;
+        float                                           m_collisionActorLifetime = 10.0f;
+        float                                           m_collisionActorInitialVelocity = 20.0f;
+        bool                                            m_collisionActorGravity = true;
+        TVector<CollisionActor>                         m_spawnedCollisionActors;
 
         // PVD connection
         PhysicsSystem*                                  m_pPhysicsSystem = nullptr;

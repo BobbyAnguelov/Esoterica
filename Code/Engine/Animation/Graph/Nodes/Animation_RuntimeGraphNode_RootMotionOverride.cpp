@@ -81,16 +81,16 @@ namespace EE::Animation::GraphNodes
         // Heading
         //-------------------------------------------------------------------------
 
-        bool isHeadingModificationAllowed = m_pDesiredHeadingVelocityNode != nullptr && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::HeadingX, OverrideFlags::HeadingY, OverrideFlags::HeadingZ );
+        bool isHeadingModificationAllowed = m_pDesiredHeadingVelocityNode != nullptr && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowHeadingX, OverrideFlags::AllowHeadingX, OverrideFlags::AllowHeadingX );
         if ( isHeadingModificationAllowed )
         {
             Vector const desiredHeadingVelocity = m_pDesiredHeadingVelocityNode->GetValue<Vector>( context );
 
             // Override the request axes with the desired heading
             Vector translation = nodeResult.m_rootMotionDelta.GetTranslation();
-            translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::HeadingX ) ? desiredHeadingVelocity.m_x * context.m_deltaTime : translation.m_x;
-            translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::HeadingY ) ? desiredHeadingVelocity.m_y * context.m_deltaTime : translation.m_y;
-            translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::HeadingZ ) ? desiredHeadingVelocity.m_z * context.m_deltaTime : translation.m_z;
+            translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingX ) ? desiredHeadingVelocity.m_x * context.m_deltaTime : translation.m_x;
+            translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingY ) ? desiredHeadingVelocity.m_y * context.m_deltaTime : translation.m_y;
+            translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingZ ) ? desiredHeadingVelocity.m_z * context.m_deltaTime : translation.m_z;
 
             // Apply max linear velocity limit
             float maxLinearVelocity = pSettings->m_maxLinearVelocity;
@@ -115,14 +115,18 @@ namespace EE::Animation::GraphNodes
         // Facing
         //-------------------------------------------------------------------------
 
-        bool isFacingModificationAllowed = ( m_pDesiredFacingDirectionNode != nullptr ) && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::FacingX, OverrideFlags::FacingY, OverrideFlags::FacingZ );
+        bool isFacingModificationAllowed = ( m_pDesiredFacingDirectionNode != nullptr );
         if ( isFacingModificationAllowed )
         {
             Vector desiredFacingCS = m_pDesiredFacingDirectionNode->GetValue<Vector>( context );
-            desiredFacingCS.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::FacingX ) ? desiredFacingCS.m_x * context.m_deltaTime : 0;
-            desiredFacingCS.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::FacingY ) ? desiredFacingCS.m_y * context.m_deltaTime : 0;
-            desiredFacingCS.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::FacingZ ) ? desiredFacingCS.m_z * context.m_deltaTime : 0;
 
+            // Remove pitch facing if this is not allowed
+            if ( !pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowFacingPitch ) )
+            {
+                desiredFacingCS = desiredFacingCS.Get2D();
+            }
+
+            // Adjust Facing
             if ( !desiredFacingCS.IsNearZero3() )
             {
                 desiredFacingCS.Normalize3();

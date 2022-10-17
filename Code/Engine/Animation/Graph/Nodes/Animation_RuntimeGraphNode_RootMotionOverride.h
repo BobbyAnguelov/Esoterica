@@ -13,12 +13,10 @@ namespace EE::Animation::GraphNodes
         // What elements of the root motion do we wish to override
         enum class OverrideFlags : uint8_t
         {
-            HeadingX,
-            HeadingY,
-            HeadingZ,
-            FacingX,
-            FacingY,
-            FacingZ,
+            AllowHeadingX,
+            AllowHeadingY,
+            AllowHeadingZ,
+            AllowFacingPitch,
         };
 
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
@@ -28,13 +26,13 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                        m_desiredHeadingVelocityNodeIdx = InvalidIndex;
-            int16_t                        m_desiredFacingDirectionNodeIdx = InvalidIndex;
-            int16_t                        m_linearVelocityLimitNodeIdx = InvalidIndex;
-            int16_t                        m_angularVelocityLimitNodeIdx = InvalidIndex;
-            float                            m_maxLinearVelocity = -1.0f;
-            float                            m_maxAngularVelocity = -1.0f;
-            TBitFlags<OverrideFlags>         m_overrideFlags;
+            int16_t                             m_desiredHeadingVelocityNodeIdx = InvalidIndex;
+            int16_t                             m_desiredFacingDirectionNodeIdx = InvalidIndex;
+            int16_t                             m_linearVelocityLimitNodeIdx = InvalidIndex;
+            int16_t                             m_angularVelocityLimitNodeIdx = InvalidIndex;
+            float                               m_maxLinearVelocity = -1.0f;
+            float                               m_maxAngularVelocity = -1.0f;
+            TBitFlags<OverrideFlags>            m_overrideFlags;
         };
 
     private:
@@ -49,9 +47,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        VectorValueNode*                    m_pDesiredHeadingVelocityNode = nullptr;
-        VectorValueNode*                    m_pDesiredFacingDirectionNode = nullptr;
-        FloatValueNode*                     m_pLinearVelocityLimitNode = nullptr;
-        FloatValueNode*                     m_pAngularVelocityLimitNode = nullptr;
+        VectorValueNode*                        m_pDesiredHeadingVelocityNode = nullptr;
+        VectorValueNode*                        m_pDesiredFacingDirectionNode = nullptr;
+        FloatValueNode*                         m_pLinearVelocityLimitNode = nullptr;
+        FloatValueNode*                         m_pAngularVelocityLimitNode = nullptr;
     };
 }

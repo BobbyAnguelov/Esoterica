@@ -1023,12 +1023,12 @@ namespace EE::TypeSystem
 
                 Quaternion q;
                 Vector t;
-                float s;
+                Vector s;
                 matrix->Decompose( q, t, s );
 
                 m_rotation_cached = m_rotation_imgui = q.ToEulerAngles().GetAsDegrees();
                 m_translation_cached = m_translation_imgui = t.ToFloat3();
-                m_scale_cached = m_scale_imgui = s;
+                m_scale_cached = m_scale_imgui = s.m_x;
             }
         }
 
@@ -1051,7 +1051,9 @@ namespace EE::TypeSystem
             else if ( m_coreType == CoreTypeID::Matrix )
             {
                 auto const& matrix = reinterpret_cast<Matrix*>( m_pPropertyInstance );
-                matrix->Decompose( actualQ, actualTranslation, actualScale );
+                Vector vScale;
+                matrix->Decompose( actualQ, actualTranslation, vScale );
+                actualScale = vScale.m_x;
             }
 
             // Update the cached (and the imgui transform) when the actual is sufficiently different
@@ -2278,7 +2280,6 @@ namespace EE::TypeSystem
                 break;
 
                 default:
-                EE_UNREACHABLE_CODE();
                 break;
             }
         }

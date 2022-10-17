@@ -47,9 +47,8 @@ namespace EE
 
         explicit inline Transform( Matrix const& m )
         {
-            float scale;
-            m.Decompose( m_rotation, m_translation, scale );
-            m_scale = Vector( scale, scale, scale, 0.0f );
+            m.Decompose( m_rotation, m_translation, m_scale );
+            EE_ASSERT( m_scale.m_x == m_scale.m_y && m_scale.m_y == m_scale.m_z );
         }
 
         explicit inline Transform( Quaternion const& rotation, Vector const& translation = Vector( 0, 0, 0, 0 ), float scale = 1.0f )
@@ -64,7 +63,10 @@ namespace EE
             , m_scale( 1, 1, 1, 0 )
         {}
 
-        inline Matrix ToMatrix() const { return Matrix( m_rotation, m_translation, m_scale.GetX() ); }
+        inline Matrix ToMatrix() const { return Matrix( m_rotation, m_translation, m_scale ); }
+
+        inline Matrix ToMatrixNoScale() const { return Matrix( m_rotation, m_translation, Vector::One ); }
+
         inline EulerAngles ToEulerAngles() const { return m_rotation.ToEulerAngles(); }
 
         //-------------------------------------------------------------------------
@@ -129,9 +131,17 @@ namespace EE
 
         inline Vector TranslateVector( Vector const& vector ) const { return vector + m_translation; }
         inline Vector ScaleVector( Vector const& vector ) const { return vector * m_scale; }
-        inline Vector RotateVector( Vector const& vector ) const { return m_rotation.RotateVector( vector ); }
         inline Vector TransformPoint( Vector const& vector ) const;
         inline Vector TransformPointNoScale( Vector const& vector ) const;
+
+        // Rotate a vector (same as TransformVectorNoScale)
+        inline Vector RotateVector( Vector const& vector ) const { return m_rotation.RotateVector( vector ); }
+
+        // Rotate a vector (same as TransformVectorNoScale)
+        EE_FORCE_INLINE Vector TransformNormal( Vector const& vector ) const { return RotateVector( vector ); }
+
+        // Unrotate a vector (same as InverseTransformVectorNoScale)
+        inline Vector InverseRotateVector( Vector const& vector ) const { return m_rotation.RotateVectorInverse( vector ); }
 
         // Invert the operation order when doing inverse transformation: first translation then rotation then scale
         inline Vector InverseTransformPoint( Vector const& point ) const;
@@ -139,11 +149,11 @@ namespace EE
         // Invert the operation order when doing inverse transformation: first translation then rotation
         inline Vector InverseTransformPointNoScale( Vector const& point ) const;
 
-        // Apply this transformation to a vector (scale then rotate)
+        // Applies scale and rotation to a vector (no translation)
         inline Vector TransformVector( Vector const& vector ) const;
 
         // Rotate a vector
-        inline Vector TransformVectorNoScale( Vector const& vector ) const { return m_rotation.RotateVector( vector ); }
+        EE_FORCE_INLINE Vector TransformVectorNoScale( Vector const& vector ) const { return RotateVector( vector ); }
 
         // Invert the operation order when performing inverse transformation: first rotation then scale
         Vector InverseTransformVector( Vector const& vector ) const;

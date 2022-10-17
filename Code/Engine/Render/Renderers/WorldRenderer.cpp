@@ -539,7 +539,9 @@ namespace EE::Render
         for ( StaticMeshComponent const* pMeshComponent : data.m_staticMeshComponents )
         {
             auto pMesh = pMeshComponent->GetMesh();
-            Matrix worldTransform = pMeshComponent->GetWorldTransform().ToMatrix();
+            Vector const finalScale = pMeshComponent->GetLocalScale() * pMeshComponent->GetWorldTransform().GetScale();
+            Matrix const worldTransform = Matrix( pMeshComponent->GetWorldTransform().GetRotation(), pMeshComponent->GetWorldTransform().GetTranslation(), finalScale );
+
             ObjectTransforms transforms = data.m_transforms;
             transforms.m_worldTransform = worldTransform;
             transforms.m_worldTransform.SetTranslation( worldTransform.GetTranslation() );
@@ -660,7 +662,7 @@ namespace EE::Render
         auto const& renderContext = m_pRenderDevice->GetImmediateContext();
         if ( data.m_pSkyboxTexture )
         {
-            Matrix const skyboxTransform = Matrix( Quaternion::Identity, viewport.GetViewPosition() ) * data.m_transforms.m_viewprojTransform;
+            Matrix const skyboxTransform = Matrix( Quaternion::Identity, viewport.GetViewPosition(), Vector::One ) * data.m_transforms.m_viewprojTransform;
 
             renderContext.SetViewport( Float2( viewport.GetDimensions() ), Float2( viewport.GetTopLeftPosition() ), Float2( 1, 1 )/*TODO: fix for inv z*/ );
             renderContext.SetPipelineState( m_pipelineSkybox );

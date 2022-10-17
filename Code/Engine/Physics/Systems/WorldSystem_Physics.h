@@ -40,7 +40,6 @@ namespace EE::Physics
     class EE_ENGINE_API PhysicsWorldSystem final : public IEntityWorldSystem
     {
         friend class PhysicsDebugView;
-        friend class PhysicsRenderer;
 
         struct EntityPhysicsRecord
         {
@@ -58,11 +57,10 @@ namespace EE::Physics
         PhysicsWorldSystem() = default;
         PhysicsWorldSystem( PhysicsSystem& physicsSystem );
 
-        // Get the scene
         Scene const* GetScene() const { return m_pScene; }
-
-        // Get the scene
         Scene* GetScene() { return m_pScene; }
+
+        physx::PxScene* GetPxScene();
 
         // Debug
         //-------------------------------------------------------------------------
@@ -80,9 +78,6 @@ namespace EE::Physics
         #endif
 
     private:
-
-        // Get the physx scene
-        physx::PxScene* GetPxScene();
 
         virtual void InitializeSystem( SystemRegistry const& systemRegistry ) override;
         virtual void ShutdownSystem() override final;

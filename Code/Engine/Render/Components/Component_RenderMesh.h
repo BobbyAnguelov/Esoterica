@@ -42,7 +42,7 @@ namespace EE::Render
     private:
 
         // Any user material overrides
-        EE_EXPOSE TVector<TResourcePtr<Material>>                          m_materialOverrides;
+        EE_EXPOSE TVector<TResourcePtr<Material>>                           m_materialOverrides;
 
         // The final set of materials to use for this component
         TVector<Material const*>                                            m_materials;

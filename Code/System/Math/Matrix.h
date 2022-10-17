@@ -35,8 +35,9 @@ namespace EE
 
         inline static Matrix FromRotation( Quaternion const& rotation ) { return Matrix( rotation ); }
         inline static Matrix FromTranslation( Vector const& translation );
-        inline static Matrix FromScale( float uniformScale );
-        inline static Matrix FromTranslationAndScale( Vector const& translation, float uniformScale );
+        inline static Matrix FromScale( Vector const& scale );
+        inline static Matrix FromUniformScale( float uniformScale );
+        inline static Matrix FromTranslationAndScale( Vector const& translation, Vector const& scale );
         inline static Matrix FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Matrix( Quaternion::FromRotationBetweenNormalizedVectors( sourceVector, targetVector ) ); }
 
     public:
@@ -52,7 +53,8 @@ namespace EE
         inline Matrix( AxisAngle const axisAngle ) : Matrix( Vector( axisAngle.m_axis ), axisAngle.m_angle ) {}
 
         explicit Matrix( Quaternion const& rotation );
-        explicit Matrix( Quaternion const& rotation, Vector const& translation, float scale = 1.0f );
+        explicit Matrix( Quaternion const& rotation, Vector const& translation, Vector const& scale = Vector::One );
+        explicit Matrix( Quaternion const& rotation, Vector const& translation, float scale = 1.0f ) : Matrix( rotation, translation, Vector(scale) ) {}
         explicit Matrix( EulerAngles const& eulerAngles, Vector const translation = Vector::UnitW );
 
         EulerAngles ToEulerAngles() const;
@@ -67,7 +69,7 @@ namespace EE
 
         // Get the world forward vector (Note: this is not valid for camera transforms!)
         EE_FORCE_INLINE Float3 GetForwardVector() const { return GetAxisY().GetNegated(); }
-        
+
         // Get the world right vector (Note: this is not valid for camera transforms!)
         EE_FORCE_INLINE Float3 GetRightVector() const { return GetAxisX().GetNegated(); }
 
@@ -82,7 +84,7 @@ namespace EE
         inline bool IsOrthogonal() const;
         inline bool IsOrthonormal() const;
 
-        bool Decompose( Quaternion& outRotation, Vector& outTranslation, float& outScale ) const;
+        bool Decompose( Quaternion& outRotation, Vector& outTranslation, Vector& outScale ) const;
 
         //-------------------------------------------------------------------------
 
@@ -120,12 +122,13 @@ namespace EE
         // Scale
         //-------------------------------------------------------------------------
 
-        float GetScale() const;
+        Vector GetScale() const;
 
         // These functions perform a full decomposition to extract the scale/shear from the matrix
         Matrix& RemoveScale();
-        Matrix& SetScale( float uniformScale );
-        
+        Matrix& SetScale( Vector const& scale );
+        inline Matrix& SetScale( float uniformScale ) { SetScale( Vector( uniformScale ) ); return *this; }
+
         // These are naive and fast versions of the above functions (simply normalization and multiplication of the 3x3 rotation part)
         inline Matrix& RemoveScaleFast();
         inline Matrix& SetScaleFast( Vector const& scale );
@@ -134,10 +137,20 @@ namespace EE
         // Operators
         //-------------------------------------------------------------------------
 
-        inline Vector TranslateVector( Vector const& vector ) const;
-        inline Vector RotateVector( Vector const& vector ) const;       // Out: W=0
-        inline Vector TransformPoint( Vector const& point ) const;      // Out: W=1
-        inline Vector TransformVector( Vector const& vector ) const;     // Out: W=W
+        // Applies rotation and scale to a vector and returns a result with the W = 0
+        inline Vector RotateVector( Vector const& vector ) const;
+
+        // Applies rotation and scale to a vector and returns a result with the W = 0
+        EE_FORCE_INLINE Vector TransformNormal( Vector const& vector ) const { return RotateVector( vector ); }
+
+        // Applies the transformation to a given point and ensures the resulting W = 1
+        inline Vector TransformPoint( Vector const& point ) const;
+
+        // Applies the transformation to a vector ignoring the W value. Same as TransformPoint with the result W left unchanged
+        inline Vector TransformVector3( Vector const& vector ) const;
+
+        // Applies the transformation to a given vector with the result W left unchanged
+        inline Vector TransformVector4( Vector const& vector ) const;
 
         Vector& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return m_rows[i]; }
         Vector const operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return m_rows[i]; }
@@ -149,7 +162,7 @@ namespace EE
         inline Matrix operator*=( Quaternion const& rhs ) { return operator*=( Matrix( rhs ) ); }
 
         // Naive equality operator
-        inline bool operator==( Matrix const& rhs ) const 
+        inline bool operator==( Matrix const& rhs ) const
         {
             for ( auto i = 0; i < 4; i++ )
             {
@@ -182,12 +195,12 @@ namespace EE
         m_rows[3] = Vector::UnitW;
     }
 
-    inline Matrix::Matrix( Quaternion const& rotation, Vector const& translation, float scale )
+    inline Matrix::Matrix( Quaternion const& rotation, Vector const& translation, Vector const& scale )
     {
         SetRotation( rotation );
-        m_rows[0] = m_rows[0] * scale;
-        m_rows[1] = m_rows[1] * scale;
-        m_rows[2] = m_rows[2] * scale;
+        m_rows[0] = m_rows[0] * scale.m_x;
+        m_rows[1] = m_rows[1] * scale.m_y;
+        m_rows[2] = m_rows[2] * scale.m_z;
         m_rows[3] = translation.GetWithW1();
     }
 
@@ -406,14 +419,14 @@ namespace EE
 
     inline Matrix& Matrix::SetRotationMaintainingScale( Matrix const& rotation )
     {
-        float const scale = GetScale();
+        Vector const scale = GetScale();
         SetRotation( rotation );
         return SetScale( scale );
     }
 
     inline Matrix& Matrix::SetRotationMaintainingScale( Quaternion const& rotation )
     {
-        float const scale = GetScale();
+        Vector const scale = GetScale();
         SetRotation( rotation );
         return SetScale( scale );
     }
@@ -561,60 +574,65 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    inline Vector Matrix::TranslateVector( Vector const& vector ) const
-    {
-        Vector result = ( vector + GetTranslation() );
-        result.SetW0();
-        return result;
-    }
-
     inline Vector Matrix::RotateVector( Vector const& vector ) const
     {
-        Vector vVector = vector.GetWithW0();
+        Vector const X = vector.GetSplatX();
+        Vector const Y = vector.GetSplatY();
+        Vector const Z = vector.GetSplatZ();
 
-        __m128 vResult = _mm_shuffle_ps( vVector, vVector, _MM_SHUFFLE( 0, 0, 0, 0 ) );
-        vResult = _mm_mul_ps( vResult, m_rows[0] );
-        __m128 vTemp = _mm_shuffle_ps( vVector, vVector, _MM_SHUFFLE( 1, 1, 1, 1 ) );
-        vTemp = _mm_mul_ps( vTemp, m_rows[1] );
-        vResult = _mm_add_ps( vResult, vTemp );
-        vTemp = _mm_shuffle_ps( vVector, vVector, _MM_SHUFFLE( 2, 2, 2, 2 ) );
-        vTemp = _mm_mul_ps( vTemp, m_rows[2] );
-        vResult = _mm_add_ps( vResult, vTemp );
-        return vResult;
+        Vector Result = Z * m_rows[2];
+        Result = Vector::MultiplyAdd( Y, m_rows[1], Result );
+        Result = Vector::MultiplyAdd( X, m_rows[0], Result );
+
+        return Result;
     }
 
     inline Vector Matrix::TransformPoint( Vector const& point ) const
     {
-        Vector vPoint = point.GetWithW1();
+        Vector const X = point.GetSplatX();
+        Vector const Y = point.GetSplatY();
+        Vector const Z = point.GetSplatZ();
 
-        __m128 vResult = _mm_shuffle_ps( vPoint, vPoint, _MM_SHUFFLE( 0, 0, 0, 0 ) );
-        vResult = _mm_mul_ps( vResult, m_rows[0] );
-        __m128 vTemp = _mm_shuffle_ps( vPoint, vPoint, _MM_SHUFFLE( 1, 1, 1, 1 ) );
-        vTemp = _mm_mul_ps( vTemp, m_rows[1] );
-        vResult = _mm_add_ps( vResult, vTemp );
-        vTemp = _mm_shuffle_ps( vPoint, vPoint, _MM_SHUFFLE( 2, 2, 2, 2 ) );
-        vTemp = _mm_mul_ps( vTemp, m_rows[2] );
-        vResult = _mm_add_ps( vResult, vTemp );
-        vResult = _mm_add_ps( vResult, m_rows[3] );
-        return vResult;
+        Vector result = Vector::MultiplyAdd( Z, m_rows[2], m_rows[3] );
+        result = Vector::MultiplyAdd( Y, m_rows[1], result );
+        result = Vector::MultiplyAdd( X, m_rows[0], result );
+
+        Vector const W = result.GetSplatW();
+        return result / W;
     }
 
-    inline Vector Matrix::TransformVector( Vector const& V ) const
+    inline Vector Matrix::TransformVector3( Vector const& V ) const
+    {
+        Vector const X = V.GetSplatX();
+        Vector const Y = V.GetSplatY();
+        Vector const Z = V.GetSplatZ();
+
+        Vector result = Vector::MultiplyAdd( Z, m_rows[2], m_rows[3] );
+        result = Vector::MultiplyAdd( Y, m_rows[1], result );
+        result = Vector::MultiplyAdd( X, m_rows[0], result );
+
+        return result;
+    }
+
+    inline Vector Matrix::TransformVector4( Vector const& V ) const
     {
         // Splat m_x,m_y,m_z and m_w
         Vector vTempX = V.GetSplatX();
         Vector vTempY = V.GetSplatY();
         Vector vTempZ = V.GetSplatZ();
         Vector vTempW = V.GetSplatW();
+
         // Mul by the matrix
         vTempX = _mm_mul_ps( vTempX, m_rows[0] );
         vTempY = _mm_mul_ps( vTempY, m_rows[1] );
         vTempZ = _mm_mul_ps( vTempZ, m_rows[2] );
         vTempW = _mm_mul_ps( vTempW, m_rows[3] );
+
         // Add them all together
         vTempX = _mm_add_ps( vTempX, vTempY );
         vTempZ = _mm_add_ps( vTempZ, vTempW );
         vTempX = _mm_add_ps( vTempX, vTempZ );
+
         return vTempX;
     }
 
@@ -746,7 +764,17 @@ namespace EE
         return M;
     }
 
-    inline Matrix Matrix::FromScale( float uniformScale )
+    inline Matrix Matrix::FromScale( Vector const& scale )
+    {
+        Matrix M;
+        M.m_rows[0] = _mm_and_ps( scale, SIMD::g_maskX000 );
+        M.m_rows[1] = _mm_and_ps( scale, SIMD::g_mask0Y00 );
+        M.m_rows[2] = _mm_and_ps( scale, SIMD::g_mask00Z0 );
+        M.m_rows[3] = Vector::UnitW;
+        return M;
+    }
+
+    inline Matrix Matrix::FromUniformScale( float uniformScale )
     {
         Matrix M;
         M.m_rows[0] = _mm_set_ps( 0, 0, 0, uniformScale );
@@ -756,14 +784,12 @@ namespace EE
         return M;
     }
 
-    inline Matrix Matrix::FromTranslationAndScale( Vector const& translation, float uniformScale )
+    inline Matrix Matrix::FromTranslationAndScale( Vector const& translation, Vector const& scale )
     {
-        Vector const vUniformScale( uniformScale );
-
         Matrix M;
-        M.m_rows[0] = _mm_and_ps( vUniformScale, SIMD::g_maskX000 );
-        M.m_rows[1] = _mm_and_ps( vUniformScale, SIMD::g_mask0Y00 );
-        M.m_rows[2] = _mm_and_ps( vUniformScale, SIMD::g_mask00Z0 );
+        M.m_rows[0] = _mm_and_ps( scale, SIMD::g_maskX000 );
+        M.m_rows[1] = _mm_and_ps( scale, SIMD::g_mask0Y00 );
+        M.m_rows[2] = _mm_and_ps( scale, SIMD::g_mask00Z0 );
         M.m_rows[3] = translation.GetWithW1();
         return M;
     }

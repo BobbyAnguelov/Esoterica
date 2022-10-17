@@ -133,8 +133,17 @@ namespace EE::Navmesh
             ResourceID geometryResourceID = pPhysicsComponent->GetMeshResourceID();
             if ( geometryResourceID.IsValid() )
             {
-                m_collisionPrimitives[geometryResourceID.GetResourcePath()].emplace_back( pPhysicsComponent->GetWorldTransform() );
-                m_numCollisionPrimitivesToProcess++;
+                CollisionMesh const cm = { pPhysicsComponent->GetWorldTransform(), Vector( pPhysicsComponent->GetLocalScale() ) };
+
+                if ( cm.m_localScale.IsAnyEqualToZero3() )
+                {
+                    EE_LOG_WARNING( "Navmesh", "Generation", "Detected 0 local scale for physics mesh component ( %s ). This is not supported so mesh will be skipped!", pPhysicsComponent->GetNameID().c_str() );
+                }
+                else
+                {
+                    m_collisionPrimitives[geometryResourceID.GetResourcePath()].emplace_back( cm );
+                    m_numCollisionPrimitivesToProcess++;
+                }
             }
 
             // Update progress
@@ -225,10 +234,20 @@ namespace EE::Navmesh
             // Add triangles
             //-------------------------------------------------------------------------
 
-            for ( Transform const& transform : primitiveDesc.second )
+            for ( CollisionMesh const& cm : primitiveDesc.second )
             {
-                float const scale = transform.GetScale();
-                bool const flipWindingDueToScale = ( scale < 0 );
+                Vector const finalScale = cm.m_localScale * cm.m_worldTransform.GetScale();
+ 
+                int32_t numNegativelyScaledAxes = ( finalScale.m_x < 0 ) ? 1 : 0;
+                numNegativelyScaledAxes += ( finalScale.m_y < 0 ) ? 1 : 0;
+                numNegativelyScaledAxes += ( finalScale.m_z < 0 ) ? 1 : 0;
+
+                bool const flipWindingDueToScale = Math::IsOdd( numNegativelyScaledAxes );
+
+                //-------------------------------------------------------------------------
+
+                Matrix meshTransform = cm.m_worldTransform.ToMatrixNoScale();
+                meshTransform.SetScale( finalScale );
 
                 //-------------------------------------------------------------------------
 
@@ -258,9 +277,10 @@ namespace EE::Navmesh
                         // Add triangle
                         auto& buildFace = m_buildFaces.emplace_back( bfx::BuildFace() );
                         buildFace.m_type = bfx::WALKABLE_FACE;
-                        buildFace.m_verts[0] = ToBfx( transform.TransformPoint( geometrySection.m_vertices[index0].m_position ) );
-                        buildFace.m_verts[1] = ToBfx( transform.TransformPoint( geometrySection.m_vertices[index1].m_position ) );
-                        buildFace.m_verts[2] = ToBfx( transform.TransformPoint( geometrySection.m_vertices[index2].m_position ) );
+
+                        buildFace.m_verts[0] = ToBfx( meshTransform.TransformPoint( geometrySection.m_vertices[index0].m_position ) );
+                        buildFace.m_verts[1] = ToBfx( meshTransform.TransformPoint( geometrySection.m_vertices[index1].m_position ) );
+                        buildFace.m_verts[2] = ToBfx( meshTransform.TransformPoint( geometrySection.m_vertices[index2].m_position ) );
                     }
                 }
 

@@ -15,6 +15,8 @@ namespace EE::Animation::GraphNodes
 
     void ZeroPoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
+        PoseNode::InitializeInternal( context, initialTime );
+
         m_previousTime = m_currentTime;
         m_duration = 1 / 30.0f;
     }
@@ -39,6 +41,8 @@ namespace EE::Animation::GraphNodes
 
     void ReferencePoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
+        PoseNode::InitializeInternal( context, initialTime );
+
         m_previousTime = m_currentTime;
         m_duration = 1 / 30.0f;
     }

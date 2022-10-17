@@ -390,6 +390,46 @@ namespace EE::Physics
         }
     }
 
+    void RagdollWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
+    {
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth( 48 );
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4.0f, 4.0f ) );
+        if ( ImGui::BeginCombo( "##Help", EE_ICON_HELP_CIRCLE_OUTLINE, ImGuiComboFlags_HeightLarge ) )
+        {
+            auto DrawHelpRow = [] ( char const* pLabel, char const* pHotkey )
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+                    ImGui::Text( pLabel );
+                }
+
+                ImGui::TableNextColumn();
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+                    ImGui::Text( pHotkey );
+                }
+            };
+
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::BeginTable( "HelpTable", 2 ) )
+            {
+                DrawHelpRow( "Impulse", "Hold Ctrl" );
+                DrawHelpRow( "Spawn Collision Object", "Hold Shift" );
+
+                ImGui::EndTable();
+            }
+
+            ImGui::EndCombo();
+        }
+        ImGuiX::ItemTooltip( "Help" );
+        ImGui::PopStyleVar();
+    }
+
     void RagdollWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
         TWorkspace<RagdollDefinition>::DrawViewportOverlayElements( context, pViewport );
@@ -425,8 +465,29 @@ namespace EE::Physics
             {
                 m_pMeshComponent->SetWorldTransform( m_previewGizmoTransform );
             }
+
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+            {
+                // Unproject mouse into viewport
+                Vector const nearPointWS = pViewport->ScreenSpaceToWorldSpaceNearPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
+                Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
+
+                // Object
+                if ( ImGui::IsKeyDown( ImGuiKey_LeftShift ) || ImGui::IsKeyDown( ImGuiKey_LeftShift ) )
+                {
+                    Vector const initialVelocity = ( farPointWS - nearPointWS ).GetNormalized3() * m_collisionActorInitialVelocity;
+                    SpawnCollisionActor( nearPointWS, initialVelocity );
+                }
+                // Impulse
+                else if ( ImGui::IsKeyDown( ImGuiKey_LeftCtrl ) || ImGui::IsKeyDown( ImGuiKey_RightCtrl ) )
+                {
+                    m_pRagdoll->ApplyImpulse( nearPointWS, ( farPointWS - nearPointWS ).GetNormalized3(), m_impulseStrength );
+                }
+            }
         }
-        else
+        else // Editing
         {
             auto drawingCtx = GetDrawingContext();
 
@@ -636,6 +697,7 @@ namespace EE::Physics
             }
         }
 
+        // UI
         //-------------------------------------------------------------------------
 
         ImGui::BeginDisabled( IsPreviewing() );
@@ -721,6 +783,8 @@ namespace EE::Physics
         }
         else if ( updateContext.GetUpdateStage() == UpdateStage::PostPhysics )
         {
+            auto drawingCtx = GetDrawingContext();
+
             // Copy the anim pose
             m_pFinalPose->CopyFrom( m_pPose );
 
@@ -734,7 +798,6 @@ namespace EE::Physics
             // Draw ragdoll pose
             if ( m_drawRagdoll )
             {
-                auto drawingCtx = GetDrawingContext();
                 drawingCtx.Draw( *m_pRagdoll );
             }
 
@@ -742,6 +805,10 @@ namespace EE::Physics
             m_pFinalPose->CalculateGlobalTransforms();
             m_pMeshComponent->SetPose( m_pFinalPose );
             m_pMeshComponent->FinalizePose();
+
+            //-------------------------------------------------------------------------
+
+            UpdateSpawnedCollisionActors( drawingCtx, updateContext.GetDeltaTime() );
 
             //-------------------------------------------------------------------------
 
@@ -1623,7 +1690,7 @@ namespace EE::Physics
                 {
                     if ( ImGui::BeginTabItem( "Body/Joint Settings" ) )
                     {
-                        DrawJointSettingsTable( context, pActiveProfile );
+                        DrawBodyAndJointSettingsTable( context, pActiveProfile );
                         ImGui::EndTabItem();
                     }
 
@@ -1740,7 +1807,7 @@ namespace EE::Physics
         ImGui::EndDisabled();
     }
 
-    void RagdollWorkspace::DrawJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
+    void RagdollWorkspace::DrawBodyAndJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
     {
         EE_ASSERT( pProfile != nullptr );
         auto pRagdollDefinition = GetRagdollDefinition();
@@ -1750,27 +1817,28 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-        if ( ImGui::BeginTable( "BST", 19, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, ImGui::GetContentRegionAvail().y ) ) )
+        ImGuiX::ScopedFont sf( ImGuiX::Font::Tiny );
+        if ( ImGui::BeginTable( "BST", 20, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, ImGui::GetContentRegionAvail().y ) ) )
         {
             ImGui::TableSetupColumn( "Body", ImGuiTableColumnFlags_WidthFixed, 120 );
             ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
             ImGui::TableSetupColumn( "CCD", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Self Collision", ImGuiTableColumnFlags_WidthFixed, 30 );
-            ImGui::TableSetupColumn( "Follow Pose", ImGuiTableColumnFlags_WidthFixed, 30 );
+            ImGui::TableSetupColumn( "Self Collision", ImGuiTableColumnFlags_WidthFixed, 20 );
+            ImGui::TableSetupColumn( "Follow Pose", ImGuiTableColumnFlags_WidthFixed, 20 );
             
             ImGui::TableSetupColumn( "Int. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
             ImGui::TableSetupColumn( "Ext. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
 
             ImGui::TableSetupColumn( "Stiffness", ImGuiTableColumnFlags_WidthFixed, 50 );
             ImGui::TableSetupColumn( "Damping", ImGuiTableColumnFlags_WidthFixed, 50 );
+            ImGui::TableSetupColumn( "Velocity", ImGuiTableColumnFlags_WidthFixed, 20 );
 
-            ImGui::TableSetupColumn( "Twist", ImGuiTableColumnFlags_WidthFixed, 24 );
+            ImGui::TableSetupColumn( "Twist", ImGuiTableColumnFlags_WidthFixed, 20 );
             ImGui::TableSetupColumn( "Twist Lmt Min", ImGuiTableColumnFlags_WidthFixed, 60 );
             ImGui::TableSetupColumn( "Twist Lmt Max", ImGuiTableColumnFlags_WidthFixed, 60 );
             ImGui::TableSetupColumn( "Twist C-Dist", ImGuiTableColumnFlags_WidthFixed, 60 );
 
-            ImGui::TableSetupColumn( "Swing", ImGuiTableColumnFlags_WidthFixed, 24 );
+            ImGui::TableSetupColumn( "Swing", ImGuiTableColumnFlags_WidthFixed, 20 );
             ImGui::TableSetupColumn( "Swing Lmt Y", ImGuiTableColumnFlags_WidthFixed, 60 );
             ImGui::TableSetupColumn( "Swing Lmt Z", ImGuiTableColumnFlags_WidthFixed, 60 );
             ImGui::TableSetupColumn( "Swing C-Dist", ImGuiTableColumnFlags_WidthFixed, 60 );
@@ -1981,6 +2049,32 @@ namespace EE::Physics
                         {
                             m_workingProfileCopy.m_jointSettings[i].m_damping = value;
                             pProfile->m_jointSettings[i].m_damping = value;
+                        }
+                    }
+                    ImGui::EndPopup();
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::Checkbox( "##Velocity", &cachedJointSettings.m_useVelocity );
+                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                {
+                    ScopedRagdollSettingsModification const sdm( this );
+                    realJointSettings.m_useVelocity = cachedJointSettings.m_useVelocity;
+                }
+                ImGuiX::ItemTooltip( "Use velocity to drive joint (in addition to joint target)." );
+
+                if ( ImGui::BeginPopupContextItem() )
+                {
+                    if ( ImGui::MenuItem( "Set To All" ) )
+                    {
+                        ScopedRagdollSettingsModification const sdm( this );
+                        bool const value = cachedJointSettings.m_useVelocity;
+                        for ( int32_t i = 0; i < numJoints; i++ )
+                        {
+                            m_workingProfileCopy.m_jointSettings[i].m_useVelocity = value;
+                            pProfile->m_jointSettings[i].m_useVelocity = value;
                         }
                     }
                     ImGui::EndPopup();
@@ -2655,14 +2749,57 @@ namespace EE::Physics
             }
 
             //-------------------------------------------------------------------------
-            //
+            // Manipulation Controls
             //-------------------------------------------------------------------------
+
             ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
             if ( ImGui::CollapsingHeader( "Manipulation" ) )
             {
                 ImGui::Indent();
 
-                ImGui::Text( EE_ICON_WRENCH" TODO" );
+                constexpr float offset = 95;
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Impulse Str:" );
+                ImGui::SameLine( offset );
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##IS", &m_impulseStrength, 0.1f, 1000.0f );
+                ImGuiX::ItemTooltip( "Applied impulse strength" );
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "CS Radius:" );
+                ImGui::SameLine( offset );
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##CAR", &m_collisionActorRadius, 0.1f, 1.0f );
+                ImGuiX::ItemTooltip( "Spawned Collision Sphere Radius" );
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "CS Mass:" );
+                ImGui::SameLine( offset );
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##CAM", &m_collisionActorMass, 1.0f, 500.0f );
+                ImGuiX::ItemTooltip( "Spawned Collision Sphere Mass" );
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "CS Velocity:" );
+                ImGui::SameLine( offset );
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##CAV", &m_collisionActorInitialVelocity, 1.0f, 250.0f );
+                ImGuiX::ItemTooltip( "Spawned Collision Sphere Velocity" );
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "CS Gravity:" );
+                ImGui::SameLine( offset );
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::Checkbox( "##CAG", &m_collisionActorGravity );
+                ImGuiX::ItemTooltip( "Does the Spawned Collision Sphere have gravity" );
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "CS Lifetime:" );
+                ImGui::SameLine( offset );
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##CAL", &m_collisionActorLifetime, 1.0f, 20.0f );
+                ImGuiX::ItemTooltip( "Spawned Collision Sphere Lifetime" );
 
                 ImGui::Unindent();
             }
@@ -2746,12 +2883,18 @@ namespace EE::Physics
     {
         EE_ASSERT( m_pRagdoll != nullptr );
 
+        //-------------------------------------------------------------------------
+
         EE_ASSERT( m_pPhysicsSystem != nullptr );
         if ( m_pPhysicsSystem->IsConnectedToPVD() )
         {
             m_pPhysicsSystem->DisconnectFromPVD();
         }
         m_pPhysicsSystem = nullptr;
+
+        //-------------------------------------------------------------------------
+
+        DestroySpawnedCollisionActors();
 
         //-------------------------------------------------------------------------
 
@@ -2772,5 +2915,81 @@ namespace EE::Physics
 
         EE::Delete( m_pPose );
         EE::Delete( m_pFinalPose );
+    }
+
+    void RagdollWorkspace::SpawnCollisionActor( Vector const& startPos, Vector const& initialVelocity )
+    {
+        physx::PxScene* pPhysicsScene = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
+        physx::PxPhysics* pPhysics = &pPhysicsScene->getPhysics();
+
+        physx::PxMaterial* materials[] =
+        {
+            pPhysics->createMaterial( 0.5f, 0.5f, 0.5f )
+        };
+
+        auto pPhysicsShape = pPhysics->createShape( physx::PxSphereGeometry( m_collisionActorRadius ), materials, 1, true, physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSIMULATION_SHAPE );
+        pPhysicsShape->setSimulationFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
+        pPhysicsShape->setQueryFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
+
+        //-------------------------------------------------------------------------
+
+        auto pPhysicsActor = pPhysics->createRigidDynamic( ToPx( Transform( Quaternion::Identity, startPos ) ) );
+        pPhysicsActor->attachShape( *pPhysicsShape );
+        pPhysicsShape->release();
+
+        pPhysicsActor->setActorFlag( physx::PxActorFlag::eDISABLE_GRAVITY, !m_collisionActorGravity );
+        physx::PxRigidBodyExt::setMassAndUpdateInertia( *pPhysicsActor, m_collisionActorMass );
+
+        pPhysicsScene->lockWrite();
+        pPhysicsScene->addActor( *pPhysicsActor );
+        pPhysicsActor->setLinearVelocity( ToPx( initialVelocity ) );
+        pPhysicsScene->unlockWrite();
+
+        //-------------------------------------------------------------------------
+
+        CollisionActor CA;
+        CA.m_pActor = pPhysicsActor;
+        CA.m_radius = m_collisionActorRadius;
+        CA.m_TTL = m_collisionActorLifetime;
+
+        m_spawnedCollisionActors.emplace_back( CA );
+    }
+
+    void RagdollWorkspace::UpdateSpawnedCollisionActors( Drawing::DrawContext& drawingContext, Seconds deltaTime )
+    {
+        physx::PxScene* pPhysicsScene = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
+        pPhysicsScene->lockWrite();
+        for ( int32_t i = int32_t( m_spawnedCollisionActors.size() ) - 1; i >= 0; i-- )
+        {
+            m_spawnedCollisionActors[i].m_TTL -= deltaTime.ToFloat();
+
+            // Remove actor once lifetime exceeded
+            if ( m_spawnedCollisionActors[i].m_TTL <= 0.0f )
+            {
+                pPhysicsScene->removeActor( *m_spawnedCollisionActors[i].m_pActor );
+                m_spawnedCollisionActors[i].m_pActor->release();
+                m_spawnedCollisionActors.erase( m_spawnedCollisionActors.begin() + i );
+            }
+            else // Draw actor
+            {
+                Transform actorTransform = FromPx( m_spawnedCollisionActors[i].m_pActor->getGlobalPose());
+                drawingContext.DrawSphere( actorTransform, m_spawnedCollisionActors[i].m_radius, Colors::Red, 3.0f );
+            }
+        }
+        pPhysicsScene->unlockWrite();
+    }
+
+    void RagdollWorkspace::DestroySpawnedCollisionActors()
+    {
+        physx::PxScene* pPhysicsScene = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
+        pPhysicsScene->lockWrite();
+        for ( auto& CA : m_spawnedCollisionActors )
+        {
+            pPhysicsScene->removeActor( *CA.m_pActor );
+            CA.m_pActor->release();
+        }
+        pPhysicsScene->unlockWrite();
+
+        m_spawnedCollisionActors.clear();
     }
 }

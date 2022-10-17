@@ -5,6 +5,7 @@
 #include "geometry/PxTriangleMesh.h"
 #include "geometry/PxConvexMesh.h"
 #include "System/Types/StringID.h"
+#include "System/Math/BoundingVolumes.h"
 
 //-------------------------------------------------------------------------
 
@@ -32,6 +33,8 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
+        inline OBB const& GetBounds() const { return m_bounds; }
+
         inline bool IsTriangleMesh() const { return !m_isConvexMesh; }
         inline bool IsConvexMesh() const { return m_isConvexMesh; }
 
@@ -57,5 +60,6 @@ namespace EE::Physics
         physx::PxBase*              m_pMesh = nullptr;
         TInlineVector<StringID, 4>  m_physicsMaterialIDs;
         bool                        m_isConvexMesh = false;
+        OBB                         m_bounds;
     };
 }

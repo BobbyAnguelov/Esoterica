@@ -135,7 +135,7 @@ namespace EE::Drawing
 
         inline void DrawWireBox( OBB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_extents, color, lineThickness, depthTestState, TTL );
+            DrawWireBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, lineThickness, depthTestState, TTL );
         }
 
         inline void DrawWireBox( AABB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )

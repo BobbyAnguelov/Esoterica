@@ -107,16 +107,16 @@ namespace EE::Physics
     protected:
 
         // The type of physics actor for this component
-        EE_EXPOSE ActorType                            m_actorType = ActorType::Static;
+        EE_EXPOSE ActorType                             m_actorType = ActorType::Static;
 
         // How is this shape to be used
-        EE_EXPOSE ShapeType                            m_shapeType = ShapeType::SimulationAndQuery;
+        EE_EXPOSE ShapeType                             m_shapeType = ShapeType::SimulationAndQuery;
 
         // What layers does this shape belong to?
-        EE_EXPOSE TBitFlags<Layers>                    m_layers = Layers::Environment;
+        EE_EXPOSE TBitFlags<Layers>                     m_layers = Layers::Environment;
 
         // The mass of the shape, only relevant for dynamic actors
-        EE_EXPOSE float                                m_mass = 1.0f;
+        EE_EXPOSE float                                 m_mass = 1.0f;
 
     private:
 

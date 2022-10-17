@@ -613,11 +613,15 @@ namespace EE::EntityModel
             {
                 if ( pEntity->IsSpatialEntity() )
                 {
-                    /*InlineString debugStr = Math::ToString( pEntity->GetLocalTransform() );
-                    drawingCtx.DrawText3D( pEntity->GetWorldTransform().GetTranslation(), debugStr.c_str(), Colors::Red );*/
+                    for ( auto pComponent : pEntity->GetComponents() )
+                    {
+                        if ( auto pSpatialComponent = TryCast<SpatialEntityComponent>( pComponent ) )
+                        {
+                            drawingCtx.DrawWireBox( pSpatialComponent->GetWorldBounds(), Colors::Cyan, 3.0f, Drawing::EnableDepthTest );
+                        }
+                    }
 
-                    //drawingCtx.DrawWireBox( pEntity->GetRootSpatialComponent()->GetWorldBounds(), Colors::HotPink, 3.0f, Drawing::EnableDepthTest);
-                    drawingCtx.DrawWireBox( pEntity->GetCombinedWorldBounds(), Colors::Cyan, 3.0f, Drawing::EnableDepthTest );
+                    drawingCtx.DrawWireBox( pEntity->GetCombinedWorldBounds(), Colors::Orange, 3.0f, Drawing::EnableDepthTest );
                 }
             }
 
