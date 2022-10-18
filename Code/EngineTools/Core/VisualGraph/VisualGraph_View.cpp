@@ -841,7 +841,7 @@ namespace EE::VisualGraph
         // Delete selected nodes
         for ( auto const& selectedNode : m_selectedNodes )
         {
-            if ( selectedNode.m_pNode->IsDestroyable() )
+            if ( pGraph->CanDeleteNode( selectedNode.m_pNode ) && selectedNode.m_pNode->IsDestroyable() )
             {
                 pGraph->DestroyNode( selectedNode.m_nodeID );
             }
