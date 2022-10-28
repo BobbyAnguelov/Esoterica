@@ -456,6 +456,23 @@ namespace EE::Math
 
     //-------------------------------------------------------------------------
 
+    Radians ViewVolume::GetVerticalFOV() const
+    {
+        EE_ASSERT( IsPerspective() );
+        float const halfFOVX = GetFOV().ToFloat() * 0.5f;
+        float const AR = GetAspectRatio();
+        float const tanAR = Math::Tan( halfFOVX ) * AR;
+        return 2.0f * Math::ATan( tanAR );
+    }
+
+    float ViewVolume::GetScalingFactorAtPosition( Vector const& position, float pixels ) const
+    {
+        float const percentageOfScreenY = pixels / m_viewDimensions.m_y;
+        return percentageOfScreenY * GetViewForwardVector().GetDot3( position - GetViewPosition() );
+    }
+
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
     void ViewVolume::DrawDebug( Drawing::DrawContext& drawingContext ) const
     {

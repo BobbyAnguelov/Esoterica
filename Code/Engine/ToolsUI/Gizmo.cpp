@@ -228,6 +228,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         Vector const originSS = viewport.WorldSpaceToScreenSpace( originWS );
+        Vector const axesScale( viewport.GetScalingFactorAtPosition( originWS, g_axisLength ) );
 
         //-------------------------------------------------------------------------
 
@@ -251,8 +252,6 @@ namespace EE::ImGuiX
 
         // Calculate initial axis screen space points
         //-------------------------------------------------------------------------
-
-        Vector const axesScale( viewport.GetScalingFactorAtPosition( originWS, g_axisLength ) );
 
         axisInfo[0].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitX : orientationWS.RotateVector( Vector::UnitX );
         axisInfo[1].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitY : orientationWS.RotateVector( Vector::UnitY );

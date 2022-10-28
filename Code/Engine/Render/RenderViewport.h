@@ -93,11 +93,7 @@ namespace EE::Render
         inline LineSegment ScreenSpaceToWorldSpace( Float2 const& pointSS ) const { return ClipSpaceToWorldSpace( ScreenSpaceToClipSpace( pointSS ) ); }
 
         // Get the size of a vector at a specific position if we want to it be a specific pixel height
-        inline float GetScalingFactorAtPosition( Vector const& position, float pixels ) const
-        {
-            float const distanceToPoint = m_viewVolume.IsOrthographic() ? 1.0f : ( position - GetViewPosition() ).GetLength3();
-            return m_viewVolume.GetProjectionScaleY() * distanceToPoint * ( pixels / GetDimensions().m_y );
-        }
+        inline float GetScalingFactorAtPosition( Vector const& position, float pixels ) const { return m_viewVolume.GetScalingFactorAtPosition( position, pixels ); }
 
     private:
 

@@ -104,10 +104,10 @@ namespace EE::Math
         inline Radians GetFOV() const { EE_ASSERT( IsPerspective() ); return m_FOV; }
 
         // Get the vertical FOV for this view volume
-        inline Radians GetVerticalFOV() const { EE_ASSERT( IsPerspective() ); return 2.0f * Math::ATan( Math::Tan( GetFOV().ToFloat() / 2.0f ) * GetAspectRatio() ); }
+        Radians GetVerticalFOV() const;
 
-        // Scale factor used to convert from pixel size to world scale
-        inline float GetProjectionScaleY() const { return IsOrthographic() ? 1.0f : Math::Tan( GetVerticalFOV().ToFloat() * 0.5f ) * 2.0f; }
+        // Get the size of a vector at a specific position if we want to it be a specific pixel height
+        float GetScalingFactorAtPosition( Vector const& position, float pixels ) const;
 
         // Get the width and height of the near plane in world space units
         Float2 GetNearPlaneWorldSpaceDimensions() const;
