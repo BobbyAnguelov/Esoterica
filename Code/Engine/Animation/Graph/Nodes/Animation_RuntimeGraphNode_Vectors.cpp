@@ -80,6 +80,105 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    void VectorCreateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<VectorCreateNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_inputVectorValueNodeIdx, pNode->m_pInputXValueNode );
+        context.SetOptionalNodePtrFromIndex( m_inputValueXNodeIdx, pNode->m_pInputXValueNode );
+        context.SetOptionalNodePtrFromIndex( m_inputValueYNodeIdx, pNode->m_pInputYValueNode );
+        context.SetOptionalNodePtrFromIndex( m_inputValueZNodeIdx, pNode->m_pInputZValueNode );
+    }
+
+    void VectorCreateNode::InitializeInternal( GraphContext& context )
+    {
+        VectorValueNode::InitializeInternal( context );
+
+        if ( m_pInputVectorValueNode != nullptr )
+        {
+            m_pInputVectorValueNode->Initialize( context );
+        }
+
+        if ( m_pInputXValueNode != nullptr )
+        {
+            m_pInputXValueNode->Initialize( context );
+        }
+
+        if ( m_pInputYValueNode != nullptr )
+        {
+            m_pInputYValueNode->Initialize( context );
+        }
+
+        if ( m_pInputZValueNode != nullptr )
+        {
+            m_pInputZValueNode->Initialize( context );
+        }
+    }
+
+    void VectorCreateNode::ShutdownInternal( GraphContext& context )
+    {
+        if ( m_pInputVectorValueNode != nullptr )
+        {
+            m_pInputVectorValueNode->Shutdown( context );
+        }
+
+        if ( m_pInputXValueNode != nullptr )
+        {
+            m_pInputXValueNode->Shutdown( context );
+        }
+
+        if ( m_pInputYValueNode != nullptr )
+        {
+            m_pInputYValueNode->Shutdown( context );
+        }
+
+        if ( m_pInputZValueNode != nullptr )
+        {
+            m_pInputZValueNode->Shutdown( context );
+        }
+
+        VectorValueNode::ShutdownInternal( context );
+    }
+
+    void VectorCreateNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            //-------------------------------------------------------------------------
+
+            if ( m_pInputVectorValueNode != nullptr )
+            {
+                m_value = m_pInputVectorValueNode->GetValue<Vector>( context );
+            }
+            else
+            {
+                m_value = Vector::Zero;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( m_pInputXValueNode != nullptr )
+            {
+                m_value.m_x = m_pInputXValueNode->GetValue<float>( context );
+            }
+
+            if ( m_pInputYValueNode != nullptr )
+            {
+                m_value.m_y = m_pInputYValueNode->GetValue<float>( context );
+            }
+
+            if ( m_pInputZValueNode != nullptr )
+            {
+                m_value.m_z = m_pInputZValueNode->GetValue<float>( context );
+            }
+        }
+
+        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
+    }
+
+    //-------------------------------------------------------------------------
+
     void VectorNegateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VectorNegateNode>( context, options );

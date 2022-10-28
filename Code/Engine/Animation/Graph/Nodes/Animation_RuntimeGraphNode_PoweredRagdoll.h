@@ -21,11 +21,13 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_physicsBlendWeightNodeIdx, m_physicsBlendWeight, m_profileID, m_dataSlotIdx, m_isGravityEnabled );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_physicsBlendWeightNodeIdx, m_inpulseOriginVectorNodeIdx, m_inpulseForceVectorNodeIdx, m_physicsBlendWeight, m_profileID, m_dataSlotIdx, m_isGravityEnabled );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                                         m_physicsBlendWeightNodeIdx = InvalidIndex;
+            int16_t                                         m_inpulseOriginVectorNodeIdx = InvalidIndex;
+            int16_t                                         m_inpulseForceVectorNodeIdx = InvalidIndex;
             int16_t                                         m_dataSlotIdx = InvalidIndex;
             StringID                                        m_profileID;
             float                                           m_physicsBlendWeight = 1.0f;
@@ -40,12 +42,14 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        GraphPoseNodeResult RegisterRagdollTasks( GraphContext& context, GraphPoseNodeResult const& childResult );
+        GraphPoseNodeResult UpdateRagdoll( GraphContext& context, GraphPoseNodeResult const& childResult );
 
     private:
 
         Physics::RagdollDefinition const*                   m_pRagdollDefinition = nullptr;
         FloatValueNode*                                     m_pBlendWeightValueNode = nullptr;
+        VectorValueNode*                                    m_pImpulseOriginValueNode = nullptr;
+        VectorValueNode*                                    m_pImpulseForceValueNode = nullptr;
         Physics::Ragdoll*                                   m_pRagdoll = nullptr;
         bool                                                m_isFirstUpdate = false;
     };

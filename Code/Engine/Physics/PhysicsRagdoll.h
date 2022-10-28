@@ -349,19 +349,59 @@ namespace EE::Physics
         void WakeUp();
 
         // Apply an impulse from a specific source and direction. Will raycast to find affected body and apply impulse to it directly
-        void ApplyImpulse( Vector const& impulseSourceWS, Vector const& dirWS, float strength );
+        void ApplyImpulse( Vector const& impulseOriginWS, Vector const& impulseForceWS );
+
+        // Apply an impulse from a specific source and direction. Will raycast to find affected body and apply impulse to it directly
+        inline void ApplyImpulse( Vector const& impulseOriginWS, Vector const& impulseDirWS, float strength ) 
+        { 
+            EE_ASSERT( strength >= 0 );
+            EE_ASSERT( impulseDirWS.IsNormalized3() );
+            ApplyImpulse( impulseOriginWS, impulseDirWS * strength );
+        }
 
         // Apply an impulse directly to a body - the impulse might not affect though
-        void ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseSourceWS, Vector const& dirWS, float strength );
+        void ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseOriginWS, Vector const& impulseForceWS );
+       
+        // Apply an impulse directly to a body - the impulse might not affect though
+        void ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseOriginWS, Vector const& impulseDirWS, float strength )
+        {
+            EE_ASSERT( strength >= 0 );
+            EE_ASSERT( impulseDirWS.IsNormalized3() );
+            ApplyImpulse( impulseOriginWS, impulseDirWS * strength );
+        }
 
         // Apply an impulse directly to a body - the impulse might not affect though
-        void ApplyImpulseToBody( StringID boneID, Vector const& impulseSourceWS, Vector const& dirWS, float strength );
+        void ApplyImpulseToBody( StringID boneID, Vector const& impulseOriginWS, Vector const& impulseForceWS );
+
+        // Apply an impulse directly to a body - the impulse might not affect though
+        inline void ApplyImpulseToBody( StringID boneID, Vector const& impulseOriginWS, Vector const& impulseDirWS, float strength )
+        {
+            EE_ASSERT( strength >= 0 );
+            EE_ASSERT( impulseDirWS.IsNormalized3() );
+            ApplyImpulseToBody( boneID, impulseOriginWS, impulseDirWS * strength );
+        }
 
         // Apply an impulse directly to a body's COM
-        void ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& dirWS, float strength );
+        void ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& impulseForceWS );
 
         // Apply an impulse directly to a body's COM
-        void ApplyImpulseToBodyCOM( StringID boneID, Vector const& dirWS, float strength );
+        inline void ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& impulseDirWS, float strength )
+        {
+            EE_ASSERT( strength >= 0 );
+            EE_ASSERT( impulseDirWS.IsNormalized3() );
+            ApplyImpulseToBodyCOM( bodyIdx, impulseDirWS * strength );
+        }
+
+        // Apply an impulse directly to a body's COM
+        void ApplyImpulseToBodyCOM( StringID boneID, Vector const& impulseForceWS );
+
+        // Apply an impulse directly to a body's COM
+        inline void ApplyImpulseToBodyCOM( StringID boneID, Vector const& impulseDirWS, float strength )
+        {
+            EE_ASSERT( strength >= 0 );
+            EE_ASSERT( impulseDirWS.IsNormalized3() );
+            ApplyImpulseToBodyCOM( boneID, impulseDirWS * strength );
+        }
 
         // Update / Results
         //-------------------------------------------------------------------------

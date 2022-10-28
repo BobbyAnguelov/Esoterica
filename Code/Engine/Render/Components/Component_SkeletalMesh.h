@@ -80,9 +80,10 @@ namespace EE::Render
 
         virtual TVector<TResourcePtr<Render::Material>> const& GetDefaultMaterials() const override final;
 
-        void UpdateBounds();
         void UpdateSkinningTransforms();
         void GenerateAnimationBoneMap();
+
+        virtual OBB CalculateLocalBounds() const override final;
 
         virtual void Initialize() override;
         virtual void Shutdown() override;

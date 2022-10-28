@@ -57,6 +57,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        // Use this to remap an input value into a valid 0~1 range.
         EE_EXPOSE FloatRange   m_inputTimeRemapRange = FloatRange( 0, 1 );
     };
 }

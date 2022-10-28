@@ -361,6 +361,40 @@ namespace EE::Math
 
     //-------------------------------------------------------------------------
 
+    Float2 ViewVolume::GetNearPlaneWorldSpaceDimensions() const
+    {
+        Vector const viewPosition = GetViewPosition();
+        Vector const fwdDir = GetViewForwardVector();
+        Vector const centerNear = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_begin ), viewPosition );
+
+        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_viewDimensions.m_x, m_viewDimensions.m_y, m_FOV );
+        float const aspectRatio = GetAspectRatio();
+        float e = Math::Tan( (float) verticalFOV * 0.5f );
+
+        Float2 dimensions;
+        dimensions.m_y = e * m_depthRange.m_begin * 2;
+        dimensions.m_x = dimensions.m_y * aspectRatio;
+
+        return dimensions;
+    }
+
+    Float2 ViewVolume::GetFarPlaneWorldSpaceDimensions() const
+    {
+        Vector const viewPosition = GetViewPosition();
+        Vector const fwdDir = GetViewForwardVector();
+        Vector const centerFar = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_end ), viewPosition );
+
+        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_viewDimensions.m_x, m_viewDimensions.m_y, m_FOV );
+        float const aspectRatio = GetAspectRatio();
+        float e = Math::Tan( (float) verticalFOV * 0.5f );
+
+        Float2 dimensions;
+        dimensions.m_y = e * m_depthRange.m_end * 2;
+        dimensions.m_x = dimensions.m_y * aspectRatio;
+
+        return dimensions;
+    }
+
     ViewVolume::VolumeCorners ViewVolume::GetCorners() const
     {
         VolumeCorners vc;

@@ -5,6 +5,11 @@
 
 namespace EE::Physics
 {
+    OBB SphereComponent::CalculateLocalBounds() const
+    {
+        return OBB( Vector::Origin, Vector( m_radius ) );
+    }
+
     // This constructor only exists to lazy initialize the static default material ID
     SphereComponent::SphereComponent()
     {

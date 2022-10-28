@@ -101,7 +101,7 @@ namespace EE
         inline ResourcePath const& GetResourcePath() const { return m_resourcePath; }
 
         virtual bool IsDragAndDropSource() const override { return IsFile() && IsResourceFile(); }
-        virtual void SetDragAndDropPayloadData() const override { ImGui::SetDragDropPayload( "ResourceFile", (void*) m_resourcePath.c_str(), m_resourcePath.GetString().length() ); }
+        virtual void SetDragAndDropPayloadData() const override { ImGui::SetDragDropPayload( "ResourceFile", (void*) m_resourcePath.c_str(), m_resourcePath.GetString().length() + 1 ); }
 
         // Resource Info
         //-------------------------------------------------------------------------

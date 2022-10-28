@@ -47,9 +47,6 @@ namespace EE
         // Are we the root component for this entity? 
         inline bool IsRootComponent() const { return m_pSpatialParent == nullptr || m_pSpatialParent->m_entityID != m_entityID; }
 
-        // Do we hav any spatial children
-        inline bool HasChildren() const { return !m_spatialChildren.empty(); }
-
         inline Transform const& GetLocalTransform() const { return m_transform; }
         inline OBB const& GetLocalBounds() const { return m_bounds; }
 
@@ -92,9 +89,15 @@ namespace EE
             SetWorldTransform( newWorldTransform );
         }
 
+        // Parenting
+        //-------------------------------------------------------------------------
+
         // Do we have a spatial parent?
         inline bool HasSpatialParent() const { return m_pSpatialParent != nullptr; }
         
+        // Do we have any spatial children
+        inline bool HasChildren() const { return !m_spatialChildren.empty(); }
+
         // Get the spatial parent ID
         inline ComponentID GetSpatialParentID() const { EE_ASSERT( HasSpatialParent() ); return m_pSpatialParent->GetID(); }
 
@@ -117,6 +120,15 @@ namespace EE
         // The search children parameter controls, whether to only search this component or to also search it's children
         Transform GetAttachmentSocketTransform( StringID socketID ) const;
 
+        // Local Scale
+        //-------------------------------------------------------------------------
+
+        // Do we support local scaling?
+        virtual bool SupportsLocalScale() const { return false; }
+
+        // Get the local scaling multiplier
+        virtual Float3 const& GetLocalScale() const { return Float3::One; }
+
         // Conversion Functions
         //-------------------------------------------------------------------------
 
@@ -133,10 +145,23 @@ namespace EE
 
         using EntityComponent::EntityComponent;
 
-        // Call to update the local bounds - this will ONLY update the world bounds for this component
-        inline void SetLocalBounds( OBB const& newBounds )
+        virtual void Initialize() override;
+
+        // Set the local scaling multiplier
+        virtual void SetLocalScale( Float3 const& newLocalScale ) {}
+
+        // Calculate and return the local bounds for this component - This should not be called directly!
+        virtual OBB CalculateLocalBounds() const 
         {
-            m_bounds = newBounds;
+            EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_boundsValidationGuard ) );
+            return OBB( Vector::Zero, Vector::Half );
+        }
+
+        // Updates the local and world bounds for this component
+        void UpdateBounds()
+        {
+            EE_DEVELOPMENT_TOOLS_ONLY( m_boundsValidationGuard = true );
+            m_bounds = CalculateLocalBounds();
             m_worldBounds = m_bounds.GetTransformed( m_worldTransform );
         }
 
@@ -189,6 +214,10 @@ namespace EE
             }
         }
     
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+        #endif
+
     private:
 
         // Called whenever the local transform is modified
@@ -232,5 +261,11 @@ namespace EE
         SpatialEntityComponent*                                             m_pSpatialParent = nullptr;             // The component we are attached to (spatial hierarchy is managed by the parent entity!)
         EE_EXPOSE StringID                                                  m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
         TInlineVector<SpatialEntityComponent*, 2>                           m_spatialChildren;                      // All components that are attached to us. DO NOT EXPOSE THIS!!!
+
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        bool                                                                m_boundsValidationGuard = false;
+        #endif
     };
 }

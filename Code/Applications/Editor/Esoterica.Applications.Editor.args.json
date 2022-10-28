@@ -7,10 +7,6 @@
       "Command": "-map data://maps/Test.map"
     },
     {
-      "Id": "8fe4b02b-32a6-465e-9525-b1d7a9227e22",
-      "Command": "-map data://maps/BR_Minimal.map"
-    },
-    {
       "Id": "a49018a4-25fb-495f-9d0f-f8b9a787430c",
       "Command": "-map data://maps/Prototype_3Cs_Minimal.map"
     },

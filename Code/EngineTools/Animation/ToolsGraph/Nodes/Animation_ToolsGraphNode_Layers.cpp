@@ -2,47 +2,148 @@
 #include "Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void LayerSettingsToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void LocalLayerToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
 
-        CreateOutputPin( "Layer", GraphValueType::Unknown );
-        CreateInputPin( "State Machine", GraphValueType::Pose );
+        CreateOutputPin( "Layer", GraphValueType::Special );
+        CreateInputPin( "Input", GraphValueType::Pose );
+        CreateInputPin( "Weight", GraphValueType::Float );
+        CreateInputPin( "BoneMask", GraphValueType::BoneMask );
     }
 
-    bool LayerSettingsToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool LocalLayerToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
     {
-        return IsOfType<StateMachineToolsNode>( pOutputPinNode );
-    }
-
-    //-------------------------------------------------------------------------
-
-    void LayerToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
-    {
-        FlowToolsNode::Initialize( pParent );
-
-        CreateOutputPin( "Pose", GraphValueType::Pose );
-        CreateInputPin( "Base Node", GraphValueType::Pose );
-        CreateInputPin( "Layer 0", GraphValueType::Unknown );
-    }
-
-    bool LayerToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
-    {
-        int32_t const pinIdx = GetInputPinIndex( inputPinID );
-        if ( pinIdx > 0 )
+        if ( IsOfType<StateMachineToolsNode>( pOutputPinNode ) )
         {
-            return IsOfType<LayerSettingsToolsNode>( pOutputPinNode );
+            return false;
         }
 
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
     }
 
-    TInlineString<100> LayerToolsNode::GetNewDynamicInputPinName() const
+    void LocalLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        InlineString blendOptionsText;
+
+        ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
+        ctx.m_pDrawList->AddLine( originalCursorPos, originalCursorPos + ImVec2( GetWidth(), 0 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
+        {
+            blendOptionsText = "Additive";
+        }
+        else
+        {
+            blendOptionsText = "Interpolate";
+        }
+
+        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::GlobalSpace ) )
+        {
+            blendOptionsText += " (Global Space)";
+        }
+
+        ImGui::Text( blendOptionsText.c_str() );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_isSynchronized )
+        {
+            ImGui::Text( "Synchronized" );
+        }
+
+        if ( m_ignoreEvents )
+        {
+            ImGui::Text( "Events Ignored" );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void StateMachineLayerToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    {
+        FlowToolsNode::Initialize( pParent );
+
+        CreateOutputPin( "Layer", GraphValueType::Special );
+        CreateInputPin( "State Machine", GraphValueType::Pose );
+    }
+
+    bool StateMachineLayerToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    {
+        return IsOfType<StateMachineToolsNode>( pOutputPinNode );
+    }
+
+    void StateMachineLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        InlineString blendOptionsText;
+
+        ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
+        ctx.m_pDrawList->AddLine( originalCursorPos, originalCursorPos + ImVec2( GetWidth(), 0 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
+        {
+            blendOptionsText = "Additive";
+        }
+        else
+        {
+            blendOptionsText = "Interpolate";
+        }
+
+        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::GlobalSpace ) )
+        {
+            blendOptionsText += " (Global Space)";
+        }
+
+        ImGui::Text( blendOptionsText.c_str() );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_isSynchronized )
+        {
+            ImGui::Text( "Synchronized" );
+        }
+
+        if ( m_ignoreEvents )
+        {
+            ImGui::Text( "Events Ignored" );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void LayerBlendToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    {
+        FlowToolsNode::Initialize( pParent );
+
+        CreateOutputPin( "Pose", GraphValueType::Pose );
+        CreateInputPin( "Base Node", GraphValueType::Pose );
+        CreateInputPin( "Layer 0", GraphValueType::Special );
+    }
+
+    bool LayerBlendToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    {
+        int32_t const pinIdx = GetInputPinIndex( inputPinID );
+        if ( pinIdx > 0 )
+        {
+            return IsOfType<LocalLayerToolsNode>( pOutputPinNode ) || IsOfType<StateMachineLayerToolsNode>( pOutputPinNode );
+        }
+
+        return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
+    }
+
+    TInlineString<100> LayerBlendToolsNode::GetNewDynamicInputPinName() const
     {
         int32_t const numOptions = GetNumInputPins();
         TInlineString<100> pinName;
@@ -50,7 +151,7 @@ namespace EE::Animation::GraphNodes
         return pinName;
     }
 
-    void LayerToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void LayerBlendToolsNode::OnDynamicPinDestruction( UUID pinID )
     {
         int32_t const numOptions = GetNumInputPins();
 
@@ -76,7 +177,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    int16_t LayerToolsNode::Compile( GraphCompilationContext& context ) const
+    int16_t LayerBlendToolsNode::Compile( GraphCompilationContext& context ) const
     {
         LayerBlendNode::Settings* pSettings = nullptr;
         NodeCompilationState const state = context.GetSettings<LayerBlendNode>( this, pSettings );
@@ -113,23 +214,83 @@ namespace EE::Animation::GraphNodes
 
             for ( auto i = 1; i < GetNumInputPins(); i++ )
             {
-                auto pLayerSettingsNode = GetConnectedInputNode<LayerSettingsToolsNode>( i );
-                if ( pLayerSettingsNode != nullptr )
+                if ( auto pLocalLayerNode = GetConnectedInputNode<LocalLayerToolsNode>( i ) )
                 {
                     auto& layerSettings = pSettings->m_layerSettings.emplace_back();
 
-                    layerSettings.m_isSynchronized = pLayerSettingsNode->m_isSynchronized;
-                    layerSettings.m_ignoreEvents = pLayerSettingsNode->m_ignoreEvents;
-                    layerSettings.m_blendOptions = pLayerSettingsNode->m_blendOptions;
+                    layerSettings.m_isSynchronized = pLocalLayerNode->m_isSynchronized;
+                    layerSettings.m_ignoreEvents = pLocalLayerNode->m_ignoreEvents;
+                    layerSettings.m_blendOptions = pLocalLayerNode->m_blendOptions;
+                    layerSettings.m_isStateMachineLayer = false;
 
                     // Compile layer state machine
-                    auto pLayerStateMachineNode = pLayerSettingsNode->GetConnectedInputNode<StateMachineToolsNode>( 0 );
-                    if ( pLayerStateMachineNode != nullptr )
+                    auto pInputNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 0 );
+                    if ( pInputNode != nullptr )
                     {
-                        auto compiledStateMachineNodeIdx = pLayerStateMachineNode->Compile( context );
+                        auto compiledStateMachineNodeIdx = pInputNode->Compile( context );
                         if ( compiledStateMachineNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_layerNodeIdx = compiledStateMachineNodeIdx;
+                            layerSettings.m_inputNodeIdx = compiledStateMachineNodeIdx;
+                            atLeastOneLayerCompiled = true;
+                        }
+                        else
+                        {
+                            return InvalidIndex;
+                        }
+                    }
+                    else
+                    {
+                        context.LogError( this, "Disconnected base node pin on layer node!" );
+                        return InvalidIndex;
+                    }
+
+                    // Compile optional weight node
+                    if ( auto pWeightValueNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 1 ) )
+                    {
+                        auto compiledWeightNodeIdx = pWeightValueNode->Compile( context );
+                        if ( compiledWeightNodeIdx != InvalidIndex )
+                        {
+                            layerSettings.m_weightValueNodeIdx = compiledWeightNodeIdx;
+                            atLeastOneLayerCompiled = true;
+                        }
+                        else
+                        {
+                            return InvalidIndex;
+                        }
+                    }
+
+                    // Compile optional mask node
+                    if ( auto pMaskValueNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 2 ) )
+                    {
+                        auto compiledBoneMaskValueNodeIdx = pMaskValueNode->Compile( context );
+                        if ( compiledBoneMaskValueNodeIdx != InvalidIndex )
+                        {
+                            layerSettings.m_boneMaskValueNodeIdx = compiledBoneMaskValueNodeIdx;
+                            atLeastOneLayerCompiled = true;
+                        }
+                        else
+                        {
+                            return InvalidIndex;
+                        }
+                    }
+                }
+                else if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
+                {
+                    auto& layerSettings = pSettings->m_layerSettings.emplace_back();
+
+                    layerSettings.m_isSynchronized = pStateMachineLayerNode->m_isSynchronized;
+                    layerSettings.m_ignoreEvents = pStateMachineLayerNode->m_ignoreEvents;
+                    layerSettings.m_blendOptions = pStateMachineLayerNode->m_blendOptions;
+                    layerSettings.m_isStateMachineLayer = true;
+
+                    // Compile layer state machine
+                    auto pStateMachineNode = pStateMachineLayerNode->GetConnectedInputNode<StateMachineToolsNode>( 0 );
+                    if ( pStateMachineNode != nullptr )
+                    {
+                        auto compiledStateMachineNodeIdx = pStateMachineNode->Compile( context );
+                        if ( compiledStateMachineNodeIdx != InvalidIndex )
+                        {
+                            layerSettings.m_inputNodeIdx = compiledStateMachineNodeIdx;
                             atLeastOneLayerCompiled = true;
                         }
                         else
@@ -144,6 +305,8 @@ namespace EE::Animation::GraphNodes
                     }
                 }
             }
+
+            //-------------------------------------------------------------------------
 
             if ( !atLeastOneLayerCompiled )
             {

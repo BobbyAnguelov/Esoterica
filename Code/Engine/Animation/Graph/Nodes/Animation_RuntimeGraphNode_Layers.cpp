@@ -14,10 +14,13 @@ namespace EE::Animation::GraphNodes
         auto pNode = CreateNode<LayerBlendNode>( context, options );
         context.SetNodePtrFromIndex( m_baseNodeIdx, pNode->m_pBaseLayerNode );
 
+        pNode->m_layers.reserve( m_layerSettings.size() );
         for ( auto const& layerSettings : m_layerSettings )
         {
-            StateMachineNode*& pLayerNode = pNode->m_layers.emplace_back();
-            context.SetNodePtrFromIndex( layerSettings.m_layerNodeIdx, pLayerNode );
+            Layer& pLayer = pNode->m_layers.emplace_back();
+            context.SetNodePtrFromIndex( layerSettings.m_inputNodeIdx, pLayer.m_pInputNode );
+            context.SetOptionalNodePtrFromIndex( layerSettings.m_weightValueNodeIdx, pLayer.m_pWeightValueNode );
+            context.SetOptionalNodePtrFromIndex( layerSettings.m_boneMaskValueNodeIdx, pLayer.m_pBoneMaskValueNode );
         }
     }
 
@@ -48,17 +51,28 @@ namespace EE::Animation::GraphNodes
         int32_t const numLayers = (int32_t) m_layers.size();
         for ( auto i = 0; i < numLayers; i++ )
         {
-            auto pLayer = m_layers[i];
-            EE_ASSERT( pLayer != nullptr );
+            EE_ASSERT( m_layers[i].m_pInputNode != nullptr );
 
+            // Initialize input node
             // Only initialize the start time for synchronized layers
             if ( pSettings->m_layerSettings[i].m_isSynchronized )
             {
-                pLayer->Initialize( context, initialTime );
+                m_layers[i].m_pInputNode->Initialize( context, initialTime );
             }
             else
             {
-                pLayer->Initialize( context, SyncTrackTime() );
+                m_layers[i].m_pInputNode->Initialize( context, SyncTrackTime() );
+            }
+
+            // Optional Nodes
+            if ( m_layers[i].m_pWeightValueNode != nullptr )
+            {
+                m_layers[i].m_pWeightValueNode->Initialize( context );
+            }
+
+            if ( m_layers[i].m_pBoneMaskValueNode != nullptr )
+            {
+                m_layers[i].m_pBoneMaskValueNode->Initialize( context );
             }
         }
     }
@@ -67,10 +81,22 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
 
-        for ( auto& Layer : m_layers )
+        for ( auto& layer : m_layers )
         {
-            EE_ASSERT( Layer != nullptr );
-            Layer->Shutdown( context );
+            // Optional Nodes
+            if ( layer.m_pWeightValueNode != nullptr )
+            {
+                layer.m_pWeightValueNode->Shutdown( context );
+            }
+
+            if ( layer.m_pBoneMaskValueNode != nullptr )
+            {
+                layer.m_pBoneMaskValueNode->Shutdown( context );
+            }
+
+            // Input Node
+            EE_ASSERT( layer.m_pInputNode != nullptr );
+            layer.m_pInputNode->Shutdown( context );
         }
 
         m_pBaseLayerNode->Shutdown( context );
@@ -84,10 +110,9 @@ namespace EE::Animation::GraphNodes
             PoseNode::DeactivateBranch( context );
             m_pBaseLayerNode->DeactivateBranch( context );
 
-            auto const numLayers = m_layers.size();
-            for ( auto i = 0; i < numLayers; i++ )
+            for ( auto const& layer : m_layers )
             {
-                m_layers[i]->DeactivateBranch( context );
+                layer.m_pInputNode->DeactivateBranch( context );
             }
         }
     }
@@ -166,6 +191,8 @@ namespace EE::Animation::GraphNodes
         return result;
     }
 
+    //-------------------------------------------------------------------------
+
     void LayerBlendNode::UpdateLayers( GraphContext& context, GraphPoseNodeResult& nodeResult )
     {
         EE_ASSERT( context.IsValid() && IsValid() );
@@ -177,16 +204,16 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t rootMotionActionIdxCurrentBase = m_rootMotionActionIdxBase;
-        int16_t rootMotionActionIdxLayer = m_rootMotionActionIdxBase;
+        int16_t rootMotionActionIdxLayer = rootMotionActionIdxCurrentBase;
         #endif
 
         int32_t const numLayers = (int32_t) m_layers.size();
         for ( auto i = 0; i < numLayers; i++ )
         {
-            // Create the layer context
+            // Start a new layer
             //-------------------------------------------------------------------------
 
-            // If we are currently in a layer then cache it so that we can safely overwrite it
+            // If we are currently in a higher-level layer then cache it so that we can safely overwrite it
             if ( context.m_layerContext.IsSet() )
             {
                 m_previousContext = context.m_layerContext;
@@ -194,32 +221,47 @@ namespace EE::Animation::GraphNodes
 
             context.m_layerContext.BeginLayer();
 
+            // Update layer
+            //-------------------------------------------------------------------------
+
             // Record the current state of the registered tasks
             auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
 
-            // Update time and layer weight
-            //-------------------------------------------------------------------------
-            // Always update the layers as they are state machines and transitions need to be evaluated
+            // If we're not a state machine setup the layer context here
+            if ( !pSettings->m_layerSettings[i].m_isStateMachineLayer )
+            {
+                if ( m_layers[i].m_pWeightValueNode != nullptr )
+                {
+                    context.m_layerContext.m_layerWeight = m_layers[i].m_pWeightValueNode->GetValue<float>( context );
+                }
 
+                if ( m_layers[i].m_pBoneMaskValueNode != nullptr )
+                {
+                    auto pBoneMask = m_layers[i].m_pBoneMaskValueNode->GetValue<BoneMask const*>( context );
+                    if ( pBoneMask != nullptr )
+                    {
+                        context.m_layerContext.m_pLayerMask = context.m_boneMaskPool.GetBoneMask();
+                        context.m_layerContext.m_pLayerMask->CopyFrom( *pBoneMask );
+                    }
+                }
+            }
+
+            // Update input node
+            // Always update SM layers as the transitions need to be evaluated
             GraphPoseNodeResult layerResult;
-            StateMachineNode* pLayerStateMachine = m_layers[i];
-
-            if ( pSettings->m_layerSettings[i].m_isSynchronized )
+            if ( pSettings->m_layerSettings[i].m_isStateMachineLayer || context.m_layerContext.m_layerWeight > 0.0f )
             {
-                layerResult = pLayerStateMachine->Update( context, layerUpdateRange );
+                if ( pSettings->m_layerSettings[i].m_isSynchronized )
+                {
+                    layerResult = m_layers[i].m_pInputNode->Update( context, layerUpdateRange );
+                }
+                else
+                {
+                    layerResult = m_layers[i].m_pInputNode->Update( context );
+                }
             }
-            else
-            {
-                layerResult = pLayerStateMachine->Update( context );
-            }
 
-            #if EE_DEVELOPMENT_TOOLS
-            rootMotionActionIdxLayer = context.GetRootMotionDebugger()->GetLastActionIndex();
-            #endif
-
-            // Register the layer blend tasks
-            //-------------------------------------------------------------------------
-
+            // Register the blend tasks
             // If we registered a task for this layer, then we need to blend
             if ( layerResult.HasRegisteredTasks() )
             {
@@ -231,13 +273,15 @@ namespace EE::Animation::GraphNodes
                     nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, layerResult.m_rootMotionDelta, context.m_layerContext.m_layerWeight, blendMode );
 
                     #if EE_DEVELOPMENT_TOOLS
+                    rootMotionActionIdxLayer = context.GetRootMotionDebugger()->GetLastActionIndex();
                     context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxCurrentBase, rootMotionActionIdxLayer, nodeResult.m_rootMotionDelta );
                     rootMotionActionIdxCurrentBase = context.GetRootMotionDebugger()->GetLastActionIndex();
                     #endif
 
                 }
-                else // Remove any layer registered tasks
+                else // Remove any layer registered tasks since the layer weight is zero
                 {
+                    EE_ASSERT( pSettings->m_layerSettings[i].m_isStateMachineLayer ); // Cannot occur for local layers
                     context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
                 }
             }
@@ -271,7 +315,7 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            // Reset the layer context
+            // End Layer
             //-------------------------------------------------------------------------
 
             context.m_layerContext.EndLayer();

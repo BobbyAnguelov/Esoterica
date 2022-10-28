@@ -5,6 +5,11 @@
 
 namespace EE::Physics
 {
+    OBB BoxComponent::CalculateLocalBounds() const
+    {
+        return OBB( Vector::Origin, m_boxExtents );
+    }
+
     // This constructor only exists to lazy initialize the static default material ID
     BoxComponent::BoxComponent()
     {

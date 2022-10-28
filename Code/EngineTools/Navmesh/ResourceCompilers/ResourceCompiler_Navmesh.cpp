@@ -73,14 +73,12 @@ namespace EE::Navmesh
         // Get navmesh component
         //-------------------------------------------------------------------------
 
-        bool hasWarning = false;
         auto const navmeshComponents = serializedMap.GetComponentsOfType<NavmeshComponent>( *m_pTypeRegistry, false );
         if ( navmeshComponents.empty() )
         {
             Error( "Requesting navmesh for a map without a navmesh component! This is an invalid operation!" );
             return CompilationFailed( ctx );
         }
-
 
         if ( navmeshComponents.size() > 1 )
         {
@@ -105,7 +103,7 @@ namespace EE::Navmesh
 
         Message( "Navmesh built in: %.2fms", elapsedTime.ToFloat() );
 
-        return hasWarning ? Resource::CompilationResult::SuccessWithWarnings : Resource::CompilationResult::Success;
+        return Resource::CompilationResult::Success;
         #else
         return Error( "No navmesh middleware present!" );
         #endif

@@ -21,6 +21,7 @@
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Volumes/Components/Component_Volumes.h"
 #include "Engine/Player/Components/Component_PlayerSpawn.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -31,18 +32,14 @@ namespace EE::EntityModel
         , m_outliner( pToolsContext, &m_undoStack, m_pWorld )
         , m_entityStructureEditor( pToolsContext, &m_undoStack, m_pWorld )
         , m_propertyGrid( pToolsContext, &m_undoStack, m_pWorld )
-    {
-        m_gizmo.SetTargetTransform( &m_gizmoTransform );
-    }
+    {}
 
     EntityEditorWorkspace::EntityEditorWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
         : Workspace( pToolsContext, pWorld, displayName )
         , m_outliner( pToolsContext, &m_undoStack, m_pWorld )
         , m_entityStructureEditor( pToolsContext, &m_undoStack, m_pWorld )
         , m_propertyGrid( pToolsContext, &m_undoStack, m_pWorld )
-    {
-        m_gizmo.SetTargetTransform( &m_gizmoTransform );
-    }
+    {}
 
     //-------------------------------------------------------------------------
 
@@ -169,6 +166,13 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
+        if ( m_gizmo.IsManipulating() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
         EntityID const pickedEntityID( pickingID.m_0 );
         auto pEntity = m_pWorld->FindEntity( pickedEntityID );
         if ( pEntity == nullptr )
@@ -218,11 +222,6 @@ namespace EE::EntityModel
             m_entityStructureEditor.SetEntitiesToEdit( selectedEntities );
             m_propertyGrid.SetTypeInstanceToEdit( nullptr );
         }
-
-        // Update spatial info
-        //-------------------------------------------------------------------------
-
-        UpdateSelectionSpatialInfo();
     }
 
     void EntityEditorWorkspace::OnStructureEditorSelectionChanged( IRegisteredType* pTypeToEdit )
@@ -345,15 +344,17 @@ namespace EE::EntityModel
 
     void EntityEditorWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        constexpr float const buttonWidth = 20;
+        constexpr float const buttonWidth = 18;
 
-        if ( BeginViewportToolbarGroup( "SpatialControls", ImVec2( 106, 0 ) ) )
+        if ( BeginViewportToolbarGroup( "SpatialControls", ImVec2( 100, 0 ) ) )
         {
             TInlineString<10> const coordinateSpaceSwitcherLabel( TInlineString<10>::CtorSprintf(), "%s##CoordinateSpace", m_gizmo.IsInWorldSpace() ? EE_ICON_EARTH : EE_ICON_MAP_MARKER );
+            ImGui::BeginDisabled( m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Scale );
             if ( ImGui::Selectable( coordinateSpaceSwitcherLabel.c_str(), false, 0, ImVec2( buttonWidth, 0 ) ) )
             {
                 m_gizmo.SetCoordinateSystemSpace( m_gizmo.IsInWorldSpace() ? CoordinateSpace::Local : CoordinateSpace::World );
             }
+            ImGui::EndDisabled();
             ImGuiX::ItemTooltip( "Current Mode: %s", m_gizmo.IsInWorldSpace() ? "World Space" : "Local Space" );
 
             ImGuiX::VerticalSeparator( ImVec2( 11, -1 ) );
@@ -364,27 +365,37 @@ namespace EE::EntityModel
             bool r = m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Rotation;
             bool s = m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Scale;
 
+            ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray1.Value );
+
+            ImGui::PushStyleColor( ImGuiCol_Text, t ? ImGuiX::Style::s_colorAccent1.Value : ImGuiX::Style::s_colorText.Value );
             if ( ImGui::Selectable( EE_ICON_AXIS_ARROW, t, 0, ImVec2( buttonWidth, 0 ) ) )
             {
                 m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
             }
+            ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Translate" );
 
             ImGui::SameLine();
 
+            ImGui::PushStyleColor( ImGuiCol_Text, r ? ImGuiX::Style::s_colorAccent1.Value : ImGuiX::Style::s_colorText.Value );
             if ( ImGui::Selectable( EE_ICON_ROTATE_ORBIT, r, 0, ImVec2( buttonWidth, 0 ) ) )
             {
                 m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Rotation );
             }
+            ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Rotate" );
 
             ImGui::SameLine();
 
+            ImGui::PushStyleColor( ImGuiCol_Text, s ? ImGuiX::Style::s_colorAccent1.Value : ImGuiX::Style::s_colorText.Value );
             if ( ImGui::Selectable( EE_ICON_ARROW_TOP_RIGHT_BOTTOM_LEFT, s, 0, ImVec2( buttonWidth, 0 ) ) )
             {
                 m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Scale );
             }
+            ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Scale" );
+
+            ImGui::PopStyleColor();
         }
         EndViewportToolbarGroup();
 
@@ -485,6 +496,57 @@ namespace EE::EntityModel
         }
         ImGuiX::ItemTooltip( "Help" );
         ImGui::PopStyleVar();
+
+        //-------------------------------------------------------------------------
+
+        if ( m_hasSpatialSelection )
+        {
+            ImGui::SameLine();
+            float const infoGroupWidth = ImGui::GetCursorPosX() - 8;
+            ImGui::NewLine();
+            ImGui::NewLine();
+
+            //-------------------------------------------------------------------------
+
+            if ( BeginViewportToolbarGroup( "SpatialSelectionInfo", ImVec2( infoGroupWidth, 0 ) ) )
+            {
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+                ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 2 );
+
+                auto const& selectedSpatialComponents = m_entityStructureEditor.GetSelectedSpatialComponents();
+                if ( selectedSpatialComponents.size() > 0 )
+                {
+                    auto pEditedEntity = m_entityStructureEditor.GetEditedEntity();
+                    if ( pEditedEntity != nullptr )
+                    {
+                        if ( selectedSpatialComponents.size() > 1 )
+                        {
+                            ImGui::Text( "Multiple Components Selected (%s)", pEditedEntity->GetNameID().c_str() );
+                        }
+                        else
+                        {
+                            ImGui::Text( "%s (%s)", selectedSpatialComponents[0]->GetNameID().c_str(), pEditedEntity->GetNameID().c_str() );
+                        }
+                    }
+                }
+                else // Update all selected entities
+                {
+                    auto const selectedEntities = m_outliner.GetSelectedEntities();
+                    if ( !selectedEntities.empty() )
+                    {
+                        if ( selectedEntities.size() > 1 )
+                        {
+                            ImGui::Text( "Multiple Entities Selected" );
+                        }
+                        else
+                        {
+                            ImGui::Text( selectedEntities[0]->GetNameID().c_str() );
+                        }
+                    }
+                }
+            }
+            EndViewportToolbarGroup();
+        }
     }
 
     void EntityEditorWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -604,6 +666,7 @@ namespace EE::EntityModel
         // Selection and Manipulation
         //-------------------------------------------------------------------------
 
+        UpdateSelectionSpatialInfo();
         if ( m_hasSpatialSelection )
         {
             // Draw selection bounds
@@ -630,32 +693,26 @@ namespace EE::EntityModel
             // Update Gizmo
             //-------------------------------------------------------------------------
 
-            if ( m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::None )
+            auto const gizmoResult = m_gizmo.Draw( m_selectionTransform.GetTranslation(), m_selectionTransform.GetRotation(), *m_pWorld->GetViewport() );
+            switch ( gizmoResult.m_state )
             {
-                m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
-            }
-
-            m_gizmoTransform = m_selectionTransform;
-
-            switch ( m_gizmo.Draw( *m_pWorld->GetViewport() ) )
-            {
-                case ImGuiX::Gizmo::Result::StartedManipulating:
+                case ImGuiX::Gizmo::State::StartedManipulating:
                 {
-                    bool const hasSelectedComponent = !m_entityStructureEditor.GetSelectedSpatialComponents().empty(); // Disallow component duplication atm
-                    bool const duplicateSelection = !hasSelectedComponent &&( m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Translation ) && ImGui::GetIO().KeyAlt;
-                    BeginTransformManipulation( m_gizmoTransform, duplicateSelection );
+                    bool const hasSelectedComponent = !m_entityStructureEditor.GetSelectedSpatialComponents().empty(); // Disallow component duplication
+                    bool const duplicateSelection = !hasSelectedComponent && ( m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Translation ) && ImGui::GetIO().KeyAlt;
+                    BeginTransformManipulation( gizmoResult.GetModifiedTransform( m_selectionTransform ), duplicateSelection );
                 }
                 break;
 
-                case ImGuiX::Gizmo::Result::Manipulating:
+                case ImGuiX::Gizmo::State::Manipulating:
                 {
-                    ApplyTransformManipulation( m_gizmoTransform );
+                    ApplyTransformManipulation( gizmoResult.GetModifiedTransform( m_selectionTransform ) );
                 }
                 break;
 
-                case ImGuiX::Gizmo::Result::StoppedManipulating:
+                case ImGuiX::Gizmo::State::StoppedManipulating:
                 {
-                    EndTransformManipulation( m_gizmoTransform );
+                    EndTransformManipulation( gizmoResult.GetModifiedTransform( m_selectionTransform ) );
                 }
                 break;
 
@@ -763,9 +820,6 @@ namespace EE::EntityModel
                 offsetIdx++;
             }
         }
-
-        m_selectionTransform = newTransform;
-        UpdateSelectionSpatialInfo();
     }
 
     void EntityEditorWorkspace::EndTransformManipulation( Transform const& newTransform )

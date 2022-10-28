@@ -36,7 +36,8 @@ namespace EE::Animation
         Vector,
         Target,
         BoneMask,
-        Pose
+        Pose,
+        Special, // Only used for custom graph pin types
     };
 
     #if EE_DEVELOPMENT_TOOLS

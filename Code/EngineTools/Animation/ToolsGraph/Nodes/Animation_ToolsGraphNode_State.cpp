@@ -135,7 +135,7 @@ namespace EE::Animation::GraphNodes
 
     void StateToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto DrawStateTypeWindow = [] ( VisualGraph::DrawContext const& ctx, Color fontColor, float width, char const* pLabel )
+        auto DrawStateTypeWindow = [] ( VisualGraph::DrawContext const& ctx, Color iconColor, Color fontColor, float width, char const* pIcon, char const* pLabel )
         {
             if ( width <= 0 )
             {
@@ -155,7 +155,13 @@ namespace EE::Animation::GraphNodes
             ImGui::SetCursorPos( ImVec2( ImGui::GetCursorPosX() + 2, ImGui::GetCursorPosY() + 2 ) );
 
             {
+                ImGuiX::ScopedFont font( ImGuiX::Font::Small, iconColor );
+                ImGui::Text( pIcon );
+            }
+
+            {
                 ImGuiX::ScopedFont font( ImGuiX::Font::Small, fontColor );
+                ImGui::SameLine();
                 ImGui::Text( pLabel );
             }
 
@@ -168,19 +174,19 @@ namespace EE::Animation::GraphNodes
         {
             case StateType::OffState:
             {
-                DrawStateTypeWindow( ctx, Colors::Red, GetWidth(), EE_ICON_CLOSE_CIRCLE" Off State" );
+                DrawStateTypeWindow( ctx, Colors::Red, Colors::White, GetWidth(), EE_ICON_CLOSE_CIRCLE, " Off State" );
             }
             break;
 
             case StateType::BlendTreeState:
             {
-                DrawStateTypeWindow( ctx, Colors::White, GetWidth(), EE_ICON_FILE_TREE" Blend Tree" );
+                DrawStateTypeWindow( ctx, Colors::MediumPurple, Colors::White, GetWidth(), EE_ICON_FILE_TREE, " Blend Tree" );
             }
             break;
 
             case StateType::StateMachineState:
             {
-                DrawStateTypeWindow( ctx, Colors::White, GetWidth(), EE_ICON_STATE_MACHINE" State Machine" );
+                DrawStateTypeWindow( ctx, Colors::Turquoise, Colors::White, GetWidth(), EE_ICON_STATE_MACHINE, " State Machine" );
             }
             break;
         }
@@ -302,5 +308,21 @@ namespace EE::Animation::GraphNodes
         }
 
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+    }
+
+    bool StateToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
+        {
+            // Some nodes dont have runtime representations
+            auto const runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+            if ( runtimeNodeIdx != InvalidIndex )
+            {
+                return pGraphNodeContext->IsNodeActive( runtimeNodeIdx );
+            }
+        }
+
+        return false;
     }
 }

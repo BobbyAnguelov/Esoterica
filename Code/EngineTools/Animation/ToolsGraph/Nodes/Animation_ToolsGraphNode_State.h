@@ -72,6 +72,7 @@ namespace EE::Animation::GraphNodes
         virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+        virtual bool IsActive( VisualGraph::UserContext* pUserContext ) const override;
 
     private:
 

@@ -86,6 +86,7 @@ namespace EE::Animation
     {
         EE_PROFILE_SCOPE_ANIMATION( "Anim Pre-Physics Tasks" );
 
+        m_taskContext.m_currentTaskIdx = InvalidIndex;
         m_taskContext.m_deltaTime = deltaTime;
         m_taskContext.m_worldTransform = worldTransform;
         m_taskContext.m_worldTransformInverse = worldTransformInverse;
@@ -124,6 +125,8 @@ namespace EE::Animation
             {
                 for ( TaskIndex prePhysicsTaskIdx : m_prePhysicsTaskIndices )
                 {
+                    m_taskContext.m_currentTaskIdx = prePhysicsTaskIdx;
+
                     // Set dependencies
                     m_taskContext.m_dependencies.clear();
                     for ( auto depTaskIdx : m_tasks[prePhysicsTaskIdx]->GetDependencyIndices() )
@@ -202,6 +205,8 @@ namespace EE::Animation
         {
             if ( !m_tasks[i]->IsComplete() )
             {
+                m_taskContext.m_currentTaskIdx = i;
+
                 // Set dependencies
                 m_taskContext.m_dependencies.clear();
                 for ( auto DepTaskIdx : m_tasks[i]->GetDependencyIndices() )
@@ -277,8 +282,8 @@ namespace EE::Animation
         {
             auto const& pFinalTask = m_tasks.back();
             EE_ASSERT( pFinalTask->IsComplete() );
-            auto pPoseBuffer = m_posePool.GetRecordedPose( (int8_t) m_tasks.size() - 1 );
-            pPoseBuffer->m_pose.DrawDebug( drawingContext, m_taskContext.m_worldTransform );
+            auto pPose = m_posePool.GetRecordedPoseForTask( (int8_t) m_tasks.size() - 1 );
+            pPose->DrawDebug( drawingContext, m_taskContext.m_worldTransform );
             return;
         }
 
@@ -306,8 +311,8 @@ namespace EE::Animation
 
         for ( int8_t i = (int8_t) m_tasks.size() - 1; i >= 0; i-- )
         {
-            auto pPoseBuffer = m_posePool.GetRecordedPose( i );
-            pPoseBuffer->m_pose.DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
+            auto pPose = m_posePool.GetRecordedPoseForTask( i );
+            pPose->DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
             drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
 
             for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )

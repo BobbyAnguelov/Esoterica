@@ -15,6 +15,8 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<PoweredRagdollNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_physicsBlendWeightNodeIdx, pNode->m_pBlendWeightValueNode );
+        context.SetOptionalNodePtrFromIndex( m_inpulseOriginVectorNodeIdx, pNode->m_pImpulseOriginValueNode );
+        context.SetOptionalNodePtrFromIndex( m_inpulseForceVectorNodeIdx, pNode->m_pImpulseForceValueNode );
         PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
 
         pNode->m_pRagdollDefinition = context.GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
@@ -42,6 +44,16 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
+        if ( m_pImpulseOriginValueNode != nullptr )
+        {
+            m_pImpulseOriginValueNode->Initialize( context );
+        }
+
+        if ( m_pImpulseForceValueNode != nullptr )
+        {
+            m_pImpulseForceValueNode->Initialize( context );
+        }
+
         if ( m_pBlendWeightValueNode != nullptr )
         {
             m_pBlendWeightValueNode->Initialize( context );
@@ -57,6 +69,16 @@ namespace EE::Animation::GraphNodes
         if ( m_pBlendWeightValueNode != nullptr )
         {
             m_pBlendWeightValueNode->Shutdown( context );
+        }
+
+        if ( m_pImpulseOriginValueNode != nullptr )
+        {
+            m_pImpulseOriginValueNode->Shutdown( context );
+        }
+
+        if ( m_pImpulseForceValueNode != nullptr )
+        {
+            m_pImpulseForceValueNode->Shutdown( context );
         }
 
         //-------------------------------------------------------------------------
@@ -78,7 +100,7 @@ namespace EE::Animation::GraphNodes
         if ( IsValid() )
         {
             result = PassthroughNode::Update( context );
-            result = RegisterRagdollTasks( context, result );
+            result = UpdateRagdoll( context, result );
         }
         else
         {
@@ -95,7 +117,7 @@ namespace EE::Animation::GraphNodes
         if ( IsValid() )
         {
             result = PassthroughNode::Update( context, updateRange );
-            result = RegisterRagdollTasks( context, result );
+            result = UpdateRagdoll( context, result );
         }
         else
         {
@@ -105,10 +127,22 @@ namespace EE::Animation::GraphNodes
         return result;
     }
 
-    GraphPoseNodeResult PoweredRagdollNode::RegisterRagdollTasks( GraphContext& context, GraphPoseNodeResult const& childResult )
+    GraphPoseNodeResult PoweredRagdollNode::UpdateRagdoll( GraphContext& context, GraphPoseNodeResult const& childResult )
     {
         EE_ASSERT( IsValid() );
         GraphPoseNodeResult result = childResult;
+
+        //-------------------------------------------------------------------------
+
+        if ( m_pImpulseOriginValueNode != nullptr && m_pImpulseForceValueNode != nullptr )
+        {
+            Vector const impulseOrigin = m_pImpulseOriginValueNode->GetValue<Vector>( context );
+            Vector const impulseForce = m_pImpulseForceValueNode->GetValue<Vector>( context );
+            if ( !impulseForce.IsNearZero3() )
+            {
+                m_pRagdoll->ApplyImpulse( impulseOrigin, impulseForce );
+            }
+        }
 
         //-------------------------------------------------------------------------
 

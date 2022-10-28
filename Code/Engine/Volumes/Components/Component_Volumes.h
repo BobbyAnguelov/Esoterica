@@ -47,7 +47,7 @@ namespace EE
 
     protected:
 
-        virtual void Initialize() override;
+        virtual OBB CalculateLocalBounds() const override;
 
     protected:
 

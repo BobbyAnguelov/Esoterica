@@ -142,7 +142,6 @@ namespace EE::Physics
     {
         auto OnPreEdit = [this] ( PropertyEditInfo const& info ) 
         {
-            EE_ASSERT( m_pActiveUndoableAction != nullptr );
             BeginDescriptorModification();
         };
         
@@ -176,17 +175,9 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::DrawManipulationPlanes, false );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
         m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
-        m_gizmo.SetTargetTransform( &m_gizmoWorkingTransform );
-
-        m_previewGizmo.SetOption( ImGuiX::Gizmo::Options::DrawManipulationPlanes, false );
-        m_previewGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
-        m_previewGizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
-        m_previewGizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
-        m_previewGizmo.SetTargetTransform( &m_previewGizmoTransform );
     }
 
     RagdollWorkspace::~RagdollWorkspace()
@@ -460,10 +451,11 @@ namespace EE::Physics
 
         if ( IsPreviewing() )
         {
-            m_previewGizmoTransform = m_pMeshComponent->GetWorldTransform();
-            if ( m_previewGizmo.Draw( *pViewport ) != ImGuiX::Gizmo::Result::NoResult )
+            Transform const& worldTransform = m_pMeshComponent->GetWorldTransform();
+            auto const gizmoResult = m_gizmo.Draw( worldTransform.GetTranslation(), worldTransform.GetRotation(), *pViewport );
+            if ( gizmoResult.m_state != ImGuiX::Gizmo::State::None )
             {
-                m_pMeshComponent->SetWorldTransform( m_previewGizmoTransform );
+                //m_pMeshComponent->SetWorldTransform( m_previewGizmoTransform );
             }
 
             //-------------------------------------------------------------------------
@@ -595,25 +587,26 @@ namespace EE::Physics
                     {
                         Transform const boneTransform = m_skeleton->GetBoneGlobalTransform( boneIdx );
                         Transform const bodyTransform = body.m_offsetTransform * boneTransform;
-                        m_gizmoWorkingTransform = bodyTransform;
-                 
-                        switch ( m_gizmo.Draw( *pViewport ) )
+
+                        auto const gizmoResult = m_gizmo.Draw( bodyTransform.GetTranslation(), bodyTransform.GetRotation(), *pViewport );
+                        switch ( gizmoResult.m_state )
                         {
-                            case ImGuiX::Gizmo::Result::StartedManipulating :
+                            case ImGuiX::Gizmo::State::StartedManipulating :
                             {
                                 BeginDescriptorModification();
-                                body.m_offsetTransform = Transform::Delta( boneTransform, m_gizmoWorkingTransform );
+                                body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
                             }
                             break;
 
-                            case ImGuiX::Gizmo::Result::Manipulating :
+                            case ImGuiX::Gizmo::State::Manipulating :
                             {
-                                body.m_offsetTransform = Transform::Delta( boneTransform, m_gizmoWorkingTransform );
+                                body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
                             }
                             break;
 
-                            case ImGuiX::Gizmo::Result::StoppedManipulating :
+                            case ImGuiX::Gizmo::State::StoppedManipulating :
                             {
+                                body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
                                 EndDescriptorModification();
                             }
                             break;
@@ -624,25 +617,25 @@ namespace EE::Physics
                     }
                     else
                     {
-                        m_gizmoWorkingTransform = body.m_jointTransform;
-
-                        switch ( m_gizmo.Draw( *pViewport ) )
+                        auto const gizmoResult = m_gizmo.Draw( body.m_jointTransform.GetTranslation(), body.m_jointTransform.GetRotation(), *pViewport );
+                        switch ( gizmoResult.m_state )
                         {
-                            case ImGuiX::Gizmo::Result::StartedManipulating:
+                            case ImGuiX::Gizmo::State::StartedManipulating:
                             {
                                 BeginDescriptorModification();
-                                body.m_jointTransform = m_gizmoWorkingTransform;
+                                gizmoResult.ApplyResult( body.m_jointTransform );
                             }
                             break;
 
-                            case ImGuiX::Gizmo::Result::Manipulating:
+                            case ImGuiX::Gizmo::State::Manipulating:
                             {
-                                body.m_jointTransform = m_gizmoWorkingTransform;
+                                gizmoResult.ApplyResult( body.m_jointTransform );
                             }
                             break;
 
-                            case ImGuiX::Gizmo::Result::StoppedManipulating:
+                            case ImGuiX::Gizmo::State::StoppedManipulating:
                             {
+                                gizmoResult.ApplyResult( body.m_jointTransform );
                                 EndDescriptorModification();
                             }
                             break;

@@ -114,7 +114,7 @@ namespace EE::Animation::GraphNodes
 
         EE_FORCE_INLINE TransitionNode* GetSourceTransitionNode() { EE_ASSERT( IsSourceATransition() ); return reinterpret_cast<TransitionNode*>( m_pSourceNode ); }
 
-        EE_FORCE_INLINE StateNode* GetSourceStateNode() { EE_ASSERT( IsSourceATransition() ); return reinterpret_cast<StateNode*>( m_pSourceNode ); }
+        EE_FORCE_INLINE StateNode* GetSourceStateNode() { EE_ASSERT( IsSourceAState() ); return reinterpret_cast<StateNode*>( m_pSourceNode ); }
 
         void EndSourceTransition( GraphContext& context );
 

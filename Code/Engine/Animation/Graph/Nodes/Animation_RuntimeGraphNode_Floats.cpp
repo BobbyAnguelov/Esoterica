@@ -80,7 +80,7 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
             float const inputValue = m_pInputValueNode->GetValue<float>( context );
-            m_value = Math::RemapRangeClamped( inputValue, pSettings->m_inputRange.m_begin, pSettings->m_inputRange.m_end, pSettings->m_outputRange.m_begin, pSettings->m_outputRange.m_end );
+            m_value = Math::RemapRange( inputValue, pSettings->m_inputRange.m_begin, pSettings->m_inputRange.m_end, pSettings->m_outputRange.m_begin, pSettings->m_outputRange.m_end );
         }
 
         *reinterpret_cast<float*>( pOutValue ) = m_value;

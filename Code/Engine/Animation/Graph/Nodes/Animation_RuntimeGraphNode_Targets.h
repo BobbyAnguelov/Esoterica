@@ -16,7 +16,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
         };
 
     private:
@@ -60,7 +60,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
             Info                        m_infoType = Info::Distance;
             bool                        m_isWorldSpaceTarget = true;
         };
@@ -91,10 +91,10 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t               m_inputValueNodeIdx = InvalidIndex;
-            bool                    m_isBoneSpaceOffset = true;
-            Quaternion              m_rotationOffset = Quaternion::Identity;
-            Vector                  m_translationOffset = Vector::Zero;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
+            bool                        m_isBoneSpaceOffset = true;
+            Quaternion                  m_rotationOffset = Quaternion::Identity;
+            Vector                      m_translationOffset = Vector::Zero;
         };
 
     private:
@@ -105,7 +105,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        TargetValueNode*            m_pInputValueNode = nullptr;
-        Target                      m_value;
+        TargetValueNode*                m_pInputValueNode = nullptr;
+        Target                          m_value;
     };
 }

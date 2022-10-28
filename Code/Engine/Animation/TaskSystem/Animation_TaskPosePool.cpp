@@ -33,7 +33,8 @@ namespace EE::Animation
             m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pSkeleton ) );
 
             #if EE_DEVELOPMENT_TOOLS
-            m_debugBuffers.emplace_back( PoseBuffer( m_pSkeleton ) );
+            m_debugBuffers.emplace_back( Pose( m_pSkeleton ) );
+            m_debugBufferTaskIdxMapping.emplace_back( int8_t( 0 ) );
             #endif
         }
     }
@@ -69,6 +70,7 @@ namespace EE::Animation
         // Dont reset the actual debug buffers as we want to still access them this frame, only reset the free index
         #if EE_DEVELOPMENT_TOOLS
         m_firstFreeDebugBuffer = 0;
+        for ( auto& taskIdx : m_debugBufferTaskIdxMapping ) { taskIdx = InvalidIndex; }
         #endif
     }
 
@@ -185,7 +187,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void PoseBufferPool::RecordPose( int8_t poseBufferIdx )
+    void PoseBufferPool::RecordPose( int8_t taskIdx, int8_t poseBufferIdx )
     {
         if ( !m_isDebugRecordingEnabled )
         {
@@ -197,20 +199,33 @@ namespace EE::Animation
         {
             for ( auto i = 0; i < s_bufferGrowAmount; i++ )
             {
-                m_debugBuffers.emplace_back( PoseBuffer( m_pSkeleton ) );
+                m_debugBuffers.emplace_back( Pose( m_pSkeleton ) );
+                m_debugBufferTaskIdxMapping.emplace_back( int8_t( -1 ) );
             }
 
             EE_ASSERT( m_debugBuffers.size() < 255 );
         }
 
         EE_ASSERT( m_poseBuffers[poseBufferIdx].m_isUsed );
-        m_debugBuffers[m_firstFreeDebugBuffer++].CopyFrom( m_poseBuffers[poseBufferIdx] );
+        m_debugBuffers[m_firstFreeDebugBuffer].CopyFrom( m_poseBuffers[poseBufferIdx].m_pose );
+        m_debugBufferTaskIdxMapping[m_firstFreeDebugBuffer] = taskIdx;
+        m_firstFreeDebugBuffer++;
     }
 
-    PoseBuffer const* PoseBufferPool::GetRecordedPose( int8_t debugBufferIdx ) const
+    Pose const* PoseBufferPool::GetRecordedPoseForTask( int8_t taskIdx ) const
     {
-        EE_ASSERT( debugBufferIdx >= 0 && debugBufferIdx < m_debugBuffers.size() );
-        return &m_debugBuffers[debugBufferIdx];
+        EE_ASSERT( taskIdx >= 0 && taskIdx < m_debugBufferTaskIdxMapping.size() );
+
+        for ( auto i = 0u; i < m_debugBufferTaskIdxMapping.size(); i++ )
+        {
+            if ( m_debugBufferTaskIdxMapping[i] == taskIdx )
+            {
+                return &m_debugBuffers[i];
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return nullptr;
     }
     #endif
 }

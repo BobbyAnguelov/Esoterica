@@ -160,7 +160,6 @@ namespace EE::Physics
 
         // Body/Joint editor
         Mode                                            m_editorMode;
-        Transform                                       m_gizmoWorkingTransform;
         PropertyGrid                                    m_bodyEditorPropertyGrid;
         EventBindingID                                  m_bodyGridPreEditEventBindingID;
         EventBindingID                                  m_bodyGridPostEditEventBindingID;
@@ -197,8 +196,6 @@ namespace EE::Physics
         Ragdoll*                                        m_pRagdoll = nullptr;
         Entity*                                         m_pPreviewEntity = nullptr;
         Render::SkeletalMeshComponent*                  m_pMeshComponent = nullptr;
-        ImGuiX::Gizmo                                   m_previewGizmo;
-        Transform                                       m_previewGizmoTransform;
         float                                           m_impulseStrength = 10.0f;
         float                                           m_collisionActorRadius = 0.25f;
         float                                           m_collisionActorMass = 50.0f;

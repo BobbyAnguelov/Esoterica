@@ -5,6 +5,13 @@
 
 namespace EE::Physics
 {
+    OBB PhysicsMeshComponent::CalculateLocalBounds() const
+    {
+        OBB meshBounds = m_physicsMesh->GetBounds();
+        meshBounds.m_extents *= GetLocalScale();
+        return meshBounds;
+    }
+
     bool PhysicsMeshComponent::HasValidPhysicsSetup() const
     {
         if ( !m_physicsMesh.IsSet() )
@@ -39,12 +46,6 @@ namespace EE::Physics
         }
 
         return materials;
-    }
-
-    void PhysicsMeshComponent::Initialize()
-    {
-        PhysicsShapeComponent::Initialize();
-        EE_ASSERT( !m_physicsMesh.IsSet() || m_physicsMesh.IsLoaded() );
     }
 
     #if EE_DEVELOPMENT_TOOLS

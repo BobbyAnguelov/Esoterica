@@ -158,19 +158,9 @@ namespace EE
 
         inline float RemapRange( float value, float fromRangeBegin, float fromRangeEnd, float toRangeBegin, float toRangeEnd )
         {
-            float const fromRangeLength = Math::Abs( fromRangeEnd - fromRangeBegin );
-            float const toRangeLength = Math::Abs( toRangeEnd - toRangeBegin );
-            float const percentageThroughFromRange = ( value - fromRangeBegin ) / fromRangeLength;
-            float const result = toRangeBegin + ( percentageThroughFromRange * toRangeLength );
-
-            return result;
-        }
-
-        inline float RemapRangeClamped( float value, float fromRangeBegin, float fromRangeEnd, float toRangeBegin, float toRangeEnd )
-        {
-            float const fromRangeLength = Math::Abs( fromRangeEnd - fromRangeBegin );
-            float const toRangeLength = Math::Abs( toRangeEnd - toRangeBegin );
+            float const fromRangeLength = fromRangeEnd - fromRangeBegin;
             float const percentageThroughFromRange = Math::Clamp( ( value - fromRangeBegin ) / fromRangeLength, 0.0f, 1.0f );
+            float const toRangeLength = toRangeEnd - toRangeBegin;
             float const result = toRangeBegin + ( percentageThroughFromRange * toRangeLength );
 
             return result;

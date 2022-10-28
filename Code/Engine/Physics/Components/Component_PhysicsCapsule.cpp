@@ -5,6 +5,12 @@
 
 namespace EE::Physics
 {
+    OBB CapsuleComponent::CalculateLocalBounds() const
+    {
+        Vector const boundsExtents( m_cylinderPortionHalfHeight + m_radius, m_radius, m_radius );
+        return OBB( Vector::Origin, boundsExtents );
+    }
+
     // This constructor only exists to lazy initialize the static default material ID
     CapsuleComponent::CapsuleComponent()
     {

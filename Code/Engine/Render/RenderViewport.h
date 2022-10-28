@@ -52,6 +52,9 @@ namespace EE::Render
         void SetViewVolume( Math::ViewVolume const& viewVolume );
         inline Math::ViewVolume const& GetViewVolume() const { return m_viewVolume; }
 
+        inline bool IsOrthographic() const { return m_viewVolume.IsOrthographic(); }
+        inline bool IsPerspective() const { return m_viewVolume.IsOrthographic(); }
+
         inline Vector GetViewPosition() const { return m_viewVolume.GetViewPosition(); }
         inline Vector GetViewForwardDirection() const { return m_viewVolume.GetViewForwardVector(); }
         inline Vector GetViewRightDirection() const { return m_viewVolume.GetViewRightVector(); }
@@ -78,12 +81,23 @@ namespace EE::Render
         inline Float2 WorldSpaceToScreenSpace( Vector const& pointWS ) const { return ClipSpaceToScreenSpace( WorldSpaceToClipSpace( pointWS ) ); }
 
         Float2 ClipSpaceToScreenSpace( Vector const& pointCS ) const;
+
+        // Get the line segment from the near plane to the far plane for a given clip space point
         LineSegment ClipSpaceToWorldSpace( Vector const& pointCS ) const;
 
         Vector ScreenSpaceToClipSpace( Float2 const& pointSS ) const;
-        inline LineSegment ScreenSpaceToWorldSpace( Float2 const& pointSS ) const { return ClipSpaceToWorldSpace( ScreenSpaceToClipSpace( pointSS ) ); }
         Vector ScreenSpaceToWorldSpaceNearPlane( Vector const& pointSS ) const;
         Vector ScreenSpaceToWorldSpaceFarPlane( Vector const& pointSS ) const;
+
+        // Get the line segment from the near plane to the far plane for a given screen space point
+        inline LineSegment ScreenSpaceToWorldSpace( Float2 const& pointSS ) const { return ClipSpaceToWorldSpace( ScreenSpaceToClipSpace( pointSS ) ); }
+
+        // Get the size of a vector at a specific position if we want to it be a specific pixel height
+        inline float GetScalingFactorAtPosition( Vector const& position, float pixels ) const
+        {
+            float const distanceToPoint = m_viewVolume.IsOrthographic() ? 1.0f : ( position - GetViewPosition() ).GetLength3();
+            return m_viewVolume.GetProjectionScaleY() * distanceToPoint * ( pixels / GetDimensions().m_y );
+        }
 
     private:
 

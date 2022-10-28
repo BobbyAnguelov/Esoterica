@@ -123,6 +123,8 @@ namespace EE::EntityModel
         m_editedEntityID.Clear();
         m_pEditedEntity = nullptr;
         m_initiallySelectedComponentNameID.Clear();
+        m_selectedComponents.clear();
+        m_selectedSpatialComponents.clear();
         DestroyTree();
     }
 
@@ -205,6 +207,8 @@ namespace EE::EntityModel
         {
             m_shouldRefreshEditorState = true;
             m_pEditedEntity = nullptr;
+            m_selectedComponents.clear();
+            m_selectedSpatialComponents.clear();
         }
         else // No pending action, safe to refresh
         {
@@ -216,6 +220,8 @@ namespace EE::EntityModel
                 {
                     m_shouldRefreshEditorState = true;
                     m_pEditedEntity = nullptr;
+                    m_selectedComponents.clear();
+                    m_selectedSpatialComponents.clear();
                 }
             }
 

@@ -73,7 +73,6 @@ namespace EE::EntityModel
         TVector<TypeSystem::TypeInfo const*>            m_visualizedVolumeTypes;
 
         // Transform manipulation
-        Transform                                       m_gizmoTransform;
         OBB                                             m_selectionBounds;
         Transform                                       m_selectionTransform;
         TVector<Transform>                              m_selectionOffsetTransforms;

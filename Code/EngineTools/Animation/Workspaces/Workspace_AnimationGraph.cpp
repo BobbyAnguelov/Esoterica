@@ -725,9 +725,7 @@ namespace EE::Animation
         // Gizmo
         //-------------------------------------------------------------------------
 
-        m_gizmo.SetTargetTransform( &m_gizmoTransform );
         m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::DrawManipulationPlanes, true );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
         m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
@@ -1042,30 +1040,29 @@ namespace EE::Animation
         // Allow for in-viewport manipulation of the parameter preview value
         if ( pSelectedTargetControlParameter != nullptr )
         {
-            bool drawGizmo = m_gizmo.IsManipulating();
-            if ( !m_gizmo.IsManipulating() )
+            Transform gizmoTransform;
+            bool drawGizmo = false;
+
+            if ( IsDebugging() )
             {
-                if ( IsDebugging() )
+                if ( m_pDebugGraphComponent->HasGraphInstance() )
                 {
-                    if ( m_pDebugGraphComponent->HasGraphInstance() )
+                    int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pSelectedTargetControlParameter->GetParameterName() ) );
+                    EE_ASSERT( parameterIdx != InvalidIndex );
+                    Target const targetValue = m_pDebugGraphComponent->GetControlParameterValue<Target>( parameterIdx );
+                    if ( targetValue.IsTargetSet() && !targetValue.IsBoneTarget() )
                     {
-                        int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pSelectedTargetControlParameter->GetParameterName() ) );
-                        EE_ASSERT( parameterIdx != InvalidIndex );
-                        Target const targetValue = m_pDebugGraphComponent->GetControlParameterValue<Target>( parameterIdx );
-                        if ( targetValue.IsTargetSet() && !targetValue.IsBoneTarget() )
-                        {
-                            m_gizmoTransform = targetValue.GetTransform();
-                            drawGizmo = true;
-                        }
-                    }
-                }
-                else
-                {
-                    if ( !pSelectedTargetControlParameter->IsBoneTarget() )
-                    {
-                        m_gizmoTransform = pSelectedTargetControlParameter->GetPreviewTargetTransform();
+                        gizmoTransform = targetValue.GetTransform();
                         drawGizmo = true;
                     }
+                }
+            }
+            else
+            {
+                if ( !pSelectedTargetControlParameter->IsBoneTarget() )
+                {
+                    gizmoTransform = pSelectedTargetControlParameter->GetPreviewTargetTransform();
+                    drawGizmo = true;
                 }
             }
 
@@ -1088,40 +1085,52 @@ namespace EE::Animation
                     }
                 }
 
-                switch ( m_gizmo.Draw( *pViewport ) )
+                //-------------------------------------------------------------------------
+
+                auto SetParameterValue = [this, pSelectedTargetControlParameter] ( Transform const& newTransform )
                 {
-                    case ImGuiX::Gizmo::Result::StartedManipulating:
+                    if ( IsDebugging() )
                     {
-                        if ( IsDebugging() )
-                        {
-                            // Do Nothing
-                        }
-                        else
+                        EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
+                        int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pSelectedTargetControlParameter->GetParameterName() ) );
+                        EE_ASSERT( parameterIdx != InvalidIndex );
+                        m_pDebugGraphComponent->SetControlParameterValue<Target>( parameterIdx, Target( newTransform ) );
+                    }
+                    else
+                    {
+                        pSelectedTargetControlParameter->SetPreviewTargetTransform( newTransform );
+                    }
+                };
+
+                auto const gizmoResult = m_gizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
+                switch ( gizmoResult.m_state )
+                {
+                    case ImGuiX::Gizmo::State::StartedManipulating:
+                    {
+                        if ( !IsDebugging() )
                         {
                             m_toolsGraph.MarkDirty();
                             m_toolsGraph.GetRootGraph()->BeginModification();
                         }
+
+                        gizmoResult.ApplyResult( gizmoTransform );
+                        SetParameterValue( gizmoTransform );
                     }
                     break;
 
-                    case ImGuiX::Gizmo::Result::Manipulating:
+                    case ImGuiX::Gizmo::State::Manipulating:
                     {
-                        // Do Nothing
+                        gizmoResult.ApplyResult( gizmoTransform );
+                        SetParameterValue( gizmoTransform );
                     }
                     break;
 
-                    case ImGuiX::Gizmo::Result::StoppedManipulating:
+                    case ImGuiX::Gizmo::State::StoppedManipulating:
                     {
-                        if ( IsDebugging() )
+                        gizmoResult.ApplyResult( gizmoTransform );
+                        SetParameterValue( gizmoTransform );
+                        if ( !IsDebugging() )
                         {
-                            EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
-                            int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pSelectedTargetControlParameter->GetParameterName() ) );
-                            EE_ASSERT( parameterIdx != InvalidIndex );
-                            m_pDebugGraphComponent->SetControlParameterValue<Target>( parameterIdx, Target( m_gizmoTransform ) );
-                        }
-                        else
-                        {
-                            pSelectedTargetControlParameter->SetPreviewTargetTransform( m_gizmoTransform );
                             m_toolsGraph.GetRootGraph()->EndModification();
                         }
                     }
@@ -2607,10 +2616,8 @@ namespace EE::Animation
     // Control Parameter Editor
     //-------------------------------------------------------------------------
 
-    bool AnimationGraphWorkspace::DrawControlParameterEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void AnimationGraphWorkspace::DrawControlParameterEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
-        m_pVirtualParamaterToEdit = nullptr;
-
         int32_t windowFlags = 0;
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
         ImGui::SetNextWindowClass( pWindowClass );
@@ -2638,10 +2645,6 @@ namespace EE::Animation
         }
         ImGui::End();
         ImGui::PopStyleVar();
-
-        //-------------------------------------------------------------------------
-
-        return m_pVirtualParamaterToEdit != nullptr;
     }
 
     void AnimationGraphWorkspace::InitializeControlParameterEditor()
@@ -3035,7 +3038,7 @@ namespace EE::Animation
             {
                 if ( ImGui::MenuItem( EE_ICON_PLAYLIST_EDIT" Edit" ) )
                 {
-                    m_pVirtualParamaterToEdit = pVirtualParameter;
+                    NavigateTo( pVirtualParameter->GetChildGraph() );
                 }
 
                 ImGui::Separator();
@@ -3413,7 +3416,14 @@ namespace EE::Animation
         auto pRootGraph = m_toolsGraph.GetRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
+        // Clear the selection and navigate away from the virtual parameter graph if we are currently viewing it
         ClearSelection();
+
+        auto pParentNode = m_primaryGraphView.GetViewedGraph()->GetParentNode();
+        if ( pParentNode != nullptr && pParentNode->GetID() == parameterID )
+        {
+            NavigateTo( m_toolsGraph.GetRootGraph() );
+        }
 
         // Find and remove all reference nodes
         auto const parameterReferences = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );

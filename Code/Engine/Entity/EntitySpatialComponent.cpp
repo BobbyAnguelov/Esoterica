@@ -128,4 +128,22 @@ namespace EE
             pChildComponent->CalculateWorldTransform();
         }
     }
+
+    void SpatialEntityComponent::Initialize()
+    {
+        EntityComponent::Initialize();
+        UpdateBounds();
+    }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void SpatialEntityComponent::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
+    {
+        EntityComponent::PostPropertyEdit( pPropertyEdited );
+
+        // Property edits always refresh the transform since properties could have an effect on bounds/transform
+        CalculateWorldTransform();
+    }
+    #endif
 }

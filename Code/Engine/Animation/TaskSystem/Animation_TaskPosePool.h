@@ -90,8 +90,8 @@ namespace EE::Animation
         inline bool IsRecordingEnabled() const { return m_isDebugRecordingEnabled; }
         inline void EnableRecording( bool enabled ) const { m_isDebugRecordingEnabled = enabled; }
         inline bool HasRecordedData() const { return m_firstFreeDebugBuffer != 0; }
-        void RecordPose( int8_t poseBufferIdx );
-        PoseBuffer const* GetRecordedPose( int8_t debugBufferIdx ) const;
+        void RecordPose( int8_t taskIdx, int8_t poseBufferIdx );
+        Pose const* GetRecordedPoseForTask( int8_t taskIdx ) const;
         #endif
 
     private:
@@ -100,12 +100,13 @@ namespace EE::Animation
         TVector<PoseBuffer>                         m_poseBuffers;
         TVector<CachedPoseBuffer>                   m_cachedBuffers;
         TInlineVector<UUID, 5>                      m_cachedPoseBuffersToDestroy;
-        int8_t                                        m_firstFreeCachedBuffer = 0;
-        int8_t                                        m_firstFreeBuffer = 0;
+        int8_t                                      m_firstFreeCachedBuffer = 0;
+        int8_t                                      m_firstFreeBuffer = 0;
 
         #if EE_DEVELOPMENT_TOOLS
-        TVector<PoseBuffer>                         m_debugBuffers;
-        int8_t                                        m_firstFreeDebugBuffer = 0;
+        TVector<Pose>                               m_debugBuffers;
+        TVector<int8_t>                             m_debugBufferTaskIdxMapping; // The task index for each debug buffer
+        int8_t                                      m_firstFreeDebugBuffer = 0;
         mutable bool                                m_isDebugRecordingEnabled = false;
         #endif
     };

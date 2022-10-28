@@ -21,6 +21,7 @@ namespace EE::Physics
 
     private:
 
+        virtual OBB CalculateLocalBounds() const override final;
         virtual bool HasValidPhysicsSetup() const override final;
         virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const override final { return { m_materialID }; }
 

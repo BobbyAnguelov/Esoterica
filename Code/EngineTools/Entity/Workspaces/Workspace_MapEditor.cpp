@@ -15,7 +15,6 @@ namespace EE::EntityModel
     EntityMapEditor::EntityMapEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld )
         : EntityEditorWorkspace( pToolsContext, pWorld, String( "Map Editor" ) )
     {
-        m_gizmo.SetTargetTransform( &m_gizmoTransform );
         SetCameraSpeed( 15.0f );
     }
 

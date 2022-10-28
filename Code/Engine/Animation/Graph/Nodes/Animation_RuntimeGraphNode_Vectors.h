@@ -34,7 +34,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
             Info                        m_desiredInfo = Info::X;
         };
 
@@ -48,6 +48,40 @@ namespace EE::Animation::GraphNodes
 
         VectorValueNode*                m_pInputValueNode = nullptr;
         float                           m_value = 0.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API VectorCreateNode final : public VectorValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings final : public VectorValueNode::Settings
+        {
+            EE_REGISTER_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_inputVectorValueNodeIdx, m_inputValueXNodeIdx, m_inputValueYNodeIdx, m_inputValueZNodeIdx );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            int16_t                   m_inputVectorValueNodeIdx = InvalidIndex;
+            int16_t                   m_inputValueXNodeIdx = InvalidIndex;
+            int16_t                   m_inputValueYNodeIdx = InvalidIndex;
+            int16_t                   m_inputValueZNodeIdx = InvalidIndex;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        VectorValueNode*                m_pInputVectorValueNode = nullptr;
+        FloatValueNode*                 m_pInputXValueNode = nullptr;
+        FloatValueNode*                 m_pInputYValueNode = nullptr;
+        FloatValueNode*                 m_pInputZValueNode = nullptr;
+        Vector                          m_value = Vector::Zero;
     };
 
     //-------------------------------------------------------------------------

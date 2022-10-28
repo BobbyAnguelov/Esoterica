@@ -37,11 +37,8 @@ namespace EE::Render
         // Local Scale
         //-------------------------------------------------------------------------
 
-        // Get the local scaling multiplier
-        inline Float3 const& GetLocalScale() const { return m_localScale; }
-
-        // Do we have a local scale set?
-        inline bool HasLocalScale() const { return m_localScale != Float3::One; }
+        virtual Float3 const& GetLocalScale() const override { return m_localScale; }
+        virtual bool SupportsLocalScale() const override { return true; }
 
         // Mesh Data
         //-------------------------------------------------------------------------
@@ -71,7 +68,7 @@ namespace EE::Render
 
     protected:
 
-        virtual void Initialize() override final;
+        virtual OBB CalculateLocalBounds() const override final;
         virtual void OnWorldTransformUpdated() override final;
 
         #if EE_DEVELOPMENT_TOOLS

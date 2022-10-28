@@ -16,7 +16,7 @@ namespace EE::Animation
     class AnimationGraphCompiler final : public Resource::Compiler
     {
         EE_REGISTER_TYPE( AnimationGraphCompiler );
-        constexpr static const int32_t s_version = 11 + GraphDefinitionCompiler::s_version;
+        constexpr static const int32_t s_version = 14 + GraphDefinitionCompiler::s_version;
 
     public:
 

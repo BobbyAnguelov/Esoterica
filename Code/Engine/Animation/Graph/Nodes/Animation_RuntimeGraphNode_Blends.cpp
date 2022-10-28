@@ -300,9 +300,16 @@ namespace EE::Animation::GraphNodes
             }
 
             // Update internal time
-            auto const deltaPercentage = Percentage( context.m_deltaTime/ m_duration );
-            m_previousTime = m_currentTime;
-            m_currentTime = m_currentTime + deltaPercentage;
+            if ( m_duration > 0 )
+            {
+                auto const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
+                m_previousTime = m_currentTime;
+                m_currentTime = m_currentTime + deltaPercentage;
+            }
+            else
+            {
+                m_previousTime = m_currentTime = 0.0f;
+            }
 
             // Update time / duration for the remaining source nodes
             // For unsynchronized update, we unfortunately need to update all nodes but we ensure that no unnecessary tasks are registered

@@ -22,56 +22,24 @@ using namespace physx;
 
 namespace EE::Physics
 {
-    static inline PxBoxGeometry CreateBoxGeometry( Vector const& scale, Vector const& extents, OBB* pLocalBounds = nullptr )
+    static inline PxBoxGeometry CreateBoxGeometry( float scale, Vector const& extents )
     {
-        EE_ASSERT( !scale.GetWithW1().IsAnyEqualToZero3());
-
-        if ( pLocalBounds != nullptr )
-        {
-            *pLocalBounds = OBB( Vector::Origin, extents );
-        }
-
-        Vector const scaledExtents = scale * extents;
+        Vector const scaledExtents = extents * scale;
         return PxBoxGeometry( ToPx( scaledExtents ) );
     }
 
-    static inline PxSphereGeometry CreateSphereGeometry( Vector const& scale, float radius, OBB* pLocalBounds = nullptr )
+    static inline PxSphereGeometry CreateSphereGeometry( float scale, float radius )
     {
-        float const radiusScale = Math::Max( Math::Max( scale.m_y, scale.m_z ), scale.m_z );
-        EE_ASSERT( !Math::IsNearZero( radiusScale ) );
-        float const scaledRadius = radiusScale * radius;
-
-        if ( pLocalBounds != nullptr )
-        {
-            Vector const boundsExtents = Vector( scaledRadius ) / scale;
-            *pLocalBounds = OBB( Vector::Origin, boundsExtents );
-        }
-
+        EE_ASSERT( !Math::IsNearZero( scale ) );
+        float const scaledRadius = radius * scale;
         return PxSphereGeometry( scaledRadius );
     }
 
-    static inline PxCapsuleGeometry CreateCapsuleGeometry( Vector const& scale, float radius, float halfHeight, OBB* pLocalBounds = nullptr )
+    static inline PxCapsuleGeometry CreateCapsuleGeometry( float scale, float radius, float halfHeight )
     {
-        float const heightScale = scale.m_x;
-        EE_ASSERT( !Math::IsNearZero( heightScale ) );
-        float const radiusScale = Math::Max( scale.m_y, scale.m_z );
-        EE_ASSERT( !Math::IsNearZero( radiusScale ) );
-
-        float const scaledRadius = radius * radiusScale;
-        float const scaledHalfHeight = halfHeight * heightScale;
-
-        if ( pLocalBounds != nullptr )
-        {
-            // Calculate the scaled bounds and remove the scale from them
-            Vector boundsExtents;
-            boundsExtents.m_x = scaledHalfHeight + scaledRadius;
-            boundsExtents.m_y = scaledRadius;
-            boundsExtents.m_z = scaledRadius;
-            boundsExtents /= scale;
-
-            *pLocalBounds = OBB( Vector::Origin, boundsExtents );
-        }
-
+        EE_ASSERT( !Math::IsNearZero( scale ) );
+        float const scaledRadius = radius * scale;
+        float const scaledHalfHeight = halfHeight * scale;
         return PxCapsuleGeometry( scaledRadius, scaledHalfHeight );
     }
 
@@ -323,10 +291,9 @@ namespace EE::Physics
         // We also calculate and set the component local bounds
 
         Transform const& physicsComponentTransform = pComponent->GetWorldTransform();
-        Vector const scale( physicsComponentTransform.GetScale() );
+        float const scale = physicsComponentTransform.GetScale();
 
         PxPhysics* pPhysics = m_pPhysicsSystem->GetPxPhysics();
-        OBB localBounds;
         if ( auto pMeshComponent = TryCast<PhysicsMeshComponent>( pComponent ) )
         {
             EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
@@ -339,35 +306,29 @@ namespace EE::Physics
                 PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
                 PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
                 pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-                localBounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
-                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
             else // Convex Mesh
             {
                 PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
                 PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
                 pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-                localBounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
-                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
         }
         else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
         {
-            PxBoxGeometry const boxGeo = CreateBoxGeometry( scale, pBoxComponent->m_boxExtents, &localBounds );
+            PxBoxGeometry const boxGeo = CreateBoxGeometry( scale, pBoxComponent->m_boxExtents );
             pPhysicsShape = pPhysics->createShape( boxGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
         }
         else if ( auto pSphereComponent = TryCast<SphereComponent>( pComponent ) )
         {
-            PxSphereGeometry const sphereGeo = CreateSphereGeometry( scale, pSphereComponent->m_radius, &localBounds );
+            PxSphereGeometry const sphereGeo = CreateSphereGeometry( scale, pSphereComponent->m_radius );
             pPhysicsShape = pPhysics->createShape( sphereGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
         }
         else if ( auto pCapsuleComponent = TryCast<CapsuleComponent>( pComponent ) )
         {
-            PxCapsuleGeometry const capsuleGeo = CreateCapsuleGeometry( scale, pCapsuleComponent->m_radius, pCapsuleComponent->m_cylinderPortionHalfHeight, &localBounds );
+            PxCapsuleGeometry const capsuleGeo = CreateCapsuleGeometry( scale, pCapsuleComponent->m_radius, pCapsuleComponent->m_cylinderPortionHalfHeight );
             pPhysicsShape = pPhysics->createShape( capsuleGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
         }
-
-        pComponent->SetLocalBounds( localBounds );
 
         // Set component <-> physics shape links
         //-------------------------------------------------------------------------
@@ -402,12 +363,11 @@ namespace EE::Physics
         }
 
         Transform const& worldTransform = pComponent->GetWorldTransform();
-        Vector const scale( worldTransform.GetScale() );
+        float scale = worldTransform.GetScale();
 
         // Update actor geometry
         //-------------------------------------------------------------------------
 
-        OBB localBounds;
         if ( auto pMeshComponent = TryCast<PhysicsMeshComponent>( pComponent ) )
         {
             EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
@@ -420,36 +380,30 @@ namespace EE::Physics
                 PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
                 PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
                 pComponent->m_pPhysicsShape->setGeometry( meshGeo );
-                localBounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
-                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
             else // Convex Mesh
             {
                 PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
                 PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
                 pComponent->m_pPhysicsShape->setGeometry( meshGeo );
-                localBounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
-                localBounds.m_extents *= pMeshComponent->GetLocalScale();
             }
         }
         else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
         {
-            PxBoxGeometry const boxGeo = CreateBoxGeometry( scale, pBoxComponent->m_boxExtents, &localBounds );
+            PxBoxGeometry const boxGeo = CreateBoxGeometry( scale, pBoxComponent->m_boxExtents );
             pComponent->m_pPhysicsShape->setGeometry( boxGeo );
         }
         else if ( auto pSphereComponent = TryCast<SphereComponent>( pComponent ) )
         {
-            PxSphereGeometry const sphereGeo = CreateSphereGeometry( scale, pSphereComponent->m_radius, &localBounds );
+            PxSphereGeometry const sphereGeo = CreateSphereGeometry( scale, pSphereComponent->m_radius );
             pComponent->m_pPhysicsShape->setGeometry( sphereGeo );
             
         }
         else if ( auto pCapsuleComponent = TryCast<CapsuleComponent>( pComponent ) )
         {
-            PxCapsuleGeometry const capsuleGeo = CreateCapsuleGeometry( scale, pCapsuleComponent->m_radius, pCapsuleComponent->m_cylinderPortionHalfHeight, &localBounds );
+            PxCapsuleGeometry const capsuleGeo = CreateCapsuleGeometry( scale, pCapsuleComponent->m_radius, pCapsuleComponent->m_cylinderPortionHalfHeight );
             pComponent->m_pPhysicsShape->setGeometry( capsuleGeo );
         }
-
-        pComponent->SetLocalBounds( localBounds );
 
         // Update actor position
         //-------------------------------------------------------------------------
@@ -474,7 +428,6 @@ namespace EE::Physics
 
         pComponent->m_pPhysicsShape = nullptr;
         pComponent->m_pPhysicsActor = nullptr;
-        pComponent->SetLocalBounds( OBB() );
 
         #if EE_DEVELOPMENT_TOOLS
         pComponent->m_debugName.clear();
@@ -533,12 +486,6 @@ namespace EE::Physics
         pComponent->m_pPhysicsActor->attachShape( *pComponent->m_pCapsuleShape );
         pComponent->m_pCapsuleShape->release();
 
-        // Set Component Bounds
-        //-------------------------------------------------------------------------
-
-        OBB const localBounds( Vector::Origin, Vector( pComponent->m_cylinderPortionHalfHeight + pComponent->m_radius, pComponent->m_radius, pComponent->m_radius ) );
-        pComponent->SetLocalBounds( localBounds );
-
         // Add to scene
         //-------------------------------------------------------------------------
 
@@ -566,7 +513,6 @@ namespace EE::Physics
 
         pComponent->m_pCapsuleShape = nullptr;
         pComponent->m_pPhysicsActor = nullptr;
-        pComponent->SetLocalBounds( OBB() );
 
         #if EE_DEVELOPMENT_TOOLS
         pComponent->m_debugName.clear();

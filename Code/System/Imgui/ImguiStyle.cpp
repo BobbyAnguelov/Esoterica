@@ -65,7 +65,7 @@ namespace EE::ImGuiX
         colors[ImGuiCol_TabUnfocused] = s_colorGray6;
         colors[ImGuiCol_TabUnfocusedActive] = s_colorGray5;
 
-        colors[ImGuiCol_Header] = s_colorGray4;
+        colors[ImGuiCol_Header] = s_colorGray3;
         colors[ImGuiCol_HeaderHovered] = s_colorGray2;
         colors[ImGuiCol_HeaderActive] = s_colorGray1;
 

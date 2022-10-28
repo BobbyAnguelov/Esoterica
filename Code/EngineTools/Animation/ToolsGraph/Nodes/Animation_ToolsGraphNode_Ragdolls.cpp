@@ -15,6 +15,9 @@ namespace EE::Animation::GraphNodes
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Physics Blend Weight", GraphValueType::Float );
+        CreateInputPin( "Impulse Origin", GraphValueType::Vector );
+        CreateInputPin( "Impulse Force", GraphValueType::Vector );
+
     }
 
     int16_t PoweredRagdollToolsNode::Compile( GraphCompilationContext& context ) const
@@ -54,7 +57,48 @@ namespace EE::Animation::GraphNodes
                 }
                 else
                 {
-                    context.LogError( this, "Failed to compile physics blend weight node!" );
+                    context.LogError( this, "Failed to compile physics blend weight input node!" );
+                    return InvalidIndex;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            auto pImpulseOriginNode = GetConnectedInputNode<FlowToolsNode>( 2 );
+            if ( pImpulseOriginNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pImpulseOriginNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pSettings->m_inpulseOriginVectorNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    context.LogError( this, "Failed to compile impulse vector source input node!" );
+                    return InvalidIndex;
+                }
+            }
+
+            auto pImpulseForceNode = GetConnectedInputNode<FlowToolsNode>( 3 );
+            if ( pImpulseForceNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pImpulseForceNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pSettings->m_inpulseForceVectorNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    context.LogError( this, "Failed to compile impulse force input node!" );
+                    return InvalidIndex;
+                }
+            }
+
+            if ( pImpulseOriginNode != nullptr || pImpulseForceNode != nullptr )
+            {
+                if ( pImpulseOriginNode == nullptr || pImpulseForceNode == nullptr )
+                {
+                    context.LogError( this, "For impulse support, you need both origin and force nodes set." );
                     return InvalidIndex;
                 }
             }

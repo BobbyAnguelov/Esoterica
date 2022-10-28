@@ -5,12 +5,9 @@
 
 namespace EE
 {
-    void BoxVolumeComponent::Initialize()
+    OBB BoxVolumeComponent::CalculateLocalBounds() const
     {
-        VolumeComponent::Initialize();
-
-        OBB const newBounds( Vector::Zero, Vector::One, Quaternion::Identity );
-        SetLocalBounds( newBounds );
+        return OBB( Vector::Zero, m_extents );
     }
 
     #if EE_DEVELOPMENT_TOOLS

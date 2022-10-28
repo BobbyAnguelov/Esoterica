@@ -7,7 +7,7 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     Color GetColorForValueType( GraphValueType type )
     {
-        static const Color colors[9] =
+        static const Color colors[10] =
         {
             Colors::GhostWhite,
             Colors::PaleGreen,
@@ -18,6 +18,7 @@ namespace EE::Animation
             Colors::Cyan,
             Colors::PeachPuff,
             Colors::GreenYellow,
+            Colors::Pink,
         };
 
         return colors[(uint8_t) type];
@@ -72,6 +73,12 @@ namespace EE::Animation
             case GraphValueType::Pose:
             {
                 return "Pose";
+            }
+            break;
+
+            case GraphValueType::Special:
+            {
+                return "Special";
             }
             break;
 

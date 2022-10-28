@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
             EE_REGISTER_TYPE( RemapRange );
             EE_SERIALIZE( m_begin, m_end );
 
-            float                       m_begin = 0;
-            float                       m_end = 0;
+            EE_EXPOSE float             m_begin = 0;
+            EE_EXPOSE float             m_end = 0;
         };
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t              m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
             RemapRange                  m_inputRange;
             RemapRange                  m_outputRange;
         };
@@ -57,7 +57,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t              m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
             FloatRange                  m_clampRange = FloatRange( 0 );
         };
 
@@ -86,7 +86,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t              m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
         };
 
     private:
@@ -116,7 +116,7 @@ namespace EE::Animation::GraphNodes
 
             float                       m_easeTime = 1.0f;
             float                       m_initalValue = -1.0f;
-            int16_t              m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
             Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
         };
 
@@ -147,7 +147,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t              m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
             FloatCurve                  m_curve;
         };
 
@@ -187,8 +187,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputValueNodeIdxA = InvalidIndex;
-            int16_t                   m_inputValueNodeIdxB = InvalidIndex; // Optional
+            int16_t                     m_inputValueNodeIdxA = InvalidIndex;
+            int16_t                     m_inputValueNodeIdxB = InvalidIndex; // Optional
             bool                        m_returnAbsoluteResult = false;
             Operator                    m_operator = Operator::Add;
             float                       m_valueB = 0.0f;
@@ -231,11 +231,11 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                          m_inputValueNodeIdx = InvalidIndex;
-            int16_t                          m_comparandValueNodeIdx = InvalidIndex;
-            Comparison                              m_comparison = Comparison::GreaterThanEqual;
-            float                                   m_epsilon = 0.0f;
-            float                                   m_comparisonValue = 0.0f;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_comparandValueNodeIdx = InvalidIndex;
+            Comparison                  m_comparison = Comparison::GreaterThanEqual;
+            float                       m_epsilon = 0.0f;
+            float                       m_comparisonValue = 0.0f;
         };
 
     private:
@@ -246,9 +246,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        FloatValueNode*                             m_pInputValueNode = nullptr;
-        FloatValueNode*                             m_pComparandValueNode = nullptr;
-        bool                                        m_result = false;
+        FloatValueNode*                 m_pInputValueNode = nullptr;
+        FloatValueNode*                 m_pComparandValueNode = nullptr;
+        bool                            m_result = false;
     };
 
     //-------------------------------------------------------------------------
@@ -264,9 +264,9 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            FloatRange                              m_range;
-            int16_t                          m_inputValueNodeIdx = InvalidIndex;
-            bool                                    m_isInclusiveCheck = true;
+            FloatRange                  m_range;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
+            bool                        m_isInclusiveCheck = true;
         };
 
     private:
@@ -277,8 +277,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        FloatValueNode*                             m_pInputValueNode = nullptr;
-        bool                                        m_result = false;
+        FloatValueNode*                 m_pInputValueNode = nullptr;
+        bool                            m_result = false;
     };
 
     //-------------------------------------------------------------------------
@@ -326,7 +326,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t              m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
         };
 
     private:

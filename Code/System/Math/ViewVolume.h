@@ -99,7 +99,21 @@ namespace EE::Math
         inline FloatRange GetDepthRange() const { return m_depthRange; }
         inline Float2 GetViewDimensions() const { return m_viewDimensions; }
         inline float GetAspectRatio() const { return m_viewDimensions.m_x / m_viewDimensions.m_y; }
+
+        // Get the horizontal FOV for this view volume
         inline Radians GetFOV() const { EE_ASSERT( IsPerspective() ); return m_FOV; }
+
+        // Get the vertical FOV for this view volume
+        inline Radians GetVerticalFOV() const { EE_ASSERT( IsPerspective() ); return 2.0f * Math::ATan( Math::Tan( GetFOV().ToFloat() / 2.0f ) * GetAspectRatio() ); }
+
+        // Scale factor used to convert from pixel size to world scale
+        inline float GetProjectionScaleY() const { return IsOrthographic() ? 1.0f : Math::Tan( GetVerticalFOV().ToFloat() * 0.5f ) * 2.0f; }
+
+        // Get the width and height of the near plane in world space units
+        Float2 GetNearPlaneWorldSpaceDimensions() const;
+
+        // Get the width and height of the far plane in world space units
+        Float2 GetFarPlaneWorldSpaceDimensions() const;
 
         // Spatial Info
         //-------------------------------------------------------------------------

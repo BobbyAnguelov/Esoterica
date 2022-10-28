@@ -148,7 +148,7 @@ namespace EE::Animation
         // Control Parameter Editor
         //-------------------------------------------------------------------------
 
-        bool DrawControlParameterEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawControlParameterEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         void InitializeControlParameterEditor();
         void ShutdownControlParameterEditor();
@@ -242,7 +242,6 @@ namespace EE::Animation
         String                                                          m_graphLogWindowName;
         String                                                          m_debuggerWindowName;
         PropertyGrid                                                    m_propertyGrid;
-        Transform                                                       m_gizmoTransform;
         GraphOperationType                                              m_activeOperation = GraphOperationType::None;
 
         EventBindingID                                                  m_rootGraphBeginModificationBindingID;
@@ -281,7 +280,6 @@ namespace EE::Animation
         // Control Parameter Editor
         TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
         TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
-        GraphNodes::VirtualParameterToolsNode*                          m_pVirtualParamaterToEdit = nullptr;
         UUID                                                            m_currentOperationParameterID;
         char                                                            m_parameterNameBuffer[255];
         char                                                            m_parameterCategoryBuffer[255];

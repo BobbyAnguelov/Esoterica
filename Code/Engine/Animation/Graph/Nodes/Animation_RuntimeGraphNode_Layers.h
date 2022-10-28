@@ -17,11 +17,14 @@ namespace EE::Animation::GraphNodes
 
         struct LayerSettings
         {
-            EE_SERIALIZE( m_layerNodeIdx, m_isSynchronized, m_ignoreEvents, m_blendOptions );
+            EE_SERIALIZE( m_inputNodeIdx, m_weightValueNodeIdx, m_boneMaskValueNodeIdx, m_isSynchronized, m_ignoreEvents, m_isStateMachineLayer, m_blendOptions );
 
-            int16_t                                         m_layerNodeIdx = InvalidIndex;
+            int16_t                                         m_inputNodeIdx = InvalidIndex;
+            int16_t                                         m_weightValueNodeIdx = InvalidIndex;
+            int16_t                                         m_boneMaskValueNodeIdx = InvalidIndex;
             bool                                            m_isSynchronized = false;
             bool                                            m_ignoreEvents = false;
+            bool                                            m_isStateMachineLayer = false;
             TBitFlags<PoseBlendOptions>                     m_blendOptions;
         };
 
@@ -39,6 +42,13 @@ namespace EE::Animation::GraphNodes
             TInlineVector<LayerSettings, 3>                 m_layerSettings;
         };
 
+        struct Layer
+        {
+            PoseNode*                                       m_pInputNode = nullptr;
+            FloatValueNode*                                 m_pWeightValueNode = nullptr;
+            BoneMaskValueNode*                              m_pBoneMaskValueNode = nullptr;
+        };
+
     public:
 
         virtual SyncTrack const& GetSyncTrack() const override { EE_ASSERT( IsValid() ); return m_pBaseLayerNode->GetSyncTrack(); }
@@ -52,12 +62,15 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+
+        GraphPoseNodeResult UpdateLocalLayer( GraphContext& context, LayerSettings const& layerSettings, Layer const& layer );
+        GraphPoseNodeResult UpdateStateMachineLayer( GraphContext& context, LayerSettings const& layerSettings, Layer const& layer );
         void UpdateLayers( GraphContext& context, GraphPoseNodeResult& NodeResult );
 
     private:
 
         PoseNode*                                           m_pBaseLayerNode = nullptr;
-        TInlineVector<StateMachineNode*, 3>                 m_layers;
+        TInlineVector<Layer, 3>                             m_layers;
         GraphLayerContext                                   m_previousContext;
 
         #if EE_DEVELOPMENT_TOOLS

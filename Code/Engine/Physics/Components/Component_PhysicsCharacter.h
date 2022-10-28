@@ -97,6 +97,8 @@ namespace EE::Physics
 
     protected:
 
+        virtual OBB CalculateLocalBounds() const override final;
+
         virtual void Initialize() override;
 
     private:

@@ -7,6 +7,35 @@
 
 namespace EE::Render
 {
+    OBB SkeletalMeshComponent::CalculateLocalBounds() const
+    {
+        OBB bounds;
+
+        if ( HasMeshResourceSet() )
+        {
+            if ( m_boneTransforms.empty() )
+            {
+                bounds = m_mesh->GetBounds();
+            }
+            else // Use bones to calculate bounds
+            {
+                AABB newBounds;
+                for ( auto const& boneTransform : m_boneTransforms )
+                {
+                    newBounds.AddPoint( boneTransform.GetTranslation() );
+                }
+
+                bounds = OBB( newBounds );
+            }
+        }
+        else
+        {
+            bounds = MeshComponent::CalculateLocalBounds();
+        }
+
+        return bounds;
+    }
+
     void SkeletalMeshComponent::Initialize()
     {
         MeshComponent::Initialize();
@@ -14,7 +43,6 @@ namespace EE::Render
         if ( HasMeshResourceSet() )
         {
             EE_ASSERT( m_mesh.IsLoaded() );
-            SetLocalBounds( m_mesh->GetBounds() );
 
             if ( HasSkeletonResourceSet() )
             {
@@ -145,19 +173,6 @@ namespace EE::Render
     }
 
     //-------------------------------------------------------------------------
-
-    void SkeletalMeshComponent::UpdateBounds()
-    {
-        EE_ASSERT( m_mesh.IsSet() && m_mesh.IsLoaded() );
-
-        AABB newBounds;
-        for ( auto const& boneTransform : m_boneTransforms )
-        {
-            newBounds.AddPoint( boneTransform.GetTranslation() );
-        }
-
-        SetLocalBounds( OBB( newBounds ) );
-    }
 
     void SkeletalMeshComponent::UpdateSkinningTransforms()
     {

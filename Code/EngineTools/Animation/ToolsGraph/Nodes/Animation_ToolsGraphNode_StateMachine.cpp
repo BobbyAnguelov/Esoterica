@@ -114,11 +114,6 @@ namespace EE::Animation::GraphNodes
         // Compile all transitions
         //-------------------------------------------------------------------------
 
-        auto ConduitSearchPredicate = [] ( TransitionConduitToolsNode* pConduit, UUID const& startStateID )
-        {
-            return pConduit->GetStartStateID() == startStateID;
-        };
-
         for ( auto i = 0; i < numStateNodes; i++ )
         {
             auto pStartStateNode = stateNodes[i];

@@ -10,15 +10,17 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    void StaticMeshComponent::Initialize()
+    OBB StaticMeshComponent::CalculateLocalBounds() const
     {
-        MeshComponent::Initialize();
-
         if ( HasMeshResourceSet() )
         {
             OBB scaledMeshBounds = m_mesh->GetBounds();
             scaledMeshBounds.m_extents *= m_localScale;
-            SetLocalBounds( scaledMeshBounds );
+            return scaledMeshBounds;
+        }
+        else
+        {
+            return MeshComponent::CalculateLocalBounds();
         }
     }
 
@@ -47,6 +49,8 @@ namespace EE::Render
         EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
         return m_mesh->GetMaterials();
     }
+
+    //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
     void StaticMeshComponent::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )

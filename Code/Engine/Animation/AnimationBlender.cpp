@@ -81,8 +81,8 @@ namespace EE::Animation
         auto const numBones = pResultPose->GetNumBones();
         for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
         {
+            // Use the source local pose for masked out bones
             boneBlendWeight = BlendWeight::GetBlendWeight( blendWeight, pBoneMask, boneIdx );
-
             if ( boneBlendWeight == 0.0f )
             {
                 pResultPose->SetTransform( boneIdx, pSourcePose->GetTransform( boneIdx ) );
@@ -116,9 +116,8 @@ namespace EE::Animation
                     Quaternion const rotation = Blender::BlendRotation( sourceGlobalTransform.GetRotation(), targetGlobalTransform.GetRotation(), boneBlendWeight );
 
                     // Convert blended global space rotation to local space for the result pose
-                    // Note: our quaternion inverse function ONLY works on unit quaternions so we need to ensure we normalize the parent before inverting
                     Quaternion const parentRotation = pResultPose->GetGlobalTransform( parentIdx ).GetRotation();
-                    Quaternion const localRotation = parentRotation.GetConjugate() * rotation;
+                    Quaternion const localRotation = rotation * parentRotation.GetConjugate();
                     pResultPose->SetRotation( boneIdx, localRotation );
                 }
             }

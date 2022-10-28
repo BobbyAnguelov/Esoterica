@@ -75,9 +75,15 @@ namespace EE
             return Vector( ScalarProjectionOnLine( point ) );
         }
 
-        inline float GetDistanceBetweenLineAndPoint( Vector const& point ) const
+        inline float GetDistanceBetweenLineAndPoint( Vector const& point, Vector* pOutClosestPoint = nullptr ) const
         {
             Vector const closestPointOnLine = GetClosestPointOnLine( point );
+
+            if ( pOutClosestPoint != nullptr )
+            {
+                *pOutClosestPoint = closestPointOnLine;
+            }
+
             return closestPointOnLine.GetDistance3( point );
         }
 
@@ -177,9 +183,15 @@ namespace EE
         }
 
         // Returns the shortest distance between the segment and the specified point
-        inline float GetDistanceFromSegmentToPoint( Vector const& point ) const
+        inline float GetDistanceFromSegmentToPoint( Vector const& point, Vector* pOutClosestPoint = nullptr ) const
         {
             Vector const closestPointOnSegment = GetClosestPointOnSegment( point );
+
+            if ( pOutClosestPoint != nullptr )
+            {
+                *pOutClosestPoint = closestPointOnSegment;
+            }
+
             return closestPointOnSegment.GetDistance3( point );
         }
 

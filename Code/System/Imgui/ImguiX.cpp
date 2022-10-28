@@ -730,36 +730,33 @@ namespace EE::ImGuiX
 
     void DisplayVector4( ImGuiID ID, Vector const& v, float width )
     {
-        {
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium, Colors::MediumRed );
-            ImGui::Text( "X:" );
-            ImGui::SameLine();
-        }
-        ImGui::Text( "%.3f,", v.GetX() );
+        ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::Red ).Value );
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "X" );
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::Text( ": %.3f, ", v.GetX() );
         ImGui::SameLine();
 
-        {
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium, Colors::Green );
-            ImGui::Text( "Y:" );
-            ImGui::SameLine();
-        }
-        ImGui::Text( "%.3f,", v.GetY() );
+        ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::Lime ).Value );
+        ImGui::Text( "Y" );
+        ImGui::SameLine();
+        ImGui::PopStyleColor();
+        ImGui::Text( ": %.3f, ", v.GetY() );
         ImGui::SameLine();
 
-        {
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium, Colors::RoyalBlue );
-            ImGui::Text( "Z:" );
-            ImGui::SameLine();
-        }
-        ImGui::Text( "%.3f,", v.GetZ() );
+        ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::CornflowerBlue ).Value );
+        ImGui::Text( "Z" );
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::Text( ": %.3f, ", v.GetZ() );
         ImGui::SameLine();
 
-        {
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium, Colors::Orange );
-            ImGui::Text( "W:" );
-            ImGui::SameLine();
-        }
-        ImGui::Text( "%.3f", v.GetW() );
+        ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::Orange ).Value );
+        ImGui::Text( "W" );
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::Text( ": %.3f", v.GetW() );
     }
 
     void DisplayRotation( ImGuiID ID, Quaternion const& q, float width )

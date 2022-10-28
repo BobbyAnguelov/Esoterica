@@ -117,10 +117,16 @@ namespace EE::Animation::GraphNodes
         {
             auto pSettings = GetSettings<AnimationPoseNode>();
             timeValue = m_pPoseTimeValue->GetValue<float>( context );
-            timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
+
+            // Optional Remap
+            if ( pSettings->m_inputTimeRemapRange.IsSet() )
+            {
+                timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
+            }
         }
 
-        EE_ASSERT( timeValue >= 0.0f && timeValue <= 1.0f );
+        // Ensure valid time value
+        timeValue = Math::Clamp( timeValue, 0.0f, 1.0f );
         return Percentage( timeValue );
     }
 }

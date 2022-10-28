@@ -527,7 +527,17 @@ namespace EE::TypeSystem::Conversion
                 {
                     float floatData[2];
                     StringToFloatArray( str, 2, floatData );
-                    *reinterpret_cast<FloatRange*>( pValue ) = FloatRange( floatData[0], floatData[1] );
+
+                    // Invalid range
+                    if ( floatData[0] > floatData[1] )
+                    {
+                        *reinterpret_cast<FloatRange*>( pValue ) = FloatRange();
+                    }
+                    else
+                    {
+                        *reinterpret_cast<FloatRange*>( pValue ) = FloatRange( floatData[0], floatData[1] );
+                    }
+
                 }
                 break;
 

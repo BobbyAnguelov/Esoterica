@@ -35,9 +35,10 @@ namespace EE::Animation
         Transform                       m_worldTransform = Transform::Identity;
         Transform                       m_worldTransformInverse = Transform::Identity;
         TInlineVector<Task*, 2>         m_dependencies = { nullptr, nullptr };
+        PoseBufferPool&                 m_posePool;
         float                           m_deltaTime = 0;
         TaskUpdateStage                 m_updateStage = TaskUpdateStage::Any;
-        PoseBufferPool&                 m_posePool;
+        int8_t                          m_currentTaskIdx = InvalidIndex;
     };
 
     //-------------------------------------------------------------------------
@@ -140,8 +141,8 @@ namespace EE::Animation
             m_actualUpdateStage = context.m_updateStage;
 
             #if EE_DEVELOPMENT_TOOLS
-            EE_ASSERT( m_bufferIdx != InvalidIndex );
-            context.m_posePool.RecordPose( m_bufferIdx );
+            EE_ASSERT( context.m_currentTaskIdx != InvalidIndex && m_bufferIdx != InvalidIndex );
+            context.m_posePool.RecordPose( context.m_currentTaskIdx, m_bufferIdx );
             #endif
         }
 
@@ -153,8 +154,8 @@ namespace EE::Animation
     private:
 
         int8_t                          m_bufferIdx = InvalidIndex;
-        TaskDependencies                m_dependencies;
         TaskUpdateStage                 m_actualUpdateStage = TaskUpdateStage::Any;
         bool                            m_isComplete = false;
+        TaskDependencies                m_dependencies;
     };
 }

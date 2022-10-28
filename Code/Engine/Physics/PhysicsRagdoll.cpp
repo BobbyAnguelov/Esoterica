@@ -967,11 +967,8 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    void Ragdoll::ApplyImpulse( Vector const& impulseSourceWS, Vector const& dirWS, float strength )
+    void Ragdoll::ApplyImpulse( Vector const& impulseOriginWS, Vector const& impulseForceWS )
     {
-        EE_ASSERT( dirWS.IsNormalized3() );
-        EE_ASSERT( strength > 0 );
-
         PxArticulationLink* pHitLink = nullptr;
         PxVec3 hitLocation;
 
@@ -979,8 +976,8 @@ namespace EE::Physics
 
         {
             ScopedReadLock const sl( this );
-            PxVec3 const rayOrigin = ToPx( impulseSourceWS );
-            PxVec3 const rayDir = ToPx( dirWS );
+            PxVec3 const rayOrigin = ToPx( impulseOriginWS );
+            PxVec3 const rayDir = ToPx( impulseForceWS.GetNormalized3() );
             PxShape* shapeBuffer[1];
             PxRaycastHit hitBuffer[1];
 
@@ -1012,13 +1009,13 @@ namespace EE::Physics
 
         if( pHitLink != nullptr )
         {
-            PxVec3 const impulse = ToPx( dirWS * strength );
+            PxVec3 const impulse = ToPx( impulseForceWS );
             ScopedWriteLock const sl( this );
             PxRigidBodyExt::addForceAtPos( *pHitLink, impulse, hitLocation, PxForceMode::eIMPULSE );
         }
     }
 
-    void Ragdoll::ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseSourceWS, Vector const& dirWS, float strength )
+    void Ragdoll::ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseOriginWS, Vector const& impulseForceWS )
     {
         EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_links.size() );
 
@@ -1026,8 +1023,8 @@ namespace EE::Physics
         PxVec3 hitLocation;
         bool applyImpulse = false;
 
-        PxVec3 const rayOrigin = ToPx( impulseSourceWS );
-        PxVec3 const rayDir = ToPx( dirWS );
+        PxVec3 const rayOrigin = ToPx( impulseOriginWS );
+        PxVec3 const rayDir = ToPx( impulseForceWS.GetNormalized3() );
 
         PxShape* shapeBuffer[1];
         pLink->getShapes( shapeBuffer, 1 );
@@ -1052,13 +1049,13 @@ namespace EE::Physics
 
         if( applyImpulse )
         {
-            PxVec3 const impulse = ToPx( dirWS * strength );
+            PxVec3 const impulse = ToPx( impulseForceWS );
             ScopedWriteLock const sl( this );
             PxRigidBodyExt::addForceAtPos( *pLink, impulse, hitLocation, PxForceMode::eIMPULSE );
         }
     }
 
-    void Ragdoll::ApplyImpulseToBody( StringID boneID, Vector const& impulseSourceWS, Vector const& dirWS, float strength )
+    void Ragdoll::ApplyImpulseToBody( StringID boneID, Vector const& impulseOriginWS, Vector const& impulseForceWS )
     {
         int32_t boneIdx = m_pDefinition->m_skeleton->GetBoneIndex( boneID );
         EE_ASSERT( boneIdx != InvalidIndex );
@@ -1067,19 +1064,19 @@ namespace EE::Physics
         int32_t bodyIdx = m_pDefinition->m_boneToBodyMap[boneIdx];
         if ( bodyIdx != InvalidIndex )
         {
-            ApplyImpulseToBody( bodyIdx, impulseSourceWS, dirWS, strength );
+            ApplyImpulseToBody( bodyIdx, impulseOriginWS, impulseForceWS );
         }
     }
 
-    void Ragdoll::ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& dirWS, float strength )
+    void Ragdoll::ApplyImpulseToBodyCOM( int32_t bodyIdx, Vector const& impulseForceWS )
     {
         EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_links.size() );
         ScopedWriteLock const sl( this );
-        PxVec3 const impulse = ToPx( dirWS * strength );
+        PxVec3 const impulse = ToPx( impulseForceWS );
         m_links[bodyIdx]->addForce( impulse, PxForceMode::eIMPULSE );
     }
 
-    void Ragdoll::ApplyImpulseToBodyCOM( StringID boneID, Vector const& dirWS, float strength )
+    void Ragdoll::ApplyImpulseToBodyCOM( StringID boneID, Vector const& impulseForceWS )
     {
         int32_t boneIdx = m_pDefinition->m_skeleton->GetBoneIndex( boneID );
         EE_ASSERT( boneIdx != InvalidIndex );
@@ -1088,7 +1085,7 @@ namespace EE::Physics
         int32_t bodyIdx = m_pDefinition->m_boneToBodyMap[boneIdx];
         if ( bodyIdx != InvalidIndex )
         {
-            ApplyImpulseToBodyCOM( bodyIdx, dirWS, strength );
+            ApplyImpulseToBodyCOM( bodyIdx, impulseForceWS );
         }
     }
 

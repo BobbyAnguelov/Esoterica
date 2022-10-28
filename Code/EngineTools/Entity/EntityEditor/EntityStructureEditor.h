@@ -66,6 +66,9 @@ namespace EE::EntityModel
         // Set multiple entities to edit
         void SetEntitiesToEdit( TVector<Entity*> const& entities );
 
+        // Get the currently edited entity
+        inline Entity* GetEditedEntity() const { return m_pEditedEntity; }
+
         // Get all the selected spatial components
         TVector<SpatialEntityComponent*> const& GetSelectedSpatialComponents() const { return m_selectedSpatialComponents; }
 

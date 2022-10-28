@@ -34,20 +34,15 @@ namespace EE::Physics
         inline ResourceID const& GetMeshResourceID() { return m_physicsMesh.GetResourceID(); }
         #endif
 
-        // Local Scale
         //-------------------------------------------------------------------------
 
-        // Get the local scaling multiplier
-        inline Float3 const& GetLocalScale() const { return m_localScale; }
-
-        // Do we have a local scale set?
-        inline bool HasLocalScale() const { return m_localScale != Float3::One; }
+        virtual Float3 const& GetLocalScale() const override { return m_localScale; }
+        virtual bool SupportsLocalScale() const override { return true; }
 
     private:
-
-        virtual void Initialize() override;
-        virtual bool HasValidPhysicsSetup() const override final;
-        virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const override final;
+        virtual OBB CalculateLocalBounds() const override;
+        virtual bool HasValidPhysicsSetup() const override;
+        virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
