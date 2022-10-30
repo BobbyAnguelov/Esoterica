@@ -207,7 +207,7 @@ namespace EE::ImGuiX
     static Color const                  g_rotationPreviewColor = Colors::Orange;
     static Color const                  g_originColor = Colors::White;
 
-    static constexpr float const        g_axisLength = 75.0f;
+    static constexpr float const        g_axisLength = 150.0f;
     static constexpr float const        g_axisThickness = 4.0f;
     static constexpr float const        g_axisAdditionalHoverBorder = 3.0f;
     static constexpr float const        g_axisPlaneManipulatorScale = 0.5f;

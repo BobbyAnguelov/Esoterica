@@ -3,14 +3,6 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
-      "Id": "630c34d8-60e7-4762-9a74-ff52766b97c5",
-      "Command": "-compile data://demo/animation/TestGraph@Default.agv"
-    },
-    {
-      "Id": "8de22930-80a5-42d3-8f7e-89bf78eb602e",
-      "Command": "-compile data://packs/amplify/ss_heavy01.anim"
-    },
-    {
       "Id": "b0658502-4a26-4be7-9861-acd7d403cbf4",
       "Command": "-shipping"
     },
@@ -157,6 +149,14 @@
       "Command": "Animation",
       "Items": [
         {
+          "Id": "6a9be0ae-5f00-497b-a3c0-45c3e1bc911f",
+          "Command": "-compile data://packs/walk_fwd_v2_additive.anim"
+        },
+        {
+          "Id": "8de22930-80a5-42d3-8f7e-89bf78eb602e",
+          "Command": "-compile data://packs/amplify/ss_heavy01.anim"
+        },
+        {
           "Id": "bff7ef6c-ad70-4445-88e6-93505661e5eb",
           "Command": "-compile data://packs/amplify/death_bwd.anim"
         },
@@ -223,6 +223,10 @@
         {
           "Id": "68772666-7f66-44a6-af25-efdc5e6eaf99",
           "Command": "-compile data://packs/amplify/crouch_idle.anim"
+        },
+        {
+          "Id": "630c34d8-60e7-4762-9a74-ff52766b97c5",
+          "Command": "-compile data://demo/animation/TestGraph@Default.agv"
         }
       ]
     },

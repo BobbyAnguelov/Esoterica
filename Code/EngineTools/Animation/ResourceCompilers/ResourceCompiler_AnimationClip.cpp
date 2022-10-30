@@ -114,6 +114,11 @@ namespace EE::Animation
             }
         }
 
+        if ( resourceDescriptor.m_generateTestAdditive )
+        {
+            pRawAnimation->GenerateAdditiveData();
+        }
+
         // Reflect raw animation data into runtime format
         //-------------------------------------------------------------------------
 
@@ -247,6 +252,7 @@ namespace EE::Animation
         animClip.m_numFrames = rawAnimData.GetNumFrames();
         animClip.m_duration = ( animClip.IsSingleFrameAnimation() ) ? 0.0f : rawAnimData.GetDuration();
         animClip.m_rootMotion.m_transforms = rawAnimData.GetRootMotion();
+        animClip.m_isAdditive = rawAnimData.IsAdditive();
 
         // Calculate root motion extra data
         //-------------------------------------------------------------------------

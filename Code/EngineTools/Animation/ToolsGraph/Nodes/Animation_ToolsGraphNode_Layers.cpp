@@ -30,29 +30,32 @@ namespace EE::Animation::GraphNodes
 
     void LocalLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        InlineString blendOptionsText;
-
         ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
         ctx.m_pDrawList->AddLine( originalCursorPos, originalCursorPos + ImVec2( GetWidth(), 0 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
 
         //-------------------------------------------------------------------------
 
-        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
+        switch ( m_blendMode )
         {
-            blendOptionsText = "Additive";
-        }
-        else
-        {
-            blendOptionsText = "Interpolate";
-        }
+            case PoseBlendMode::Interpolative:
+            {
+                ImGui::Text( "Interpolate" );
+            }
+            break;
 
-        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::GlobalSpace ) )
-        {
-            blendOptionsText += " (Global Space)";
-        }
+            case PoseBlendMode::Additive:
+            {
+                ImGui::Text( "Additive" );
+            }
+            break;
 
-        ImGui::Text( blendOptionsText.c_str() );
+            case PoseBlendMode::InterpolativeGlobalSpace:
+            {
+                ImGui::Text( "Interpolate (Global)" );
+            }
+            break;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -84,29 +87,32 @@ namespace EE::Animation::GraphNodes
 
     void StateMachineLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        InlineString blendOptionsText;
-
         ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
         ctx.m_pDrawList->AddLine( originalCursorPos, originalCursorPos + ImVec2( GetWidth(), 0 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
 
         //-------------------------------------------------------------------------
 
-        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
+        switch ( m_blendMode )
         {
-            blendOptionsText = "Additive";
-        }
-        else
-        {
-            blendOptionsText = "Interpolate";
-        }
+            case PoseBlendMode::Interpolative:
+            {
+                ImGui::Text( "Interpolate" );
+            }
+            break;
 
-        if ( m_blendOptions.IsFlagSet( PoseBlendOptions::GlobalSpace ) )
-        {
-            blendOptionsText += " (Global Space)";
-        }
+            case PoseBlendMode::Additive:
+            {
+                ImGui::Text( "Additive" );
+            }
+            break;
 
-        ImGui::Text( blendOptionsText.c_str() );
+            case PoseBlendMode::InterpolativeGlobalSpace:
+            {
+                ImGui::Text( "Interpolate (Global)" );
+            }
+            break;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -220,7 +226,7 @@ namespace EE::Animation::GraphNodes
 
                     layerSettings.m_isSynchronized = pLocalLayerNode->m_isSynchronized;
                     layerSettings.m_ignoreEvents = pLocalLayerNode->m_ignoreEvents;
-                    layerSettings.m_blendOptions = pLocalLayerNode->m_blendOptions;
+                    layerSettings.m_blendMode = pLocalLayerNode->m_blendMode;
                     layerSettings.m_isStateMachineLayer = false;
 
                     // Compile layer state machine
@@ -280,7 +286,7 @@ namespace EE::Animation::GraphNodes
 
                     layerSettings.m_isSynchronized = pStateMachineLayerNode->m_isSynchronized;
                     layerSettings.m_ignoreEvents = pStateMachineLayerNode->m_ignoreEvents;
-                    layerSettings.m_blendOptions = pStateMachineLayerNode->m_blendOptions;
+                    layerSettings.m_blendMode = pStateMachineLayerNode->m_blendMode;
                     layerSettings.m_isStateMachineLayer = true;
 
                     // Compile layer state machine

@@ -62,23 +62,7 @@ namespace EE::RawAssets
         // Calculate component ranges
         //-------------------------------------------------------------------------
 
-        for ( auto& track : m_tracks )
-        {
-            track.m_translationValueRangeX = FloatRange();
-            track.m_translationValueRangeY = FloatRange();
-            track.m_translationValueRangeZ = FloatRange();
-            track.m_scaleValueRange = FloatRange();
-
-            for ( auto const& transform : track.m_localTransforms )
-            {
-                Vector const& translation = transform.GetTranslation();
-                track.m_translationValueRangeX.GrowRange( translation.m_x );
-                track.m_translationValueRangeY.GrowRange( translation.m_y );
-                track.m_translationValueRangeZ.GrowRange( translation.m_z );
-
-                track.m_scaleValueRange.GrowRange( transform.GetScale() );
-            }
-        }
+        CalculateComponentRanges();
     }
 
     void RawAnimation::RegenerateLocalTransforms()
@@ -102,6 +86,51 @@ namespace EE::RawAssets
                 {
                     trackData.m_localTransforms[f] = Transform::Delta( parentTrackData.m_globalTransforms[f], trackData.m_globalTransforms[f] );
                 }
+            }
+        }
+    }
+
+    void RawAnimation::GenerateAdditiveData()
+    {
+        uint32_t const numBones = m_skeleton.GetNumBones();
+        for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        {
+            Transform baseTransform = m_skeleton.GetLocalTransform( boneIdx );
+
+            for ( uint32_t frameIdx = 0; frameIdx < m_numFrames; frameIdx++ )
+            {
+                Transform const& poseTransform = m_tracks[boneIdx].m_localTransforms[frameIdx];
+
+                Transform additiveTransform;
+                additiveTransform.SetRotation( Quaternion::Delta( baseTransform.GetRotation(), poseTransform.GetRotation() ) );
+                additiveTransform.SetTranslation( poseTransform.GetTranslation() - baseTransform.GetTranslation() );
+                additiveTransform.SetScale( poseTransform.GetScale() - baseTransform.GetScale() );
+
+                m_tracks[boneIdx].m_localTransforms[frameIdx] = additiveTransform;
+            }
+        }
+
+        CalculateComponentRanges();
+        m_isAdditive = true;
+    }
+
+    void RawAnimation::CalculateComponentRanges()
+    {
+        for ( auto& track : m_tracks )
+        {
+            track.m_translationValueRangeX = FloatRange();
+            track.m_translationValueRangeY = FloatRange();
+            track.m_translationValueRangeZ = FloatRange();
+            track.m_scaleValueRange = FloatRange();
+
+            for ( auto const& transform : track.m_localTransforms )
+            {
+                Vector const& translation = transform.GetTranslation();
+                track.m_translationValueRangeX.GrowRange( translation.m_x );
+                track.m_translationValueRangeY.GrowRange( translation.m_y );
+                track.m_translationValueRangeZ.GrowRange( translation.m_z );
+
+                track.m_scaleValueRange.GrowRange( transform.GetScale() );
             }
         }
     }

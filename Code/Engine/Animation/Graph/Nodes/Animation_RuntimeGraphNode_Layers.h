@@ -17,7 +17,7 @@ namespace EE::Animation::GraphNodes
 
         struct LayerSettings
         {
-            EE_SERIALIZE( m_inputNodeIdx, m_weightValueNodeIdx, m_boneMaskValueNodeIdx, m_isSynchronized, m_ignoreEvents, m_isStateMachineLayer, m_blendOptions );
+            EE_SERIALIZE( m_inputNodeIdx, m_weightValueNodeIdx, m_boneMaskValueNodeIdx, m_isSynchronized, m_ignoreEvents, m_isStateMachineLayer, m_blendMode );
 
             int16_t                                         m_inputNodeIdx = InvalidIndex;
             int16_t                                         m_weightValueNodeIdx = InvalidIndex;
@@ -25,7 +25,7 @@ namespace EE::Animation::GraphNodes
             bool                                            m_isSynchronized = false;
             bool                                            m_ignoreEvents = false;
             bool                                            m_isStateMachineLayer = false;
-            TBitFlags<PoseBlendOptions>                     m_blendOptions;
+            PoseBlendMode                                   m_blendMode;
         };
 
         //-------------------------------------------------------------------------

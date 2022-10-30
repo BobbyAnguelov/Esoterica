@@ -13,7 +13,7 @@ namespace EE::Animation::Tasks
 
     public:
 
-        BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, TBitFlags<PoseBlendOptions> const blendOptions = TBitFlags<PoseBlendOptions>(), BoneMask const* pBoneMask = nullptr );
+        BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, PoseBlendMode blendMode = PoseBlendMode::Interpolative, BoneMask const* pBoneMask = nullptr );
         virtual void Execute( TaskContext const& context ) override;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -25,6 +25,6 @@ namespace EE::Animation::Tasks
 
         BoneMask const*                         m_pBoneMask = nullptr;
         float                                   m_blendWeight = 0.0f;
-        TBitFlags<PoseBlendOptions>             m_blendOptions;
+        PoseBlendMode                           m_blendMode;
     };
 }

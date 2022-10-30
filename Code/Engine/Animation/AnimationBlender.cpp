@@ -4,25 +4,83 @@
 
 namespace EE::Animation
 {
-    template<typename Blender, typename BlendWeight>
-    void BlenderLocal( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    // Local Blend
+    template<typename Blender>
+    void BlenderLocal( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canFullyOptimizeBlend )
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
 
-        if ( pBoneMask != nullptr )
+        // Fully in Source
+        if ( blendWeight == 0.0f )
         {
-            EE_ASSERT( pBoneMask->GetNumWeights() == pSourcePose->GetSkeleton()->GetNumBones() );
+            // If the source pose is the same as the result pose, then do nothing
+            if ( pSourcePose == pResultPose )
+            {
+                return;
+            }
+            else
+            {
+                pResultPose->CopyFrom( pSourcePose );
+            }
         }
+        // Fully in target
+        else if ( canFullyOptimizeBlend && blendWeight == 1.0f )
+        {
+            // If the source pose is the same as the result pose, then do nothing
+            if ( pTargetPose == pResultPose )
+            {
+                return;
+            }
+            else
+            {
+                pResultPose->CopyFrom( pTargetPose );
+            }
+        }
+        else // Blend
+        {
+            int32_t const numBones = pResultPose->GetNumBones();
+            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            {
+                Transform const& sourceTransform = pSourcePose->GetTransform( boneIdx );
+                Transform const& targetTransform = pTargetPose->GetTransform( boneIdx );
+
+                // Blend translations
+                Vector const translation = Blender::BlendTranslation( sourceTransform.GetTranslation(), targetTransform.GetTranslation(), blendWeight );
+                pResultPose->SetTranslation( boneIdx, translation );
+
+                // Blend scales
+                float const scale = Blender::BlendScale( sourceTransform.GetScale(), targetTransform.GetScale(), blendWeight );
+                pResultPose->SetScale( boneIdx, scale );
+
+                // Blend rotations
+                Quaternion const rotation = Blender::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight );
+                pResultPose->SetRotation( boneIdx, rotation );
+            }
+        }
+    }
+
+    // Masked Local Blend
+    template<typename Blender>
+    void BlenderLocal( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canFullyOptimizeBlend )
+    {
+        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
+        EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
+        EE_ASSERT( pBoneMask != nullptr );
+        EE_ASSERT( pBoneMask->GetNumWeights() == pSourcePose->GetSkeleton()->GetNumBones() );
 
         int32_t const numBones = pResultPose->GetNumBones();
         for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
             // If the bone has been masked out
-            float const boneBlendWeight = BlendWeight::GetBlendWeight( blendWeight, pBoneMask, boneIdx );
+            float const boneBlendWeight = blendWeight * pBoneMask->GetWeight( boneIdx );
             if ( boneBlendWeight == 0.0f )
             { 
                 pResultPose->SetTransform( boneIdx, pSourcePose->GetTransform( boneIdx ) );
+            }
+            if ( canFullyOptimizeBlend && boneBlendWeight == 1.0f )
+            {
+                pResultPose->SetTransform( boneIdx, pTargetPose->GetTransform( boneIdx ) );
             }
             else // Perform Blend
             {
@@ -46,22 +104,20 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    template<typename Blender, typename BlendWeight>
+    // Masked Global Blend
+    template<typename Blender>
     void BlenderGlobal( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         static auto const rootBoneIndex = 0;
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
-
-        if ( pBoneMask != nullptr )
-        {
-            EE_ASSERT( pBoneMask->GetNumWeights() == pSourcePose->GetSkeleton()->GetNumBones() );
-        }
+        EE_ASSERT( pBoneMask != nullptr );
+        EE_ASSERT( pBoneMask->GetNumWeights() == pSourcePose->GetSkeleton()->GetNumBones() );
 
         // Blend the root separately - local space blend
         //-------------------------------------------------------------------------
 
-        auto boneBlendWeight = BlendWeight::GetBlendWeight( blendWeight, pBoneMask, rootBoneIndex );
+        auto boneBlendWeight = blendWeight * pBoneMask->GetWeight( rootBoneIndex );
         if ( boneBlendWeight != 0.0f )
         {
             Vector const translation = Blender::BlendTranslation( pSourcePose->GetTransform( rootBoneIndex ).GetTranslation(), pTargetPose->GetTransform( rootBoneIndex ).GetTranslation(), boneBlendWeight );
@@ -82,7 +138,7 @@ namespace EE::Animation
         for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
         {
             // Use the source local pose for masked out bones
-            boneBlendWeight = BlendWeight::GetBlendWeight( blendWeight, pBoneMask, boneIdx );
+            boneBlendWeight = blendWeight * pBoneMask->GetWeight( boneIdx );
             if ( boneBlendWeight == 0.0f )
             {
                 pResultPose->SetTransform( boneIdx, pSourcePose->GetTransform( boneIdx ) );
@@ -100,7 +156,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 auto const parentIdx = parentIndices[boneIdx];
-                auto const parentBoneBlendWeight = BlendWeight::GetBlendWeight( blendWeight, pBoneMask, parentIdx );
+                auto const parentBoneBlendWeight = blendWeight * pBoneMask->GetWeight( parentIdx );
 
                 // If the bone weights are the same i.e. inherited, then perform a local space blend
                 if ( Math::IsNearEqual( boneBlendWeight, parentBoneBlendWeight ) )
@@ -129,61 +185,39 @@ namespace EE::Animation
 
 namespace EE::Animation
 {
-    void Blender::Blend( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, TBitFlags<PoseBlendOptions> blendOptions, BoneMask const* pBoneMask, Pose* pResultPose )
+    void Blender::Blend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         pResultPose->ClearGlobalTransforms();
 
-        if ( pBoneMask == nullptr )
+        if ( pBoneMask != nullptr )
         {
-            if ( blendOptions.IsFlagSet( PoseBlendOptions::GlobalSpace ) )
-            {
-                if ( blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
-                {
-                    BlenderGlobal<AdditiveBlender, BlendWeight>( pSourcePose, pTargetPose, blendWeight, nullptr, pResultPose );
-                }
-                else
-                {
-                    BlenderGlobal<InterpolativeBlender, BlendWeight>( pSourcePose, pTargetPose, blendWeight, nullptr, pResultPose );
-                }
-            }
-            else
-            {
-                if ( blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
-                {
-                    BlenderLocal<AdditiveBlender, BlendWeight>( pSourcePose, pTargetPose, blendWeight, nullptr, pResultPose );
-                }
-                else
-                {
-                    BlenderLocal<InterpolativeBlender, BlendWeight>( pSourcePose, pTargetPose, blendWeight, nullptr, pResultPose );
-                }
-            }
+            BlenderLocal<InterpolativeBlender>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
         }
-        else // We have a bone mask set
+        else
         {
-            if ( blendOptions.IsFlagSet( PoseBlendOptions::GlobalSpace ) )
-            {
-                EE_ASSERT( !pResultPose->HasGlobalTransforms() ); // Ensure we dont have any cached transforms that might screw up the local space transformation
+            BlenderLocal<InterpolativeBlender>( pSourcePose, pTargetPose, blendWeight, pResultPose, true );
+        }
+    }
 
-                if ( blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
-                {
-                    BlenderGlobal<AdditiveBlender, BoneWeight>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
-                }
-                else
-                {
-                    BlenderGlobal<InterpolativeBlender, BoneWeight>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
-                }
-            }
-            else
-            {
-                if ( blendOptions.IsFlagSet( PoseBlendOptions::Additive ) )
-                {
-                    BlenderLocal<AdditiveBlender, BoneWeight>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
-                }
-                else
-                {
-                    BlenderLocal<InterpolativeBlender, BoneWeight>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
-                }
-            }
+    void Blender::BlendAdditive( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    {
+        pResultPose->ClearGlobalTransforms();
+
+        if ( pBoneMask != nullptr )
+        {
+            BlenderLocal<AdditiveBlender>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
         }
+        else
+        {
+            BlenderLocal<AdditiveBlender>( pSourcePose, pTargetPose, blendWeight, pResultPose, false );
+        }
+    }
+
+    void Blender::BlendGlobal( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    {
+        EE_ASSERT( pBoneMask != nullptr ); // Global space blends require a bone mask!
+
+        pResultPose->ClearGlobalTransforms();
+        BlenderGlobal<InterpolativeBlender>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
     }
 }

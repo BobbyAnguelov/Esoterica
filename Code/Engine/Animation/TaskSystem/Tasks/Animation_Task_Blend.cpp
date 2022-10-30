@@ -4,11 +4,11 @@
 
 namespace EE::Animation::Tasks
 {
-    BlendTask::BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, TBitFlags<PoseBlendOptions> blendOptions, BoneMask const* pBoneMask )
+    BlendTask::BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, PoseBlendMode blendMode, BoneMask const* pBoneMask )
         : Task( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
         , m_pBoneMask( pBoneMask )
         , m_blendWeight( blendWeight )
-        , m_blendOptions( blendOptions )
+        , m_blendMode( blendMode )
     {
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
 
@@ -25,7 +25,7 @@ namespace EE::Animation::Tasks
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
 
-        Blender::Blend( &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, m_blendOptions, m_pBoneMask, &pFinalBuffer->m_pose );
+        Blender::Blend( m_blendMode , &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, m_pBoneMask, &pFinalBuffer->m_pose );
 
         ReleaseDependencyPoseBuffer( context, 1 );
         MarkTaskComplete( context );

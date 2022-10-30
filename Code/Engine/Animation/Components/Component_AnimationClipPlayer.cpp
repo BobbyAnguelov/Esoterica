@@ -1,5 +1,6 @@
 #include "Component_AnimationClipPlayer.h"
 #include "Engine/Animation/AnimationPose.h"
+#include "Engine/Animation/AnimationBlender.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityLog.h"
 #include "System/Profiling.h"
@@ -127,6 +128,14 @@ namespace EE::Animation
         if ( bShouldUpdate )
         {
             m_pAnimation->GetPose( m_animTime, m_pPose );
+
+            // No point displaying a pile of bones, so display an additive on top of the reference pose
+            if ( m_pPose->IsAdditivePose() )
+            {
+                Pose const refPose( m_pPose->GetSkeleton(), Pose::Type::ReferencePose );
+                Blender::BlendAdditive( &refPose, m_pPose, 1.0f, nullptr, m_pPose );
+            }
+
             m_pPose->CalculateGlobalTransforms();
             m_rootMotionDelta = m_pAnimation->GetRootMotionDelta( m_previousAnimTime, m_animTime );
         }

@@ -69,7 +69,7 @@ namespace EE::Animation::Tasks
                 // Get the ragdoll pose and blend it with the animation pose
                 pTempBuffer->m_pose.CalculateGlobalTransforms();
                 m_pRagdoll->GetPose( context.m_worldTransform, &pTempBuffer->m_pose );
-                Animation::Blender::Blend( &pResultBuffer->m_pose, &pTempBuffer->m_pose, m_physicsBlendWeight, TBitFlags<Animation::PoseBlendOptions>(), nullptr, &pResultBuffer->m_pose );
+                Animation::Blender::Blend( &pResultBuffer->m_pose, &pTempBuffer->m_pose, m_physicsBlendWeight, nullptr, &pResultBuffer->m_pose );
 
                 ReleaseTemporaryPoseBuffer( context, tmpBufferIdx );
             }

@@ -268,9 +268,22 @@ namespace EE::Animation::GraphNodes
                 // Create a blend task if the layer is enabled
                 if ( context.m_layerContext.m_layerWeight > 0 )
                 {
-                    RootMotionBlendMode const blendMode = pSettings->m_onlySampleBaseRootMotion ? RootMotionBlendMode::IgnoreTarget : RootMotionBlendMode::Blend;
-                    nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, context.m_layerContext.m_layerWeight, pSettings->m_layerSettings[i].m_blendOptions, context.m_layerContext.m_pLayerMask );
-                    nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, layerResult.m_rootMotionDelta, context.m_layerContext.m_layerWeight, blendMode );
+                    PoseBlendMode poseBlendMode = pSettings->m_layerSettings[i].m_blendMode;
+
+                    // We cannot perform a global blend without a bone mask
+                    if ( poseBlendMode == PoseBlendMode::InterpolativeGlobalSpace && context.m_layerContext.m_pLayerMask == nullptr )
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        context.LogWarning( GetNodeIndex(), "Attempting to perform a global blend without a bone mask! This is not supported so falling back to a local blend!" );
+                        #endif
+
+                        poseBlendMode = PoseBlendMode::Interpolative;
+                    }
+
+                    nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, context.m_layerContext.m_layerWeight, poseBlendMode, context.m_layerContext.m_pLayerMask );
+
+                    RootMotionBlendMode const rootMotionBlendMode = pSettings->m_onlySampleBaseRootMotion ? RootMotionBlendMode::IgnoreTarget : RootMotionBlendMode::Blend;
+                    nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, layerResult.m_rootMotionDelta, context.m_layerContext.m_layerWeight, rootMotionBlendMode );
 
                     #if EE_DEVELOPMENT_TOOLS
                     rootMotionActionIdxLayer = context.GetRootMotionDebugger()->GetLastActionIndex();

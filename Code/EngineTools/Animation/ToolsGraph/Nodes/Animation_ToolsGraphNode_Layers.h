@@ -26,9 +26,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool                             m_isSynchronized = false;
-        EE_EXPOSE bool                             m_ignoreEvents = false;
-        EE_EXPOSE TBitFlags<PoseBlendOptions>      m_blendOptions;
+        EE_EXPOSE bool                              m_isSynchronized = false;
+        EE_EXPOSE bool                              m_ignoreEvents = false;
+        EE_EXPOSE PoseBlendMode                     m_blendMode;
     };
 
     //-------------------------------------------------------------------------
@@ -53,9 +53,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool                             m_isSynchronized = false;
-        EE_EXPOSE bool                             m_ignoreEvents = false;
-        EE_EXPOSE TBitFlags<PoseBlendOptions>      m_blendOptions;
+        EE_EXPOSE bool                              m_isSynchronized = false;
+        EE_EXPOSE bool                              m_ignoreEvents = false;
+        EE_EXPOSE PoseBlendMode                     m_blendMode;
     };
 
     //-------------------------------------------------------------------------
@@ -86,6 +86,6 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool                             m_onlySampleBaseRootMotion = true;
+        EE_EXPOSE bool                              m_onlySampleBaseRootMotion = true;
     };
 }

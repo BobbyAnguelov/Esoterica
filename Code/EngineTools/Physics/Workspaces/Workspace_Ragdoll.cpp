@@ -451,11 +451,12 @@ namespace EE::Physics
 
         if ( IsPreviewing() )
         {
-            Transform const& worldTransform = m_pMeshComponent->GetWorldTransform();
-            auto const gizmoResult = m_gizmo.Draw( worldTransform.GetTranslation(), worldTransform.GetRotation(), *pViewport );
-            if ( gizmoResult.m_state != ImGuiX::Gizmo::State::None )
+            Transform previewWorldTransform = m_pMeshComponent->GetWorldTransform();
+            auto const gizmoResult = m_gizmo.Draw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport );
+            if ( gizmoResult.m_state == ImGuiX::Gizmo::State::Manipulating )
             {
-                //m_pMeshComponent->SetWorldTransform( m_previewGizmoTransform );
+                gizmoResult.ApplyResult( previewWorldTransform );
+                m_pMeshComponent->SetWorldTransform( previewWorldTransform );
             }
 
             //-------------------------------------------------------------------------
@@ -786,7 +787,7 @@ namespace EE::Physics
             bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform, m_pPose );
 
             // Apply physics blend weight
-            Animation::Blender::Blend( m_pFinalPose, m_pPose, m_physicsBlendWeight, TBitFlags<Animation::PoseBlendOptions>(), nullptr, m_pFinalPose );
+            Animation::Blender::Blend( m_pFinalPose, m_pPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
 
             // Draw ragdoll pose
             if ( m_drawRagdoll )

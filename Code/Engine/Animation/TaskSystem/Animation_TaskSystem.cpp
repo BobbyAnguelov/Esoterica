@@ -180,8 +180,7 @@ namespace EE::Animation
             if ( pResultPose->IsAdditivePose() )
             {
                 m_finalPose.Reset( Pose::Type::ReferencePose );
-                TBitFlags<PoseBlendOptions> blendOptions( PoseBlendOptions::Additive );
-                Blender::Blend( &m_finalPose, pResultPose, 1.0f, blendOptions, nullptr, &m_finalPose );
+                Blender::BlendAdditive( &m_finalPose, pResultPose, 1.0f, nullptr, &m_finalPose );
             }
             else // Just copy the pose
             {
@@ -312,7 +311,20 @@ namespace EE::Animation
         for ( int8_t i = (int8_t) m_tasks.size() - 1; i >= 0; i-- )
         {
             auto pPose = m_posePool.GetRecordedPoseForTask( i );
-            pPose->DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
+
+            // No point displaying a pile of bones, so display an additive on top of the reference pose
+            if ( pPose->IsAdditivePose() )
+            {
+                Pose tempPose( pPose->GetSkeleton(), Pose::Type::ReferencePose );
+                Blender::BlendAdditive( &tempPose, pPose, 1.0f, nullptr, &tempPose );
+                tempPose.CalculateGlobalTransforms();
+                tempPose.DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
+            }
+            else // Just draw the recorded pose
+            {
+                pPose->DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
+            }
+
             drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
 
             for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )

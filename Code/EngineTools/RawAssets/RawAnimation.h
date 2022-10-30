@@ -19,8 +19,8 @@ namespace EE::RawAssets
 
         struct TrackData
         {
-            TVector<Transform>                 m_localTransforms;
-            TVector<Transform>                 m_globalTransforms;
+            TVector<Transform>                 m_localTransforms; // Ground truth transforms
+            TVector<Transform>                 m_globalTransforms; // Generated from the local transforms
             FloatRange                         m_translationValueRangeX;
             FloatRange                         m_translationValueRangeY;
             FloatRange                         m_translationValueRangeZ;
@@ -34,6 +34,7 @@ namespace EE::RawAssets
 
         virtual bool IsValid() const override final { return m_numFrames > 0; }
 
+        inline bool IsAdditive() const { return m_isAdditive; }
         inline Seconds GetStartFrameTime() const { return m_start; }
         inline Seconds GetEndFrameTime() const { return m_end; }
         inline Seconds GetDuration() const { return m_duration; }
@@ -51,8 +52,15 @@ namespace EE::RawAssets
         // Extract root motion and calculate transform component ranges
         void Finalize();
 
-        // Generate local transforms from the global ones
+        // Regenerate local transforms from the global ones - This is only needed in very special circumstances
         void RegenerateLocalTransforms();
+
+        // Generate Additive Data
+        void GenerateAdditiveData();
+
+    private:
+
+        void CalculateComponentRanges();
 
     protected:
 
@@ -64,5 +72,6 @@ namespace EE::RawAssets
         uint32_t                            m_numFrames = 0;
         TVector<TrackData>                  m_tracks;
         TVector<Transform>                  m_rootTransforms;
+        bool                                m_isAdditive = false;
     };
 }

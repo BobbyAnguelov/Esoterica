@@ -11,14 +11,6 @@
 
 namespace EE::Animation
 {
-    enum class PoseBlendOptions
-    {
-        EE_REGISTER_ENUM
-
-        Additive = 0,
-        GlobalSpace,
-    };
-
     enum class RootMotionBlendMode
     {
         EE_REGISTER_ENUM
@@ -29,6 +21,15 @@ namespace EE::Animation
         IgnoreTarget
     };
 
+    enum class PoseBlendMode
+    {
+        EE_REGISTER_ENUM
+
+        Interpolative, // Regular blend
+        Additive,
+        InterpolativeGlobalSpace,
+    };
+
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API Blender
@@ -37,17 +38,17 @@ namespace EE::Animation
 
         struct InterpolativeBlender
         {
-            inline static Quaternion BlendRotation( Quaternion const& quat0, Quaternion const& quat1, float t )
+            EE_FORCE_INLINE static Quaternion BlendRotation( Quaternion const& quat0, Quaternion const& quat1, float t )
             {
                 return Quaternion::SLerp( quat0, quat1, t );
             }
 
-            inline static Vector BlendTranslation( Vector const& trans0, Vector const& trans1, float t )
+            EE_FORCE_INLINE static Vector BlendTranslation( Vector const& trans0, Vector const& trans1, float t )
             {
                 return Vector::Lerp( trans0, trans1, t );
             }
 
-            inline static float BlendScale( float const scale0, float const scale1, float t )
+            EE_FORCE_INLINE static float BlendScale( float const scale0, float const scale1, float t )
             {
                 return Math::Lerp( scale0, scale1, t );
             }
@@ -55,42 +56,58 @@ namespace EE::Animation
 
         struct AdditiveBlender
         {
-            inline static Quaternion BlendRotation( Quaternion const& quat0, Quaternion const& quat1, float t )
+            EE_FORCE_INLINE static Quaternion BlendRotation( Quaternion const& quat0, Quaternion const& quat1, float t )
             {
-                Quaternion const targetQuat = quat0 * quat1;
+                Quaternion const targetQuat = quat1 * quat0;
                 return Quaternion::SLerp( quat0, targetQuat, t );
             }
 
-            inline static Vector BlendTranslation( Vector const& trans0, Vector const& trans1, float t )
+            EE_FORCE_INLINE static Vector BlendTranslation( Vector const& trans0, Vector const& trans1, float t )
             {
                 return Vector::MultiplyAdd( trans1, Vector( t ), trans0 ).SetW1();
             }
 
-            inline static float BlendScale( float const scale0, float const scale1, float t )
+            EE_FORCE_INLINE static float BlendScale( float const scale0, float const scale1, float t )
             {
-                return scale0 + (scale1 * t );
-            }
-        };
-
-        struct BlendWeight
-        {
-            inline static float GetBlendWeight( float const blendWeight, BoneMask const* pBoneMask, int32_t const boneIdx )
-            {
-                return blendWeight;
-            }
-        };
-
-        struct BoneWeight
-        {
-            inline static float GetBlendWeight( float const blendWeight, BoneMask const* pBoneMask, int32_t const boneIdx )
-            {
-                return blendWeight * pBoneMask->GetWeight( boneIdx );
+                return scale0 + ( scale1 * t );
             }
         };
 
     public:
 
-        static void Blend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, TBitFlags<PoseBlendOptions> blendOptions, BoneMask const* pBoneMask, Pose* pResultPose );
+        // Local Interpolative Blend
+        static void Blend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+
+        // Local Additive Blend
+        static void BlendAdditive( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+
+        // Global Space Interpolative Blend
+        static void BlendGlobal( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+
+        // Blend Entry
+        EE_FORCE_INLINE static void Blend( PoseBlendMode blendMode, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        {
+            switch ( blendMode )
+            {
+                case PoseBlendMode::Interpolative:
+                {
+                    Blend( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
+                }
+                break;
+
+                case PoseBlendMode::Additive:
+                {
+                    BlendAdditive( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
+                }
+                break;
+
+                case PoseBlendMode::InterpolativeGlobalSpace:
+                {
+                    BlendGlobal( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose );
+                }
+                break;
+            }
+        }
 
         //-------------------------------------------------------------------------
 
