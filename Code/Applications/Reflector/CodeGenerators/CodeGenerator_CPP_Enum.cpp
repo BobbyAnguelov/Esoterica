@@ -132,6 +132,7 @@ namespace EE::CPP
         file << "        virtual LoadingStatus GetResourceLoadingStatus( IRegisteredType * pType ) const override { EE_HALT(); return LoadingStatus::Failed; }\n";
         file << "        virtual LoadingStatus GetResourceUnloadingStatus( IRegisteredType * pType ) const override { EE_HALT(); return LoadingStatus::Failed; }\n";
         file << "        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IRegisteredType * pType, uint32_t propertyID ) const override { EE_HALT(); return ResourceTypeID(); }\n";
+        file << "        virtual void GetReferencedResources( IRegisteredType * pType, TVector<ResourceID>&outReferencedResources ) const override {};\n";
         file << "        virtual uint8_t* GetArrayElementDataPtr( IRegisteredType * pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override { EE_HALT(); return 0; }\n";
         file << "        virtual size_t GetArraySize( IRegisteredType const* pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); return 0; }\n";
         file << "        virtual size_t GetArrayElementSize( uint32_t arrayID ) const override { EE_HALT(); return 0; }\n";

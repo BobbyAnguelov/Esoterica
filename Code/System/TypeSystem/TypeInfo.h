@@ -11,6 +11,7 @@ namespace EE
 {
     class IRegisteredType;
     class ResourceTypeID;
+    class ResourceID;
 }
 
 namespace EE::Resource
@@ -90,6 +91,7 @@ namespace EE::TypeSystem
         virtual LoadingStatus GetResourceLoadingStatus( IRegisteredType* pType ) const = 0;
         virtual LoadingStatus GetResourceUnloadingStatus( IRegisteredType* pType ) const = 0;
         virtual ResourceTypeID GetExpectedResourceTypeForProperty( IRegisteredType* pType, uint32_t propertyID ) const = 0;
+        virtual void GetReferencedResources( IRegisteredType* pType, TVector<ResourceID>& outReferencedResources ) const = 0;
 
         // Array helpers
         //-------------------------------------------------------------------------

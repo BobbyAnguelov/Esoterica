@@ -575,7 +575,54 @@ namespace EE::Animation
 
     bool AnimationClipCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        // TODO: check events for referenced resources
+        // Try read event tracks
+        //-------------------------------------------------------------------------
+
+        FileSystem::Path const descriptorFilePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
+
+        Serialization::TypeArchiveReader typeReader( *m_pTypeRegistry );
+        if ( !typeReader.ReadFromFile( descriptorFilePath ) )
+        {
+            Error( "Failed to read resource descriptor file: %s", descriptorFilePath.c_str() );
+            return false;
+        }
+
+        auto& document = typeReader.GetDocument();
+        auto trackDataIter = document.FindMember( Timeline::TrackContainer::s_trackContainerKey );
+
+        // If we have no events, then nothing is referenced
+        if ( trackDataIter == document.MemberEnd() )
+        {
+            return true;
+        }
+
+        auto const& eventDataValueObject = trackDataIter->value;
+        if ( !eventDataValueObject.IsArray() )
+        {
+            Error( "Malformed event track data" );
+            return false;
+        }
+
+        Timeline::TrackContainer trackContainer;
+        if ( !trackContainer.Serialize( *m_pTypeRegistry, eventDataValueObject ) )
+        {
+            Error( "Malformed event track data" );
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        for ( Timeline::Track* pTrack : trackContainer.m_tracks )
+        {
+            for ( auto const pItem : pTrack->GetItems() )
+            {
+                IRegisteredType* pEventInstance = pItem->GetData();
+                pEventInstance->GetTypeInfo()->GetReferencedResources( pEventInstance, outReferencedResources );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         return true;
     }
 }

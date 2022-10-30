@@ -771,7 +771,7 @@ namespace EE::CPP
 
             for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr || propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
                 {
                     if ( propertyDesc.m_isDevOnly )
                     {
@@ -894,7 +894,7 @@ namespace EE::CPP
 
             for ( auto& propertyDesc : type.m_properties )
             {
-                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr || propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
                 {
                     if ( propertyDesc.m_isDevOnly )
                     {
@@ -997,6 +997,104 @@ namespace EE::CPP
         }
 
         file << "                return LoadingStatus::Unloaded;\n";
+        file << "            }\n\n";
+    }
+
+    static void GenerateGetReferencedResourceMethod( ReflectionDatabase const& database, std::stringstream& file, ReflectedType const& type )
+    {
+        file << "            virtual void GetReferencedResources( IRegisteredType* pType, TVector<ResourceID>& outReferencedResources ) const override final\n";
+        file << "            {\n";
+
+        if ( type.HasResourcePtrOrStructProperties() )
+        {
+            file << "                auto pActualType = reinterpret_cast<" << type.m_namespace.c_str() << type.m_name.c_str() << "*>( pType );\n";
+
+            for ( auto& propertyDesc : type.m_properties )
+            {
+                if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr || propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+                {
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    if ( propertyDesc.IsArrayProperty() )
+                    {
+                        if ( propertyDesc.IsDynamicArrayProperty() )
+                        {
+                            file << "                for ( auto const& resourcePtr : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
+                            file << "                {\n";
+                            file << "                    if ( resourcePtr.IsSet() )\n";
+                            file << "                    {\n";
+                            file << "                        outReferencedResources.emplace_back( resourcePtr.GetResourceID() );\n";
+                            file << "                    }\n";
+                            file << "                }\n";
+                        }
+                        else // Static array
+                        {
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].IsSet() )\n";
+                                file << "                {\n";
+                                file << "                    outReferencedResources.emplace_back( pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "].GetResourceID() );\n";
+                                file << "                }\n";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        file << "                if ( pActualType->" << propertyDesc.m_name.c_str() << ".IsSet() )\n";
+                        file << "                {\n";
+                        file << "                    outReferencedResources.emplace_back( pActualType->" << propertyDesc.m_name.c_str() << ".GetResourceID() );\n";
+                        file << "                }\n";
+                    }
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
+                }
+                else if ( !IsCoreType( propertyDesc.m_typeID ) && !propertyDesc.IsEnumProperty() && !propertyDesc.IsBitFlagsProperty() )
+                {
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #if EE_DEVELOPMENT_TOOLS\n";
+                    }
+
+                    if ( propertyDesc.IsArrayProperty() )
+                    {
+                        if ( propertyDesc.IsDynamicArrayProperty() )
+                        {
+                            file << "                for ( auto& propertyValue : pActualType->" << propertyDesc.m_name.c_str() << " )\n";
+                            file << "                {\n";
+                            file << "                    " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetReferencedResources( &propertyValue, outReferencedResources );\n";
+                            file << "                }\n";
+                        }
+                        else // Static array
+                        {
+                            for ( auto i = 0; i < propertyDesc.m_arraySize; i++ )
+                            {
+                                file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetReferencedResources( &pActualType->" << propertyDesc.m_name.c_str() << "[" << i << "], outReferencedResources ); \n";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        file << "                " << propertyDesc.m_typeName.c_str() << "::s_pTypeInfo->GetReferencedResources( &pActualType->" << propertyDesc.m_name.c_str() << ", outReferencedResources );\n";
+                    }
+
+                    if ( propertyDesc.m_isDevOnly )
+                    {
+                        file << "                #endif\n";
+                    }
+
+                    file << "\n";
+                }
+            }
+        }
+
         file << "            }\n\n";
     }
 
@@ -1311,6 +1409,7 @@ namespace EE::CPP
         GenerateUnloadResourcesMethod( database, file, type );
         GenerateResourceLoadingStatusMethod( database, file, type );
         GenerateResourceUnloadingStatusMethod( database, file, type );
+        GenerateGetReferencedResourceMethod( database, file, type );
         GenerateExpectedResourceTypeMethod( file, type );
         GenerateArrayAccessorMethod( file, type );
         GenerateArraySizeMethod( file, type );
