@@ -204,7 +204,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         // Reset the time delta
@@ -230,7 +230,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;

@@ -4,41 +4,169 @@
 
 namespace EE::Animation
 {
-    SampledEvent::SampledEvent( int16_t sourceNodeIdx, Event const* pEvent, Percentage percentageThrough )
-        : m_eventData( pEvent )
-        , m_percentageThrough( percentageThrough.GetClamped( false ) )
-        , m_sourceNodeIdx( sourceNodeIdx )
+    void SampledEventsBuffer::Clear()
     {
-        EE_ASSERT( pEvent != nullptr && sourceNodeIdx != InvalidIndex );
-    }
-
-    SampledEvent::SampledEvent( int16_t sourceNodeIdx, Flags stateEventType, StringID ID, Percentage percentageThrough )
-        : m_eventData( ID )
-        , m_percentageThrough( percentageThrough.GetClamped( false ) )
-        , m_flags( stateEventType )
-        , m_sourceNodeIdx( sourceNodeIdx )
-    {
-        EE_ASSERT( stateEventType >= Flags::StateEntry && sourceNodeIdx != InvalidIndex );
+        m_sampledEvents.clear();
+        m_numAnimEventsSampled = m_numStateEventsSampled = 0;
     }
 
     //-------------------------------------------------------------------------
-    
-    SampledEventRange CombineAndUpdateEvents( SampledEventsBuffer& sampledEventsBuffer, SampledEventRange const& eventRange0, SampledEventRange const& eventRange1, float const blendWeight )
+
+    bool SampledEventsBuffer::ContainsStateEvent( StringID ID, bool onlyFromActiveBranch ) const
     {
+        if ( onlyFromActiveBranch )
+        {
+            for ( auto const& se : m_sampledEvents )
+            {
+                if ( !se.IsStateEvent() )
+                {
+                    continue;
+                }
+
+                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetStateEventID() == ID )
+                {
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            for ( auto const& se : m_sampledEvents )
+            {
+                if ( !se.IsStateEvent() )
+                {
+                    continue;
+                }
+
+                if ( !se.IsIgnored() && se.GetStateEventID() == ID )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    bool SampledEventsBuffer::ContainsSpecificStateEvent( StateEventType eventType, StringID ID, bool onlyFromActiveBranch ) const
+    {
+        if ( onlyFromActiveBranch )
+        {
+            for ( auto const& se : m_sampledEvents )
+            {
+                if ( !se.IsStateEvent() )
+                {
+                    continue;
+                }
+
+                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetEventType() == eventType && se.GetStateEventID() == ID )
+                {
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            for ( auto const& se : m_sampledEvents )
+            {
+                if ( !se.IsStateEvent() )
+                {
+                    continue;
+                }
+
+                if ( !se.IsIgnored() && se.GetEventType() == eventType && se.GetStateEventID() == ID )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    bool SampledEventsBuffer::ContainsStateEvent( SampledEventRange const& range, StringID ID, bool onlyFromActiveBranch ) const
+    {
+        EE_ASSERT( IsValidRange( range ) );
+
+        for ( int32_t i = range.m_startIdx; i < range.m_endIdx; i++ )
+        {
+            auto const& se = m_sampledEvents[i];
+
+            if ( !se.IsStateEvent() )
+            {
+                continue;
+            }
+
+            if ( se.IsIgnored() )
+            {
+                continue;
+            }
+
+            if ( onlyFromActiveBranch && !se.IsFromActiveBranch() )
+            {
+                continue;
+            }
+
+            if ( se.GetStateEventID() == ID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool SampledEventsBuffer::ContainsSpecificStateEvent( SampledEventRange const& range, StateEventType eventType, StringID ID, bool onlyFromActiveBranch ) const
+    {
+        EE_ASSERT( IsValidRange( range ) );
+
+        for ( int32_t i = range.m_startIdx; i < range.m_endIdx; i++ )
+        {
+            auto const& se = m_sampledEvents[i];
+
+            if ( !se.IsStateEvent() )
+            {
+                continue;
+            }
+
+            if ( se.IsIgnored() )
+            {
+                continue;
+            }
+
+            if ( onlyFromActiveBranch && !se.IsFromActiveBranch() )
+            {
+                continue;
+            }
+
+            if ( se.GetEventType() == eventType && se.GetStateEventID() == ID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    //-------------------------------------------------------------------------
+
+    SampledEventRange SampledEventsBuffer::BlendEventRanges( SampledEventRange const& eventRange0, SampledEventRange const& eventRange1, float const blendWeight )
+    {
+        EE_ASSERT( IsValidRange( eventRange0 ) && IsValidRange( eventRange1 ) );
+        EE_ASSERT( eventRange0.m_endIdx == eventRange1.m_startIdx );
+
         SampledEventRange combinedRange;
 
         // If we are fully in one or the other source, then only sample events for the active source
         if ( blendWeight == 0.0f )
         {
             combinedRange = eventRange0;
-            EE_ASSERT( sampledEventsBuffer.IsValidRange( eventRange1 ) );
-            sampledEventsBuffer.UpdateWeights( eventRange1, 0.0f );
+            UpdateWeights( eventRange1, 0.0f );
         }
         else if ( blendWeight == 1.0f )
         {
             combinedRange = eventRange1;
-            EE_ASSERT( sampledEventsBuffer.IsValidRange( eventRange0 ) );
-            sampledEventsBuffer.UpdateWeights( eventRange0, 0.0f );
+            UpdateWeights( eventRange0, 0.0f );
         }
         else // Combine events
         {
@@ -48,8 +176,8 @@ namespace EE::Animation
 
             if ( ( numEventsSource0 + numEventsSource1 ) > 0 )
             {
-                sampledEventsBuffer.UpdateWeights( eventRange0, blendWeight );
-                sampledEventsBuffer.UpdateWeights( eventRange1, 1.0f - blendWeight );
+                UpdateWeights( eventRange0, blendWeight );
+                UpdateWeights( eventRange1, 1.0f - blendWeight );
 
                 // Combine sampled event range - source0's range must always be before source1's range
                 if ( numEventsSource0 > 0 && numEventsSource1 > 0 )
@@ -69,11 +197,26 @@ namespace EE::Animation
             }
             else
             {
-                combinedRange = SampledEventRange( sampledEventsBuffer.GetNumEvents() );
+                combinedRange = SampledEventRange( GetNumSampledEvents() );
             }
         }
 
-        EE_ASSERT( sampledEventsBuffer.IsValidRange( combinedRange ) );
+        EE_ASSERT( IsValidRange( combinedRange ) );
         return combinedRange;
+    }
+
+    SampledEventRange SampledEventsBuffer::AppendBuffer( SampledEventsBuffer const& otherBuffer )
+    {
+        SampledEventRange newEventRange( (uint16_t) m_sampledEvents.size() );
+
+        //-------------------------------------------------------------------------
+
+        m_sampledEvents.reserve( m_sampledEvents.size() + otherBuffer.m_sampledEvents.size() );
+        m_sampledEvents.insert( m_sampledEvents.end(), otherBuffer.m_sampledEvents.begin(), otherBuffer.m_sampledEvents.end() );
+
+        //-------------------------------------------------------------------------
+
+        newEventRange.m_endIdx = (uint16_t) m_sampledEvents.size();
+        return newEventRange;
     }
 }

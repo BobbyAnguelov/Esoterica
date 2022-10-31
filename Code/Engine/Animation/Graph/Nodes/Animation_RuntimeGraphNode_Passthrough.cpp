@@ -73,7 +73,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;
@@ -96,18 +96,9 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;
-    }
-
-    void PassthroughNode::DeactivateBranch( GraphContext& context )
-    {
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-            m_pChildNode->DeactivateBranch( context );
-        }
     }
 }

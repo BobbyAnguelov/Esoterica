@@ -182,11 +182,6 @@ namespace EE::Animation
         m_currentTime = m_previousTime;
     }
 
-    void PoseNode::DeactivateBranch( GraphContext& context )
-    {
-        EE_ASSERT( context.m_branchState == BranchState::Inactive && IsNodeActive( context ) );
-    }
-
     #if EE_DEVELOPMENT_TOOLS
     PoseNodeDebugInfo PoseNode::GetDebugInfo() const
     {

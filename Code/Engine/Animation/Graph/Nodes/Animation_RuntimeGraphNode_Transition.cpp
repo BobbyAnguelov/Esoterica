@@ -261,7 +261,15 @@ namespace EE::Animation::GraphNodes
         // Update internal time and events
         //-------------------------------------------------------------------------
 
-        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, options.m_sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        SampledEventRange sourceEventRange = options.m_sourceNodeResult.m_sampledEventRange;
+
+        // If the source is a state, we've called "TransitionOut" on it which changes the event range for that state
+        if ( IsSourceAState() )
+        {
+            sourceEventRange = GetSourceStateNode()->GetSampledEventRange();
+        }
+
+        result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
         UpdateLayerContext( context, sourceLayerCtx, targetLayerCtx );
 
         // Pose Caching
@@ -342,16 +350,6 @@ namespace EE::Animation::GraphNodes
         m_pSourceNode = nullptr;
 
         PoseNode::ShutdownInternal( context );
-    }
-
-    void TransitionNode::DeactivateBranch( GraphContext& context )
-    {
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-            m_pSourceNode->DeactivateBranch( context );
-            m_pTargetNode->DeactivateBranch( context );
-        }
     }
 
     void TransitionNode::EndSourceTransition( GraphContext& context )
@@ -645,7 +643,7 @@ namespace EE::Animation::GraphNodes
         auto const PercentageTimeDelta = Percentage( context.m_deltaTime / m_duration );
         m_previousTime = m_currentTime;
         m_currentTime = m_currentTime + PercentageTimeDelta;
-        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
         UpdateLayerContext( context, sourceLayerCtx, targetLayerCtx );
 
         // Caching
@@ -790,7 +788,7 @@ namespace EE::Animation::GraphNodes
 
         m_previousTime = m_syncTrack.GetPercentageThrough( updateRange.m_startTime );
         m_currentTime = m_syncTrack.GetPercentageThrough( updateRange.m_endTime );
-        result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
         UpdateLayerContext( context, sourceLayerCtx, targetLayerCtx );
 
         // Cache the pose if we have any registered tasks

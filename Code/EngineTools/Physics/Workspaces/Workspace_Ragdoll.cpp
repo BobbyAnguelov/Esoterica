@@ -1818,7 +1818,7 @@ namespace EE::Physics
             ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
             ImGui::TableSetupColumn( "CCD", ImGuiTableColumnFlags_WidthFixed, 20 );
             ImGui::TableSetupColumn( "Self Collision", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Follow Pose", ImGuiTableColumnFlags_WidthFixed, 20 );
+            ImGui::TableSetupColumn( "Kinematic", ImGuiTableColumnFlags_WidthFixed, 20 );
             
             ImGui::TableSetupColumn( "Int. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
             ImGui::TableSetupColumn( "Ext. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );

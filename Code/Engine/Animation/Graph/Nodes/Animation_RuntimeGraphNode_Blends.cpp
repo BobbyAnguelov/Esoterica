@@ -196,24 +196,6 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_blendWeight != -1 );
     }
 
-    void ParameterizedBlendNode::DeactivateBranch( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-
-            for ( auto pSource0 : m_sourceNodes )
-            {
-                if ( pSource0->IsNodeActive( context ) )
-                {
-                    pSource0->DeactivateBranch( context );
-                }
-            }
-        }
-    }
-
     GraphPoseNodeResult ParameterizedBlendNode::Update( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
@@ -281,7 +263,7 @@ namespace EE::Animation::GraphNodes
                 m_duration = Math::Lerp( pSource0->GetDuration(), pSource1->GetDuration(), m_blendWeight );
 
                 // Update events
-                result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
+                result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
 
                 // Do we need to blend between the two nodes?
                 if ( sourceResult0.HasRegisteredTasks() && sourceResult1.HasRegisteredTasks() )
@@ -331,8 +313,8 @@ namespace EE::Animation::GraphNodes
                 if ( pSourceNode != pSource0 && pSourceNode != pSource1 )
                 {
                     auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
-                    GraphPoseNodeResult const updateResult = pSourceNode->Update( context );
-                    context.m_sampledEventsBuffer.UpdateWeights( updateResult.m_sampledEventRange, 0.0f ); // Add ignored flag
+                    GraphPoseNodeResult const transientUpdateResult = pSourceNode->Update( context );
+                    context.m_sampledEventsBuffer.MarkEventsAsIgnored( transientUpdateResult.m_sampledEventRange );
                     context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
                 }
             }
@@ -399,7 +381,7 @@ namespace EE::Animation::GraphNodes
                     result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
                 }
 
-                result.m_sampledEventRange = CombineAndUpdateEvents( context.m_sampledEventsBuffer, sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
+                result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_blendWeight );
             }
 
             // Update internal time and events

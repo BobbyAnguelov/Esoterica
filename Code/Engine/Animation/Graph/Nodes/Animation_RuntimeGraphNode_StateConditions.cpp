@@ -68,6 +68,7 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<TimeConditionNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+        context.SetOptionalNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
     void TimeConditionNode::InitializeInternal( GraphContext& context )
@@ -138,13 +139,6 @@ namespace EE::Animation::GraphNodes
                 {
                     auto const syncTrackTime = m_pSourceStateNode->GetSyncTrack().GetTime( m_pSourceStateNode->GetCurrentTime() );
                     m_result = DoComparision( syncTrackTime.m_percentageThrough, comparisonValue );
-                }
-                break;
-
-                case ComparisonType::LoopCount:
-                {
-                    float const loopCount = (float) m_pSourceStateNode->GetCurrentTime().GetLoopCount();
-                    m_result = DoComparision( loopCount, comparisonValue );
                 }
                 break;
 

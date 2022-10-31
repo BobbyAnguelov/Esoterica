@@ -33,7 +33,6 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
 
         int32_t SelectOption( GraphContext& context ) const;
 
@@ -74,7 +73,6 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
 
         virtual AnimationClip const* GetAnimation() const override;
         virtual void DisableRootMotionSampling() override;

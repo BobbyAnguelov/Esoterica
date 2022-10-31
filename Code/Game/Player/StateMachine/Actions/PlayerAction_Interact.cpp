@@ -24,16 +24,8 @@ namespace EE::Player
         {
             Animation::ExternalGraphController::PostGraphUpdate( deltaTime );
 
-            auto const& sampledEvents = GetSampledEvents();
-            for ( Animation::SampledEvent const& sampledEvent : sampledEvents )
-            {
-                static StringID const completionEventID( "InteractionComplete" );
-                if ( sampledEvent.IsStateEvent() && sampledEvent.GetStateEventID() == completionEventID )
-                {
-                    m_isComplete = true;
-                    break;
-                }
-            }
+            static StringID const completionEventID( "InteractionComplete" );
+            m_isComplete = GetSampledEvents().ContainsStateEvent( completionEventID );
         }
 
     public:

@@ -11,10 +11,10 @@ namespace EE::Animation::GraphNodes
     {
         SampledEvent const* pDominantSampledEvent = nullptr;
 
-        for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
+        for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
         {
-            auto const& sampledEvent = sampledEvents[i];
-            auto const pEvent = sampledEvents[i].TryGetEvent<T>();
+            auto pSampledEvent = &sampledEvents[i];
+            T const* pEvent = pSampledEvent->TryGetEvent<T>();
             if ( pEvent != nullptr )
             {
                 bool const isDominantEventSet = ( pDominantSampledEvent != nullptr );
@@ -22,17 +22,17 @@ namespace EE::Animation::GraphNodes
                 if ( isDominantEventSet )
                 {
                     // If we have higher weight, use this event as the reference
-                    if ( sampledEvent.GetWeight() > pDominantSampledEvent->GetWeight() )
+                    if ( pSampledEvent->GetWeight() > pDominantSampledEvent->GetWeight() )
                     {
                         shouldUpdateEvent = true;
                     }
-                    else if ( sampledEvent.GetWeight() == pDominantSampledEvent->GetWeight() )
+                    else if ( pSampledEvent->GetWeight() == pDominantSampledEvent->GetWeight() )
                     {
                         // If the source node is the same, update the event selection based on percentage through preference
-                        bool const isSameSourceNode = sampledEvent.GetSourceNodeIndex() == pDominantSampledEvent->GetSourceNodeIndex();
+                        bool const isSameSourceNode = pSampledEvent->GetSourceNodeIndex() == pDominantSampledEvent->GetSourceNodeIndex();
                         if ( isSameSourceNode )
                         {
-                            bool const newEventHasHigherPercentageThrough = sampledEvent.GetPercentageThrough() > pDominantSampledEvent->GetPercentageThrough();
+                            bool const newEventHasHigherPercentageThrough = pSampledEvent->GetPercentageThrough() > pDominantSampledEvent->GetPercentageThrough();
                             if ( preferHigherPercentageThrough && newEventHasHigherPercentageThrough )
                             {
                                 shouldUpdateEvent = true;
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
 
                 if ( shouldUpdateEvent )
                 {
-                    pDominantSampledEvent = &sampledEvent;
+                    pDominantSampledEvent = pSampledEvent;
                 }
             }
         }
@@ -89,69 +89,83 @@ namespace EE::Animation::GraphNodes
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
-            m_result = AreSearchTagsFound( context );
+            m_result = TryMatchTags( context );
         }
 
         // Set Result
         *( (bool*) pOutValue ) = m_result;
     }
 
-    bool GenericEventConditionNode::AreSearchTagsFound( GraphContext& context ) const
+    bool GenericEventConditionNode::TryMatchTags( GraphContext& context ) const
     {
         auto pNodeSettings = GetSettings<GenericEventConditionNode>();
         int32_t const numEventIDs = (int32_t) pNodeSettings->m_eventIDs.size();
         auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numEventIDs );
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numEventIDs );
 
-        // Limit event search range to the source state if set (in the context of a transition condition)
-        SampledEventRange searchRange( 0, context.m_sampledEventsBuffer.GetNumEvents() );
+        // Calculate event search range
+        //-------------------------------------------------------------------------
+
+        bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
+
+        SampledEventRange searchRange( 0, 0 );
+        if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+        {
+            // If we dont have a child node set, search all sampled events for the event
+            searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        }
+        else // Only search the sampled event range for the child node
+        {
+            searchRange = m_pSourceStateNode->GetSampledEventRange();
+        }
+
+        // Perform search
+        //-------------------------------------------------------------------------
+
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
-            auto const& sampledEvent = context.m_sampledEventsBuffer[i];
+            StringID foundID;
 
-            //-------------------------------------------------------------------------
+            SampledEvent const& sampledEvent = context.m_sampledEventsBuffer[i];
 
-            // Get the event ID (if possible for this event)
-            StringID eventID;
-            if ( sampledEvent.IsStateEvent() )
+            // Animation Event
+            if ( sampledEvent.IsAnimationEvent() )
             {
-                if ( pNodeSettings->m_searchMode == EventSearchMode::OnlySearchAnimEvents )
+                if ( pNodeSettings->m_searchMode != EventSearchMode::OnlySearchStateEvents )
                 {
-                    continue;
-                }
-
-                eventID = sampledEvent.GetStateEventID();
-            }
-            else
-            {
-                if ( pNodeSettings->m_searchMode == EventSearchMode::OnlySearchStateEvents )
-                {
-                    continue;
-                }
-
-                // Check type and ID
-                auto const pEvent = sampledEvent.TryGetEvent<IDEvent>();
-                if ( pEvent != nullptr )
-                {
-                    eventID = pEvent->GetID();
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            // Check against the set of events we need to match
-            for ( auto t = 0; t < numEventIDs; t++ )
-            {
-                if ( pNodeSettings->m_eventIDs[t] == eventID )
-                {
-                    if ( pNodeSettings->m_operator == Operator::Or )
+                    if ( auto pIDEvent = sampledEvent.TryGetEvent<IDEvent>() )
                     {
-                        return true;
+                        foundID = pIDEvent->GetID();
                     }
-                    else
+                }
+            }
+            else // State event
+            {
+                if ( pNodeSettings->m_searchMode != EventSearchMode::OnlySearchAnimEvents )
+                {
+                    foundID = sampledEvent.GetStateEventID();
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( foundID.IsValid() )
+            {
+                // Check against the set of events we need to match
+                for ( auto t = 0; t < numEventIDs; t++ )
+                {
+                    if ( pNodeSettings->m_eventIDs[t] == foundID )
                     {
-                        foundIDs[t] = true;
-                        break;
+                        // 
+                        if ( pNodeSettings->m_operator == Operator::Or )
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            foundIDs[t] = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -212,11 +226,11 @@ namespace EE::Animation::GraphNodes
             if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
             {
                 // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
             }
-            else // Only search the sampled event range for the child node
+            else // Only search the sampled event range for the source state node
             {
-                searchRange = m_pSourceStateNode->GetSampledGraphEventRange();
+                searchRange = m_pSourceStateNode->GetSampledEventRange();
             }
 
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
@@ -224,6 +238,7 @@ namespace EE::Animation::GraphNodes
 
             SampledEvent const* pDominantSampledEvent = GetDominantEvent<IDEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
 
+            // Check event data if the specified event is found
             //-------------------------------------------------------------------------
 
             m_result = -1.0f;
@@ -284,11 +299,11 @@ namespace EE::Animation::GraphNodes
             if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
             {
                 // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
             }
             else // Only search the sampled event range for the child node
             {
-                searchRange = m_pSourceStateNode->GetSampledGraphEventRange();
+                searchRange = m_pSourceStateNode->GetSampledEventRange();
             }
 
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
@@ -380,11 +395,11 @@ namespace EE::Animation::GraphNodes
             if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
             {
                 // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
             }
-            else // Only search the sampled event range for the child node
+            else // Only search the sampled event range for the source state node
             {
-                searchRange = m_pSourceStateNode->GetSampledGraphEventRange();
+                searchRange = m_pSourceStateNode->GetSampledEventRange();
             }
 
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
@@ -404,9 +419,11 @@ namespace EE::Animation::GraphNodes
                 switch ( pSettings->m_phaseCondition )
                 {
                     case FootEvent::PhaseCondition::LeftFootDown:
-                    if ( Foot == FootEvent::Phase::LeftFootDown )
                     {
-                        m_result = pDominantSampledEvent->GetPercentageThrough();
+                        if ( Foot == FootEvent::Phase::LeftFootDown )
+                        {
+                            m_result = pDominantSampledEvent->GetPercentageThrough();
+                        }
                     }
                     break;
 

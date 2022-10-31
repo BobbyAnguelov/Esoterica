@@ -242,7 +242,193 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationDebugView::DrawGraphSampledEventsView( GraphInstance* pGraphInstance )
+    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance )
+    {
+        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        {
+            ImGui::Text( "Nothing to Show!" );
+            return;
+        }
+
+        if ( pGraphInstance->GetSampledEvents().GetNumAnimationEventsSampled() == 0 )
+        {
+            ImGui::Text( "No Animation Events Sampled!" );
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginTable( "AnimEventsTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+        {
+            ImGui::TableSetupColumn( "Branch", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
+            ImGui::TableSetupColumn( "Ignored", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
+            ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+            ImGui::TableSetupColumn( "%", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+            ImGui::TableSetupColumn( "Event", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+            ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            bool hasAnimEvent = false;
+            for ( SampledEvent const& sampledEvent : pGraphInstance->GetSampledEvents() )
+            {
+                if ( sampledEvent.IsStateEvent() )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                hasAnimEvent = true;
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                if ( sampledEvent.IsFromActiveBranch() )
+                {
+                    ImGui::TextColored( Colors::Lime.ToFloat4(), EE_ICON_SOURCE_BRANCH_CHECK );
+                    ImGuiX::TextTooltip( "Active Branch" );
+                }
+                else
+                {
+                    ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_SOURCE_BRANCH_REMOVE );
+                    ImGuiX::TextTooltip( "Inactive Branch" );
+                }
+
+                ImGui::TableNextColumn();
+                if ( sampledEvent.IsIgnored() )
+                {
+                    ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_CLOSE );
+                    ImGuiX::TextTooltip( "Ignored" );
+                }
+                else
+                {
+                    ImGui::TextColored( Colors::Lime.ToFloat4(), EE_ICON_CHECK );
+                    ImGuiX::TextTooltip( "Valid Event" );
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "%.2f", sampledEvent.GetWeight() );
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "%.1f", sampledEvent.GetPercentageThrough().ToFloat() * 100 );
+
+                ImGui::TableNextColumn();
+                Event const* pEvent = sampledEvent.GetEvent();
+                InlineString const debugString = pEvent->GetDebugText();
+                ImGui::Text( debugString.c_str() );
+                ImGuiX::TextTooltip( debugString.c_str() );
+
+                ImGui::TableNextColumn();
+                String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
+                ImGui::Text( nodePath.c_str() );
+                ImGuiX::TextTooltip( nodePath.c_str() );
+            }
+
+            ImGui::EndTable();
+
+            if ( !hasAnimEvent )
+            {
+                ImGui::Text( "No Animation Events" );
+            }
+        }
+    }
+
+    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance )
+    {
+        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        {
+            ImGui::Text( "Nothing to Show!" );
+            return;
+        }
+
+        if ( pGraphInstance->GetSampledEvents().GetNumStateEventsSampled() == 0 )
+        {
+            ImGui::Text( "No State Events Sampled!" );
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginTable( "StateEventsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+        {
+            ImGui::TableSetupColumn( "Branch", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
+            ImGui::TableSetupColumn( "Ignored", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
+            ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+            ImGui::TableSetupColumn( "Event", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+            ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            bool hasStateEvent = false;
+            for ( SampledEvent const& sampledEvent : pGraphInstance->GetSampledEvents() )
+            {
+                if ( sampledEvent.IsAnimationEvent() )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                hasStateEvent = true;
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                if ( sampledEvent.IsFromActiveBranch() )
+                {
+                    ImGui::TextColored( Colors::Lime.ToFloat4(), EE_ICON_SOURCE_BRANCH_CHECK );
+                    ImGuiX::TextTooltip( "Active Branch" );
+                }
+                else
+                {
+                    ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_SOURCE_BRANCH_REMOVE );
+                    ImGuiX::TextTooltip( "Inactive Branch" );
+                }
+
+                ImGui::TableNextColumn();
+                if ( sampledEvent.IsIgnored() )
+                {
+                    ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_CLOSE );
+                    ImGuiX::TextTooltip( "Ignored" );
+                }
+                else
+                {
+                    ImGui::TextColored( Colors::Lime.ToFloat4(), EE_ICON_CHECK );
+                    ImGuiX::TextTooltip( "Valid Event" );
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "%.2f", sampledEvent.GetWeight() );
+
+                ImGui::TableNextColumn();
+                ImGui::Text( sampledEvent.GetStateEventID().c_str() );
+                ImGuiX::TextTooltip( sampledEvent.GetStateEventID().c_str() );
+
+                ImGui::TableNextColumn();
+                String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
+                ImGui::Text( nodePath.c_str() );
+                ImGuiX::TextTooltip( nodePath.c_str() );
+            }
+
+            if ( !hasStateEvent )
+            {
+                ImGui::Text( "No State Events" );
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
         {
@@ -252,74 +438,8 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginTable( "OverlayActionsTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
-        {
-            ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 14 );
-            ImGui::TableSetupColumn( "##Active", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 14 );
-            ImGui::TableSetupColumn( "Event", ImGuiTableColumnFlags_WidthStretch, 0.5f );
-            ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch, 0.5f );
-            ImGui::TableSetupColumn( "%", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-            ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-            ImGui::TableHeadersRow();
-
-            //-------------------------------------------------------------------------
-
-            auto const& sampledEvents = pGraphInstance->GetSampledEvents();
-            for ( auto const& sampledEvent : sampledEvents )
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                if ( sampledEvent.IsStateEvent() )
-                {
-                    ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_GRAPH );
-                }
-                else
-                {
-                    ImGui::TextColored( Colors::GreenYellow.ToFloat4(), EE_ICON_FILM );
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                if ( sampledEvent.IsFromActiveBranch() )
-                {
-                    ImGui::TextColored( Colors::Green.ToFloat4(), EE_ICON_CHECK );
-                }
-                else
-                {
-                    ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_MINUS );
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                if ( sampledEvent.IsStateEvent() )
-                {
-                    ImGui::Text( sampledEvent.GetStateEventID().c_str() );
-                }
-                else
-                {
-                    Event const* pEvent = sampledEvent.GetEvent();
-                    InlineString const debugString = pEvent->GetDebugText();
-                    ImGui::Text( debugString.c_str() );
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
-                ImGui::Text( nodePath.c_str() );
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "%.1f", sampledEvent.GetPercentageThrough().ToFloat() * 100 );
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "%.2f", sampledEvent.GetWeight() );
-            }
-
-            ImGui::EndTable();
-        }
+        DrawSampledAnimationEventsView( pGraphInstance );
+        DrawSampledStateEventsView( pGraphInstance );
     }
 
     //-------------------------------------------------------------------------
@@ -541,7 +661,7 @@ namespace EE::Animation
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {
-                        DrawGraphSampledEventsView( pGraphComponent->m_pGraphInstance );
+                        DrawCombinedSampledEventsView( pGraphComponent->m_pGraphInstance );
                     }
                     ImGui::End();
 

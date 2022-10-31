@@ -23,9 +23,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE GenericEventConditionNode::Operator         m_operator = GenericEventConditionNode::Operator::Or;
-        EE_EXPOSE EventSearchMode                             m_searchMode = EventSearchMode::SearchAll;
-        EE_EXPOSE TVector<StringID>                           m_eventIDs;
+        EE_EXPOSE GenericEventConditionNode::Operator           m_operator = GenericEventConditionNode::Operator::Or;
+        EE_EXPOSE EventSearchMode                               m_searchMode = EventSearchMode::SearchAll;
+        EE_EXPOSE TVector<StringID>                             m_eventIDs;
     };
 
     //-------------------------------------------------------------------------
@@ -46,9 +46,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE EventSearchMode                             m_searchMode = EventSearchMode::SearchAll;
-        EE_EXPOSE bool                                        m_preferHighestPercentageThrough = false;
-        EE_EXPOSE StringID                                    m_eventID;
+        EE_EXPOSE bool                                          m_preferHighestPercentageThrough = false; // Prefer the highest percentage through rather than the highest weight
+        EE_EXPOSE StringID                                      m_eventID;
     };
 
     //-------------------------------------------------------------------------
@@ -68,8 +67,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-        EE_EXPOSE bool                                        m_preferHighestPercentageThrough = false;
+        EE_EXPOSE FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+        EE_EXPOSE bool                                          m_preferHighestPercentageThrough = false; // Prefer the highest percentage through rather than the highest weight
     };
 
     //-------------------------------------------------------------------------
@@ -89,8 +88,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-        EE_EXPOSE bool                                        m_preferHighestPercentageThrough = false;
+        EE_EXPOSE FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+        EE_EXPOSE bool                                          m_preferHighestPercentageThrough = false; // Prefer the highest percentage through rather than the highest weight
     };
 
     //-------------------------------------------------------------------------
@@ -110,8 +109,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE SyncEventConditionNode::TriggerMode          m_triggerMode = SyncEventConditionNode::TriggerMode::ExactlyAtEventIndex;
-        EE_EXPOSE int32_t                                        m_syncEventIdx = InvalidIndex;
+        EE_EXPOSE SyncEventConditionNode::TriggerMode           m_triggerMode = SyncEventConditionNode::TriggerMode::ExactlyAtEventIndex;
+        EE_EXPOSE int32_t                                       m_syncEventIdx = InvalidIndex;
     };
 
     //-------------------------------------------------------------------------

@@ -126,7 +126,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;
@@ -150,19 +150,10 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;
-    }
-
-    void SelectorNode::DeactivateBranch( GraphContext& context )
-    {
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-            m_pSelectedNode->DeactivateBranch( context );
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -287,7 +278,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;
@@ -311,19 +302,10 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         }
 
         return result;
-    }
-
-    void AnimationClipSelectorNode::DeactivateBranch( GraphContext& context )
-    {
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-            m_pSelectedNode->DeactivateBranch( context );
-        }
     }
 
     AnimationClip const* AnimationClipSelectorNode::GetAnimation() const

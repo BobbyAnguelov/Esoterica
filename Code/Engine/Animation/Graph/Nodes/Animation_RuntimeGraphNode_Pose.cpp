@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ZeroPose );
         return result;
     }
@@ -53,7 +53,7 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         return result;
     }
@@ -103,7 +103,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, m_currentTime );
         return result;
     }

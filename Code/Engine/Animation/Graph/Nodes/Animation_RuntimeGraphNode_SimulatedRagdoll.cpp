@@ -164,7 +164,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
 
@@ -183,10 +183,9 @@ namespace EE::Animation::GraphNodes
 
         if ( m_stage == Stage::FullyInEntryAnim )
         {
-            auto const& sampledEvents = context.m_sampledEventsBuffer.GetEvents();
             for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
             {
-                if ( sampledEvents[i].IsEventOfType<RagdollEvent>() )
+                if ( context.m_sampledEventsBuffer[i].IsAnimationEvent() && context.m_sampledEventsBuffer[i].IsEventOfType<RagdollEvent>() )
                 {
                     m_stage = Stage::BlendToRagdoll;
                     break;
@@ -202,14 +201,17 @@ namespace EE::Animation::GraphNodes
             float physicsBlendWeight = m_pEntryNode->GetCurrentTime();
 
             // Try get ragdoll event and the blend weight from it
-            auto const& sampledEvents = context.m_sampledEventsBuffer.GetEvents();
             for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
             {
-                auto pRagDollEvent = sampledEvents[i].TryGetEvent<RagdollEvent>();
-                if ( pRagDollEvent != nullptr )
+                auto const& sampledEvent = context.m_sampledEventsBuffer[i];
+                if ( sampledEvent.IsAnimationEvent() && sampledEvent.IsEventOfType<RagdollEvent>() )
                 {
-                    physicsBlendWeight = pRagDollEvent->GetPhysicsBlendWeight( sampledEvents[i].GetPercentageThrough() );
-                    break;
+                    auto pRagDollEvent = sampledEvent.GetEvent<RagdollEvent>();
+                    if ( pRagDollEvent != nullptr )
+                    {
+                        physicsBlendWeight = pRagDollEvent->GetPhysicsBlendWeight( sampledEvent.GetPercentageThrough() );
+                        break;
+                    }
                 }
             }
 
@@ -234,7 +236,7 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult SimulatedRagdollNode::UpdateSimulated( GraphContext& context )
     {
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex() );
         return result;
     }

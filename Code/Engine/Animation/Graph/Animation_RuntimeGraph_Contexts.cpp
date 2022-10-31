@@ -68,7 +68,7 @@ namespace EE::Animation
         m_pPhysicsScene = pPhysicsScene;
         m_branchState = BranchState::Active;
         m_boneMaskPool.Reset();
-        m_sampledEventsBuffer.Reset();
+        m_sampledEventsBuffer.Clear();
     }
 
     #if EE_DEVELOPMENT_TOOLS

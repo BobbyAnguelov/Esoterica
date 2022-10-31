@@ -44,7 +44,7 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                                   m_sourceStateNodeIdx = InvalidIndex;
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             Operator                                    m_operator = Operator::Or;
             EventSearchMode                             m_searchMode = EventSearchMode::SearchAll;
             TInlineVector<StringID, 5>                  m_eventIDs;
@@ -56,7 +56,7 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
-        bool AreSearchTagsFound( GraphContext& context ) const;
+        bool TryMatchTags( GraphContext& context ) const;
 
     private:
 
@@ -73,14 +73,13 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_eventID, m_searchMode, m_preferHighestPercentageThrough );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_eventID, m_preferHighestPercentageThrough );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
-            int16_t                                   m_sourceStateNodeIdx = InvalidIndex;
-            EventSearchMode                             m_searchMode = EventSearchMode::SearchAll;
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             bool                                        m_preferHighestPercentageThrough = false;
             StringID                                    m_eventID;
         };
@@ -112,7 +111,7 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                                   m_sourceStateNodeIdx = InvalidIndex;
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
             bool                                        m_preferHighestPercentageThrough = false;
         };
@@ -144,7 +143,7 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                                   m_sourceStateNodeIdx = InvalidIndex;
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
             bool                                        m_preferHighestPercentageThrough = false;
         };
@@ -184,9 +183,9 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                                   m_sourceStateNodeIdx = InvalidIndex;
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             TriggerMode                                 m_triggerMode = TriggerMode::ExactlyAtEventIndex;
-            int32_t                                       m_syncEventIdx = InvalidIndex;
+            int32_t                                     m_syncEventIdx = InvalidIndex;
         };
 
     private:
@@ -219,7 +218,7 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                                   m_sourceStateNodeIdx = InvalidIndex;
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
         };
 
     private:

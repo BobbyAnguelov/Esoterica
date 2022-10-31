@@ -103,20 +103,6 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    void LayerBlendNode::DeactivateBranch( GraphContext& context )
-    {
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-            m_pBaseLayerNode->DeactivateBranch( context );
-
-            for ( auto const& layer : m_layers )
-            {
-                layer.m_pInputNode->DeactivateBranch( context );
-            }
-        }
-    }
-
     // NB: Layered nodes always update the base according to the specified update time delta or time range. The layers are then updated relative to the base.
     GraphPoseNodeResult LayerBlendNode::Update( GraphContext& context )
     {
@@ -292,8 +278,12 @@ namespace EE::Animation::GraphNodes
                     #endif
 
                 }
-                else // Remove any layer registered tasks since the layer weight is zero
+                else // Layer is off
                 {
+                    // Flag all events as ignored
+                    context.m_sampledEventsBuffer.MarkEventsAsIgnored( layerResult.m_sampledEventRange );
+
+                    // Remove any registered pose tasks
                     EE_ASSERT( pSettings->m_layerSettings[i].m_isStateMachineLayer ); // Cannot occur for local layers
                     context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
                 }
@@ -306,12 +296,13 @@ namespace EE::Animation::GraphNodes
             int32_t const numLayerEvents = layerEventRange.GetLength();
             if ( numLayerEvents > 0 )
             {
-                // Update events and mark them as ignored if requested
+                // Update events
                 context.m_sampledEventsBuffer.UpdateWeights( layerEventRange, context.m_layerContext.m_layerWeight );
 
+                // Mark events as ignored if requested
                 if ( pSettings->m_layerSettings[i].m_ignoreEvents )
                 {
-                    context.m_sampledEventsBuffer.SetFlag( layerEventRange, SampledEvent::Flags::Ignored );
+                    context.m_sampledEventsBuffer.MarkEventsAsIgnored( layerEventRange );
                 }
 
                 // Merge layer sampled event into the layer's nodes range

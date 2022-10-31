@@ -93,7 +93,6 @@ namespace EE::Animation::GraphNodes
         if ( state == NodeCompilationState::NeedCompilation )
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_searchMode = m_searchMode;
             pSettings->m_preferHighestPercentageThrough = m_preferHighestPercentageThrough;
             pSettings->m_eventID = m_eventID;
         }

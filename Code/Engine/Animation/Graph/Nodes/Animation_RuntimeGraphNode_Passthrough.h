@@ -31,7 +31,6 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
 
     protected:
 

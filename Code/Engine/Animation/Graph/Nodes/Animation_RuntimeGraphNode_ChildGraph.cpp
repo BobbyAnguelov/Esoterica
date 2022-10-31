@@ -162,8 +162,7 @@ namespace EE::Animation::GraphNodes
     {
         auto& localEventBuffer = context.m_sampledEventsBuffer;
         auto const& externalEventBuffer = m_pGraphInstance->GetSampledEvents();
-        localEventBuffer.Append( externalEventBuffer );
-        result.m_sampledEventRange = SampledEventRange( localEventBuffer.GetNumEvents(), localEventBuffer.GetNumEvents() + externalEventBuffer.GetNumEvents() );
+        result.m_sampledEventRange = localEventBuffer.AppendBuffer( externalEventBuffer );
 
         auto pRootNode = m_pGraphInstance->GetRootNode();
         m_previousTime = pRootNode->GetCurrentTime();
@@ -185,7 +184,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult result;
         if ( m_pGraphInstance == nullptr )
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
         else
@@ -206,7 +205,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult result;
         if ( m_pGraphInstance == nullptr )
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumEvents() );
+            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
         else

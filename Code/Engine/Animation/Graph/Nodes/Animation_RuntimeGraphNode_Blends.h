@@ -64,7 +64,6 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override final;
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override final;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override final;

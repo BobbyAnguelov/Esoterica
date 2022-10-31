@@ -328,24 +328,4 @@ namespace EE::Animation::GraphNodes
 
         return result;
     }
-
-    void StateMachineNode::DeactivateBranch( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        if ( IsValid() )
-        {
-            PoseNode::DeactivateBranch( context );
-
-            // Notify transition
-            if ( m_pActiveTransition != nullptr )
-            {
-                m_pActiveTransition->DeactivateBranch( context );
-            }
-            else // Notify active state
-            {
-                m_states[m_activeStateIndex].m_pStateNode->DeactivateBranch( context );
-            }
-        }
-    }
 }

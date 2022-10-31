@@ -188,9 +188,6 @@ namespace EE::Animation
         // Synchronized update
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) = 0;
 
-        // Deactivate a previous active branch, this is needed when trigger transitions
-        virtual void DeactivateBranch( GraphContext& context );
-
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS

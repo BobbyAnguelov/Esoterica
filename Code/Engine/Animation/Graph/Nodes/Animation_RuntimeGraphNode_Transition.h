@@ -71,7 +71,6 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override { return IsComplete() ? m_pTargetNode->GetSyncTrack() : SyncTrack::s_defaultTrack; }
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
 
         // Transition Info
         GraphPoseNodeResult StartTransitionFromState( GraphContext& context, InitializationOptions const& options, StateNode* SourceState );

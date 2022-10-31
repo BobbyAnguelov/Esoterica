@@ -1534,8 +1534,12 @@ namespace EE::Animation
                 AnimationDebugView::DrawRootMotionDebugView( m_pDebugGraphInstance );
 
                 ImGui::NewLine();
-                ImGuiX::TextSeparator( "Events" );
-                AnimationDebugView::DrawGraphSampledEventsView( m_pDebugGraphInstance );
+                ImGuiX::TextSeparator( "Anim Events" );
+                AnimationDebugView::DrawSampledAnimationEventsView( m_pDebugGraphInstance );
+
+                ImGui::NewLine();
+                ImGuiX::TextSeparator( "State Events" );
+                AnimationDebugView::DrawSampledStateEventsView( m_pDebugGraphInstance );
             }
             else
             {
@@ -3997,7 +4001,7 @@ namespace EE::Animation
                     if ( m_resourcePicker.DrawPicker( pDataSlotNode->GetDefaultValue(), newPath, pDataSlotNode->GetSlotResourceTypeID() ) )
                     {
                         VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                        pDataSlotNode->SetDefaultValue( newPath );
+                        pDataSlotNode->SetDefaultValue( newPath.IsValid() ? ResourceID( newPath ) : ResourceID() );
                     }
                 }
                 else // Child Variation

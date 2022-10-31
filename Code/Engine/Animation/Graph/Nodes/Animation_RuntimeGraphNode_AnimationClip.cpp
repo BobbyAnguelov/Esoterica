@@ -153,12 +153,12 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_pAnimation != nullptr );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = context.m_sampledEventsBuffer.GetNumEvents();
+        result.m_sampledEventRange = context.m_sampledEventsBuffer.GetNumSampledEvents();
 
         // Events
         //-------------------------------------------------------------------------
 
-        bool const isFromInactiveBranch = ( context.m_branchState == BranchState::Inactive );
+        bool const isFromActiveBranch = ( context.m_branchState == BranchState::Active );
 
         Percentage actualAnimationSampleStartTime = m_previousTime;
         Percentage actualAnimationSampleEndTime = m_currentTime;
@@ -184,7 +184,8 @@ namespace EE::Animation::GraphNodes
             if ( pEvent->IsDurationEvent() )
             {
                 Seconds const currentAnimTimeSeconds( m_pAnimation->GetDuration() * actualAnimationSampleEndTime.ToFloat() );
-                percentageThroughEvent = pEvent->GetTimeRange().GetPercentageThrough( currentAnimTimeSeconds );
+                percentageThroughEvent = pEvent->GetTimeRange().GetPercentageThroughClamped( currentAnimTimeSeconds );
+                EE_ASSERT( percentageThroughEvent <= 1.0f );
 
                 if ( m_shouldPlayInReverse )
                 {
@@ -192,15 +193,10 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            auto& createdEvent = context.m_sampledEventsBuffer.EmplaceAnimEvent( GetNodeIndex(), pEvent, percentageThroughEvent );
-
-            if ( isFromInactiveBranch )
-            {
-                createdEvent.GetFlags().SetFlag( SampledEvent::Flags::FromInactiveBranch );
-            }
+            context.m_sampledEventsBuffer.EmplaceAnimationEvent( GetNodeIndex(), pEvent, percentageThroughEvent, isFromActiveBranch );
         }
 
-        result.m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumEvents();
+        result.m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
 
         // Root Motion
         //-------------------------------------------------------------------------

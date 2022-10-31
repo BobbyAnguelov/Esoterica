@@ -38,7 +38,9 @@ namespace EE::Animation
         static void DrawGraphControlParameters( GraphInstance* pGraphInstance );
         static void DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance );
         static void DrawRootMotionDebugView( GraphInstance* pGraphInstance );
-        static void DrawGraphSampledEventsView( GraphInstance* pGraphInstance );
+        static void DrawSampledAnimationEventsView( GraphInstance* pGraphInstance );
+        static void DrawSampledStateEventsView( GraphInstance* pGraphInstance );
+        static void DrawCombinedSampledEventsView( GraphInstance* pGraphInstance );
 
     private:
 
@@ -63,7 +65,7 @@ namespace EE::Animation
 
         EntityWorld const*                      m_pWorld = nullptr;
         AnimationWorldSystem*                   m_pAnimationWorldSystem = nullptr;
-        TVector<ComponentDebugState>         m_componentRuntimeSettings;
+        TVector<ComponentDebugState>            m_componentRuntimeSettings;
     };
 }
 #endif

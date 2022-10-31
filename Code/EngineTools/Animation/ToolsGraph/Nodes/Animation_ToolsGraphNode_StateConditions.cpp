@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
     {
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
-        CreateOutputPin( "Time Value (optional)", GraphValueType::Float, true );
+        CreateInputPin( "Time Value (optional)", GraphValueType::Float );
     }
 
     int16_t TimeConditionToolsNode::Compile( GraphCompilationContext& context ) const
@@ -57,11 +57,6 @@ namespace EE::Animation::GraphNodes
                 {
                     return InvalidIndex;
                 }
-            }
-            else
-            {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
             }
 
             //-------------------------------------------------------------------------

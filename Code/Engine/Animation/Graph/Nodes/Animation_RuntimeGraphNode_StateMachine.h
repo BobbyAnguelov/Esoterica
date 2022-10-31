@@ -70,7 +70,6 @@ namespace EE::Animation::GraphNodes
 
         virtual bool IsValid() const override;
         virtual SyncTrack const& GetSyncTrack() const override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;

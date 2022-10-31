@@ -22,9 +22,9 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                       m_sourceStateNodeIdx = InvalidIndex;
-            int16_t                       m_transitionDurationOverrideNodeIdx = InvalidIndex;
-            float                           m_transitionDuration = 0.0f;
+            int16_t                             m_sourceStateNodeIdx = InvalidIndex;
+            int16_t                             m_transitionDurationOverrideNodeIdx = InvalidIndex;
+            float                               m_transitionDuration = 0.0f;
         };
 
     private:
@@ -55,7 +55,6 @@ namespace EE::Animation::GraphNodes
 
             PercentageThroughState,
             PercentageThroughSyncEvent,
-            LoopCount,
             ElapsedTime,
         };
 
@@ -92,9 +91,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        StateNode*                                  m_pSourceStateNode = nullptr;
-        FloatValueNode*                             m_pInputValueNode = nullptr;
-        float                                       m_requiredElapsedTime = 0.0f;
-        bool                                        m_result = false;
+        StateNode*                              m_pSourceStateNode = nullptr;
+        FloatValueNode*                         m_pInputValueNode = nullptr;
+        float                                   m_requiredElapsedTime = 0.0f;
+        bool                                    m_result = false;
     };
 }

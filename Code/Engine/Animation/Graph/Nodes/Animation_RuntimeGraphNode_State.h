@@ -48,14 +48,14 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            int16_t                              m_childNodeIdx = InvalidIndex;
+            int16_t                                     m_childNodeIdx = InvalidIndex;
             TInlineVector<StringID, 3>                  m_entryEvents;
             TInlineVector<StringID, 3>                  m_executeEvents;
             TInlineVector<StringID, 3>                  m_exitEvents;
             TInlineVector<TimedEvent, 1>                m_timedRemainingEvents;
             TInlineVector<TimedEvent, 1>                m_timedElapsedEvents;
-            int16_t                              m_layerBoneMaskNodeIdx = InvalidIndex;
-            int16_t                              m_layerWeightNodeIdx = InvalidIndex;
+            int16_t                                     m_layerBoneMaskNodeIdx = InvalidIndex;
+            int16_t                                     m_layerWeightNodeIdx = InvalidIndex;
             bool                                        m_isOffState = false;
         };
 
@@ -66,11 +66,10 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        virtual void DeactivateBranch( GraphContext& context ) override;
 
         // State info
         inline float GetElapsedTimeInState() const { return m_elapsedTimeInState; }
-        inline SampledEventRange GetSampledGraphEventRange() const { return m_sampledEventRange; }
+        inline SampledEventRange GetSampledEventRange() const { return m_sampledEventRange; }
         inline bool IsOffState() const { return GetSettings<StateNode>()->m_isOffState; }
 
         // Transitions
