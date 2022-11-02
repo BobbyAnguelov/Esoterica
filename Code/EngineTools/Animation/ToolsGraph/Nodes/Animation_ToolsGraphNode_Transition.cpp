@@ -18,11 +18,7 @@ namespace EE::Animation::GraphNodes
 
     void TransitionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        float const separatorWidth = GetWidth() == 0 ? 20 : GetWidth();
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
-        ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
-        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::Style::s_colorText );
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        DrawInternalSeparator( ctx );
 
         //-------------------------------------------------------------------------
 

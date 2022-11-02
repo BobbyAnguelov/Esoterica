@@ -217,6 +217,8 @@ namespace EE::ImGuiX
 
     Gizmo::Result Gizmo::DrawTranslationGizmo( Vector const& originWS, Quaternion const& orientationWS, Render::Viewport const& viewport )
     {
+        EE_ASSERT( orientationWS.IsNormalized() );
+
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* pDrawList = ImGui::GetWindowDrawList();
         Vector const mousePos( io.MousePos.x, io.MousePos.y, 0, 1.0f );
@@ -256,6 +258,10 @@ namespace EE::ImGuiX
         axisInfo[0].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitX : orientationWS.RotateVector( Vector::UnitX );
         axisInfo[1].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitY : orientationWS.RotateVector( Vector::UnitY );
         axisInfo[2].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitZ : orientationWS.RotateVector( Vector::UnitZ );
+
+        axisInfo[0].m_axisDirWS.Normalize3();
+        axisInfo[1].m_axisDirWS.Normalize3();
+        axisInfo[2].m_axisDirWS.Normalize3();
 
         if ( m_options.IsFlagSet( Options::AllowAxesFlipping ) )
         {
@@ -671,6 +677,8 @@ namespace EE::ImGuiX
    
     Gizmo::Result Gizmo::DrawScaleGizmo( Vector const& originWS, Quaternion const& orientationWS, Render::Viewport const& viewport )
     {
+        EE_ASSERT( orientationWS.IsNormalized() );
+
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* pDrawList = ImGui::GetWindowDrawList();
         Vector const mousePos( io.MousePos.x, io.MousePos.y, 0, 1.0f );
@@ -710,6 +718,10 @@ namespace EE::ImGuiX
         axisInfo[0].m_axisDirWS = orientationWS.RotateVector( Vector::UnitX );
         axisInfo[1].m_axisDirWS = orientationWS.RotateVector( Vector::UnitY );
         axisInfo[2].m_axisDirWS = orientationWS.RotateVector( Vector::UnitZ );
+
+        axisInfo[0].m_axisDirWS.Normalize3();
+        axisInfo[1].m_axisDirWS.Normalize3();
+        axisInfo[2].m_axisDirWS.Normalize3();
 
         if ( m_options.IsFlagSet( Options::AllowAxesFlipping ) )
         {
@@ -966,6 +978,8 @@ namespace EE::ImGuiX
 
     Gizmo::Result Gizmo::DrawRotationGizmo( Vector const& originWS, Quaternion const& orientationWS, Render::Viewport const& viewport )
     {
+        EE_ASSERT( orientationWS.IsNormalized() );
+
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* pDrawList = ImGui::GetWindowDrawList();
         Vector const mousePos( io.MousePos.x, io.MousePos.y, 0, 1.0f );
@@ -1037,6 +1051,14 @@ namespace EE::ImGuiX
                 }
             }
         }
+
+        axisInfo[0].m_axisDirWS.Normalize3();
+        axisInfo[1].m_axisDirWS.Normalize3();
+        axisInfo[2].m_axisDirWS.Normalize3();
+
+        EE_ASSERT( axisInfo[0].m_axisDirWS.IsNormalized3() );
+        EE_ASSERT( axisInfo[1].m_axisDirWS.IsNormalized3() );
+        EE_ASSERT( axisInfo[2].m_axisDirWS.IsNormalized3() );
 
         // Generate points
         //-------------------------------------------------------------------------
@@ -1304,7 +1326,7 @@ namespace EE::ImGuiX
 
                     // Calculate the final delta orientation relative to the original orientation when we started the manipulation
                     Quaternion const desiredOrientationWS = m_originalStartRotation * Quaternion( m_rotationAxis, m_rotationDeltaAngle );
-                    result.m_deltaOrientation = Quaternion::Delta( orientationWS, desiredOrientationWS );
+                    result.m_deltaOrientation = Quaternion::Delta( orientationWS, desiredOrientationWS ).GetNormalized();
                     result.m_deltaType = ResultDeltaType::Rotation;
 
                     if ( result.m_state == State::None ) // Don't override the start manipulating state

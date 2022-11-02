@@ -62,6 +62,7 @@ namespace EE::TypeSystem::Reflection
 
     struct ReflectedEnumConstant
     {
+        StringID                                        m_ID;
         String                                          m_label;
         int32_t                                         m_value;
         String                                          m_description;
@@ -101,7 +102,7 @@ namespace EE::TypeSystem::Reflection
 
         // Enum functions
         void AddEnumConstant( ReflectedEnumConstant const& constant );
-        bool IsValidEnumLabelID( StringID labelID ) const { return m_enumElements.find( labelID ) != m_enumElements.end(); }
+        bool IsValidEnumLabelID( StringID labelID ) const;
         bool GetValueFromEnumLabel( StringID labelID, uint32_t& value ) const;
 
         // Dev tools helpers
@@ -129,7 +130,7 @@ namespace EE::TypeSystem::Reflection
 
         // Enums
         CoreTypeID                                      m_underlyingType = CoreTypeID::Uint8;
-        THashMap<StringID, ReflectedEnumConstant>       m_enumElements;
+        TVector<ReflectedEnumConstant>                  m_enumConstants;
 
         bool                                            m_isDevOnly = true;
     };

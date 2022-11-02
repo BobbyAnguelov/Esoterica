@@ -70,6 +70,14 @@ namespace EE
         m_components.clear();
     }
 
+    void Entity::GetReferencedResources( TVector<ResourceID>& outReferencedResources ) const
+    {
+        for ( auto pComponent : m_components )
+        {
+            pComponent->GetTypeInfo()->GetReferencedResources( pComponent, outReferencedResources );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void Entity::LoadComponents( EntityModel::LoadingContext const& loadingContext )

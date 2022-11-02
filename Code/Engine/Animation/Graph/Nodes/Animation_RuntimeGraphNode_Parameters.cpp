@@ -11,6 +11,11 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (bool*) pOutValue ) = m_value;
     }
 
@@ -28,6 +33,11 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (StringID*) pOutValue ) = m_value;
     }
 
@@ -45,6 +55,11 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (int32_t*) pOutValue ) = m_value;
     }
 
@@ -62,6 +77,11 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (float*) pOutValue ) = m_value;
     }
 
@@ -79,6 +99,11 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (Vector*) pOutValue ) = m_value;
     }
 
@@ -96,6 +121,11 @@ namespace EE::Animation::GraphNodes
 
     void ControlParameterTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (Target*) pOutValue ) = m_value;
     }
 
@@ -129,7 +159,13 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<bool*>( pOutValue ) = m_pChildNode->GetValue<bool>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = m_pChildNode->GetValue<bool>( context );
+        }
+
+        *reinterpret_cast<bool*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -157,7 +193,13 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<StringID*>( pOutValue ) = m_pChildNode->GetValue<StringID>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = m_pChildNode->GetValue<StringID>( context );
+        }
+
+        *reinterpret_cast<StringID*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -185,7 +227,13 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<int32_t*>( pOutValue ) = m_pChildNode->GetValue<int32_t>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = m_pChildNode->GetValue<int32_t>( context );
+        }
+
+        *reinterpret_cast<int32_t*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -213,7 +261,13 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<float*>( pOutValue ) = m_pChildNode->GetValue<float>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = m_pChildNode->GetValue<float>( context );
+        }
+
+        *reinterpret_cast<float*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -241,7 +295,13 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<Vector*>( pOutValue ) = m_pChildNode->GetValue<Vector>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = m_pChildNode->GetValue<Vector>( context );
+        }
+
+        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -269,7 +329,13 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<Target*>( pOutValue ) = m_pChildNode->GetValue<Target>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = m_pChildNode->GetValue<Target>( context );
+        }
+
+        *reinterpret_cast<Target*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -297,6 +363,12 @@ namespace EE::Animation::GraphNodes
     void VirtualParameterBoneMaskNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( m_pChildNode != nullptr );
-        *reinterpret_cast<BoneMask const**>( pOutValue ) = m_pChildNode->GetValue<BoneMask const*>( context );
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_value = *m_pChildNode->GetValue<BoneMask const*>( context );
+        }
+
+        *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_value;
     }
 }

@@ -6,14 +6,12 @@
 namespace EE::Animation::GraphNodes
 {
     constexpr static float const g_playbackBarMinimumWidth = 120;
-    constexpr static float const g_playbackBarRegionHeight = 16;
     constexpr static float const g_playbackBarHeight = 10;
     constexpr static float const g_playbackBarMarkerSize = 4;
+    constexpr static float const g_playbackBarRegionHeight = g_playbackBarHeight + g_playbackBarMarkerSize;
 
     void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo )
     {
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 2.0f );
-
         float const availableWidth = Math::Max( width, g_playbackBarMinimumWidth );
         ImVec2 const playbackBarSize = ImVec2( availableWidth, g_playbackBarHeight );
         ImVec2 const playbackBarTopLeft = ImGui::GetCursorScreenPos();
@@ -53,7 +51,6 @@ namespace EE::Animation::GraphNodes
         ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, ImGuiX::ConvertColor( Colors::LimeGreen ) );
 
         // Draw text info
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() - 2.0f );
         ImGui::Text( "Time: %.2f/%.2fs", debugInfo.m_currentTime.ToFloat() * debugInfo.m_duration, debugInfo.m_duration.ToFloat() );
         ImGui::Text( "Percent: %.1f%%", debugInfo.m_currentTime.ToFloat() * 100 );
         ImGui::Text( "Event: %d, %.1f%%", debugInfo.m_currentSyncTime.m_eventIdx, debugInfo.m_currentSyncTime.m_percentageThrough.ToFloat() * 100 );
@@ -61,8 +58,6 @@ namespace EE::Animation::GraphNodes
 
     void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width )
     {
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4.0f );
-
         float const availableWidth = Math::Max( width, g_playbackBarMinimumWidth );
         ImVec2 const playbackBarSize = ImVec2( availableWidth, g_playbackBarHeight );
         ImVec2 const playbackBarTopLeft = ImGui::GetCursorScreenPos();
@@ -76,10 +71,46 @@ namespace EE::Animation::GraphNodes
         ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, ImGuiX::ConvertColor( Colors::DarkGray ) );
 
         // Draw text placeholders
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() - 2.0f );
         ImGui::Text( "Time: N/A" );
         ImGui::Text( "Percent: N/A" );
         ImGui::Text( "Event: N/A" );
+    }
+
+    void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& value )
+    {
+        ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f, W: %.2f", value.m_x, value.m_y, value.m_z, value.m_w );
+    }
+
+    void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& value )
+    {
+        if ( value.IsTargetSet() )
+        {
+            if ( value.IsBoneTarget() )
+            {
+                if ( value.GetBoneID().IsValid() )
+                {
+                    ImGui::Text( "Value: %s", value.GetBoneID().c_str() );
+                }
+                else
+                {
+                    ImGui::Text( "Value: Invalid" );
+                }
+            }
+            else
+            {
+                Transform const& transform = value.GetTransform();
+                Vector const& translation = transform.GetTranslation();
+                EulerAngles const angles = transform.GetRotation().ToEulerAngles();
+
+                ImGui::Text( "Rot: X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
+                ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.m_x, translation.m_y, translation.m_z );
+                ImGui::Text( "Scl: %.3f", transform.GetScale() );
+            }
+        }
+        else
+        {
+            ImGui::Text( "Not Set" );
+        }
     }
 
     static void TraverseHierarchy( VisualGraph::BaseNode const* pNode, TVector<VisualGraph::BaseNode const*>& nodePath )
@@ -119,6 +150,8 @@ namespace EE::Animation::GraphNodes
             }
 
             ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+
+            DrawInfoText( ctx );
         }
 
         //-------------------------------------------------------------------------
@@ -127,6 +160,10 @@ namespace EE::Animation::GraphNodes
 
         else
         {
+            DrawInfoText( ctx );
+
+            BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4 );
+
             if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
             {
                 if ( HasOutputPin() )
@@ -137,7 +174,7 @@ namespace EE::Animation::GraphNodes
                         case GraphValueType::Bool:
                         {
                             auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
-                            ImGui::Text( value ? "True" : "False" );
+                            ImGui::Text( value ? "Value: True" : "Value: False" );
                         }
                         break;
 
@@ -146,11 +183,11 @@ namespace EE::Animation::GraphNodes
                             auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
                             if ( value.IsValid() )
                             {
-                                ImGui::Text( value.c_str() );
+                                ImGui::Text( "Value: %s", value.c_str());
                             }
                             else
                             {
-                                ImGui::Text( "Invalid" );
+                                ImGui::Text( "Value: Invalid" );
                             }
                         }
                         break;
@@ -158,42 +195,28 @@ namespace EE::Animation::GraphNodes
                         case GraphValueType::Int:
                         {
                             auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
-                            ImGui::Text( "%d", value );
+                            ImGui::Text( "Value: %d", value );
                         }
                         break;
 
                         case GraphValueType::Float:
                         {
                             auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
-                            ImGui::Text( "%.3f", value );
+                            ImGui::Text( "Value: %.3f", value );
                         }
                         break;
 
                         case GraphValueType::Vector:
                         {
                             auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
-                            ImGuiX::DisplayVector4( value );
+                            DrawVectorInfoText( ctx, value );
                         }
                         break;
 
                         case GraphValueType::Target:
                         {
                             auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
-                            if ( value.IsBoneTarget() )
-                            {
-                                if ( value.GetBoneID().IsValid() )
-                                {
-                                    ImGui::Text( value.GetBoneID().c_str() );
-                                }
-                                else
-                                {
-                                    ImGui::Text( "Invalid" );
-                                }
-                            }
-                            else
-                            {
-                                ImGui::Text( "Target TODO" );
-                            }
+                            DrawTargetInfoText( ctx, value );
                         }
                         break;
 
@@ -204,11 +227,13 @@ namespace EE::Animation::GraphNodes
                     }
                 }
             }
+            else
+            {
+                ImGui::NewLine();
+            }
+
+            EndDrawInternalRegion( ctx );
         }
-
-        //-------------------------------------------------------------------------
-
-        DrawInfoText( ctx );
     }
 
     bool FlowToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const

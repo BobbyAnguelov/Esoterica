@@ -44,8 +44,6 @@ namespace EE::Animation
             StateEventType                      m_type;
         };
 
-        
-
     public:
 
         explicit SampledEvent(int16_t sourceNodeIdx, float weight, bool isFromActiveBranch, StateEventType eventType, StringID eventID )

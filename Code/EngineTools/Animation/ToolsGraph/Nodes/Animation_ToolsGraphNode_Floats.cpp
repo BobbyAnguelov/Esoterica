@@ -47,6 +47,7 @@ namespace EE::Animation::GraphNodes
 
     void FloatRemapToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
+        DrawInternalSeparator( ctx );
         ImGui::Text( "[%.2f, %.2f] to [%.2f, %.2f]", m_inputRange.m_begin, m_inputRange.m_end, m_outputRange.m_begin, m_outputRange.m_end );
     }
 
@@ -56,7 +57,7 @@ namespace EE::Animation::GraphNodes
     {
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
-        CreateInputPin( "Float", GraphValueType::Float );
+        CreateInputPin( "Value", GraphValueType::Float );
     }
 
     int16_t FloatClampToolsNode::Compile( GraphCompilationContext& context ) const
@@ -89,6 +90,18 @@ namespace EE::Animation::GraphNodes
             pSettings->m_clampRange = m_clampRange;
         }
         return pSettings->m_nodeIdx;
+    }
+
+    void FloatClampToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        if ( m_clampRange.IsSet() && m_clampRange.IsValid() )
+        {
+            ImGui::Text( "[%.3f, %.3f]", m_clampRange.m_begin, m_clampRange.m_end );
+        }
+        else
+        {
+            ImGui::TextColored( ImColor( 0xFF0000FF ), "Invalid" );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -134,7 +147,7 @@ namespace EE::Animation::GraphNodes
     {
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
-        CreateInputPin( "Float", GraphValueType::Float );
+        CreateInputPin( "Value", GraphValueType::Float );
     }
 
     int16_t FloatEaseToolsNode::Compile( GraphCompilationContext& context ) const
@@ -166,9 +179,21 @@ namespace EE::Animation::GraphNodes
 
             pSettings->m_easingType = m_easingType;
             pSettings->m_easeTime = m_easeTime;
-            pSettings->m_initalValue = m_initialValue;
+            pSettings->m_useStartValue = m_useStartValue;
+            pSettings->m_startValue = m_startValue;
         }
         return pSettings->m_nodeIdx;
+    }
+
+    void FloatEaseToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        ImGui::Text( Math::Easing::GetName( m_easingType ) );
+        ImGui::Text( "Ease Time: %.2fs", m_easeTime );
+
+        if ( m_useStartValue )
+        {
+            ImGui::Text( "Start Value: %.2fs", m_startValue );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -270,6 +295,46 @@ namespace EE::Animation::GraphNodes
             pSettings->m_valueB = m_valueB;
         }
         return pSettings->m_nodeIdx;
+    }
+
+    void FloatMathToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        bool const useValueB = GetConnectedInputNode( 1 ) == nullptr;
+
+        switch ( m_operator )
+        {
+            case FloatMathNode::Operator::Add:
+            ImGui::Text( "A + " );
+            break;
+
+            case FloatMathNode::Operator::Sub:
+            ImGui::Text( "A - " );
+            break;
+
+            case FloatMathNode::Operator::Mul:
+            ImGui::Text( "A * " );
+            break;
+
+            case FloatMathNode::Operator::Div:
+            ImGui::Text( "A / ");
+            break;
+        }
+
+        ImGui::SameLine();
+
+        if ( useValueB )
+        {
+            ImGui::Text( "%.3f", m_valueB );
+        }
+        else
+        {
+            ImGui::Text( "B" );
+        }
+
+        if ( m_returnAbsoluteResult )
+        {
+            ImGui::Text( "Absolute Result" );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -466,17 +531,17 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatReverseDirectionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void FloatAngleMathToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
-        CreateInputPin( "Float", GraphValueType::Float );
+        CreateInputPin( "Angle (deg)", GraphValueType::Float );
     }
 
-    int16_t FloatReverseDirectionToolsNode::Compile( GraphCompilationContext& context ) const
+    int16_t FloatAngleMathToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatReverseDirectionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatReverseDirectionNode>( this, pSettings );
+        FloatAngleMathNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<FloatAngleMathNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -498,6 +563,9 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
+
+        pSettings->m_operation = m_operation;
+
         return pSettings->m_nodeIdx;
     }
 }

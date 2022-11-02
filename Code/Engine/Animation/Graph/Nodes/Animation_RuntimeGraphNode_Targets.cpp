@@ -156,19 +156,22 @@ namespace EE::Animation::GraphNodes
 
                     case Info::DeltaOrientationX:
                     {
-                        m_value = (float) inputTargetTransform.GetRotation().ToEulerAngles().m_x;
+                        Transform const targetTransformCS = inputTargetTransform * context.m_worldTransformInverse;
+                        m_value = (float) targetTransformCS.GetRotation().ToEulerAngles().m_x.ToDegrees();
                     }
                     break;
 
                     case Info::DeltaOrientationY:
                     {
-                        m_value = (float) inputTargetTransform.GetRotation().ToEulerAngles().m_y;
+                        Transform const targetTransformCS = inputTargetTransform * context.m_worldTransformInverse;
+                        m_value = (float) targetTransformCS.GetRotation().ToEulerAngles().m_y.ToDegrees();
                     }
                     break;
 
                     case Info::DeltaOrientationZ:
                     {
-                        m_value = (float) inputTargetTransform.GetRotation().ToEulerAngles().m_z;
+                        Transform const targetTransformCS = inputTargetTransform * context.m_worldTransformInverse;
+                        m_value = (float) targetTransformCS.GetRotation().ToEulerAngles().m_z.ToDegrees();
                     }
                     break;
                     }

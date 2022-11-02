@@ -1,5 +1,6 @@
 #include "CodeGenerator_CPP_Enum.h"
 #include "System/TypeSystem/TypeID.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -7,6 +8,32 @@ namespace EE::CPP
 {
     static void GenerateFile( std::stringstream& file, String const& exportMacro, ReflectedType const& type )
     {
+        TInlineVector<int32_t, 50> sortingConstantIndices; // Sorted list of constant indices
+        TInlineVector<int32_t, 50> sortedOrder; // Final order for each constant
+
+        for ( auto i = 0u; i < type.m_enumConstants.size(); i++ )
+        {
+            sortingConstantIndices.emplace_back( i );
+        }
+
+        auto Comparator = [&type] ( int32_t a, int32_t b )
+        {
+            auto const& elemA = type.m_enumConstants[a];
+            auto const& elemB = type.m_enumConstants[b];
+            return elemA.m_label < elemB.m_label;
+        };
+
+        eastl::sort( sortingConstantIndices.begin(), sortingConstantIndices.end(), Comparator );
+
+        sortedOrder.resize( sortingConstantIndices.size() );
+
+        for ( auto i = 0u; i < type.m_enumConstants.size(); i++ )
+        {
+            sortedOrder[ sortingConstantIndices[i] ] = i;
+        }
+
+        //-------------------------------------------------------------------------
+
         file << "\n";
         file << "//-------------------------------------------------------------------------\n";
         file << "// Enum Helper: " << type.m_namespace.c_str() << type.m_name.c_str() << "\n";
@@ -74,15 +101,16 @@ namespace EE::CPP
         file << "\n";
         file << "            //-------------------------------------------------------------------------\n\n";
 
-        file << "            StringID labelID;\n";
         file << "            TypeSystem::EnumInfo::ConstantInfo constantInfo;\n";
-        for ( auto const& c : type.m_enumElements )
+
+        for ( auto i = 0u; i < type.m_enumConstants.size(); i++ )
         {
             file << "\n";
-            file << "            labelID = StringID( \"" << c.second.m_label.c_str() << "\" );\n";
-            file << "            constantInfo.m_value = " << c.second.m_value << ";\n";
-            file << "            EE_DEVELOPMENT_TOOLS_ONLY( constantInfo.m_description = \"" << c.second.m_description.c_str() << "\" );\n";
-            file << "            enumInfo.m_constants.insert( TPair<StringID, TypeSystem::EnumInfo::ConstantInfo>( labelID, constantInfo ) );\n";
+            file << "            constantInfo.m_ID = StringID( \"" << type.m_enumConstants[i].m_label.c_str() << "\" );\n";
+            file << "            constantInfo.m_value = " << type.m_enumConstants[i].m_value << ";\n";
+            file << "            constantInfo.m_alphabeticalOrder = " << sortedOrder[i] << ";\n";
+            file << "            EE_DEVELOPMENT_TOOLS_ONLY( constantInfo.m_description = \"" << type.m_enumConstants[i].m_description.c_str() << "\" );\n";
+            file << "            enumInfo.m_constants.emplace_back( constantInfo );\n";
         }
 
         file << "\n";

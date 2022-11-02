@@ -289,6 +289,47 @@ namespace EE::VisualGraph
         return ImRect( rectMin, rectMax );
     }
 
+    void BaseNode::DrawInternalSeparator( DrawContext const& ctx, Color color, float preMarginY, float postMarginY ) const
+    {
+        float const separatorWidth = GetWidth() == 0 ? VisualSettings::s_minimumNodeWidth : GetWidth();
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
+        ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
+        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::ConvertColor( color ) );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + postMarginY );
+    }
+
+    void BaseNode::BeginDrawInternalRegion( DrawContext const& ctx, Color color, float preMarginY, float postMarginY ) const
+    {
+        EE_ASSERT( !m_regionStarted );
+
+        m_internalRegionStartY = ImGui::GetCursorPosY();
+        m_internalRegionColor = color;
+        m_internalRegionMargins[0] = preMarginY;
+        m_internalRegionMargins[1] = postMarginY;
+        m_regionStarted = true;
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
+    }
+
+    void BaseNode::EndDrawInternalRegion( DrawContext const& ctx ) const
+    {
+        EE_ASSERT( m_regionStarted );
+
+        ImVec2 const rectMin = ctx.WindowToScreenPosition( ImVec2( ImGui::GetCursorPosX() - VisualSettings::s_internalRegionPadding, m_internalRegionStartY + m_internalRegionMargins[0] ));
+        ImVec2 const rectMax = rectMin + ImVec2( GetWidth() + ( VisualSettings::s_internalRegionPadding * 2 ), ImGui::GetCursorPosY() - m_internalRegionStartY + VisualSettings::s_internalRegionPadding - m_internalRegionMargins[0] - 1 );
+        
+        int32_t const previousChannel = ctx.m_pDrawList->_Splitter._Current;
+        ctx.m_pDrawList->ChannelsSetCurrent( 2 );
+        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ConvertColor( m_internalRegionColor ), 3.0f );
+        ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + VisualSettings::s_internalRegionPadding + m_internalRegionMargins[1] );
+
+        m_internalRegionStartY = -1.0f;
+        m_internalRegionMargins[0] = m_internalRegionMargins[1] = 0.0f;
+        m_regionStarted = false;
+    }
+
     //-------------------------------------------------------------------------
 
     TEvent<BaseGraph*> BaseGraph::s_onEndModification;

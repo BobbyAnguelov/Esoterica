@@ -261,6 +261,21 @@ namespace EE::Render
 
     void SkeletalMeshWorkspace::DrawDetailsWindow( UpdateContext const& context )
     {
+        auto DrawTransform = [] ( Transform transform )
+        {
+            Vector const& translation = transform.GetTranslation();
+            Quaternion const& rotation = transform.GetRotation();
+            EulerAngles const angles = rotation.ToEulerAngles();
+
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+            ImGui::Text( "Rot (Quat): X: %.3f, Y: %.3f, Z: %.3f, W: %.3f", rotation.m_x, rotation.m_y, rotation.m_z, rotation.m_w );
+            ImGui::Text( "Rot (Euler): X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
+            ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.m_x, translation.m_y, translation.m_z );
+            ImGui::Text( "Scl: %.3f", transform.GetScale() );
+        };
+
+        //-------------------------------------------------------------------------
+
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 8, 8 ) );
         if ( ImGui::Begin( m_detailsWindowName.c_str() ) )
         {
@@ -282,13 +297,13 @@ namespace EE::Render
                             ImGui::NewLine();
                             ImGui::Text( "Local Transform" );
                             Transform const& localBoneTransform = Transform::Delta( m_workspaceResource->GetBindPose()[parentBoneIdx], m_workspaceResource->GetBindPose()[selectedBoneIdx] );
-                            ImGuiX::DisplayTransform( localBoneTransform );
+                            DrawTransform( localBoneTransform );
                         }
 
                         ImGui::NewLine();
                         ImGui::Text( "Global Transform" );
                         Transform const& globalBoneTransform = m_workspaceResource->GetBindPose()[selectedBoneIdx];
-                        ImGuiX::DisplayTransform( globalBoneTransform );
+                        DrawTransform( globalBoneTransform );
                     }
                 }
             }

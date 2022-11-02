@@ -41,16 +41,15 @@ namespace EE::TypeSystem
             {
                 for ( auto const& enumValue : m_pEnumInfo->m_constants )
                 {
-                    bool const isSelected = ( enumValue.second.m_value == m_value_imgui );
-                    if ( ImGui::Selectable( enumValue.first.c_str(), isSelected ) )
+                    bool const isSelected = ( enumValue.m_value == m_value_imgui );
+                    if ( ImGui::Selectable( enumValue.m_ID.c_str(), isSelected ) )
                     {
-                        m_value_imgui = enumValue.second.m_value;
+                        m_value_imgui = enumValue.m_value;
                     }
 
-                    String const* pDescription = m_pEnumInfo->TryGetConstantDescription( enumValue.first );
-                    if ( pDescription != nullptr && !pDescription->empty() )
+                    if ( !enumValue.m_description.empty() )
                     {
-                        ImGuiX::ItemTooltip( pDescription->c_str() );
+                        ImGuiX::ItemTooltip( enumValue.m_description.c_str() );
                     }
 
                     // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -1398,9 +1397,9 @@ namespace EE::TypeSystem
 
                         //-------------------------------------------------------------------------
 
-                        int64_t const flagValue = constant.second.m_value;
+                        int64_t const flagValue = constant.m_value;
                         EE_ASSERT( flagValue >= 0 && flagValue <= 31 );
-                        if ( ImGui::Checkbox( constant.first.c_str(), &m_values_imgui[flagValue] ) )
+                        if ( ImGui::Checkbox( constant.m_ID.c_str(), &m_values_imgui[flagValue] ) )
                         {
                             valueChanged = true;
                         }

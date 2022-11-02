@@ -45,6 +45,12 @@ namespace EE::Animation
             ExternalGraph
         };
 
+        enum class ParameterType
+        {
+            Default,
+            Virtual
+        };
+
         struct DebugTarget
         {
             bool IsValid() const;
@@ -58,6 +64,7 @@ namespace EE::Animation
         enum class GraphOperationType
         {
             None,
+            CreateParameter,
             RenameParameter,
             DeleteParameter,
             CreateVariation,
@@ -161,25 +168,21 @@ namespace EE::Animation
         void DrawParameterList();
         void DrawPreviewParameterList( UpdateContext const& context );
 
+        void DrawCreateOrRenameParameterDialogWindow();
         void DrawDeleteParameterDialogWindow();
-        void DrawRenameParameterDialogWindow();
 
         void ControlParameterCategoryDragAndDropHandler( Category<GraphNodes::FlowToolsNode*>& category );
 
+        void StartParameterCreate( GraphValueType type, ParameterType parameterType );
         void StartParameterRename( UUID const& parameterID );
         void StartParameterDelete( UUID const& parameterID );
 
         GraphNodes::ControlParameterToolsNode* FindControlParameter( UUID parameterID ) const;
         GraphNodes::VirtualParameterToolsNode* FindVirtualParameter( UUID parameterID ) const;
 
-        void CreateControlParameter( GraphValueType type );
-        void CreateVirtualParameter( GraphValueType type );
-
-        void RenameControlParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName );
-        void RenameVirtualParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName );
-
-        void DestroyControlParameter( UUID parameterID );
-        void DestroyVirtualParameter( UUID parameterID );
+        void CreateParameter( ParameterType parameterType, GraphValueType valueType, String const& desiredParameterName, String const& desiredCategoryName );
+        void RenameParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName );
+        void DestroyParameter( UUID parameterID );
 
         void EnsureUniqueParameterName( String& desiredParameterName ) const;
         void ResolveCategoryName( String& desiredCategoryName ) const;
@@ -281,6 +284,8 @@ namespace EE::Animation
         TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
         TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
         UUID                                                            m_currentOperationParameterID;
+        ParameterType                                                   m_currentOperationParameterType;
+        GraphValueType                                                  m_currentOperationParameterValueType = GraphValueType::Unknown;
         char                                                            m_parameterNameBuffer[255];
         char                                                            m_parameterCategoryBuffer[255];
         THashMap<UUID, int32_t>                                         m_cachedNumUses;

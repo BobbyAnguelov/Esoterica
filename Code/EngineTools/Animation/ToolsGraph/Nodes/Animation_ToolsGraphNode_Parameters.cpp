@@ -217,6 +217,84 @@ namespace EE::Animation::GraphNodes
         }
     }
 
+    void ParameterReferenceToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        bool const isPreviewing = pGraphNodeContext->HasDebugData();
+        int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() ) : InvalidIndex;
+
+        //-------------------------------------------------------------------------
+
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+
+        if ( isPreviewing && ( runtimeNodeIdx != InvalidIndex ) && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
+        {
+            GraphValueType const valueType = m_pParameter->GetValueType();
+            switch ( valueType )
+            {
+                case GraphValueType::Bool:
+                {
+                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
+                    ImGui::Text( value ? "Value: True" : "Value: False" );
+                }
+                break;
+
+                case GraphValueType::ID:
+                {
+                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
+                    if ( value.IsValid() )
+                    {
+                        ImGui::Text( "Value: %s", value.c_str() );
+                    }
+                    else
+                    {
+                        ImGui::Text( "Value: Invalid" );
+                    }
+                }
+                break;
+
+                case GraphValueType::Int:
+                {
+                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
+                    ImGui::Text( "Value: %d", value );
+                }
+                break;
+
+                case GraphValueType::Float:
+                {
+                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
+                    ImGui::Text( "Value: %.3f", value );
+                }
+                break;
+
+                case GraphValueType::Vector:
+                {
+                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
+                    DrawVectorInfoText( ctx, value );
+                }
+                break;
+
+                case GraphValueType::Target:
+                {
+                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
+                    DrawTargetInfoText( ctx, value );
+                }
+                break;
+
+                case GraphValueType::BoneMask:
+                case GraphValueType::Pose:
+                default:
+                break;
+            }
+        }
+        else
+        {
+            ImGui::NewLine();
+        }
+
+        EndDrawInternalRegion( ctx );
+    }
+
     //-------------------------------------------------------------------------
 
     void BoolControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )

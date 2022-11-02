@@ -38,40 +38,41 @@ namespace EE::Animation::GraphNodes
             Vector const inputVector = m_pInputValueNode->GetValue<Vector>( context );
             switch ( pSettings->m_desiredInfo )
             {
-            case Info::X: m_value = inputVector.m_x; break;
-            case Info::Y: m_value = inputVector.m_y; break;
-            case Info::Z: m_value = inputVector.m_z; break;
-            case Info::W: m_value = inputVector.m_w; break;
+                case Info::X:
+                m_value = inputVector.m_x;
+                break;
 
-            case Info::Length:
-            {
-                m_value = inputVector.GetLength3();
-            }
-            break;
+                case Info::Y:
+                m_value = inputVector.m_y;
+                break;
 
-            case Info::AngleHorizontal:
-            {
-                m_value = (float) Math::GetYawAngleBetweenVectors( Vector::WorldForward, inputVector );
-            }
-            break;
+                case Info::Z:
+                m_value = inputVector.m_z;
+                break;
 
-            case Info::AngleVertical:
-            {
-                m_value = (float) Quaternion::FromRotationBetweenVectors( Vector::WorldForward, inputVector ).ToEulerAngles().GetPitch();
-            }
-            break;
+                case Info::W:
+                m_value = inputVector.m_w;
+                break;
 
-            case Info::SizeHorizontal:
-            {
-                m_value = inputVector.GetLength3();
-            }
-            break;
+                case Info::Length:
+                {
+                    m_value = inputVector.GetLength3();
+                }
+                break;
 
-            case Info::SizeVertical:
-            {
-                m_value = Vector( inputVector.m_x, 0.0f, inputVector.m_z ).GetLength3();
-            }
-            break;
+                // Vectors are assumed to be in character space
+                case Info::AngleHorizontal:
+                {
+                    m_value = (float) Math::GetYawAngleBetweenVectors( Vector::WorldForward, inputVector );
+                }
+                break;
+
+                // Vectors are assumed to be in character space
+                case Info::AngleVertical:
+                {
+                    m_value = (float) Quaternion::FromRotationBetweenVectors( Vector::WorldForward, inputVector ).ToEulerAngles().GetPitch();
+                }
+                break;
             }
         }
 

@@ -106,6 +106,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
 
     private:

@@ -68,4 +68,53 @@ namespace EE::Animation::GraphNodes
         }
         return pSettings->m_nodeIdx;
     }
+
+    void TimeConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        InlineString text;
+
+        switch ( m_type )
+        {
+            case TimeConditionNode::ComparisonType::PercentageThroughState:
+            text = "Percentage Through State";
+            break;
+
+            case TimeConditionNode::ComparisonType::PercentageThroughSyncEvent:
+            text = "Percentage Through Sync Event";
+            break;
+
+            case TimeConditionNode::ComparisonType::ElapsedTime:
+            text = "Elapsed Time In State";
+            break;
+
+            default:
+            break;
+        }
+
+        switch ( m_operator )
+        {
+            case TimeConditionNode::Operator::LessThan:
+            text += " < ";
+            break;
+
+            case TimeConditionNode::Operator::LessThanEqual:
+            text += " <= ";
+            break;
+
+            case TimeConditionNode::Operator::GreaterThan:
+            text += " > ";
+            break;
+
+            case TimeConditionNode::Operator::GreaterThanEqual:
+            text += " >= ";
+            break;
+
+            default:
+            break;
+        }
+
+        text += InlineString( InlineString::CtorSprintf(), "%.3f", m_comparand);
+
+        ImGui::Text( text.c_str() );
+    }
 }

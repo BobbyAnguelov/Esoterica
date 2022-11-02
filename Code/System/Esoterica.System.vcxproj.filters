@@ -333,6 +333,7 @@
     </ClCompile>
     <ClCompile Include="Math\Curves.cpp" />
     <ClCompile Include="IniFile.cpp" />
+    <ClCompile Include="TypeSystem\EnumInfo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Esoterica.h" />

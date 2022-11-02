@@ -191,8 +191,6 @@ namespace EE::Animation::GraphNodes
             break;
         }
 
-        //-------------------------------------------------------------------------
-
         // State events
         //-------------------------------------------------------------------------
 
@@ -281,10 +279,7 @@ namespace EE::Animation::GraphNodes
         // Draw separator
         //-------------------------------------------------------------------------
 
-        ImVec2 const originalCursorPos = ImGui::GetCursorScreenPos();
-        float const width = Math::Max( GetWidth(), 40.0f );
-        ImGui::InvisibleButton( "Spacer", ImVec2( width, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        DrawInternalSeparator( ctx );
 
         // Draw runtime debug info
         //-------------------------------------------------------------------------

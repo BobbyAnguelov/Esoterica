@@ -101,7 +101,23 @@ namespace EE::Animation::GraphNodes
 
     void GenericEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
+        if ( m_eventID.IsValid() )
+        {
+            ImGui::Text( "Event ID: %s", m_eventID.c_str());
+        }
+        else
+        {
+            ImGui::TextColored( ImColor( 0xFF0000FF ), "Event ID: Invalid" );
+        }
 
+        if ( m_preferHighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -125,6 +141,20 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
+    void FootEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
+
+        if ( m_preferHighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void FootstepEventPercentageThroughToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
@@ -146,6 +176,20 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
+    void FootstepEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
+
+        if ( m_preferHighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void SyncEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
@@ -165,6 +209,18 @@ namespace EE::Animation::GraphNodes
             pSettings->m_syncEventIdx = m_syncEventIdx;
         }
         return pSettings->m_nodeIdx;
+    }
+
+    void SyncEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        if ( m_triggerMode == SyncEventConditionNode::TriggerMode::ExactlyAtEventIndex )
+        {
+            ImGui::Text( "== %d", m_syncEventIdx );
+        }
+        else
+        {
+            ImGui::Text( ">= %d", m_syncEventIdx );
+        }
     }
 
     //-------------------------------------------------------------------------

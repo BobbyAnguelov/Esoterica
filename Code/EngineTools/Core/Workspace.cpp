@@ -183,6 +183,13 @@ namespace EE
 
     void Workspace::Initialize( UpdateContext const& context )
     {
+        // Load the editor map
+        if ( ShouldLoadDefaultEditorMap() )
+        {
+            // TODO: make this is a setting
+            m_pWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
+        }
+
         // We should never initialize a workspace for a corrupted descriptor
         if ( IsADescriptorWorkspace() )
         {

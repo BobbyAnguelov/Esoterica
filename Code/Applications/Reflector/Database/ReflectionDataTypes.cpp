@@ -73,21 +73,35 @@ namespace EE::TypeSystem::Reflection
     void ReflectedType::AddEnumConstant( ReflectedEnumConstant const& constant )
     {
         EE_ASSERT( m_ID.IsValid() && IsEnum() );
-
-        StringID const id( constant.m_label );
-        EE_ASSERT( m_enumElements.find( id ) == m_enumElements.end() );
-        m_enumElements[id] = constant;
+        EE_ASSERT( constant.m_ID.IsValid() );
+        EE_ASSERT( !IsValidEnumLabelID( constant.m_ID ) );
+        m_enumConstants.emplace_back( constant );
     }
 
     bool ReflectedType::GetValueFromEnumLabel( StringID labelID, uint32_t& value ) const
     {
         EE_ASSERT( m_ID.IsValid() && IsEnum() );
 
-        auto const iter = m_enumElements.find( labelID );
-        if ( iter != m_enumElements.end() )
+        for ( auto const& constant : m_enumConstants )
         {
-            value = iter->second.m_value;
-            return true;
+            if ( constant.m_ID == labelID )
+            {
+                value = constant.m_value;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool ReflectedType::IsValidEnumLabelID( StringID labelID ) const
+    {
+        for ( auto const& constant : m_enumConstants )
+        {
+            if ( constant.m_ID == labelID )
+            {
+                return true;
+            }
         }
 
         return false;

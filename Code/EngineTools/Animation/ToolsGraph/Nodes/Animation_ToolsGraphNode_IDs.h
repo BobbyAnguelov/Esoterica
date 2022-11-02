@@ -37,8 +37,8 @@ namespace EE::Animation::GraphNodes
         {
             EE_REGISTER_TYPE( Mapping );
 
-            StringID    m_ID;
-            float       m_value;
+            EE_EXPOSE StringID    m_ID;
+            EE_EXPOSE float       m_value;
         };
 
     public:
@@ -49,6 +49,11 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/ID"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+
+    private:
+
+        bool ValidateMappings() const;
 
     private:
 

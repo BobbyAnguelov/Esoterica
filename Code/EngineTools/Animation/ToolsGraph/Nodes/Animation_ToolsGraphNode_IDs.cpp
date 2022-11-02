@@ -94,6 +94,18 @@ namespace EE::Animation::GraphNodes
         NodeCompilationState const state = context.GetSettings<IDToFloatNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
+            if ( m_mappings.empty() )
+            {
+                context.LogError( this, "No Mappings Specified For ID To Float Node" );
+                return InvalidIndex;
+            }
+
+            if ( !ValidateMappings() )
+            {
+                context.LogError( this, "Invalid Mappings Specified For ID To Float Node" );
+                return InvalidIndex;
+            }
+
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
             {
@@ -116,7 +128,7 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             pSettings->m_defaultValue = m_defaultValue;
-            
+
             for ( auto const& mapping : m_mappings )
             {
                 pSettings->m_IDs.emplace_back( mapping.m_ID );
@@ -126,5 +138,33 @@ namespace EE::Animation::GraphNodes
             EE_ASSERT( pSettings->m_IDs.size() == pSettings->m_values.size() );
         }
         return pSettings->m_nodeIdx;
+    }
+
+    void IDToFloatToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        if ( !m_mappings.empty() && ValidateMappings() )
+        {
+            for ( auto const& mapping : m_mappings )
+            {
+                ImGui::Text( "%s = %.3f", mapping.m_ID.c_str(), mapping.m_value );
+            }
+        }
+        else
+        {
+            ImGui::TextColored( ImColor( 0xFF0000FF ), "Invalid Mappings" );
+        }
+    }
+
+    bool IDToFloatToolsNode::ValidateMappings() const
+    {
+        for ( auto const& mapping : m_mappings )
+        {
+            if ( !mapping.m_ID.IsValid() )
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

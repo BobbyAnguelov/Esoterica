@@ -130,6 +130,9 @@ namespace EE
         // Get the ID of the map this entity belongs to
         inline EntityMapID const& GetMapID() const { return m_mapID; }
 
+        // Get a list of all resource referenced by this entity
+        void GetReferencedResources( TVector<ResourceID>& outReferencedResources ) const;
+
         // Spatial Info
         //-------------------------------------------------------------------------
 

@@ -105,7 +105,7 @@ namespace EE
 
         inline Quaternion const& GetRotation() const { return m_rotation; }
         inline void SetRotation( Quaternion const& rotation ) { EE_ASSERT( rotation.IsNormalized() ); m_rotation = rotation; }
-        inline void AddRotation( Quaternion const& delta ) { m_rotation = delta * m_rotation; }
+        inline void AddRotation( Quaternion const& delta ) { EE_ASSERT( delta.IsNormalized() ); m_rotation = delta * m_rotation; }
 
         // Translation
         //-------------------------------------------------------------------------

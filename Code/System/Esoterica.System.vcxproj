@@ -583,6 +583,7 @@
     <ClCompile Include="Time\TimeStamp.cpp" />
     <ClCompile Include="TypeSystem\CoreTypeConversions.cpp" />
     <ClCompile Include="TypeSystem\CoreTypeIDs.cpp" />
+    <ClCompile Include="TypeSystem\EnumInfo.cpp" />
     <ClCompile Include="TypeSystem\PropertyInfo.cpp" />
     <ClCompile Include="TypeSystem\PropertyPath.cpp" />
     <ClCompile Include="TypeSystem\RegisteredType.cpp" />

@@ -1164,13 +1164,23 @@ namespace EE::Animation
             case GraphOperationType::None:
             break;
 
+            case GraphOperationType::CreateParameter:
+            ImGui::OpenPopup( "Create Parameter" );
+            ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
+            if ( ImGui::BeginPopupModal( "Create Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+            {
+                DrawCreateOrRenameParameterDialogWindow();
+                ImGui::EndPopup();
+            }
+            break;
+
             case GraphOperationType::RenameParameter:
             {
                 ImGui::OpenPopup( "Rename Parameter" );
                 ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
                 if ( ImGui::BeginPopupModal( "Rename Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
                 {
-                    DrawRenameParameterDialogWindow();
+                    DrawCreateOrRenameParameterDialogWindow();
                     ImGui::EndPopup();
                 }
             }
@@ -1783,6 +1793,9 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        m_primaryGraphView.RefreshNodeSizes();
+        m_secondaryGraphView.RefreshNodeSizes();
+
         m_debugMode = DebugMode::None;
     }
 
@@ -2235,7 +2248,7 @@ namespace EE::Animation
             if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
             {
                 auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
-                NavigateTo( pSM->GetEntryStateOverrideConduit() );
+                NavigateTo( pSM->GetEntryStateOverrideConduit(), false );
             }
             ImGuiX::ItemTooltip( "Entry State Overrides" );
 
@@ -2243,7 +2256,7 @@ namespace EE::Animation
             if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
             {
                 auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
-                NavigateTo( pSM->GetGlobalTransitionConduit() );
+                NavigateTo( pSM->GetGlobalTransitionConduit(), false );
             }
             ImGuiX::ItemTooltip( "Global Transitions" );
         }
@@ -2709,14 +2722,16 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphWorkspace::DrawRenameParameterDialogWindow()
+    void AnimationGraphWorkspace::DrawCreateOrRenameParameterDialogWindow()
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::RenameParameter );
+        EE_ASSERT( m_activeOperation == GraphOperationType::CreateParameter || m_activeOperation == GraphOperationType::RenameParameter );
+
+        constexpr static float const fieldOffset = 80;
         bool updateConfirmed = false;
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text( "Name: " );
-        ImGui::SameLine( 80 );
+        ImGui::SameLine( fieldOffset );
 
         if ( ImGui::IsWindowAppearing() )
         {
@@ -2731,12 +2746,27 @@ namespace EE::Animation
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text( "Category: " );
-        ImGui::SameLine( 80 );
+        ImGui::SameLine( fieldOffset );
 
-        ImGui::SetNextItemWidth( -1 );
+        float const categoryFieldWidth = ImGui::GetContentRegionAvail().x - 30;
+        ImGui::SetNextItemWidth( categoryFieldWidth );
         if ( ImGui::InputText( "##ParameterCategory", m_parameterCategoryBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
         {
             updateConfirmed = true;
+        }
+
+        ImGui::SameLine( fieldOffset + categoryFieldWidth + ImGui::GetStyle().ItemSpacing.x );
+        if ( ImGui::BeginCombo( "##CategorySelector", nullptr, ImGuiComboFlags_NoPreview ) )
+        {
+            for ( auto const& category : m_parameterCategoryTree.GetRootCategory().m_childCategories )
+            {
+                if ( ImGui::MenuItem( category.m_name.c_str() ) )
+                {
+                    strncpy_s( m_parameterCategoryBuffer, category.m_name.c_str(), 255 );
+                }
+            }
+
+            ImGui::EndCombo();
         }
 
         ImGui::NewLine();
@@ -2746,32 +2776,45 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
+        // Rename existing parameter
+        if ( m_activeOperation == GraphOperationType::RenameParameter )
         {
-            bool const isTheSame = ( pControlParameter->GetParameterName().comparei( m_parameterNameBuffer ) == 0 && pControlParameter->GetParameterCategory().comparei( m_parameterCategoryBuffer ) == 0 );
-
-            ImGui::BeginDisabled( isTheSame );
-            if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
+            if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
             {
-                RenameControlParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
-                m_activeOperation = GraphOperationType::None;
+                bool const isTheSame = ( pControlParameter->GetParameterName().comparei( m_parameterNameBuffer ) == 0 && pControlParameter->GetParameterCategory().comparei( m_parameterCategoryBuffer ) == 0 );
+
+                ImGui::BeginDisabled( isTheSame );
+                if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
+                {
+                    RenameParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
+                    m_activeOperation = GraphOperationType::None;
+                }
+                ImGui::EndDisabled();
             }
-            ImGui::EndDisabled();
+            else
+            {
+                auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID );
+                EE_ASSERT( pVirtualParameter != nullptr );
+
+                bool const isTheSame = ( pVirtualParameter->GetParameterName().comparei( m_parameterNameBuffer ) == 0 && pVirtualParameter->GetParameterCategory().comparei( m_parameterCategoryBuffer ) == 0 );
+
+                ImGui::BeginDisabled( isTheSame );
+                if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
+                {
+                    RenameParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
+                    m_activeOperation = GraphOperationType::None;
+                }
+                ImGui::EndDisabled();
+            }
         }
-        else
+        else // Create new parameter
         {
-            auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID );
-            EE_ASSERT( pVirtualParameter != nullptr );
-
-            bool const isTheSame = ( pVirtualParameter->GetParameterName().comparei( m_parameterNameBuffer ) == 0 && pVirtualParameter->GetParameterCategory().comparei( m_parameterCategoryBuffer ) == 0 );
-
-            ImGui::BeginDisabled( isTheSame );
             if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
             {
-                RenameVirtualParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
+                CreateParameter( m_currentOperationParameterType, m_currentOperationParameterValueType, m_parameterNameBuffer, m_parameterCategoryBuffer );
                 m_activeOperation = GraphOperationType::None;
+                m_currentOperationParameterValueType = GraphValueType::Unknown;
             }
-            ImGui::EndDisabled();
         }
 
         ImGui::SameLine( 0, 4 );
@@ -2796,19 +2839,7 @@ namespace EE::Animation
 
         if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
         {
-            if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
-            {
-                DestroyControlParameter( m_currentOperationParameterID );
-            }
-            else if ( auto pVirtualParameter = FindVirtualParameter( m_currentOperationParameterID ) )
-            {
-                DestroyVirtualParameter( m_currentOperationParameterID );
-            }
-            else
-            {
-                EE_UNREACHABLE_CODE();
-            }
-
+            DestroyParameter( m_currentOperationParameterID );
             m_activeOperation = GraphOperationType::None;
         }
 
@@ -2848,7 +2879,7 @@ namespace EE::Animation
                 {
                     if ( pControlParameter->GetCategory() != category.m_name )
                     {
-                        RenameControlParameter( pControlParameter->GetID(), pControlParameter->GetParameterName(), category.m_name );
+                        RenameParameter( pControlParameter->GetID(), pControlParameter->GetParameterName(), category.m_name );
                         return;
                     }
                 }
@@ -2860,7 +2891,7 @@ namespace EE::Animation
                 {
                     if ( pVirtualParameter->GetCategory() != category.m_name )
                     {
-                        RenameVirtualParameter( pVirtualParameter->GetID(), pVirtualParameter->GetParameterName(), category.m_name );
+                        RenameParameter( pVirtualParameter->GetID(), pVirtualParameter->GetParameterName(), category.m_name );
                         return;
                     }
                 }
@@ -2884,32 +2915,32 @@ namespace EE::Animation
 
             if ( ImGui::MenuItem( "Control Parameter - Bool" ) )
             {
-                CreateControlParameter( GraphValueType::Bool );
+                StartParameterCreate( GraphValueType::Bool, ParameterType::Default );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - ID" ) )
             {
-                CreateControlParameter( GraphValueType::ID );
+                StartParameterCreate( GraphValueType::ID, ParameterType::Default );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Int" ) )
             {
-                CreateControlParameter( GraphValueType::Int );
+                StartParameterCreate( GraphValueType::Int, ParameterType::Default );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Float" ) )
             {
-                CreateControlParameter( GraphValueType::Float );
+                StartParameterCreate( GraphValueType::Float, ParameterType::Default );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Vector" ) )
             {
-                CreateControlParameter( GraphValueType::Vector );
+                StartParameterCreate( GraphValueType::Vector, ParameterType::Default );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Target" ) )
             {
-                CreateControlParameter( GraphValueType::Target );
+                StartParameterCreate( GraphValueType::Target, ParameterType::Default );
             }
 
             //-------------------------------------------------------------------------
@@ -2918,37 +2949,37 @@ namespace EE::Animation
 
             if ( ImGui::MenuItem( "Virtual Parameter - Bool" ) )
             {
-                CreateVirtualParameter( GraphValueType::Bool );
+                StartParameterCreate( GraphValueType::Bool, ParameterType::Virtual );
             }
 
             if ( ImGui::MenuItem( "Virtual Parameter - ID" ) )
             {
-                CreateVirtualParameter( GraphValueType::ID );
+                StartParameterCreate( GraphValueType::ID, ParameterType::Virtual );
             }
 
             if ( ImGui::MenuItem( "Virtual Parameter - Int" ) )
             {
-                CreateVirtualParameter( GraphValueType::Int );
+                StartParameterCreate( GraphValueType::Int, ParameterType::Virtual );
             }
 
             if ( ImGui::MenuItem( "Virtual Parameter - Float" ) )
             {
-                CreateVirtualParameter( GraphValueType::Float );
+                StartParameterCreate( GraphValueType::Float, ParameterType::Virtual );
             }
 
             if ( ImGui::MenuItem( "Virtual Parameter - Vector" ) )
             {
-                CreateVirtualParameter( GraphValueType::Vector );
+                StartParameterCreate( GraphValueType::Vector, ParameterType::Virtual );
             }
 
             if ( ImGui::MenuItem( "Virtual Parameter - Target" ) )
             {
-                CreateVirtualParameter( GraphValueType::Target );
+                StartParameterCreate( GraphValueType::Target, ParameterType::Virtual );
             }
 
             if ( ImGui::MenuItem( "Virtual Parameter - Bone Mask" ) )
             {
-                CreateVirtualParameter( GraphValueType::BoneMask );
+                StartParameterCreate( GraphValueType::BoneMask, ParameterType::Virtual );
             }
 
             ImGui::EndPopup();
@@ -3251,78 +3282,93 @@ namespace EE::Animation
         ImGui::PopStyleVar();
     }
 
-    void AnimationGraphWorkspace::CreateControlParameter( GraphValueType type )
+    void AnimationGraphWorkspace::CreateParameter( ParameterType parameterType, GraphValueType valueType, String const& desiredParameterName, String const& desiredCategoryName )
     {
+        String finalParameterName = desiredParameterName;
+        EnsureUniqueParameterName( finalParameterName );
+
+        String finalCategoryName = desiredCategoryName;
+        ResolveCategoryName( finalCategoryName );
+
+        //-------------------------------------------------------------------------
+
         auto pRootGraph = m_toolsGraph.GetRootGraph();
-
-        //-------------------------------------------------------------------------
-
-        String parameterName = "Parameter";
-        EnsureUniqueParameterName( parameterName );
-
-        //-------------------------------------------------------------------------
-
-        GraphNodes::ControlParameterToolsNode* pParameter = nullptr;
-
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
-        switch ( type )
+        if ( parameterType == ParameterType::Default )
         {
-            case GraphValueType::Bool:
-            pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( parameterName );
-            break;
+            GraphNodes::ControlParameterToolsNode* pParameter = nullptr;
+            switch ( valueType )
+            {
+                case GraphValueType::Bool:
+                pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( finalParameterName );
+                break;
 
-            case GraphValueType::ID:
-            pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( parameterName );
-            break;
+                case GraphValueType::ID:
+                pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( finalParameterName );
+                break;
 
-            case GraphValueType::Int:
-            pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( parameterName );
-            break;
+                case GraphValueType::Int:
+                pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( finalParameterName );
+                break;
 
-            case GraphValueType::Float:
-            pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( parameterName );
-            break;
+                case GraphValueType::Float:
+                pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( finalParameterName );
+                break;
 
-            case GraphValueType::Vector:
-            pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( parameterName );
-            break;
+                case GraphValueType::Vector:
+                pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( finalParameterName );
+                break;
 
-            case GraphValueType::Target:
-            pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( parameterName );
-            break;
+                case GraphValueType::Target:
+                pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( finalParameterName );
+                break;
 
-            default:
-            break;
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+
+            EE_ASSERT( pParameter != nullptr );
+            pParameter->Rename( finalParameterName, finalCategoryName );
+            m_controlParameters.emplace_back( pParameter );
+        }
+        else
+        {
+            auto pParameter = pRootGraph->CreateNode<GraphNodes::VirtualParameterToolsNode>( finalParameterName, valueType );
+            pParameter->Rename( finalParameterName, finalCategoryName );
+            m_virtualParameters.emplace_back( pParameter );
         }
 
-        EE_ASSERT( pParameter != nullptr );
-        m_controlParameters.emplace_back( pParameter );
-
         RefreshParameterCategoryTree();
     }
 
-    void AnimationGraphWorkspace::CreateVirtualParameter( GraphValueType type )
+    void AnimationGraphWorkspace::RenameParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName )
     {
-        String parameterName = "Parameter";
-        EnsureUniqueParameterName( parameterName );
+        String originalParameterName;
+        String originalParameterCategory;
 
-        auto pRootGraph = m_toolsGraph.GetRootGraph();
-        VisualGraph::ScopedGraphModification gm( pRootGraph );
-        auto pParameter = pRootGraph->CreateNode<GraphNodes::VirtualParameterToolsNode>( parameterName, type );
-        m_virtualParameters.emplace_back( pParameter );
+        auto pControlParameter = FindControlParameter( parameterID );
+        auto pVirtualParameter = FindVirtualParameter( parameterID );
+        EE_ASSERT( pControlParameter != nullptr || pVirtualParameter != nullptr );
+        EE_ASSERT( pControlParameter == nullptr || pVirtualParameter == nullptr );
 
-        RefreshParameterCategoryTree();
-    }
-
-    void AnimationGraphWorkspace::RenameControlParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName )
-    {
-        auto pParameter = FindControlParameter( parameterID );
-        EE_ASSERT( pParameter != nullptr );
+        if ( pControlParameter == nullptr )
+        {
+            originalParameterName = pControlParameter->GetParameterName();
+            originalParameterCategory = pControlParameter->GetParameterCategory();
+        }
+        else
+        {
+            originalParameterName = pVirtualParameter->GetParameterName();
+            originalParameterCategory = pVirtualParameter->GetParameterCategory();
+        }
 
         // Check if we actually need to do anything
-        bool const requiresNameChange = pParameter->GetParameterName().comparei( desiredParameterName ) != 0;
-        if ( !requiresNameChange && pParameter->GetParameterCategory().comparei( desiredCategoryName ) == 0 )
+        bool const requiresNameChange = originalParameterName.comparei( desiredParameterName ) != 0;
+        if ( !requiresNameChange && originalParameterCategory.comparei( desiredCategoryName ) == 0 )
         {
             return;
         }
@@ -3344,49 +3390,39 @@ namespace EE::Animation
 
         auto pRootGraph = m_toolsGraph.GetRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
-        pParameter->Rename( finalParameterName, finalCategoryName );
+        if ( pControlParameter != nullptr )
+        {
+            pControlParameter->Rename( finalParameterName, finalCategoryName );
+        }
+        else
+        {
+            pVirtualParameter->Rename( finalParameterName, finalCategoryName );
+        }
     }
 
-    void AnimationGraphWorkspace::RenameVirtualParameter( UUID parameterID, String const& desiredParameterName, String const& desiredCategoryName )
+    void AnimationGraphWorkspace::DestroyParameter( UUID parameterID )
     {
-        auto pParameter = FindVirtualParameter( parameterID );
-        EE_ASSERT( pParameter != nullptr );
-
-        // Check if we actually need to do anything
-        bool const requiresNameChange = pParameter->GetParameterName().comparei( desiredParameterName ) != 0;
-        if ( !requiresNameChange && pParameter->GetParameterCategory().comparei( desiredCategoryName ) == 0 )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        String finalParameterName = desiredParameterName;
-        if ( requiresNameChange )
-        {
-            EnsureUniqueParameterName( finalParameterName );
-        }
-
-        //-------------------------------------------------------------------------
-
-        String finalCategoryName = desiredCategoryName;
-        ResolveCategoryName( finalCategoryName );
-
-        //-------------------------------------------------------------------------
-
-        auto pRootGraph = m_toolsGraph.GetRootGraph();
-        VisualGraph::ScopedGraphModification gm( pRootGraph );
-        pParameter->Rename( finalParameterName, finalCategoryName );
-    }
-
-    void AnimationGraphWorkspace::DestroyControlParameter( UUID parameterID )
-    {
-        EE_ASSERT( FindControlParameter( parameterID ) != nullptr );
-
-        auto pRootGraph = m_toolsGraph.GetRootGraph();
-        VisualGraph::ScopedGraphModification gm( pRootGraph );
+        auto pControlParameter = FindControlParameter( parameterID );
+        auto pVirtualParameter = FindVirtualParameter( parameterID );
+        EE_ASSERT( pControlParameter != nullptr || pVirtualParameter != nullptr );
+        EE_ASSERT( pControlParameter == nullptr || pVirtualParameter == nullptr );
 
         ClearSelection();
+
+        // Navigate away from the virtual parameter graph if we are currently viewing it
+        if ( pVirtualParameter != nullptr )
+        {
+            auto pParentNode = m_primaryGraphView.GetViewedGraph()->GetParentNode();
+            if ( pParentNode != nullptr && pParentNode->GetID() == parameterID )
+            {
+                NavigateTo( m_toolsGraph.GetRootGraph() );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto pRootGraph = m_toolsGraph.GetRootGraph();
+        VisualGraph::ScopedGraphModification gm( pRootGraph );
 
         // Find and remove all reference nodes
         auto const parameterReferences = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
@@ -3399,57 +3435,34 @@ namespace EE::Animation
         }
 
         // Delete parameter
-        for ( auto iter = m_controlParameters.begin(); iter != m_controlParameters.end(); ++iter )
+        if ( pControlParameter != nullptr )
         {
-            auto pParameter = ( *iter );
-            if ( pParameter->GetID() == parameterID )
+            for ( auto iter = m_controlParameters.begin(); iter != m_controlParameters.end(); ++iter )
             {
-                pParameter->Destroy();
-                m_controlParameters.erase( iter );
-                break;
+                auto pParameter = ( *iter );
+                if ( pParameter->GetID() == parameterID )
+                {
+                    pParameter->Destroy();
+                    m_controlParameters.erase( iter );
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for ( auto iter = m_virtualParameters.begin(); iter != m_virtualParameters.end(); ++iter )
+            {
+                auto pParameter = ( *iter );
+                if ( pParameter->GetID() == parameterID )
+                {
+                    pParameter->Destroy();
+                    m_virtualParameters.erase( iter );
+                    break;
+                }
             }
         }
 
-        RefreshParameterCategoryTree();
-    }
-
-    void AnimationGraphWorkspace::DestroyVirtualParameter( UUID parameterID )
-    {
-        EE_ASSERT( FindVirtualParameter( parameterID ) != nullptr );
-
-        auto pRootGraph = m_toolsGraph.GetRootGraph();
-        VisualGraph::ScopedGraphModification gm( pRootGraph );
-
-        // Clear the selection and navigate away from the virtual parameter graph if we are currently viewing it
-        ClearSelection();
-
-        auto pParentNode = m_primaryGraphView.GetViewedGraph()->GetParentNode();
-        if ( pParentNode != nullptr && pParentNode->GetID() == parameterID )
-        {
-            NavigateTo( m_toolsGraph.GetRootGraph() );
-        }
-
-        // Find and remove all reference nodes
-        auto const parameterReferences = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
-        for ( auto const& pFoundParameterNode : parameterReferences )
-        {
-            if ( pFoundParameterNode->GetReferencedParameterID() == parameterID )
-            {
-                pFoundParameterNode->Destroy();
-            }
-        }
-
-        // Delete parameter
-        for ( auto iter = m_virtualParameters.begin(); iter != m_virtualParameters.end(); ++iter )
-        {
-            auto pParameter = ( *iter );
-            if ( pParameter->GetID() == parameterID )
-            {
-                pParameter->Destroy();
-                m_virtualParameters.erase( iter );
-                break;
-            }
-        }
+        //-------------------------------------------------------------------------
 
         RefreshParameterCategoryTree();
     }
@@ -3606,6 +3619,18 @@ namespace EE::Animation
         }
 
         m_previewParameterStates.clear();
+    }
+
+    void AnimationGraphWorkspace::StartParameterCreate( GraphValueType valueType, ParameterType parameterType )
+    {
+        m_currentOperationParameterID = UUID();
+        m_activeOperation = GraphOperationType::CreateParameter;
+        m_currentOperationParameterValueType = valueType;
+        m_currentOperationParameterType = parameterType;
+
+        Memory::MemsetZero( m_parameterNameBuffer, 255 );
+        Memory::MemsetZero( m_parameterCategoryBuffer, 255 );
+        strncpy_s( m_parameterNameBuffer, "Parameter", 9 );
     }
 
     void AnimationGraphWorkspace::StartParameterRename( UUID const& parameterID )

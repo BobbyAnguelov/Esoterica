@@ -29,6 +29,8 @@ namespace EE::Animation::GraphNodes
 {
     void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo );
     void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width );
+    void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& vector );
+    void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& target );
 
     //-------------------------------------------------------------------------
 

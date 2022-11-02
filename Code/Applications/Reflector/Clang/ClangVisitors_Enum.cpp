@@ -23,6 +23,7 @@ namespace EE
 
                     // Set Label
                     constant.m_label = ClangUtils::GetCursorDisplayName( cr );
+                    constant.m_ID = StringID( constant.m_label );
 
                     // Set Value
                     auto const& initVal = pEnumConstantDecl->getInitVal();

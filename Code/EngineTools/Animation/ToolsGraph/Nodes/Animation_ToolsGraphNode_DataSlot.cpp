@@ -185,13 +185,7 @@ namespace EE::Animation::GraphNodes
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
 
-        // Draw separator
-        //-------------------------------------------------------------------------
-
-        float const spacerWidth = Math::Max( GetWidth(), 40.0f );
-        ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
-        ImGui::InvisibleButton( "S1", ImVec2( spacerWidth, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        DrawInternalSeparator( ctx );
 
         //-------------------------------------------------------------------------
 
@@ -209,9 +203,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        originalCursorPos = ImGui::GetCursorScreenPos();
-        ImGui::InvisibleButton( "S2", ImVec2( spacerWidth, 10 ) );
-        ctx.m_pDrawList->AddLine( originalCursorPos + ImVec2( 0, 4 ), originalCursorPos + ImVec2( GetWidth(), 4 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
+        DrawInternalSeparator( ctx );
 
         //-------------------------------------------------------------------------
 

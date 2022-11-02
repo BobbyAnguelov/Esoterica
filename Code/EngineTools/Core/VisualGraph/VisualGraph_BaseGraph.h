@@ -141,6 +141,15 @@ namespace EE::VisualGraph
         // Get the margin between the node contents and the outer border
         virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }
 
+        // Draw an internal separator
+        void DrawInternalSeparator( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeSeparatorColor, float preMarginY = 2, float postMarginY = 4 ) const;
+
+        // Start an internal box region
+        void BeginDrawInternalRegion( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeInternalRegionDefaultColor, float preMarginY = 0, float postMarginY = 0 ) const;
+
+        // End an internal region
+        void EndDrawInternalRegion( DrawContext const& ctx ) const;
+
         // Graphs
         //-------------------------------------------------------------------------
 
@@ -219,6 +228,10 @@ namespace EE::VisualGraph
         BaseGraph*                  m_pParentGraph = nullptr; // Private so that we can enforce how we add nodes to the graphs
         BaseGraph*                  m_pChildGraph = nullptr;
         BaseGraph*                  m_pSecondaryGraph = nullptr;
+        mutable bool                m_regionStarted = false;
+        mutable float               m_internalRegionStartY = -1.0f;
+        mutable Color               m_internalRegionColor;
+        mutable float               m_internalRegionMargins[2] = {0, 0};
     };
 
     //-------------------------------------------------------------------------

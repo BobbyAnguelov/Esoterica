@@ -40,6 +40,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Float"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
     public:
 
@@ -76,12 +77,14 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Float"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
     public:
 
         EE_EXPOSE Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
         EE_EXPOSE float                       m_easeTime = 1.0f;
-        EE_EXPOSE float                       m_initialValue = -1.0f;
+        EE_EXPOSE bool                        m_useStartValue = true; // Should we initialize this node to the input value or to the specified start value
+        EE_EXPOSE float                       m_startValue = 0.0f; // Optional initialization value for this node
     };
 
     //-------------------------------------------------------------------------
@@ -118,6 +121,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Float"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
     public:
 
@@ -189,17 +193,21 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class FloatReverseDirectionToolsNode final : public FlowToolsNode
+    class FloatAngleMathToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( FloatReverseDirectionToolsNode );
+        EE_REGISTER_TYPE( FloatAngleMathToolsNode );
 
     public:
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Float Reverse Direction"; }
+        virtual char const* GetTypeName() const override { return "Angle Math"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+    private:
+
+        EE_EXPOSE FloatAngleMathNode::Operation m_operation = FloatAngleMathNode::Operation::ClampTo180;
     };
 }

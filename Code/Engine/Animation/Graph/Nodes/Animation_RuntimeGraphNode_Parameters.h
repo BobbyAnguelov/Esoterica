@@ -168,6 +168,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         BoolValueNode* m_pChildNode = nullptr;
+        bool           m_value = false;
     };
 
     //-------------------------------------------------------------------------
@@ -194,7 +195,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        IDValueNode* m_pChildNode = nullptr;
+        IDValueNode*    m_pChildNode = nullptr;
+        StringID        m_value;
     };
 
     //-------------------------------------------------------------------------
@@ -221,7 +223,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        IntValueNode* m_pChildNode = nullptr;
+        IntValueNode*   m_pChildNode = nullptr;
+        int32_t         m_value = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -249,6 +252,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         FloatValueNode* m_pChildNode = nullptr;
+        float           m_value = 0.0f;
     };
 
     //-------------------------------------------------------------------------
@@ -275,7 +279,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        VectorValueNode* m_pChildNode = nullptr;
+        VectorValueNode*    m_pChildNode = nullptr;
+        Float4              m_value = Float4::Zero;
     };
 
     //-------------------------------------------------------------------------
@@ -302,7 +307,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        TargetValueNode* m_pChildNode = nullptr;
+        TargetValueNode*    m_pChildNode = nullptr;
+        Target              m_value;
     };
 
     //-------------------------------------------------------------------------
@@ -329,6 +335,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        BoneMaskValueNode* m_pChildNode = nullptr;
+        BoneMaskValueNode*  m_pChildNode = nullptr;
+        BoneMask            m_value;
     };
 }

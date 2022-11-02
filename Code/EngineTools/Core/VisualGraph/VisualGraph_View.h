@@ -1,6 +1,7 @@
 #pragma once
 #include "VisualGraph_StateMachineGraph.h"
 #include "VisualGraph_FlowGraph.h"
+#include "System/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -38,8 +39,11 @@ namespace EE::VisualGraph
         {
             Background = 0,
             NodeBackground = 1,
-            NodeForeground = 2,
-            Connections = 3
+            NodeContentBackground = 2,
+            NodeForeground = 3,
+            Connections = 4,
+
+            NumChannels,
         };
 
         enum class DragMode
@@ -130,6 +134,8 @@ namespace EE::VisualGraph
         void ResetView();
 
         void CenterView( BaseNode const* pNode );
+
+        void RefreshNodeSizes();
 
         // Selection
         //-------------------------------------------------------------------------

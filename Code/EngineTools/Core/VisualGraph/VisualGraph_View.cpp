@@ -55,8 +55,14 @@ namespace EE::VisualGraph
             return;
         }
 
+        // Record selection
+        //-------------------------------------------------------------------------
+
         TVector<SelectedNode> oldSelection;
         oldSelection.swap( m_selectedNodes );
+
+        // Switch graph
+        //-------------------------------------------------------------------------
 
         ResetInternalState();
         m_pGraph = pGraph;
@@ -65,6 +71,11 @@ namespace EE::VisualGraph
             m_pViewOffset = &m_pGraph->m_viewOffset;
             m_pGraph->OnShowGraph( pUserContext );
         }
+
+        RefreshNodeSizes();
+
+        // Restore old selection
+        //-------------------------------------------------------------------------
 
         if ( tryMaintainSelection )
         {
@@ -112,7 +123,7 @@ namespace EE::VisualGraph
             m_hasFocus = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows );
             m_isViewHovered = ImGui::IsWindowHovered();
             m_canvasSize = ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin();
-            pDrawList->ChannelsSplit( 4 );
+            pDrawList->ChannelsSplit( (uint8_t) DrawChannel::NumChannels );
 
             // Background
             //-------------------------------------------------------------------------
@@ -591,6 +602,9 @@ namespace EE::VisualGraph
     void GraphView::UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, UserContext* pUserContext, float childHeightOverride )
     {
         EE_ASSERT( pUserContext != nullptr );
+ 
+        // Draw Graph
+        //-------------------------------------------------------------------------
 
         DrawContext drawingContext;
 
@@ -606,8 +620,6 @@ namespace EE::VisualGraph
             drawingContext.m_mouseScreenPos = ImGui::GetMousePos();
             drawingContext.m_mouseCanvasPos = drawingContext.ScreenPositionToCanvasPosition( drawingContext.m_mouseScreenPos );
 
-            //-------------------------------------------------------------------------
-            // Draw Graph
             //-------------------------------------------------------------------------
 
             m_pHoveredNode = nullptr;
@@ -686,7 +698,6 @@ namespace EE::VisualGraph
 
             drawingContext.m_pDrawList->ChannelsMerge();
 
-            //-------------------------------------------------------------------------
             // Extra
             //-------------------------------------------------------------------------
 
@@ -701,6 +712,7 @@ namespace EE::VisualGraph
 
         EndDrawCanvas();
 
+        // Handle drag and drop
         //-------------------------------------------------------------------------
 
         if ( m_pGraph != nullptr )
@@ -750,6 +762,17 @@ namespace EE::VisualGraph
         ImVec2 const nodeHalfSize = ( pNode->GetSize() / 2 );
         ImVec2 const nodeCenter = ImVec2( pNode->GetCanvasPosition() ) + nodeHalfSize;
         *m_pViewOffset = nodeCenter - ( m_canvasSize / 2 );
+    }
+
+    void GraphView::RefreshNodeSizes()
+    {
+        if ( m_pGraph != nullptr )
+        {
+            for ( auto pNode : m_pGraph->m_nodes )
+            {
+                pNode->m_size = ImVec2( 0, 0 );
+            }
+        }
     }
 
     //-------------------------------------------------------------------------

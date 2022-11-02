@@ -19,10 +19,8 @@ namespace EE::Animation::GraphNodes
             Z,
             W,
             Length,
-            AngleHorizontal,
-            AngleVertical,
-            SizeHorizontal,
-            SizeVertical,
+            AngleHorizontal, // The horizontal angle between the vector and the character forward (assumes the vector is in character space)
+            AngleVertical, // The vertical angle (around x) between the vector and the character forward (assumes the vector is in character space)
         };
 
     public:

@@ -398,6 +398,21 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
+        auto DrawTransform = [] ( Transform transform )
+        {
+            Vector const& translation = transform.GetTranslation();
+            Quaternion const& rotation = transform.GetRotation();
+            EulerAngles const angles = rotation.ToEulerAngles();
+
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+            ImGui::Text( "Rot (Quat): X: %.3f, Y: %.3f, Z: %.3f, W: %.3f", rotation.m_x, rotation.m_y, rotation.m_z, rotation.m_w );
+            ImGui::Text( "Rot (Euler): X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
+            ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.m_x, translation.m_y, translation.m_z );
+            ImGui::Text( "Scl: %.3f", transform.GetScale() );
+        };
+
+        //-------------------------------------------------------------------------
+
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_trackDataWindowName.c_str() ) )
         {
@@ -430,7 +445,7 @@ namespace EE::Animation
                                 ImGui::Text( "%d. %s", boneIdx, pSkeleton->GetBoneID( boneIdx ).c_str() );
 
                                 ImGui::TableNextColumn();
-                                ImGuiX::DisplayTransform( boneTransform );
+                                DrawTransform( boneTransform );
                             }
                         }
                         clipper.End();

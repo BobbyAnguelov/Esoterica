@@ -157,6 +157,9 @@ namespace EE
         // Preview World
         //-------------------------------------------------------------------------
 
+        // Should we load the default editor map for this workspace?
+        virtual bool ShouldLoadDefaultEditorMap() const { return true; }
+
         // Get the world associated with this workspace
         inline EntityWorld* GetWorld() const { return m_pWorld; }
 

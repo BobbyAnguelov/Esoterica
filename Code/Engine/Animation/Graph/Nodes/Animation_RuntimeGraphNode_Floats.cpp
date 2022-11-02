@@ -176,8 +176,16 @@ namespace EE::Animation::GraphNodes
         FloatValueNode::InitializeInternal( context );
         m_pInputValueNode->Initialize( context );
 
-        m_easeRange = FloatRange( m_pInputValueNode->GetValue<float>( context ) );
-        m_currentValue = pSettings->m_initalValue < 0.0f ? m_easeRange.m_end : pSettings->m_initalValue;
+        if ( pSettings->m_useStartValue )
+        {
+            m_easeRange = FloatRange( pSettings->m_startValue );
+        }
+        else
+        {
+            m_easeRange = FloatRange( m_pInputValueNode->GetValue<float>( context ) );
+        }
+
+        m_currentValue = m_easeRange.m_begin;
         m_currentEaseTime = 0;
     }
 
@@ -271,7 +279,7 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<FloatMathNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdxA, pNode->m_pValueNodeA );
-        context.SetNodePtrFromIndex( m_inputValueNodeIdxB, pNode->m_pValueNodeB );
+        context.SetOptionalNodePtrFromIndex( m_inputValueNodeIdxB, pNode->m_pValueNodeB );
     }
 
     void FloatMathNode::InitializeInternal( GraphContext& context )
@@ -349,7 +357,7 @@ namespace EE::Animation::GraphNodes
                         #if EE_DEVELOPMENT_TOOLS
                         context.LogWarning( GetNodeIndex(), "Dividing by zero in FloatMathNode" );
                         #endif
-                        m_value = FLT_MAX;
+                        m_value = 0;
                     }
                     else
                     {
@@ -486,42 +494,65 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatReverseDirectionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatAngleMathNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<FloatReverseDirectionNode>( context, options );
+        auto pNode = CreateNode<FloatAngleMathNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
     }
 
-    void FloatReverseDirectionNode::InitializeInternal( GraphContext& context )
+    void FloatAngleMathNode::InitializeInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
         FloatValueNode::InitializeInternal( context );
         m_pInputValueNode->Initialize( context );
     }
 
-    void FloatReverseDirectionNode::ShutdownInternal( GraphContext& context )
+    void FloatAngleMathNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
         m_pInputValueNode->Shutdown( context );
         FloatValueNode::ShutdownInternal( context );
     }
 
-    void FloatReverseDirectionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void FloatAngleMathNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
+        auto pSettings = GetSettings<FloatAngleMathNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
-            float const inputValue = m_pInputValueNode->GetValue<float>( context );
             
-            if ( inputValue < 0.0f )
+            float const inputValue = m_pInputValueNode->GetValue<float>( context );
+
+            switch ( pSettings->m_operation )
             {
-                m_value = -180.0f -inputValue;
-            }
-            else
-            {
-                m_value = 180.0f - inputValue;
+                case Operation::ClampTo180:
+                {
+                    m_value = Degrees( inputValue ).GetClamped180().ToFloat();
+                }
+                break;
+
+                case Operation::ClampTo360:
+                {
+                    m_value = Degrees( inputValue ).ClampPositive360().ToFloat();
+                }
+                break;
+
+                case Operation::FlipHemisphere:
+                {
+                    // Treats 180.0f as the forward direction, so negative values are to the left and positive are to the right
+                    m_value = Degrees( inputValue - 180.0f ).GetClamped180().ToFloat();
+                }
+                break;
+
+                case Operation::FlipHemisphereNegate:
+                {
+                    // Treats 180.0f as the forward direction but flips the result so negative values are to the right and positive are to the left
+                    m_value = Degrees( inputValue - 180.0f ).GetClamped180().ToFloat();
+                    m_value = -m_value;
+                }
+                break;
             }
         }
 

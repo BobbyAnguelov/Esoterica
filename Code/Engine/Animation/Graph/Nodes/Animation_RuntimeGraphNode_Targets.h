@@ -41,16 +41,16 @@ namespace EE::Animation::GraphNodes
         {
             EE_REGISTER_ENUM
 
-            AngleHorizontal,
-            AngleVertical,
+            AngleHorizontal, // The horizontal angle (around z) between the target point and the character
+            AngleVertical, // The vertical angle (around x) between the target point and the character
 
-            Distance,
-            DistanceHorizontalOnly,
-            DistanceVerticalOnly,
+            Distance, // The distance to the target point
+            DistanceHorizontalOnly, // The XY distance to the target point
+            DistanceVerticalOnly, // The Z distance to the target point
 
-            DeltaOrientationX,
-            DeltaOrientationY,
-            DeltaOrientationZ,
+            DeltaOrientationX, // The difference in orientation between the character and the target orientation (assumes target is in worldspace)
+            DeltaOrientationY, // The difference in orientation between the character and the target orientation (assumes target is in worldspace)
+            DeltaOrientationZ, // The difference in orientation between the character and the target orientation (assumes target is in worldspace)
         };
 
         struct EE_ENGINE_API Settings final : public TargetValueNode::Settings

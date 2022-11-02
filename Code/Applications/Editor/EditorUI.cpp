@@ -425,8 +425,7 @@ namespace EE
 
         // Create tools world
         auto pWorkspaceWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-        pWorkspaceWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
-        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pWorkspaceWorld->GetViewport() );
+        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pWorkspaceWorld->GetViewport(), true );
 
         // Create workspace
         auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pWorkspaceWorld, resourceID );

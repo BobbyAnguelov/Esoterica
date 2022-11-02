@@ -25,7 +25,9 @@ namespace EE::Animation::GraphNodes
 
     void ConstBoolToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
         ImGui::Text( m_value ? "True" : "False" );
+        EndDrawInternalRegion( ctx );
     }
 
     //-------------------------------------------------------------------------
@@ -48,7 +50,9 @@ namespace EE::Animation::GraphNodes
 
     void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
         ImGui::Text( m_value.c_str() );
+        EndDrawInternalRegion( ctx );
     }
 
     //-------------------------------------------------------------------------
@@ -71,7 +75,9 @@ namespace EE::Animation::GraphNodes
 
     void ConstIntToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
         ImGui::Text( "%d", m_value );
+        EndDrawInternalRegion( ctx );
     }
 
     //-------------------------------------------------------------------------
@@ -94,7 +100,9 @@ namespace EE::Animation::GraphNodes
 
     void ConstFloatToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
         ImGui::Text( "%.3f", m_value );
+        EndDrawInternalRegion( ctx );
     }
 
     //-------------------------------------------------------------------------
@@ -117,7 +125,9 @@ namespace EE::Animation::GraphNodes
 
     void ConstVectorToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f, W: %.2f", m_value.m_x, m_value.m_y, m_value.m_z, m_value.m_w );
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        DrawVectorInfoText( ctx, m_value );
+        EndDrawInternalRegion( ctx );
     }
 
     //-------------------------------------------------------------------------
@@ -140,6 +150,8 @@ namespace EE::Animation::GraphNodes
 
     void ConstTargetToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        ImGui::Text( "Transform - TODO" );
+        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        DrawTargetInfoText( ctx, Target( m_value ) );
+        EndDrawInternalRegion( ctx );
     }
 }

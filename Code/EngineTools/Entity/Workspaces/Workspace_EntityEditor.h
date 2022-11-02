@@ -26,6 +26,7 @@ namespace EE::EntityModel
 
     protected:
 
+        virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
         virtual bool HasViewportWindow() const override { return true; }
         virtual bool HasViewportToolbar() const override { return true; }
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;

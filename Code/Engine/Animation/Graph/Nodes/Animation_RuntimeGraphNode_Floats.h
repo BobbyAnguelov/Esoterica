@@ -110,14 +110,15 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_easeTime, m_initalValue, m_easingType, m_easeTime );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_easeTime, m_startValue, m_inputValueNodeIdx, m_easingType, m_useStartValue );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             float                       m_easeTime = 1.0f;
-            float                       m_initalValue = -1.0f;
+            float                       m_startValue = 0.0f;
             int16_t                     m_inputValueNodeIdx = InvalidIndex;
             Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
+            bool                        m_useStartValue = false;
         };
 
     private:
@@ -315,18 +316,29 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API FloatReverseDirectionNode final : public FloatValueNode
+    class EE_ENGINE_API FloatAngleMathNode final : public FloatValueNode
     {
     public:
+
+        enum class Operation : uint8_t
+        {
+            EE_REGISTER_ENUM
+
+            ClampTo180, // Clamps the input angle between [-180, 180]
+            ClampTo360, // Clamps the input angle between [0, 360]
+            FlipHemisphere, // Flips the hemisphere and returns the angle relative to 180 (e.g. 135deg will result in -45deg )
+            FlipHemisphereNegate, // Flips the hemisphere and returns the negated angle relative to 180 ( e.g. 135deg will result in 45deg )
+        };
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_operation );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                     m_inputValueNodeIdx = InvalidIndex;
+            Operation                   m_operation;
         };
 
     private:

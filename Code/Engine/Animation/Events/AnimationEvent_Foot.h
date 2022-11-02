@@ -46,6 +46,7 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         static char const* GetPhaseName( Phase phase );
+        static char const* GetPhaseConditionName( PhaseCondition phaseCondition );
         static Color GetPhaseColor( Phase phase );
         #endif
 

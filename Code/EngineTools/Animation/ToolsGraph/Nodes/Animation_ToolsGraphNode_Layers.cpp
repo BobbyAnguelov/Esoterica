@@ -30,9 +30,7 @@ namespace EE::Animation::GraphNodes
 
     void LocalLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
-        ctx.m_pDrawList->AddLine( originalCursorPos, originalCursorPos + ImVec2( GetWidth(), 0 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        DrawInternalSeparator( ctx );
 
         //-------------------------------------------------------------------------
 
@@ -87,9 +85,7 @@ namespace EE::Animation::GraphNodes
 
     void StateMachineLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
-        ctx.m_pDrawList->AddLine( originalCursorPos, originalCursorPos + ImVec2( GetWidth(), 0 ), ImColor( ImGuiX::Style::s_colorTextDisabled ) );
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        DrawInternalSeparator( ctx );
 
         //-------------------------------------------------------------------------
 

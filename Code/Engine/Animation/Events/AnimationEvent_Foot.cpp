@@ -14,6 +14,17 @@ namespace EE::Animation
         "Left Foot Passing",
     };
 
+    constexpr static char const* g_phaseConditionNames[6] =
+    {
+        "Left Foot Down",
+        "Left Foot Passing",
+        "Left Phase",
+
+        "Right Foot Down",
+        "Right Foot Passing",
+        "Right Phase"
+    };
+
     static uint32_t g_phaseHashes[4] =
     {
         Hash::GetHash32( g_phaseNames[0] ),
@@ -41,6 +52,11 @@ namespace EE::Animation
     char const* FootEvent::GetPhaseName( Phase phase )
     {
         return g_phaseNames[(int32_t) phase];
+    }
+
+    char const* FootEvent::GetPhaseConditionName( PhaseCondition phaseCondition )
+    {
+        return g_phaseConditionNames[(int32_t) phaseCondition];
     }
 
     Color FootEvent::GetPhaseColor( Phase phase )

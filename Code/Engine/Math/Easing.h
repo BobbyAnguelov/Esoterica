@@ -78,6 +78,10 @@ namespace EE::Math::Easing
         }
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    EE_ENGINE_API char const* GetName( Type type );
+    #endif
+
     // Individual easing functions
     //-------------------------------------------------------------------------
 

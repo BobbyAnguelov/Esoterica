@@ -1,38 +1,44 @@
 #pragma once
 
+#include "EngineTools/_Module/API.h"
 #include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::VisualGraph
 {
-    struct VisualSettings
+    struct EE_ENGINETOOLS_API VisualSettings
     {
         // Colors
         //-------------------------------------------------------------------------
 
-        constexpr static uint32_t const   s_graphTitleColor = IM_COL32( 255, 255, 255, 255 );
+        constexpr static uint32_t const     s_graphTitleColor = IM_COL32( 255, 255, 255, 255 );
 
-        constexpr static uint32_t const   s_genericNodeTitleTextColor = IM_COL32( 0, 0, 0, 255 );
-        constexpr static uint32_t const   s_genericNodeTitleColor = IM_COL32( 28, 28, 28, 255 );
-        constexpr static uint32_t const   s_genericNodeBackgroundColor = IM_COL32( 75, 75, 75, 255 );
-        constexpr static uint32_t const   s_genericNodeBorderColorSelected = IM_COL32( 255, 255, 255, 255 );
-        constexpr static uint32_t const   s_genericActiveColor = IM_COL32( 50, 205, 50, 255 );
-        constexpr static uint32_t const   s_genericHoverColor = IM_COL32( 200, 200, 200, 255 );
-        constexpr static uint32_t const   s_genericSelectionColor = IM_COL32( 255, 216, 0, 255 );
+        constexpr static uint32_t const     s_genericNodeTitleTextColor = IM_COL32( 0, 0, 0, 255 );
+        constexpr static uint32_t const     s_genericNodeTitleColor = IM_COL32( 28, 28, 28, 255 );
+        constexpr static uint32_t const     s_genericNodeBackgroundColor = IM_COL32( 75, 75, 75, 255 );
+        constexpr static uint32_t const     s_genericNodeBorderColorSelected = IM_COL32( 255, 255, 255, 255 );
+        constexpr static uint32_t const     s_genericActiveColor = IM_COL32( 50, 205, 50, 255 );
+        constexpr static uint32_t const     s_genericHoverColor = IM_COL32( 200, 200, 200, 255 );
+        constexpr static uint32_t const     s_genericSelectionColor = IM_COL32( 255, 216, 0, 255 );
 
-        constexpr static uint32_t const   s_connectionColor = IM_COL32( 185, 185, 185, 255 );
-        constexpr static uint32_t const   s_connectionColorValid = IM_COL32( 0, 255, 0, 255 );
-        constexpr static uint32_t const   s_connectionColorInvalid = IM_COL32( 255, 0, 0, 255 );
-        constexpr static uint32_t const   s_connectionColorHovered = IM_COL32( 255, 255, 255, 255 );
+        constexpr static uint32_t const     s_connectionColor = IM_COL32( 185, 185, 185, 255 );
+        constexpr static uint32_t const     s_connectionColorValid = IM_COL32( 0, 255, 0, 255 );
+        constexpr static uint32_t const     s_connectionColorInvalid = IM_COL32( 255, 0, 0, 255 );
+        constexpr static uint32_t const     s_connectionColorHovered = IM_COL32( 255, 255, 255, 255 );
+
+        static Color const                  s_genericNodeSeparatorColor;
+        static Color const                  s_genericNodeInternalRegionDefaultColor;
+        constexpr static float const        s_internalRegionPadding = 3;
 
         // UI
         //-------------------------------------------------------------------------
 
-        static ImVec2 const             s_graphTitleMargin;
-        constexpr static float const    s_gridSpacing = 20;
-        constexpr static float const    s_nodeSelectionBorder = 3.0f;
-        constexpr static float const    s_connectionSelectionExtraRadius = 5.0f;
+        static ImVec2 const                 s_graphTitleMargin;
+        constexpr static float const        s_minimumNodeWidth = 20;
+        constexpr static float const        s_gridSpacing = 20;
+        constexpr static float const        s_nodeSelectionBorder = 3.0f;
+        constexpr static float const        s_connectionSelectionExtraRadius = 5.0f;
     };
 
     //-------------------------------------------------------------------------

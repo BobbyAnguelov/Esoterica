@@ -900,6 +900,7 @@ namespace EE::TypeSystem::Reflection
             {
                 ReflectedEnumConstant constantDesc;
                 constantDesc.m_label = (char const*) sqlite3_column_text( pStatement, 0 );
+                constantDesc.m_ID = StringID( constantDesc.m_label );
                 constantDesc.m_value = sqlite3_column_int( pStatement, 1 );
                 constantDesc.m_description = (char const*) sqlite3_column_text( pStatement, 2 );
                 type.AddEnumConstant( constantDesc );
@@ -990,9 +991,9 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        for ( auto const& enumConstant : type.m_enumElements )
+        for ( auto const& enumConstant : type.m_enumConstants )
         {
-            if ( !ExecuteSimpleQuery( "INSERT INTO `EnumConstants`(`TypeID`,`Label`,`Value`, `Description`) VALUES ( %u, \"%s\", %u, \"%s\" );", (uint32_t) type.m_ID, enumConstant.second.m_label.c_str(), enumConstant.second.m_value, enumConstant.second.m_description.c_str() ) )
+            if ( !ExecuteSimpleQuery( "INSERT INTO `EnumConstants`(`TypeID`,`Label`,`Value`, `Description`) VALUES ( %u, \"%s\", %u, \"%s\" );", (uint32_t) type.m_ID, enumConstant.m_label.c_str(), enumConstant.m_value, enumConstant.m_description.c_str() ) )
             {
                 return false;
             }
