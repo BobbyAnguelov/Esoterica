@@ -23,6 +23,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree ); }
@@ -46,6 +47,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask Blend"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree ); }
@@ -62,6 +64,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask Selector"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree ); }

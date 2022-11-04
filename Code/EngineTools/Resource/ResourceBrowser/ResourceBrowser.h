@@ -52,7 +52,7 @@ namespace EE
     private:
 
         ToolsContext&                                       m_toolsContext;
-        char                                                m_nameFilterBuffer[256];
+        ImGuiX::FilterWidget                                m_filter;
         TVector<ResourceTypeID>                             m_typeFilter;
         bool                                                m_showRawFiles = false;
         bool                                                m_showDeleteConfirmationDialog = false;

@@ -25,6 +25,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Unknown; }
         virtual char const* GetName() const override { return m_name.c_str(); }
         virtual char const* GetTypeName() const override { return "Transition"; }
         virtual char const* GetCategory() const override { return "Transitions"; }

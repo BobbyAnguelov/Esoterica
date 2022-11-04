@@ -7,6 +7,7 @@
 #include "System/Math/Transform.h"
 #include "System/Types/Color.h"
 #include "System/Types/String.h"
+#include "System/Types/BitFlags.h"
 
 //-------------------------------------------------------------------------
 // ImGui Extensions
@@ -93,7 +94,7 @@ namespace EE::ImGuiX
     EE_SYSTEM_API void VerticalSeparator( ImVec2 const& size = ImVec2( -1, -1 ), ImColor const& color = 0 );
 
     //-------------------------------------------------------------------------
-    // Widgets
+    // Basic Widgets
     //-------------------------------------------------------------------------
 
     // Draw a tooltip for the immediately preceding item
@@ -165,8 +166,6 @@ namespace EE::ImGuiX
     EE_SYSTEM_API bool DrawSpinner( char const* pLabel, ImColor const& color = ImGui::GetStyle().Colors[ImGuiCol_Text], float radius = 6.0f, float thickness = 3.0f );
 
     //-------------------------------------------------------------------------
-    // Numeric Widgets
-    //-------------------------------------------------------------------------
 
     EE_SYSTEM_API bool InputFloat2( char const* pID, Float2& value, float width = -1, bool readOnly = false );
     EE_SYSTEM_API bool InputFloat3( char const* pID, Float3& value, float width = -1, bool readOnly = false );
@@ -174,5 +173,42 @@ namespace EE::ImGuiX
     EE_SYSTEM_API bool InputFloat4( char const* pID, Vector& value, float width = -1, bool readOnly = false );
 
     EE_SYSTEM_API bool InputTransform( char const* pID, Transform& value, float width = -1, bool readOnly = false );
+
+    //-------------------------------------------------------------------------
+    // Advanced widgets
+    //-------------------------------------------------------------------------
+
+    // A simple filter entry widget that allows you to string match to some entered text
+    class EE_SYSTEM_API FilterWidget
+    {
+        constexpr static uint32_t const s_bufferSize = 255;
+
+    public:
+
+        enum Options : uint8_t
+        {
+            TakeInitialFocus = 0
+        };
+
+    public:
+
+        // Draws the filter. Returns true if the filter has been updated
+        bool DrawAndUpdate( TBitFlags<Options> options = TBitFlags<Options>() );
+
+        inline void Clear();
+
+        inline bool HasFilterSet() const { return !m_tokens.empty(); }
+
+        inline TVector<String> const& GetFilterTokens() const { return m_tokens; }
+
+        // Does a provided string match the current filter - the string copy is intentional!
+        bool MatchesFilter( String string ); 
+
+    private:
+
+        char                m_buffer[s_bufferSize] = { 0 };
+        TVector<String>     m_tokens;
+    };
+
 }
 #endif

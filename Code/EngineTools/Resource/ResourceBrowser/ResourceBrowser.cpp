@@ -138,7 +138,6 @@ namespace EE
     {
         m_expandItemsOnlyViaArrow = true;
 
-        Memory::MemsetZero( m_nameFilterBuffer, 256 * sizeof( char ) );
         m_onDoubleClickEventID = OnItemDoubleClicked().Bind( [this] ( TreeListViewItem* pItem ) { OnBrowserItemDoubleClicked( pItem ); } );
         m_resourceDatabaseUpdateEventBindingID = toolsContext.m_pResourceDatabase->OnDatabaseUpdated().Bind( [this] () { RebuildTree(); } );
 
@@ -294,25 +293,9 @@ namespace EE
             // Text filter
             //-------------------------------------------------------------------------
 
-            if ( isVisible && m_nameFilterBuffer[0] != 0 )
+            if ( isVisible )
             {
-                String lowercaseLabel = pItem->GetDisplayName();
-                lowercaseLabel.make_lower();
-
-                char tempBuffer[256];
-                strcpy( tempBuffer, m_nameFilterBuffer );
-
-                char* token = strtok( tempBuffer, " " );
-                while ( token )
-                {
-                    if ( lowercaseLabel.find( token ) == String::npos )
-                    {
-                        isVisible = false;
-                        break;
-                    }
-
-                    token = strtok( NULL, " " );
-                }
+                isVisible = m_filter.MatchesFilter( pItem->GetDisplayName() );
             }
 
             //-------------------------------------------------------------------------
@@ -520,22 +503,11 @@ namespace EE
         // Text Filter
         //-------------------------------------------------------------------------
 
-        float itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - buttonWidth - itemSpacing );
-        if ( ImGui::InputText( "##Filter", m_nameFilterBuffer, 256 ) )
+        if ( m_filter.DrawAndUpdate() )
         {
-            // Convert buffer to lower case
-            int32_t i = 0;
-            while ( i < 256 && m_nameFilterBuffer[i] != 0 )
-            {
-                m_nameFilterBuffer[i] = eastl::CharToLower( m_nameFilterBuffer[i] );
-                i++;
-            }
-
             shouldUpdateVisibility = true;
 
-            auto const SetExpansion = []( TreeListViewItem* pItem )
+            auto const SetExpansion = [] ( TreeListViewItem* pItem )
             {
                 if ( pItem->IsVisible() )
                 {
@@ -544,13 +516,6 @@ namespace EE
             };
 
             ForEachItem( SetExpansion );
-        }
-
-        ImGui::SameLine();
-        if ( ImGui::Button( EE_ICON_CLOSE_CIRCLE "##Clear Filter", ImVec2( buttonWidth, 0 ) ) )
-        {
-            m_nameFilterBuffer[0] = 0;
-            shouldUpdateVisibility = true;
         }
 
         // Type Filter + Controls

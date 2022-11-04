@@ -121,7 +121,7 @@ namespace EE::VisualGraph
             auto pDrawList = ImGui::GetWindowDrawList();
 
             m_hasFocus = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows );
-            m_isViewHovered = ImGui::IsWindowHovered();
+            m_isViewHovered = ImGui::IsWindowHovered( ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByPopup );
             m_canvasSize = ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin();
             pDrawList->ChannelsSplit( (uint8_t) DrawChannel::NumChannels );
 
@@ -1129,7 +1129,20 @@ namespace EE::VisualGraph
     {
         EE_ASSERT( m_dragState.m_mode == DragMode::View);
 
-        if ( !ImGui::IsMouseDown( ImGuiMouseButton_Middle ) )
+        ImGui::SetMouseCursor( ImGuiMouseCursor_Hand );
+
+        //-------------------------------------------------------------------------
+
+        ImVec2 mouseDragDelta;
+        if ( ImGui::IsMouseDown( ImGuiMouseButton_Right ) )
+        {
+            mouseDragDelta = ImGui::GetMouseDragDelta( ImGuiMouseButton_Right );
+        }
+        else if ( ImGui::IsMouseDown( ImGuiMouseButton_Middle ) )
+        {
+            mouseDragDelta = ImGui::GetMouseDragDelta( ImGuiMouseButton_Middle );
+        }
+        else
         {
             StopDraggingView( ctx );
             return;
@@ -1137,7 +1150,6 @@ namespace EE::VisualGraph
 
         //-------------------------------------------------------------------------
 
-        ImVec2 const mouseDragDelta = ImGui::GetMouseDragDelta( ImGuiMouseButton_Middle );
         *m_pViewOffset = m_dragState.m_startValue - mouseDragDelta;
     }
 
@@ -1317,7 +1329,7 @@ namespace EE::VisualGraph
     {
         if ( IsViewingStateMachineGraph() )
         {
-            auto pStateMachineGraph = GetStateMachineGraph();
+            StateMachineGraph* pStateMachineGraph = GetStateMachineGraph();
             auto pStartState = Cast<SM::State>( m_dragState.m_pNode );
             auto pEndState = TryCast<SM::State>( m_pHoveredNode );
             if ( pEndState != nullptr && pStateMachineGraph->CanCreateTransitionConduit( pStartState, pEndState ) )
@@ -1327,7 +1339,7 @@ namespace EE::VisualGraph
         }
         else
         {
-            auto pFlowGraph = GetFlowGraph();
+            FlowGraph* pFlowGraph = GetFlowGraph();
 
             if( m_pHoveredPin != nullptr && m_pHoveredPin->m_direction != m_dragState.m_pPin->m_direction )
             {
@@ -1344,7 +1356,13 @@ namespace EE::VisualGraph
             }
             else
             {
-                pFlowGraph->BreakAnyConnectionsForPin( m_dragState.m_pPin->m_ID );
+                if ( pFlowGraph->SupportsAutoConnection() )
+                {
+                    m_contextMenuState.m_pNode = m_dragState.m_pNode;
+                    m_contextMenuState.m_pPin = m_dragState.m_pPin;
+                    m_contextMenuState.m_requestOpenMenu = true;
+                    m_contextMenuState.m_isAutoConnectMenu = true;
+                }
             }
         }
 
@@ -1433,27 +1451,34 @@ namespace EE::VisualGraph
 
         //-------------------------------------------------------------------------
 
-        // Detect clicked that start within the view window
+        // Detect clicks that start within the view window
         if ( m_isViewHovered )
         {
-            // Track left mouse
             if ( m_isViewHovered && ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
             {
-                m_dragState.m_leftMouseClickDetected = true;
+                m_dragState.m_primaryMouseClickDetected = true;
             }
             else if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
             {
-                m_dragState.m_leftMouseClickDetected = false;
+                m_dragState.m_primaryMouseClickDetected = false;
             }
 
-            // Track middle mouse
-            if ( m_isViewHovered && ImGui::IsMouseClicked( ImGuiMouseButton_Middle ) )
+            //-------------------------------------------------------------------------
+
+            if ( m_isViewHovered && ( ImGui::IsMouseClicked( ImGuiMouseButton_Right ) || ImGui::IsMouseClicked( ImGuiMouseButton_Middle ) ) )
             {
-                m_dragState.m_middleMouseClickDetected = true;
+                m_dragState.m_secondaryMouseClickDetected = true;
             }
-            else if ( !ImGui::IsMouseDown( ImGuiMouseButton_Middle ) )
+            else if ( !( ImGui::IsMouseDown( ImGuiMouseButton_Right ) || ImGui::IsMouseDown( ImGuiMouseButton_Middle ) ) )
             {
-                m_dragState.m_middleMouseClickDetected = false;
+                m_dragState.m_secondaryMouseClickDetected = false;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( m_dragState.m_mode == DragMode::None && ImGui::IsMouseReleased( ImGuiMouseButton_Right ) )
+            {
+                m_contextMenuState.m_requestOpenMenu = true;
             }
         }
 
@@ -1463,7 +1488,7 @@ namespace EE::VisualGraph
             // Should we start dragging?
             case DragMode::None:
             {
-                if ( m_dragState.m_leftMouseClickDetected && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 3 ) )
+                if ( m_dragState.m_primaryMouseClickDetected && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 3 ) )
                 {
                     if ( ImGui::IsWindowHovered() )
                     {
@@ -1505,7 +1530,7 @@ namespace EE::VisualGraph
                         }
                     }
                 }
-                else if ( m_dragState.m_middleMouseClickDetected && ImGui::IsMouseDragging( ImGuiMouseButton_Middle, 3 ) )
+                else if ( m_dragState.m_secondaryMouseClickDetected && !m_contextMenuState.m_menuOpened && ( ImGui::IsMouseDragging( ImGuiMouseButton_Right, 3 ) || ImGui::IsMouseDragging( ImGuiMouseButton_Middle, 3 ) ) )
                 {
                     StartDraggingView( ctx );
                 }
@@ -1589,12 +1614,17 @@ namespace EE::VisualGraph
 
     void GraphView::HandleContextMenu( DrawContext const& ctx, UserContext* pUserContext )
     {
-        if ( m_isViewHovered && ImGui::IsMouseReleased( ImGuiMouseButton_Right ) )
+        if( m_isViewHovered && !m_contextMenuState.m_menuOpened && m_contextMenuState.m_requestOpenMenu )
         {
             m_contextMenuState.m_mouseCanvasPos = ctx.m_mouseCanvasPos;
             m_contextMenuState.m_menuOpened = true;
-            m_contextMenuState.m_pNode = m_pHoveredNode;
-            m_contextMenuState.m_pPin = m_pHoveredPin;
+
+            // If this isnt a autoconnect request, then use the hovered data
+            if ( !m_contextMenuState.m_isAutoConnectMenu )
+            {
+                m_contextMenuState.m_pNode = m_pHoveredNode;
+                m_contextMenuState.m_pPin = m_pHoveredPin;
+            }
 
             // if we are opening a context menu for a node, set that node as selected
             if ( m_contextMenuState.m_pNode != nullptr )
@@ -1605,6 +1635,8 @@ namespace EE::VisualGraph
             ImGui::OpenPopupEx( GImGui->CurrentWindow->GetID( "GraphContextMenu" ) );
         }
 
+        m_contextMenuState.m_requestOpenMenu = false;
+
         //-------------------------------------------------------------------------
 
         if ( IsContextMenuOpen() )
@@ -1613,93 +1645,158 @@ namespace EE::VisualGraph
             ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 4 ) );
             if ( ImGui::BeginPopupContextItem( "GraphContextMenu" ) )
             {
-                if ( m_contextMenuState.m_pNode != nullptr )
+                if ( IsViewingFlowGraph() )
                 {
-                    if ( IsViewingFlowGraph() )
-                    {
-                        auto pFlowGraph = GetFlowGraph();
-                        auto pFlowNode = m_contextMenuState.GetAsFlowNode();
-
-                        // Dynamic Pins
-                        if ( pFlowNode->SupportsDynamicInputPins() )
-                        {
-                            if ( ImGui::MenuItem( EE_ICON_PLUS_CIRCLE_OUTLINE" Add Input" ) )
-                            {
-                                pFlowGraph->CreateDynamicPin( pFlowNode->GetID() );
-                            }
-
-                            if ( m_contextMenuState.m_pPin != nullptr && m_contextMenuState.m_pPin->IsDynamicPin() )
-                            {
-                                if ( ImGui::MenuItem( EE_ICON_CLOSE_CIRCLE_OUTLINE" Remove Input" ) )
-                                {
-                                    pFlowGraph->DestroyDynamicPin( pFlowNode->GetID(), m_contextMenuState.m_pPin->m_ID );
-                                }
-                            }
-                        }
-
-                        // Connections
-                        if ( ImGui::MenuItem( EE_ICON_PIPE_DISCONNECTED" Break All Connections" ) )
-                        {
-                            pFlowGraph->BreakAllConnectionsForNode( pFlowNode );
-                        }
-
-                        // User Options
-                        pFlowNode->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
-                    }
-                    else
-                    {
-                        if ( ImGui::MenuItem( EE_ICON_STAR" Make Default Entry State" ) )
-                        {
-                            auto pParentStateMachineGraph = Cast<VisualGraph::StateMachineGraph>( m_contextMenuState.m_pNode->GetParentGraph() );
-                            pParentStateMachineGraph->SetDefaultEntryState( m_contextMenuState.m_pNode->GetID() );
-                        }
-
-                        ImGui::Separator();
-
-                        auto pStateMachineNode = m_contextMenuState.GetAsStateMachineNode();
-                        pStateMachineNode->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos );
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
-                    {
-                        ImGui::Separator();
-
-                        if ( m_contextMenuState.m_pNode->IsRenameable() )
-                        {
-                            if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
-                            {
-                                BeginRenameNode( m_contextMenuState.m_pNode );
-                            }
-                        }
-
-                        if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
-                        {
-                            ClearSelection();
-                            m_contextMenuState.m_pNode->Destroy();
-                            m_contextMenuState.Reset();
-                        }
-                    }
+                    DrawFlowGraphContextMenu( ctx, pUserContext );
                 }
-                else // Graph Context Menu
+                else
                 {
-                    if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )
-                    {
-                        ResetView();
-                    }
-
-                    m_pGraph->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos );
+                    DrawStateMachineContextMenu( ctx, pUserContext );
                 }
 
                 ImGui::EndPopup();
             }
-            else
+            else // Close menu
             {
                 ImGui::SetWindowFocus();
                 m_contextMenuState.Reset();
             }
             ImGui::PopStyleVar( 2 );
+        }
+    }
+
+    void GraphView::DrawFlowGraphContextMenu( DrawContext const& ctx, UserContext* pUserContext )
+    {
+        EE_ASSERT( IsViewingFlowGraph() );
+
+        auto pFlowGraph = GetFlowGraph();
+
+        // Node Menu
+        if ( !m_contextMenuState.m_isAutoConnectMenu && m_contextMenuState.m_pNode != nullptr )
+        {
+            auto pFlowNode = m_contextMenuState.GetAsFlowNode();
+
+            // Dynamic Pins
+            if ( pFlowNode->SupportsDynamicInputPins() )
+            {
+                if ( ImGui::MenuItem( EE_ICON_PLUS_CIRCLE_OUTLINE" Add Input" ) )
+                {
+                    pFlowGraph->CreateDynamicPin( pFlowNode->GetID() );
+                }
+
+                if ( m_contextMenuState.m_pPin != nullptr && m_contextMenuState.m_pPin->IsDynamicPin() )
+                {
+                    if ( ImGui::MenuItem( EE_ICON_CLOSE_CIRCLE_OUTLINE" Remove Input" ) )
+                    {
+                        pFlowGraph->DestroyDynamicPin( pFlowNode->GetID(), m_contextMenuState.m_pPin->m_ID );
+                    }
+                }
+            }
+
+            // Connections
+            if ( ImGui::MenuItem( EE_ICON_PIPE_DISCONNECTED" Break All Connections" ) )
+            {
+                pFlowGraph->BreakAllConnectionsForNode( pFlowNode );
+            }
+
+            // Default node Menu
+            pFlowNode->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
+
+            // Renameable Nodes
+            if ( m_contextMenuState.m_pNode->IsRenameable() )
+            {
+                if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
+                {
+                    BeginRenameNode( m_contextMenuState.m_pNode );
+                }
+            }
+
+            // DestroyableNodes
+            if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
+            {
+                if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
+                {
+                    ClearSelection();
+                    m_contextMenuState.m_pNode->Destroy();
+                    m_contextMenuState.Reset();
+                }
+            }
+        }
+        else // Graph Menu
+        {
+            m_contextMenuState.m_filterWidget.DrawAndUpdate( ImGuiX::FilterWidget::TakeInitialFocus );
+
+            if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )
+            {
+                ResetView();
+            }
+
+            if ( pFlowGraph->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens(), TryCast<Flow::Node>( m_contextMenuState.m_pNode ), m_contextMenuState.m_pPin ) )
+            {
+                m_contextMenuState.Reset();
+                ImGui::CloseCurrentPopup();
+            }
+        }
+    }
+
+    void GraphView::DrawStateMachineContextMenu( DrawContext const& ctx, UserContext* pUserContext )
+    {
+        EE_ASSERT( IsViewingStateMachineGraph() );
+
+        auto pStateMachineGraph = GetStateMachineGraph();
+
+        // Node Menu
+        if ( m_contextMenuState.m_pNode != nullptr )
+        {
+            auto pStateMachineNode = m_contextMenuState.GetAsStateMachineNode();
+
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::MenuItem( EE_ICON_STAR" Make Default Entry State" ) )
+            {
+                auto pParentStateMachineGraph = Cast<VisualGraph::StateMachineGraph>( m_contextMenuState.m_pNode->GetParentGraph() );
+                pParentStateMachineGraph->SetDefaultEntryState( m_contextMenuState.m_pNode->GetID() );
+            }
+
+            // Default node menu
+            pStateMachineNode->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos );
+
+            // Renameable Nodes
+            if ( m_contextMenuState.m_pNode->IsRenameable() )
+            {
+                if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
+                {
+                    BeginRenameNode( m_contextMenuState.m_pNode );
+                }
+            }
+
+            // Destroyable Nodes
+            bool nodeDestroyed = false;
+            if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
+            {
+                if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
+                {
+                    ClearSelection();
+                    m_contextMenuState.m_pNode->Destroy();
+                    m_contextMenuState.Reset();
+                    nodeDestroyed = true;
+                }
+            }
+        }
+        else // Graph Menu
+        {
+            m_contextMenuState.m_filterWidget.DrawAndUpdate();
+
+            if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )
+            {
+                ResetView();
+            }
+
+            if( pStateMachineGraph->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens() ) )
+            {
+                m_contextMenuState.Reset();
+                ImGui::CloseCurrentPopup();
+            }
         }
     }
 

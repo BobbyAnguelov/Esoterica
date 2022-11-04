@@ -42,23 +42,7 @@ namespace EE::Animation::GraphNodes
 
         using VisualGraph::Flow::Node::Node;
 
-        // Get the type of node this is, this is either the output type for the nodes with output or the first input for nodes with no outputs
-        EE_FORCE_INLINE GraphValueType GetValueType() const
-        {
-            if ( GetNumOutputPins() > 0 )
-            {
-                return GraphValueType( GetOutputPin( 0 )->m_type );
-            }
-            else if ( GetNumInputPins() > 0 )
-            {
-                return GraphValueType( GetInputPin( 0 )->m_type );
-            }
-            else
-            {
-                return GraphValueType::Unknown;
-            }
-        }
-
+        virtual GraphValueType GetValueType() const = 0;
         virtual ImColor GetTitleBarColor() const override;
         virtual ImColor GetPinColor( VisualGraph::Flow::Pin const& pin ) const override;
 

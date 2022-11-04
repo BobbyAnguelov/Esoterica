@@ -14,7 +14,8 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetCategory() const override { return "Blends"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
+        virtual char const* GetCategory() const override { return "Animation/Blends"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override final { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual bool SupportsDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Input"; }
@@ -37,7 +38,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Ranged Blend"; }
+        virtual char const* GetTypeName() const override { return "Animation/Ranged Blend"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual bool DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
         virtual void OnDynamicPinCreation( UUID pinID ) override;
@@ -54,7 +55,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_REGISTER_TYPE( VelocityBlendToolsNode );
 
-        virtual char const* GetTypeName() const override { return "Velocity Blend"; }
+        virtual char const* GetTypeName() const override { return "Animation/Velocity Blend"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
     };

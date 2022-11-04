@@ -27,6 +27,7 @@ namespace EE::Animation
 
         m_log.clear();
         m_nodeIDToIndexMap.clear();
+        m_nodeIndexToIDMap.clear();
         m_persistentNodeIndices.clear();
         m_compiledNodePaths.clear();
         m_currentNodeMemoryOffset = 0;

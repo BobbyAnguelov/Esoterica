@@ -13,8 +13,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Const Bool"; }
-        virtual char const* GetCategory() const override { return "Values/Bool"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
+        virtual char const* GetTypeName() const override { return "Bool"; }
+        virtual char const* GetCategory() const override { return "Values/Const"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
@@ -34,8 +35,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Const ID"; }
-        virtual char const* GetCategory() const override { return "Values/ID"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
+        virtual char const* GetTypeName() const override { return "ID"; }
+        virtual char const* GetCategory() const override { return "Values/Const"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
@@ -55,8 +57,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Const Int"; }
-        virtual char const* GetCategory() const override { return "Values/Int"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
+        virtual char const* GetTypeName() const override { return "Int"; }
+        virtual char const* GetCategory() const override { return "Values/Const"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
@@ -76,8 +79,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Const Float"; }
-        virtual char const* GetCategory() const override { return "Values/Float"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
+        virtual char const* GetTypeName() const override { return "Float"; }
+        virtual char const* GetCategory() const override { return "Values/Const"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
@@ -97,8 +101,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Const Vector"; }
-        virtual char const* GetCategory() const override { return "Values/Vector"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Vector; }
+        virtual char const* GetTypeName() const override { return "Vector"; }
+        virtual char const* GetCategory() const override { return "Values/Const"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
@@ -118,8 +123,9 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetTypeName() const override { return "Const Target"; }
-        virtual char const* GetCategory() const override { return "Values/Target"; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Target; }
+        virtual char const* GetTypeName() const override { return "Target"; }
+        virtual char const* GetCategory() const override { return "Values/Const"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;

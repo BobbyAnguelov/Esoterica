@@ -54,7 +54,11 @@ namespace EE::Animation
         // General Compilation
         //-------------------------------------------------------------------------
 
-        inline THashMap<UUID, int16_t> GetIDToIndexMap() const { return m_nodeIDToIndexMap; }
+        // Get the UUID to runtime index mapping
+        inline THashMap<UUID, int16_t> const& GetUUIDToRuntimeIndexMap() const { return m_nodeIDToIndexMap; }
+
+        // Get the runtime index to UUID mapping
+        inline THashMap<int16_t, UUID> const& GetRuntimeIndexToUUIDMap() const { return m_nodeIndexToIDMap; }
 
         // Try to get the runtime settings for a node in the graph, will return whether this node was already compiled or still needs compilation
         template<typename T>
@@ -77,6 +81,7 @@ namespace EE::Animation
 
             // Add to map
             m_nodeIDToIndexMap.insert( TPair<UUID, int16_t>( pNode->GetID(), pOutSettings->m_nodeIdx ) );
+            m_nodeIndexToIDMap.insert( TPair<int16_t, UUID >( pOutSettings->m_nodeIdx, pNode->GetID() ) );
 
             // Add to persistent nodes list
             TryAddPersistentNode( pNode, pOutSettings );
@@ -200,6 +205,7 @@ namespace EE::Animation
 
         TVector<NodeCompilationLogEntry>                m_log;
         THashMap<UUID, int16_t>                         m_nodeIDToIndexMap;
+        THashMap<int16_t, UUID>                         m_nodeIndexToIDMap;
         TVector<int16_t>                                m_persistentNodeIndices;
         TVector<String>                                 m_compiledNodePaths;
         TVector<GraphNode::Settings*>                   m_nodeSettings;
@@ -238,7 +244,8 @@ namespace EE::Animation
         inline GraphDefinition const* GetCompiledGraph() const { return &m_runtimeGraph; }
         inline TVector<NodeCompilationLogEntry> const& GetLog() const { return m_context.m_log; }
         inline TVector<UUID> const& GetRegisteredDataSlots() const { return m_context.m_registeredDataSlots; }
-        inline THashMap<UUID, int16_t> const& GetIDToIndexMap() const { return m_context.m_nodeIDToIndexMap; }
+        inline THashMap<UUID, int16_t> const& GetUUIDToRuntimeIndexMap() const { return m_context.m_nodeIDToIndexMap; }
+        inline THashMap<int16_t, UUID> const& GetRuntimeIndexToUUIDMap() const { return m_context.m_nodeIndexToIDMap; }
 
     private:
 

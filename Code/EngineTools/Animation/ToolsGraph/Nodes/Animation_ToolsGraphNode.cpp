@@ -162,77 +162,80 @@ namespace EE::Animation::GraphNodes
         {
             DrawInfoText( ctx );
 
-            BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4 );
-
-            if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
+            if ( GetValueType() != GraphValueType::Unknown && GetValueType() != GraphValueType::BoneMask && GetValueType() != GraphValueType::Pose )
             {
-                if ( HasOutputPin() )
+                BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4 );
+
+                if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
                 {
-                    GraphValueType const valueType = GetValueType();
-                    switch ( valueType )
+                    if ( HasOutputPin() )
                     {
-                        case GraphValueType::Bool:
+                        GraphValueType const valueType = GetValueType();
+                        switch ( valueType )
                         {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
-                            ImGui::Text( value ? "Value: True" : "Value: False" );
-                        }
-                        break;
-
-                        case GraphValueType::ID:
-                        {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
-                            if ( value.IsValid() )
+                            case GraphValueType::Bool:
                             {
-                                ImGui::Text( "Value: %s", value.c_str());
+                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
+                                ImGui::Text( value ? "Value: True" : "Value: False" );
                             }
-                            else
+                            break;
+
+                            case GraphValueType::ID:
                             {
-                                ImGui::Text( "Value: Invalid" );
+                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
+                                if ( value.IsValid() )
+                                {
+                                    ImGui::Text( "Value: %s", value.c_str() );
+                                }
+                                else
+                                {
+                                    ImGui::Text( "Value: Invalid" );
+                                }
                             }
-                        }
-                        break;
+                            break;
 
-                        case GraphValueType::Int:
-                        {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
-                            ImGui::Text( "Value: %d", value );
-                        }
-                        break;
+                            case GraphValueType::Int:
+                            {
+                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
+                                ImGui::Text( "Value: %d", value );
+                            }
+                            break;
 
-                        case GraphValueType::Float:
-                        {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
-                            ImGui::Text( "Value: %.3f", value );
-                        }
-                        break;
+                            case GraphValueType::Float:
+                            {
+                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
+                                ImGui::Text( "Value: %.3f", value );
+                            }
+                            break;
 
-                        case GraphValueType::Vector:
-                        {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
-                            DrawVectorInfoText( ctx, value );
-                        }
-                        break;
+                            case GraphValueType::Vector:
+                            {
+                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
+                                DrawVectorInfoText( ctx, value );
+                            }
+                            break;
 
-                        case GraphValueType::Target:
-                        {
-                            auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
-                            DrawTargetInfoText( ctx, value );
-                        }
-                        break;
+                            case GraphValueType::Target:
+                            {
+                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
+                                DrawTargetInfoText( ctx, value );
+                            }
+                            break;
 
-                        case GraphValueType::BoneMask:
-                        case GraphValueType::Pose:
-                        default:
-                        break;
+                            case GraphValueType::BoneMask:
+                            case GraphValueType::Pose:
+                            default:
+                            break;
+                        }
                     }
                 }
-            }
-            else
-            {
-                ImGui::NewLine();
-            }
+                else
+                {
+                    ImGui::NewLine();
+                }
 
-            EndDrawInternalRegion( ctx );
+                EndDrawInternalRegion( ctx );
+            }
         }
     }
 
@@ -264,8 +267,6 @@ namespace EE::Animation::GraphNodes
 
     void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
     {
-        ImGui::Separator();
-
         if ( ImGui::BeginMenu( EE_ICON_INFORMATION_OUTLINE" Node Info" ) )
         {
             // UUID

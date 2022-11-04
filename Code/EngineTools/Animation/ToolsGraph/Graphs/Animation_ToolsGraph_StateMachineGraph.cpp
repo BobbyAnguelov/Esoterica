@@ -75,7 +75,7 @@ namespace EE::Animation
         UpdateDependentNodes();
     }
 
-    void StateMachineGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
+    bool StateMachineGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens )
     {
         auto const CreateState = [&, this] ( StateToolsNode::StateType type )
         {
@@ -99,6 +99,8 @@ namespace EE::Animation
         {
             CreateState( StateToolsNode::StateType::OffState );
         }
+
+        return false;
     }
 
     void StateMachineGraph::OnDoubleClick( VisualGraph::UserContext* pUserContext )

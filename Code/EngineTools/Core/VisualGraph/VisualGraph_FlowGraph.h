@@ -290,6 +290,15 @@ namespace EE::VisualGraph
 
         void GetConnectedOutputNodes( Flow::Node const* pOriginalStartNode, Flow::Node const* pNode, TInlineVector<Flow::Node const*, 10>& connectedNodes ) const;
 
+        // Context Menu
+        //-------------------------------------------------------------------------
+
+        // Do we support creating new nodes directly from a pin
+        virtual bool SupportsAutoConnection() const { return false; }
+
+        // Draw the graph context menu options - returns true if the menu should be closed i.e. a cusotm selection or action has been made
+        virtual bool DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, Flow::Node* pSourceNode, Flow::Pin* pSourcePin ) { return false; }
+
         // Serialization
         //-------------------------------------------------------------------------
 

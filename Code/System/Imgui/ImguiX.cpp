@@ -178,7 +178,7 @@ namespace EE::ImGuiX
     }
 
     //-------------------------------------------------------------------------
-    // Widgets
+    // Basic Widgets
     //-------------------------------------------------------------------------
 
     void ItemTooltip( const char* fmt, ... )
@@ -415,10 +415,6 @@ namespace EE::ImGuiX
 
         return true;
     }
-
-    //-------------------------------------------------------------------------
-    // Numeric Helpers
-    //-------------------------------------------------------------------------
 
     constexpr static float const g_labelWidth = 14.0f;
     constexpr static float const g_labelHeight = 22.0f;
@@ -680,6 +676,84 @@ namespace EE::ImGuiX
         ImGui::PopStyleVar();
 
         return valueUpdated;
+    }
+
+    //-------------------------------------------------------------------------
+    // Advanced Widgets
+    //-------------------------------------------------------------------------
+
+    bool FilterWidget::DrawAndUpdate( TBitFlags<Options> options )
+    {
+        ImGui::PushID( this );
+
+        if ( options.IsFlagSet( Options::TakeInitialFocus ) )
+        {
+            if ( ImGui::IsWindowAppearing() )
+            {
+                ImGui::SetKeyboardFocusHere();
+            }
+        }
+
+        bool filterUpdated = false;
+        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 26 - ImGui::GetStyle().ItemSpacing.x );
+        if ( ImGui::InputText( "##Filter", m_buffer, s_bufferSize ) )
+        {
+            filterUpdated = true;
+
+            StringUtils::Split( m_buffer, m_tokens );
+
+            for ( auto& token : m_tokens )
+            {
+                token.make_lower();
+            }
+        }
+
+        ImGui::SameLine();
+        if ( ImGui::Button( EE_ICON_CLOSE_CIRCLE"##Clear", ImVec2( 26, 24 ) ) )
+        {
+            Clear();
+            filterUpdated = true;
+        }
+
+        ImGui::PopID();
+
+        //-------------------------------------------------------------------------
+
+        return filterUpdated;
+    }
+
+    void FilterWidget::Clear()
+    {
+        Memory::MemsetZero( m_buffer, s_bufferSize );
+        m_tokens.clear();
+    }
+
+    bool FilterWidget::MatchesFilter( String string )
+    {
+        if ( string.empty() )
+        {
+            return false;
+        }
+
+        if ( m_tokens.empty() )
+        {
+            return true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        string.make_lower();
+        for ( auto const& token : m_tokens )
+        {
+            if ( string.find( token ) == String::npos )
+            {
+                return false;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        return true;
     }
 }
 #endif

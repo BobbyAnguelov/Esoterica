@@ -93,6 +93,9 @@ namespace EE::VisualGraph
 
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
 
+        // Draw the graph context menu option - returns true if the menu should be closed i.e. a cusotm selection or action has been made
+        virtual bool DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens ) { return false; }
+
     protected:
 
         // Users need to implement this function to create the appropriate transition node

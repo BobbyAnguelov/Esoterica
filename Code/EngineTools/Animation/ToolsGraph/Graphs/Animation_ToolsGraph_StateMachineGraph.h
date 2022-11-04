@@ -52,7 +52,7 @@ namespace EE::Animation
     private:
 
         virtual void DrawExtraInformation( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
-        virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos ) override;
+        virtual bool DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens ) override;
         virtual void Initialize( VisualGraph::BaseNode* pParentNode ) override;
         virtual bool CanDeleteNode( VisualGraph::BaseNode const* pNode ) const override;
         virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;

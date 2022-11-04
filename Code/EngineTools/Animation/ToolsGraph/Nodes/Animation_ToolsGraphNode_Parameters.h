@@ -52,6 +52,7 @@ namespace EE::Animation::GraphNodes
         inline StringID GetParameterID() const { return StringID( m_name ); }
         inline String const& GetParameterCategory() const { return m_parameterCategory; }
 
+        virtual GraphValueType GetValueType() const override { return m_type; }
         virtual void Initialize( VisualGraph::BaseGraph* pParentGraph ) override;
         virtual bool IsVisible() const override { return false; }
         virtual char const* GetName() const override { return m_name.c_str(); }
@@ -86,6 +87,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParentGraph ) override;
 
+        virtual GraphValueType GetValueType() const override { return m_pParameter->GetValueType(); }
         inline FlowToolsNode const* GetReferencedParameter() const { return m_pParameter; }
         inline ControlParameterToolsNode const* GetReferencedControlParameter() const { return TryCast<ControlParameterToolsNode>( m_pParameter ); }
         inline ControlParameterToolsNode* GetReferencedControlParameter() { return TryCast<ControlParameterToolsNode>( m_pParameter ); }
@@ -130,6 +132,8 @@ namespace EE::Animation::GraphNodes
 
         inline bool GetPreviewStartValue() const { return m_previewStartValue; }
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
+
     private:
 
         EE_EXPOSE bool m_previewStartValue = false;
@@ -150,6 +154,8 @@ namespace EE::Animation::GraphNodes
         inline float GetPreviewStartValue() const { return m_previewStartValue; }
         inline float GetPreviewRangeMin() const { return m_previewMin; }
         inline float GetPreviewRangeMax() const { return m_previewMax; }
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
 
     private:
 
@@ -172,6 +178,8 @@ namespace EE::Animation::GraphNodes
 
         inline int32_t GetPreviewStartValue() const { return m_previewStartValue; }
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
+
     private:
 
         EE_EXPOSE int32_t m_previewStartValue = 0;
@@ -191,6 +199,8 @@ namespace EE::Animation::GraphNodes
 
         inline StringID GetPreviewStartValue() const { return m_previewStartValue; }
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
+
     private:
 
         EE_EXPOSE StringID m_previewStartValue;
@@ -209,6 +219,8 @@ namespace EE::Animation::GraphNodes
         virtual void Initialize( VisualGraph::BaseGraph* pParentGraph ) override;
 
         inline Vector GetPreviewStartValue() const { return m_previewStartValue; }
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Vector; }
 
     private:
 
@@ -249,6 +261,8 @@ namespace EE::Animation::GraphNodes
         inline bool IsBoneTarget() const { return m_isBoneID; }
         inline Transform const& GetPreviewTargetTransform() const { return m_previewStartTransform; }
         void SetPreviewTargetTransform( Transform const& transform );
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Target; }
 
     private:
 

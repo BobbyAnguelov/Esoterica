@@ -185,6 +185,9 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
         
         #if EE_DEVELOPMENT_TOOLS
+        // Get the list of active node indices for this instance
+        inline TVector<int16_t> const& GetActiveNodes() const { return m_activeNodes; }
+
         // Get the graph debug mode
         inline GraphDebugMode GetGraphDebugMode() const { return m_debugMode; }
 

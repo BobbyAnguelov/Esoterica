@@ -78,8 +78,8 @@ namespace EE::VisualGraph
             ImVec2                  m_lastFrameDragDelta = ImVec2( 0, 0 );
             BaseNode*               m_pNode = nullptr;
             Flow::Pin*              m_pPin = nullptr;
-            bool                    m_leftMouseClickDetected = false;
-            bool                    m_middleMouseClickDetected = false;
+            bool                    m_primaryMouseClickDetected = false;
+            bool                    m_secondaryMouseClickDetected = false;
         };
 
         // Context menu state
@@ -97,6 +97,9 @@ namespace EE::VisualGraph
                 m_pNode = nullptr;
                 m_menuOpened = false;
                 m_pPin = nullptr;
+                m_requestOpenMenu = false;
+                m_isAutoConnectMenu = false;
+                m_filterWidget.Clear();
             }
 
         public:
@@ -104,7 +107,10 @@ namespace EE::VisualGraph
             ImVec2                  m_mouseCanvasPos;
             BaseNode*               m_pNode = nullptr;
             Flow::Pin*              m_pPin = nullptr;
+            bool                    m_requestOpenMenu = false;
             bool                    m_menuOpened = false;
+            bool                    m_isAutoConnectMenu = false;
+            ImGuiX::FilterWidget    m_filterWidget;
         };
 
     public:
@@ -243,6 +249,10 @@ namespace EE::VisualGraph
 
         void HandleContextMenu( DrawContext const& ctx, UserContext* pUserContext );
 
+        void DrawFlowGraphContextMenu( DrawContext const& ctx, UserContext* pUserContext );
+
+        void DrawStateMachineContextMenu( DrawContext const& ctx, UserContext* pUserContext );
+
         void DrawDialogs();
 
     protected:
@@ -258,7 +268,7 @@ namespace EE::VisualGraph
         bool                            m_selectionChanged = false;
 
         DragState                       m_dragState;
-        ContextMenuState                m_contextMenuState;
+        ContextMenuState                m_contextMenuState;   
 
         // Flow graph state
         Flow::Pin*                      m_pHoveredPin = nullptr;

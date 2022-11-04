@@ -438,6 +438,40 @@ namespace EE::VisualGraph
         }
     }
 
+    void BaseGraph::FindAllNodesOfTypeAdvanced( TypeSystem::TypeID typeID, TFunction<bool( BaseNode const* )> const& matchFunction, TInlineVector<BaseNode*, 20>& results, SearchMode mode, SearchTypeMatch typeMatch ) const
+    {
+        for ( auto pNode : m_nodes )
+        {
+            if ( pNode->GetTypeID() == typeID )
+            {
+                results.emplace_back( pNode );
+            }
+            else if ( typeMatch == SearchTypeMatch::Derived )
+            {
+                if ( pNode->GetTypeInfo()->IsDerivedFrom( typeID ) && matchFunction( pNode ) )
+                {
+                    results.emplace_back( pNode );
+                }
+            }
+
+            // If recursion is allowed
+            if ( mode == SearchMode::Recursive )
+            {
+                if ( pNode->HasChildGraph() )
+                {
+                    pNode->GetChildGraph()->FindAllNodesOfType( typeID, results, mode, typeMatch );
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( pNode->HasSecondaryGraph() )
+                {
+                    pNode->GetSecondaryGraph()->FindAllNodesOfType( typeID, results, mode, typeMatch );
+                }
+            }
+        }
+    }
+
     void BaseGraph::DestroyNode( UUID nodeID )
     {
         for ( auto iter = m_nodes.begin(); iter != m_nodes.end(); ++iter )

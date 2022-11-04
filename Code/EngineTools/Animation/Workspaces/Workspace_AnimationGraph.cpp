@@ -21,6 +21,7 @@
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Imgui/ImguiStyle.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -814,6 +815,19 @@ namespace EE::Animation
     void AnimationGraphWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         UpdateUserContext();
+
+        //-------------------------------------------------------------------------
+
+        if ( m_activeOperation == GraphOperationType::None )
+        {
+            if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) )
+            {
+                StartNavigationOperation();
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         DrawVariationEditor( context, pWindowClass );
         DrawControlParameterEditor( context, pWindowClass );
         DrawPropertyGrid( context, pWindowClass );
@@ -1159,18 +1173,45 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        auto EscCancelCheck = [&] ()
+        {
+            if ( ImGui::IsKeyPressed( ImGuiKey_Escape ) )
+            {
+                isDialogOpen = false;
+                ImGui::CloseCurrentPopup();
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
         switch ( m_activeOperation )
         {
             case GraphOperationType::None:
             break;
 
-            case GraphOperationType::CreateParameter:
-            ImGui::OpenPopup( "Create Parameter" );
-            ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
-            if ( ImGui::BeginPopupModal( "Create Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+            case GraphOperationType::Navigate:
             {
-                DrawCreateOrRenameParameterDialogWindow();
-                ImGui::EndPopup();
+                ImGui::OpenPopup( "Navigate" );
+                ImGui::SetNextWindowSize( ImVec2( 800, 600 ), ImGuiCond_FirstUseEver );
+                if ( ImGui::BeginPopupModal( "Navigate", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings ) )
+                {
+                    DrawNavigationDialogWindow( context );
+                    EscCancelCheck();
+                    ImGui::EndPopup();
+                }
+            }
+            break;
+
+            case GraphOperationType::CreateParameter:
+            {
+                ImGui::OpenPopup( "Create Parameter" );
+                ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
+                if ( ImGui::BeginPopupModal( "Create Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                {
+                    DrawCreateOrRenameParameterDialogWindow();
+                    EscCancelCheck();
+                    ImGui::EndPopup();
+                }
             }
             break;
 
@@ -1181,6 +1222,7 @@ namespace EE::Animation
                 if ( ImGui::BeginPopupModal( "Rename Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
                 {
                     DrawCreateOrRenameParameterDialogWindow();
+                    EscCancelCheck();
                     ImGui::EndPopup();
                 }
             }
@@ -1192,6 +1234,7 @@ namespace EE::Animation
                 if ( ImGui::BeginPopupModal( "Delete Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
                 {
                     DrawDeleteParameterDialogWindow();
+                    EscCancelCheck();
                     ImGui::EndPopup();
                 }
             }
@@ -1203,10 +1246,10 @@ namespace EE::Animation
                 if ( ImGui::BeginPopupModal( "Create Variation", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
                 {
                     DrawCreateVariationDialogWindow();
+                    EscCancelCheck();
                     ImGui::EndPopup();
                 }
             }
-
             break;
 
             case GraphOperationType::RenameVariation:
@@ -1215,6 +1258,7 @@ namespace EE::Animation
                 if ( ImGui::BeginPopupModal( "Rename Variation", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
                 {
                     DrawRenameVariationDialogWindow();
+                    EscCancelCheck();
                     ImGui::EndPopup();
                 }
             }
@@ -1226,6 +1270,7 @@ namespace EE::Animation
                 if ( ImGui::BeginPopupModal( "Delete Variation", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
                 {
                     DrawDeleteVariationDialogWindow();
+                    EscCancelCheck();
                     ImGui::EndPopup();
                 }
             }
@@ -1240,7 +1285,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        // If the dialog was closed (i.e. operation cancelled)
+        // If the dialog was closed (i.e. operation canceled)
         if ( !isDialogOpen )
         {
             m_activeOperation = GraphOperationType::None;
@@ -1695,7 +1740,8 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_userContext.m_pGraphInstance = m_pDebugGraphInstance;
-        m_userContext.m_nodeIDtoIndexMap = definitionCompiler.GetIDToIndexMap();
+        m_userContext.m_nodeIDtoIndexMap = definitionCompiler.GetUUIDToRuntimeIndexMap();
+        m_userContext.m_nodeIndexToIDMap = definitionCompiler.GetRuntimeIndexToUUIDMap();
 
         // Systems
         //-------------------------------------------------------------------------
@@ -1770,6 +1816,7 @@ namespace EE::Animation
 
         m_userContext.m_pGraphInstance = nullptr;
         m_userContext.m_nodeIDtoIndexMap.clear();
+        m_userContext.m_nodeIndexToIDMap.clear();
 
         // Release variation reference
         //-------------------------------------------------------------------------
@@ -2010,54 +2057,6 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
     // Graph View
     //-------------------------------------------------------------------------
-
-    void AnimationGraphWorkspace::NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode )
-    {
-        EE_ASSERT( pNode != nullptr );
-
-        // Navigate to the appropriate graph
-        auto pParentGraph = pNode->GetParentGraph();
-        EE_ASSERT( pParentGraph != nullptr );
-        NavigateTo( pParentGraph );
-
-        // Select node
-        if ( m_primaryGraphView.GetViewedGraph()->FindNode( pNode->GetID() ) )
-        {
-            m_primaryGraphView.SelectNode( pNode );
-            if ( focusViewOnNode )
-            {
-                m_primaryGraphView.CenterView( pNode );
-            }
-        }
-        else if ( m_secondaryGraphView.GetViewedGraph() != nullptr && m_secondaryGraphView.GetViewedGraph()->FindNode( pNode->GetID() ) )
-        {
-            m_secondaryGraphView.SelectNode( pNode );
-            if ( focusViewOnNode )
-            {
-                m_secondaryGraphView.CenterView( pNode );
-            }
-        }
-    }
-
-    void AnimationGraphWorkspace::NavigateTo( VisualGraph::BaseGraph* pGraph )
-    {
-        // If the graph we wish to navigate to is a secondary graph, we need to set the primary view and selection accordingly
-        auto pParentNode = pGraph->GetParentNode();
-        if ( pParentNode != nullptr && pParentNode->GetSecondaryGraph() == pGraph )
-        {
-            NavigateTo( pParentNode->GetParentGraph() );
-            m_primaryGraphView.SelectNode( pParentNode );
-            UpdateSecondaryViewState();
-        }
-        else // Directly update the primary view
-        {
-            if ( m_primaryGraphView.GetViewedGraph() != pGraph )
-            {
-                m_primaryGraphView.SetGraphToView( &m_userContext, pGraph );
-                m_primaryViewGraphID = pGraph->GetID();
-            }
-        }
-    }
 
     void AnimationGraphWorkspace::DrawGraphViewNavigationBar()
     {
@@ -2395,6 +2394,236 @@ namespace EE::Animation
     }
 
     //-------------------------------------------------------------------------
+    // Navigation
+    //-------------------------------------------------------------------------
+
+    void AnimationGraphWorkspace::NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode )
+    {
+        EE_ASSERT( pNode != nullptr );
+
+        // Navigate to the appropriate graph
+        auto pParentGraph = pNode->GetParentGraph();
+        EE_ASSERT( pParentGraph != nullptr );
+        NavigateTo( pParentGraph );
+
+        // Select node
+        if ( m_primaryGraphView.GetViewedGraph()->FindNode( pNode->GetID() ) )
+        {
+            m_primaryGraphView.SelectNode( pNode );
+            if ( focusViewOnNode )
+            {
+                m_primaryGraphView.CenterView( pNode );
+            }
+        }
+        else if ( m_secondaryGraphView.GetViewedGraph() != nullptr && m_secondaryGraphView.GetViewedGraph()->FindNode( pNode->GetID() ) )
+        {
+            m_secondaryGraphView.SelectNode( pNode );
+            if ( focusViewOnNode )
+            {
+                m_secondaryGraphView.CenterView( pNode );
+            }
+        }
+    }
+
+    void AnimationGraphWorkspace::NavigateTo( VisualGraph::BaseGraph* pGraph )
+    {
+        // If the graph we wish to navigate to is a secondary graph, we need to set the primary view and selection accordingly
+        auto pParentNode = pGraph->GetParentNode();
+        if ( pParentNode != nullptr && pParentNode->GetSecondaryGraph() == pGraph )
+        {
+            NavigateTo( pParentNode->GetParentGraph() );
+            m_primaryGraphView.SelectNode( pParentNode );
+            UpdateSecondaryViewState();
+        }
+        else // Directly update the primary view
+        {
+            if ( m_primaryGraphView.GetViewedGraph() != pGraph )
+            {
+                m_primaryGraphView.SetGraphToView( &m_userContext, pGraph );
+                m_primaryViewGraphID = pGraph->GetID();
+            }
+        }
+    }
+
+    void AnimationGraphWorkspace::StartNavigationOperation()
+    {
+        m_activeOperation = GraphOperationType::Navigate;
+        m_navigationFilter.Clear();
+        m_navigationTargetNodes.clear();
+        m_navigationActiveTargetNodes.clear();
+        GenerateNavigationTargetList();
+    }
+
+    void AnimationGraphWorkspace::GenerateNavigationTargetList()
+    {
+        FlowGraph const* pRootGraph = m_toolsGraph.GetRootGraph();
+
+        m_navigationTargetNodes.clear();
+
+        // Find all graph nodes
+        //-------------------------------------------------------------------------
+
+        auto MatchFunction = [] ( VisualGraph::BaseNode const* pNode )
+        {
+            if ( auto pGraphNode = TryCast< GraphNodes::FlowToolsNode>( pNode ) )
+            {
+                if ( pGraphNode->GetValueType() == GraphValueType::Pose )
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        auto const foundNodes = pRootGraph->FindAllNodesOfTypeAdvanced<GraphNodes::FlowToolsNode>( MatchFunction, VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        for ( auto pNode : foundNodes )
+        {
+            if ( IsOfType<GraphNodes::ParameterReferenceToolsNode>( pNode ) || IsOfType<GraphNodes::ControlParameterToolsNode>( pNode ) || IsOfType<GraphNodes::VirtualParameterToolsNode>( pNode ) )
+            {
+                 continue;
+            }
+
+            m_navigationTargetNodes.emplace_back( NavigationTarget( pNode, pNode->GetPathFromRoot() ) );
+        }
+
+        // Sort
+        //-------------------------------------------------------------------------
+
+        auto Comparator = [] ( NavigationTarget const& a, NavigationTarget const& b )
+        {
+            return a.m_path < b.m_path;
+        };
+
+        eastl::sort( m_navigationTargetNodes.begin(), m_navigationTargetNodes.end(), Comparator );
+    }
+
+    void AnimationGraphWorkspace::GenerateActiveTargetList()
+    {
+        EE_ASSERT( IsDebugging() );
+
+        m_navigationActiveTargetNodes.clear();
+
+        for ( auto activeNodeIdx : m_userContext.GetActiveNodes() )
+        {
+            UUID const nodeID = m_userContext.GetGraphNodeUUID( activeNodeIdx );
+            if ( nodeID.IsValid() )
+            {
+                auto pFoundNode = TryCast<GraphNodes::FlowToolsNode>( m_toolsGraph.GetRootGraph()->FindNode( nodeID, true ) );
+                if ( pFoundNode != nullptr && pFoundNode->GetValueType() == GraphValueType::Pose )
+                {
+                    m_navigationActiveTargetNodes.emplace_back( NavigationTarget( pFoundNode, pFoundNode->GetPathFromRoot() ) );
+                }
+            }
+        }
+    }
+
+    void AnimationGraphWorkspace::DrawNavigationDialogWindow( UpdateContext const& context )
+    {
+        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 27 - ImGui::GetStyle().ItemSpacing.x );
+
+        m_navigationFilter.DrawAndUpdate( ImGuiX::FilterWidget::TakeInitialFocus );
+
+        //-------------------------------------------------------------------------
+
+        auto ApplyFilter = [this] ( NavigationTarget const& target )
+        {
+            if ( m_navigationFilter.HasFilterSet() )
+            {
+                bool nameFailedFilter = false;
+                if ( !m_navigationFilter.MatchesFilter( target.m_pNode->GetName() ) )
+                {
+                    nameFailedFilter = true;
+                }
+
+                bool pathFailedFilter = false;
+                if ( !m_navigationFilter.MatchesFilter( target.m_path ) )
+                {
+                    pathFailedFilter = true;
+                }
+
+                if ( pathFailedFilter && nameFailedFilter )
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginTable( "Navigation Options", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
+        {
+            ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Node", ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupScrollFreeze( 0, 1 );
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            ImColor const activeColor = ImGuiX::ConvertColor( Colors::Lime );
+
+            if ( IsDebugging() )
+            {
+                GenerateActiveTargetList();
+
+                for ( auto const& navTarget : m_navigationActiveTargetNodes )
+                {
+                    if ( !ApplyFilter( navTarget ) )
+                    {
+                        continue;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextRow();
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text( navTarget.m_path.c_str() );
+
+                    ImGui::TableNextColumn();
+                    ImGui::PushStyleColor( ImGuiCol_Text, activeColor.Value );
+                    if ( ImGui::Selectable( navTarget.m_pNode->GetName(), false, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
+                    {
+                        NavigateTo( const_cast<GraphNodes::FlowToolsNode*>( navTarget.m_pNode ) );
+                        m_activeOperation = GraphOperationType::None;
+                    }
+                    ImGui::PopStyleColor();
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            for ( auto const& navTarget : m_navigationTargetNodes )
+            {
+                if ( !ApplyFilter( navTarget ) )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Text( navTarget.m_path.c_str() );
+
+                ImGui::TableNextColumn();
+                if ( ImGui::Selectable( navTarget.m_pNode->GetName(), false, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
+                {
+                    NavigateTo( const_cast<GraphNodes::FlowToolsNode*>( navTarget.m_pNode ) );
+                    m_activeOperation = GraphOperationType::None;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::EndTable();
+        }
+    }
+
+    //-------------------------------------------------------------------------
     // Property Grid
     //-------------------------------------------------------------------------
 
@@ -2515,18 +2744,16 @@ namespace EE::Animation
                             {
                                 if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
                                 {
-                                    for ( auto const& pair : m_userContext.m_nodeIDtoIndexMap )
+                                    UUID const nodeID = m_userContext.GetGraphNodeUUID( entry.m_nodeIdx );
+                                    if ( nodeID.IsValid() )
                                     {
-                                        if ( pair.second == entry.m_nodeIdx )
+                                        auto pFoundNode = m_toolsGraph.GetRootGraph()->FindNode( nodeID, true );
+                                        if ( pFoundNode != nullptr )
                                         {
-                                            auto pFoundNode = m_toolsGraph.GetRootGraph()->FindNode( pair.first, true );
-                                            if ( pFoundNode != nullptr )
-                                            {
-                                                NavigateTo( pFoundNode );
-                                            }
-
-                                            break;
+                                            NavigateTo( pFoundNode );
                                         }
+
+                                        break;
                                     }
                                 }
                             }
@@ -3355,7 +3582,7 @@ namespace EE::Animation
         EE_ASSERT( pControlParameter != nullptr || pVirtualParameter != nullptr );
         EE_ASSERT( pControlParameter == nullptr || pVirtualParameter == nullptr );
 
-        if ( pControlParameter == nullptr )
+        if ( pControlParameter != nullptr )
         {
             originalParameterName = pControlParameter->GetParameterName();
             originalParameterCategory = pControlParameter->GetParameterCategory();
@@ -3873,24 +4100,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         ImGui::Separator();
-
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 27 - ImGui::GetStyle().ItemSpacing.x );
-        if ( ImGui::InputText( "##VariationFilter", m_filterBuffer, 255 ) )
-        {
-            StringUtils::Split( m_filterBuffer, m_splitFilter );
-
-            for ( auto& token : m_splitFilter )
-            {
-                token.make_lower();
-            }
-        }
-
-        ImGui::SameLine();
-        if ( ImGui::Button( EE_ICON_CLOSE_CIRCLE"##Clear", ImVec2( 26, 24 ) ) )
-        {
-            m_filterBuffer[0] = 0;
-            m_splitFilter.clear();
-        }
+        m_variationFilter.DrawAndUpdate();
 
         // Overrides
         //-------------------------------------------------------------------------
@@ -3916,32 +4126,18 @@ namespace EE::Animation
                 // Apply filter
                 //-------------------------------------------------------------------------
 
-                if ( !m_splitFilter.empty() )
+                if ( m_variationFilter.HasFilterSet() )
                 {
-                    // Check name
-                    String nameLower( pDataSlotNode->GetName() );
-                    nameLower.make_lower();
                     bool nameFailedFilter = false;
-                    for ( auto const& token : m_splitFilter )
+                    if ( !m_variationFilter.MatchesFilter( pDataSlotNode->GetName() ) )
                     {
-                        if ( nameLower.find( token ) == String::npos )
-                        { 
-                            nameFailedFilter = true;
-                            break;
-                        }
+                        nameFailedFilter = true;
                     }
 
-                    // Check path
-                    String nodePathLower = nodePath;
-                    nodePathLower.make_lower();
                     bool pathFailedFilter = false;
-                    for ( auto const& token : m_splitFilter )
+                    if ( !m_variationFilter.MatchesFilter( nodePath ) )
                     {
-                        if ( nodePathLower.find( token ) == String::npos )
-                        {
-                            pathFailedFilter = true;
-                            break;
-                        }
+                        pathFailedFilter = true;
                     }
 
                     if ( pathFailedFilter && nameFailedFilter )

@@ -6,6 +6,7 @@
 #include "System/TypeSystem/RegisteredType.h"
 #include "System/Esoterica.h"
 #include "System/Types/Event.h"
+#include "System/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
@@ -391,6 +392,9 @@ namespace EE::VisualGraph
         // Find all nodes of a specific type in this graph. Note: doesnt clear the results array so ensure you feed in an empty array
         void FindAllNodesOfType( TypeSystem::TypeID typeID, TInlineVector<BaseNode*, 20>& results, SearchMode mode = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact ) const;
 
+        // Find all nodes of a specific type in this graph. Note: doesnt clear the results array so ensure you feed in an empty array
+        void FindAllNodesOfTypeAdvanced( TypeSystem::TypeID typeID, TFunction<bool( BaseNode const* )> const& matchFunction, TInlineVector<BaseNode*, 20>& results, SearchMode mode = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact ) const;
+
         template<typename T>
         TInlineVector<T*, 20> FindAllNodesOfType( SearchMode depth = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact )
         {
@@ -408,11 +412,43 @@ namespace EE::VisualGraph
         }
 
         template<typename T>
+        TInlineVector<T*, 20> FindAllNodesOfTypeAdvanced( TFunction<bool( BaseNode const* )> const& matchFunction, SearchMode depth = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact )
+        {
+            static_assert( std::is_base_of<BaseNode, T>::value );
+            TInlineVector<BaseNode*, 20> intermediateResults;
+            FindAllNodesOfTypeAdvanced( T::GetStaticTypeID(), matchFunction, intermediateResults, depth, typeMatch );
+
+            // Transfer results to typed array
+            TInlineVector<T*, 20> results;
+            for ( auto const& pFoundNode : intermediateResults )
+            {
+                results.emplace_back( Cast<T>( pFoundNode ) );
+            }
+            return results;
+        }
+
+        template<typename T>
         TInlineVector<T const*, 20> FindAllNodesOfType( SearchMode depth = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact ) const
         {
             static_assert( std::is_base_of<BaseNode, T>::value );
             TInlineVector<BaseNode*, 20> intermediateResults;
             FindAllNodesOfType( T::GetStaticTypeID(), intermediateResults, depth, typeMatch );
+
+            // Transfer results to typed array
+            TInlineVector<T const*, 20> results;
+            for ( auto const& pFoundNode : intermediateResults )
+            {
+                results.emplace_back( Cast<T>( pFoundNode ) );
+            }
+            return results;
+        }
+
+        template<typename T>
+        TInlineVector<T const*, 20> FindAllNodesOfTypeAdvanced( TFunction<bool( BaseNode const* )> const& matchFunction, SearchMode depth = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact ) const
+        {
+            static_assert( std::is_base_of<BaseNode, T>::value );
+            TInlineVector<BaseNode*, 20> intermediateResults;
+            FindAllNodesOfTypeAdvanced( T::GetStaticTypeID(), matchFunction, intermediateResults, depth, typeMatch );
 
             // Transfer results to typed array
             TInlineVector<T const*, 20> results;
@@ -445,9 +481,6 @@ namespace EE::VisualGraph
 
         // User this to draw any extra contextual information on the graph canvas
         virtual void DrawExtraInformation( DrawContext const& ctx, UserContext* pUserContext ) {}
-
-        // Draw the graph context menu option
-        virtual void DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos ) {}
 
         // Called whenever a drag and drop operation occurs
         virtual void HandleDragAndDrop( UserContext* pUserContext, ImVec2 const& mouseCanvasPos ) {}

@@ -25,6 +25,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Entry State Conditions"; }
         virtual char const* GetCategory() const override { return "State Machine"; }
         virtual bool IsUserCreatable() const override { return false; }

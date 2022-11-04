@@ -99,7 +99,6 @@ namespace EE::Animation::GraphNodes
             auto pEntryConditionNode = pEntryConditionsConduit->GetEntryConditionNodeForState( pStateNode->GetID() );
             if ( pEntryConditionNode != nullptr )
             {
-                EE_ASSERT( pEntryConditionNode->GetValueType() == GraphValueType::Bool );
                 stateSettings.m_entryConditionNodeIdx = pEntryConditionNode->Compile( context );
                 if ( stateSettings.m_entryConditionNodeIdx == InvalidIndex )
                 {
@@ -141,8 +140,6 @@ namespace EE::Animation::GraphNodes
                 auto pConditionNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 0 );
                 if ( pConditionNode != nullptr )
                 {
-                    EE_ASSERT( pConditionNode->GetValueType() == GraphValueType::Bool );
-
                     auto& transitionSettings = pSettings->m_stateSettings[i].m_transitionSettings.emplace_back();
                     transitionSettings.m_targetStateIdx = IDToStateIdxMap[endStateID];
 
@@ -326,7 +323,6 @@ namespace EE::Animation::GraphNodes
         auto pDurationOverrideNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 1 );
         if ( pDurationOverrideNode != nullptr )
         {
-            EE_ASSERT( pDurationOverrideNode->GetValueType() == GraphValueType::Float );
             pSettings->m_durationOverrideNodeIdx = pDurationOverrideNode->Compile( context );
             if ( pSettings->m_durationOverrideNodeIdx == InvalidIndex )
             {
@@ -337,7 +333,6 @@ namespace EE::Animation::GraphNodes
         auto pSyncEventOffsetOverrideNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 2 );
         if ( pSyncEventOffsetOverrideNode != nullptr )
         {
-            EE_ASSERT( pSyncEventOffsetOverrideNode->GetValueType() == GraphValueType::Float );
             pSettings->m_syncEventOffsetOverrideNodeIdx = pSyncEventOffsetOverrideNode->Compile( context );
             if ( pSettings->m_syncEventOffsetOverrideNodeIdx == InvalidIndex )
             {

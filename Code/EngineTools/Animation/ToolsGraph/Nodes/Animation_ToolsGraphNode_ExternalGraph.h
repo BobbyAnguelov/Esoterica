@@ -18,8 +18,9 @@ namespace EE::Animation::GraphNodes
         virtual bool IsRenameable() const override { return true; }
         virtual void SetName( String const& newName ) override;
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "External Graph"; }
-        virtual char const* GetCategory() const override { return "Animation"; }
+        virtual char const* GetCategory() const override { return "Animation/Graphs"; }
         virtual bool IsPersistentNode() const override { return true; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

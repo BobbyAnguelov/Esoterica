@@ -17,6 +17,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Conditions"; }
         virtual char const* GetCategory() const override { return "Conditions"; }
         virtual bool IsUserCreatable() const override { return false; }
@@ -35,8 +36,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Selector"; }
-        virtual char const* GetCategory() const override { return "Selectors"; }
+        virtual char const* GetCategory() const override { return "Animation/Selectors"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
@@ -59,8 +61,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Animation Clip Selector"; }
-        virtual char const* GetCategory() const override { return "Selectors"; }
+        virtual char const* GetCategory() const override { return "Animation/Selectors"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 

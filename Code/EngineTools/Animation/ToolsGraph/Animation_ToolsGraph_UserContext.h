@@ -36,6 +36,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         void RequestOpenResource( ResourceID const& resourceID );
+
         inline TEventHandle<ResourceID const&> OnRequestOpenResource() { return m_onRequestOpenResource; }
 
         // Debug Data
@@ -53,8 +54,22 @@ namespace EE::Animation
             {
                 return foundIter->second;
             }
+
             return InvalidIndex;
         }
+
+        inline UUID GetGraphNodeUUID( int16_t const& runtimeNodeIdx ) const
+        {
+            auto const foundIter = m_nodeIndexToIDMap.find( runtimeNodeIdx );
+            if ( foundIter != m_nodeIndexToIDMap.end() )
+            {
+                return foundIter->second;
+            }
+
+            return UUID();
+        }
+
+        TVector<int16_t> const& GetActiveNodes() const;
 
         bool IsNodeActive( int16_t nodeIdx ) const;
 
@@ -74,6 +89,7 @@ namespace EE::Animation
         VariationHierarchy const*                                           m_pVariationHierarchy = nullptr;
         GraphInstance*                                                      m_pGraphInstance = nullptr;
         THashMap<UUID, int16_t>                                             m_nodeIDtoIndexMap;
+        THashMap<int16_t, UUID>                                             m_nodeIndexToIDMap;
         TInlineVector<GraphNodes::ControlParameterToolsNode*, 20> const*    m_pControlParameters = nullptr;
         TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> const*    m_pVirtualParameters = nullptr;
         Category<TypeSystem::TypeInfo const*> const*                        m_pCategorizedNodeTypes = nullptr;

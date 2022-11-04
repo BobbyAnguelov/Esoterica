@@ -17,6 +17,11 @@ namespace EE::Animation
         return m_pGraphInstance->IsNodeActive( nodeIdx );
     }
 
+    TVector<int16_t> const& ToolsGraphUserContext::GetActiveNodes() const
+    {
+        return m_pGraphInstance->GetActiveNodes();
+    }
+
     #if EE_DEVELOPMENT_TOOLS
     PoseNodeDebugInfo ToolsGraphUserContext::GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const
     {

@@ -21,6 +21,7 @@ namespace EE::Animation::GraphNodes
 
         inline UUID const& GetEndStateID() const { return m_stateID; }
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetName() const override { return m_name.c_str(); }
         virtual char const* GetTypeName() const override { return "Global Transition"; }
         virtual char const* GetCategory() const override { return "State Machine"; }

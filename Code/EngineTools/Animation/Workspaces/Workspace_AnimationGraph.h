@@ -55,15 +55,27 @@ namespace EE::Animation
         {
             bool IsValid() const;
 
-            DebugTargetType                 m_type = DebugTargetType::None;
-            AnimationGraphComponent*        m_pComponentToDebug = nullptr;
-            PointerID                       m_childGraphID;
-            StringID                        m_externalSlotID;
+            DebugTargetType                     m_type = DebugTargetType::None;
+            AnimationGraphComponent*            m_pComponentToDebug = nullptr;
+            PointerID                           m_childGraphID;
+            StringID                            m_externalSlotID;
+        };
+
+        struct NavigationTarget
+        {
+            NavigationTarget( GraphNodes::FlowToolsNode const* pNode, String&& path )
+                : m_pNode( pNode )
+                , m_path( eastl::move( path ) )
+            {}
+
+            GraphNodes::FlowToolsNode const*    m_pNode;
+            String                              m_path;
         };
 
         enum class GraphOperationType
         {
             None,
+            Navigate,
             CreateParameter,
             RenameParameter,
             DeleteParameter,
@@ -133,11 +145,19 @@ namespace EE::Animation
         // Graph View
         //-------------------------------------------------------------------------
 
-        void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
-        void NavigateTo( VisualGraph::BaseGraph* pGraph );
         void DrawGraphView( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         void DrawGraphViewNavigationBar();
         void UpdateSecondaryViewState();
+
+        // Navigation
+        //-------------------------------------------------------------------------
+
+        void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
+        void NavigateTo( VisualGraph::BaseGraph* pGraph );
+        void StartNavigationOperation();
+        void DrawNavigationDialogWindow( UpdateContext const& context );
+        void GenerateNavigationTargetList();
+        void GenerateActiveTargetList();
 
         // Property Grid
         //-------------------------------------------------------------------------
@@ -277,6 +297,11 @@ namespace EE::Animation
         UUID                                                            m_primaryViewGraphID;
         VisualGraph::BaseNode*                                          m_pBreadcrumbPopupContext = nullptr;
 
+        // Navigation
+        TVector<NavigationTarget>                                       m_navigationTargetNodes;
+        TVector<NavigationTarget>                                       m_navigationActiveTargetNodes;
+        ImGuiX::FilterWidget                                            m_navigationFilter;
+
         // Compilation Log
         TVector<NodeCompilationLogEntry>                                m_compilationLog;
 
@@ -296,8 +321,7 @@ namespace EE::Animation
         // Variation Editor
         StringID                                                        m_activeOperationVariationID;
         char                                                            m_nameBuffer[255] = { 0 };
-        char                                                            m_filterBuffer[255] = { 0 };
-        TVector<String>                                                 m_splitFilter;
+        ImGuiX::FilterWidget                                            m_variationFilter;
         Resource::ResourcePicker                                        m_resourcePicker;
 
         // Preview/Debug

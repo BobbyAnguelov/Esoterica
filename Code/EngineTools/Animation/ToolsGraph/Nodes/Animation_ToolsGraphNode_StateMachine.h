@@ -32,8 +32,9 @@ namespace EE::Animation::GraphNodes
         virtual bool IsRenameable() const override { return true; }
         virtual void SetName( String const& newName ) override { EE_ASSERT( IsRenameable() ); m_name = newName; }
 
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "State Machine"; }
-        virtual char const* GetCategory() const override { return ""; }
+        virtual char const* GetCategory() const override { return "Animation"; }
         virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::CornflowerBlue ); }
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
