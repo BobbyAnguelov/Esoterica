@@ -30,7 +30,7 @@ namespace EE::Animation
             return m_percentageThrough.ToFloat() + m_eventIdx;
         }
 
-        int32_t                               m_eventIdx = 0;
+        int32_t                             m_eventIdx = 0;
         Percentage                          m_percentageThrough = 0;
     };
 

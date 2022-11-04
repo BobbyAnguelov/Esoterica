@@ -116,7 +116,7 @@ namespace EE::Math
         return GetAngleBetweenNormalizedVectors( a.GetNormalized3(), b.GetNormalized3() );
     }
 
-    // Returns the angle between two vectors, relative to the reference vector (i.e. negative values means to the left of reference, positive means to the right)
+    // Returns the yaw angle (rotation around Z) between two vectors, relative to the reference vector
     inline Radians GetYawAngleBetweenVectors( Vector const& reference, Vector const& v )
     {
         Vector const nr = reference.GetNormalized2();
@@ -133,7 +133,7 @@ namespace EE::Math
         return horizontalAngle;
     }
 
-    // Returns the angle between two vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
+    // Returns the pitch angle (rotation around X) between two vectors, relative to the reference vector
     inline Radians GetPitchAngleBetweenNormalizedVectors( Vector const& reference, Vector const& v )
     {
         float const clampedVZ = Math::Clamp( v.m_z, -1.0f, 1.0f );
@@ -145,7 +145,7 @@ namespace EE::Math
         return Radians( vElevationAngle - referenceElevationAngle );
     }
 
-    // Returns the angle between two vectors, relative to the reference vector (i.e. negative values mean below the reference, positive means above )
+    // Returns the angle between two vectors (rotation around X), relative to the reference vector
     inline Radians GetPitchAngleBetweenVectors( Vector const& reference, Vector const& v )
     {
         Vector const nr = reference.GetNormalized3();

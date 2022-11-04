@@ -53,10 +53,9 @@ namespace EE::Timeline
         ImVec2 const initialCursorPos = ImGui::GetCursorPos();
         float const lineHeight = ImGui::GetTextLineHeightWithSpacing();
         ImVec2 const availableRegion = ImGui::GetContentRegionAvail();
-        ImVec2 const itemSpacing = ImGui::GetStyle().ItemSpacing;
 
         // Set initial Cursor Pos
-        ImGui::SetCursorPos( ImVec2( initialCursorPos.x + itemSpacing.x, initialCursorPos.y + ( ( availableRegion.y - lineHeight ) / 2 ) ) );
+        ImGui::SetCursorPos( ImVec2( initialCursorPos.x, initialCursorPos.y + ( ( availableRegion.y - lineHeight ) / 2 ) ) );
 
         // Label
         //-------------------------------------------------------------------------
@@ -82,7 +81,7 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         ImGui::SetCursorPos( initialCursorPos );
-        auto const labelSize = ImGui::CalcTextSize( pLabel ) + ImVec2( itemSpacing.x, 0 );
+        auto const labelSize = ImGui::CalcTextSize( pLabel ) + ImVec2( 8, 0 );
         ImGui::SameLine( labelSize.x );
 
         ImRect const widgetsRect( headerRect.Min + ImVec2( labelSize.x, 0 ), headerRect.Max - ImVec2( iconWidth, 0 ) );

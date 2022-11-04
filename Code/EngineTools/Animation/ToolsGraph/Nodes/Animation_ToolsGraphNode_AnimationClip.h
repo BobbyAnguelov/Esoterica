@@ -34,6 +34,6 @@ namespace EE::Animation::GraphNodes
     // This is a base class for all nodes that directly reference an animation clip
     class AnimationClipReferenceToolsNode : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( AnimationClipToolsNode );
+        EE_REGISTER_TYPE( AnimationClipReferenceToolsNode );
     };
 }

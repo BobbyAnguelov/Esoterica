@@ -92,21 +92,24 @@ namespace EE::Animation::GraphNodes
             m_currentTime = 0.0f;
             m_duration = Math::Lerp( m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_transitionProgress );
 
-            float floatSyncEventOffset = pSettings->m_syncEventOffset;
             if ( m_pEventOffsetOverrideNode != nullptr )
             {
                 m_pEventOffsetOverrideNode->Initialize( context );
-                floatSyncEventOffset = m_pEventOffsetOverrideNode->GetValue<float>( context );
+                m_syncEventOffset = m_pEventOffsetOverrideNode->GetValue<float>( context );
                 m_pEventOffsetOverrideNode->Shutdown( context );
             }
-
-            m_syncEventOffset = Math::FloorToInt( floatSyncEventOffset );
+            else
+            {
+                m_syncEventOffset = pSettings->m_syncEventOffset;
+            }
 
             SyncTrackTime targetStartEventSyncTime;
-            if ( pSettings->ShouldKeepEventIndex() || pSettings->ShouldKeepEventPercentage() || !Math::IsNearZero( floatSyncEventOffset ) )
+            bool const shouldMatchSourceTime = pSettings->ShouldKeepEventIndex() || pSettings->ShouldKeepEventPercentage();
+            bool hasFractionalOffset = false;
+            if ( shouldMatchSourceTime || !Math::IsNearZero( m_syncEventOffset ) )
             {
-                // Calculate the target start position
-                if ( pSettings->ShouldKeepEventIndex() || pSettings->ShouldKeepEventPercentage() )
+                // Calculate the target start position (if we need to match the source)
+                if ( shouldMatchSourceTime )
                 {
                     SyncTrack const& SourceSyncTrack = m_pSourceNode->GetSyncTrack();
                     SyncTrackTime sourceFromSyncTime = SourceSyncTrack.GetTime( m_pSourceNode->GetPreviousTime() );
@@ -126,7 +129,8 @@ namespace EE::Animation::GraphNodes
 
                 // Apply the sync event offset
                 float eventIdxOffset;
-                float percentageThroughOffset = Math::ModF( floatSyncEventOffset, &eventIdxOffset );
+                float percentageThroughOffset = Math::ModF( m_syncEventOffset, &eventIdxOffset );
+                hasFractionalOffset = !Math::IsNearZero( percentageThroughOffset );
                 targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
 
                 // Ensure we handle looping past the current event with the percentage offset
@@ -137,7 +141,16 @@ namespace EE::Animation::GraphNodes
             // Initialize and update the target node
             m_pTargetNode->Initialize( context, targetStartEventSyncTime );
             m_pTargetNode->StartTransitionIn( context );
-            targetNodeResult = m_pTargetNode->Update( context );
+
+            // We need to update synchronized so that for this update the target node is at the exact requested time
+            if ( shouldMatchSourceTime || hasFractionalOffset )
+            {
+                targetNodeResult = m_pTargetNode->Update( context, targetStartEventSyncTime );
+            }
+            else // Regular update
+            {
+                targetNodeResult = m_pTargetNode->Update( context );
+            }
 
             #if EE_DEVELOPMENT_TOOLS
             m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
@@ -167,19 +180,22 @@ namespace EE::Animation::GraphNodes
             sourceUpdateRange.m_endTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
 
             // Calculate the sync event offset for this transition
-            // We dont care about the percentage since, we are synchronized to the source
-            m_syncEventOffset = Math::FloorToInt( pSettings->m_syncEventOffset );
+            // We dont care about the percentage since we are synchronized to the source
             if ( m_pEventOffsetOverrideNode != nullptr )
             {
                 m_pEventOffsetOverrideNode->Initialize( context );
-                m_syncEventOffset = Math::FloorToInt( m_pEventOffsetOverrideNode->GetValue<float>( context ) );
+                m_syncEventOffset = Math::Floor( m_pEventOffsetOverrideNode->GetValue<float>( context ) );
                 m_pEventOffsetOverrideNode->Shutdown( context );
+            }
+            else
+            {
+                m_syncEventOffset = Math::Floor( pSettings->m_syncEventOffset );
             }
 
             // Start transition and update the target state
             SyncTrackTimeRange targetUpdateRange = sourceUpdateRange;
-            targetUpdateRange.m_startTime.m_eventIdx += m_syncEventOffset;
-            targetUpdateRange.m_endTime.m_eventIdx += m_syncEventOffset;
+            targetUpdateRange.m_startTime.m_eventIdx += int32_t( m_syncEventOffset );
+            targetUpdateRange.m_endTime.m_eventIdx += int32_t( m_syncEventOffset );
 
             m_pTargetNode->Initialize( context, targetUpdateRange.m_startTime );
             m_pTargetNode->StartTransitionIn( context );
@@ -295,7 +311,7 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::InitializeInternal( context, initialTime );
         auto pSettings = GetSettings<TransitionNode>();
-        m_syncEventOffset = Math::FloorToInt( pSettings->m_syncEventOffset );
+        m_syncEventOffset = 0;
         m_boneMask = BoneMask( context.m_pSkeleton );
 
         // Reset transition duration and progress
@@ -718,9 +734,10 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         // Update range is for the target - so remove the transition sync event offset to calculate the source update range
+        int32_t const syncEventOffset = int32_t( m_syncEventOffset );
         SyncTrackTimeRange sourceUpdateRange;
-        sourceUpdateRange.m_startTime = SyncTrackTime( updateRange.m_startTime.m_eventIdx - m_syncEventOffset, updateRange.m_startTime.m_percentageThrough );
-        sourceUpdateRange.m_endTime = SyncTrackTime( updateRange.m_endTime.m_eventIdx - m_syncEventOffset, updateRange.m_endTime.m_percentageThrough );
+        sourceUpdateRange.m_startTime = SyncTrackTime( updateRange.m_startTime.m_eventIdx - syncEventOffset, updateRange.m_startTime.m_percentageThrough );
+        sourceUpdateRange.m_endTime = SyncTrackTime( updateRange.m_endTime.m_eventIdx - syncEventOffset, updateRange.m_endTime.m_percentageThrough );
 
         // Ensure that we actually clamp the end time to the end of the source node
         if ( pSettings->ShouldClampDuration() && m_transitionProgress == 1.0f )

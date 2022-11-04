@@ -1012,6 +1012,16 @@ namespace EE::Timeline
                     m_isDraggingPlayhead = true;
                 }
             }
+
+            // Zoom
+            //-------------------------------------------------------------------------
+
+            auto const& IO = ImGui::GetIO();
+            float const mouseWheelDelta = IO.MouseWheel;
+            if ( IO.KeyCtrl && mouseWheelDelta != 0 )
+            {
+                m_pixelsPerFrame = Math::Max( 1.0f, m_pixelsPerFrame + mouseWheelDelta );
+            }
         }
 
         // Keyboard
@@ -1132,16 +1142,6 @@ namespace EE::Timeline
             {
                 m_isDraggingPlayhead = false;
             }
-        }
-
-        // Zoom
-        //-------------------------------------------------------------------------
-
-        auto const& IO = ImGui::GetIO();
-        float const mouseWheelDelta = IO.MouseWheel;
-        if ( IO.KeyCtrl && mouseWheelDelta != 0 )
-        {
-            m_pixelsPerFrame = Math::Max( 1.0f, m_pixelsPerFrame + mouseWheelDelta );
         }
 
         //-------------------------------------------------------------------------

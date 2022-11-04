@@ -410,7 +410,7 @@ namespace EE::Animation::GraphNodes
             // Check event data if the specified event is found
             //-------------------------------------------------------------------------
 
-            m_result = -1.0f;
+            m_result = 0.0f;
             if ( pDominantSampledEvent != nullptr )
             {
                 auto pDominantFootstepEvent = pDominantSampledEvent->GetEvent<FootEvent>();

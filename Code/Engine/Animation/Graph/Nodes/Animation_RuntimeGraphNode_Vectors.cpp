@@ -63,14 +63,33 @@ namespace EE::Animation::GraphNodes
                 // Vectors are assumed to be in character space
                 case Info::AngleHorizontal:
                 {
-                    m_value = (float) Math::GetYawAngleBetweenVectors( Vector::WorldForward, inputVector );
+                    if ( !inputVector.IsNearZero3() )
+                    {
+                        m_value = Math::GetYawAngleBetweenVectors( Vector::WorldForward, inputVector ).ToDegrees().ToFloat();
+                    }
+                    else
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        context.LogWarning( GetNodeIndex(), "Zero input vector for info node!" );
+                        #endif
+                    }
                 }
                 break;
 
                 // Vectors are assumed to be in character space
                 case Info::AngleVertical:
                 {
-                    m_value = (float) Quaternion::FromRotationBetweenVectors( Vector::WorldForward, inputVector ).ToEulerAngles().GetPitch();
+                    if ( !inputVector.IsNearZero3() )
+                    {
+                        EulerAngles const angles = Quaternion::FromRotationBetweenVectors( Vector::WorldForward, inputVector ).ToEulerAngles();
+                        m_value = angles.GetPitch().ToDegrees().ToFloat();
+                    }
+                    else
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        context.LogWarning( GetNodeIndex(), "Zero input vector for info node!" );
+                        #endif
+                    }
                 }
                 break;
             }

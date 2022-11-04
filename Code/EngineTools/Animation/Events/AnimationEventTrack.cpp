@@ -10,7 +10,7 @@ namespace EE::Animation
         if ( m_isSyncTrack )
         {
             auto const textSize = ImGui::CalcTextSize( EE_ICON_SYNC );
-            ImGui::SameLine( widgetsRect.Max.x - textSize.x );
+            ImGui::SameLine( ImGui::GetCursorPosX() + widgetsRect.GetSize().x - textSize.x );
             ImGui::Text( EE_ICON_SYNC );
             ImGuiX::TextTooltip( "Sync Track" );
         }

@@ -42,6 +42,7 @@ namespace EE::Animation
     {
         EE_ASSERT( pFlowGraph != nullptr );
 
+        // TODO: move all pins to node constructors and not in the initialize function, this will allow us to have the info required to filter based on pin here too!
         bool const hasAdvancedFilter = !filterTokens.empty() /*|| pFilterPin != nullptr*/;
 
         //-------------------------------------------------------------------------
@@ -190,7 +191,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        bool const hasAdvancedFilter = !filterTokens.empty() /*|| pSourcePin != nullptr*/;
+        bool const hasAdvancedFilter = !filterTokens.empty() || pSourcePin != nullptr;
 
         //-------------------------------------------------------------------------
 
@@ -229,6 +230,11 @@ namespace EE::Animation
                 for ( auto pParameter : sortedControlParameters )
                 {
                     if ( !MatchesFilter( filterTokens, pParameter->GetName() ) )
+                    {
+                        continue;
+                    }
+
+                    if ( pSourcePin != nullptr && ( pSourcePin->IsOutputPin() || GraphValueType( pSourcePin->m_type ) != pParameter->GetValueType() ) )
                     {
                         continue;
                     }
@@ -275,6 +281,11 @@ namespace EE::Animation
                 for ( auto pParameter : sortedVirtualParameters )
                 {
                     if ( !MatchesFilter( filterTokens, pParameter->GetName() ) )
+                    {
+                        continue;
+                    }
+
+                    if ( pSourcePin != nullptr && ( pSourcePin->IsOutputPin() || GraphValueType( pSourcePin->m_type ) != pParameter->GetValueType() ) )
                     {
                         continue;
                     }
@@ -345,6 +356,11 @@ namespace EE::Animation
                             break;
                         }
                     }
+
+                    if ( pTargetPin != nullptr )
+                    {
+                        TryMakeConnection( pTargetNode, pTargetPin, pSourceNode, pSourcePin );
+                    }
                 }
                 else // Output pin
                 {
@@ -356,11 +372,11 @@ namespace EE::Animation
                             break;
                         }
                     }
-                }
 
-                if ( pTargetPin != nullptr )
-                {
-                    TryMakeConnection( pSourceNode, pSourcePin, pTargetNode, pTargetPin );
+                    if ( pTargetPin != nullptr )
+                    {
+                        TryMakeConnection( pSourceNode, pSourcePin, pTargetNode, pTargetPin );
+                    }
                 }
             }
 

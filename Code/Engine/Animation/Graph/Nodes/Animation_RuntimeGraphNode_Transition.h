@@ -127,7 +127,7 @@ namespace EE::Animation::GraphNodes
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
         float                                   m_transitionDuration = 0; // This is either time in seconds, or percentage of the sync track
-        int32_t                                 m_syncEventOffset = 0;
+        float                                   m_syncEventOffset = 0;
         float                                   m_blendWeight = 0;
 
         UUID                                    m_cachedPoseBufferID;                   // The buffer we are currently caching to
