@@ -118,6 +118,8 @@ namespace EE::Animation
         void OnBeginGraphModification( VisualGraph::BaseGraph* pRootGraph );
         void OnEndGraphModification( VisualGraph::BaseGraph* pRootGraph );
 
+        void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes );
+
         // Variations
         //-------------------------------------------------------------------------
 
@@ -222,7 +224,7 @@ namespace EE::Animation
         void RenameVariation( StringID oldVariationID, StringID newVariationID );
         void DeleteVariation( StringID variationID );
 
-        void DrawVariationSelector();
+        void DrawVariationSelector( float width = -1 );
         void DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID );
         void DrawOverridesTable();
 
@@ -273,6 +275,8 @@ namespace EE::Animation
         EventBindingID                                                  m_rootGraphEndModificationBindingID;
         EventBindingID                                                  m_preEditEventBindingID;
         EventBindingID                                                  m_postEditEventBindingID;
+        EventBindingID                                                  m_primaryPostPasteNodesEventBindingID;
+        EventBindingID                                                  m_secondaryPostPasteNodesEventBindingID;
 
         // Graph Type Data
         TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;

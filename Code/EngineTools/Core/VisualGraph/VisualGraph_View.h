@@ -25,7 +25,7 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API GraphView
+    class EE_ENGINETOOLS_API GraphView final
     {
     protected:
 
@@ -155,6 +155,18 @@ namespace EE::VisualGraph
         inline TVector<SelectedNode> const& GetSelectedNodes() const { return m_selectedNodes; }
         void ClearSelection();
 
+        // Event fired whenever the selection changes. First arg is the old selection, second arg is the new selection
+        inline TEventHandle<TVector<SelectedNode> const&, TVector<SelectedNode> const&> OnSelectionChanged() { return m_selectionChangedEvent; }
+
+        // Copy/Paste
+        //-------------------------------------------------------------------------
+
+        void CopySelectedNodes( TypeSystem::TypeRegistry const& typeRegistry );
+        void PasteNodes( TypeSystem::TypeRegistry const& typeRegistry, ImVec2 const& canvasPastePosition );
+
+        // Event fired whenever we paste nodes but before we complete the graph modification, allows for addition validation, manipulation of data
+        inline TEventHandle<TInlineVector<BaseNode*, 20> const&> OnPostPasteNodes() { return m_postPasteEvent; }
+
     protected:
 
         void ResetInternalState();
@@ -205,15 +217,12 @@ namespace EE::VisualGraph
         void AddToSelection( BaseNode* pNodeToAdd );
         void RemoveFromSelection( BaseNode* pNodeToRemove );
 
-        // User implementable custom selection change handler
-        virtual void OnSelectionChanged( TVector<SelectedNode> const& oldSelection, TVector<SelectedNode> const& newSelection ) {}
-
     private:
 
         EE_FORCE_INLINE void OnSelectionChangedInternal( TVector<SelectedNode> const& oldSelection, TVector<SelectedNode> const& newSelection )
         {
             m_selectionChanged = true;
-            OnSelectionChanged( oldSelection, newSelection );
+            m_selectionChangedEvent.Execute( oldSelection, newSelection );
         }
 
         // Node Drawing
@@ -227,12 +236,6 @@ namespace EE::VisualGraph
         void DrawFlowNodePins( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize );
         void DrawFlowNodeBackground( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize );
         void DrawFlowNode( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode );
-
-        // Copy/Paste
-        //-------------------------------------------------------------------------
-
-        void CopySelectedNodes( TypeSystem::TypeRegistry const& typeRegistry );
-        void PasteNodes( TypeSystem::TypeRegistry const& typeRegistry, ImVec2 const& canvasPastePosition );
 
         // Node Ops
         //-------------------------------------------------------------------------
@@ -268,7 +271,7 @@ namespace EE::VisualGraph
         bool                            m_selectionChanged = false;
 
         DragState                       m_dragState;
-        ContextMenuState                m_contextMenuState;   
+        ContextMenuState                m_contextMenuState;
 
         // Flow graph state
         Flow::Pin*                      m_pHoveredPin = nullptr;
@@ -277,5 +280,9 @@ namespace EE::VisualGraph
         // Rename 
         char                            m_renameBuffer[255] = { 0 };
         BaseNode*                       m_pNodeBeingRenamed = nullptr;
+
+        // Events
+        TEvent<TInlineVector<BaseNode*, 20> const&> m_postPasteEvent;
+        TEvent<TVector<SelectedNode> const&, TVector<SelectedNode> const&> m_selectionChangedEvent;
     };
 }

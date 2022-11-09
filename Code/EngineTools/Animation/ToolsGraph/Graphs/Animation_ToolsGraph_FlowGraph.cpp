@@ -177,12 +177,6 @@ namespace EE::Animation
         writer.Uint( (uint8_t) m_type );
     }
 
-    void FlowGraph::PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes )
-    {
-        VisualGraph::FlowGraph::PostPasteNodes( pastedNodes );
-        GraphNodes::ParameterReferenceToolsNode::GloballyRefreshParameterReferences( GetRootGraph() );
-    }
-
     bool FlowGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pSourcePin )
     {
         auto pToolsGraphContext = static_cast<ToolsGraphUserContext*>( pUserContext );

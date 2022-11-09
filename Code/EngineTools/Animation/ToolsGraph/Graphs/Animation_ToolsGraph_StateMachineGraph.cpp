@@ -65,7 +65,6 @@ namespace EE::Animation
     void StateMachineGraph::PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes )
     {
         VisualGraph::StateMachineGraph::PostPasteNodes( pastedNodes );
-        GraphNodes::ParameterReferenceToolsNode::GloballyRefreshParameterReferences( GetRootGraph() );
         UpdateDependentNodes();
     }
 

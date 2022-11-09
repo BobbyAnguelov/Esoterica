@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
     public:
 
         ControlParameterToolsNode() = default;
-        ControlParameterToolsNode( String const& name );
+        ControlParameterToolsNode( String const& name, String const& categoryName = String() );
 
         inline String const& GetParameterName() const { return m_name; }
         void Rename( String const& name, String const& category );
@@ -44,7 +44,7 @@ namespace EE::Animation::GraphNodes
     public:
 
         VirtualParameterToolsNode() = default;
-        VirtualParameterToolsNode( String const& name, GraphValueType type );
+        VirtualParameterToolsNode( GraphValueType type, String const& name, String const& categoryName = String() );
 
         inline String const& GetParameterName() const { return m_name; }
         void Rename( String const& name, String const& category );
@@ -77,28 +77,29 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        static void GloballyRefreshParameterReferences( VisualGraph::BaseGraph* pRootGraph );
-
-    public:
-
         ParameterReferenceToolsNode() = default;
         ParameterReferenceToolsNode( ControlParameterToolsNode* pParameter );
         ParameterReferenceToolsNode( VirtualParameterToolsNode* pParameter );
 
         virtual void Initialize( VisualGraph::BaseGraph* pParentGraph ) override;
 
-        virtual GraphValueType GetValueType() const override { return m_pParameter->GetValueType(); }
+        void SetReferencedParameter( FlowToolsNode* pParameter );
         inline FlowToolsNode const* GetReferencedParameter() const { return m_pParameter; }
+        inline UUID const& GetReferencedParameterID() const { return ( m_pParameter != nullptr ) ? m_pParameter->GetID() : m_parameterUUID; }
+        inline GraphValueType GetReferencedParameterValueType() const { return ( m_pParameter != nullptr ) ? m_pParameter->GetValueType() : m_parameterValueType; }
+        inline char const* GetReferencedParameterName() const { return ( m_pParameter != nullptr ) ? m_pParameter->GetName() : m_parameterName.c_str(); }
+        String const& GetReferencedParameterCategory() const;
+
+        inline bool IsReferencingControlParameter() const { return IsOfType<ControlParameterToolsNode>( m_pParameter ); }
         inline ControlParameterToolsNode const* GetReferencedControlParameter() const { return TryCast<ControlParameterToolsNode>( m_pParameter ); }
         inline ControlParameterToolsNode* GetReferencedControlParameter() { return TryCast<ControlParameterToolsNode>( m_pParameter ); }
-        inline bool IsReferencingControlParameter() const { return IsOfType<ControlParameterToolsNode>( m_pParameter ); }
+        
+        inline bool IsReferencingVirtualParameter() const { return IsOfType<VirtualParameterToolsNode>( m_pParameter ); }
         inline VirtualParameterToolsNode const* GetReferencedVirtualParameter() const { return TryCast<VirtualParameterToolsNode>( m_pParameter ); }
         inline VirtualParameterToolsNode* GetReferencedVirtualParameter() { return TryCast<VirtualParameterToolsNode>( m_pParameter ); }
-        inline bool IsReferencingVirtualParameter() const { return IsOfType<VirtualParameterToolsNode>( m_pParameter ); }
-        inline UUID const& GetReferencedParameterID() const { return m_parameterUUID; }
-        inline GraphValueType GetParameterValueType() const { return m_parameterValueType; }
 
         virtual char const* GetName() const override { return m_pParameter->GetName(); }
+        virtual GraphValueType GetValueType() const override { return GetReferencedParameterValueType(); }
         virtual char const* GetTypeName() const override { return "Parameter"; }
         virtual char const* GetCategory() const override { return "Parameter"; }
         virtual bool IsUserCreatable() const override { return true; }
@@ -108,17 +109,22 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        void UpdateCachedParameterData();
+
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
-        virtual void PrepareForCopy() override;
+        virtual void PrepareForCopy() override { UpdateCachedParameterData(); }
 
     private:
 
         FlowToolsNode*                         m_pParameter = nullptr;
+
+        // These values are cached and serialize to help with restoring references after serialization and for copy/pasting
+
         EE_REGISTER UUID                       m_parameterUUID;
         EE_REGISTER GraphValueType             m_parameterValueType;
-        EE_REGISTER String                     m_parameterName; // Required for pasting across graphs - set when serialized - DO NOT RELY ON THIS OUTSIDE OF COPY/PASTE
-        EE_REGISTER String                     m_parameterCategory; // Required for pasting across graphs - set when serialized - DO NOT RELY ON THIS OUTSIDE OF COPY/PASTE
+        EE_REGISTER String                     m_parameterName;
+        EE_REGISTER String                     m_parameterCategory;
     };
 
     //-------------------------------------------------------------------------

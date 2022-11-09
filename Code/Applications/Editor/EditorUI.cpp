@@ -13,6 +13,7 @@
 #include "System/Resource/ResourceSystem.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
+#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -166,11 +167,13 @@ namespace EE
         // Main Menu
         //-------------------------------------------------------------------------
 
+        ImGui::PushStyleColor( ImGuiCol_MenuBarBg, ImGuiX::Style::s_colorGray9.Value );
         if ( ImGui::BeginMainMenuBar() )
         {
             DrawMainMenu( context );
             ImGui::EndMainMenuBar();
         }
+        ImGui::PopStyleColor();
 
         //-------------------------------------------------------------------------
         // Create main dock window
@@ -799,7 +802,7 @@ namespace EE
         // Preview Map Button
         //-------------------------------------------------------------------------
 
-        float buttonDimensions = 130;
+        float buttonDimensions = 170;
         ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
 
         ImGui::BeginDisabled( !m_pMapEditor->HasLoadedMap() );
@@ -812,7 +815,7 @@ namespace EE
         }
         else
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Map", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Loaded Map", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
             {
                 CreateGamePreviewWorkspace( context );
             }

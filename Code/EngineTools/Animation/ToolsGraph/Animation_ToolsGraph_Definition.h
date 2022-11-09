@@ -30,6 +30,11 @@ namespace EE::Animation
         inline void MarkDirty() { m_isDirty = true; }
         inline void ClearDirty() { m_isDirty = false; }
 
+        // Graph State
+        //-------------------------------------------------------------------------
+
+        void RefreshParameterReferences();
+
         // Variations
         //-------------------------------------------------------------------------
 

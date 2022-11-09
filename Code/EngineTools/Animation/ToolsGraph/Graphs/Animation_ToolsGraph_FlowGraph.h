@@ -71,7 +71,6 @@ namespace EE::Animation
         virtual bool SupportsAutoConnection() const override { return true; }
         virtual bool DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pSourcePin ) override;
         virtual void HandleDragAndDrop( VisualGraph::UserContext* pUserContext, ImVec2 const& mouseCanvasPos ) override;
-        virtual void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const override;
 

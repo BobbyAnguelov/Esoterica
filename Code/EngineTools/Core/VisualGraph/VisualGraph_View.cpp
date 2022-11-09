@@ -1090,6 +1090,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         m_pGraph->PostPasteNodes( pastedNodes );
+        m_postPasteEvent.Execute( pastedNodes );
         m_pGraph->EndModification();
     }
 

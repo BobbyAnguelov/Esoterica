@@ -737,6 +737,9 @@ namespace EE::Animation
         m_rootGraphBeginModificationBindingID = VisualGraph::BaseGraph::OnBeginModification().Bind( [this] ( VisualGraph::BaseGraph* pRootGraph ) { OnBeginGraphModification( pRootGraph ); } );
         m_rootGraphEndModificationBindingID = VisualGraph::BaseGraph::OnEndModification().Bind( [this] ( VisualGraph::BaseGraph* pRootGraph ) { OnEndGraphModification( pRootGraph ); } );
 
+        m_primaryPostPasteNodesEventBindingID = m_primaryGraphView.OnPostPasteNodes().Bind([this] (TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes) { PostPasteNodes(pastedNodes); });
+        m_secondaryPostPasteNodesEventBindingID = m_secondaryGraphView.OnPostPasteNodes().Bind([this] (TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes) { PostPasteNodes(pastedNodes); });
+
         // Set initial graph view
         //-------------------------------------------------------------------------
 
@@ -747,6 +750,9 @@ namespace EE::Animation
     {
         VisualGraph::BaseGraph::OnBeginModification().Unbind( m_rootGraphBeginModificationBindingID );
         VisualGraph::BaseGraph::OnEndModification().Unbind( m_rootGraphEndModificationBindingID );
+
+        m_primaryGraphView.OnPostPasteNodes().Unbind( m_primaryPostPasteNodesEventBindingID );
+        m_secondaryGraphView.OnPostPasteNodes().Unbind( m_secondaryPostPasteNodesEventBindingID );
     }
 
     bool AnimationGraphWorkspace::IsWorkingOnResource( ResourceID const& resourceID ) const
@@ -861,15 +867,22 @@ namespace EE::Animation
         // Gap
         //-------------------------------------------------------------------------
 
-        constexpr float const gapWidth = 320;
+        constexpr float const gapWidth = 490;
         float const availableX = ImGui::GetContentRegionAvail().x;
         if ( availableX > gapWidth )
         {
             ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
         }
 
+        // Variation Selector
+        //-------------------------------------------------------------------------
+
+        DrawVariationSelector( 150 );
+
         // Live Game Debugging
         //-------------------------------------------------------------------------
+
+        ImGuiX::VerticalSeparator( ImVec2( 20, 0 ) );
 
         ImGui::BeginDisabled( IsDebugging() );
 
@@ -1044,7 +1057,7 @@ namespace EE::Animation
             if ( pSelectedTargetControlParameter == nullptr )
             {
                 auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
-                if ( pReferenceNode != nullptr && pReferenceNode->GetParameterValueType() == GraphValueType::Target && pReferenceNode->IsReferencingControlParameter() )
+                if ( pReferenceNode != nullptr && pReferenceNode->GetReferencedParameterValueType() == GraphValueType::Target && pReferenceNode->IsReferencingControlParameter() )
                 {
                     pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pReferenceNode->GetReferencedControlParameter() );
                 }
@@ -1568,6 +1581,13 @@ namespace EE::Animation
 
             RefreshControlParameterCache();
         }
+    }
+
+    void AnimationGraphWorkspace::PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes )
+    {
+        VisualGraph::ScopedGraphModification gm( m_toolsGraph.GetRootGraph() );
+        m_toolsGraph.RefreshParameterReferences();
+        RefreshControlParameterCache();
     }
 
     //-------------------------------------------------------------------------
@@ -3528,27 +3548,27 @@ namespace EE::Animation
             switch ( valueType )
             {
                 case GraphValueType::Bool:
-                pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( finalParameterName );
+                pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( finalParameterName, finalCategoryName );
                 break;
 
                 case GraphValueType::ID:
-                pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( finalParameterName );
+                pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( finalParameterName, finalCategoryName );
                 break;
 
                 case GraphValueType::Int:
-                pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( finalParameterName );
+                pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( finalParameterName, finalCategoryName );
                 break;
 
                 case GraphValueType::Float:
-                pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( finalParameterName );
+                pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( finalParameterName, finalCategoryName );
                 break;
 
                 case GraphValueType::Vector:
-                pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( finalParameterName );
+                pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( finalParameterName, finalCategoryName );
                 break;
 
                 case GraphValueType::Target:
-                pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( finalParameterName );
+                pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( finalParameterName, finalCategoryName );
                 break;
 
                 default:
@@ -3559,13 +3579,11 @@ namespace EE::Animation
             }
 
             EE_ASSERT( pParameter != nullptr );
-            pParameter->Rename( finalParameterName, finalCategoryName );
             m_controlParameters.emplace_back( pParameter );
         }
         else
         {
-            auto pParameter = pRootGraph->CreateNode<GraphNodes::VirtualParameterToolsNode>( finalParameterName, valueType );
-            pParameter->Rename( finalParameterName, finalCategoryName );
+            auto pParameter = pRootGraph->CreateNode<GraphNodes::VirtualParameterToolsNode>( valueType, finalParameterName, finalCategoryName );
             m_virtualParameters.emplace_back( pParameter );
         }
 
@@ -4057,9 +4075,9 @@ namespace EE::Animation
         ImGui::PopID();
     }
 
-    void AnimationGraphWorkspace::DrawVariationSelector()
+    void AnimationGraphWorkspace::DrawVariationSelector( float width )
     {
-        ImGui::SetNextItemWidth( -1 );
+        ImGui::SetNextItemWidth( width );
         if ( ImGui::BeginCombo( "##VariationSelector", m_selectedVariationID.c_str() ) )
         {
             auto& variationHierarchy = m_toolsGraph.GetVariationHierarchy();
