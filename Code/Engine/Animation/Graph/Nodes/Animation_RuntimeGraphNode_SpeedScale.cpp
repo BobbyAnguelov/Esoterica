@@ -19,7 +19,9 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_pScaleValueNode != nullptr );
         PassthroughNode::InitializeInternal( context, initialTime );
         m_pScaleValueNode->Initialize( context );
-        m_blendWeight = 1.0f;
+
+        auto pSettings = GetSettings<SpeedScaleNode>();
+        m_blendWeight = ( pSettings->m_blendInTime > 0.0f ) ? 0.0f : 1.0f;
     }
 
     void SpeedScaleNode::ShutdownInternal( GraphContext& context )
@@ -32,6 +34,8 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult SpeedScaleNode::Update( GraphContext& context )
     {
+        auto pSettings = GetSettings<SpeedScaleNode>();
+
         // Record old delta time
         auto const deltaTime = context.m_deltaTime;
 
@@ -40,16 +44,13 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pChildNode->IsValid() )
         {
-            auto speedScale = 1.0f;
             if ( m_pScaleValueNode != nullptr )
             {
-                speedScale = GetSpeedScale( context );
+                float speedScale = GetSpeedScale( context );
 
-                if ( m_blendWeight < 1.0f )
+                if ( pSettings->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
                 {
-                    auto pSettings = GetSettings<SpeedScaleNode>();
-                    EE_ASSERT( pSettings->m_blendTime > 0.0f );
-                    float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendTime;
+                    float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendInTime;
                     m_blendWeight = Math::Clamp( m_blendWeight + blendWeightDelta, 0.0f, 1.0f );
                     speedScale = Math::Lerp( 1.0f, speedScale, m_blendWeight );
                 }
@@ -85,7 +86,6 @@ namespace EE::Animation::GraphNodes
         context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
         #endif
 
-        m_blendWeight = ( Math::IsNearZero( GetSettings<SpeedScaleNode>()->m_blendTime ) ) ? 1.0f : 0.0f;
         return PassthroughNode::Update( context, updateRange );
     }
 
@@ -104,7 +104,9 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_pDesiredVelocityValueNode != nullptr );
         PoseNode::InitializeInternal( context, initialTime );
         m_pDesiredVelocityValueNode->Initialize( context );
-        m_blendWeight = 1.0f;
+
+        auto pSettings = GetSettings<SpeedScaleNode>();
+        m_blendWeight = ( pSettings->m_blendInTime > 0.0f ) ? 0.0f : 1.0f;
 
         //-------------------------------------------------------------------------
 
@@ -115,7 +117,7 @@ namespace EE::Animation::GraphNodes
 
         m_pChildNode->Initialize(context, initialTime);
 
-        if (m_pChildNode->IsValid())
+        if ( m_pChildNode->IsValid() )
         {
             m_duration = m_pChildNode->GetDuration();
             m_previousTime = m_pChildNode->GetPreviousTime();
@@ -146,6 +148,8 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult VelocityBasedSpeedScaleNode::Update( GraphContext& context )
     {
+        auto pSettings = GetSettings<VelocityBasedSpeedScaleNode>();
+
         // Record old delta time
         auto const deltaTime = context.m_deltaTime;
 
@@ -158,12 +162,16 @@ namespace EE::Animation::GraphNodes
             if ( m_pDesiredVelocityValueNode != nullptr )
             {
                 float const desiredVelocity = m_pDesiredVelocityValueNode->GetValue<float>( context );
-                if ( desiredVelocity > 0.0f )
+                if ( desiredVelocity >= 0.0f )
                 {
                     float const averageVelocity = m_pChildNode->GetAnimation()->GetAverageLinearVelocity();
                     if ( !Math::IsNearZero( averageVelocity ) )
                     {
                         speedMultiplier = desiredVelocity / averageVelocity;
+                    }
+                    else
+                    {
+                        speedMultiplier = 0.0f;
                     }
                 }
                 else
@@ -175,12 +183,10 @@ namespace EE::Animation::GraphNodes
 
                 //-------------------------------------------------------------------------
 
-                if ( m_blendWeight < 1.0f )
+                if ( pSettings->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
                 {
-                    auto pSettings = GetSettings<VelocityBasedSpeedScaleNode>();
-                    EE_ASSERT( pSettings->m_blendTime > 0.0f );
-                    float const BlendWeightDelta = context.m_deltaTime / pSettings->m_blendTime;
-                    m_blendWeight = Math::Clamp( m_blendWeight + BlendWeightDelta, 0.0f, 1.0f );
+                    float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendInTime;
+                    m_blendWeight = Math::Clamp( m_blendWeight + blendWeightDelta, 0.0f, 1.0f );
                     speedMultiplier = Math::Lerp( 1.0f, speedMultiplier, m_blendWeight );
                 }
 
@@ -216,8 +222,10 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult VelocityBasedSpeedScaleNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
-        m_blendWeight = ( Math::IsNearZero( GetSettings<VelocityBasedSpeedScaleNode>()->m_blendTime ) ) ? 1.0f : 0.0f;
-        
+        #if EE_DEVELOPMENT_TOOLS
+        context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
+        #endif
+
         GraphPoseNodeResult result;
 
         // Forward child node results

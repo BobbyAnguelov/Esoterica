@@ -6,66 +6,13 @@
 
 namespace EE::Animation::GraphNodes
 {
-    template<typename T>
-    static SampledEvent const* GetDominantEvent( SampledEventsBuffer const& sampledEvents, SampledEventRange const& searchRange, bool preferHigherPercentageThrough )
+    void IDEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        SampledEvent const* pDominantSampledEvent = nullptr;
-
-        for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
-        {
-            auto pSampledEvent = &sampledEvents[i];
-            T const* pEvent = pSampledEvent->TryGetEvent<T>();
-            if ( pEvent != nullptr )
-            {
-                bool const isDominantEventSet = ( pDominantSampledEvent != nullptr );
-                bool shouldUpdateEvent = !isDominantEventSet;
-                if ( isDominantEventSet )
-                {
-                    // If we have higher weight, use this event as the reference
-                    if ( pSampledEvent->GetWeight() > pDominantSampledEvent->GetWeight() )
-                    {
-                        shouldUpdateEvent = true;
-                    }
-                    else if ( pSampledEvent->GetWeight() == pDominantSampledEvent->GetWeight() )
-                    {
-                        // If the source node is the same, update the event selection based on percentage through preference
-                        bool const isSameSourceNode = pSampledEvent->GetSourceNodeIndex() == pDominantSampledEvent->GetSourceNodeIndex();
-                        if ( isSameSourceNode )
-                        {
-                            bool const newEventHasHigherPercentageThrough = pSampledEvent->GetPercentageThrough() > pDominantSampledEvent->GetPercentageThrough();
-                            if ( preferHigherPercentageThrough && newEventHasHigherPercentageThrough )
-                            {
-                                shouldUpdateEvent = true;
-                            }
-                            else if ( !preferHigherPercentageThrough && !newEventHasHigherPercentageThrough )
-                            {
-                                shouldUpdateEvent = true;
-                            }
-                        }
-                    }
-                }
-
-                if ( shouldUpdateEvent )
-                {
-                    pDominantSampledEvent = pSampledEvent;
-                }
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        return pDominantSampledEvent;
-    }
-
-    //-------------------------------------------------------------------------
-
-    void GenericEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
-    {
-        auto pNode = CreateNode<GenericEventConditionNode>( context, options );
+        auto pNode = CreateNode<IDEventConditionNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
-    void GenericEventConditionNode::InitializeInternal( GraphContext& context )
+    void IDEventConditionNode::InitializeInternal( GraphContext& context )
     {
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
@@ -76,12 +23,12 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void GenericEventConditionNode::ShutdownInternal( GraphContext& context )
+    void IDEventConditionNode::ShutdownInternal( GraphContext& context )
     {
         BoolValueNode::ShutdownInternal( context );
     }
 
-    void GenericEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void IDEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
 
@@ -96,9 +43,9 @@ namespace EE::Animation::GraphNodes
         *( (bool*) pOutValue ) = m_result;
     }
 
-    bool GenericEventConditionNode::TryMatchTags( GraphContext& context ) const
+    bool IDEventConditionNode::TryMatchTags( GraphContext& context ) const
     {
-        auto pNodeSettings = GetSettings<GenericEventConditionNode>();
+        auto pNodeSettings = GetSettings<IDEventConditionNode>();
         int32_t const numEventIDs = (int32_t) pNodeSettings->m_eventIDs.size();
         auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numEventIDs );
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numEventIDs );
@@ -128,10 +75,16 @@ namespace EE::Animation::GraphNodes
 
             SampledEvent const& sampledEvent = context.m_sampledEventsBuffer[i];
 
+            // Skip events from inactive branch if so requested
+            if ( pNodeSettings->m_onlyCheckEventsFromActiveBranch && !sampledEvent.IsFromActiveBranch() )
+            {
+                continue;
+            }
+
             // Animation Event
             if ( sampledEvent.IsAnimationEvent() )
             {
-                if ( pNodeSettings->m_searchMode != EventSearchMode::OnlySearchStateEvents )
+                if ( pNodeSettings->m_searchRule != SearchRule::OnlySearchStateEvents )
                 {
                     if ( auto pIDEvent = sampledEvent.TryGetEvent<IDEvent>() )
                     {
@@ -141,7 +94,7 @@ namespace EE::Animation::GraphNodes
             }
             else // State event
             {
-                if ( pNodeSettings->m_searchMode != EventSearchMode::OnlySearchAnimEvents )
+                if ( pNodeSettings->m_searchRule != SearchRule::OnlySearchAnimEvents )
                 {
                     foundID = sampledEvent.GetStateEventID();
                 }
@@ -236,20 +189,73 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            SampledEvent const* pDominantSampledEvent = GetDominantEvent<IDEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
+            float foundPercentageThrough = 0.0f;
+            float highestWeightFound = -1.0f;
+            bool eventFound = false;
+
+            for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
+            {
+                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( auto pEvent = pSampledEvent->TryGetEvent<IDEvent>() )
+                {
+                    if ( pSettings->m_eventID != pEvent->GetID() )
+                    {
+                        continue;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    bool updateEvent = false;
+
+                    // If we already have a found event then apply priority rule
+                    if ( eventFound )
+                    {
+                        if ( pSettings->m_priorityRule == EventPriorityRule::HighestWeight )
+                        {
+                            if ( pSampledEvent->GetWeight() >= highestWeightFound )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                        else // Prefer higher percentage through
+                        {
+                            if ( pSampledEvent->GetPercentageThrough().ToFloat() >= foundPercentageThrough )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                    }
+                    else // Just update the found data
+                    {
+                        updateEvent = true;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( updateEvent )
+                    {
+                        eventFound = true;
+                        foundPercentageThrough = pSampledEvent->GetPercentageThrough().ToFloat();
+                        highestWeightFound = pSampledEvent->GetWeight();
+                    }
+                }
+            }
 
             // Check event data if the specified event is found
             //-------------------------------------------------------------------------
 
             m_result = -1.0f;
 
-            if ( pDominantSampledEvent != nullptr )
+            if ( eventFound )
             {
-                auto pDominantIDEvent = pDominantSampledEvent->GetEvent<IDEvent>();
-                if ( pDominantIDEvent->GetID() == pSettings->m_eventID )
-                {
-                    m_result = pDominantSampledEvent->GetPercentageThrough();
-                }
+                m_result = foundPercentageThrough;
             }
         }
 
@@ -309,41 +315,72 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            SampledEvent const* pDominantSampledEvent = GetDominantEvent<FootEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
-
-            // Check event data if the specified event is found
-            //-------------------------------------------------------------------------
-
+            bool eventFound = false;
             m_result = false;
-            if ( pDominantSampledEvent != nullptr )
+
+            for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pDominantFootstepEvent = pDominantSampledEvent->GetEvent<FootEvent>();
-
-                auto const Foot = pDominantFootstepEvent->GetFootPhase();
-                switch ( pSettings->m_phaseCondition )
+                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
                 {
-                    case FootEvent::PhaseCondition::LeftFootDown:
-                    m_result = ( Foot == FootEvent::Phase::LeftFootDown );
-                    break;
+                    continue;
+                }
 
-                    case FootEvent::PhaseCondition::RightFootDown:
-                    m_result = ( Foot == FootEvent::Phase::RightFootDown );
-                    break;
+                //-------------------------------------------------------------------------
 
-                    case FootEvent::PhaseCondition::LeftFootPassing:
-                    m_result = ( Foot == FootEvent::Phase::LeftFootPassing );
-                    break;
+                if ( auto pEvent = pSampledEvent->TryGetEvent<FootEvent>() )
+                {
+                    auto const foot = pEvent->GetFootPhase();
+                    switch ( pSettings->m_phaseCondition )
+                    {
+                        case FootEvent::PhaseCondition::LeftFootDown:
+                        {
+                            m_result = ( foot == FootEvent::Phase::LeftFootDown );
+                            eventFound = true;
+                        }
+                        break;
 
-                    case FootEvent::PhaseCondition::RightFootPassing:
-                    m_result = ( Foot == FootEvent::Phase::RightFootPassing );
-                    break;
+                        case FootEvent::PhaseCondition::RightFootDown:
+                        {
+                            m_result = ( foot == FootEvent::Phase::RightFootDown );
+                            eventFound = true;
+                        }
+                        break;
 
-                    case FootEvent::PhaseCondition::LeftPhase:
-                    m_result = ( Foot == FootEvent::Phase::RightFootPassing || Foot == FootEvent::Phase::LeftFootDown );
-                    break;
+                        case FootEvent::PhaseCondition::LeftFootPassing:
+                        {
+                            m_result = ( foot == FootEvent::Phase::LeftFootPassing );
+                            eventFound = true;
+                        }
+                        break;
 
-                    case FootEvent::PhaseCondition::RightPhase:
-                    m_result = ( Foot == FootEvent::Phase::LeftFootPassing || Foot == FootEvent::Phase::RightFootDown );
+                        case FootEvent::PhaseCondition::RightFootPassing:
+                        {
+                            m_result = ( foot == FootEvent::Phase::RightFootPassing );
+                            eventFound = true;
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::LeftPhase:
+                        {
+                            m_result = ( foot == FootEvent::Phase::RightFootPassing || foot == FootEvent::Phase::LeftFootDown );
+                            eventFound = true;
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::RightPhase:
+                        {
+                            m_result = ( foot == FootEvent::Phase::LeftFootPassing || foot == FootEvent::Phase::RightFootDown );
+                            eventFound = true;
+                        }
+                        break;
+                    }
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( eventFound )
+                {
                     break;
                 }
             }
@@ -379,7 +416,7 @@ namespace EE::Animation::GraphNodes
     void FootstepEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-        auto pSettings = GetSettings<FootEventConditionNode>();
+        auto pSettings = GetSettings<FootstepEventPercentageThroughNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -405,73 +442,126 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            SampledEvent const* pDominantSampledEvent = GetDominantEvent<FootEvent>( context.m_sampledEventsBuffer, searchRange, pSettings->m_preferHighestPercentageThrough );
+            float foundPercentageThrough = 0.0f;
+            float highestWeightFound = -1.0f;
+            bool eventFound = false;
+
+            for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
+            {
+                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( auto pEvent = pSampledEvent->TryGetEvent<FootEvent>() )
+                {
+                    auto const foot = pEvent->GetFootPhase();
+                    switch ( pSettings->m_phaseCondition )
+                    {
+                        case FootEvent::PhaseCondition::LeftFootDown:
+                        {
+                            if ( foot != FootEvent::Phase::LeftFootDown )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::RightFootDown:
+                        {
+                            if ( foot != FootEvent::Phase::RightFootDown )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::LeftFootPassing:
+                        {
+                            if ( foot != FootEvent::Phase::LeftFootPassing )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::RightFootPassing:
+                        {
+                            if ( foot != FootEvent::Phase::RightFootPassing )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::LeftPhase:
+                        {
+                            if ( foot != FootEvent::Phase::RightFootPassing && foot != FootEvent::Phase::LeftFootDown )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::RightPhase:
+                        {
+                            if ( foot != FootEvent::Phase::LeftFootPassing && foot != FootEvent::Phase::RightFootDown )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    bool updateEvent = false;
+
+                    // If we already have a found event then apply priority rule
+                    if ( eventFound )
+                    {
+                        if ( pSettings->m_priorityRule == EventPriorityRule::HighestWeight )
+                        {
+                            if ( pSampledEvent->GetWeight() >= highestWeightFound )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                        else // Prefer higher percentage through
+                        {
+                            if ( pSampledEvent->GetPercentageThrough().ToFloat() >= foundPercentageThrough )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                    }
+                    else // Just update the found data
+                    {
+                        updateEvent = true;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( updateEvent )
+                    {
+                        eventFound = true;
+                        foundPercentageThrough = pSampledEvent->GetPercentageThrough().ToFloat();
+                        highestWeightFound = pSampledEvent->GetWeight();
+                    }
+                }
+            }
 
             // Check event data if the specified event is found
             //-------------------------------------------------------------------------
 
-            m_result = 0.0f;
-            if ( pDominantSampledEvent != nullptr )
+            m_result = -1.0f;
+
+            if ( eventFound )
             {
-                auto pDominantFootstepEvent = pDominantSampledEvent->GetEvent<FootEvent>();
-
-                auto const Foot = pDominantFootstepEvent->GetFootPhase();
-                switch ( pSettings->m_phaseCondition )
-                {
-                    case FootEvent::PhaseCondition::LeftFootDown:
-                    {
-                        if ( Foot == FootEvent::Phase::LeftFootDown )
-                        {
-                            m_result = pDominantSampledEvent->GetPercentageThrough();
-                        }
-                    }
-                    break;
-
-                    case FootEvent::PhaseCondition::RightFootDown:
-                    {
-                        if ( Foot == FootEvent::Phase::RightFootDown )
-                        {
-                            m_result = pDominantSampledEvent->GetPercentageThrough();
-                        }
-                    }
-                    break;
-
-                    case FootEvent::PhaseCondition::LeftFootPassing:
-                    {
-                        if ( Foot == FootEvent::Phase::LeftFootPassing )
-                        {
-                            m_result = pDominantSampledEvent->GetPercentageThrough();
-                        }
-                    }
-                    break;
-
-                    case FootEvent::PhaseCondition::RightFootPassing:
-                    {
-                        if ( Foot == FootEvent::Phase::RightFootPassing )
-                        {
-                            m_result = pDominantSampledEvent->GetPercentageThrough();
-                        }
-                    }
-                    break;
-
-                    case FootEvent::PhaseCondition::LeftPhase:
-                    {
-                        if ( Foot == FootEvent::Phase::RightFootPassing || Foot == FootEvent::Phase::LeftFootDown )
-                        {
-                            m_result = pDominantSampledEvent->GetPercentageThrough();
-                        }
-                    }
-                    break;
-
-                    case FootEvent::PhaseCondition::RightPhase:
-                    {
-                        if ( Foot == FootEvent::Phase::LeftFootPassing || Foot == FootEvent::Phase::RightFootDown )
-                        {
-                            m_result = pDominantSampledEvent->GetPercentageThrough();
-                        }
-                    }
-                    break;
-                }
+                m_result = foundPercentageThrough;
             }
         }
 
@@ -480,29 +570,29 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void SyncEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void SyncEventIndexConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<SyncEventConditionNode>( context, options );
+        auto pNode = CreateNode<SyncEventIndexConditionNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
-    void SyncEventConditionNode::InitializeInternal( GraphContext& context )
+    void SyncEventIndexConditionNode::InitializeInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
         BoolValueNode::InitializeInternal( context );
         m_result = false;
     }
 
-    void SyncEventConditionNode::ShutdownInternal( GraphContext& context )
+    void SyncEventIndexConditionNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
         BoolValueNode::ShutdownInternal( context );
     }
 
-    void SyncEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void SyncEventIndexConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        auto pSettings = GetSettings<SyncEventConditionNode>();
+        auto pSettings = GetSettings<SyncEventIndexConditionNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -568,5 +658,118 @@ namespace EE::Animation::GraphNodes
 
         // Set Result
         *( (float*) pOutValue ) = m_result;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void TransitionEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<TransitionEventConditionNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void TransitionEventConditionNode::InitializeInternal( GraphContext& context )
+    {
+        BoolValueNode::InitializeInternal( context );
+        if ( m_pSourceStateNode != nullptr )
+        {
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+        }
+
+        m_result = false;
+    }
+
+    void TransitionEventConditionNode::ShutdownInternal( GraphContext& context )
+    {
+        BoolValueNode::ShutdownInternal( context );
+    }
+
+    void TransitionEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
+        auto pSettings = GetSettings<TransitionEventConditionNode>();
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            // Calculate event search range
+            //-------------------------------------------------------------------------
+
+            bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
+
+            SampledEventRange searchRange( 0, 0 );
+            if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+            {
+                // If we dont have a child node set, search all sampled events for the event
+                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+            }
+            else // Only search the sampled event range for the child node
+            {
+                searchRange = m_pSourceStateNode->GetSampledEventRange();
+            }
+
+            // Search sampled events for all events sampled this frame (we may have multiple, even From the same source)
+            //-------------------------------------------------------------------------
+
+            bool eventFound = false;
+            TransitionMarker markerFound = TransitionMarker::AllowTransition;
+
+            for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
+            {
+                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                {
+                    continue;
+                }
+
+                if ( auto pEvent = pSampledEvent->TryGetEvent<TransitionEvent>() )
+                {
+                    if ( pSettings->m_markerIDToMatch != pEvent->GetMarkerID() )
+                    {
+                       continue;
+                    }
+
+                    eventFound = true;
+                    auto const eventMarker = pEvent->GetMarker();
+
+                    // We return the most restrictive marker found
+                    if ( eventMarker > markerFound )
+                    {
+                        markerFound = eventMarker;
+                    }
+                }
+            }
+
+            // Check found marker against node condition
+            //-------------------------------------------------------------------------
+
+            m_result = false;
+
+            if ( eventFound )
+            {
+                switch ( pSettings->m_markerCondition )
+                {
+                    case TransitionMarkerCondition::AnyAllowed:
+                    m_result = ( markerFound != TransitionMarker::BlockTransition );
+                    break;
+
+                    case TransitionMarkerCondition::FullyAllowed:
+                    m_result = ( markerFound == TransitionMarker::AllowTransition );
+                    break;
+
+                    case TransitionMarkerCondition::ConditionallyAllowed:
+                    m_result = ( markerFound == TransitionMarker::ConditionallyAllowTransition );
+                    break;
+
+                    case TransitionMarkerCondition::Blocked:
+                    m_result = ( markerFound == TransitionMarker::BlockTransition );
+                    break;
+                }
+            }
+        }
+
+        *( (bool*) pOutValue ) = m_result;
     }
 }

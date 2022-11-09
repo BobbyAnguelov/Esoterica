@@ -32,7 +32,11 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE OffsetType m_offsetType = OffsetType::RelativeToCharacter;
+        // The coordinate space of the supplied offset
+        EE_EXPOSE OffsetType                        m_offsetType = OffsetType::RelativeToCharacter;
+
+        // The sampling mode for the warped motion
+        EE_EXPOSE RootMotionData::SamplingMode      m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
     };
 
     //-------------------------------------------------------------------------
@@ -55,22 +59,22 @@ namespace EE::Animation::GraphNodes
     private:
 
         // Can this warp be updated when the target changes?
-        EE_EXPOSE bool                             m_allowTargetUpdate = false;
+        EE_EXPOSE bool                              m_allowTargetUpdate = false;
 
         // The sampling mode for the warped motion
-        EE_EXPOSE TargetWarpNode::SamplingMode     m_samplingMode;
+        EE_EXPOSE RootMotionData::SamplingMode      m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
 
         // What's the error threshold we need to exceed, when accurately sampling, before we switch to inaccurate sampling
-        EE_EXPOSE float                            m_samplingPositionErrorThreshold = 0.05f;
+        EE_EXPOSE float                             m_samplingPositionErrorThreshold = 0.05f;
 
         // Length limit on generated Bezier/Hermite warp curve tangents. The lower the length the lower the curvature.
-        EE_EXPOSE float                            m_maxTangentLength = 1.25f;
+        EE_EXPOSE float                             m_maxTangentLength = 1.25f;
 
         // The distance under which we fallback to LERPing the XY translation instead of generating a curve
-        EE_EXPOSE float                            m_lerpFallbackDistanceThreshold = 0.1f;
+        EE_EXPOSE float                             m_lerpFallbackDistanceThreshold = 0.1f;
 
         // The difference between the new target and the original target before we update the warp
-        EE_EXPOSE float                            m_targetUpdateDistanceThreshold = 0.1f;
+        EE_EXPOSE float                             m_targetUpdateDistanceThreshold = 0.1f;
 
         // The difference between the new target and the original target before we update the warp
         EE_EXPOSE Degrees                           m_targetUpdateAngleThreshold = 5.0f;

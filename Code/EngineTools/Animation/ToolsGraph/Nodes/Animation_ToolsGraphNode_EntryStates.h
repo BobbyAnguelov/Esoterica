@@ -50,6 +50,8 @@ namespace EE::Animation::GraphNodes
 
         FlowToolsNode const* GetEntryConditionNodeForState( UUID const& stateID ) const;
 
+        inline bool HasEntryOverrideForState( UUID const& stateID ) const { return GetEntryConditionNodeForState( stateID ) != nullptr; }
+
         void UpdateConditionsNode();
 
         void UpdateStateMapping( THashMap<UUID, UUID> const& IDMapping );

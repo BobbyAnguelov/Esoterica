@@ -14,13 +14,13 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_scaleValueNodeIdx, m_scaleLimits, m_blendTime );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_scaleValueNodeIdx, m_scaleLimits, m_blendInTime );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t          m_scaleValueNodeIdx = InvalidIndex;
+            int16_t                 m_scaleValueNodeIdx = InvalidIndex;
             FloatRange              m_scaleLimits = FloatRange( 0, 0 );
-            float                   m_blendTime = 0.2f;
+            float                   m_blendInTime = 0.2f; // Amount of time to blend in the speed scale modifier
         };
 
     private:
@@ -53,13 +53,13 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_desiredVelocityValueNodeIdx, m_blendTime );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_desiredVelocityValueNodeIdx, m_blendInTime );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t          m_childNodeIdx = InvalidIndex;
-            int16_t          m_desiredVelocityValueNodeIdx = InvalidIndex;
-            float                   m_blendTime = 0.2f;
+            int16_t                 m_childNodeIdx = InvalidIndex;
+            int16_t                 m_desiredVelocityValueNodeIdx = InvalidIndex;
+            float                   m_blendInTime = 0.2f; // Amount of time to blend in the speed scale modifier
         };
 
     private:

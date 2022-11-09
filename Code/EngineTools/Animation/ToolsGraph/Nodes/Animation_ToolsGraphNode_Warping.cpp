@@ -91,6 +91,7 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             pSettings->m_isOffsetRelativeToCharacter = ( m_offsetType == OffsetType::RelativeToCharacter );
+            pSettings->m_samplingMode = m_samplingMode;
         }
         return pSettings->m_nodeIdx;
     }

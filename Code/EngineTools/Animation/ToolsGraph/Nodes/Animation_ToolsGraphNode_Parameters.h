@@ -110,12 +110,15 @@ namespace EE::Animation::GraphNodes
 
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+        virtual void PrepareForCopy() override;
 
     private:
 
         FlowToolsNode*                         m_pParameter = nullptr;
         EE_REGISTER UUID                       m_parameterUUID;
         EE_REGISTER GraphValueType             m_parameterValueType;
+        EE_REGISTER String                     m_parameterName; // Required for pasting across graphs - set when serialized - DO NOT RELY ON THIS OUTSIDE OF COPY/PASTE
+        EE_REGISTER String                     m_parameterCategory; // Required for pasting across graphs - set when serialized - DO NOT RELY ON THIS OUTSIDE OF COPY/PASTE
     };
 
     //-------------------------------------------------------------------------

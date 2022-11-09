@@ -210,6 +210,9 @@ namespace EE::VisualGraph
         // Called whenever the user double clicks the node - By default this will request a navigate action to its child when double clicked
         virtual void OnDoubleClick( UserContext* pUserContext );
 
+        // Called before we copy this node
+        virtual void PrepareForCopy() {}
+
         // Allow for custom serialization in derived types (called after secondary/child graphs have been serialized)
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) {};
 

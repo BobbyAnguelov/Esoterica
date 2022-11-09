@@ -106,6 +106,29 @@ namespace EE::Animation
             return Error( "Failed to read animation from source file" );
         }
 
+        // Validate frame limit
+        if ( resourceDescriptor.m_limitFrameRange.IsSet() )
+        {
+            if ( pRawAnimation->GetNumFrames() == 1 )
+            {
+                return Error( "Having a frame limit range on a single frame animation doesnt make sense!" );
+            }
+
+            resourceDescriptor.m_limitFrameRange.m_begin = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_begin, 0, (int32_t) pRawAnimation->GetNumFrames() );
+            resourceDescriptor.m_limitFrameRange.m_end = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_end + 1, 0, (int32_t) pRawAnimation->GetNumFrames() ); // Inclusive range so we need to increment the index
+
+            if ( !resourceDescriptor.m_limitFrameRange.IsValid() )
+            {
+                return Error( "Invalid frame limit range set!" );
+            }
+
+            if ( resourceDescriptor.m_limitFrameRange.GetLength() == 0 )
+            {
+                return Error( "Zero frame limit range set!" );
+            }
+        }
+
+        // Auto-generate root motion
         if ( resourceDescriptor.m_regenerateRootMotion )
         {
             if ( !RegenerateRootMotion( resourceDescriptor, pRawAnimation.get() ) )
@@ -114,6 +137,7 @@ namespace EE::Animation
             }
         }
 
+        // Additive generation
         if ( resourceDescriptor.m_generateTestAdditive )
         {
             pRawAnimation->GenerateAdditiveData();
@@ -125,7 +149,7 @@ namespace EE::Animation
         AnimationClip animData;
         animData.m_skeleton = resourceDescriptor.m_skeleton;
 
-        TransferAndCompressAnimationData( *pRawAnimation, animData );
+        TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange );
 
         // Handle events
         //-------------------------------------------------------------------------
@@ -240,19 +264,46 @@ namespace EE::Animation
         return true;
     }
 
-    void AnimationClipCompiler::TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip ) const
+    void AnimationClipCompiler::TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange ) const
     {
         auto const& rawTrackData = rawAnimData.GetTrackData();
         uint32_t const numBones = rawAnimData.GetNumBones();
-        uint32_t const numFrames = rawAnimData.GetNumFrames();
+        int32_t const numOriginalFrames = rawAnimData.GetNumFrames();
+
+        // Calculate frame limits
+        //-------------------------------------------------------------------------
+
+        int32_t frameIdxStart = 0;
+        int32_t frameIdxEnd = numOriginalFrames;
+
+        if ( limitRange.IsSetAndValid() )
+        {
+            frameIdxStart = limitRange.m_begin;
+            frameIdxEnd = limitRange.m_end;
+            EE_ASSERT( frameIdxEnd < numOriginalFrames );
+        }
+
+        animClip.m_numFrames = frameIdxEnd - frameIdxStart;
 
         // Transfer basic animation data
         //-------------------------------------------------------------------------
 
-        animClip.m_numFrames = rawAnimData.GetNumFrames();
-        animClip.m_duration = ( animClip.IsSingleFrameAnimation() ) ? 0.0f : rawAnimData.GetDuration();
-        animClip.m_rootMotion.m_transforms = rawAnimData.GetRootMotion();
+        float const FPS = ( numOriginalFrames - 1 ) / rawAnimData.GetDuration().ToFloat();
+        animClip.m_duration = ( animClip.IsSingleFrameAnimation() ) ? 0.0f : Seconds( ( animClip.m_numFrames - 1 ) / FPS );
         animClip.m_isAdditive = rawAnimData.IsAdditive();
+
+        // Transfer root motion
+        //-------------------------------------------------------------------------
+
+        if ( limitRange.IsSetAndValid() )
+        {
+            animClip.m_rootMotion.m_transforms.clear();
+            animClip.m_rootMotion.m_transforms.insert( animClip.m_rootMotion.m_transforms.end(), rawAnimData.GetRootMotion().begin() + frameIdxStart, rawAnimData.GetRootMotion().begin() + frameIdxEnd );
+        }
+        else
+        {
+            animClip.m_rootMotion.m_transforms = rawAnimData.GetRootMotion();
+        }
 
         // Calculate root motion extra data
         //-------------------------------------------------------------------------
@@ -260,7 +311,7 @@ namespace EE::Animation
         float totalDistance = 0.0f;
         float totalRotation = 0.0f;
 
-        for ( auto i = 0u; i < animClip.GetNumFrames(); i++ )
+        for ( int32_t i = frameIdxStart; i < frameIdxEnd; i++ )
         {
             // Track deltas
             if ( i > 0 )
@@ -298,7 +349,7 @@ namespace EE::Animation
             // Rotation
             //-------------------------------------------------------------------------
 
-            for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
+            for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
             {
                 Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                 Quaternion const rotation = rawBoneTransform.GetRotation();
@@ -355,9 +406,9 @@ namespace EE::Animation
                 animClip.m_compressedPoseData.push_back( m_y );
                 animClip.m_compressedPoseData.push_back( m_z );
             }
-            else // Store all frames
+            else // Store frames
             {
-                for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
+                for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
                 {
                     Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                     Vector const& translation = rawBoneTransform.GetTranslation();
@@ -400,9 +451,9 @@ namespace EE::Animation
                 uint16_t const m_x = Quantization::EncodeFloat( rawBoneTransform.GetScale(), trackSettings.m_scaleRange.m_rangeStart, trackSettings.m_scaleRange.m_rangeLength );
                 animClip.m_compressedPoseData.push_back( m_x );
             }
-            else // Store all frames
+            else // Store frames
             {
-                for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
+                for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
                 {
                     Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                     uint16_t const m_x = Quantization::EncodeFloat( rawBoneTransform.GetScale(), trackSettings.m_scaleRange.m_rangeStart, trackSettings.m_scaleRange.m_rangeLength );

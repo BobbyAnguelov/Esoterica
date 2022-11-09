@@ -109,6 +109,8 @@ namespace EE::Animation
         {
             CreatePreviewEntity();
         }
+
+        m_characterPoseUpdateRequested = true;
     }
 
     void AnimationClipWorkspace::Shutdown( UpdateContext const& context )

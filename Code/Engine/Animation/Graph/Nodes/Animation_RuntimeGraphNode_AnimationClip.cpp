@@ -153,7 +153,7 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_pAnimation != nullptr );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
 
         // Events
         //-------------------------------------------------------------------------

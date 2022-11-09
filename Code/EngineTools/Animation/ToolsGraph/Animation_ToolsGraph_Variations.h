@@ -7,7 +7,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem { class TypeRegistry;}
+namespace EE::TypeSystem { class TypeRegistry; }
 
 //-------------------------------------------------------------------------
 

@@ -125,11 +125,12 @@ namespace EE::Animation
         for ( auto pStateNode : stateNodes )
         {
             ImRect const nodeRect = pStateNode->GetWindowRect( ctx.m_viewOffset );
-            ImVec2 const iconSize = ImGui::CalcTextSize( EE_ICON_ASTERISK );
+            ImVec2 const iconSize = ImGui::CalcTextSize( EE_ICON_ARROW_DOWN_CIRCLE );
             ImVec2 iconOffset( 0, iconSize.y + 4.0f );
 
-            // Draw entry state marker
-            if ( pStateNode->GetID() == GetDefaultEntryStateID() )
+            // Draw entry override marker
+            EntryStateOverrideConduitToolsNode const* pEntryOverrideConduit = GetEntryStateOverrideConduit();
+            if ( pEntryOverrideConduit->HasEntryOverrideForState( pStateNode->GetID() ) )
             {
                 ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_ARROW_DOWN_CIRCLE );
                 iconOffset.x -= iconSize.x + 4.0f;

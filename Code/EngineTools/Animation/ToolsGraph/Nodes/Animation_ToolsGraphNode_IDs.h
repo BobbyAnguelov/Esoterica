@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "ID Comparison"; }
         virtual char const* GetCategory() const override { return "Values/ID"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }

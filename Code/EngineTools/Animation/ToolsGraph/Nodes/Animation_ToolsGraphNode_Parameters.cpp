@@ -204,7 +204,15 @@ namespace EE::Animation::GraphNodes
             VisualGraph::ScopedGraphModification const sgm( pRootGraph );
             for ( auto pInvalidNode : invalidReferenceNodes )
             {
-                pInvalidNode->Destroy();
+                // Try to create a new parameter, if that fails destroy the invalid reference
+                if( false )
+                {
+
+                }
+                else
+                {
+                    pInvalidNode->Destroy();
+                }
             }
         }
     }
@@ -293,6 +301,22 @@ namespace EE::Animation::GraphNodes
         }
 
         EndDrawInternalRegion( ctx );
+    }
+
+    void ParameterReferenceToolsNode::PrepareForCopy()
+    {
+        if ( IsReferencingControlParameter() )
+        {
+            auto pParameter = GetReferencedControlParameter();
+            m_parameterName = pParameter->GetParameterName();
+            m_parameterCategory = pParameter->GetParameterCategory();
+        }
+        else
+        {
+            auto pParameter = GetReferencedVirtualParameter();
+            m_parameterName = pParameter->GetParameterName();
+            m_parameterCategory = pParameter->GetParameterCategory();
+        }
     }
 
     //-------------------------------------------------------------------------

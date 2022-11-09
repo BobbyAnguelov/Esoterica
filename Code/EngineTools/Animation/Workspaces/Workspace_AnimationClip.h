@@ -45,6 +45,9 @@ namespace EE::Animation
         virtual void ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) override;
         virtual void WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) override;
 
+        virtual bool HasTitlebarIcon() const override { return true; }
+        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_RUN_FAST; }
+
         void DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         void DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         bool DrawDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );

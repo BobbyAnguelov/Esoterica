@@ -20,7 +20,7 @@ namespace EE::Animation
     class AnimationClipCompiler : public Resource::Compiler
     {
         EE_REGISTER_TYPE( AnimationClipCompiler );
-        static const int32_t s_version = 33;
+        static const int32_t s_version = 34;
 
     public:
 
@@ -32,7 +32,7 @@ namespace EE::Animation
 
         virtual bool GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
 
-        void TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip ) const;
+        void TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange ) const;
 
         bool ReadEventsData( Resource::CompileContext const& ctx, rapidjson::Document const& document, RawAssets::RawAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const;
 

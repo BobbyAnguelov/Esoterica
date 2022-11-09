@@ -13,9 +13,10 @@ namespace EE::Player
         enum class LocomotionState
         {
             Idle,
+            Starting,
             Moving,
-            TurnOnSpot,
-            PlantedTurn,
+            TurningOnSpot,
+            PlantingAndTurning,
             Stopping
         };
 
@@ -29,23 +30,39 @@ namespace EE::Player
 
     private:
 
+        void RequestIdle( ActionContext const& ctx );
         void UpdateIdle( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
+
+        void RequestStart( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
+        void UpdateStarting( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
+
+        void RequestTurnOnSpot( ActionContext const& ctx, Vector const& desiredFacingDirection );
         void UpdateTurnOnSpot( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
+
+        void RequestMoving( ActionContext const& ctx, Vector const& initialVelocity );
         void UpdateMoving( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
+
+        void RequestStop( ActionContext const& ctx );
         void UpdateStopping( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void DrawDebugUI() override;
+        #endif
 
     private:
 
-        ManualCountdownTimer        m_sprintTimer;
-        ManualCountdownTimer        m_crouchTimer;
         ManualTimer                 m_slideTimer;
         ManualCountdownTimer        m_generalTimer;
-        bool                        m_crouchToggled = false;
+        ManualCountdownTimer        m_turnOnSpotTimer;
 
         Vector                      m_desiredHeading = Vector::Zero;
         Vector                      m_desiredFacing = Vector::WorldForward;
         Vector                      m_cachedFacing = Vector::Zero;
         Vector                      m_desiredTurnDirection = Vector::Zero;
         LocomotionState             m_state = LocomotionState::Idle;
+
+        #if EE_DEVELOPMENT_TOOLS
+        bool                        m_enableVisualizations = true;
+        #endif
     };
 }

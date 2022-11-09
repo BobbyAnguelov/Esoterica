@@ -15,50 +15,19 @@
 
 namespace EE::Player
 {
-    static float g_slideDistance = 5.0f;                        // meters
-    static float g_slideDuration = 0.9f;                        // seconds
-    static Seconds g_tapTimeToTriggerSlide = 0.5f;              // seconds
-
-    #if EE_DEVELOPMENT_TOOLS
-    bool    g_debugSlideDistance = false;
-    #endif
-
-    //-------------------------------------------------------------------------
-
     bool SlideAction::TryStartInternal( ActionContext const& ctx )
     {
-        if( ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickLeft ) )
-        {
-            m_stickPressedTimer.Start();
-        }
-
-        m_stickPressedTimer.Update( ctx.GetDeltaTime() );
-
-        bool stickWasTapped = false;
-        if( ctx.m_pInputState->GetControllerState()->WasReleased( Input::ControllerButton::ThumbstickLeft ) )
-        {
-            if( m_stickPressedTimer.GetElapsedTimeSeconds() < g_tapTimeToTriggerSlide )
-            {
-                stickWasTapped = true;
-            }
-            m_stickPressedTimer.Reset();
-        }
-
-        Vector const movementInputs = ctx.m_pInputState->GetControllerState()->GetLeftAnalogStickValue();
-        bool const isSlideAvailable = !movementInputs.IsNearZero2() && !ctx.m_pPlayerComponent->m_crouchFlag && stickWasTapped;
-        if( isSlideAvailable )
+        if( ctx.m_pPlayerComponent->m_sprintFlag && ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::FaceButtonLeft ) )
         {
             auto const pControllerState = ctx.m_pInputState->GetControllerState();
             EE_ASSERT( pControllerState != nullptr );
 
-            auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
-            auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
-            auto const forward = camFwd * movementInputs.m_y;
-            auto const right = camRight * movementInputs.m_x;
+            Vector const movementInputs = ctx.m_pInputState->GetControllerState()->GetLeftAnalogStickValue();
+            Vector const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
+            Vector const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
+            Vector const forward = camFwd * movementInputs.m_y;
+            Vector const right = camRight * movementInputs.m_x;
             m_slideDirection = ( forward + right ).GetNormalized2();
-
-            m_slideDurationTimer.Start();
-            m_isInSettle = false;
 
             ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Ability );
             auto pAbilityAnimController = ctx.GetAnimSubGraphController<AbilityGraphController>();
@@ -68,11 +37,14 @@ namespace EE::Player
             m_debugStartPosition = ctx.m_pCharacterComponent->GetPosition();
             #endif
 
+            // Cancel sprint and enable crouch
             ctx.m_pPlayerComponent->m_sprintFlag = false;
             ctx.m_pPlayerComponent->m_crouchFlag = true;
 
             return true;
         }
+
+        //-------------------------------------------------------------------------
 
         return false;
     }
@@ -84,7 +56,8 @@ namespace EE::Player
 
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
-        Vector const desiredVelocity = m_slideDirection * ( g_slideDistance / g_slideDuration );
+
+        Vector const desiredVelocity = m_slideDirection * 10.0f;
         Quaternion const deltaOrientation = Quaternion::Identity;
 
         // Run physic Prediction if required
@@ -93,39 +66,42 @@ namespace EE::Player
         
         // Update animation controller
         //-------------------------------------------------------------------------
+
         auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
         pLocomotionGraphController->SetLocomotionDesires(ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
 
-        if( m_slideDurationTimer.Update( ctx.GetDeltaTime() ) > g_slideDuration && !m_isInSettle )
-        {
-            m_hackSettleTimer.Start();
-            m_isInSettle = true;
-        }
-
-        if( m_isInSettle )
-        {
-            pLocomotionGraphController->SetLocomotionDesires( ctx.GetDeltaTime(), Vector::Zero, ctx.m_pCharacterComponent->GetForwardVector() );
-
-            if( m_hackSettleTimer.Update( ctx.GetDeltaTime() ) > 0.1f )
-            {
-                return Status::Completed;
-            }
-        }
+        //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
         auto drawingCtx = ctx.m_pEntityWorldUpdateContext->GetDrawingContext();
-        if( g_debugSlideDistance )
+        if( m_enableVisualizations )
         {
             Vector const Origin = ctx.m_pCharacterComponent->GetPosition();
-            drawingCtx.DrawArrow( m_debugStartPosition, m_debugStartPosition + m_slideDirection * g_slideDistance, Colors::HotPink );
+            drawingCtx.DrawArrow( m_debugStartPosition, m_debugStartPosition + m_slideDirection, Colors::HotPink );
         }
         #endif
 
-        return Status::Uninterruptible;
+        //-------------------------------------------------------------------------
+
+        if ( pLocomotionGraphController->IsTransitionFullyAllowed() )
+        {
+            return Status::Completed;
+        }
+
+        return pLocomotionGraphController->IsTransitionConditionallyAllowed() ? Status::Interruptible : Status::Uninterruptible;
     }
 
     void SlideAction::StopInternal( ActionContext const& ctx, StopReason reason )
     {
 
     }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void SlideAction::DrawDebugUI()
+    {
+        ImGui::Checkbox( "Enable Visualization", &m_enableVisualizations );
+    }
+    #endif
 }

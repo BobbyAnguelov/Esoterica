@@ -23,6 +23,8 @@ namespace EE::Animation
 
     private:
 
+        virtual bool HasTitlebarIcon() const override { return true; }
+        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_SKULL; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;

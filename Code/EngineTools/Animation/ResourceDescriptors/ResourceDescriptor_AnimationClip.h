@@ -27,5 +27,6 @@ namespace EE::Animation
         EE_EXPOSE StringID                    m_rootMotionGenerationBoneID;
         EE_EXPOSE EulerAngles                 m_rootMotionGenerationPreRotation;
         EE_EXPOSE bool                        m_generateTestAdditive = false; // This is to generate an additive pose (based on the reference pose) so that we can test the rest of the code (remove once we have a proper additive import pipeline)
+        EE_EXPOSE IntRange                    m_limitFrameRange;
     };
 }

@@ -230,31 +230,6 @@ namespace EE::EntityModel
             ImGui::EndMenu();
         }
         ImGui::EndDisabled();
-
-        //-------------------------------------------------------------------------
-        // Preview Button
-        //-------------------------------------------------------------------------
-
-        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
-        float buttonDimensions = 130;
-        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
-
-        ImGui::BeginDisabled( !HasLoadedMap() );
-        if ( m_isGamePreviewRunning )
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                m_gamePreviewStopRequested.Execute( context );
-            }
-        }
-        else
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Map", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                m_gamePreviewStartRequested.Execute( context );
-            }
-        }
-        ImGui::EndDisabled();
     }
 
     void EntityMapEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )

@@ -191,7 +191,7 @@ namespace EE::RawAssets
             for ( auto boneIdx = 0u; boneIdx < numBones; boneIdx++ )
             {
                 rawAnimation.m_tracks[boneIdx].m_localTransforms.resize( rawAnimation.m_numFrames );
-                for ( auto f = 0u; f < rawAnimation.m_numFrames; f++ )
+                for ( auto f = 0; f < rawAnimation.m_numFrames; f++ )
                 {
                     TransformData const& transformData = trackData[boneIdx][f];
                     rawAnimation.m_tracks[boneIdx].m_localTransforms[f] = Transform( transformData.m_rotation, transformData.m_translation, transformData.m_scale );

@@ -20,14 +20,17 @@ namespace EE::Player
 
     private:
 
-        ManualTimer                 m_stickPressedTimer;
-        ManualTimer                 m_slideDurationTimer;
-        ManualTimer                 m_hackSettleTimer;
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void DrawDebugUI() override;
+        #endif
+
+    private:
+
         Vector                      m_slideDirection = Vector::Zero;
-        bool                        m_isInSettle = false;
 
         #if EE_DEVELOPMENT_TOOLS
         Vector                      m_debugStartPosition = Vector::Zero;
+        bool                        m_enableVisualizations = true;
         #endif
     };
 }

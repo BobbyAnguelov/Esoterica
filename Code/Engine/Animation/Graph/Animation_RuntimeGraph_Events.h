@@ -46,10 +46,11 @@ namespace EE::Animation
 
     public:
 
-        explicit SampledEvent(int16_t sourceNodeIdx, float weight, bool isFromActiveBranch, StateEventType eventType, StringID eventID )
+        explicit SampledEvent( int16_t sourceNodeIdx, float weight, bool isFromActiveBranch, StateEventType eventType, StringID eventID )
             : m_weight( weight )
             , m_sourceNodeIdx( sourceNodeIdx )
             , m_isFromActiveBranch( isFromActiveBranch )
+            , m_isIgnored( false )
             , m_isStateEvent( true )
         {
             EE_ASSERT( eventID.IsValid() );
@@ -61,6 +62,7 @@ namespace EE::Animation
             : m_weight( weight )
             , m_sourceNodeIdx( sourceNodeIdx )
             , m_isFromActiveBranch( isFromActiveBranch )
+            , m_isIgnored( false )
             , m_isStateEvent( false )
         {
             EE_ASSERT( pEvent != nullptr );
@@ -68,6 +70,9 @@ namespace EE::Animation
             m_animData.m_pEvent = pEvent;
             m_animData.m_percentageThrough = percentageThrough;
         }
+
+        // Sampled Event
+        //-------------------------------------------------------------------------
 
         inline int16_t GetSourceNodeIndex() const { return m_sourceNodeIdx; }
 
@@ -78,33 +83,37 @@ namespace EE::Animation
         inline bool IsIgnored() const { return m_isIgnored; }
         inline float GetWeight() const { return m_weight; }
 
+        // Animation Events
         //-------------------------------------------------------------------------
 
-        inline Event const* GetEvent() const { return m_animData.m_pEvent; }
+        // Get the raw animation event
+        inline Event const* GetEvent() const { EE_ASSERT( IsAnimationEvent() ); return m_animData.m_pEvent; }
 
-        inline Percentage GetPercentageThrough() const { return m_animData.m_percentageThrough; }
+        // Get the percentage through the event when it was sampled
+        inline Percentage GetPercentageThrough() const { EE_ASSERT( IsAnimationEvent() ); return m_animData.m_percentageThrough; }
 
         // Checks if the sampled event is of a specified runtime type
         template<typename T>
-        inline bool IsEventOfType() const { return IsOfType<T>( m_animData.m_pEvent ); }
+        inline bool IsEventOfType() const { EE_ASSERT( IsAnimationEvent() ); return IsOfType<T>( m_animData.m_pEvent ); }
 
         // Returns the event cast to the desired type! Warning: this function assumes you know the exact type of the event!
         template<typename T>
-        inline T const* GetEvent() const { return Cast<T>( m_animData.m_pEvent ); }
+        inline T const* GetEvent() const { EE_ASSERT( IsAnimationEvent() ); return Cast<T>( m_animData.m_pEvent ); }
 
         // Attempts to return the event cast to the desired type! This function will return null if the event cant be cast successfully
         template<typename T>
-        inline T const* TryGetEvent() const { return TryCast<T>( m_animData.m_pEvent ); }
+        inline T const* TryGetEvent() const { return IsAnimationEvent() ? TryCast<T>( m_animData.m_pEvent ) : nullptr; }
 
+        // State Events
         //-------------------------------------------------------------------------
 
-        inline StringID GetStateEventID() const { return m_stateData.m_ID; }
-        inline StateEventType GetEventType() const { return m_stateData.m_type; }
+        inline StringID GetStateEventID() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_ID; }
+        inline StateEventType GetEventType() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type; }
 
-        inline bool IsEntryEvent() const { return m_stateData.m_type == StateEventType::Entry; }
-        inline bool IsFullyInStateEvent() const { return m_stateData.m_type == StateEventType::FullyInState; }
-        inline bool IsExitEvent() const { return m_stateData.m_type == StateEventType::Exit; }
-        inline bool IsTimedEvent() const { return m_stateData.m_type == StateEventType::Timed; }
+        inline bool IsEntryEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Entry; }
+        inline bool IsFullyInStateEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::FullyInState; }
+        inline bool IsExitEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Exit; }
+        inline bool IsTimedEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Timed; }
 
     private:
 
@@ -130,8 +139,8 @@ namespace EE::Animation
     struct SampledEventRange
     {
         SampledEventRange() = default;
-        EE_FORCE_INLINE SampledEventRange( int16_t index ) : m_startIdx( index ), m_endIdx( index ) {}
-        EE_FORCE_INLINE SampledEventRange( int16_t startIndex, int16_t endIndex ) : m_startIdx( startIndex ), m_endIdx( endIndex ) {}
+        EE_FORCE_INLINE explicit SampledEventRange( int16_t index ) : m_startIdx( index ), m_endIdx( index ) {}
+        EE_FORCE_INLINE explicit SampledEventRange( int16_t startIndex, int16_t endIndex ) : m_startIdx( startIndex ), m_endIdx( endIndex ) {}
 
         EE_FORCE_INLINE bool IsValid() const { return m_startIdx != InvalidIndex && m_endIdx >= m_startIdx; }
         EE_FORCE_INLINE int32_t GetLength() const { return m_endIdx - m_startIdx; }
@@ -210,7 +219,7 @@ namespace EE::Animation
             EE_ASSERT( IsValidRange( range ) );
             for ( int16_t i = range.m_startIdx; i < range.m_endIdx; i++ )
             {
-                m_sampledEvents[i].m_isIgnored = false;
+                m_sampledEvents[i].m_isFromActiveBranch = false;
             }
         }
 

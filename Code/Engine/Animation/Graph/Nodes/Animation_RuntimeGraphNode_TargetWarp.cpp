@@ -1078,40 +1078,38 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        bool const wasWarpUpdated = UpdateWarp( context );
-
-        // If we are sampling accurately then we need to match the exact world space position each update
-        if( m_samplingMode == SamplingMode::Accurate )
+        if ( UpdateWarp( context ) )
         {
-            // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
-            Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
-            float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
-            if( wasWarpUpdated || positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
-            {
-                Transform const desiredFinalTransform = m_warpedRootMotion.GetTransform( m_currentTime );
-                result.m_rootMotionDelta = Transform::Delta( context.m_worldTransform, desiredFinalTransform );
-            }
-            else // Exceeded the error threshold, so fallback to inaccurate sampling
-            {
-                m_samplingMode = SamplingMode::Inaccurate;
-
-                #if EE_DEVELOPMENT_TOOLS
-                context.LogWarning( GetNodeIndex(), "Target warp exceed accurate sampling error threshold! Switching to inaccurate sampling!" );
-                #endif
-            }
+            // Always update in world space whenever we update the warp to correct any sampling error due to mid-frame delta calculation
+            // This is okay, since the update will be based on the current character position
+            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
         }
-
-        // Just sample the delta and return that
-        if ( m_samplingMode == SamplingMode::Inaccurate )
+        else // Regular sampling
         {
-            if ( wasWarpUpdated )
+            // If we are sampling accurately then we need to match the exact world space position each update
+            if( m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
             {
-                Transform const desiredFinalTransform = m_warpedRootMotion.GetTransform( m_currentTime );
-                result.m_rootMotionDelta = Transform::Delta( context.m_worldTransform, desiredFinalTransform );
+                // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
+                Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
+                float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
+                if( positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
+                {
+                    result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+                }
+                else // Exceeded the error threshold, so fallback to inaccurate sampling
+                {
+                    m_samplingMode = RootMotionData::SamplingMode::Delta;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    context.LogWarning( GetNodeIndex(), "Target warp exceed accurate sampling error threshold! Switching to inaccurate sampling!" );
+                    #endif
+                }
             }
-            else
+
+            // Just sample the delta and return that
+            if ( m_samplingMode == RootMotionData::SamplingMode::Delta )
             {
-                result.m_rootMotionDelta = m_warpedRootMotion.GetDelta( m_pClipReferenceNode->GetPreviousTime(), m_pClipReferenceNode->GetCurrentTime() );
+                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
             }
         }
     }

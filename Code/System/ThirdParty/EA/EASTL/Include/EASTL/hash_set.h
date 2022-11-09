@@ -117,8 +117,19 @@ namespace eastl
 		/// hash_set
 		///
 		/// Default constructor.
-		/// 
-		explicit hash_set(const allocator_type& allocator = EASTL_HASH_SET_DEFAULT_ALLOCATOR)
+		///
+		hash_set()
+			: this_type(EASTL_HASH_SET_DEFAULT_ALLOCATOR)
+		{
+			// Empty
+		}
+
+
+		/// hash_set
+		///
+		/// Constructor which creates an empty container with allocator.
+		///
+		explicit hash_set(const allocator_type& allocator)
 			: base_type(0, Hash(), mod_range_hashing(), default_ranged_hash(), Predicate(), eastl::use_self<Value>(), allocator)
 		{
 			// Empty
@@ -386,13 +397,14 @@ namespace eastl
 		return true;
 	}
 
+#if !defined(EA_COMPILER_HAS_THREE_WAY_COMPARISON)
 	template <typename Value, typename Hash, typename Predicate, typename Allocator, bool bCacheHashCode>
 	inline bool operator!=(const hash_set<Value, Hash, Predicate, Allocator, bCacheHashCode>& a, 
 						   const hash_set<Value, Hash, Predicate, Allocator, bCacheHashCode>& b)
 	{
 		return !(a == b);
 	}
-
+#endif
 
 	template <typename Value, typename Hash, typename Predicate, typename Allocator, bool bCacheHashCode>
 	inline bool operator==(const hash_multiset<Value, Hash, Predicate, Allocator, bCacheHashCode>& a, 
@@ -443,12 +455,14 @@ namespace eastl
 		return true;
 	}
 
+#if !defined(EA_COMPILER_HAS_THREE_WAY_COMPARISON)
 	template <typename Value, typename Hash, typename Predicate, typename Allocator, bool bCacheHashCode>
 	inline bool operator!=(const hash_multiset<Value, Hash, Predicate, Allocator, bCacheHashCode>& a, 
 						   const hash_multiset<Value, Hash, Predicate, Allocator, bCacheHashCode>& b)
 	{
 		return !(a == b);
 	}
+#endif
 
 } // namespace eastl
 

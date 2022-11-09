@@ -98,6 +98,8 @@ namespace EE::Animation
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
 
+        virtual bool HasTitlebarIcon() const override { return true; }
+        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_STATE_MACHINE; }
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;

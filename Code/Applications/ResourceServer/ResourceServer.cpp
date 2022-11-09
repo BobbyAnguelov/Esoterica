@@ -464,7 +464,7 @@ namespace EE::Resource
                 m_completedPackagingRequests.emplace_back( pRequest->m_resourceID );
             }
 
-            // Bulk notify all connected client that a resource has been recompile so that they can reload it if necessary
+            // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
             for ( auto const& clientInfo : m_networkServer.GetConnectedClients() )
             {
                 Network::IPC::Message message;

@@ -182,59 +182,62 @@ namespace EE::Player
 
                     if ( ImGui::BeginTable( "ActionHistoryTable", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders, ImGui::GetContentRegionAvail() - ImGui::GetStyle().WindowPadding ) )
                     {
-                        ImGui::TableSetupColumn( "Frame", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 36 );
-                        ImGui::TableSetupColumn( "Action", ImGuiTableColumnFlags_WidthStretch );
-                        ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 100 );
-                        ImGui::TableHeadersRow();
-
-                        for ( auto const& logEntry : pStateMachine->m_actionLog )
                         {
-                            ImGui::TableNextRow();
+                            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
 
-                            ImGui::TableSetColumnIndex( 0 );
-                            ImGui::Text( "%u", logEntry.m_frameID );
+                            ImGui::TableSetupColumn( "Frame", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 36 );
+                            ImGui::TableSetupColumn( "Action", ImGuiTableColumnFlags_WidthStretch );
+                            ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 100 );
+                            ImGui::TableHeadersRow();
 
-                            ImGui::TableSetColumnIndex( 1 );
-                            ImGui::Text( logEntry.m_pActionName );
-
-                            ImGui::TableSetColumnIndex( 2 );
-                            switch ( logEntry.m_status )
+                            for ( auto const& logEntry : pStateMachine->m_actionLog )
                             {
-                                case ActionStateMachine::LoggedStatus::ActionStarted:
-                                {
-                                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), "Started" );
-                                }
-                                break;
+                                ImGui::TableNextRow();
 
-                                case ActionStateMachine::LoggedStatus::ActionCompleted:
-                                {
-                                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::White ), "Completed" );
-                                }
-                                break;
+                                ImGui::TableSetColumnIndex( 0 );
+                                ImGui::Text( "%u", logEntry.m_frameID );
 
-                                case ActionStateMachine::LoggedStatus::ActionInterrupted:
-                                {
-                                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::Red ), "Interrupted" );
-                                }
-                                break;
+                                ImGui::TableSetColumnIndex( 1 );
+                                ImGui::Text( logEntry.m_pActionName );
 
-                                default:
+                                ImGui::TableSetColumnIndex( 2 );
+                                switch ( logEntry.m_status )
                                 {
-                                    EE_UNREACHABLE_CODE();
+                                    case ActionStateMachine::LoggedStatus::ActionStarted:
+                                    {
+                                        ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), "Started" );
+                                    }
+                                    break;
+
+                                    case ActionStateMachine::LoggedStatus::ActionCompleted:
+                                    {
+                                        ImGui::TextColored( ImGuiX::ConvertColor( Colors::White ), "Completed" );
+                                    }
+                                    break;
+
+                                    case ActionStateMachine::LoggedStatus::ActionInterrupted:
+                                    {
+                                        ImGui::TextColored( ImGuiX::ConvertColor( Colors::Red ), "Interrupted" );
+                                    }
+                                    break;
+
+                                    default:
+                                    {
+                                        EE_UNREACHABLE_CODE();
+                                    }
+                                    break;
                                 }
-                                break;
                             }
-                        }
 
-                        // Auto scroll the table
-                        if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
-                        {
-                            ImGui::SetScrollHereY( 1.0f );
+                            // Auto scroll the table
+                            if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
+                            {
+                                ImGui::SetScrollHereY( 1.0f );
+                            }
                         }
 
                         ImGui::EndTable();
                     }
-
 
                     ImGui::EndTable();
                 }
@@ -331,24 +334,6 @@ namespace EE::Player
             ImVec2 const crosshairCursorPos( windowCenter - ( crosshairSize / 2 ) );
             ImGui::SetCursorPos( crosshairCursorPos );
             ImGui::Text( EE_ICON_CROSSHAIRS );
-        }
-
-        {
-            auto pInputSystem = context.GetSystem<Input::InputSystem>();
-            if ( pInputSystem->GetControllerState( 0 )->IsHeldDown( Input::ControllerButton::FaceButtonLeft ) )
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-                ImGui::SetCursorPos( windowCenter + ImVec2( 0, 25 ) );
-                ImGui::Text( "Sys Hold Time: %.2f", pInputSystem->GetControllerState( 0 )->GetHeldDuration( Input::ControllerButton::FaceButtonLeft ).ToFloat() );
-            }
-
-            auto pInputState = m_pWorld->GetInputState();
-            if ( pInputState->GetControllerState( 0 )->IsHeldDown( Input::ControllerButton::FaceButtonLeft ) )
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-                ImGui::SetCursorPos( windowCenter + ImVec2( 0, 50 ) );
-                ImGui::Text( "World Hold Time: %.2f", pInputState->GetControllerState( 0 )->GetHeldDuration( Input::ControllerButton::FaceButtonLeft ).ToFloat() );
-            }
         }
 
         if ( !statusString.empty() )

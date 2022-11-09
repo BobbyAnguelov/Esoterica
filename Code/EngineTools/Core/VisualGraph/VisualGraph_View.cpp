@@ -121,7 +121,7 @@ namespace EE::VisualGraph
             auto pDrawList = ImGui::GetWindowDrawList();
 
             m_hasFocus = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows );
-            m_isViewHovered = ImGui::IsWindowHovered( ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByPopup );
+            m_isViewHovered = ImGui::IsWindowHovered();
             m_canvasSize = ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin();
             pDrawList->ChannelsSplit( (uint8_t) DrawChannel::NumChannels );
 
@@ -906,6 +906,7 @@ namespace EE::VisualGraph
 
             if ( selectedNode.m_pNode->IsUserCreatable() )
             {
+                selectedNode.m_pNode->PrepareForCopy();
                 selectedNode.m_pNode->Serialize( typeRegistry, *pWriter );
                 copiedNodes.emplace_back( selectedNode.m_pNode->GetID() );
             }
@@ -1380,7 +1381,7 @@ namespace EE::VisualGraph
 
         if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
         {
-            if ( ImGui::GetIO().KeyCtrl )
+            if ( ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyShift )
             {
                 if ( m_pHoveredNode != nullptr )
                 {
@@ -1818,8 +1819,9 @@ namespace EE::VisualGraph
             ImGui::SetNextWindowSize( ImVec2( 400, -1 ) );
             if ( ImGui::BeginPopupModal( s_dialogID_Rename, nullptr, ImGuiWindowFlags_NoSavedSettings ) )
             {
-                if ( m_selectedNodes.size() != 1 )
+                if ( ImGui::IsKeyPressed( ImGuiKey_Escape ) || m_selectedNodes.size() != 1 )
                 {
+                    EndRenameNode( false );
                     ImGui::CloseCurrentPopup();
                 }
                 else

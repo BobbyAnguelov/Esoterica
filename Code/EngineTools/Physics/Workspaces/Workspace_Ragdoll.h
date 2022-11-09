@@ -63,6 +63,9 @@ namespace EE::Physics
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
+        virtual bool HasTitlebarIcon() const override { return true; }
+        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_HUMAN_GREETING; }
+
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
         virtual bool HasViewportToolbar() const override { return true; }

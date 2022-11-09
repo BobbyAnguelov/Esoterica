@@ -72,6 +72,7 @@
     <ClCompile Include="Animation\AnimationTarget.cpp" />
     <ClCompile Include="Animation\Components\Component_AnimationClipPlayer.cpp" />
     <ClCompile Include="Animation\Components\Component_AnimationGraph.cpp" />
+    <ClCompile Include="Animation\Events\AnimationEvent_Transition.cpp" />
     <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
@@ -222,6 +223,7 @@
     <ClInclude Include="Animation\AnimationTarget.h" />
     <ClInclude Include="Animation\Components\Component_AnimationClipPlayer.h" />
     <ClInclude Include="Animation\Components\Component_AnimationGraph.h" />
+    <ClInclude Include="Animation\Events\AnimationEvent_Transition.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h" />
     <ClInclude Include="Animation\DebugViews\DebugView_Animation.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h" />

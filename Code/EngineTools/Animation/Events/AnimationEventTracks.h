@@ -6,6 +6,7 @@
 #include "Engine/Animation/Events/AnimationEvent_Foot.h"
 #include "Engine/Animation/Events/AnimationEvent_Warp.h"
 #include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
+#include "Engine/Animation/Events/AnimationEvent_Transition.h"
 #include "EngineTools/Core/Widgets/CurveEditor.h"
 
 //-------------------------------------------------------------------------
@@ -32,6 +33,18 @@ namespace EE::Animation
         EE_REGISTER_TYPE( FootEventTrack );
 
         virtual const char* GetTypeName() const override { return "Foot"; }
+        virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
+        virtual Color GetItemColor( Timeline::TrackItem const* pItem ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class TransitionEventTrack final : public EventTrack
+    {
+        EE_REGISTER_TYPE( TransitionEventTrack );
+
+        virtual const char* GetTypeName() const override { return "Transition"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
         virtual Color GetItemColor( Timeline::TrackItem const* pItem ) const override;

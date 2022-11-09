@@ -91,13 +91,16 @@ namespace EE::Animation::GraphNodes
 
         // Calculate Targets
         //-------------------------------------------------------------------------
-        // Note: Everything is in character space!
 
         // Calculate the delta of the remaining root motion post warp, this is the section that we are going to be aligning to the new direction
-        Vector postWarpOriginalDir = ( originalRootMotion.m_transforms.back().GetTranslation() - originalRootMotion.m_transforms[warpEndFrame].GetTranslation() ).GetNormalized2();
+        Vector postWarpOriginalDirCS = ( originalRootMotion.m_transforms.back().GetTranslation() - originalRootMotion.m_transforms[warpEndFrame].GetTranslation() ).GetNormalized2();
+        if ( postWarpOriginalDirCS.IsZero3() )
+        {
+            postWarpOriginalDirCS = originalRootMotion.m_transforms.back().GetRotation().RotateVector( Vector::WorldForward );
+        }
 
         // Calculate the target direction we need to align to
-        Vector targetDir;
+        Vector targetDirCS;
 
         auto pNodeSettings = GetSettings<OrientationWarpNode>();
         if ( pNodeSettings->m_isOffsetNode )
@@ -107,37 +110,45 @@ namespace EE::Animation::GraphNodes
 
             if ( pNodeSettings->m_isOffsetRelativeToCharacter )
             {
-                targetDir = offsetRotation.RotateVector( Vector::WorldForward );
+                targetDirCS = offsetRotation.RotateVector( Vector::WorldForward );
             }
             else
             {
-                targetDir = offsetRotation.RotateVector( postWarpOriginalDir );
+                targetDirCS = offsetRotation.RotateVector( postWarpOriginalDirCS );
             }
         }
         else
         {
-            targetDir = m_pTargetValueNode->GetValue<Vector>( context );
-            targetDir.Normalize2();
+            targetDirCS = m_pTargetValueNode->GetValue<Vector>( context );
+            targetDirCS.Normalize2();
         }
 
         // Calculate the desired modification we need to make
-        Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenNormalizedVectors( postWarpOriginalDir, targetDir );
+        Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenNormalizedVectors( postWarpOriginalDirCS, targetDirCS );
 
         // Record debug info
         #if EE_DEVELOPMENT_TOOLS
         m_warpStartWorldTransform = context.m_worldTransform;
         m_debugCharacterOffsetPosWS = m_warpStartWorldTransform.GetTranslation() + context.m_worldTransform.RotateVector( originalRootMotion.m_transforms[warpEndFrame].GetTranslation() );
-        m_debugTargetDirWS = context.m_worldTransform.RotateVector( targetDir );
+        m_debugTargetDirWS = context.m_worldTransform.RotateVector( targetDirCS );
         #endif
 
         // Perform warp
         //-------------------------------------------------------------------------
 
-        // Spread out the delta across the entire warp section
+        m_warpedRootMotion.m_transforms.front() = context.m_worldTransform;
+
+        // Set initial world space positions up to the end of the rotation warp event
+        for ( auto i = 1; i <= warpEndFrame; i++ )
+        {
+            Transform const originalDelta = Transform::Delta( originalRootMotion.m_transforms[i - 1], originalRootMotion.m_transforms[i] );
+            m_warpedRootMotion.m_transforms[i] = originalDelta * m_warpedRootMotion.m_transforms[i - 1];
+        }
+
+        // Spread out the delta rotation across the entire warp section
         for ( auto i = warpStartFrame + 1; i <= warpEndFrame; i++ )
         {
             float const percentage = float( i - warpStartFrame ) / numWarpFrames;
-
             Quaternion const frameDelta = Quaternion::SLerp( Quaternion::Identity, desiredOrientationDelta, percentage );
             Quaternion const adjustedRotation = frameDelta * m_warpedRootMotion.m_transforms[i].GetRotation();
             m_warpedRootMotion.m_transforms[i].SetRotation( adjustedRotation );
@@ -154,6 +165,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult OrientationWarpNode::Update( GraphContext& context )
     {
+        auto pNodeSettings = GetSettings<OrientationWarpNode>();
         MarkNodeActive( context );
 
         auto result = m_pClipReferenceNode->Update( context );
@@ -161,12 +173,22 @@ namespace EE::Animation::GraphNodes
         m_previousTime = m_pClipReferenceNode->GetPreviousTime();
         m_currentTime = m_pClipReferenceNode->GetCurrentTime();
 
-        result.m_rootMotionDelta = m_warpedRootMotion.GetDelta( m_pClipReferenceNode->GetPreviousTime(), m_pClipReferenceNode->GetCurrentTime() );
+        // Sample warped root motion
+        if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
+        {
+            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+        }
+        else
+        {
+            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
+        }
+
         return result;
     }
 
     GraphPoseNodeResult OrientationWarpNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
+        auto pNodeSettings = GetSettings<OrientationWarpNode>();
         MarkNodeActive( context );
 
         auto result = m_pClipReferenceNode->Update( context, updateRange );
@@ -174,7 +196,16 @@ namespace EE::Animation::GraphNodes
         m_previousTime = m_pClipReferenceNode->GetPreviousTime();
         m_currentTime = m_pClipReferenceNode->GetCurrentTime();
 
-        result.m_rootMotionDelta = m_warpedRootMotion.GetDelta( m_pClipReferenceNode->GetPreviousTime(), m_pClipReferenceNode->GetCurrentTime() );
+        // Sample warped root motion
+        if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
+        {
+            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+        }
+        else
+        {
+            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
+        }
+
         return result;
     }
 

@@ -519,7 +519,16 @@ namespace EE::TypeSystem::Conversion
                 {
                     int32_t intData[2];
                     StringToIntArray( str, 2, intData );
-                    *reinterpret_cast<IntRange*>( pValue ) = IntRange( intData[0], intData[1] );
+
+                    // Invalid range
+                    if ( intData[0] > intData[1] )
+                    {
+                        *reinterpret_cast<IntRange*>( pValue ) = IntRange();
+                    }
+                    else
+                    {
+                        *reinterpret_cast<IntRange*>( pValue ) = IntRange( intData[0], intData[1] );
+                    }
                 }
                 break;
 
@@ -938,14 +947,14 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::IntRange:
                 {
                     IntRange const* pRange = reinterpret_cast<IntRange const*>( pValue );
-                    IntArrayToString( &pRange->m_begin, 3, strValue );
+                    IntArrayToString( &pRange->m_begin, 2, strValue );
                 }
                 break;
 
                 case CoreTypeID::FloatRange:
                 {
                     FloatRange const* pRange = reinterpret_cast<FloatRange const*>( pValue );
-                    FloatArrayToString( &pRange->m_begin, 3, strValue );
+                    FloatArrayToString( &pRange->m_begin, 2, strValue );
                 }
                 break;
 

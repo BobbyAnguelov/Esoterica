@@ -71,6 +71,7 @@ namespace EE::TypeSystem::Reflection
         clangArgs.push_back( "-O0" );
         clangArgs.push_back( "-D NDEBUG" );
         clangArgs.push_back( "-Werror" );
+        clangArgs.push_back( "-Wno-deprecated-builtins" );
         clangArgs.push_back( "-fparse-all-comments" );
         clangArgs.push_back( "-Wno-unknown-warning-option" );
         clangArgs.push_back( "-Wno-return-type-c-linkage" );

@@ -4,6 +4,7 @@
 #include "System/Math/Transform.h"
 #include "System/Types/Arrays.h"
 #include "System/Types/Color.h"
+#include "System/TypeSystem/RegisteredType.h"
 
 //-------------------------------------------------------------------------
 
@@ -16,6 +17,16 @@ namespace EE::Animation
     struct EE_ENGINE_API RootMotionData
     {
         EE_SERIALIZE( m_transforms, m_averageLinearVelocity, m_averageAngularVelocity, m_totalDelta );
+
+    public:
+
+        enum class SamplingMode : uint8_t
+        {
+            EE_REGISTER_ENUM
+
+            Delta = 0,  // Just returns the delta between the start and end time
+            WorldSpace, // Will return a delta that attempts to move the character to the expected root motion position (assumes root motion transforms are in world space)
+        };
 
     public:
 
@@ -68,6 +79,11 @@ namespace EE::Animation
 
         // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
         Quaternion GetOutgoingHeadingOrientation2DAtFrame( int32_t frameIdx ) const;
+
+        //-------------------------------------------------------------------------
+
+        // Sample the root motion based on the supplied sampling mode: either just the plain delta or the world space delta
+        inline Transform SampleRootMotion( SamplingMode mode, Transform const& currentWorldTransform, Percentage startTime, Percentage endTime ) const;
 
         //-------------------------------------------------------------------------
 
@@ -136,6 +152,23 @@ namespace EE::Animation
             Transform const preLoopDelta = GetDeltaNoLooping( fromTime, 1.0f );
             Transform const postLoopDelta = GetDeltaNoLooping( 0.0f, toTime );
             delta = postLoopDelta * preLoopDelta;
+        }
+
+        return delta;
+    }
+
+    inline Transform RootMotionData::SampleRootMotion( SamplingMode mode, Transform const& currentWorldTransform, Percentage startTime, Percentage endTime ) const
+    {
+        Transform delta;
+
+        if ( mode == SamplingMode::WorldSpace )
+        {
+            Transform const desiredFinalTransform = GetTransform( endTime );
+            delta = Transform::Delta( currentWorldTransform, desiredFinalTransform );
+        }
+        else
+        {
+            delta = GetDelta( startTime, endTime );
         }
 
         return delta;

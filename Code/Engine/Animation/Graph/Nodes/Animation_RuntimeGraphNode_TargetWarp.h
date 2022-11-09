@@ -36,14 +36,6 @@ namespace EE::Animation::GraphNodes
             #endif
         };
 
-        enum class SamplingMode : uint8_t
-        {
-            EE_REGISTER_ENUM
-
-            Inaccurate = 0, // Just returns the delta for each update from the warped root motion
-            Accurate,       // Will return a delta that attempts to move the character to the expected world space position
-        };
-
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
@@ -58,7 +50,7 @@ namespace EE::Animation::GraphNodes
             float                               m_lerpFallbackDistanceThreshold = 0.1f;
             float                               m_targetUpdateDistanceThreshold = 0.1f;
             float                               m_targetUpdateAngleThresholdRadians = Math::DegreesToRadians * 5.0f;
-            SamplingMode                        m_samplingMode = SamplingMode::Inaccurate;
+            RootMotionData::SamplingMode        m_samplingMode = RootMotionData::SamplingMode::Delta;
             bool                                m_allowTargetUpdate = false;
         };
 
@@ -99,7 +91,7 @@ namespace EE::Animation::GraphNodes
 
         AnimationClipReferenceNode*             m_pClipReferenceNode = nullptr;
         TargetValueNode*                        m_pTargetValueNode = nullptr;
-        SamplingMode                            m_samplingMode;
+        RootMotionData::SamplingMode            m_samplingMode;
 
         int8_t                                  m_translationXYSectionIdx = InvalidIndex;
         int8_t                                  m_rotationSectionIdx = InvalidIndex;

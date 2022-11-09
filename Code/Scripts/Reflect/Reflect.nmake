@@ -5,12 +5,18 @@
 EE_SOLUTION_PATH = "$(EE_ROOT_DIR)Esoterica.sln"
 REFLECTOR_EXE = $(EE_BUILD_DIR)x64_Release\EsotericaReflector.exe
 REFLECTOR_BUILD_CMD = msbuild $(EE_SOLUTION_PATH) /t:"1_ Applications\Esoterica_Applications_Reflector" /p:Configuration=Release;Platform=x64 /m /v:m
-REFLECTOR_REFLECT_CMD = "$(REFLECTOR_EXE)" -s $(EE_SOLUTION_PATH)
+REFLECTOR_CMD = "$(REFLECTOR_EXE)" -s $(EE_SOLUTION_PATH)
 
 !if exist( $(REFLECTOR_EXE) )
-REFLECTOR_CLEAN_CMD = $(REFLECTOR_REFLECT_CMD) -clean
+REFLECTOR_CLEAN_CMD = $(REFLECTOR_CMD) -clean
 !else
 REFLECTOR_CLEAN_CMD =
+!endif
+
+!if exist( $(REFLECTOR_EXE) )
+REFLECTOR_REFLECT_CMD = $(REFLECTOR_CMD) -rebuild
+!else
+REFLECTOR_REFLECT_CMD =
 !endif
 
 ##########################################

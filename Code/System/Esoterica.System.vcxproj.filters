@@ -1714,6 +1714,11 @@
     <ClInclude Include="ThirdParty\enkits\TaskScheduler_Esoterica.h" />
     <ClInclude Include="IniFile.h" />
     <ClInclude Include="Types\PointerID.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bit.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_detected.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_void_t.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\compare.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\overloaded.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\EA\EABase\doc\EABase.html">

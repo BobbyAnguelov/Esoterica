@@ -140,7 +140,7 @@ namespace EE::RawAssets
                     rawAnimation.LogWarning( "Warning: No animation track found for bone (%s), Using skeleton bind pose instead.", boneName.c_str() );
 
                     // Store skeleton reference pose for bone
-                    for ( auto i = 0u; i < rawAnimation.m_numFrames; i++ )
+                    for ( auto i = 0; i < rawAnimation.m_numFrames; i++ )
                     {
                         animTrack.m_localTransforms.emplace_back( rawAnimation.m_skeleton.GetLocalTransform( boneIdx ) );
                     }
@@ -152,7 +152,7 @@ namespace EE::RawAssets
 
                     // Sample animation data
                     float currentTime = rawAnimation.m_start;
-                    for ( auto frameIdx = 0u; frameIdx < rawAnimation.m_numFrames; frameIdx++ )
+                    for ( auto frameIdx = 0; frameIdx < rawAnimation.m_numFrames; frameIdx++ )
                     {
                         FbxAMatrix nodeLocalTransform;
 

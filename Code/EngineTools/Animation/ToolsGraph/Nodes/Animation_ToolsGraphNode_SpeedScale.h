@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         EE_EXPOSE FloatRange              m_scaleLimits = FloatRange( 0.01f, 10.0f );
-        EE_EXPOSE float                   m_blendTime = 0.2f;
+        EE_EXPOSE float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
     };
 
     //-------------------------------------------------------------------------
@@ -45,6 +45,6 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE float                   m_blendTime = 0.2f;
+        EE_EXPOSE float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
     };
 }

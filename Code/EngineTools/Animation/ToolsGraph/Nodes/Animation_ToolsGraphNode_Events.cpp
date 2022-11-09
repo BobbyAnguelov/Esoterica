@@ -5,21 +5,21 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void GenericEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void IDEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 
-    int16_t GenericEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
+    int16_t IDEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        GenericEventConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<GenericEventConditionNode>( this, pSettings );
+        IDEventConditionNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<IDEventConditionNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_operator = m_operator;
-            pSettings->m_searchMode = m_searchMode;
+            pSettings->m_searchRule = m_searchRule;
 
             pSettings->m_eventIDs.clear();
             pSettings->m_eventIDs.insert( pSettings->m_eventIDs.begin(), m_eventIDs.begin(), m_eventIDs.end() );
@@ -27,23 +27,23 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void GenericEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void IDEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        switch ( m_searchMode )
+        switch ( m_searchRule )
         {
-            case EventSearchMode::OnlySearchStateEvents:
+            case IDEventConditionNode::SearchRule::OnlySearchStateEvents:
             {
                 ImGui::Text( "Search: State Events" );
             }
             break;
 
-            case EventSearchMode::OnlySearchAnimEvents:
+            case IDEventConditionNode::SearchRule::OnlySearchAnimEvents:
             {
                 ImGui::Text( "Search: Anim Events" );
             }
             break;
 
-            case EventSearchMode::SearchAll:
+            case IDEventConditionNode::SearchRule::SearchAll:
             {
                 ImGui::Text( "Search: All Events" );
             }
@@ -54,7 +54,7 @@ namespace EE::Animation::GraphNodes
 
         InlineString infoText;
 
-        if ( m_operator == GenericEventConditionNode::Operator::Or )
+        if ( m_operator == IDEventConditionNode::Operator::Or )
         {
             infoText = "Any: ";
         }
@@ -93,7 +93,8 @@ namespace EE::Animation::GraphNodes
         if ( state == NodeCompilationState::NeedCompilation )
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_preferHighestPercentageThrough = m_preferHighestPercentageThrough;
+            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
+            pSettings->m_priorityRule = m_priorityRule;
             pSettings->m_eventID = m_eventID;
         }
         return pSettings->m_nodeIdx;
@@ -110,7 +111,7 @@ namespace EE::Animation::GraphNodes
             ImGui::TextColored( ImColor( 0xFF0000FF ), "Event ID: Invalid" );
         }
 
-        if ( m_preferHighestPercentageThrough )
+        if ( m_onlyCheckEventsFromActiveBranch )
         {
             ImGui::Text( "Prefer Highest Event %" );
         }
@@ -136,7 +137,7 @@ namespace EE::Animation::GraphNodes
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_phaseCondition = m_phaseCondition;
-            pSettings->m_preferHighestPercentageThrough = m_preferHighestPercentageThrough;
+            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
         }
         return pSettings->m_nodeIdx;
     }
@@ -145,7 +146,7 @@ namespace EE::Animation::GraphNodes
     {
         ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
 
-        if ( m_preferHighestPercentageThrough )
+        if ( m_onlyCheckEventsFromActiveBranch )
         {
             ImGui::Text( "Prefer Highest Event %" );
         }
@@ -171,7 +172,8 @@ namespace EE::Animation::GraphNodes
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_phaseCondition = m_phaseCondition;
-            pSettings->m_preferHighestPercentageThrough = m_preferHighestPercentageThrough;
+            pSettings->m_priorityRule = m_priorityRule;
+            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
         }
         return pSettings->m_nodeIdx;
     }
@@ -180,7 +182,7 @@ namespace EE::Animation::GraphNodes
     {
         ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
 
-        if ( m_preferHighestPercentageThrough )
+        if ( m_onlyCheckEventsFromActiveBranch )
         {
             ImGui::Text( "Prefer Highest Event %" );
         }
@@ -192,18 +194,24 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void SyncEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void SyncEventIndexConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
     }
 
-    int16_t SyncEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
+    int16_t SyncEventIndexConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        SyncEventConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<SyncEventConditionNode>( this, pSettings );
+        SyncEventIndexConditionNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<SyncEventIndexConditionNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
+            if ( m_syncEventIdx == InvalidIndex )
+            {
+                context.LogError( this, "Invalid sync event index" );
+                return InvalidIndex;
+            }
+
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_triggerMode = m_triggerMode;
             pSettings->m_syncEventIdx = m_syncEventIdx;
@@ -211,15 +219,15 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    void SyncEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void SyncEventIndexConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        if ( m_triggerMode == SyncEventConditionNode::TriggerMode::ExactlyAtEventIndex )
+        if ( m_triggerMode == SyncEventIndexConditionNode::TriggerMode::ExactlyAtEventIndex )
         {
-            ImGui::Text( "== %d", m_syncEventIdx );
+            ImGui::Text( "Current index == %d", m_syncEventIdx );
         }
         else
         {
-            ImGui::Text( ">= %d", m_syncEventIdx );
+            ImGui::Text( "Current index >= %d", m_syncEventIdx );
         }
     }
 
@@ -240,5 +248,57 @@ namespace EE::Animation::GraphNodes
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
         }
         return pSettings->m_nodeIdx;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void TransitionEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    {
+        FlowToolsNode::Initialize( pParent );
+        CreateOutputPin( "Result", GraphValueType::Bool, true );
+    }
+
+    int16_t TransitionEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        TransitionEventConditionNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<TransitionEventConditionNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pSettings->m_markerCondition = m_markerCondition;
+            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
+
+            if ( m_matchOnlySpecificMarkerID )
+            {
+                if ( m_markerIDToMatch.IsValid() )
+                {
+                    pSettings->m_markerIDToMatch = m_markerIDToMatch;
+                }
+                else
+                {
+                    context.LogError( this, "Invalid event ID to match!" );
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                pSettings->m_markerIDToMatch = StringID();
+            }
+        }
+        return pSettings->m_nodeIdx;
+    }
+
+    void TransitionEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        ImGui::Text( GetTransitionMarkerConditionName( m_markerCondition ) );
+
+        if ( m_onlyCheckEventsFromActiveBranch )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
     }
 }

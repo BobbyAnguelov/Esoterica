@@ -26,7 +26,7 @@ namespace EE::RawAssets
                 auto const& parentTrackData = m_tracks[parentBoneIdx];
                 trackData.m_globalTransforms.resize( m_numFrames );
 
-                for ( auto f = 0u; f < m_numFrames; f++ )
+                for ( auto f = 0; f < m_numFrames; f++ )
                 {
                     trackData.m_globalTransforms[f] = trackData.m_localTransforms[f] * parentTrackData.m_globalTransforms[f];
                 }
@@ -41,7 +41,7 @@ namespace EE::RawAssets
         TrackData& rootTrackData = m_tracks[0];
         Vector rootMotionOriginOffset = rootTrackData.m_localTransforms[0].GetTranslation(); // Ensure that the root motion always starts at the origin
 
-        for ( uint32_t i = 0; i < m_numFrames; i++ )
+        for ( int32_t i = 0; i < m_numFrames; i++ )
         {
             // If we detect scaling on the root, log an error and exit
             if ( rootTrackData.m_localTransforms[i].HasScale() )
@@ -82,7 +82,7 @@ namespace EE::RawAssets
                 auto const& parentTrackData = m_tracks[parentBoneIdx];
                 trackData.m_localTransforms.resize( m_numFrames );
 
-                for ( auto f = 0u; f < m_numFrames; f++ )
+                for ( auto f = 0; f < m_numFrames; f++ )
                 {
                     trackData.m_localTransforms[f] = Transform::Delta( parentTrackData.m_globalTransforms[f], trackData.m_globalTransforms[f] );
                 }
@@ -97,7 +97,7 @@ namespace EE::RawAssets
         {
             Transform baseTransform = m_skeleton.GetLocalTransform( boneIdx );
 
-            for ( uint32_t frameIdx = 0; frameIdx < m_numFrames; frameIdx++ )
+            for ( int32_t frameIdx = 0; frameIdx < m_numFrames; frameIdx++ )
             {
                 Transform const& poseTransform = m_tracks[boneIdx].m_localTransforms[frameIdx];
 

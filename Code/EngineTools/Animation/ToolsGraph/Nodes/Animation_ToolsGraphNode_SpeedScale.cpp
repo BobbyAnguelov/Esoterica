@@ -63,7 +63,7 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             pSettings->m_scaleLimits = m_scaleLimits;
-            pSettings->m_blendTime = m_blendTime;
+            pSettings->m_blendInTime = m_blendTime;
         }
         return pSettings->m_nodeIdx;
     }
@@ -75,7 +75,7 @@ namespace EE::Animation::GraphNodes
         FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
-        CreateInputPin( "Scale", GraphValueType::Float );
+        CreateInputPin( "Desired Velocity", GraphValueType::Float );
     }
 
     int16_t VelocityBasedSpeedScaleToolsNode::Compile( GraphCompilationContext& context ) const
@@ -126,7 +126,7 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_blendTime = m_blendTime;
+            pSettings->m_blendInTime = m_blendTime;
         }
         return pSettings->m_nodeIdx;
     }

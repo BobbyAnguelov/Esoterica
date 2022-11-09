@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
 #include "Engine/Animation/Events/AnimationEvent_Foot.h"
+#include "Engine/Animation/Events/AnimationEvent_Transition.h"
 
 //-------------------------------------------------------------------------
 
@@ -10,18 +11,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    enum class EventSearchMode : uint8_t
+    enum class EventPriorityRule : uint8_t
     {
         EE_REGISTER_ENUM
 
-        SearchAll = 0,
-        OnlySearchStateEvents,
-        OnlySearchAnimEvents,
+        HighestWeight, // Prefer events that have a higher weight (if there are multiple events with the same weight the latest sampled will be chosen)
+        HighestPercentageThrough, // Prefer events that have a higher percentage through (if there are multiple events with the same percentage through the latest sampled will be chosen)
     };
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API GenericEventConditionNode : public BoolValueNode
+    // Check for a given ID - coming either from a state event or generic event
+    class EE_ENGINE_API IDEventConditionNode : public BoolValueNode
     {
     public:
 
@@ -33,12 +34,21 @@ namespace EE::Animation::GraphNodes
             And,
         };
 
+        enum class SearchRule : uint8_t
+        {
+            EE_REGISTER_ENUM
+
+            SearchAll = 0,
+            OnlySearchStateEvents,
+            OnlySearchAnimEvents,
+        };
+
     public:
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_eventIDs, m_operator, m_searchMode );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_operator, m_searchRule, m_onlyCheckEventsFromActiveBranch, m_eventIDs );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -46,7 +56,8 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             Operator                                    m_operator = Operator::Or;
-            EventSearchMode                             m_searchMode = EventSearchMode::SearchAll;
+            SearchRule                                  m_searchRule = SearchRule::SearchAll;
+            bool                                        m_onlyCheckEventsFromActiveBranch = false;
             TInlineVector<StringID, 5>                  m_eventIDs;
         };
 
@@ -66,6 +77,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    // Get the percentage through a generic event with a specific ID
     class EE_ENGINE_API GenericEventPercentageThroughNode : public FloatValueNode
     {
     public:
@@ -73,14 +85,15 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_eventID, m_preferHighestPercentageThrough );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_priorityRule, m_onlyCheckEventsFromActiveBranch, m_eventID );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
-            bool                                        m_preferHighestPercentageThrough = false;
+            EventPriorityRule                           m_priorityRule = EventPriorityRule::HighestWeight;
+            bool                                        m_onlyCheckEventsFromActiveBranch = false;
             StringID                                    m_eventID;
         };
 
@@ -105,7 +118,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_preferHighestPercentageThrough );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_onlyCheckEventsFromActiveBranch );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -113,7 +126,7 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-            bool                                        m_preferHighestPercentageThrough = false;
+            bool                                        m_onlyCheckEventsFromActiveBranch = false;
         };
 
     private:
@@ -137,7 +150,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public FloatValueNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_preferHighestPercentageThrough );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_priorityRule, m_onlyCheckEventsFromActiveBranch );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -145,7 +158,8 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-            bool                                        m_preferHighestPercentageThrough = false;
+            EventPriorityRule                           m_priorityRule = EventPriorityRule::HighestWeight;
+            bool                                        m_onlyCheckEventsFromActiveBranch = false;
         };
 
     private:
@@ -162,7 +176,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API SyncEventConditionNode : public BoolValueNode
+    class EE_ENGINE_API SyncEventIndexConditionNode : public BoolValueNode
     {
     public:
 
@@ -234,5 +248,38 @@ namespace EE::Animation::GraphNodes
 
         StateNode*                                      m_pSourceStateNode = nullptr;
         float                                           m_result = 0.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API TransitionEventConditionNode : public BoolValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
+        {
+            EE_REGISTER_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_markerCondition, m_onlyCheckEventsFromActiveBranch, m_markerIDToMatch );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+            TransitionMarkerCondition                   m_markerCondition = TransitionMarkerCondition::AnyAllowed;
+            bool                                        m_onlyCheckEventsFromActiveBranch = false;
+            StringID                                    m_markerIDToMatch = StringID();
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        StateNode const*                                m_pSourceStateNode = nullptr;
+        bool                                            m_result = false;
     };
 }

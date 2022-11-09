@@ -1,6 +1,5 @@
 #include "AnimationEventTracks.h"
 
-
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
@@ -33,6 +32,25 @@ namespace EE::Animation
     {
         auto pAnimEvent = GetAnimEvent<FootEvent>( pItem );
         return FootEvent::GetPhaseColor( pAnimEvent->GetFootPhase() );
+    }
+
+    //-------------------------------------------------------------------------
+
+    TypeSystem::TypeInfo const* TransitionEventTrack::GetEventTypeInfo() const
+    {
+        return TransitionEvent::s_pTypeInfo;
+    }
+
+    InlineString TransitionEventTrack::GetItemLabel( Timeline::TrackItem const* pItem ) const
+    {
+        auto pAnimEvent = GetAnimEvent<TransitionEvent>( pItem );
+        return GetTransitionMarkerName( pAnimEvent->GetMarker() );
+    }
+
+    Color TransitionEventTrack::GetItemColor( Timeline::TrackItem const * pItem ) const
+    {
+        auto pAnimEvent = GetAnimEvent<TransitionEvent>( pItem );
+        return GetTransitionMarkerColor( pAnimEvent->GetMarker() );
     }
 
     //-------------------------------------------------------------------------

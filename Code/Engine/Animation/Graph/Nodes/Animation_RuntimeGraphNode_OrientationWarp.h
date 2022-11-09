@@ -18,14 +18,15 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REGISTER_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_isOffsetNode, m_isOffsetRelativeToCharacter );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_isOffsetNode, m_isOffsetRelativeToCharacter, m_samplingMode );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                     m_clipReferenceNodeIdx = InvalidIndex;
-            int16_t                     m_targetValueNodeIdx = InvalidIndex;
-            bool                        m_isOffsetNode = false;
-            bool                        m_isOffsetRelativeToCharacter = true;
+            int16_t                         m_clipReferenceNodeIdx = InvalidIndex;
+            int16_t                         m_targetValueNodeIdx = InvalidIndex;
+            bool                            m_isOffsetNode = false;
+            bool                            m_isOffsetRelativeToCharacter = true;
+            RootMotionData::SamplingMode    m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
         };
 
     private:

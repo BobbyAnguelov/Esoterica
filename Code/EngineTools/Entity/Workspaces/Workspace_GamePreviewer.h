@@ -27,6 +27,7 @@ namespace EE
         virtual bool HasViewportOrientationGuide() const override { return false; }
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
 
+        virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
         virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;

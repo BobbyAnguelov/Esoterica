@@ -230,7 +230,14 @@ namespace EE
     {
         m_displayName = name;
         m_pWorld->SetDebugName( m_displayName.c_str() );
-        m_workspaceWindowID.sprintf( "%s###window%u", m_displayName.c_str(), GetID() );
+        if ( HasTitlebarIcon() )
+        {
+            m_workspaceWindowID.sprintf( "%s %s###window%u", GetTitlebarIcon(), m_displayName.c_str(), GetID() );
+        }
+        else
+        {
+            m_workspaceWindowID.sprintf( "%s###window%u", m_displayName.c_str(), GetID() );
+        }
     }
 
     Drawing::DrawContext Workspace::GetDrawingContext()

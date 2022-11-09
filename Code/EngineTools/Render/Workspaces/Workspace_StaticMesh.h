@@ -21,6 +21,8 @@ namespace EE::Render
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual bool HasTitlebarIcon() const override { return true; }
+        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_PINE_TREE; }
 
     private:
 

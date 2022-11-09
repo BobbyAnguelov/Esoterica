@@ -67,6 +67,12 @@ namespace EE
         // Get the main workspace window ID - Needs to be unique per workspace instance!
         inline char const* GetWorkspaceWindowID() const { EE_ASSERT( !m_workspaceWindowID.empty() ); return m_workspaceWindowID.c_str(); }
 
+        // Does this workspace have a title bar icon
+        virtual bool HasTitlebarIcon() const { return false; }
+
+        // Get this workspace's title bar icon
+        virtual char const* GetTitlebarIcon() const { EE_ASSERT( HasTitlebarIcon() ); return nullptr; }
+
         // Does this workspace have a toolbar?
         virtual bool HasWorkspaceToolbar() const { return true; }
 

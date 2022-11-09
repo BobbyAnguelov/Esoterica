@@ -96,6 +96,7 @@
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\any.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\array.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\atomic.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bit.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bitset.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bitvector.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\adaptors.h" />
@@ -107,10 +108,12 @@
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\intrusive_slist.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\list_map.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\lru_cache.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\overloaded.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\ring_buffer.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\sort_extra.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\bonus\tuple_vector.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\chrono.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\compare.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\core_allocator.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\core_allocator_adapter.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\deque.h" />
@@ -294,10 +297,12 @@
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\thread_support.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\tuple_fwd_decls.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_compound.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_detected.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_fundamental.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_pod.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_properties.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_transformations.h" />
+    <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_void_t.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\intrusive_hash_map.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\intrusive_hash_set.h" />
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\intrusive_list.h" />

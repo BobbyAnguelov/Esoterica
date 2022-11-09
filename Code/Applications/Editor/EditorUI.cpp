@@ -77,10 +77,6 @@ namespace EE
         m_pMapEditor->Initialize( context );
         m_workspaces.emplace_back( m_pMapEditor );
 
-        // Create bindings to start/stop game preview
-        m_gamePreviewStartedEventBindingID = m_pMapEditor->OnGamePreviewStartRequested().Bind( [this] ( UpdateContext const& context ) { CreateGamePreviewWorkspace( context ); } );
-        m_gamePreviewStoppedEventBindingID = m_pMapEditor->OnGamePreviewStopRequested().Bind( [this] ( UpdateContext const& context ) { DestroyGamePreviewWorkspace( context ); } );
-
         // Load startup map
         if ( m_startupMapResourceID.IsValid() )
         {
@@ -95,8 +91,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         EE_ASSERT( m_pMapEditor != nullptr );
-        m_pMapEditor->OnGamePreviewStartRequested().Unbind( m_gamePreviewStartedEventBindingID );
-        m_pMapEditor->OnGamePreviewStopRequested().Unbind( m_gamePreviewStoppedEventBindingID );
         m_pMapEditor = nullptr;
         m_pGamePreviewer = nullptr;
 
@@ -541,13 +535,14 @@ namespace EE
 
         if ( pWorkspace->IsDirty() )
         {
-            //windowFlags |= ImGuiWindowFlags_UnsavedDocument;
+            windowFlags |= ImGuiWindowFlags_UnsavedDocument;
         }
 
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
         ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-        bool const shouldDrawWindowContents = ImGui::Begin( pWorkspace->GetWorkspaceWindowID(), pIsTabOpen, windowFlags );
+
+        bool const shouldDrawWindowContents = ImGui::Begin( pWorkspace->GetWorkspaceWindowID(), pIsTabOpen, windowFlags);
         bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
         ImGui::PopStyleVar();
 
@@ -799,6 +794,30 @@ namespace EE
 
             ImGui::EndMenu();
         }
+
+        //-------------------------------------------------------------------------
+        // Preview Map Button
+        //-------------------------------------------------------------------------
+
+        float buttonDimensions = 130;
+        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
+
+        ImGui::BeginDisabled( !m_pMapEditor->HasLoadedMap() );
+        if ( m_pGamePreviewer != nullptr )
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
+            {
+                DestroyGamePreviewWorkspace( context );
+            }
+        }
+        else
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Map", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
+            {
+                CreateGamePreviewWorkspace( context );
+            }
+        }
+        ImGui::EndDisabled();
 
         //-------------------------------------------------------------------------
         // Draw Frame Limiter and Performance Stats

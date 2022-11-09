@@ -25,6 +25,9 @@ namespace EE::Animation
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
+        virtual bool HasTitlebarIcon() const override { return true; }
+        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_HUMAN_EDIT; }
+
     private:
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
