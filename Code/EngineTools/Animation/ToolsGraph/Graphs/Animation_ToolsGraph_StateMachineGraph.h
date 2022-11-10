@@ -60,5 +60,8 @@ namespace EE::Animation
         virtual void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) override;
         virtual void PostDestroyNode( UUID const& nodeID ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+
+        bool CanConvertToBlendTreeState() const;
+        bool CanConvertToStateMachineState() const;
     };
 }

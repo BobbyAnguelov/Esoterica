@@ -75,6 +75,12 @@ namespace EE::Animation::GraphNodes
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual bool IsActive( VisualGraph::UserContext* pUserContext ) const override;
 
+        bool CanConvertToBlendTreeState();
+        void ConvertToBlendTreeState();
+
+        bool CanConvertToStateMachineState();
+        void ConvertToStateMachineState();
+
     private:
 
         EE_REGISTER String                      m_name = "State";

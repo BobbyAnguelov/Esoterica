@@ -103,6 +103,24 @@ namespace EE::Animation::GraphNodes
 
     void StateToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
     {
+        if ( m_type == StateType::BlendTreeState && CanConvertToStateMachineState() )
+        {
+            if ( ImGui::MenuItem( EE_ICON_STATE_MACHINE" Convert To State Machine State" ) )
+            {
+                ConvertToStateMachineState();
+            }
+        }
+
+        if ( m_type == StateType::StateMachineState && CanConvertToBlendTreeState() )
+        {
+            if ( ImGui::MenuItem( EE_ICON_FILE_TREE" Convert to Blend Tree State" ) )
+            {
+                ConvertToBlendTreeState();
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         if ( ImGui::BeginMenu( EE_ICON_INFORMATION_OUTLINE" Node Info" ) )
         {
             // UUID
@@ -319,5 +337,56 @@ namespace EE::Animation::GraphNodes
         }
 
         return false;
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool StateToolsNode::CanConvertToBlendTreeState()
+    {
+        EE_ASSERT( m_type == StateType::StateMachineState );
+
+        return true;
+    }
+
+    void StateToolsNode::ConvertToBlendTreeState()
+    {
+        EE_ASSERT( m_type == StateType::StateMachineState );
+
+        VisualGraph::ScopedNodeModification const snm( this );
+        m_type = StateType::BlendTreeState;
+    }
+
+    bool StateToolsNode::CanConvertToStateMachineState()
+    {
+        EE_ASSERT( m_type == StateType::BlendTreeState );
+
+        auto const& childNodes = GetChildGraph()->GetNodes();
+        if ( childNodes.size() != 2 )
+        {
+            return false;
+        }
+
+        auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+        if ( resultNodes.size() != 1 )
+        {
+            return false;
+        }
+
+        auto pInputNode = resultNodes[0]->GetConnectedInputNode( 0 );
+        if ( pInputNode == nullptr || !IsOfType<StateMachineToolsNode>( pInputNode ) )
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    void StateToolsNode::ConvertToStateMachineState()
+    {
+        EE_ASSERT( m_type == StateType::BlendTreeState );
+        EE_ASSERT( CanConvertToStateMachineState() );
+
+        VisualGraph::ScopedNodeModification const snm( this );
+        m_type = StateType::StateMachineState;
     }
 }

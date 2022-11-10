@@ -319,6 +319,9 @@ namespace EE::VisualGraph
         // Node Operations
         //-------------------------------------------------------------------------
 
+        // Get read-only nodes
+        TVector<BaseNode*> const& GetNodes() const { return m_nodes; }
+
         // Returns the most significant node for a given graph, could be the final result node or the default state node, etc...
         virtual BaseNode const* GetMostSignificantNode() const { return nullptr; }
 
