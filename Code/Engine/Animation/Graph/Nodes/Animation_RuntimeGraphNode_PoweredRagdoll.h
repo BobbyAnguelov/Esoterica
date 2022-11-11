@@ -42,6 +42,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
+        void CreateRagdoll( GraphContext& context );
         GraphPoseNodeResult UpdateRagdoll( GraphContext& context, GraphPoseNodeResult const& childResult );
 
     private:

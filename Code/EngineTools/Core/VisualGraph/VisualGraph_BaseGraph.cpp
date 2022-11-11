@@ -614,11 +614,11 @@ namespace EE::VisualGraph
         return m_ID;
     }
 
-    void BaseGraph::OnShowGraph( UserContext* pUserContext )
+    void BaseGraph::OnShowGraph()
     {
         for ( auto pNode : m_nodes )
         {
-            pNode->OnShowNode( pUserContext );
+            pNode->OnShowNode();
         }
     }
 

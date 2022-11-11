@@ -90,7 +90,7 @@ namespace EE::Animation::GraphNodes
         if ( !pSettings->IsSynchronized() )
         {
             m_currentTime = 0.0f;
-            m_duration = Math::Lerp( m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_transitionProgress );
+            m_duration = m_pSourceNode->GetDuration();
 
             if ( m_pEventOffsetOverrideNode != nullptr )
             {
@@ -103,25 +103,36 @@ namespace EE::Animation::GraphNodes
                 m_syncEventOffset = pSettings->m_syncEventOffset;
             }
 
-            SyncTrackTime targetStartEventSyncTime;
-            bool const shouldMatchSourceTime = pSettings->ShouldKeepEventIndex() || pSettings->ShouldKeepEventPercentage();
-            bool hasFractionalOffset = false;
+            // If we have a sync offset or we need to match the source state time, we need to create a target state initial time
+            bool const shouldMatchSourceTime = pSettings->ShouldMatchSourceTime();
             if ( shouldMatchSourceTime || !Math::IsNearZero( m_syncEventOffset ) )
             {
+                SyncTrackTime targetStartEventSyncTime;
+
                 // Calculate the target start position (if we need to match the source)
                 if ( shouldMatchSourceTime )
                 {
-                    SyncTrack const& SourceSyncTrack = m_pSourceNode->GetSyncTrack();
-                    SyncTrackTime sourceFromSyncTime = SourceSyncTrack.GetTime( m_pSourceNode->GetPreviousTime() );
+                    SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
+                    SyncTrackTime sourceFromSyncTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
 
-                    // Should we keep the source event index
-                    if ( pSettings->ShouldKeepEventIndex() )
+                    // Set the matching event index if required
+                    if ( pSettings->ShouldMatchSyncEventIndex() )
                     {
                         targetStartEventSyncTime.m_eventIdx = sourceFromSyncTime.m_eventIdx;
                     }
+                    else if ( pSettings->ShouldMatchSyncEventID() )
+                    {
+                        // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
+                        // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
+                        m_pTargetNode->Initialize( context, targetStartEventSyncTime );
+                        SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
+                        StringID const sourceSyncEventID = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
+                        targetStartEventSyncTime.m_eventIdx = targetSyncTrack.GetEventIndexForID( sourceSyncEventID );
+                        m_pTargetNode->Shutdown( context );
+                    }
 
                     // Should we keep the source "From" percentage through
-                    if ( pSettings->ShouldKeepEventPercentage() )
+                    if ( pSettings->ShouldMatchSyncEventPercentage() )
                     {
                         targetStartEventSyncTime.m_percentageThrough = sourceFromSyncTime.m_percentageThrough;
                     }
@@ -130,25 +141,26 @@ namespace EE::Animation::GraphNodes
                 // Apply the sync event offset
                 float eventIdxOffset;
                 float percentageThroughOffset = Math::ModF( m_syncEventOffset, &eventIdxOffset );
-                hasFractionalOffset = !Math::IsNearZero( percentageThroughOffset );
                 targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
 
                 // Ensure we handle looping past the current event with the percentage offset
                 targetStartEventSyncTime.m_percentageThrough = Math::ModF( targetStartEventSyncTime.m_percentageThrough + percentageThroughOffset, &eventIdxOffset );
                 targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
-            }
 
-            // Initialize and update the target node
-            m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-            m_pTargetNode->StartTransitionIn( context );
+                // Initialize and update the target node
+                m_pTargetNode->Initialize( context, targetStartEventSyncTime );
+                m_pTargetNode->StartTransitionIn( context );
 
-            // We need to update synchronized so that for this update the target node is at the exact requested time
-            if ( shouldMatchSourceTime || hasFractionalOffset )
-            {
-                targetNodeResult = m_pTargetNode->Update( context, targetStartEventSyncTime );
+                // Use a zero time-step as we dont want to update the target on this update but we do want the target pose to be created!
+                float const oldDeltaTime = context.m_deltaTime;
+                context.m_deltaTime = 0.0f;
+                targetNodeResult = m_pTargetNode->Update( context );
+                context.m_deltaTime = oldDeltaTime;
             }
-            else // Regular update
+            else // Regular time update (not matched or has sync offset)
             {
+                m_pTargetNode->Initialize( context, SyncTrackTime() );
+                m_pTargetNode->StartTransitionIn( context );
                 targetNodeResult = m_pTargetNode->Update( context );
             }
 
@@ -162,14 +174,12 @@ namespace EE::Animation::GraphNodes
                 float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * m_pSourceNode->GetDuration();
                 m_transitionDuration = Math::Min( m_transitionDuration, remainingNodeTime );
             }
-
-            UpdateProgress( context, true );
         }
 
         // Use sync events to initialize the target state
         //-------------------------------------------------------------------------
 
-        else
+        else // Synchronized transition
         {
             EE_ASSERT( m_pSourceNode != nullptr );
             SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
@@ -206,9 +216,8 @@ namespace EE::Animation::GraphNodes
             #endif
 
             // Update internal transition state
-            SyncTrack const& TargetSyncTrack = m_pTargetNode->GetSyncTrack();
-            m_syncTrack = SyncTrack( sourceSyncTrack, TargetSyncTrack, m_transitionProgress );
-            m_duration = SyncTrack::CalculateDurationSynchronized( m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), sourceSyncTrack.GetNumEvents(), TargetSyncTrack.GetNumEvents(), m_syncTrack.GetNumEvents(), m_transitionProgress );
+            m_syncTrack = sourceSyncTrack;
+            m_duration = m_pSourceNode->GetDuration();
             m_previousTime = m_syncTrack.GetPercentageThrough( targetUpdateRange.m_startTime );
             m_currentTime = m_syncTrack.GetPercentageThrough( targetUpdateRange.m_endTime );
 
@@ -251,12 +260,10 @@ namespace EE::Animation::GraphNodes
 
                 // Calculate the transition duration in terms of event distance and update the progress for this transition
                 m_transitionDuration = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
-                UpdateProgressClampedSynchronized( context, sourceUpdateRange, true );
             }
             else // Transition duration is still time based
             {
                 m_transitionDuration = pSettings->m_duration;
-                UpdateProgress( context, true );
             }
         }
 
@@ -384,28 +391,32 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    bool TransitionNode::IsComplete( GraphContext& context ) const
+    {
+        if ( m_transitionDuration <= 0.0f )
+        {
+            return true;
+        }
+
+        return ( m_transitionProgress + Percentage( context.m_deltaTime / m_transitionDuration ).ToFloat() ) >= 1.0f;
+    }
+
     void TransitionNode::UpdateProgress( GraphContext& context, bool isInitializing )
     {
         // Handle source transition completion
         // Only allowed if we are not initializing a transition - if we are initializing, this means the source node has been updated and may have tasks registered
         if ( !isInitializing )
         {
-            if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete() )
+            if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete( context ) )
             {
                 EndSourceTransition( context );
             }
         }
 
         // Update the transition progress using the last frame time delta and store current time delta
-        if ( m_transitionDuration <= 0.0f )
-        {
-            m_transitionProgress = 1.0f;
-        }
-        else
-        {
-            m_transitionProgress = m_transitionProgress + Percentage( context.m_deltaTime / m_transitionDuration );
-            m_transitionProgress = Math::Clamp( m_transitionProgress, 0.0f, 1.0f );
-        }
+        EE_ASSERT( m_transitionDuration > 0.0f );
+        m_transitionProgress = m_transitionProgress + Percentage( context.m_deltaTime / m_transitionDuration );
+        m_transitionProgress = Math::Clamp( m_transitionProgress, 0.0f, 1.0f );
     }
 
     void TransitionNode::UpdateProgressClampedSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange, bool isInitializing )
@@ -417,7 +428,7 @@ namespace EE::Animation::GraphNodes
         // Only allowed if we are not initializing a transition - if we are initializing, this means the source node has been updated and may have tasks registered
         if ( !isInitializing )
         {
-            if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete() )
+            if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete( context ) )
             {
                 EndSourceTransition( context );
             }
@@ -527,7 +538,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::Update( GraphContext& context )
     {
-        EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete() );
+        EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete( context ) );
         auto pSettings = GetSettings<TransitionNode>();
 
         UpdateCachedPoseBufferIDState( context );
@@ -679,7 +690,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
-        EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete() );
+        EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete( context ) );
         auto pSettings = GetSettings<TransitionNode>();
 
         UpdateCachedPoseBufferIDState( context );

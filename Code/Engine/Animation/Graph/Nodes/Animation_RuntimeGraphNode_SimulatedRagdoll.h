@@ -61,6 +61,8 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
+        void CreateRagdoll( GraphContext& context );
+
         GraphPoseNodeResult UpdateEntry( GraphContext& context );
         GraphPoseNodeResult UpdateSimulated( GraphContext& context );
         GraphPoseNodeResult UpdateExit( GraphContext& context );
@@ -72,6 +74,6 @@ namespace EE::Animation::GraphNodes
         AnimationClipReferenceNode*                         m_pEntryNode = nullptr;
         TInlineVector<AnimationClipReferenceNode*, 3>       m_exitNodeOptions;
         Stage                                               m_stage = Stage::Invalid;
-        bool                                                m_isFirstRagdollUpdate = false;
+        bool                                                m_isFirstUpdate = false;
     };
 }

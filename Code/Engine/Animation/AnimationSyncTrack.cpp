@@ -107,6 +107,34 @@ namespace EE::Animation
         m_syncEvents.back().m_duration = 1.0f - m_syncEvents.back().m_startTime;
     }
 
+    int32_t SyncTrack::GetEventIndexForID( StringID ID ) const
+    {
+        int32_t const numEvents = (int32_t) m_syncEvents.size();
+        for ( int32_t i = 0; i < numEvents; i++ )
+        {
+            if ( m_syncEvents[i].m_ID == ID )
+            {
+                return ClampIndexToTrack( i - m_startEventOffset );
+            }
+        }
+
+        return m_startEventOffset;
+    }
+
+    int32_t SyncTrack::GetEventIndexForIDWithoutOffset( StringID ID ) const
+    {
+        int32_t const numEvents = (int32_t) m_syncEvents.size();
+        for ( int32_t i = 0; i < numEvents; i++ )
+        {
+            if ( m_syncEvents[i].m_ID == ID )
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
     SyncTrackTime SyncTrack::GetTime( Percentage const percentage, bool withOffset ) const
     {
         int32_t const numSyncEvents = (int32_t) m_syncEvents.size();

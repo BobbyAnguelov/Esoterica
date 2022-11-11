@@ -527,7 +527,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            if ( trackStatus != Timeline::Track::Status::HasWarnings )
+            if ( trackStatus == Timeline::Track::Status::HasWarnings )
             {
                 if ( pTrack->IsRenameable() )
                 {

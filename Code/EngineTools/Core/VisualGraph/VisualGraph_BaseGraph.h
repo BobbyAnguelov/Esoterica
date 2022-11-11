@@ -205,7 +205,7 @@ namespace EE::VisualGraph
         void SetChildGraph( BaseGraph* pGraph );
 
         // Called whenever we switch the view to this node
-        virtual void OnShowNode( UserContext* pUserContext ) {}
+        virtual void OnShowNode() {}
 
         // Called whenever the user double clicks the node - By default this will request a navigate action to its child when double clicked
         virtual void OnDoubleClick( UserContext* pUserContext );
@@ -280,7 +280,7 @@ namespace EE::VisualGraph
         virtual void Shutdown();
 
         // Called whenever we change the view to this graph
-        void OnShowGraph( UserContext* pUserContext );
+        void OnShowGraph();
 
         // Undo/Redo
         //-------------------------------------------------------------------------

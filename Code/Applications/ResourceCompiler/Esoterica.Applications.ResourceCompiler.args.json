@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "916e066f-edd2-4dff-b7cb-93a0d7a0eab1",
+      "Command": "-compile data://packs/amplify/crouch_walk_fwd.anim"
+    },
+    {
       "Id": "d4315f20-8830-4352-91eb-292a6430f80b",
       "Command": "-compile data://packs/amplify/turn_r_90_v3.anim"
     },

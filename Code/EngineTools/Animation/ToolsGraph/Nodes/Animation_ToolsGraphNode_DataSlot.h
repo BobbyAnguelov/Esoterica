@@ -75,8 +75,8 @@ namespace EE::Animation::GraphNodes
 
     protected:
 
-        EE_EXPOSE String                       m_name;
-        EE_REGISTER ResourceID                 m_defaultResourceID;
-        EE_REGISTER TVector<OverrideValue>     m_overrides;
+        EE_REGISTER String                      m_name;
+        EE_REGISTER ResourceID                  m_defaultResourceID;
+        EE_REGISTER TVector<OverrideValue>      m_overrides;
     };
 }

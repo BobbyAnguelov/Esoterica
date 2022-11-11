@@ -389,4 +389,17 @@ namespace EE::Animation::GraphNodes
         VisualGraph::ScopedNodeModification const snm( this );
         m_type = StateType::StateMachineState;
     }
+
+    void StateToolsNode::OnShowNode()
+    {
+        VisualGraph::SM::State::OnShowNode();
+
+        // State machine states, never show the state machine node so we need to call that function here, to ensure that any code needing to be run is!
+        if ( m_type == StateType::StateMachineState )
+        {
+            auto childSMs = GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>();
+            EE_ASSERT( childSMs.size() == 1 );
+            childSMs[0]->OnShowNode();
+        }
+    }
 }

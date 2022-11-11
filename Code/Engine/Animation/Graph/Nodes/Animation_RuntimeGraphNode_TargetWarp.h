@@ -9,6 +9,14 @@ namespace EE::Animation::GraphNodes
 {
     class EE_ENGINE_API TargetWarpNode final : public PoseNode
     {
+        enum class InternalState
+        {
+            RequiresInitialUpdate,
+            AllowUpdates,
+            Completed,
+            Failed,
+        };
+
     public:
 
         struct WarpSection
@@ -62,7 +70,6 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-        void UpdateShared( GraphContext& context, GraphPoseNodeResult& result );
 
         bool TryReadTarget( GraphContext& context );
         bool UpdateWarp( GraphContext& context );
@@ -71,7 +78,10 @@ namespace EE::Animation::GraphNodes
         void ClearWarpInfo();
 
         // Generate the actual warp root motion
-        bool GenerateWarpedRootMotion( GraphContext& context, Percentage startTime );
+        void GenerateWarpedRootMotion( GraphContext& context, Percentage startTime );
+
+        // Sample the warped root motion
+        void SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result, bool wasWarpUpdatedThisFrame );
 
         // Section Solvers
         //-------------------------------------------------------------------------
@@ -92,6 +102,7 @@ namespace EE::Animation::GraphNodes
         AnimationClipReferenceNode*             m_pClipReferenceNode = nullptr;
         TargetValueNode*                        m_pTargetValueNode = nullptr;
         RootMotionData::SamplingMode            m_samplingMode;
+        InternalState                           m_internalState = InternalState::RequiresInitialUpdate;
 
         int8_t                                  m_translationXYSectionIdx = InvalidIndex;
         int8_t                                  m_rotationSectionIdx = InvalidIndex;

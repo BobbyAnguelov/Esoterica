@@ -241,7 +241,7 @@ namespace EE::Animation::GraphNodes
             return;
         }
 
-        if ( m_pActiveTransition->IsComplete() )
+        if ( m_pActiveTransition->IsComplete( context ) )
         {
             m_pActiveTransition->Shutdown( context );
             m_pActiveTransition = nullptr;

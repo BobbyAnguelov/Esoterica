@@ -36,13 +36,13 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetTypeName() const override { return "State Machine"; }
         virtual char const* GetCategory() const override { return "Animation"; }
         virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::CornflowerBlue ); }
+        virtual void OnShowNode() override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     private:
 
-        virtual void OnShowNode( VisualGraph::UserContext* pUserContext ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
 
         int16_t CompileState( GraphCompilationContext& context, StateToolsNode const* pStateNode ) const;

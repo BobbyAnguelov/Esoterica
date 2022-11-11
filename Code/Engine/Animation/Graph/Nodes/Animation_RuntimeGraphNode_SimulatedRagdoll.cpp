@@ -34,6 +34,11 @@ namespace EE::Animation::GraphNodes
 
     bool SimulatedRagdollNode::IsValid() const
     {
+        if ( m_isFirstUpdate )
+        {
+            return PoseNode::IsValid() && m_pEntryNode->IsValid();
+        }
+
         return PoseNode::IsValid() && m_pEntryNode->IsValid() && m_pRagdollDefinition != nullptr && m_pRagdoll != nullptr;
     }
 
@@ -48,7 +53,7 @@ namespace EE::Animation::GraphNodes
 
         PoseNode::InitializeInternal( context, initialTime );
         m_stage = Stage::Invalid;
-        m_isFirstRagdollUpdate = true;
+        m_isFirstUpdate = true;
 
         // Initialize entry node
         m_pEntryNode->Initialize( context, initialTime );
@@ -60,10 +65,33 @@ namespace EE::Animation::GraphNodes
         {
             pExitOptionNode->Initialize( context, SyncTrackTime() );
         }
+    }
 
-        //-------------------------------------------------------------------------
+    void SimulatedRagdollNode::ShutdownInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() );
 
-        // Create ragdoll
+        // Destroy the ragdoll
+        if ( m_pRagdoll != nullptr )
+        {
+            m_pRagdoll->RemoveFromScene();
+            EE::Delete( m_pRagdoll );
+        }
+
+        // Shutdown exit options
+        for ( auto pExitOptionNode : m_exitNodeOptions )
+        {
+            pExitOptionNode->Shutdown( context );
+        }
+
+        // Shutdown entry node
+        m_pEntryNode->Shutdown( context );
+
+        PoseNode::ShutdownInternal( context );
+    }
+
+    void SimulatedRagdollNode::CreateRagdoll( GraphContext& context )
+    {
         if ( m_pEntryNode->IsValid() && m_pRagdollDefinition != nullptr && context.m_pPhysicsScene != nullptr )
         {
             auto pNodeSettings = GetSettings<SimulatedRagdollNode>();
@@ -104,32 +132,16 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void SimulatedRagdollNode::ShutdownInternal( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        // Destroy the ragdoll
-        if ( m_pRagdoll != nullptr )
-        {
-            m_pRagdoll->RemoveFromScene();
-            EE::Delete( m_pRagdoll );
-        }
-
-        // Shutdown exit options
-        for ( auto pExitOptionNode : m_exitNodeOptions )
-        {
-            pExitOptionNode->Shutdown( context );
-        }
-
-        // Shutdown entry node
-        m_pEntryNode->Shutdown( context );
-
-        PoseNode::ShutdownInternal( context );
-    }
-
     GraphPoseNodeResult SimulatedRagdollNode::Update( GraphContext& context )
     {
         EE_ASSERT( IsInitialized() );
+
+        if ( m_isFirstUpdate )
+        {
+            CreateRagdoll( context );
+        }
+
+        //-------------------------------------------------------------------------
 
         GraphPoseNodeResult result;
 
@@ -167,6 +179,10 @@ namespace EE::Animation::GraphNodes
             result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
+
+        //-------------------------------------------------------------------------
+
+        m_isFirstUpdate = false;
 
         return result;
     }
@@ -216,10 +232,9 @@ namespace EE::Animation::GraphNodes
             }
 
             // Register ragdoll task
-            Tasks::RagdollSetPoseTask::InitOption const initOptions = m_isFirstRagdollUpdate ? Tasks::RagdollSetPoseTask::InitializeBodies : Tasks::RagdollSetPoseTask::DoNothing;
+            Tasks::RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? Tasks::RagdollSetPoseTask::InitializeBodies : Tasks::RagdollSetPoseTask::DoNothing;
             TaskIndex const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( m_pRagdoll, GetNodeIndex(), result.m_taskIdx, initOptions );
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex(), setPoseTaskIdx, physicsBlendWeight );
-            m_isFirstRagdollUpdate = false;
 
             // Once we hit fully in physics, switch stage
             if ( physicsBlendWeight >= 1.0f )

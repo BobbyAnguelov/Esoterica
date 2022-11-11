@@ -150,19 +150,39 @@ namespace EE::Animation
         inline bool HasStartOffset() const { return m_startEventOffset != 0; }
         inline int32_t GetStartEventOffset() const { return m_startEventOffset; }
 
-        // Get the event at specified index, includes offset
+        // Get the event at the specified index, includes offset
         inline Event const& GetEvent( int32_t i ) const
         {
             auto adjustedIndex = ClampIndexToTrack( i + m_startEventOffset );
             return m_syncEvents[adjustedIndex];
         }
 
-        // Get the event at specified index, excludes offset
+        // Get the ID for the event at the specified index, includes offset
+        inline StringID const& GetEventID( int32_t i ) const
+        {
+            auto adjustedIndex = ClampIndexToTrack( i + m_startEventOffset );
+            return m_syncEvents[adjustedIndex].m_ID;
+        }
+
+        // Get the first event that matches this index, if no events match this ID, then we return the first event including offset
+        int32_t GetEventIndexForID( StringID ID ) const;
+
+        // Get the event at the specified index, excludes offset
         inline Event const& GetEventWithoutOffset( int32_t i ) const
         {
-            auto AdjustedIndex = ClampIndexToTrack( i );
-            return m_syncEvents[AdjustedIndex];
+            auto adjustedIndex = ClampIndexToTrack( i );
+            return m_syncEvents[adjustedIndex];
         }
+
+        // Get the ID for the event at the specified index, excludes offset
+        inline StringID GetEventIDWithoutOffset( int32_t i ) const
+        {
+            auto adjustedIndex = ClampIndexToTrack( i );
+            return m_syncEvents[adjustedIndex].m_ID;
+        }
+
+        // Get the first event that matches this index, if no events match this ID, then we return the first event including offset
+        int32_t GetEventIndexForIDWithoutOffset( StringID ID ) const;
 
         // Get the duration of a specified event as a percentage of the whole track
         inline Percentage GetEventDuration( int32_t const eventIndex ) const { return GetEventDuration( eventIndex, true ); }

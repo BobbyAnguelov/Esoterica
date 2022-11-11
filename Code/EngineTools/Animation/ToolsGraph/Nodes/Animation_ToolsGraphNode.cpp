@@ -54,6 +54,8 @@ namespace EE::Animation::GraphNodes
         ImGui::Text( "Time: %.2f/%.2fs", debugInfo.m_currentTime.ToFloat() * debugInfo.m_duration, debugInfo.m_duration.ToFloat() );
         ImGui::Text( "Percent: %.1f%%", debugInfo.m_currentTime.ToFloat() * 100 );
         ImGui::Text( "Event: %d, %.1f%%", debugInfo.m_currentSyncTime.m_eventIdx, debugInfo.m_currentSyncTime.m_percentageThrough.ToFloat() * 100 );
+        StringID const eventID = debugInfo.m_pSyncTrack->GetEventID( debugInfo.m_currentSyncTime.m_eventIdx );
+        ImGui::Text( "Event ID: %s", eventID.IsValid() ? eventID.c_str() : "No ID");
     }
 
     void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width )
@@ -74,6 +76,7 @@ namespace EE::Animation::GraphNodes
         ImGui::Text( "Time: N/A" );
         ImGui::Text( "Percent: N/A" );
         ImGui::Text( "Event: N/A" );
+        ImGui::Text( "Event ID: N/A" );
     }
 
     void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& value )

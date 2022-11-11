@@ -14,9 +14,9 @@ namespace EE::Animation::GraphNodes
         UpdateTransitionNodes();
     }
 
-    void GlobalTransitionConduitToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
+    void GlobalTransitionConduitToolsNode::OnShowNode()
     {
-        VisualGraph::SM::Node::OnShowNode( pUserContext );
+        VisualGraph::SM::Node::OnShowNode();
         UpdateTransitionNodes();
     }
 

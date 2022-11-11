@@ -115,7 +115,8 @@ namespace EE::VisualGraph
 
     public:
 
-        virtual ~GraphView() = default;
+        GraphView();
+        virtual ~GraphView();
 
         bool HasFocus() const { return m_hasFocus; }
 
@@ -225,6 +226,8 @@ namespace EE::VisualGraph
             m_selectionChangedEvent.Execute( oldSelection, newSelection );
         }
 
+        void OnGraphModified( VisualGraph::BaseGraph* pGraph );
+
         // Node Drawing
         //-------------------------------------------------------------------------
 
@@ -281,8 +284,11 @@ namespace EE::VisualGraph
         char                            m_renameBuffer[255] = { 0 };
         BaseNode*                       m_pNodeBeingRenamed = nullptr;
 
+        // Event bindings
+        EventBindingID                  m_graphEndModificationBindingID;
+
         // Events
-        TEvent<TInlineVector<BaseNode*, 20> const&> m_postPasteEvent;
+        TEvent<TInlineVector<BaseNode*, 20> const&>     m_postPasteEvent;
         TEvent<TVector<SelectedNode> const&, TVector<SelectedNode> const&> m_selectionChangedEvent;
     };
 }

@@ -353,7 +353,7 @@ namespace EE::Animation
         Transform                                                       m_previousCameraTransform = Transform::Identity;
         bool                                                            m_startPaused = false;
         bool                                                            m_isFirstPreviewFrame = false;
-        bool                                                            m_isCameraTrackingEnabled = true;
+        bool                                                            m_isCameraTrackingEnabled = false;
     };
 
     //-------------------------------------------------------------------------

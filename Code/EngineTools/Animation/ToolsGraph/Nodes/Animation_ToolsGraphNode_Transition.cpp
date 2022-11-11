@@ -16,6 +16,13 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Sync Event Override", GraphValueType::Float );
     }
 
+    void TransitionToolsNode::SetName( String const& newName )
+    {
+        EE_ASSERT( IsRenameable() );
+        VisualGraph::ScopedNodeModification const snm( this );
+        m_name = newName;
+    }
+
     void TransitionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
@@ -52,24 +59,46 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        if ( m_isSynchronized )
+        switch ( m_timeMatchMode )
         {
-            ImGui::Text( "Synchronized" );
-        }
-        else
-        {
-            if ( m_keepSourceSyncEventIdx && m_keepSourceSyncEventPercentageThrough )
+            case TimeMatchMode::None:
+            break;
+
+            case TimeMatchMode::Synchronized:
             {
-                ImGui::Text( "Match Sync Event and Percentage" );
+                ImGui::Text( "Synchronized" );
             }
-            else if ( m_keepSourceSyncEventIdx )
+            break;
+
+            case TimeMatchMode::MatchSourceSyncEventIndexOnly:
             {
-                ImGui::Text( "Match Sync Event" );
+                ImGui::Text( "Match Sync Idx" );
             }
-            else if ( m_keepSourceSyncEventPercentageThrough )
+            break;
+
+            case TimeMatchMode::MatchSourceSyncEventIndexAndPercentage:
             {
-                ImGui::Text( "Match Sync Percentage" );
+                ImGui::Text( "Match Sync Idx and %" );
             }
+            break;
+
+            case TimeMatchMode::MatchSourceSyncEventID:
+            {
+                ImGui::Text( "Match Sync ID" );
+            }
+            break;
+
+            case TimeMatchMode::MatchSourceSyncEventIDAndPercentage:
+            {
+                ImGui::Text( "Match Sync ID and %" );
+            }
+            break;
+
+            case TimeMatchMode::MatchSourceSyncEventPercentage:
+            {
+                ImGui::Text( "Match Sync % Only" );
+            }
+            break;
         }
 
         ImGui::Text( "Sync Offset: %.2f", m_syncEventOffset );

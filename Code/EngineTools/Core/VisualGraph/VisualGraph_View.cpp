@@ -48,6 +48,27 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
+    GraphView::GraphView()
+    {
+        m_graphEndModificationBindingID = VisualGraph::BaseGraph::OnEndModification().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { OnGraphModified( pGraph ); } );
+    }
+
+    GraphView::~GraphView()
+    {
+        VisualGraph::BaseGraph::OnEndModification().Unbind( m_graphEndModificationBindingID );
+    }
+
+    void GraphView::OnGraphModified( VisualGraph::BaseGraph* pModifiedGraph )
+    {
+        // If this is the currently viewed graph, trigger the show graph flow since we might have added or removed nodes
+        if ( pModifiedGraph == m_pGraph )
+        {
+            m_pGraph->OnShowGraph();
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void GraphView::SetGraphToView( UserContext* pUserContext, BaseGraph* pGraph, bool tryMaintainSelection )
     {
         if ( m_pGraph == pGraph )
@@ -69,7 +90,7 @@ namespace EE::VisualGraph
         if ( m_pGraph != nullptr )
         {
             m_pViewOffset = &m_pGraph->m_viewOffset;
-            m_pGraph->OnShowGraph( pUserContext );
+            m_pGraph->OnShowGraph();
         }
 
         RefreshNodeSizes();

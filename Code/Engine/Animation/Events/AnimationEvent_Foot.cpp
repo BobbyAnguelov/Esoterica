@@ -25,12 +25,12 @@ namespace EE::Animation
         "Right Phase"
     };
 
-    static uint32_t g_phaseHashes[4] =
+    static StringID g_phaseIDs[4] =
     {
-        Hash::GetHash32( g_phaseNames[0] ),
-        Hash::GetHash32( g_phaseNames[1] ),
-        Hash::GetHash32( g_phaseNames[2] ),
-        Hash::GetHash32( g_phaseNames[3] ),
+        StringID( g_phaseNames[0] ),
+        StringID( g_phaseNames[1] ),
+        StringID( g_phaseNames[2] ),
+        StringID( g_phaseNames[3] ),
     };
 
     static Color g_phaseColors[4] =
@@ -45,7 +45,7 @@ namespace EE::Animation
 
     StringID FootEvent::GetSyncEventID() const
     {
-        return StringID( g_phaseHashes[(int32_t) m_phase] );
+        return StringID( g_phaseIDs[(int32_t) m_phase] );
     }
 
     #if EE_DEVELOPMENT_TOOLS

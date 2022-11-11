@@ -74,20 +74,8 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        if ( m_pClipReferenceNode->IsValid() )
-        {
-            auto pAnimation = m_pClipReferenceNode->GetAnimation();
-            EE_ASSERT( pAnimation != nullptr );
-            Percentage const& initialAnimationTime = m_pClipReferenceNode->GetSyncTrack().GetPercentageThrough( initialTime );
-
-            if ( TryReadTarget( context ) )
-            {
-                if ( GenerateWarpInfo( context, initialAnimationTime ) )
-                {
-                    GenerateWarpedRootMotion( context, initialAnimationTime );
-                }
-            }
-        }
+        ClearWarpInfo();
+        m_internalState = InternalState::RequiresInitialUpdate;
     }
 
     void TargetWarpNode::ShutdownInternal( GraphContext& context )
@@ -698,7 +686,7 @@ namespace EE::Animation::GraphNodes
         return true;
     }
 
-    bool TargetWarpNode::GenerateWarpedRootMotion( GraphContext& context, Percentage startTime )
+    void TargetWarpNode::GenerateWarpedRootMotion( GraphContext& context, Percentage startTime )
     {
         auto pSettings = GetSettings<TargetWarpNode>();
 
@@ -966,10 +954,6 @@ namespace EE::Animation::GraphNodes
                 EE_UNREACHABLE_CODE();
             }
         }
-
-        //-------------------------------------------------------------------------
-
-        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -977,108 +961,106 @@ namespace EE::Animation::GraphNodes
     bool TargetWarpNode::UpdateWarp( GraphContext& context )
     {
         auto pSettings = GetSettings<TargetWarpNode>();
-        if ( !pSettings->m_allowTargetUpdate )
-        {
-            return false;
-        }
 
-        // Cannot update an invalid warp
-        if ( !m_warpedRootMotion.IsValid() )
-        {
-            return false;
-        }
-
-        // Cannot update a warp that is past all the warp events
-        auto pAnimation = m_pClipReferenceNode->GetAnimation();
-        EE_ASSERT( pAnimation != nullptr );
-        auto currentFrame = (int32_t) pAnimation->GetFrameTime( m_currentTime ).GetUpperBoundFrameIndex();
-        if ( m_warpSections.back().m_endFrame < currentFrame )
-        {
-            return false;
-        }
-
-        // Check if the target has changed
         //-------------------------------------------------------------------------
 
-        Transform const previousRequestedTarget = m_requestedWarpTarget;
-        if ( !TryReadTarget( context ) )
+        if ( m_internalState == InternalState::Completed || m_internalState == InternalState::Failed )
         {
             return false;
-        }
-
-        Radians const deltaAngle = Quaternion::Distance( m_requestedWarpTarget.GetRotation(), previousRequestedTarget.GetRotation() );
-        bool shouldUpdate = deltaAngle > pSettings->m_targetUpdateAngleThresholdRadians;
-
-        if ( !shouldUpdate && m_translationXYSectionIdx != InvalidIndex )
-        {
-            float const deltaDistanceXY = m_requestedWarpTarget.GetTranslation().GetDistance2( previousRequestedTarget.GetTranslation() );
-            shouldUpdate = deltaDistanceXY > pSettings->m_targetUpdateDistanceThreshold;
-        }
-
-        if ( !shouldUpdate && m_isTranslationAllowedZ )
-        {
-            float const deltaDistanceZ = m_requestedWarpTarget.GetTranslation().m_z - previousRequestedTarget.GetTranslation().m_z;
-            shouldUpdate = deltaDistanceZ > pSettings->m_targetUpdateDistanceThreshold;
         }
 
         //-------------------------------------------------------------------------
 
-        // If no change, then reset the requested target back to the original value and return
-        if ( !shouldUpdate )
+        // Initial update
+        if ( m_internalState == InternalState::RequiresInitialUpdate )
         {
-            m_requestedWarpTarget = previousRequestedTarget;
-            return false;
+            if ( !TryReadTarget( context ) )
+            {
+                m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
+                return false;
+            }
+        }
+        else // Update check
+        {
+            EE_ASSERT( m_internalState == InternalState::AllowUpdates );
+
+            // Cannot update an invalid warp
+            if ( !m_warpedRootMotion.IsValid() )
+            {
+                return false;
+            }
+
+            // Cannot update a warp that is past all the warp events
+            auto pAnimation = m_pClipReferenceNode->GetAnimation();
+            EE_ASSERT( pAnimation != nullptr );
+            auto currentFrame = (int32_t) pAnimation->GetFrameTime( m_currentTime ).GetUpperBoundFrameIndex();
+            if ( m_warpSections.back().m_endFrame < currentFrame )
+            {
+                return false;
+            }
+
+            // Check if the target has changed
+            //-------------------------------------------------------------------------
+
+            Transform const previousRequestedTarget = m_requestedWarpTarget;
+            if ( !TryReadTarget( context ) )
+            {
+                return false;
+            }
+
+            Radians const deltaAngle = Quaternion::Distance( m_requestedWarpTarget.GetRotation(), previousRequestedTarget.GetRotation() );
+            bool shouldUpdate = deltaAngle > pSettings->m_targetUpdateAngleThresholdRadians;
+
+            if ( !shouldUpdate && m_translationXYSectionIdx != InvalidIndex )
+            {
+                float const deltaDistanceXY = m_requestedWarpTarget.GetTranslation().GetDistance2( previousRequestedTarget.GetTranslation() );
+                shouldUpdate = deltaDistanceXY > pSettings->m_targetUpdateDistanceThreshold;
+            }
+
+            if ( !shouldUpdate && m_isTranslationAllowedZ )
+            {
+                float const deltaDistanceZ = m_requestedWarpTarget.GetTranslation().m_z - previousRequestedTarget.GetTranslation().m_z;
+                shouldUpdate = deltaDistanceZ > pSettings->m_targetUpdateDistanceThreshold;
+            }
+
+            // If no change, then reset the requested target back to the original value and return
+            if ( !shouldUpdate )
+            {
+                m_requestedWarpTarget = previousRequestedTarget;
+                return false;
+            }
         }
 
-        // Recalculate the warp
+        // Calculate the warp
         //-------------------------------------------------------------------------
 
         ClearWarpInfo();
 
-        if ( GenerateWarpInfo( context, m_currentTime ) )
+        Percentage const warpStartTime = m_pClipReferenceNode->GetCurrentTime();
+        if ( GenerateWarpInfo( context, warpStartTime ) )
         {
-            GenerateWarpedRootMotion( context, m_currentTime );
+            GenerateWarpedRootMotion( context, warpStartTime );
+            m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Completed;
+            return true;
         }
-
-        return true;
+        else
+        {
+            m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
+            return false;
+        }
     }
 
-    //-------------------------------------------------------------------------
-
-    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context )
+    void TargetWarpNode::SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result, bool wasWarpUpdatedThisFrame )
     {
-        MarkNodeActive( context );
-        GraphPoseNodeResult result = m_pClipReferenceNode->Update( context );
-        UpdateShared( context, result );
-        return result;
-    }
-
-    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        MarkNodeActive( context );
-        GraphPoseNodeResult result = m_pClipReferenceNode->Update( context, updateRange );
-        UpdateShared( context, result );
-        return result;
-    }
-
-    void TargetWarpNode::UpdateShared( GraphContext& context, GraphPoseNodeResult& result )
-    {
-        auto pSettings = GetSettings<TargetWarpNode>();
-
-        m_duration = m_pClipReferenceNode->GetDuration();
-        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
-        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
-
+        // If we failed to warp, just keep the original root motion delta
         if ( !m_warpedRootMotion.IsValid() )
         {
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
-            result.m_rootMotionDelta = Transform::Identity;
             return;
         }
 
         //-------------------------------------------------------------------------
 
-        if ( UpdateWarp( context ) )
+        if ( wasWarpUpdatedThisFrame )
         {
             // Always update in world space whenever we update the warp to correct any sampling error due to mid-frame delta calculation
             // This is okay, since the update will be based on the current character position
@@ -1087,12 +1069,14 @@ namespace EE::Animation::GraphNodes
         else // Regular sampling
         {
             // If we are sampling accurately then we need to match the exact world space position each update
-            if( m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
+            if ( m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
             {
+                auto pSettings = GetSettings<TargetWarpNode>();
+
                 // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
                 Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
                 float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
-                if( positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
+                if ( positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
                 {
                     result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
                 }
@@ -1112,6 +1096,56 @@ namespace EE::Animation::GraphNodes
                 result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
             }
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context )
+    {
+        MarkNodeActive( context );
+
+        // Calculate or update warp
+        //-------------------------------------------------------------------------
+
+        bool const wasWarpUpdatedThisFrame = UpdateWarp( context );
+
+        // Update source node
+        //-------------------------------------------------------------------------
+
+        GraphPoseNodeResult result = m_pClipReferenceNode->Update( context );
+        m_duration = m_pClipReferenceNode->GetDuration();
+        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+
+        // Sample root motion
+        //-------------------------------------------------------------------------
+
+        SampleWarpedRootMotion( context, result, wasWarpUpdatedThisFrame );
+        return result;
+    }
+
+    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
+    {
+        MarkNodeActive( context );
+
+        // Calculate or update warp
+        //-------------------------------------------------------------------------
+
+        bool const wasWarpUpdatedThisFrame = UpdateWarp( context );
+
+        // Update source node
+        //-------------------------------------------------------------------------
+
+        GraphPoseNodeResult result = m_pClipReferenceNode->Update( context, updateRange );
+        m_duration = m_pClipReferenceNode->GetDuration();
+        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+
+        // Sample root motion
+        //-------------------------------------------------------------------------
+
+        SampleWarpedRootMotion( context, result, wasWarpUpdatedThisFrame );
+        return result;
     }
 
     //-------------------------------------------------------------------------

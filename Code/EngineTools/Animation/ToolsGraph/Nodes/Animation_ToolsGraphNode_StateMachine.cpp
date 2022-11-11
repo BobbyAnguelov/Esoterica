@@ -28,11 +28,15 @@ namespace EE::Animation::GraphNodes
         auto pDefaultStateNode = pStateMachineGraph->CreateNode<StateToolsNode>();
         pDefaultStateNode->SetCanvasPosition( ImVec2( 0, 150 ) );
         pStateMachineGraph->SetDefaultEntryState( pDefaultStateNode->GetID() );
+
+        // Update dependent nodes
+        GetEntryStateOverrideConduit()->UpdateConditionsNode();
+        GetGlobalTransitionConduit()->UpdateTransitionNodes();
     }
 
-    void StateMachineToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
+    void StateMachineToolsNode::OnShowNode()
     {
-        FlowToolsNode::OnShowNode( pUserContext );
+        FlowToolsNode::OnShowNode();
         GetEntryStateOverrideConduit()->UpdateConditionsNode();
         GetGlobalTransitionConduit()->UpdateTransitionNodes();
     }
@@ -348,11 +352,60 @@ namespace EE::Animation::GraphNodes
         pSettings->m_duration = pTransitionNode->m_duration;
         pSettings->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
 
-        pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::Synchronized, pTransitionNode->m_isSynchronized );
+        //-------------------------------------------------------------------------
+        
+        pSettings->m_transitionOptions.ClearAllFlags();
         pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ClampDuration, pTransitionNode->m_clampDurationToSource );
-        pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::KeepSyncEventIndex, pTransitionNode->m_keepSourceSyncEventIdx );
-        pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::KeepSyncEventPercentage, pTransitionNode->m_keepSourceSyncEventPercentageThrough );
         pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ForcedTransitionAllowed, pTransitionNode->m_canBeForced );
+
+        switch ( pTransitionNode->m_timeMatchMode )
+        {
+            case TransitionToolsNode::TimeMatchMode::None:
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::Synchronized:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::Synchronized, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndexOnly:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndexAndPercentage:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventID:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIDAndPercentage:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventPercentage:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+            }
+            break;
+        }
 
         //-------------------------------------------------------------------------
 

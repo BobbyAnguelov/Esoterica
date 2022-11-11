@@ -24,13 +24,19 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        // Set of options for this transition, they are stored as flag since we want to save space
+        // Note: not all options can be used together, the tools node will provide validation of the options
         enum class TransitionOptions : uint8_t
         {
-            Synchronized,
             ClampDuration,
-            KeepSyncEventIndex,
-            KeepSyncEventPercentage,
             ForcedTransitionAllowed,
+
+            Synchronized, // The time control mode: either sync, match or none
+            MatchSourceTime, // The time control mode: either sync, match or none
+
+            MatchSyncEventIndex, // Only checked if MatchSourceTime is set
+            MatchSyncEventID, // Only checked if MatchSourceTime is set
+            MatchSyncEventPercentage, // Only checked if MatchSourceTime is set
         };
 
         struct InitializationOptions
@@ -48,11 +54,14 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            inline bool IsSynchronized() const { return m_transitionOptions.IsFlagSet( TransitionOptions::Synchronized ); }
             inline bool ShouldClampDuration() const { return m_transitionOptions.IsFlagSet( TransitionOptions::ClampDuration ); }
-            inline bool ShouldKeepEventIndex() const { return m_transitionOptions.IsFlagSet( TransitionOptions::KeepSyncEventIndex ); }
-            inline bool ShouldKeepEventPercentage() const { return m_transitionOptions.IsFlagSet( TransitionOptions::KeepSyncEventPercentage ); }
             inline bool IsForcedTransitionAllowed() const { return m_transitionOptions.IsFlagSet( TransitionOptions::ForcedTransitionAllowed ); }
+            inline bool IsSynchronized() const { return m_transitionOptions.IsFlagSet( TransitionOptions::Synchronized ); }
+
+            inline bool ShouldMatchSourceTime() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSourceTime ); }
+            inline bool ShouldMatchSyncEventIndex() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSyncEventIndex ); }
+            inline bool ShouldMatchSyncEventID() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSyncEventID ); }
+            inline bool ShouldMatchSyncEventPercentage() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSyncEventPercentage ); }
 
         public:
 
@@ -61,21 +70,23 @@ namespace EE::Animation::GraphNodes
             int16_t                             m_syncEventOffsetOverrideNodeIdx = InvalidIndex;
             Math::Easing::Type                  m_blendWeightEasingType = Math::Easing::Type::Linear;
             RootMotionBlendMode                 m_rootMotionBlend = RootMotionBlendMode::Blend;
+
             Seconds                             m_duration = 0;
             float                               m_syncEventOffset = 0;
+
             TBitFlags<TransitionOptions>        m_transitionOptions;
         };
 
     public:
 
-        virtual SyncTrack const& GetSyncTrack() const override { return IsComplete() ? m_pTargetNode->GetSyncTrack() : SyncTrack::s_defaultTrack; }
+        virtual SyncTrack const& GetSyncTrack() const override { return m_syncTrack; }
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
         // Transition Info
         GraphPoseNodeResult StartTransitionFromState( GraphContext& context, InitializationOptions const& options, StateNode* SourceState );
         GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, InitializationOptions const& options, TransitionNode* SourceTransition, bool bForceTransition );
-        inline bool IsComplete() const { return m_transitionProgress >= 1.0f; }
+        inline bool IsComplete( GraphContext& context ) const;
         inline SourceType GetSourceType() const { return m_sourceType; }
 
         inline bool IsForcedTransitionAllowed() const { return GetSettings<TransitionNode>()->IsForcedTransitionAllowed(); }

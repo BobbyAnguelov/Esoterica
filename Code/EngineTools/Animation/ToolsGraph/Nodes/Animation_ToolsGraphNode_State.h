@@ -74,6 +74,7 @@ namespace EE::Animation::GraphNodes
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual bool IsActive( VisualGraph::UserContext* pUserContext ) const override;
+        virtual void OnShowNode() override;
 
         bool CanConvertToBlendTreeState();
         void ConvertToBlendTreeState();

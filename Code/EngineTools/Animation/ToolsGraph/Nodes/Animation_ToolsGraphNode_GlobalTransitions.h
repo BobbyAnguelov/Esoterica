@@ -56,6 +56,6 @@ namespace EE::Animation::GraphNodes
         virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::OrangeRed ); }
         virtual char const* GetTypeName() const override { return "Global Transitions"; }
         virtual bool IsUserCreatable() const override { return false; }
-        virtual void OnShowNode( VisualGraph::UserContext* pUserContext ) override;
+        virtual void OnShowNode() override;
     };
 }

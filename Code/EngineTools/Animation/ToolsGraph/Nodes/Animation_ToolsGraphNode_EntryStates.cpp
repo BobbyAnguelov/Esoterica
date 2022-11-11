@@ -67,9 +67,9 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void EntryStateOverrideConditionsToolsNode::OnShowNode( VisualGraph::UserContext* pUserContext )
+    void EntryStateOverrideConditionsToolsNode::OnShowNode()
     {
-        FlowToolsNode::OnShowNode( pUserContext );
+        FlowToolsNode::OnShowNode();
         UpdateInputPins();
     }
 

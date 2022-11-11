@@ -11,7 +11,7 @@
 
 namespace EE::Animation
 {
-    enum class RootMotionBlendMode
+    enum class RootMotionBlendMode : uint8_t
     {
         EE_REGISTER_ENUM
 
@@ -21,7 +21,7 @@ namespace EE::Animation
         IgnoreTarget
     };
 
-    enum class PoseBlendMode
+    enum class PoseBlendMode : uint8_t
     {
         EE_REGISTER_ENUM
 

@@ -24,6 +24,11 @@ namespace EE::Animation::GraphNodes
 
     bool PoweredRagdollNode::IsValid() const
     {
+        if ( m_isFirstUpdate )
+        {
+            return PassthroughNode::IsValid();
+        }
+
         return PassthroughNode::IsValid() && m_pRagdollDefinition != nullptr && m_pRagdoll != nullptr;
     }
 
@@ -32,17 +37,6 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( context.IsValid() );
 
         PassthroughNode::InitializeInternal( context, initialTime );
-
-        // Create ragdoll
-        if ( m_pRagdollDefinition != nullptr && context.m_pPhysicsScene != nullptr )
-        {
-            auto pNodeSettings = GetSettings<PoweredRagdollNode>();
-            m_pRagdoll = context.m_pPhysicsScene->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_profileID, context.m_graphUserID );
-            m_pRagdoll->SetPoseFollowingEnabled( true );
-            m_pRagdoll->SetGravityEnabled( pNodeSettings->m_isGravityEnabled );
-        }
-
-        //-------------------------------------------------------------------------
 
         if ( m_pImpulseOriginValueNode != nullptr )
         {
@@ -97,6 +91,17 @@ namespace EE::Animation::GraphNodes
     {
         GraphPoseNodeResult result;
 
+        // Create ragdoll
+        //-------------------------------------------------------------------------
+
+        if ( m_isFirstUpdate )
+        {
+            CreateRagdoll( context );
+        }
+
+        // Update source node
+        //-------------------------------------------------------------------------
+
         if ( IsValid() )
         {
             result = PassthroughNode::Update( context );
@@ -107,12 +112,27 @@ namespace EE::Animation::GraphNodes
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
 
+        //-------------------------------------------------------------------------
+
+        m_isFirstUpdate = false;
+
         return result;
     }
 
     GraphPoseNodeResult PoweredRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
         GraphPoseNodeResult result;
+
+        // Create ragdoll
+        //-------------------------------------------------------------------------
+
+        if ( m_isFirstUpdate )
+        {
+            CreateRagdoll( context );
+        }
+
+        // Update source node
+        //-------------------------------------------------------------------------
 
         if ( IsValid() )
         {
@@ -124,7 +144,24 @@ namespace EE::Animation::GraphNodes
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
 
+        //-------------------------------------------------------------------------
+
+        m_isFirstUpdate = false;
+
         return result;
+    }
+
+    void PoweredRagdollNode::CreateRagdoll( GraphContext& context )
+    {
+        EE_ASSERT( m_pRagdoll == nullptr && m_isFirstUpdate );
+
+        if ( m_pRagdollDefinition != nullptr && context.m_pPhysicsScene != nullptr )
+        {
+            auto pNodeSettings = GetSettings<PoweredRagdollNode>();
+            m_pRagdoll = context.m_pPhysicsScene->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_profileID, context.m_graphUserID );
+            m_pRagdoll->SetPoseFollowingEnabled( true );
+            m_pRagdoll->SetGravityEnabled( pNodeSettings->m_isGravityEnabled );
+        }
     }
 
     GraphPoseNodeResult PoweredRagdollNode::UpdateRagdoll( GraphContext& context, GraphPoseNodeResult const& childResult )
@@ -148,7 +185,6 @@ namespace EE::Animation::GraphNodes
 
         Tasks::RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? Tasks::RagdollSetPoseTask::InitializeBodies : Tasks::RagdollSetPoseTask::DoNothing;
         TaskIndex const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( m_pRagdoll, GetNodeIndex(), childResult.m_taskIdx, initOptions );
-        m_isFirstUpdate = false;
 
         //-------------------------------------------------------------------------
 

@@ -48,6 +48,7 @@ namespace EE::Animation::GraphNodes
         AnimationClipReferenceNode*     m_pClipReferenceNode = nullptr;
         ValueNode*                      m_pTargetValueNode = nullptr;
         RootMotionData                  m_warpedRootMotion;
+        bool                            m_shouldUpdateWarp = false;
 
         #if EE_DEVELOPMENT_TOOLS
         Transform                       m_warpStartWorldTransform;
