@@ -307,6 +307,138 @@ namespace EE::ImGuiX
         return result;
     }
 
+    bool ComboButton( const char* pButtonLabel, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback )
+    {
+        InlineString const comboIDStr( InlineString::CtorSprintf(), "##%s", comboID );
+
+        // Calculate button size
+        //-------------------------------------------------------------------------
+
+        constexpr float const comboWidth = 26;
+        if ( buttonWidth > comboWidth )
+        {
+            buttonWidth -= comboWidth;
+        }
+        else if ( buttonWidth > 0 )
+        {
+            buttonWidth = 1;
+        }
+        else if ( buttonWidth < 0 )
+        {
+            buttonWidth = ImGui::GetContentRegionAvail().x - comboWidth;
+        }
+
+        // Button
+        //-------------------------------------------------------------------------
+
+        ImVec2 const actualButtonSize = ImVec2( buttonWidth, 0 );
+        bool const buttonResult = ImGui::Button( pButtonLabel, actualButtonSize );
+
+        uint32_t color = ImGui::GetColorU32( ImGuiCol_Button );
+        if ( ImGui::IsItemHovered() )
+        {
+            if ( ImGui::IsItemActive() )
+            {
+                color = ImGui::GetColorU32( ImGuiCol_ButtonActive );
+            }
+            else
+            {
+                color = ImGui::GetColorU32( ImGuiCol_ButtonHovered );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine( 0, 0 );
+        ImVec2 const cursorPos = ImGui::GetCursorPos();
+
+        // Combo
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemWidth( comboWidth );
+        if ( ImGui::BeginCombo( comboIDStr.c_str(), nullptr, ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_HeightLargest ) )
+        {
+            comboCallback();
+            ImGui::EndCombo();
+        }
+
+        auto pDrawList = ImGui::GetWindowDrawList();
+        ImVec2 const fillerMin = ImGui::GetWindowPos() + ImVec2( cursorPos ) - ImVec2( ImGui::GetStyle().FrameRounding, 0 );
+        ImVec2 const fillerMax = ImGui::GetWindowPos() + ImVec2( cursorPos ) + ImVec2( ImGui::GetStyle().FrameRounding, ImGui::GetFrameHeight() );
+        pDrawList->AddRectFilled( fillerMin, fillerMax, color );
+
+        // Fill Gap
+        //-------------------------------------------------------------------------
+
+        return buttonResult;
+    }
+
+    bool IconComboButton( char const* pIcon, const char* pButtonLabel, Color iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback )
+    {
+        InlineString const comboIDStr( InlineString::CtorSprintf(), "##%s", comboID );
+
+        // Calculate button size
+        //-------------------------------------------------------------------------
+
+        constexpr float const comboWidth = 26;
+        if ( buttonWidth > comboWidth )
+        {
+            buttonWidth -= comboWidth;
+        }
+        else if ( buttonWidth > 0 )
+        {
+            buttonWidth = 1;
+        }
+        else if ( buttonWidth < 0 )
+        {
+            buttonWidth = ImGui::GetContentRegionAvail().x - comboWidth;
+        }
+
+        // Button
+        //-------------------------------------------------------------------------
+
+        ImVec2 const actualButtonSize = ImVec2( buttonWidth, 0 );
+        bool const buttonResult = IconButton( pIcon, pButtonLabel, iconColor, actualButtonSize );
+
+        uint32_t color = ImGui::GetColorU32( ImGuiCol_Button );
+        if ( ImGui::IsItemHovered() )
+        {
+            if ( ImGui::IsItemActive() )
+            {
+                color = ImGui::GetColorU32( ImGuiCol_ButtonActive );
+            }
+            else
+            {
+                color = ImGui::GetColorU32( ImGuiCol_ButtonHovered );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine( 0, 0 );
+        ImVec2 const cursorPos = ImGui::GetCursorPos();
+
+        // Combo
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemWidth( comboWidth );
+        if ( ImGui::BeginCombo( comboIDStr.c_str(), nullptr, ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_HeightLargest ) )
+        {
+            comboCallback();
+            ImGui::EndCombo();
+        }
+
+        auto pDrawList = ImGui::GetWindowDrawList();
+        ImVec2 const fillerMin = ImGui::GetWindowPos() + ImVec2( cursorPos ) - ImVec2( ImGui::GetStyle().FrameRounding, 0 );
+        ImVec2 const fillerMax = ImGui::GetWindowPos() + ImVec2( cursorPos ) + ImVec2( ImGui::GetStyle().FrameRounding, ImGui::GetFrameHeight() );
+        pDrawList->AddRectFilled( fillerMin, fillerMax, color );
+
+        // Fill Gap
+        //-------------------------------------------------------------------------
+
+        return buttonResult;
+    }
+
     void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImU32 col, float arrowWidth, float arrowHeadWidth )
     {
         EE_ASSERT( pDrawList != nullptr );

@@ -13,19 +13,22 @@
 
 namespace EE::Player
 {
-    constexpr static float    g_maxSprintSpeed = 7.5f;                      // meters/second
-    constexpr static float    g_maxRunSpeed = 5.0f;                         // meters/second
-    constexpr static float    g_maxCrouchSpeed = 3.0f;                      // meters/second
-    constexpr static float    g_timeToTriggerSprint = 1.5f;                 // seconds
-    constexpr static float    g_timeToTriggerCrouch = 0.5f;                 // seconds
-    constexpr static float    g_sprintStickAmplitude = 0.8f;                // [0,1]
+    constexpr static float      g_maxSprintSpeed = 7.5f;                      // meters/second
+    constexpr static float      g_maxRunSpeed = 5.0f;                         // meters/second
+    constexpr static float      g_maxCrouchSpeed = 3.0f;                      // meters/second
+    constexpr static float      g_timeToTriggerSprint = 1.5f;                 // seconds
+    constexpr static float      g_timeToTriggerCrouch = 0.5f;                 // seconds
+    constexpr static float      g_sprintStickAmplitude = 0.8f;                // [0,1]
 
-    constexpr static float    g_idle_immediateStartThresholdAngle = Math::DegreesToRadians * 45.0f;
-    constexpr static float    g_idle_minimumStickAmplitudeThreshold = 0.2f;
-    constexpr static float    g_turnOnSpot_turnTime = 0.2f;
-    constexpr static float    g_moving_detectStopTimer = 0.2f;
-    constexpr static float    g_moving_detectTurnTimer = 0.2f;
-    constexpr static float    g_stop_stopTime = 0.15f;
+    constexpr static float      g_idle_immediateStartThresholdAngle = Math::DegreesToRadians * 45.0f;
+    constexpr static float      g_idle_minimumStickAmplitudeThreshold = 0.2f;
+    constexpr static float      g_turnOnSpot_turnTime = 0.2f;
+    constexpr static float      g_moving_detectStopTimer = 0.2f;
+    constexpr static float      g_moving_detectTurnTimer = 0.2f;
+    constexpr static float      g_stop_stopTime = 0.15f;
+    constexpr static float      g_unnavigableSurfaceSlideThreshold = 0.35f;
+    constexpr static float      g_turnOnSpotInterruptionTime = 0.2f;
+
 
     //-------------------------------------------------------------------------
 
@@ -129,8 +132,8 @@ namespace EE::Player
 
         if ( ctx.m_pCharacterController->GetFloorType() != CharacterPhysicsController::FloorType::Navigable && ctx.m_pCharacterComponent->GetCharacterVelocity().m_z < -Math::Epsilon )
         {
-            m_slideTimer.Update( ctx.GetDeltaTime() );
-            if ( m_slideTimer.GetElapsedTimeSeconds() > 0.35f )
+            m_unnavigableSurfaceSlideTimer.Update( ctx.GetDeltaTime() );
+            if ( m_unnavigableSurfaceSlideTimer.GetElapsedTimeSeconds() > g_unnavigableSurfaceSlideThreshold )
             {
                 isSliding = true;
                 m_desiredFacing = ctx.m_pCharacterComponent->GetCharacterVelocity().GetNormalized2();
@@ -138,7 +141,7 @@ namespace EE::Player
         }
         else
         {
-            m_slideTimer.Reset();
+            m_unnavigableSurfaceSlideTimer.Reset();
         }
 
         // Update animation controller
@@ -209,12 +212,13 @@ namespace EE::Player
 
         m_desiredHeading = Vector::Zero;
 
+        // If the stick direction is in the same direction the character is facing, go directly to start
         if ( stickAmplitude < g_idle_minimumStickAmplitudeThreshold )
         {
             auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
             pAnimController->RequestIdle();
         }
-        else // Handle stick input
+        else // Trigger a turn on spot
         {
             Radians const deltaAngle = Math::GetAngleBetweenVectors( characterForward, stickInputVectorWS );
             if ( deltaAngle < g_idle_immediateStartThresholdAngle )
@@ -225,6 +229,78 @@ namespace EE::Player
             {
                 RequestTurnOnSpot( ctx, stickInputVectorWS );
             }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void LocomotionAction::RequestTurnOnSpot( ActionContext const& ctx, Vector const& desiredFacingDirection )
+    {
+        m_desiredHeading = Vector::Zero;
+        m_cachedFacing = ctx.m_pCharacterComponent->GetForwardVector();
+        m_desiredFacing = m_desiredTurnDirection = desiredFacingDirection.GetNormalized2();
+        m_cachedFacing = Vector::Zero;
+
+        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
+        pAnimController->RequestTurnOnSpot( m_desiredFacing );
+
+        // Start the interruption timer
+        m_turnOnSpotInterruptionTimer.Start( g_turnOnSpotInterruptionTime );
+
+        m_state = LocomotionState::TurningOnSpot;
+    }
+
+    void LocomotionAction::UpdateTurnOnSpot( ActionContext const& ctx, Vector const& stickInputVectorWS, float stickAmplitude )
+    {
+        EE_ASSERT( m_state == LocomotionState::TurningOnSpot );
+
+        #if EE_DEVELOPMENT_TOOLS
+        Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
+        Vector const characterPosition = characterWorldTransform.GetTranslation();
+        auto drawingCtx = ctx.GetDrawingContext();
+        if ( m_turnOnSpotInterruptionTimer.IsRunning() )
+        {
+            InlineString const str( InlineString::CtorSprintf(), "Turn On Spot - Interruption Timer: %.3fs", m_turnOnSpotInterruptionTimer.GetRemainingTime().ToFloat() );
+            drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
+        }
+        else
+        {
+            InlineString const str( InlineString::CtorSprintf(), "Turn On Spot" );
+            drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
+        }
+        drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Orange, 3.0f );
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        if ( stickAmplitude > 0.1f )
+        {
+            // Restart timer if stopped
+            if ( !m_turnOnSpotInterruptionTimer.IsRunning() )
+            {
+                m_turnOnSpotInterruptionTimer.Start( g_turnOnSpotInterruptionTime );
+            }
+            else
+            {
+                // If the timer elapses, trigger a start
+                if ( m_turnOnSpotInterruptionTimer.Update( ctx.GetDeltaTime() ) )
+                {
+                    RequestStart( ctx, stickInputVectorWS, stickAmplitude );
+                    return;
+                }
+            }
+        }
+        else // Stop the timer
+        {
+            m_turnOnSpotInterruptionTimer.Stop();
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
+        if ( pAnimController->IsTurningOnSpot() && pAnimController->IsAnyTransitionAllowed() )
+        {
+            RequestIdle( ctx );
         }
     }
 
@@ -262,44 +338,9 @@ namespace EE::Player
         Vector const characterPosition = characterWorldTransform.GetTranslation();
         auto drawingCtx = ctx.GetDrawingContext();
         InlineString const str( InlineString::CtorSprintf(), "Starting" );
-        drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontSmall );
+        drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
         drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Yellow, 3.0f );
         #endif
-    }
-
-    //-------------------------------------------------------------------------
-
-    void LocomotionAction::RequestTurnOnSpot( ActionContext const& ctx, Vector const& desiredFacingDirection )
-    {
-        m_desiredHeading = Vector::Zero;
-        m_cachedFacing = ctx.m_pCharacterComponent->GetForwardVector();
-        m_desiredFacing = m_desiredTurnDirection = desiredFacingDirection.GetNormalized2();
-        m_cachedFacing = Vector::Zero;
-
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestTurnOnSpot( m_desiredFacing );
-
-        m_state = LocomotionState::TurningOnSpot;
-    }
-
-    void LocomotionAction::UpdateTurnOnSpot( ActionContext const& ctx, Vector const& stickInputVectorWS, float stickAmplitude )
-    {
-        EE_ASSERT( m_state == LocomotionState::TurningOnSpot );
-
-        #if EE_DEVELOPMENT_TOOLS
-        Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
-        Vector const characterPosition = characterWorldTransform.GetTranslation();
-        auto drawingCtx = ctx.GetDrawingContext();
-        InlineString const str( InlineString::CtorSprintf(), "Turn On Spot" );
-        drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontSmall );
-        drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Orange, 3.0f );
-        #endif
-
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pAnimController->IsTurningOnSpot() && pAnimController->IsAnyTransitionAllowed() )
-        {
-            RequestIdle( ctx );
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -334,16 +375,16 @@ namespace EE::Player
         {
             // Check for stop
             // Start a stop timer but also keep the previous frames desires
-            if ( m_generalTimer.IsRunning() )
+            if ( m_stopDetectionTimer.IsRunning() )
             {
                 #if EE_DEVELOPMENT_TOOLS
                 auto drawingCtx = ctx.GetDrawingContext();
-                float remainingTime = m_generalTimer.GetRemainingTime().ToFloat();
+                float remainingTime = m_stopDetectionTimer.GetRemainingTime().ToFloat();
                 InlineString const str( InlineString::CtorSprintf(), "Check for stop Timer: %.2fs left", remainingTime );
-                drawingCtx.DrawText3D( characterWorldTransform.GetTranslation() + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontSmall );
+                drawingCtx.DrawText3D( characterWorldTransform.GetTranslation() + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
                 #endif
 
-                if ( m_generalTimer.Update( ctx.GetDeltaTime() ) )
+                if ( m_stopDetectionTimer.Update( ctx.GetDeltaTime() ) )
                 {
                     RequestStop( ctx );
                     return;
@@ -351,7 +392,7 @@ namespace EE::Player
             }
             else
             {
-                m_generalTimer.Start( g_moving_detectStopTimer );
+                m_stopDetectionTimer.Start( g_moving_detectStopTimer );
             }
 
             // Keep existing locomotion parameters when we have no input
@@ -360,7 +401,7 @@ namespace EE::Player
         else
         {
             // Clear the stop timer
-            m_generalTimer.Stop();
+            m_stopDetectionTimer.Stop();
 
             // Handle Sprinting
             //-------------------------------------------------------------------------
@@ -452,7 +493,7 @@ namespace EE::Player
             #if EE_DEVELOPMENT_TOOLS
             Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
             auto drawingCtx = ctx.GetDrawingContext();
-            drawingCtx.DrawText3D( characterWorldTransform.GetTranslation() + Vector( 0, 0, 1.0f ), "Stopping", Colors::White, Drawing::FontSmall);
+            drawingCtx.DrawText3D( characterWorldTransform.GetTranslation() + Vector( 0, 0, 1.0f ), "Stopping", Colors::White, Drawing::FontNormal);
             #endif
         }
     }

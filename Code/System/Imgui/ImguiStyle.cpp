@@ -109,12 +109,13 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         style.FramePadding = ImVec2( 4, 4 );
-        style.WindowPadding = ImVec2( 4, 4 );
+        style.WindowPadding = ImVec2( 3, 3 );
         style.ChildBorderSize = 0.0f;
         style.TabBorderSize = 1.0f;
         style.GrabRounding = 2.0f;
         style.GrabMinSize = 6.0f;
         style.WindowRounding = 0.0f;
+        style.WindowBorderSize = 0.0f;
         style.FrameRounding = 3.0f;
         style.IndentSpacing = 8.0f;
         style.ItemSpacing = ImVec2( 4, 4 );

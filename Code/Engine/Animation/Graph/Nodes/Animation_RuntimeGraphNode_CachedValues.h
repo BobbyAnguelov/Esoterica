@@ -26,8 +26,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t      m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode     m_mode;
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            CachedValueMode         m_mode;
         };
 
     private:
@@ -35,6 +35,11 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 
@@ -56,8 +61,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t      m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode     m_mode;
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            CachedValueMode         m_mode;
         };
 
     private:
@@ -65,6 +70,11 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 
@@ -86,8 +96,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t      m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode     m_mode;
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            CachedValueMode         m_mode;
         };
 
     private:
@@ -96,10 +106,15 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         IntValueNode*               m_pInputValueNode = nullptr;
-        int32_t                       m_value;
+        int32_t                     m_value;
         bool                        m_hasCachedValue = false;
     };
 
@@ -116,8 +131,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t      m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode     m_mode;
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            CachedValueMode         m_mode;
         };
 
     private:
@@ -126,11 +141,15 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         FloatValueNode*             m_pInputValueNode = nullptr;
-        float                       m_previousValue;
-        float                       m_currentValue;
+        float                       m_value;
         bool                        m_hasCachedValue = false;
     };
 
@@ -147,8 +166,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t      m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode     m_mode;
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            CachedValueMode         m_mode;
         };
 
     private:
@@ -156,6 +175,11 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 
@@ -177,8 +201,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t      m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode     m_mode;
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            CachedValueMode         m_mode;
         };
 
     private:
@@ -186,6 +210,11 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 

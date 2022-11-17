@@ -119,6 +119,11 @@ namespace EE::Animation::GraphNodes
             m_blendWeight = Math::Clamp( m_blendWeight, 0.0f, 1.0f );
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
         // Source Node
         //-------------------------------------------------------------------------
 

@@ -74,11 +74,11 @@ namespace EE::Animation::GraphNodes
         bool TryReadTarget( GraphContext& context );
         bool UpdateWarp( GraphContext& context );
 
-        bool GenerateWarpInfo( GraphContext& context, Percentage startTime );
+        bool GenerateWarpInfo( GraphContext& context );
         void ClearWarpInfo();
 
         // Generate the actual warp root motion
-        void GenerateWarpedRootMotion( GraphContext& context, Percentage startTime );
+        void GenerateWarpedRootMotion( GraphContext& context );
 
         // Sample the warped root motion
         void SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result, bool wasWarpUpdatedThisFrame );
@@ -95,6 +95,8 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
         #endif
 
     private:
@@ -110,10 +112,11 @@ namespace EE::Animation::GraphNodes
         int8_t                                  m_numSectionZ = 0;
         int32_t                                 m_totalNumWarpableZFrames = 0;
 
+        Percentage                              m_warpStartTime = 0.0f;
+        Transform                               m_warpStartWorldTransform;
         Transform                               m_requestedWarpTarget; //The warp target that was requested
         Transform                               m_warpTarget; // The actual warp target we can achieve based on events
 
-        Transform                               m_warpStartTransform;
         TVector<Transform>                      m_deltaTransforms;
         TVector<Transform>                      m_inverseDeltaTransforms;
         RootMotionData                          m_warpedRootMotion;
@@ -121,7 +124,7 @@ namespace EE::Animation::GraphNodes
         TInlineVector<WarpSection, 3>           m_warpSections;
 
         #if EE_DEVELOPMENT_TOOLS
-        Transform                               m_characterStartTransform;
+        bool                                    m_useRecordedStartData = false;
         #endif
     };
 }

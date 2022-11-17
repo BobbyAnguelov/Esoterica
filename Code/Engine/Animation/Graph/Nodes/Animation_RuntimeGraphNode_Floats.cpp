@@ -235,6 +235,24 @@ namespace EE::Animation::GraphNodes
         *reinterpret_cast<float*>( pOutValue ) = m_currentValue;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void FloatEaseNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        FloatValueNode::RecordGraphState( recorder );
+        recorder << m_easeRange;
+        recorder << m_currentValue;
+        recorder << m_currentEaseTime;
+    }
+
+    void FloatEaseNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        FloatValueNode::RestoreGraphState( recording );
+        recording << m_easeRange;
+        recording << m_currentValue;
+        recording << m_currentEaseTime;
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void FloatCurveNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const

@@ -46,17 +46,18 @@ namespace EE::Render
         ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
     }
 
-    void StaticMeshWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
+    void StaticMeshWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
     {
-        ImGui::SetNextItemWidth( 46 );
-        if ( ImGui::BeginCombo( "##AnimOptions", EE_ICON_COG, ImGuiComboFlags_HeightLarge ) )
+        ImGui::Separator();
+
+        if ( ImGui::BeginMenu( EE_ICON_TUNE_VERTICAL"Options" ) )
         {
             ImGui::MenuItem( "Show Origin", nullptr, &m_showOrigin );
             ImGui::MenuItem( "Show Bounds", nullptr, &m_showBounds );
             ImGui::MenuItem( "Show Normals", nullptr, &m_showNormals );
             ImGui::MenuItem( "Show Vertices", nullptr, &m_showVertices );
 
-            ImGui::EndCombo();
+            ImGui::EndMenu();
         }
     }
 

@@ -174,6 +174,11 @@ namespace EE::Animation
         return m_pTaskSystem->GetPose();
     }
 
+    bool GraphInstance::DoesTaskSystemNeedUpdate() const
+    {
+        return m_pTaskSystem->RequiresUpdate();
+    }
+
     //-------------------------------------------------------------------------
 
     int32_t GraphInstance::GetExternalGraphSlotIndex( StringID slotID ) const
@@ -295,6 +300,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         m_activeNodes.clear();
         m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
+        RecordPerFrameGraphData( deltaTime, startWorldTransform );
         #endif
 
         //-------------------------------------------------------------------------
@@ -330,6 +336,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         m_activeNodes.clear();
         m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
+        RecordPerFrameGraphData( deltaTime, startWorldTransform );
         #endif
 
         //-------------------------------------------------------------------------
@@ -490,6 +497,168 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_pTaskSystem->DrawDebug( drawContext );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void GraphInstance::StartRecording( GraphStateRecorder& recorder, GraphUpdateRecorder* pUpdateRecorder )
+    {
+        // Record initial state
+        //-------------------------------------------------------------------------
+
+        recorder.m_initializedNodeIndices.clear();
+
+        for ( int16_t i = 0; i < m_nodes.size(); i++ )
+        {
+            if ( m_nodes[i]->IsInitialized() )
+            {
+                recorder.m_initializedNodeIndices.emplace_back( i );
+                m_nodes[i]->RecordGraphState( recorder );
+            }
+        }
+
+        // (Optional) Set the update recorder to track update data
+        //-------------------------------------------------------------------------
+
+        m_pUpdateRecorder = pUpdateRecorder;
+    }
+
+    void GraphInstance::StopRecording()
+    {
+        m_pUpdateRecorder = nullptr;
+    }
+
+    void GraphInstance::RecordPerFrameGraphData( Seconds const deltaTime, Transform const& startWorldTransform )
+    {
+        if ( m_pUpdateRecorder == nullptr )
+        {
+            return;
+        }
+
+        // Record time delta and world transform
+        auto& frameData = m_pUpdateRecorder->m_frameData.emplace_back();
+        frameData.m_deltaTime = deltaTime;
+        frameData.m_characterWorldTransform = startWorldTransform;
+
+        // Record control parameter values
+        for ( auto i = 0; i < GetNumControlParameters(); i++ )
+        {
+            auto pParameter = (ValueNode*) m_nodes[i];
+            auto& paramData = frameData.m_parameterData.emplace_back();
+
+            switch ( pParameter->GetValueType() )
+            {
+                case GraphValueType::Bool :
+                {
+                    paramData.m_bool = pParameter->GetValue<bool>( m_graphContext );
+                }
+                break;
+
+                case GraphValueType::ID:
+                {
+                    paramData.m_ID = pParameter->GetValue<StringID>( m_graphContext );
+                }
+                break;
+
+                case GraphValueType::Int:
+                {
+                    paramData.m_int = pParameter->GetValue<int32_t>( m_graphContext );
+                }
+                break;
+
+                case GraphValueType::Float:
+                {
+                    paramData.m_float = pParameter->GetValue<float>( m_graphContext );
+                }
+                break;
+
+                case GraphValueType::Vector:
+                {
+                    paramData.m_vector = pParameter->GetValue<Vector>( m_graphContext );
+                }
+                break;
+
+                case GraphValueType::Target:
+                {
+                    paramData.m_target = pParameter->GetValue<Target>( m_graphContext );
+                }
+                break;
+
+                default:
+                EE_UNREACHABLE_CODE();
+                break;
+            }
+        }
+    }
+
+    void GraphInstance::SetToRecordedInitialState( GraphStateRecording& recording )
+    {
+        if ( IsInitialized() )
+        {
+            m_pRootNode->Shutdown( m_graphContext );
+        }
+
+        recording.m_pNodes = &m_nodes;
+
+        for ( auto nodeIdx : recording.m_initializedNodeIndices )
+        {
+            m_nodes[nodeIdx]->RestoreGraphState( recording );
+        }
+
+        recording.m_pNodes = nullptr;
+    }
+
+    void GraphInstance::SetPerFrameGraphData( GraphUpdateRecorder::FrameData const& frameData )
+    {
+        // Record control parameter values
+        for ( auto i = 0; i < GetNumControlParameters(); i++ )
+        {
+            auto pParameter = (ValueNode*) m_nodes[i];
+            auto const& paramData = frameData.m_parameterData[i];
+
+            switch ( pParameter->GetValueType() )
+            {
+                case GraphValueType::Bool:
+                {
+                    pParameter->SetValue<bool>( paramData.m_bool );
+                }
+                break;
+
+                case GraphValueType::ID:
+                {
+                    pParameter->SetValue<StringID>( paramData.m_ID );
+                }
+                break;
+
+                case GraphValueType::Int:
+                {
+                    pParameter->SetValue<int32_t>( paramData.m_int );
+                }
+                break;
+
+                case GraphValueType::Float:
+                {
+                    pParameter->SetValue<float>( paramData.m_float );
+                }
+                break;
+
+                case GraphValueType::Vector:
+                {
+                    pParameter->SetValue<Vector>( paramData.m_vector );
+                }
+                break;
+
+                case GraphValueType::Target:
+                {
+                    pParameter->SetValue<Target>( paramData.m_target );
+                }
+                break;
+
+                default:
+                EE_UNREACHABLE_CODE();
+                break;
+            }
+        }
     }
     #endif
 }

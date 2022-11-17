@@ -38,6 +38,11 @@ namespace EE::Animation::GraphNodes
 
         void ReflectControlParameters( GraphContext& context );
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         GraphInstance*                          m_pGraphInstance = nullptr;

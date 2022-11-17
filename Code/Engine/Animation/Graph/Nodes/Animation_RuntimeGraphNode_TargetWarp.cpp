@@ -450,7 +450,7 @@ namespace EE::Animation::GraphNodes
         m_inverseDeltaTransforms.clear();
     }
 
-    bool TargetWarpNode::GenerateWarpInfo( GraphContext& context, Percentage startTime )
+    bool TargetWarpNode::GenerateWarpInfo( GraphContext& context )
     {
         EE_ASSERT( m_warpSections.empty() && m_warpedRootMotion.GetNumFrames() == 0 );
 
@@ -466,14 +466,20 @@ namespace EE::Animation::GraphNodes
         // Read warp events
         //-------------------------------------------------------------------------
 
-        FrameTime const clipStartTime = pAnimation->GetFrameTime( startTime );
+        #if EE_DEVELOPMENT_TOOLS
+        m_warpStartTime = m_useRecordedStartData ? m_warpStartTime : m_pClipReferenceNode->GetCurrentTime();
+        #else
+        m_warpStartTime = m_pClipReferenceNode->GetCurrentTime();
+        #endif
+
+        FrameTime const clipStartTime = pAnimation->GetFrameTime( m_warpStartTime );
         int32_t const clipStartFrame = clipStartTime.GetFrameIndex();
         int32_t const minimumStartFrameForFirstSection = clipStartFrame + 1;
 
         for ( auto const pEvent : pAnimation->GetEvents() )
         {
             // Skip any events that are before our start time
-            if ( pEvent->GetEndTime() < startTime )
+            if ( pEvent->GetEndTime() < m_warpStartTime )
             {
                 continue;
             }
@@ -686,7 +692,7 @@ namespace EE::Animation::GraphNodes
         return true;
     }
 
-    void TargetWarpNode::GenerateWarpedRootMotion( GraphContext& context, Percentage startTime )
+    void TargetWarpNode::GenerateWarpedRootMotion( GraphContext& context )
     {
         auto pSettings = GetSettings<TargetWarpNode>();
 
@@ -703,23 +709,24 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         m_samplingMode = pSettings->m_samplingMode;
-        m_warpStartTransform = context.m_worldTransform;
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_warpStartWorldTransform = m_useRecordedStartData ? m_warpStartWorldTransform : context.m_worldTransform;
+        #else
+        m_warpStartWorldTransform = context.m_worldTransform;
+        #endif
 
         // Create storage for warped root motion
         m_warpedRootMotion.Clear();
         auto& warpedTransforms = m_warpedRootMotion.m_transforms;
         warpedTransforms.resize( originalRM.GetNumFrames() );
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_characterStartTransform = m_warpStartTransform;
-        #endif
-
         // Handle the case were we dont start the animation from the first frame
-        if ( startTime != 0.0f )
+        if ( m_warpStartTime != 0.0f )
         {
             // Offset the warp start transform by the distance we've 'already' covered due to our later start time
-            Transform const rootTransformAtActualStartTime = originalRM.GetTransform( startTime );
-            m_warpStartTransform = rootTransformAtActualStartTime.GetInverse() * m_warpStartTransform;
+            Transform const rootTransformAtActualStartTime = originalRM.GetTransform( m_warpStartTime );
+            m_warpStartWorldTransform = rootTransformAtActualStartTime.GetInverse() * m_warpStartWorldTransform;
         }
 
         // Add the unwarped start and end portions of the root motion
@@ -728,7 +735,7 @@ namespace EE::Animation::GraphNodes
         // Set all unwarped start frames
         for ( auto i = 0; i <= m_warpSections[0].m_startFrame; i++ )
         {
-            warpedTransforms[i] = originalRM.m_transforms[i] * m_warpStartTransform;
+            warpedTransforms[i] = originalRM.m_transforms[i] * m_warpStartWorldTransform;
         }
 
         // Add trailing unwarped frames
@@ -1036,10 +1043,9 @@ namespace EE::Animation::GraphNodes
 
         ClearWarpInfo();
 
-        Percentage const warpStartTime = m_pClipReferenceNode->GetCurrentTime();
-        if ( GenerateWarpInfo( context, warpStartTime ) )
+        if ( GenerateWarpInfo( context ) )
         {
-            GenerateWarpedRootMotion( context, warpStartTime );
+            GenerateWarpedRootMotion( context );
             m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Completed;
             return true;
         }
@@ -1215,6 +1221,22 @@ namespace EE::Animation::GraphNodes
                 }
             }
         }
+    }
+
+    void TargetWarpNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_warpStartWorldTransform;
+        recorder << m_warpStartTime;
+    }
+
+    void TargetWarpNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_warpStartWorldTransform;
+        recording << m_warpStartTime;
+        m_internalState = InternalState::RequiresInitialUpdate;
+        m_useRecordedStartData = true;
     }
     #endif
 }

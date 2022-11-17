@@ -157,6 +157,18 @@ namespace EE::Animation
         return m_lastUpdateID == context.m_updateID;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void GraphNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        recorder << m_initializationCount;
+    }
+
+    void GraphNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        recording << m_initializationCount;
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void PoseNode::Initialize( GraphContext& context, SyncTrackTime const& initialTime )
@@ -193,6 +205,24 @@ namespace EE::Animation
         info.m_pSyncTrack = &GetSyncTrack();
         info.m_currentSyncTime = info.m_pSyncTrack->GetTime( m_currentTime );
         return info;
+    }
+
+    void PoseNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        GraphNode::RecordGraphState( recorder );
+        recorder << m_loopCount;
+        recorder << m_duration;
+        recorder << m_currentTime;
+        recorder << m_previousTime;
+    }
+
+    void PoseNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        GraphNode::RestoreGraphState( recording );
+        recording << m_loopCount;
+        recording << m_duration;
+        recording << m_currentTime;
+        recording << m_previousTime;
     }
     #endif
 }

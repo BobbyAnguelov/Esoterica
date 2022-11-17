@@ -260,6 +260,21 @@ namespace EE::Animation
         // Calculate the offset at which to place the camera when tracking
         void CalculateCameraOffset();
 
+        // Recording
+        //-------------------------------------------------------------------------
+
+        // Start recorder the live preview state
+        void StartRecording();
+
+        // Stop recording the live preview state
+        void StopRecording();
+
+        // Clear all recorded data, needs to be done on each graph update
+        void ResetRecorderData();
+
+        // Set the preview graph instance to the initial recorded state
+        void SetPreviewInstanceToPlaybackFrameIndex( int32_t newIndex );
+
     private:
 
         String                                                          m_controlParametersWindowName;
@@ -354,6 +369,13 @@ namespace EE::Animation
         bool                                                            m_startPaused = false;
         bool                                                            m_isFirstPreviewFrame = false;
         bool                                                            m_isCameraTrackingEnabled = false;
+
+        // Recording
+        GraphRecorder                                                   m_recorder;
+        int32_t                                                         m_recordingPlaybackFrameIdx = InvalidIndex;
+        bool                                                            m_hasRecordedData = false;
+        bool                                                            m_isRecording = false;
+        bool                                                            m_isPlayingBackRecording = false;
     };
 
     //-------------------------------------------------------------------------

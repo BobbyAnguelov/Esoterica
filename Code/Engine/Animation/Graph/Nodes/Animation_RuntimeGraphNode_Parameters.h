@@ -25,6 +25,11 @@ namespace EE::Animation::GraphNodes
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         bool m_value = false;
@@ -46,6 +51,11 @@ namespace EE::Animation::GraphNodes
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 
@@ -69,6 +79,11 @@ namespace EE::Animation::GraphNodes
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         int32_t m_value = 0;
@@ -90,6 +105,11 @@ namespace EE::Animation::GraphNodes
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 
@@ -113,6 +133,11 @@ namespace EE::Animation::GraphNodes
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         Vector m_value = Vector::Zero;
@@ -134,6 +159,11 @@ namespace EE::Animation::GraphNodes
 
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 

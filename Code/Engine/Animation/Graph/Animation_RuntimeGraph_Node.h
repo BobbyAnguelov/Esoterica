@@ -2,6 +2,7 @@
 
 #include "Animation_RuntimeGraph_Events.h"
 #include "Animation_RuntimeGraph_Contexts.h"
+#include "Animation_RuntimeGraph_Recording.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "System/TypeSystem/RegisteredType.h"
@@ -121,6 +122,14 @@ namespace EE::Animation
         // Mark a node as being updated - value nodes will use this to cache values
         void MarkNodeActive( GraphContext& context );
 
+        // Debugging
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder );
+        virtual void RestoreGraphState( GraphStateRecording const& recording );
+        #endif
+
     protected:
 
         virtual void InitializeInternal( GraphContext& context );
@@ -136,7 +145,7 @@ namespace EE::Animation
 
         Settings const*                 m_pSettings = nullptr;
         uint32_t                        m_lastUpdateID = 0xFFFFFFFF;
-        uint32_t                        m_initializationCount = 0;
+        int32_t                         m_initializationCount = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -196,6 +205,13 @@ namespace EE::Animation
 
         // Perform debug drawing for the pose node
         virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) {}
+        #endif
+
+    protected:
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
         #endif
 
     private:

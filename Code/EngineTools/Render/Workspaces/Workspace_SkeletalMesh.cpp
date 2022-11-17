@@ -62,24 +62,23 @@ namespace EE::Render
         ImGui::DockBuilderDockWindow( m_detailsWindowName.c_str(), leftBottomDockID );
     }
 
-    void SkeletalMeshWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
+    void SkeletalMeshWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
     {
-        if ( !IsResourceLoaded() )
-        {
-            return;
-        }
+        ImGui::Separator();
 
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextItemWidth( 46 );
-        if ( ImGui::BeginCombo( "##MeshOptions", EE_ICON_COG, ImGuiComboFlags_HeightLarge ) )
+        if ( ImGui::BeginMenu( EE_ICON_TUNE_VERTICAL"Options" ) )
         {
             ImGui::MenuItem( "Show Normals", nullptr, &m_showNormals );
             ImGui::MenuItem( "Show Vertices", nullptr, &m_showVertices );
             ImGui::MenuItem( "Show Bind Pose", nullptr, &m_showBindPose );
             ImGui::MenuItem( "Show Bounds", nullptr, &m_showBounds );
 
-            ImGui::EndCombo();
+            ImGui::EndMenu();
+        }
+
+        if ( !IsResourceLoaded() )
+        {
+            return;
         }
     }
 

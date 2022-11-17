@@ -218,6 +218,8 @@ namespace EE::Animation
                 m_tasks[i]->Execute( m_taskContext );
             }
         }
+
+        m_needsUpdate = false;
     }
 
     //-------------------------------------------------------------------------

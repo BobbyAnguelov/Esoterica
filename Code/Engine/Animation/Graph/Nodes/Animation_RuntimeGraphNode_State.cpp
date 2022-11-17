@@ -288,4 +288,22 @@ namespace EE::Animation::GraphNodes
         m_isFirstStateUpdate = false;
         return result;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void StateNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_elapsedTimeInState;
+        recorder << m_transitionState;
+        recorder << m_isFirstStateUpdate;
+    }
+
+    void StateNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_elapsedTimeInState;
+        recording << m_transitionState;
+        recording << m_isFirstStateUpdate;
+    }
+    #endif
 }

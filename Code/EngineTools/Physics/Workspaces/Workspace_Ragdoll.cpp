@@ -324,14 +324,20 @@ namespace EE::Physics
 
         if ( ImGui::BeginMenu( EE_ICON_RUN" Visualization" ) )
         {
+            ImGuiX::TextSeparator( "Editing" );
+
             ImGui::MenuItem( "Show Skeleton", nullptr, &m_drawSkeleton );
             ImGui::MenuItem( "Show Body Axes", nullptr, &m_drawBodyAxes );
             ImGui::MenuItem( "Show Only Selected Bodies", nullptr, &m_isolateSelectedBody );
 
+            ImGuiX::TextSeparator( "Preview" );
+
+            ImGui::MenuItem( "Draw Ragdoll", nullptr, &m_drawRagdoll );
+            ImGui::MenuItem( "Draw Anim Pose", nullptr, &m_drawAnimationPose );
+
             ImGui::EndMenu();
         }
         ImGui::EndDisabled();
-
 
         // Preview Button
         //-------------------------------------------------------------------------
@@ -355,29 +361,6 @@ namespace EE::Physics
                 StartPreview( context );
             }
             ImGui::EndDisabled();
-        }
-
-        // Gap
-        //-------------------------------------------------------------------------
-
-        float const availableX = ImGui::GetContentRegionAvail().x;
-        if ( availableX > 140 )
-        {
-            ImGui::Dummy( ImVec2( availableX - 140, 0 ) );
-        }
-        else
-        {
-            ImGuiX::VerticalSeparator();
-        }
-
-        // Preview Options
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::BeginMenu( EE_ICON_TELEVISION_PLAY" Preview Options" ) )
-        {
-            ImGui::MenuItem( "Draw Ragdoll", nullptr, &m_drawRagdoll );
-            ImGui::MenuItem( "Draw Anim Pose", nullptr, &m_drawAnimationPose );
-            ImGui::EndMenu();
         }
     }
 

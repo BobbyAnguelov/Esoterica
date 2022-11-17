@@ -78,7 +78,11 @@ namespace EE::Animation
         // Pose
         //-------------------------------------------------------------------------
 
+        // Get the final pose from the task system
         Pose const* GetPose();
+
+        // Does the task system has unexecuted pose tasks
+        bool DoesTaskSystemNeedUpdate() const;
 
         // Graph State
         //-------------------------------------------------------------------------
@@ -203,6 +207,9 @@ namespace EE::Animation
         // Get the root motion debugger for this instance
         inline RootMotionDebugger const* GetRootMotionDebugger() const { return &m_rootMotionDebugger; }
 
+        // Manually end the root motion debugger update (call this if you explicitly skip executing the pose tasks)
+        inline void EndRootMotionDebuggerUpdate( Transform const& endWorldTransform ) { m_rootMotionDebugger.EndCharacterUpdate( endWorldTransform ); }
+
         // Get the task system debug mode
         inline TaskSystemDebugMode GetTaskSystemDebugMode() const;
 
@@ -252,6 +259,17 @@ namespace EE::Animation
         void DrawDebug( Drawing::DrawContext& drawContext );
         #endif
 
+        // Recording
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        inline bool IsRecording() const { return m_pUpdateRecorder != nullptr; }
+        void StartRecording( GraphStateRecorder& recorder, GraphUpdateRecorder* pUpdateRecorder = nullptr );
+        void StopRecording();
+        void SetToRecordedInitialState( GraphStateRecording& recording );
+        void SetPerFrameGraphData( GraphUpdateRecorder::FrameData const& frameData );
+        #endif
+
     private:
 
         explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem );
@@ -265,6 +283,13 @@ namespace EE::Animation
         GraphInstance( GraphInstance&& ) = delete;
         GraphInstance& operator=( GraphInstance const& ) = delete;
         GraphInstance& operator=( GraphInstance&& ) = delete;
+
+        // Recording
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        void RecordPerFrameGraphData( Seconds const deltaTime, Transform const& startWorldTransform );
+        #endif
 
     private:
 
@@ -285,6 +310,7 @@ namespace EE::Animation
         RootMotionDebugger                      m_rootMotionDebugger; // Allows nodes to record root motion operations
         TVector<int16_t>                        m_debugFilterNodes; // The list of nodes that are allowed to debug draw (if this is empty all nodes will draw)
         TVector<GraphLogEntry>                  m_log;
+        GraphUpdateRecorder*                    m_pUpdateRecorder = nullptr;
         #endif
     };
 }

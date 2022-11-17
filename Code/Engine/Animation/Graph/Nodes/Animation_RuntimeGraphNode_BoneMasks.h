@@ -32,7 +32,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        BoneMask                                m_boneMask;
+        BoneMask                                            m_boneMask;
     };
 
     //-------------------------------------------------------------------------
@@ -48,9 +48,9 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                           m_sourceMaskNodeIdx = InvalidIndex;
-            int16_t                           m_targetMaskNodeIdx = InvalidIndex;
-            int16_t                           m_blendWeightValueNodeIdx = InvalidIndex;
+            int16_t                                         m_sourceMaskNodeIdx = InvalidIndex;
+            int16_t                                         m_targetMaskNodeIdx = InvalidIndex;
+            int16_t                                         m_blendWeightValueNodeIdx = InvalidIndex;
         };
 
     private:
@@ -61,10 +61,11 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        BoneMaskValueNode*                      m_pSourceBoneMask = nullptr;
-        BoneMaskValueNode*                      m_pTargetBoneMask = nullptr;
-        FloatValueNode*                         m_pBlendWeightValueNode = nullptr;
-        BoneMask                                m_blendedBoneMask;
+        BoneMaskValueNode*                                  m_pSourceBoneMask = nullptr;
+        BoneMaskValueNode*                                  m_pTargetBoneMask = nullptr;
+        FloatValueNode*                                     m_pBlendWeightValueNode = nullptr;
+        BoneMask                                            m_blendedBoneMask;
+        BoneMask const*                                     m_pResultMask = nullptr;
     };
 
     //-------------------------------------------------------------------------
@@ -80,10 +81,10 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                                       m_defaultMaskNodeIdx = InvalidIndex;
-            int16_t                                       m_parameterValueNodeIdx = InvalidIndex;
+            int16_t                                         m_defaultMaskNodeIdx = InvalidIndex;
+            int16_t                                         m_parameterValueNodeIdx = InvalidIndex;
             bool                                            m_switchDynamically = false;
-            TInlineVector<int16_t, 7>                     m_maskNodeIndices;
+            TInlineVector<int16_t, 7>                       m_maskNodeIndices;
             TInlineVector<StringID, 7>                      m_parameterValues;
             Seconds                                         m_blendTime = 0.1f;
         };
@@ -105,13 +106,18 @@ namespace EE::Animation::GraphNodes
             return VectorFindIndex( GetSettings<BoneMaskSelectorNode>()->m_parameterValues, m_pParameterValueNode->GetValue<StringID>( context ) );
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         IDValueNode*                                        m_pParameterValueNode = nullptr;
         BoneMaskValueNode*                                  m_pDefaultMaskValueNode = nullptr;
         TInlineVector<BoneMaskValueNode*, 7>                m_boneMaskOptionNodes;
-        int32_t                                               m_selectedMaskIndex = InvalidIndex;
-        int32_t                                               m_newMaskIndex = InvalidIndex;
+        int32_t                                             m_selectedMaskIndex = InvalidIndex;
+        int32_t                                             m_newMaskIndex = InvalidIndex;
         BoneMask                                            m_blendedBoneMask;
         Seconds                                             m_currentTimeInBlend = 0;
         bool                                                m_isBlending = false;

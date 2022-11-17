@@ -57,6 +57,7 @@ namespace EE::Animation
         if ( m_pWorkspace->IsDebugging() )
         {
             m_pWorkspace->StopDebugging();
+            m_pWorkspace->ResetRecorderData();
         }
 
         Serialization::JsonArchiveWriter archive;
@@ -845,65 +846,11 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
     {
-        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
-        float buttonDimensions = 130;
-        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
+        ImGui::Separator();
 
-        if ( IsDebugging() )
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Debugging", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                StopDebugging();
-            }
-        }
-        else
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Graph", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                StartDebugging( context, DebugTarget() );
-            }
-        }
-
-        // Gap
         //-------------------------------------------------------------------------
 
-        constexpr float const gapWidth = 490;
-        float const availableX = ImGui::GetContentRegionAvail().x;
-        if ( availableX > gapWidth )
-        {
-            ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
-        }
-
-        // Variation Selector
-        //-------------------------------------------------------------------------
-
-        DrawVariationSelector( 150 );
-
-        // Live Game Debugging
-        //-------------------------------------------------------------------------
-
-        ImGuiX::VerticalSeparator( ImVec2( 20, 0 ) );
-
-        ImGui::BeginDisabled( IsDebugging() );
-
-        ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::LimeGreen ).Value );
-        bool const drawMenu = ImGui::BeginMenu( EE_ICON_CONNECTION"##DebugTargetsMenu" );
-        ImGui::PopStyleColor();
-
-        if ( drawMenu )
-        {
-            DrawLiveDebugTargetsMenu( context );
-            ImGui::EndMenu();
-        }
-        ImGuiX::ItemTooltip( "Attach to Game" );
-        ImGui::EndDisabled();
-
-        // Debug + Preview Options
-        //-------------------------------------------------------------------------
-
-        ImGuiX::VerticalSeparator( ImVec2( 20, 0 ) );
-
-        if ( ImGui::BeginMenu( EE_ICON_COG" Debug Options" ) )
+        if ( ImGui::BeginMenu( EE_ICON_BUG" Debug" ) )
         {
             ImGuiX::TextSeparator( "Graph Debug" );
 
@@ -973,7 +920,7 @@ namespace EE::Animation
 
             ImGui::Checkbox( "Show Preview Capsule", &m_showPreviewCapsule );
 
-            ImGui::Text( "Half-Height" ); 
+            ImGui::Text( "Half-Height" );
             ImGui::SameLine( 90 );
             if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
             {
@@ -1012,12 +959,17 @@ namespace EE::Animation
             ImGui::EndMenu();
         }
 
-        // Preview Options
         //-------------------------------------------------------------------------
 
-        ImGuiX::VerticalSeparator( ImVec2( 20, 0 ) );
+        if ( ImGui::BeginMenu( EE_ICON_CONNECTION" Attach" ) )
+        {
+            DrawLiveDebugTargetsMenu( context );
+            ImGui::EndMenu();
+        }
 
-        if ( ImGui::BeginMenu( EE_ICON_TELEVISION_PLAY" Preview Options" ) )
+        //-------------------------------------------------------------------------
+
+        auto DrawPreviewOptions = [this] ()
         {
             ImGuiX::TextSeparator( "Preview Settings" );
             ImGui::Checkbox( "Start Paused", &m_startPaused );
@@ -1037,9 +989,39 @@ namespace EE::Animation
             {
                 m_previewStartTransform = Transform::Identity;
             }
+        };
 
-            ImGui::EndMenu();
+        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
+        float buttonDimensions = 160;
+        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
+
+        if ( IsDebugging() )
+        {
+            if( ImGuiX::IconComboButton( EE_ICON_STOP, "Stop Debugging", Colors::Red, "SD", buttonDimensions, DrawPreviewOptions ) )
+            {
+                StopDebugging();
+            }
         }
+        else
+        {
+            if ( ImGuiX::IconComboButton( EE_ICON_PLAY, "Preview Graph", Colors::Lime, "PG", buttonDimensions, DrawPreviewOptions ) )
+            {
+                StartDebugging( context, DebugTarget() );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        float const gapWidth = 150.0f + ImGui::GetStyle().ItemSpacing.x;
+        float const availableX = ImGui::GetContentRegionAvail().x;
+        if ( availableX > gapWidth )
+        {
+            ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
+        }
+
+        //-------------------------------------------------------------------------
+
+        DrawVariationSelector( 150 );
     }
 
     void AnimationGraphWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -1467,9 +1449,19 @@ namespace EE::Animation
             {
                 EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
 
-                ReflectInitialPreviewParameterValues( updateContext );
                 m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
                 m_userContext.m_pGraphInstance = m_pDebugGraphInstance;
+
+                if ( m_isPlayingBackRecording )
+                {
+                    m_recordingPlaybackFrameIdx = InvalidIndex;
+                    SetPreviewInstanceToPlaybackFrameIndex( 0 );
+                }
+                else // If we are not playing back a recording, then set the initial control parameters
+                {
+                    ReflectInitialPreviewParameterValues( updateContext );
+                }
+
                 m_isFirstPreviewFrame = false;
             }
 
@@ -1519,6 +1511,20 @@ namespace EE::Animation
                 m_pDebugMeshComponent->SetPose( m_pDebugGraphComponent->GetPose() );
                 m_pDebugMeshComponent->FinalizePose();
                 m_pDebugMeshComponent->SetWorldTransform( m_characterTransform );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_isPlayingBackRecording )
+        {
+            if ( m_pDebugGraphInstance != nullptr && m_pDebugGraphInstance->DoesTaskSystemNeedUpdate() )
+            {
+                // Use the transform from the next frame as the end transform of the character (which is what it is)
+                int32_t const transformFrameIdx = ( m_recordingPlaybackFrameIdx < m_recorder.GetNumRecordedFrames() - 1 ) ? m_recordingPlaybackFrameIdx + 1 : m_recordingPlaybackFrameIdx;
+                m_pDebugGraphInstance->ExecutePrePhysicsPoseTasks( m_recorder.GetFrameData( transformFrameIdx ).m_characterWorldTransform );
+                m_pDebugGraphInstance->ExecutePostPhysicsPoseTasks();
+                m_pDebugMeshComponent->SetPose( m_pDebugGraphComponent->GetPose() );
             }
         }
 
@@ -1597,28 +1603,166 @@ namespace EE::Animation
     void AnimationGraphWorkspace::DrawDebuggerWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_debuggerWindowName.c_str() ) )
+        if ( ImGui::Begin( m_debuggerWindowName.c_str(), nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar ) )
         {
-            if ( IsDebugging() && m_pDebugGraphInstance != nullptr && m_pDebugGraphInstance->IsInitialized() )
+            // Live Recorder
+            //-------------------------------------------------------------------------
+
+            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+            if( ImGui::CollapsingHeader( "Recorder" ) )
             {
-                ImGuiX::TextSeparator( "Pose Tasks" );
-                AnimationDebugView::DrawGraphActiveTasksDebugView( m_pDebugGraphInstance );
+                ImVec2 const buttonSize( 26, 0 );
 
-                ImGui::NewLine();
-                ImGuiX::TextSeparator( "Root Motion" );
-                AnimationDebugView::DrawRootMotionDebugView( m_pDebugGraphInstance );
+                // Play / Stop
+                //-------------------------------------------------------------------------
 
-                ImGui::NewLine();
-                ImGuiX::TextSeparator( "Anim Events" );
-                AnimationDebugView::DrawSampledAnimationEventsView( m_pDebugGraphInstance );
+                ImGui::BeginDisabled( !m_hasRecordedData || m_isRecording || IsLiveDebugSession() );
+                if ( m_isPlayingBackRecording )
+                {
+                    if ( ImGuiX::IconButton( EE_ICON_STOP, "##SRP", Colors::Red, buttonSize ) )
+                    {
+                        StopDebugging();
+                        m_isPlayingBackRecording = false;
+                        m_recordingPlaybackFrameIdx = InvalidIndex;
+                    }
+                    ImGuiX::ItemTooltip( "Stop Recording Playback" );
+                }
+                else
+                {
+                    if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartRP", Colors::Lime, buttonSize ) )
+                    {
+                        if ( IsDebugging() )
+                        {
+                            StopDebugging();
+                        }
 
-                ImGui::NewLine();
-                ImGuiX::TextSeparator( "State Events" );
-                AnimationDebugView::DrawSampledStateEventsView( m_pDebugGraphInstance );
+                        StartDebugging( context, DebugTarget() );
+                        m_pDebugGraphComponent->SwitchToRecordingPlaybackMode();
+                        m_isPlayingBackRecording = true;
+                        m_recordingPlaybackFrameIdx = InvalidIndex;
+                    }
+                    ImGuiX::ItemTooltip( "Start Playback" );
+                }
+                ImGui::EndDisabled();
+
+                // Record / Stop
+                //-------------------------------------------------------------------------
+
+                ImGui::SameLine();
+
+                ImGui::BeginDisabled( !IsLiveDebugSession() );
+                if ( m_isRecording )
+                {
+                    if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopRecord", Colors::White, buttonSize ) )
+                    {
+                        StopRecording();
+                    }
+                    ImGuiX::ItemTooltip( "Stop Recording" );
+                }
+                else
+                {
+                    if ( ImGuiX::IconButton( EE_ICON_RECORD, "##Record", Colors::Red, buttonSize ) )
+                    {
+                        StartRecording();
+                    }
+                    ImGuiX::ItemTooltip( "Record" );
+                }
+                ImGui::EndDisabled();
+
+                // Timeline
+                //-------------------------------------------------------------------------
+
+                ImGui::SameLine();
+
+                ImGui::BeginDisabled( !m_hasRecordedData || m_isRecording || !m_isPlayingBackRecording || m_pDebugGraphInstance == nullptr );
+
+                if ( ImGui::Button( EE_ICON_STEP_BACKWARD"##StepFrameBack", buttonSize ) )
+                {
+                    if ( m_recordingPlaybackFrameIdx > 0 )
+                    {
+                        SetPreviewInstanceToPlaybackFrameIndex( m_recordingPlaybackFrameIdx - 1 );
+                    }
+                }
+
+                ImGui::SameLine();
+
+                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - buttonSize.x - ImGui::GetStyle().ItemSpacing.x );
+                int32_t const numFramesRecorded = m_recorder.GetNumRecordedFrames();
+                int32_t frameIdx = m_isPlayingBackRecording ? m_recordingPlaybackFrameIdx : 0;
+                if ( ImGui::SliderInt( "##timeline", &frameIdx, 0, numFramesRecorded - 1 ) )
+                {
+                    SetPreviewInstanceToPlaybackFrameIndex( frameIdx );
+                }
+
+                ImGui::SameLine();
+
+                if ( ImGui::Button( EE_ICON_STEP_FORWARD"##StepFrameForward", buttonSize ) )
+                {
+                    if ( m_recordingPlaybackFrameIdx < numFramesRecorded - 1 )
+                    {
+                        SetPreviewInstanceToPlaybackFrameIndex( m_recordingPlaybackFrameIdx + 1 );
+                    }
+                }
+
+                ImGui::EndDisabled();
+                ImGui::EndDisabled();
             }
-            else
+
+            // Graph Info
+            //-------------------------------------------------------------------------
             {
-                ImGui::Text( "Nothing to Debug" );
+                bool const showDebugData = IsDebugging() && m_pDebugGraphInstance != nullptr && m_pDebugGraphInstance->IsInitialized();
+                ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+                if ( ImGui::CollapsingHeader( "Pose Tasks" ) )
+                {
+                    if ( showDebugData )
+                    {
+                        AnimationDebugView::DrawGraphActiveTasksDebugView( m_pDebugGraphInstance );
+                    }
+                    else
+                    {
+                        ImGui::Text( "-" );
+                    }
+                }
+
+                ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+                if ( ImGui::CollapsingHeader( "Root Motion" ) )
+                {
+                    if ( showDebugData )
+                    {
+                        AnimationDebugView::DrawRootMotionDebugView( m_pDebugGraphInstance );
+                    }
+                    else
+                    {
+                        ImGui::Text( "-" );
+                    }
+                }
+
+                ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+                if ( ImGui::CollapsingHeader( "Anim Events" ) )
+                {
+                    if ( showDebugData )
+                    {
+                        AnimationDebugView::DrawSampledAnimationEventsView( m_pDebugGraphInstance );
+                    }
+                    else
+                    {
+                        ImGui::Text( "-" );
+                    }
+                }
+
+                ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+                if ( ImGui::CollapsingHeader( "State Events" ) )
+                {
+                    if ( showDebugData )
+                    {
+                        AnimationDebugView::DrawSampledStateEventsView( m_pDebugGraphInstance );
+                    }
+                    else
+                    {
+                        ImGui::Text( "-" );
+                    }
+                }
             }
         }
         ImGui::End();
@@ -1810,6 +1954,18 @@ namespace EE::Animation
     {
         EE_ASSERT( m_debugMode != DebugMode::None );
 
+        // Recording
+        //-------------------------------------------------------------------------
+
+        if ( m_isRecording )
+        {
+            StopRecording();
+        }
+        else if ( m_isPlayingBackRecording )
+        {
+            m_isPlayingBackRecording = false;
+        }
+
         // Clear physics system
         //-------------------------------------------------------------------------
 
@@ -1862,6 +2018,8 @@ namespace EE::Animation
 
         m_primaryGraphView.RefreshNodeSizes();
         m_secondaryGraphView.RefreshNodeSizes();
+
+        //-------------------------------------------------------------------------
 
         m_debugMode = DebugMode::None;
     }
@@ -1928,6 +2086,10 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawLiveDebugTargetsMenu( UpdateContext const& context )
     {
+        ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+
+        //-------------------------------------------------------------------------
+
         bool hasTargets = false;
         auto const debugWorlds = m_pToolsContext->GetAllWorlds();
         for ( auto pWorld : m_pToolsContext->GetAllWorlds() )
@@ -1942,7 +2104,7 @@ namespace EE::Animation
                 if ( pGraphInstance->GetDefinitionResourceID() == m_workspaceResource.GetResourceID() )
                 {
                     Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                    InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str() );
+                    InlineString const targetName( InlineString::CtorSprintf(), "%s (%s)", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str() );
                     if ( ImGui::MenuItem( targetName.c_str() ) )
                     {
                         DebugTarget target;
@@ -1962,7 +2124,7 @@ namespace EE::Animation
                     if ( childGraph.m_pInstance->GetDefinitionResourceID() == m_workspaceResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Path: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), childGraph.m_pathToInstance.c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), childGraph.m_pathToInstance.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;
@@ -1983,7 +2145,7 @@ namespace EE::Animation
                     if ( externalGraph.m_pInstance->GetDefinitionResourceID() == m_workspaceResource.GetResourceID() )
                     {
                         Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "Entity: '%s', Component: '%s', Slot: '%s'", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), externalGraph.m_slotID.c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), externalGraph.m_slotID.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;
@@ -2895,7 +3057,9 @@ namespace EE::Animation
                     CreateControlParameterPreviewStates();
                 }
 
+                ImGui::BeginDisabled( m_isPlayingBackRecording );
                 DrawPreviewParameterList( context );
+                ImGui::EndDisabled();
             }
             else
             {
@@ -3367,28 +3531,31 @@ namespace EE::Animation
         ImGui::SetNextItemOpen( !m_parameterCategoryTree.GetRootCategory().m_isCollapsed );
         if ( ImGui::CollapsingHeader( "General" ) )
         {
-            if ( ImGui::BeginTable( "CPGT", 3, 0 ) )
+            if ( !m_parameterCategoryTree.GetRootCategory().m_items.empty() )
             {
-                ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-                ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
-
-                for ( auto const& item : m_parameterCategoryTree.GetRootCategory().m_items )
+                if ( ImGui::BeginTable( "CPGT", 3, 0 ) )
                 {
-                    if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                    ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+                    ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+
+                    for ( auto const& item : m_parameterCategoryTree.GetRootCategory().m_items )
                     {
-                        DrawControlParameterRow( pCP );
+                        if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                        {
+                            DrawControlParameterRow( pCP );
+                        }
+                        else
+                        {
+                            DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
+                        }
                     }
-                    else
-                    {
-                        DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
-                    }
+
+                    ImGui::EndTable();
                 }
 
-                ImGui::EndTable();
+                ControlParameterCategoryDragAndDropHandler( m_parameterCategoryTree.GetRootCategory() );
             }
-
-            ControlParameterCategoryDragAndDropHandler( m_parameterCategoryTree.GetRootCategory() );
 
             m_parameterCategoryTree.GetRootCategory().m_isCollapsed = false;
         }
@@ -3405,30 +3572,33 @@ namespace EE::Animation
             ImGui::SetNextItemOpen( !category.m_isCollapsed );
             if ( ImGui::CollapsingHeader( category.m_name.c_str() ) )
             {
-                if ( ImGui::BeginTable( "CPT", 3, 0 ) )
+                if ( !category.m_items.empty() )
                 {
-                    ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
-                    ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-                    ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
-
-                    //-------------------------------------------------------------------------
-
-                    for ( auto const& item : category.m_items )
+                    if ( ImGui::BeginTable( "CPT", 3, 0 ) )
                     {
-                        if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                        ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
+                        ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
+                        ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+
+                        //-------------------------------------------------------------------------
+
+                        for ( auto const& item : category.m_items )
                         {
-                            DrawControlParameterRow( pCP );
+                            if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                            {
+                                DrawControlParameterRow( pCP );
+                            }
+                            else
+                            {
+                                DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
+                            }
                         }
-                        else
-                        {
-                            DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
-                        }
+
+                        ImGui::EndTable();
                     }
 
-                    ImGui::EndTable();
+                    ControlParameterCategoryDragAndDropHandler( category );
                 }
-
-                ControlParameterCategoryDragAndDropHandler( category );
 
                 category.m_isCollapsed = false;
             }
@@ -4416,5 +4586,90 @@ namespace EE::Animation
             m_activeOperationVariationID = StringID();
             m_activeOperation = GraphOperationType::None;
         }
+    }
+
+    // Recording
+    //-------------------------------------------------------------------------
+
+    void AnimationGraphWorkspace::StartRecording()
+    {
+        EE_ASSERT( IsLiveDebugSession() && !m_isRecording );
+        ResetRecorderData();
+        m_pDebugGraphInstance->StartRecording( m_recorder.m_stateRecorder, &m_recorder.m_updateRecorder );
+        m_isRecording = true;
+    }
+
+    void AnimationGraphWorkspace::StopRecording()
+    {
+        EE_ASSERT( IsLiveDebugSession() && m_isRecording );
+        m_pDebugGraphInstance->StopRecording();
+        m_hasRecordedData = true;
+        m_isRecording = false;
+    }
+
+    void AnimationGraphWorkspace::ResetRecorderData()
+    {
+        m_recorder.Reset();
+        m_hasRecordedData = false;
+        m_isPlayingBackRecording = false;
+        m_isRecording = false;
+        m_recordingPlaybackFrameIdx = InvalidIndex;
+    }
+
+    void AnimationGraphWorkspace::SetPreviewInstanceToPlaybackFrameIndex( int32_t newIndex )
+    {
+        EE_ASSERT( m_pDebugGraphInstance != nullptr && !m_isRecording && m_hasRecordedData );
+        EE_ASSERT( m_recorder.IsValidRecordedFrameIndex( newIndex ) );
+
+        if ( newIndex == m_recordingPlaybackFrameIdx )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Re-evaluate the entire graph to the new index point
+        if ( m_recordingPlaybackFrameIdx == InvalidIndex || newIndex < m_recordingPlaybackFrameIdx || newIndex > m_recordingPlaybackFrameIdx + 1 )
+        {
+            // Set initial state
+            GraphStateRecording recording;
+            m_recorder.GetRecordedGraphState( recording );
+            m_pDebugGraphInstance->SetToRecordedInitialState( recording );
+
+            // Update graph instance till we get to the specified frame
+            for ( auto i = 0; i <= newIndex; i++ )
+            {
+                auto const& frameData = m_recorder.GetFrameData( i );
+
+                // Set parameters
+                m_pDebugGraphInstance->SetPerFrameGraphData( frameData );
+
+                // Evaluate graph
+                m_pDebugGraphComponent->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
+
+                // Explicitly end root motion debug update for intermediate steps
+                if ( i < ( newIndex - 1 ) )
+                {
+                    auto const& nextFrameData = m_recorder.GetFrameData( i + 1 );
+                    m_pDebugGraphInstance->EndRootMotionDebuggerUpdate( nextFrameData.m_characterWorldTransform );
+                }
+            }
+        }
+        else // Step forward
+        {
+            auto const& frameData = m_recorder.GetFrameData( newIndex );
+
+            // Set parameters
+            m_pDebugGraphInstance->SetPerFrameGraphData( frameData );
+
+            // Evaluate graph
+            m_pDebugGraphComponent->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
+        }
+
+        // Update index
+        m_recordingPlaybackFrameIdx = newIndex;
+
+        // Set mesh world Transform
+        m_pDebugMeshComponent->SetWorldTransform( m_recorder.GetFrameData( m_recordingPlaybackFrameIdx ).m_characterWorldTransform );
     }
 }

@@ -70,7 +70,12 @@ namespace EE::Animation::GraphNodes
             return;
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        Seconds const currentTime = m_useRecordedStartData ? m_warpStartTime : pAnimation->GetTime( m_pClipReferenceNode->GetCurrentTime() );
+        #else
         Seconds const currentTime = pAnimation->GetTime( m_pClipReferenceNode->GetCurrentTime() );
+        #endif
+
         Seconds const warpRangeStartTime = Math::Max( pWarpEvent->GetStartTime().ToFloat(), currentTime.ToFloat() );
         Seconds const warpRangeLength = pWarpEvent->GetEndTime() - warpRangeStartTime;
 
@@ -131,18 +136,27 @@ namespace EE::Animation::GraphNodes
         // Calculate the desired modification we need to make
         Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenNormalizedVectors( postWarpOriginalDirCS, targetDirCS );
 
-        // Record debug info
-        #if EE_DEVELOPMENT_TOOLS
-        m_warpStartWorldTransform = context.m_worldTransform;
-        m_debugCharacterOffsetPosWS = m_warpStartWorldTransform.GetTranslation() + context.m_worldTransform.RotateVector( originalRootMotion.m_transforms[warpEndFrame].GetTranslation() );
-        m_debugTargetDirWS = context.m_worldTransform.RotateVector( targetDirCS );
-        #endif
 
         // Perform warp
         //-------------------------------------------------------------------------
 
         m_warpedRootMotion = originalRootMotion;
+
+        // Set start transform
+        #if EE_DEVELOPMENT_TOOLS
+        m_warpedRootMotion.m_transforms.front() = m_useRecordedStartData ? m_warpStartWorldTransform : context.m_worldTransform;
+        #else
         m_warpedRootMotion.m_transforms.front() = context.m_worldTransform;
+        #endif
+
+        // Record debug info
+        #if EE_DEVELOPMENT_TOOLS
+        m_warpStartWorldTransform = m_warpedRootMotion.m_transforms.front();
+        m_debugCharacterOffsetPosWS = m_warpStartWorldTransform.GetTranslation() + m_warpStartWorldTransform.RotateVector( originalRootMotion.m_transforms[warpEndFrame].GetTranslation() );
+        m_debugTargetDirWS = m_warpStartWorldTransform.RotateVector( targetDirCS );
+        m_warpStartTime = currentTime;
+        m_useRecordedStartData = false;
+        #endif
 
         // Set initial world space positions up to the end of the rotation warp event
         for ( auto i = 1; i <= warpEndFrame; i++ )
@@ -273,6 +287,22 @@ namespace EE::Animation::GraphNodes
         {
             m_warpedRootMotion.DrawDebug( drawCtx, m_warpStartWorldTransform, Colors::Red, Colors::Green );
         }
+    }
+
+    void OrientationWarpNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_warpStartWorldTransform;
+        recorder << m_warpStartTime;
+    }
+
+    void OrientationWarpNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_warpStartWorldTransform;
+        recording << m_warpStartTime;
+        m_shouldUpdateWarp = true;
+        m_useRecordedStartData = true;
     }
     #endif
 }

@@ -18,16 +18,16 @@ namespace EE::Animation::GraphNodes
             EE_SERIALIZE( m_targetStateIdx, m_transitionNodeIdx, m_conditionNodeIdx );
 
             StateIndex                                              m_targetStateIdx = InvalidIndex;
-            int16_t                                          m_conditionNodeIdx = InvalidIndex;
-            int16_t                                          m_transitionNodeIdx = InvalidIndex;
+            int16_t                                                 m_conditionNodeIdx = InvalidIndex;
+            int16_t                                                 m_transitionNodeIdx = InvalidIndex;
         };
 
         struct StateSettings
         {
             EE_SERIALIZE( m_stateNodeIdx, m_entryConditionNodeIdx, m_transitionSettings );
 
-            int16_t                                          m_stateNodeIdx = InvalidIndex;
-            int16_t                                          m_entryConditionNodeIdx = InvalidIndex;
+            int16_t                                                 m_stateNodeIdx = InvalidIndex;
+            int16_t                                                 m_entryConditionNodeIdx = InvalidIndex;
             TInlineVector<TransitionSettings, 5>                    m_transitionSettings;
         };
 
@@ -86,6 +86,11 @@ namespace EE::Animation::GraphNodes
 
         void EvaluateTransitions( GraphContext& context, GraphPoseNodeResult& NodeResult );
         void UpdateTransitionStack( GraphContext& context );
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 

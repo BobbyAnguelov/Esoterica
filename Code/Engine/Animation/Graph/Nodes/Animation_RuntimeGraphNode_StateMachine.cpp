@@ -328,4 +328,48 @@ namespace EE::Animation::GraphNodes
 
         return result;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void StateMachineNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_activeStateIndex;
+
+        bool const hasActiveTransition = m_pActiveTransition != nullptr;
+        recorder << hasActiveTransition;
+
+        if ( hasActiveTransition )
+        {
+            for ( uint16_t stateIdx = 0; stateIdx < m_states.size(); stateIdx++ )
+            {
+                for ( uint16_t transitionIdx = 0; transitionIdx < m_states[stateIdx].m_transitions.size(); transitionIdx++ )
+                {
+                    if ( m_pActiveTransition == m_states[stateIdx].m_transitions[transitionIdx].m_pTransitionNode )
+                    {
+                        recorder << stateIdx;
+                        recorder << transitionIdx;
+                    }
+                }
+            }
+        }
+    }
+
+    void StateMachineNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_activeStateIndex;
+
+        bool hasActiveTransition = false;
+        recording << hasActiveTransition;
+
+        if ( hasActiveTransition )
+        {
+            uint16_t stateIdx;
+            uint16_t transitionIdx;
+            recording << stateIdx;
+            recording << transitionIdx;
+            m_pActiveTransition = m_states[stateIdx].m_transitions[transitionIdx].m_pTransitionNode;
+        }
+    }
+    #endif
 }

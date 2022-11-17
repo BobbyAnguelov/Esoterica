@@ -32,7 +32,13 @@ namespace EE::Serialization
     {
     public:
 
+        BinaryReader() = default;
         ~BinaryReader();
+
+        BinaryReader( BinaryReader const& rhs ) = delete;
+        BinaryReader& operator=( BinaryReader const& rhs ) = delete;
+        BinaryReader( BinaryReader&& rhs ) { m_pReader = rhs.m_pReader; rhs.m_pReader = nullptr; }
+        BinaryReader& operator=( BinaryReader&& rhs ) { m_pReader = rhs.m_pReader; rhs.m_pReader = nullptr; return *this; }
 
         void Reset();
 
@@ -68,7 +74,13 @@ namespace EE::Serialization
     {
     public:
 
+        BinaryWriter() = default;
         ~BinaryWriter();
+
+        BinaryWriter( BinaryWriter const& rhs ) = delete;
+        BinaryWriter& operator=( BinaryWriter const& rhs ) = delete;
+        BinaryWriter( BinaryWriter&& rhs ) { m_pWriter = rhs.m_pWriter; rhs.m_pWriter = nullptr; }
+        BinaryWriter& operator=( BinaryWriter&& rhs ) { m_pWriter = rhs.m_pWriter; rhs.m_pWriter = nullptr; return *this; }
 
         void Reset();
 
@@ -410,6 +422,9 @@ namespace EE::Serialization
 
         ~BinaryInputArchive();
 
+        // Clears all loaded data and reset the archives to an invalid state
+        void Reset();
+
         bool ReadFromData( uint8_t const* pData, size_t size );
         bool ReadFromBlob( Blob const& blob );
         bool ReadFromFile( FileSystem::Path const& filePath );
@@ -422,16 +437,27 @@ namespace EE::Serialization
 
     //-------------------------------------------------------------------------
 
+    // Note:    The binary writer is modal (start/stop) and writing cannot be restarted once stopped.
+    //          It is intended to be used in a single serialization pass
     class EE_SYSTEM_API BinaryOutputArchive final : public Internal::Archive<BinaryWriter>
     {
     public:
 
         BinaryOutputArchive();
 
+        // Clears all written data and begins writing again
+        void Reset();
+
+        // Stops writing and outputs the binary data to a file
         bool WriteToFile( FileSystem::Path const& outPath );
 
+        // Stops writing and gets all written binary data
         uint8_t* GetBinaryData();
+
+        // Stops writing and gets the size of the written binary data
         size_t GetBinaryDataSize();
+
+        // Gets the binary data as a blob
         void GetAsBinaryBlob( Blob& outBlob );
     };
 }

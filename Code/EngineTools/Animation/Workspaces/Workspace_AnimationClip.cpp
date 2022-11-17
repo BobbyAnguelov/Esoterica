@@ -335,12 +335,36 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
     {
-        if ( ImGui::BeginMenu( EE_ICON_COG" Debug Options" ) )
+        ImGui::Separator();
+
+        if ( ImGui::BeginMenu( EE_ICON_TUNE_VERTICAL" Options" ) )
         {
             ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
             ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
 
             ImGui::EndMenu();
+        }
+
+        // Preview Button
+        //-------------------------------------------------------------------------
+
+        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
+        float buttonDimensions = 75;
+        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
+
+        if ( m_eventEditor.IsPlaying() )
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_PAUSE, "Pause", Colors::Yellow, ImVec2( buttonDimensions, 0 ) ) )
+            {
+                m_eventEditor.Pause();
+            }
+        }
+        else
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Play", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
+            {
+                m_eventEditor.Play();
+            }
         }
     }
 

@@ -89,6 +89,9 @@ namespace EE
         // Is the current world paused
         inline bool IsPaused() const { return m_timeScale <= 0.0f; }
 
+        // Pause the update of this world
+        inline void SetPaused() { m_timeScale = 0.0f; }
+
         // Get the current time scale for this world
         inline float GetTimeScale() const { return m_timeScale; }
 

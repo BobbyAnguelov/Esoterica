@@ -173,15 +173,8 @@ namespace EE::Animation
                 if ( ( m_syncEvents[syncEventIdx].m_startTime + m_syncEvents[syncEventIdx].m_duration ) >= percentageThrough )
                 {
                     EE_ASSERT( m_syncEvents[syncEventIdx].m_duration > Math::Epsilon );
-
                     time.m_eventIdx = syncEventIdx;
                     time.m_percentageThrough = ( percentageThrough - m_syncEvents[syncEventIdx].m_startTime ) / m_syncEvents[syncEventIdx].m_duration;
-
-                    // Handle looping sequences
-                    while ( time.m_percentageThrough > 1.0f )
-                    {
-                        time.m_percentageThrough -= 1.0f;
-                    }
                     break;
                 }
             }

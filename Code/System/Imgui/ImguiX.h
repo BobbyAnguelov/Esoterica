@@ -8,6 +8,7 @@
 #include "System/Types/Color.h"
 #include "System/Types/String.h"
 #include "System/Types/BitFlags.h"
+#include "System/Types/Function.h"
 
 //-------------------------------------------------------------------------
 // ImGui Extensions
@@ -155,6 +156,12 @@ namespace EE::ImGuiX
     {
         return FlatIconButton( pIcon, pLabel, ConvertColor( iconColor ).Value, size );
     }
+
+    // Combo button - button with extra drop down options - returns true if the primary button was pressed
+    EE_SYSTEM_API bool ComboButton( char const* pButtonLabel, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
+
+    // Combo button - button with extra drop down options - returns true if the primary button was pressed
+    EE_SYSTEM_API bool IconComboButton( char const* pIcon, char const* pButtonLabel, Color iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
 
     // Draw an arrow between two points
     EE_SYSTEM_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImU32 col, float arrowWidth, float arrowHeadWidth = 5.0f );

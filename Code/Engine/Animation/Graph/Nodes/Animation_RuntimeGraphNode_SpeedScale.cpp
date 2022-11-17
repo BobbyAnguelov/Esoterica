@@ -89,6 +89,20 @@ namespace EE::Animation::GraphNodes
         return PassthroughNode::Update( context, updateRange );
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void SpeedScaleNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_blendWeight;
+    }
+
+    void SpeedScaleNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_blendWeight;
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void VelocityBasedSpeedScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -243,4 +257,18 @@ namespace EE::Animation::GraphNodes
 
         return result;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void VelocityBasedSpeedScaleNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_blendWeight;
+    }
+
+    void VelocityBasedSpeedScaleNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_blendWeight;
+    }
+    #endif
 }

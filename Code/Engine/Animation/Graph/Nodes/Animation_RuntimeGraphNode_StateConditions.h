@@ -93,7 +93,6 @@ namespace EE::Animation::GraphNodes
 
         StateNode*                              m_pSourceStateNode = nullptr;
         FloatValueNode*                         m_pInputValueNode = nullptr;
-        float                                   m_requiredElapsedTime = 0.0f;
         bool                                    m_result = false;
     };
 }

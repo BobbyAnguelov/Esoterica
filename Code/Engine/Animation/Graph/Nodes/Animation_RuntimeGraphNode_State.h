@@ -88,6 +88,11 @@ namespace EE::Animation::GraphNodes
         void SampleStateEvents( GraphContext& context );
         void UpdateLayerContext( GraphContext& context );
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         PoseNode*                                       m_pChildNode = nullptr;

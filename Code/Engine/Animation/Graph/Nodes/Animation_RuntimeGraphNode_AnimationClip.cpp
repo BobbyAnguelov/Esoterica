@@ -234,4 +234,20 @@ namespace EE::Animation::GraphNodes
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, sampleTime );
         return result;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void AnimationClipNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_shouldPlayInReverse;
+        recorder << m_shouldSampleRootMotion;
+    }
+
+    void AnimationClipNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_shouldPlayInReverse;
+        recording << m_shouldSampleRootMotion;
+    }
+    #endif
 }

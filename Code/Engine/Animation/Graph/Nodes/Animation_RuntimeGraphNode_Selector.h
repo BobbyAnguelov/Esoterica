@@ -36,12 +36,17 @@ namespace EE::Animation::GraphNodes
 
         int32_t SelectOption( GraphContext& context ) const;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         TInlineVector<PoseNode*, 5>                         m_optionNodes;
         TInlineVector<BoolValueNode*, 5>                    m_conditions;
         PoseNode*                                           m_pSelectedNode = nullptr;
-        int32_t                                               m_selectedOptionIdx = InvalidIndex;
+        int32_t                                             m_selectedOptionIdx = InvalidIndex;
     };
 
     //-------------------------------------------------------------------------
@@ -57,8 +62,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            TInlineVector<int16_t, 5>                     m_optionNodeIndices;
-            TInlineVector<int16_t, 5>                     m_conditionNodeIndices;
+            TInlineVector<int16_t, 5>                       m_optionNodeIndices;
+            TInlineVector<int16_t, 5>                       m_conditionNodeIndices;
         };
 
     public:
@@ -80,11 +85,16 @@ namespace EE::Animation::GraphNodes
 
         int32_t SelectOption( GraphContext& context ) const;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         TInlineVector<AnimationClipReferenceNode*, 5>       m_optionNodes;
         TInlineVector<BoolValueNode*, 5>                    m_conditions;
         AnimationClipReferenceNode*                         m_pSelectedNode = nullptr;
-        int32_t                                               m_selectedOptionIdx = InvalidIndex;
+        int32_t                                             m_selectedOptionIdx = InvalidIndex;
     };
 }

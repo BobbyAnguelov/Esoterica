@@ -41,6 +41,10 @@ namespace EE::Animation
         // Execution
         //-------------------------------------------------------------------------
 
+        // Do we have any tasks that need execution
+        inline bool RequiresUpdate() const { return m_needsUpdate; }
+
+        // Do we have a physics dependency in our registered tasks
         inline bool HasPhysicsDependency() const { return m_hasPhysicsDependency; }
 
         // Run all pre-physics tasks
@@ -67,6 +71,7 @@ namespace EE::Animation
             EE_ASSERT( m_tasks.size() < 0xFF );
             auto pNewTask = m_tasks.emplace_back( EE::New<T>( std::forward<ConstructorParams>( params )... ) );
             m_hasPhysicsDependency |= pNewTask->HasPhysicsDependency();
+            m_needsUpdate = true;
             return (TaskIndex) ( m_tasks.size() - 1 );
         }
 
@@ -100,6 +105,7 @@ namespace EE::Animation
         Pose                            m_finalPose;
         bool                            m_hasPhysicsDependency = false;
         bool                            m_hasCodependentPhysicsTasks = false;
+        bool                            m_needsUpdate = false;
 
         #if EE_DEVELOPMENT_TOOLS
         TaskSystemDebugMode             m_debugMode = TaskSystemDebugMode::Off;

@@ -24,6 +24,20 @@ namespace EE::Animation::GraphNodes
         m_value = *(bool*) pInValue;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void ControlParameterBoolNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        BoolValueNode::RecordGraphState( recorder );
+        recorder << m_value;
+    }
+
+    void ControlParameterBoolNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        BoolValueNode::RestoreGraphState( recording );
+        recording << m_value;
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void ControlParameterIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -45,6 +59,20 @@ namespace EE::Animation::GraphNodes
     {
         m_value = *(StringID*) pInValue;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ControlParameterIDNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        IDValueNode::RecordGraphState( recorder );
+        recorder << m_value;
+    }
+
+    void ControlParameterIDNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        IDValueNode::RestoreGraphState( recording );
+        recording << m_value;
+    }
+    #endif
 
     //-------------------------------------------------------------------------
 
@@ -68,6 +96,20 @@ namespace EE::Animation::GraphNodes
         m_value = *(int32_t*) pInValue;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void ControlParameterIntNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        IntValueNode::RecordGraphState( recorder );
+        recorder << m_value;
+    }
+
+    void ControlParameterIntNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        IntValueNode::RestoreGraphState( recording );
+        recording << m_value;
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void ControlParameterFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -89,6 +131,20 @@ namespace EE::Animation::GraphNodes
     {
         m_value = *(float*) pInValue;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ControlParameterFloatNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        FloatValueNode::RecordGraphState( recorder );
+        recorder << m_value;
+    }
+
+    void ControlParameterFloatNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        FloatValueNode::RestoreGraphState( recording );
+        recording << m_value;
+    }
+    #endif
 
     //-------------------------------------------------------------------------
 
@@ -112,6 +168,20 @@ namespace EE::Animation::GraphNodes
         m_value = *(Vector*) pInValue;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void ControlParameterVectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        VectorValueNode::RecordGraphState( recorder );
+        recorder << m_value;
+    }
+
+    void ControlParameterVectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        VectorValueNode::RestoreGraphState( recording );
+        recording << m_value;
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void ControlParameterTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -133,6 +203,20 @@ namespace EE::Animation::GraphNodes
     {
         m_value = *(Target*) pInValue;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ControlParameterTargetNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        TargetValueNode::RecordGraphState( recorder );
+        recorder << m_value;
+    }
+
+    void ControlParameterTargetNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        TargetValueNode::RestoreGraphState( recording );
+        recording << m_value;
+    }
+    #endif
 
     //-------------------------------------------------------------------------
 

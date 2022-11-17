@@ -54,6 +54,7 @@ namespace EE::Animation
     void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene )
     {
         EE_ASSERT( HasGraph() );
+
         auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsScene, m_graphStateResetRequested );
         m_graphStateResetRequested = false;
         m_rootMotionDelta = result.m_rootMotionDelta;

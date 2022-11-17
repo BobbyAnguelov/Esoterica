@@ -38,6 +38,11 @@ namespace EE::Animation::GraphNodes
             return scaleMultiplier;
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
+
     private:
 
         FloatValueNode*             m_pScaleValueNode = nullptr;
@@ -70,6 +75,11 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override;
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        #endif
 
     private:
 

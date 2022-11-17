@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                               m_inputValueNodeIdx = InvalidIndex;
+            int16_t                                 m_inputValueNodeIdx = InvalidIndex;
             Comparison                              m_comparison = Comparison::Matches;
             TInlineVector<StringID, 4>              m_comparisionIDs;
         };
@@ -53,10 +53,10 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputValueNodeIdx = InvalidIndex;
-            float                       m_defaultValue = 0.0f;
-            TInlineVector<StringID, 5>  m_IDs;
-            TInlineVector<float, 5>     m_values;
+            int16_t                                 m_inputValueNodeIdx = InvalidIndex;
+            float                                   m_defaultValue = 0.0f;
+            TInlineVector<StringID, 5>              m_IDs;
+            TInlineVector<float, 5>                 m_values;
         };
 
     private:
@@ -67,8 +67,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        IDValueNode*                    m_pInputValueNode = nullptr;
-        float                           m_value = 0.0f;
+        IDValueNode*                                m_pInputValueNode = nullptr;
+        float                                       m_value = 0.0f;
     };
 
 }

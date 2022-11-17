@@ -76,6 +76,7 @@
     <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
@@ -229,6 +230,7 @@
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />

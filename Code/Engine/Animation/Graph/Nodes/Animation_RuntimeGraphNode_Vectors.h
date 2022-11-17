@@ -61,10 +61,10 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputVectorValueNodeIdx = InvalidIndex;
-            int16_t                   m_inputValueXNodeIdx = InvalidIndex;
-            int16_t                   m_inputValueYNodeIdx = InvalidIndex;
-            int16_t                   m_inputValueZNodeIdx = InvalidIndex;
+            int16_t                     m_inputVectorValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueXNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueYNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueZNodeIdx = InvalidIndex;
         };
 
     private:
@@ -95,7 +95,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                   m_inputValueNodeIdx = InvalidIndex;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
         };
 
     private:

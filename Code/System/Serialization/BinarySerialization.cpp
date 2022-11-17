@@ -298,6 +298,11 @@ namespace EE::Serialization
 
     BinaryInputArchive::~BinaryInputArchive()
     {
+        Reset();
+    }
+
+    void BinaryInputArchive::Reset()
+    {
         m_serializer.Reset();
         EE::Free( m_pFileData );
     }
@@ -365,6 +370,12 @@ namespace EE::Serialization
 
     BinaryOutputArchive::BinaryOutputArchive()
     {
+        m_serializer.BeginWriting();
+    }
+
+    void BinaryOutputArchive::Reset()
+    {
+        m_serializer.Reset();
         m_serializer.BeginWriting();
     }
 

@@ -32,8 +32,7 @@ namespace EE::Render
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_HUMAN; }
 
-        virtual bool HasViewportToolbar() const override { return true; }
-        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
 
         void CreateSkeletonTree();
         void DestroySkeletonTree();

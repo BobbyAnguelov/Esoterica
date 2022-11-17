@@ -410,6 +410,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Transition.cpp" />
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -873,6 +874,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Transition.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">

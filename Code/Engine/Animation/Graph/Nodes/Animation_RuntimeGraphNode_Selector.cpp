@@ -156,6 +156,21 @@ namespace EE::Animation::GraphNodes
         return result;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void SelectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_selectedOptionIdx;
+    }
+
+    void SelectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_selectedOptionIdx;
+        m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void AnimationClipSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -335,4 +350,19 @@ namespace EE::Animation::GraphNodes
 
         return false;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void AnimationClipSelectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        AnimationClipReferenceNode::RecordGraphState( recorder );
+        recorder << m_selectedOptionIdx;
+    }
+
+    void AnimationClipSelectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        AnimationClipReferenceNode::RestoreGraphState( recording );
+        recording << m_selectedOptionIdx;
+        m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+    }
+    #endif
 }

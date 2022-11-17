@@ -41,19 +41,23 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
+        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
+        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
         #endif
 
     private:
 
-        AnimationClipReferenceNode*     m_pClipReferenceNode = nullptr;
-        ValueNode*                      m_pTargetValueNode = nullptr;
-        RootMotionData                  m_warpedRootMotion;
-        bool                            m_shouldUpdateWarp = false;
+        AnimationClipReferenceNode*         m_pClipReferenceNode = nullptr;
+        ValueNode*                          m_pTargetValueNode = nullptr;
+        RootMotionData                      m_warpedRootMotion;
+        bool                                m_shouldUpdateWarp = false;
 
         #if EE_DEVELOPMENT_TOOLS
-        Transform                       m_warpStartWorldTransform;
-        Vector                          m_debugCharacterOffsetPosWS;
-        Vector                          m_debugTargetDirWS;
+        Transform                           m_warpStartWorldTransform = Transform::Identity;
+        Seconds                             m_warpStartTime = 0.0f;
+        Vector                              m_debugCharacterOffsetPosWS = Vector::Zero;
+        Vector                              m_debugTargetDirWS = Vector::Zero;
+        bool                                m_useRecordedStartData = false;
         #endif
     };
 }

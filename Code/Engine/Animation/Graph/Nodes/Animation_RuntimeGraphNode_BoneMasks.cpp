@@ -23,11 +23,14 @@ namespace EE::Animation::GraphNodes
     void BoneMaskNode::InitializeInternal( GraphContext& context )
     {
         BoneMaskValueNode::InitializeInternal( context );
-
     }
 
     void BoneMaskNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
         *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_boneMask;
     }
 
@@ -65,6 +68,8 @@ namespace EE::Animation::GraphNodes
 
     void BoneMaskBlendNode::ShutdownInternal( GraphContext& context )
     {
+        m_pResultMask = nullptr;
+
         m_pBlendWeightValueNode->Shutdown( context );
         m_pTargetBoneMask->Shutdown( context );
         m_pSourceBoneMask->Shutdown( context );
@@ -78,20 +83,27 @@ namespace EE::Animation::GraphNodes
 
         float const blendWeight = m_pBlendWeightValueNode->GetValue<float>( context );
 
-        // If we dont need to perform the blend, set the ptr to the required source
-        if ( blendWeight <= 0.0f )
+        if ( !WasUpdated( context ) )
         {
-            *reinterpret_cast<BoneMask const**>( pOutValue ) = m_pSourceBoneMask->GetValue<BoneMask const*>( context );
+            MarkNodeActive( context );
+
+            // If we dont need to perform the blend, set the ptr to the required source
+            if ( blendWeight <= 0.0f )
+            {
+                m_pResultMask = m_pSourceBoneMask->GetValue<BoneMask const*>( context );
+            }
+            else if ( blendWeight >= 1.0f )
+            {
+                m_pResultMask = m_pTargetBoneMask->GetValue<BoneMask const*>( context );
+            }
+            else // Actually perform the blend
+            {
+                m_blendedBoneMask.SetFromBlend( *m_pSourceBoneMask->GetValue<BoneMask const*>( context ), *m_pTargetBoneMask->GetValue<BoneMask const*>( context ), blendWeight );
+                m_pResultMask = &m_blendedBoneMask;
+            }
         }
-        else if ( blendWeight >= 1.0f )
-        {
-            *reinterpret_cast<BoneMask const**>( pOutValue ) = m_pTargetBoneMask->GetValue<BoneMask const*>( context );
-        }
-        else // Actually perform the blend
-        {
-            m_blendedBoneMask.SetFromBlend( *m_pSourceBoneMask->GetValue<BoneMask const*>( context ), *m_pTargetBoneMask->GetValue<BoneMask const*>( context ), blendWeight );
-            *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_blendedBoneMask;
-        }
+
+        *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_blendedBoneMask;
     }
 
     //-------------------------------------------------------------------------
@@ -240,4 +252,24 @@ namespace EE::Animation::GraphNodes
             *reinterpret_cast<BoneMask const**>( pOutValue ) = nullptr;
         }
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void BoneMaskSelectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        BoneMaskValueNode::RecordGraphState( recorder );
+        recorder << m_selectedMaskIndex;
+        recorder << m_newMaskIndex;
+        recorder << m_currentTimeInBlend;
+        recorder << m_isBlending;
+    }
+
+    void BoneMaskSelectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        BoneMaskValueNode::RestoreGraphState( recording );
+        recording << m_selectedMaskIndex;
+        recording << m_newMaskIndex;
+        recording << m_currentTimeInBlend;
+        recording << m_isBlending;
+    }
+    #endif
 }

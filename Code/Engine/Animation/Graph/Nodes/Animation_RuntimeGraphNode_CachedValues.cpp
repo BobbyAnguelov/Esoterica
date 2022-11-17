@@ -14,6 +14,8 @@ namespace EE::Animation::GraphNodes
     {
         BoolValueNode::InitializeInternal( context );
 
+        m_pInputValueNode->Initialize( context );
+
         auto pSettings = GetSettings<CachedBoolNode>();
         if ( pSettings->m_mode == CachedValueMode::OnEntry )
         {
@@ -53,6 +55,28 @@ namespace EE::Animation::GraphNodes
         *reinterpret_cast<bool*>( pOutValue ) = m_value;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void CachedBoolNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        BoolValueNode::RecordGraphState( recorder );
+        recorder << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recorder << m_value;
+        }
+    }
+
+    void CachedBoolNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        BoolValueNode::RestoreGraphState( recording );
+        recording << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recording << m_value;
+        }
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void CachedIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -64,6 +88,8 @@ namespace EE::Animation::GraphNodes
     void CachedIDNode::InitializeInternal( GraphContext& context )
     {
         IDValueNode::InitializeInternal( context );
+
+        m_pInputValueNode->Initialize( context );
 
         auto pSettings = GetSettings<CachedIDNode>();
         if ( pSettings->m_mode == CachedValueMode::OnEntry )
@@ -104,6 +130,28 @@ namespace EE::Animation::GraphNodes
         *reinterpret_cast<StringID*>( pOutValue ) = m_value;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void CachedIDNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        IDValueNode::RecordGraphState( recorder );
+        recorder << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recorder << m_value;
+        }
+    }
+
+    void CachedIDNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        IDValueNode::RestoreGraphState( recording );
+        recording << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recording << m_value;
+        }
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void CachedIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -115,6 +163,8 @@ namespace EE::Animation::GraphNodes
     void CachedIntNode::InitializeInternal( GraphContext& context )
     {
         IntValueNode::InitializeInternal( context );
+
+        m_pInputValueNode->Initialize( context );
 
         auto pSettings = GetSettings<CachedIntNode>();
         if ( pSettings->m_mode == CachedValueMode::OnEntry )
@@ -155,6 +205,28 @@ namespace EE::Animation::GraphNodes
         *reinterpret_cast<int32_t*>( pOutValue ) = m_value;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void CachedIntNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        IntValueNode::RecordGraphState( recorder );
+        recorder << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recorder << m_value;
+        }
+    }
+
+    void CachedIntNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        IntValueNode::RestoreGraphState( recording );
+        recording << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recording << m_value;
+        }
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void CachedFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -167,15 +239,13 @@ namespace EE::Animation::GraphNodes
     {
         FloatValueNode::InitializeInternal( context );
 
-        // Initialize the input node and record the previous value
         m_pInputValueNode->Initialize( context );
-        m_previousValue = m_pInputValueNode->GetValue<float>( context );
 
         // Cache on entry
         auto pSettings = GetSettings<CachedFloatNode>();
         if ( pSettings->m_mode == CachedValueMode::OnEntry )
         {
-            m_currentValue = m_previousValue;
+            m_value = m_pInputValueNode->GetValue<float>( context );
             m_hasCachedValue = true;
         }
         else
@@ -207,14 +277,35 @@ namespace EE::Animation::GraphNodes
                 }
                 else // Update the previous and current values
                 {
-                    m_previousValue = m_currentValue;
-                    m_currentValue = m_pInputValueNode->GetValue<float>( context );
+                    m_value = m_pInputValueNode->GetValue<float>( context );
                 }
             }
         }
 
-        *reinterpret_cast<float*>( pOutValue ) = m_previousValue;
+        *reinterpret_cast<float*>( pOutValue ) = m_value;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void CachedFloatNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        FloatValueNode::RecordGraphState( recorder );
+        recorder << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recorder << m_value;
+        }
+    }
+
+    void CachedFloatNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        FloatValueNode::RestoreGraphState( recording );
+        recording << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recording << m_value;
+        }
+    }
+    #endif
 
     //-------------------------------------------------------------------------
 
@@ -227,6 +318,8 @@ namespace EE::Animation::GraphNodes
     void CachedVectorNode::InitializeInternal( GraphContext& context )
     {
         VectorValueNode::InitializeInternal( context );
+
+        m_pInputValueNode->Initialize( context );
 
         auto pSettings = GetSettings<CachedVectorNode>();
         if ( pSettings->m_mode == CachedValueMode::OnEntry )
@@ -267,6 +360,28 @@ namespace EE::Animation::GraphNodes
         *reinterpret_cast<Vector*>( pOutValue ) = m_value;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void CachedVectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        VectorValueNode::RecordGraphState( recorder );
+        recorder << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recorder << m_value;
+        }
+    }
+
+    void CachedVectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        VectorValueNode::RestoreGraphState( recording );
+        recording << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recording << m_value;
+        }
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void CachedTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -278,6 +393,8 @@ namespace EE::Animation::GraphNodes
     void CachedTargetNode::InitializeInternal( GraphContext& context )
     {
         TargetValueNode::InitializeInternal( context );
+
+        m_pInputValueNode->Initialize( context );
 
         auto pSettings = GetSettings<CachedTargetNode>();
         if ( pSettings->m_mode == CachedValueMode::OnEntry )
@@ -317,4 +434,26 @@ namespace EE::Animation::GraphNodes
 
         *reinterpret_cast<Target*>( pOutValue ) = m_value;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void CachedTargetNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        TargetValueNode::RecordGraphState( recorder );
+        recorder << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recorder << m_value;
+        }
+    }
+
+    void CachedTargetNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        TargetValueNode::RestoreGraphState( recording );
+        recording << m_hasCachedValue;
+        if ( m_hasCachedValue )
+        {
+            recording << m_value;
+        }
+    }
+    #endif
 }

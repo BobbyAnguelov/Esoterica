@@ -13,9 +13,9 @@ namespace EE::Player
         enum class LocomotionState
         {
             Idle,
+            TurningOnSpot,
             Starting,
             Moving,
-            TurningOnSpot,
             PlantingAndTurning,
             Stopping
         };
@@ -51,9 +51,9 @@ namespace EE::Player
 
     private:
 
-        ManualTimer                 m_slideTimer;
-        ManualCountdownTimer        m_generalTimer;
-        ManualCountdownTimer        m_turnOnSpotTimer;
+        ManualTimer                 m_unnavigableSurfaceSlideTimer;
+        ManualCountdownTimer        m_stopDetectionTimer;
+        ManualCountdownTimer        m_turnOnSpotInterruptionTimer;
 
         Vector                      m_desiredHeading = Vector::Zero;
         Vector                      m_desiredFacing = Vector::WorldForward;

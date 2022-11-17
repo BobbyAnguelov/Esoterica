@@ -888,4 +888,42 @@ namespace EE::Animation::GraphNodes
             }
         }
     }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void TransitionNode::RecordGraphState( GraphStateRecorder& recorder )
+    {
+        PoseNode::RecordGraphState( recorder );
+        recorder << m_transitionProgress;
+        recorder << m_transitionDuration;
+        recorder << m_syncEventOffset;
+        recorder << m_blendWeight;
+        recorder << m_cachedPoseBufferID;
+        recorder << m_sourceCachedPoseBufferID;
+        recorder << m_inheritedCachedPoseBufferIDs;
+        recorder << m_sourceCachedPoseBlendWeight;
+        recorder << m_sourceType;
+        recorder << m_pSourceNode->GetNodeIndex();
+
+    }
+
+    void TransitionNode::RestoreGraphState( GraphStateRecording const& recording )
+    {
+        PoseNode::RestoreGraphState( recording );
+        recording << m_transitionProgress;
+        recording << m_transitionDuration;
+        recording << m_syncEventOffset;
+        recording << m_blendWeight;
+        recording << m_cachedPoseBufferID;
+        recording << m_sourceCachedPoseBufferID;
+        recording << m_inheritedCachedPoseBufferIDs;
+        recording << m_sourceCachedPoseBlendWeight;
+        recording << m_sourceType;
+
+        int16_t sourceNodeIdx = InvalidIndex;
+        recording << sourceNodeIdx;
+        m_pSourceNode = recording.GetNode<PoseNode>( sourceNodeIdx );
+    }
+    #endif
 }

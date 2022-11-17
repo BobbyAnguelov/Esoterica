@@ -120,6 +120,9 @@ namespace EE::Animation
 
         // Draw all debug visualizations
         void DrawDebug( Drawing::DrawContext& drawingContext );
+
+        // Enable recording playback mode
+        void SwitchToRecordingPlaybackMode() { m_requiresManualUpdate = true; m_applyRootMotionToEntity = false; }
         #endif
 
     protected:
