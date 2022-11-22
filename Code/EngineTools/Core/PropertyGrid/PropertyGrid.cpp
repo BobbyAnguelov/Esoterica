@@ -164,6 +164,10 @@ namespace EE
             return;
         }
 
+        //-------------------------------------------------------------------------
+
+        ImGui::BeginDisabled( m_isReadOnly );
+
         // Control Bar
         //-------------------------------------------------------------------------
 
@@ -214,6 +218,10 @@ namespace EE
             ImGui::EndTable();
         }
         ImGui::PopStyleVar();
+
+        //-------------------------------------------------------------------------
+
+        ImGui::EndDisabled();
     }
 
     void PropertyGrid::DrawPropertyRow( TypeSystem::TypeInfo const* pTypeInfo, IRegisteredType* pTypeInstance, PropertyInfo const& propertyInfo, uint8_t* pPropertyInstance )

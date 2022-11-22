@@ -37,8 +37,8 @@ namespace EE::Animation::GraphNodes
         int32_t SelectOption( GraphContext& context ) const;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
-        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
         #endif
 
     private:
@@ -86,8 +86,8 @@ namespace EE::Animation::GraphNodes
         int32_t SelectOption( GraphContext& context ) const;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
-        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
         #endif
 
     private:

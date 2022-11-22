@@ -126,8 +126,8 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( GraphStateRecorder& recorder );
-        virtual void RestoreGraphState( GraphStateRecording const& recording );
+        virtual void RecordGraphState( RecordedGraphState& outState );
+        virtual void RestoreGraphState( RecordedGraphState const& inState );
         #endif
 
     protected:
@@ -210,8 +210,8 @@ namespace EE::Animation
     protected:
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
-        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
         #endif
 
     private:

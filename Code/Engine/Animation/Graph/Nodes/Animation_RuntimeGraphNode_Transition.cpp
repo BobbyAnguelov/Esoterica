@@ -892,38 +892,38 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void TransitionNode::RecordGraphState( GraphStateRecorder& recorder )
+    void TransitionNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_transitionProgress;
-        recorder << m_transitionDuration;
-        recorder << m_syncEventOffset;
-        recorder << m_blendWeight;
-        recorder << m_cachedPoseBufferID;
-        recorder << m_sourceCachedPoseBufferID;
-        recorder << m_inheritedCachedPoseBufferIDs;
-        recorder << m_sourceCachedPoseBlendWeight;
-        recorder << m_sourceType;
-        recorder << m_pSourceNode->GetNodeIndex();
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_transitionProgress );
+        outState.WriteValue( m_transitionDuration );
+        outState.WriteValue( m_syncEventOffset );
+        outState.WriteValue( m_blendWeight );
+        outState.WriteValue( m_cachedPoseBufferID );
+        outState.WriteValue( m_sourceCachedPoseBufferID );
+        outState.WriteValue( m_inheritedCachedPoseBufferIDs );
+        outState.WriteValue( m_sourceCachedPoseBlendWeight );
+        outState.WriteValue( m_sourceType );
+        outState.WriteValue( m_pSourceNode->GetNodeIndex() );
 
     }
 
-    void TransitionNode::RestoreGraphState( GraphStateRecording const& recording )
+    void TransitionNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_transitionProgress;
-        recording << m_transitionDuration;
-        recording << m_syncEventOffset;
-        recording << m_blendWeight;
-        recording << m_cachedPoseBufferID;
-        recording << m_sourceCachedPoseBufferID;
-        recording << m_inheritedCachedPoseBufferIDs;
-        recording << m_sourceCachedPoseBlendWeight;
-        recording << m_sourceType;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_transitionProgress );
+        inState.ReadValue( m_transitionDuration );
+        inState.ReadValue( m_syncEventOffset );
+        inState.ReadValue( m_blendWeight );
+        inState.ReadValue( m_cachedPoseBufferID );
+        inState.ReadValue( m_sourceCachedPoseBufferID );
+        inState.ReadValue( m_inheritedCachedPoseBufferIDs );
+        inState.ReadValue( m_sourceCachedPoseBlendWeight );
+        inState.ReadValue( m_sourceType );
 
         int16_t sourceNodeIdx = InvalidIndex;
-        recording << sourceNodeIdx;
-        m_pSourceNode = recording.GetNode<PoseNode>( sourceNodeIdx );
+        inState.ReadValue( sourceNodeIdx );
+        m_pSourceNode = inState.GetNode<PoseNode>( sourceNodeIdx );
     }
     #endif
 }

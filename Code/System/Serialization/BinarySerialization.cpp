@@ -3,7 +3,7 @@
 #include "System/Types/StringID.h"
 #include "System/FileSystem/FileSystemPath.h"
 
-#include "mpack/mpack.h"
+#include "System/ThirdParty/mpack/mpack.h"
 
 //-------------------------------------------------------------------------
 

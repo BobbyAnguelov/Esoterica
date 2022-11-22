@@ -13,6 +13,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         constexpr static uint32_t const     s_graphTitleColor = IM_COL32( 255, 255, 255, 255 );
+        constexpr static uint32_t const     s_graphTitleReadOnlyColor = IM_COL32( 196, 196, 196, 255 );
 
         constexpr static uint32_t const     s_genericNodeTitleTextColor = IM_COL32( 0, 0, 0, 255 );
         constexpr static uint32_t const     s_genericNodeTitleColor = IM_COL32( 28, 28, 28, 255 );
@@ -97,5 +98,6 @@ namespace EE::VisualGraph
         ImRect              m_canvasVisibleRect;
         ImVec2              m_mouseScreenPos = ImVec2( 0, 0 );
         ImVec2              m_mouseCanvasPos = ImVec2( 0, 0 );
+        bool                m_isReadOnly = false;
     };
 }

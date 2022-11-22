@@ -1,7 +1,7 @@
 #include "Hash.h"
 
 #define XXH_INLINE_ALL
-#include <xxhash/xxhash.h>
+#include "System/ThirdParty/xxhash/xxhash.h"
 
 //-------------------------------------------------------------------------
 

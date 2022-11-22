@@ -54,11 +54,6 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
-    <ProjectReference Include="..\System\Esoterica.System.vcxproj">
-      <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp" />
     <ClCompile Include="Animation\AnimationBlender.cpp" />
     <ClCompile Include="Animation\AnimationBoneMask.cpp" />
@@ -290,6 +285,7 @@
     <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
     <ClInclude Include="Entity\EntityLog.h" />
     <ClInclude Include="Entity\EntitySerialization.h" />
+    <ClInclude Include="ModuleContext.h" />
     <ClInclude Include="Render\RenderViewport.h" />
     <ClInclude Include="Volumes\Components\Component_Volumes.h" />
     <ClInclude Include="Camera\DebugViews\DebugView_Camera.h" />
@@ -724,6 +720,11 @@
   <ItemGroup>
     <None Include="Shaders\DebugRenderer\DebugShaderCommon.hlsli" />
     <None Include="Shaders\Engine\Common_Lit.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\System\Esoterica.System.vcxproj">
+      <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

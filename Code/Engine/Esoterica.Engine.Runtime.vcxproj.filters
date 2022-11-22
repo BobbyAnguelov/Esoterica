@@ -1,7 +1,55 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp">
+      <Filter>AI\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\AnimationPose.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\AnimationSkeleton.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Events\AnimationEvent_Transition.cpp">
+      <Filter>Animation\Events</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp">
+      <Filter>Animation\Graph</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.cpp">
+      <Filter>Animation\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp">
+      <Filter>Animation\Graph</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp">
+      <Filter>Camera\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp">
+      <Filter>Camera\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="Component_SerializationTest.cpp" />
+    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp">
+      <Filter>Camera\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityLog.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntitySerialization.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
     <ClCompile Include="Render\RenderViewport.cpp">
       <Filter>Render</Filter>
     </ClCompile>
@@ -59,13 +107,13 @@
     <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.cpp">
       <Filter>Render\ResourceLoaders</Filter>
     </ClCompile>
+    <ClCompile Include="Camera\Components\Component_Camera.cpp">
+      <Filter>Camera\Components</Filter>
+    </ClCompile>
     <ClCompile Include="Camera\Components\Component_FreeLookCamera.cpp">
       <Filter>Camera\Components</Filter>
     </ClCompile>
     <ClCompile Include="Camera\Components\Component_OrbitCamera.cpp">
-      <Filter>Camera\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\Components\Component_Camera.cpp">
       <Filter>Camera\Components</Filter>
     </ClCompile>
     <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp">
@@ -76,6 +124,9 @@
     </ClCompile>
     <ClCompile Include="Player\Systems\WorldSystem_PlayerManager.cpp">
       <Filter>Player\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityIDs.cpp">
+      <Filter>Entity</Filter>
     </ClCompile>
     <ClCompile Include="Entity\Entity.cpp">
       <Filter>Entity</Filter>
@@ -390,30 +441,66 @@
       <Filter>DebugViews</Filter>
     </ClCompile>
     <ClCompile Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.cpp">
-      <Filter>ResourceLoaders</Filter>
+      <Filter>Entity\ResourceLoaders</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.cpp" />
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
-    <ClCompile Include="Animation\AnimationPose.cpp" />
-    <ClCompile Include="Animation\AnimationSkeleton.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
-    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp" />
-    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp" />
-    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp" />
-    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
-    <ClCompile Include="Entity\EntityLog.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
-    <ClCompile Include="Entity\EntitySerialization.cpp" />
-    <ClCompile Include="Entity\EntityIDs.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
-    <ClCompile Include="Animation\Events\AnimationEvent_Transition.cpp" />
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AI\Components\Component_AI.h">
+      <Filter>AI\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h">
+      <Filter>AI\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\AnimationPose.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\AnimationSkeleton.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Events\AnimationEvent_Transition.h">
+      <Filter>Animation\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h">
+      <Filter>Animation\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h">
+      <Filter>Animation\Graph</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h">
+      <Filter>Animation\Graph\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.h">
+      <Filter>Animation\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h">
+      <Filter>Animation\Graph</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Components\Component_DebugCamera.h">
+      <Filter>Camera\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h">
+      <Filter>Camera\Systems</Filter>
+    </ClInclude>
     <ClInclude Include="Component_SerializationTest.h" />
+    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h">
+      <Filter>Camera\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityLog.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntitySerialization.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleContext.h" />
     <ClInclude Include="UpdateContext.h" />
     <ClInclude Include="UpdateStage.h" />
     <ClInclude Include="Render\RenderViewport.h">
@@ -491,13 +578,13 @@
     <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.h">
       <Filter>Render\ResourceLoaders</Filter>
     </ClInclude>
+    <ClInclude Include="Camera\Components\Component_Camera.h">
+      <Filter>Camera\Components</Filter>
+    </ClInclude>
     <ClInclude Include="Camera\Components\Component_FreeLookCamera.h">
       <Filter>Camera\Components</Filter>
     </ClInclude>
     <ClInclude Include="Camera\Components\Component_OrbitCamera.h">
-      <Filter>Camera\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Components\Component_Camera.h">
       <Filter>Camera\Components</Filter>
     </ClInclude>
     <ClInclude Include="Camera\DebugViews\DebugView_Camera.h">
@@ -855,65 +942,53 @@
       <Filter>DebugViews</Filter>
     </ClInclude>
     <ClInclude Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.h">
-      <Filter>ResourceLoaders</Filter>
+      <Filter>Entity\ResourceLoaders</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.h" />
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />
-    <ClInclude Include="Animation\AnimationPose.h" />
-    <ClInclude Include="Animation\AnimationSkeleton.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
-    <ClInclude Include="AI\Components\Component_AI.h" />
-    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h" />
-    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h" />
-    <ClInclude Include="Camera\Components\Component_DebugCamera.h" />
-    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
-    <ClInclude Include="Entity\EntityLog.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
-    <ClInclude Include="Entity\EntitySerialization.h" />
-    <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
-    <ClInclude Include="Animation\Events\AnimationEvent_Transition.h" />
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">
-      <Filter>Render\Shaders\Engine</Filter>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_Skybox.hlsl">
+    <FxCompile Include="Render\Shaders\Engine\PS_LitPicking.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
     </FxCompile>
     <FxCompile Include="Render\Shaders\Engine\CS_PrecomputeDFG.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
     </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_Lit.hlsl">
+    <FxCompile Include="Render\Shaders\Engine\PS_Empty.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
     </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\VS_StaticPrimitive.hlsl">
+    <FxCompile Include="Render\Shaders\Engine\PS_Skybox.hlsl">
+      <Filter>Render\Shaders\Engine</Filter>
+    </FxCompile>
+    <FxCompile Include="Render\Shaders\Engine\PS_Lit.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
     </FxCompile>
     <FxCompile Include="Render\Shaders\Engine\VS_Cube.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
     </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_Empty.hlsl">
+    <FxCompile Include="Render\Shaders\Engine\VS_StaticPrimitive.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
     </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_LitPicking.hlsl">
+    <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">
       <Filter>Render\Shaders\Engine</Filter>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererPoints.hlsl">
-      <Filter>Render\Shaders\DebugRenderer</Filter>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererText.hlsl">
-      <Filter>Render\Shaders\DebugRenderer</Filter>
     </FxCompile>
     <FxCompile Include="Render\Shaders\DebugRenderer\GS_DebugRendererPoints.hlsl">
+      <Filter>Render\Shaders\DebugRenderer</Filter>
+    </FxCompile>
+    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererPoints.hlsl">
       <Filter>Render\Shaders\DebugRenderer</Filter>
     </FxCompile>
     <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererPoints.hlsl">
       <Filter>Render\Shaders\DebugRenderer</Filter>
     </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererTriangles.hlsl">
+    <FxCompile Include="Render\Shaders\DebugRenderer\GS_DebugRendererLines.hlsl">
+      <Filter>Render\Shaders\DebugRenderer</Filter>
+    </FxCompile>
+    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererLines.hlsl">
+      <Filter>Render\Shaders\DebugRenderer</Filter>
+    </FxCompile>
+    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererLines.hlsl">
+      <Filter>Render\Shaders\DebugRenderer</Filter>
+    </FxCompile>
+    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererText.hlsl">
       <Filter>Render\Shaders\DebugRenderer</Filter>
     </FxCompile>
     <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererText.hlsl">
@@ -922,13 +997,7 @@
     <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererTriangles.hlsl">
       <Filter>Render\Shaders\DebugRenderer</Filter>
     </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererLines.hlsl">
-      <Filter>Render\Shaders\DebugRenderer</Filter>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\GS_DebugRendererLines.hlsl">
-      <Filter>Render\Shaders\DebugRenderer</Filter>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererLines.hlsl">
+    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererTriangles.hlsl">
       <Filter>Render\Shaders\DebugRenderer</Filter>
     </FxCompile>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">
@@ -947,167 +1016,170 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{73e792f2-9cfb-4455-b4a1-491614d23286}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders\DebugRenderer">
-      <UniqueIdentifier>{92e66572-dd14-4b8c-bcfb-5e1955052a51}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders\Engine">
-      <UniqueIdentifier>{fa077af0-23df-46b0-b86b-bf50fd79d219}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render">
-      <UniqueIdentifier>{7219818b-a605-4095-9327-6dedd4e9ca8d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders">
-      <UniqueIdentifier>{efb4a4cd-187f-460f-a842-71414d3c2e70}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders\Engine">
-      <UniqueIdentifier>{a771e57f-d839-445c-9f30-697df9b75aed}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders\DebugRenderer">
-      <UniqueIdentifier>{d289ca40-11bb-4830-8515-0458b09a42aa}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders\Imgui">
-      <UniqueIdentifier>{5c68e8bc-7186-49d1-8b76-a28dacb665d3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Mesh">
-      <UniqueIdentifier>{1302b673-6f36-4d69-945f-75666b87d30b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\DebugViews">
-      <UniqueIdentifier>{37d7eabb-104c-4e8d-a302-5414ddc0d414}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Systems">
-      <UniqueIdentifier>{014d8e38-9891-4943-ad03-21350cf170cb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Material">
-      <UniqueIdentifier>{8404f43d-052b-493c-8c54-b45d3c0a941e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Renderers">
-      <UniqueIdentifier>{d854d7a0-e036-4d63-870a-597cd582dd19}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Components">
-      <UniqueIdentifier>{f6213dc5-209d-421f-affd-23593f509235}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\ResourceLoaders">
-      <UniqueIdentifier>{47735047-8192-41d2-87f7-2b5f36ba961a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera">
-      <UniqueIdentifier>{c23c11f4-cefb-46a9-89bb-47b650d3dd18}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera\Components">
-      <UniqueIdentifier>{37032bda-b4cd-4185-a796-d04b8efe8513}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera\DebugViews">
-      <UniqueIdentifier>{9b7fe653-f38e-4d95-926e-a908d873e10c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="AI">
-      <UniqueIdentifier>{6f1e5fbb-485a-4120-a8c7-0e59734b891a}</UniqueIdentifier>
+      <UniqueIdentifier>{0260b225-a388-4bc1-83f3-1c1b1f5a53d1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="AI\Components">
-      <UniqueIdentifier>{24f66e73-71b4-4e28-b5c0-0f96654a72cc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Math">
-      <UniqueIdentifier>{e7410753-911b-43a0-b440-80c1db5c6754}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player">
-      <UniqueIdentifier>{0fd4a956-3fde-4244-9ac6-81bf1d4f5c21}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player\Systems">
-      <UniqueIdentifier>{c9cf6492-5810-4b48-a979-8bac07bb913b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player\Components">
-      <UniqueIdentifier>{8b0b1573-ae94-415b-9a63-240afde1d9bd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity">
-      <UniqueIdentifier>{78eaa73b-9ffc-4323-87ff-adf4dbe4c7a4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\DebugViews">
-      <UniqueIdentifier>{a8741027-7e48-4b02-ab2b-effe894c0077}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh">
-      <UniqueIdentifier>{00fec890-3d41-43e8-91e1-3399748f771c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\Systems">
-      <UniqueIdentifier>{251565bc-d4b0-46bd-9435-f65d74d075b2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\DebugViews">
-      <UniqueIdentifier>{f06ced6c-e07f-4b95-8053-d78381ca8ac6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\Components">
-      <UniqueIdentifier>{464900d8-62cd-4634-b545-eb40adab1778}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\ResourceLoaders">
-      <UniqueIdentifier>{3b68107c-75d7-46e4-86d8-8a7f1b90b3c5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics">
-      <UniqueIdentifier>{325bda83-e99e-4fa9-ac68-de9410e13763}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\Debug">
-      <UniqueIdentifier>{d6530efe-5e42-4946-8d0d-8c3636f081e4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\Systems">
-      <UniqueIdentifier>{15b8ae8c-55e0-4b89-8710-5764956b0824}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\Components">
-      <UniqueIdentifier>{8e56ed1b-d495-4908-8b14-c2db1d51d84f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\ResourceLoaders">
-      <UniqueIdentifier>{cfa13809-3a1d-437d-931e-97a89e44fd8f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module">
-      <UniqueIdentifier>{e4aba1b9-ea5a-46e9-bbea-a796994103e7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module\_AutoGenerated">
-      <UniqueIdentifier>{31a45499-2edc-4e37-a07f-194f1287f6d5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ToolsUI">
-      <UniqueIdentifier>{2778c496-9803-4118-b97d-fcd45063c963}</UniqueIdentifier>
+    <Filter Include="AI\Systems">
+      <UniqueIdentifier>{03d9a089-4898-43f2-9faf-07b9e80578cc}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation">
-      <UniqueIdentifier>{270c4048-bbfe-484b-9b0d-e3984bd50f8c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\Graph">
-      <UniqueIdentifier>{9c652921-fedc-4154-a772-52281702c7f8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\Graph\Nodes">
-      <UniqueIdentifier>{d041f518-ba47-4b2e-a29f-6c6dd97001c1}</UniqueIdentifier>
+      <UniqueIdentifier>{374e356e-e626-476b-8363-204d0f7e8fe2}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\Events">
-      <UniqueIdentifier>{961bd45b-dea4-4294-8d76-1e5d5d3cb232}</UniqueIdentifier>
+      <UniqueIdentifier>{572147c3-23b0-4428-b9d0-b27f0c4c3037}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Animation\Systems">
-      <UniqueIdentifier>{cd015928-8d41-4e30-969f-3c81c6e4f0b1}</UniqueIdentifier>
+    <Filter Include="Animation\Graph">
+      <UniqueIdentifier>{db0edfc3-3c24-4a8a-a52d-63aa080142c9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Animation\Components">
-      <UniqueIdentifier>{d2b24c41-25e8-48de-b796-2a26f7f4a588}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\DebugViews">
-      <UniqueIdentifier>{4e06e42f-0f78-4115-91bb-98792c688efc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\TaskSystem">
-      <UniqueIdentifier>{9bb8f85d-8c94-4e3d-8903-c23e90ec0593}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\TaskSystem\Tasks">
-      <UniqueIdentifier>{0389c8cb-be4a-459c-b499-1f8b07edcffd}</UniqueIdentifier>
+    <Filter Include="Animation\Graph\Nodes">
+      <UniqueIdentifier>{8b9b8ad4-a363-4215-b9cd-2727f2c7f1e7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\ResourceLoaders">
-      <UniqueIdentifier>{888d5e17-e4d0-4dca-a929-7982c77a466d}</UniqueIdentifier>
+      <UniqueIdentifier>{9e93a368-25e6-4b90-bda8-b212c1aaecca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera">
+      <UniqueIdentifier>{eb51f9cc-92de-4132-b8d2-c6a7fa93f14a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera\Components">
+      <UniqueIdentifier>{fd58c77c-94ff-46d3-b1ee-31161974c8b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera\Systems">
+      <UniqueIdentifier>{66843ecf-63b2-449e-92eb-be81f0e45014}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity">
+      <UniqueIdentifier>{138961c0-df27-4117-9969-aa1a95cd97f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Components">
+      <UniqueIdentifier>{6d1f7b7e-13fb-4dda-9fe1-86b51c85f79d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{1587368d-e5cb-4ec1-9834-1be5bc369c19}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\DebugRenderer">
+      <UniqueIdentifier>{e499f92c-5237-485e-80f9-e5c420f4ca77}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Engine">
+      <UniqueIdentifier>{cb79a9bb-a0f4-47cc-807a-b037d54a7106}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{b226d366-9863-4c99-bbe2-96e369b16e0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders">
+      <UniqueIdentifier>{fbbfd908-9089-4415-b4c9-bed689b44f32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Engine">
+      <UniqueIdentifier>{1a390357-f5d6-486c-8435-02dd57bd7a3e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\DebugRenderer">
+      <UniqueIdentifier>{36096005-0993-4a50-ba39-0cac6da937f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Imgui">
+      <UniqueIdentifier>{20ac0161-5ea2-425d-9c21-cb2020d9931d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Mesh">
+      <UniqueIdentifier>{11e32679-9d22-4ef5-92d2-51a49846404a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\DebugViews">
+      <UniqueIdentifier>{be76c4db-5311-4967-a46f-b4f3dcd741b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Systems">
+      <UniqueIdentifier>{525ffa19-982b-49a2-a8e5-b6716b6c4ab4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Material">
+      <UniqueIdentifier>{43ea1978-bd97-4186-b494-ac8abbd1ab61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Renderers">
+      <UniqueIdentifier>{c174ac31-afae-429c-b44f-cde1e39601a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Components">
+      <UniqueIdentifier>{fcce17f2-9fe1-427d-aac4-9c7f0e698f37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\ResourceLoaders">
+      <UniqueIdentifier>{a7f70c4a-5a4c-49c5-9160-b078e54a8625}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera\DebugViews">
+      <UniqueIdentifier>{6cedb802-175c-49a8-a0b7-f5ce1b315d3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Math">
+      <UniqueIdentifier>{1e780628-fbdb-4f35-a9d2-8480318c8b64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player">
+      <UniqueIdentifier>{a1c3eb02-06a5-422e-a4f0-ac05f213895e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Systems">
+      <UniqueIdentifier>{fe8e6f8a-8cd9-4004-82b4-0561df92b874}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Components">
+      <UniqueIdentifier>{7d431b94-4a1e-4b25-b191-c2ce909a718e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity\DebugViews">
+      <UniqueIdentifier>{765e9c7e-6f75-4d9f-a0e6-0b1717599c4d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh">
+      <UniqueIdentifier>{a419ecfc-90b7-4e2e-9d98-aa7c5e630923}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\Systems">
+      <UniqueIdentifier>{b397deec-f6ab-4375-853c-bfe653dbab93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\DebugViews">
+      <UniqueIdentifier>{93750adc-9b87-407b-8979-0a0f524a1df7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\Components">
+      <UniqueIdentifier>{d41b4459-5a30-4b2c-9113-5d68a1689cdc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\ResourceLoaders">
+      <UniqueIdentifier>{40055dbf-7a82-459e-a733-8461ad0e8d1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics">
+      <UniqueIdentifier>{40cd75f6-eb1a-471c-a41e-fc153d8f03b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\Debug">
+      <UniqueIdentifier>{0a0c2a7d-0de3-40a5-bafc-c74945b3b6af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\Systems">
+      <UniqueIdentifier>{661c57ab-38ed-4675-9541-06105cef1d54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\Components">
+      <UniqueIdentifier>{b64d2b4b-3d69-4fa8-89dd-76bab418afa8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\ResourceLoaders">
+      <UniqueIdentifier>{9461d085-56d8-4f91-a3b6-1233427ff5dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module">
+      <UniqueIdentifier>{7a2dfa7e-5807-4062-8fed-f71570ac84ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module\_AutoGenerated">
+      <UniqueIdentifier>{92ec165e-9419-4409-8371-4e31c9d2a440}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ToolsUI">
+      <UniqueIdentifier>{e505738b-9bb8-4c1e-8641-4b92d87219ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\Systems">
+      <UniqueIdentifier>{0596dd15-d65d-449e-b8cd-276e7d9cbdcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\Components">
+      <UniqueIdentifier>{a3a90310-9cc4-420b-b355-2a6e036e3c8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\DebugViews">
+      <UniqueIdentifier>{dd425f65-9349-4f9e-909e-03bfddd41e27}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\TaskSystem">
+      <UniqueIdentifier>{9532e154-4a85-439b-b6c9-440b4b7030cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\TaskSystem\Tasks">
+      <UniqueIdentifier>{8e711e8f-902e-4f62-b93f-054fe7ece794}</UniqueIdentifier>
     </Filter>
     <Filter Include="Volumes">
-      <UniqueIdentifier>{c4292a69-75a0-44cc-affc-749e7209c2fd}</UniqueIdentifier>
+      <UniqueIdentifier>{86298175-7018-4bb5-a994-40e0e7c7a036}</UniqueIdentifier>
     </Filter>
     <Filter Include="Volumes\Components">
-      <UniqueIdentifier>{3cbaa8b0-bce2-4426-8513-b48063288aff}</UniqueIdentifier>
+      <UniqueIdentifier>{b6b06cc7-dedf-447e-9e29-0e559f65095a}</UniqueIdentifier>
     </Filter>
     <Filter Include="DebugViews">
-      <UniqueIdentifier>{582c20e6-a65f-4c76-9324-39dc23ce719b}</UniqueIdentifier>
+      <UniqueIdentifier>{2c5128ce-07d8-46f0-ae13-66dd7f0ed2c0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ResourceLoaders">
-      <UniqueIdentifier>{a8ce3d05-3f4a-4128-aed5-9ddf8de6a914}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="RuntimeSettings">
-      <UniqueIdentifier>{bb6a79fe-e90e-421b-ba78-dfcde43973b7}</UniqueIdentifier>
+    <Filter Include="Entity\ResourceLoaders">
+      <UniqueIdentifier>{75aede61-71bf-4420-8d3a-8f023f07e176}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

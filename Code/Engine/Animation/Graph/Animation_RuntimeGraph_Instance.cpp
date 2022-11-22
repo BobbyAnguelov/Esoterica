@@ -300,7 +300,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         m_activeNodes.clear();
         m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
-        RecordPerFrameGraphData( deltaTime, startWorldTransform );
+        RecordGraphUpdateData( deltaTime, startWorldTransform );
         #endif
 
         //-------------------------------------------------------------------------
@@ -336,7 +336,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         m_activeNodes.clear();
         m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
-        RecordPerFrameGraphData( deltaTime, startWorldTransform );
+        RecordGraphUpdateData( deltaTime, startWorldTransform );
         #endif
 
         //-------------------------------------------------------------------------
@@ -435,14 +435,28 @@ namespace EE::Animation
         }
     }
 
+    GraphInstance const* GraphInstance::GetChildGraphDebugInstance( int16_t nodeIdx ) const
+    {
+        for ( auto const& childGraph : m_childGraphs )
+        {
+            if ( childGraph.m_nodeIdx == nodeIdx )
+            {
+                return childGraph.m_pInstance;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return nullptr;
+    }
+
     GraphInstance const* GraphInstance::GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const
     {
         TVector<DebuggableChildGraph> debuggableChildGraphs;
         GetChildGraphsForDebug( debuggableChildGraphs );
 
-        for ( auto const& childGraph : debuggableChildGraphs )
+        for ( auto const& childGraph : m_childGraphs )
         {
-            if ( childGraph.GetID() == childGraphInstanceID )
+            if ( PointerID( childGraph.m_pInstance ) == childGraphInstanceID )
             {
                 return childGraph.m_pInstance;
             }
@@ -501,19 +515,21 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void GraphInstance::StartRecording( GraphStateRecorder& recorder, GraphUpdateRecorder* pUpdateRecorder )
+    void GraphInstance::StartRecording( RecordedGraphState& outState, GraphUpdateRecorder* pUpdateRecorder )
     {
         // Record initial state
         //-------------------------------------------------------------------------
 
-        recorder.m_initializedNodeIndices.clear();
+        outState.m_graphID = GetDefinitionResourceID();
+        outState.m_variationID = GetVariationID();
+        outState.m_initializedNodeIndices.clear();
 
         for ( int16_t i = 0; i < m_nodes.size(); i++ )
         {
             if ( m_nodes[i]->IsInitialized() )
             {
-                recorder.m_initializedNodeIndices.emplace_back( i );
-                m_nodes[i]->RecordGraphState( recorder );
+                outState.m_initializedNodeIndices.emplace_back( i );
+                m_nodes[i]->RecordGraphState( outState );
             }
         }
 
@@ -521,6 +537,12 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_pUpdateRecorder = pUpdateRecorder;
+
+        if ( m_pUpdateRecorder != nullptr )
+        {
+            m_pUpdateRecorder->m_graphID = GetDefinitionResourceID();
+            m_pUpdateRecorder->m_variationID = GetVariationID();
+        }
     }
 
     void GraphInstance::StopRecording()
@@ -528,7 +550,7 @@ namespace EE::Animation
         m_pUpdateRecorder = nullptr;
     }
 
-    void GraphInstance::RecordPerFrameGraphData( Seconds const deltaTime, Transform const& startWorldTransform )
+    void GraphInstance::RecordGraphUpdateData( Seconds const deltaTime, Transform const& startWorldTransform )
     {
         if ( m_pUpdateRecorder == nullptr )
         {
@@ -536,7 +558,7 @@ namespace EE::Animation
         }
 
         // Record time delta and world transform
-        auto& frameData = m_pUpdateRecorder->m_frameData.emplace_back();
+        auto& frameData = m_pUpdateRecorder->m_recordedData.emplace_back();
         frameData.m_deltaTime = deltaTime;
         frameData.m_characterWorldTransform = startWorldTransform;
 
@@ -591,30 +613,40 @@ namespace EE::Animation
         }
     }
 
-    void GraphInstance::SetToRecordedInitialState( GraphStateRecording& recording )
+    void GraphInstance::SetToRecordedState( RecordedGraphState const& recordedState )
     {
+        EE_ASSERT( recordedState.m_graphID == GetDefinitionResourceID() );
+        EE_ASSERT( recordedState.m_variationID == GetVariationID() );
+
+        // Shutdown this graph if it was initialized
         if ( IsInitialized() )
         {
             m_pRootNode->Shutdown( m_graphContext );
         }
 
-        recording.m_pNodes = &m_nodes;
+        //-------------------------------------------------------------------------
 
-        for ( auto nodeIdx : recording.m_initializedNodeIndices )
+        // Set nodes array to the current instance array
+        TVector<GraphNode*>* const pPreviousNodeArray = recordedState.m_pNodes;
+        const_cast<TVector<GraphNode*>*&>( recordedState.m_pNodes ) = &m_nodes;
+
+        // Restore the graph state
+        for ( auto nodeIdx : recordedState.m_initializedNodeIndices )
         {
-            m_nodes[nodeIdx]->RestoreGraphState( recording );
+            m_nodes[nodeIdx]->RestoreGraphState( recordedState );
         }
 
-        recording.m_pNodes = nullptr;
+        // Revert node array back to previous value
+        const_cast<TVector<GraphNode*>*&>( recordedState.m_pNodes ) = pPreviousNodeArray;
     }
 
-    void GraphInstance::SetPerFrameGraphData( GraphUpdateRecorder::FrameData const& frameData )
+    void GraphInstance::SetRecordedUpdateData( RecordedGraphFrameData const& recordedUpdateData )
     {
         // Record control parameter values
         for ( auto i = 0; i < GetNumControlParameters(); i++ )
         {
             auto pParameter = (ValueNode*) m_nodes[i];
-            auto const& paramData = frameData.m_parameterData[i];
+            auto const& paramData = recordedUpdateData.m_parameterData[i];
 
             switch ( pParameter->GetValueType() )
             {

@@ -271,6 +271,8 @@ namespace EE::VisualGraph
         {
             pUserContext->NavigateTo( pChildGraph );
         }
+
+        pUserContext->DoubleClick( this );
     }
 
     ImRect BaseNode::GetCanvasRect() const
@@ -504,6 +506,7 @@ namespace EE::VisualGraph
 
         BaseGraph* pGraph = Serialization::TryCreateAndReadNativeType<BaseGraph>( typeRegistry, graphObjectValue[BaseNode::s_typeDataKey] );
         EE_ASSERT( pGraph != nullptr );
+        pGraph->m_ID = UUID::GenerateID();
         pGraph->m_pParentNode = pParentNode;
         pGraph->Serialize( typeRegistry, graphObjectValue );
         return pGraph;
@@ -629,6 +632,8 @@ namespace EE::VisualGraph
         {
             pUserContext->NavigateTo( pParentNode->GetParentGraph() );
         }
+
+        pUserContext->DoubleClick( this );
     }
 
     String BaseGraph::GetUniqueNameForRenameableNode( String const& desiredName, BaseNode const* m_pNodeToIgnore ) const

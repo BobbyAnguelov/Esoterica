@@ -157,16 +157,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void SelectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    void SelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_selectedOptionIdx;
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedOptionIdx );
     }
 
-    void SelectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    void SelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_selectedOptionIdx;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_selectedOptionIdx );
         m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
     }
     #endif
@@ -352,16 +352,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void AnimationClipSelectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    void AnimationClipSelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
-        AnimationClipReferenceNode::RecordGraphState( recorder );
-        recorder << m_selectedOptionIdx;
+        AnimationClipReferenceNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedOptionIdx );
     }
 
-    void AnimationClipSelectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    void AnimationClipSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        AnimationClipReferenceNode::RestoreGraphState( recording );
-        recording << m_selectedOptionIdx;
+        AnimationClipReferenceNode::RestoreGraphState( inState );
+        inState.ReadValue( m_selectedOptionIdx );
         m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
     }
     #endif

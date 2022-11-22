@@ -1223,18 +1223,18 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TargetWarpNode::RecordGraphState( GraphStateRecorder& recorder )
+    void TargetWarpNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_warpStartWorldTransform;
-        recorder << m_warpStartTime;
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_warpStartWorldTransform );
+        outState.WriteValue( m_warpStartTime );
     }
 
-    void TargetWarpNode::RestoreGraphState( GraphStateRecording const& recording )
+    void TargetWarpNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_warpStartWorldTransform;
-        recording << m_warpStartTime;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_warpStartWorldTransform );
+        inState.ReadValue( m_warpStartTime );
         m_internalState = InternalState::RequiresInitialUpdate;
         m_useRecordedStartData = true;
     }

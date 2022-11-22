@@ -114,12 +114,9 @@ namespace EE::Resource
         void CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
         void NotifyClientOnCompletedRequest( CompilationRequest* pRequest );
 
-        // Up-to-date system
+        // Compilation
         //-------------------------------------------------------------------------
 
-        void PerformResourceUpToDateCheck( CompilationRequest* pRequest, TVector<ResourcePath> const& compileDependencies ) const;
-        bool TryReadCompileDependencies( FileSystem::Path const& resourceFilePath, TVector<ResourcePath>& outDependencies, String* pErrorLog = nullptr ) const;
-        bool IsResourceUpToDate( ResourceID const& resourceID ) const;
         void WriteCompiledResourceRecord( CompilationRequest* pRequest );
         bool IsCompileableResourceType( ResourceTypeID ID ) const;
 

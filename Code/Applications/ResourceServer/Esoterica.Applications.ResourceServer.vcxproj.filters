@@ -6,6 +6,7 @@
     <ClCompile Include="ResourceServerUI.cpp" />
     <ClCompile Include="CompiledResourceDatabase.cpp" />
     <ClCompile Include="ResourceServerWorker.cpp" />
+    <ClCompile Include="ResourceCompileDependencyTree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ResourceServerApplication.h" />
@@ -17,6 +18,7 @@
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
+    <ClInclude Include="ResourceCompileDependencyTree.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\ResourceServerBusyOverlay.ico">

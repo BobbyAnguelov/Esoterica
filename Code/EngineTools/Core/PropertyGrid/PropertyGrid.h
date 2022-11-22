@@ -57,6 +57,9 @@ namespace EE
         PropertyGrid( ToolsContext const* pToolsContext );
         ~PropertyGrid();
 
+        // Set this grid to be read only
+        void SetReadOnly( bool isReadOnly ) { m_isReadOnly = isReadOnly; }
+
         // Get the current edited type
         IRegisteredType const* GetEditedType() const { return m_pTypeInstance; }
 
@@ -111,11 +114,12 @@ namespace EE
 
         ToolsContext const*                                         m_pToolsContext;
         TypeSystem::TypeInfo const*                                 m_pTypeInfo = nullptr;
-        Resource::ResourcePicker                                m_resourcePicker;
+        Resource::ResourcePicker                                    m_resourcePicker;
         IRegisteredType*                                            m_pTypeInstance = nullptr;
         bool                                                        m_isDirty = false;
         bool                                                        m_isControlBarVisible = false;
         bool                                                        m_showAllRegisteredProperties = false;
+        bool                                                        m_isReadOnly = false;
 
         TEvent<PropertyEditInfo const&>                             m_preEditEvent; // Fired just before we change a property value
         TEvent<PropertyEditInfo const&>                             m_postEditEvent; // Fired just after we change a property value

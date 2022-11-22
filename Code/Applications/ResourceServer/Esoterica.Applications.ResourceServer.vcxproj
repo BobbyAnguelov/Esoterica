@@ -96,6 +96,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ResourceCompileDependencyTree.cpp" />
     <ClCompile Include="ResourceServer.cpp" />
     <ClCompile Include="ResourceServerApplication.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
@@ -110,6 +111,7 @@
     <ResourceCompile Include="Resources\Esoterica.Applications.ResourceServer.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ResourceCompileDependencyTree.h" />
     <ClInclude Include="ResourceServerApplication.h" />
     <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="ResourceCompilationRequest.h" />

@@ -221,22 +221,22 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void ChildGraphNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ChildGraphNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
+        PoseNode::RecordGraphState( outState );
 
         // Record the child graph initial state
-        GraphStateRecorder* pChildRecorder = recorder.CreateChildGraphStateRecording( GetNodeIndex() );
+        RecordedGraphState* pChildRecorder = outState.CreateChildGraphStateRecording( GetNodeIndex() );
         m_pGraphInstance->StartRecording( *pChildRecorder );
     }
 
-    void ChildGraphNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ChildGraphNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
+        PoseNode::RestoreGraphState( inState );
 
         // Restore child graph state
-        GraphStateRecording* pChildRecording = recording.GetChildGraphRecording( GetNodeIndex() );
-        m_pGraphInstance->SetToRecordedInitialState( *pChildRecording );
+        RecordedGraphState* pChildRecording = inState.GetChildGraphRecording( GetNodeIndex() );
+        m_pGraphInstance->SetToRecordedState( *pChildRecording );
     }
     #endif
 }

@@ -90,16 +90,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void SpeedScaleNode::RecordGraphState( GraphStateRecorder& recorder )
+    void SpeedScaleNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_blendWeight;
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_blendWeight );
     }
 
-    void SpeedScaleNode::RestoreGraphState( GraphStateRecording const& recording )
+    void SpeedScaleNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_blendWeight;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_blendWeight );
     }
     #endif
 
@@ -259,16 +259,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void VelocityBasedSpeedScaleNode::RecordGraphState( GraphStateRecorder& recorder )
+    void VelocityBasedSpeedScaleNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_blendWeight;
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_blendWeight );
     }
 
-    void VelocityBasedSpeedScaleNode::RestoreGraphState( GraphStateRecording const& recording )
+    void VelocityBasedSpeedScaleNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_blendWeight;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_blendWeight );
     }
     #endif
 }

@@ -87,7 +87,7 @@ namespace EE
             return m_fatalErrorHandler( "Failed to initialize engine module!" );
         }
 
-        GameModuleContext moduleContext;
+        ModuleContext moduleContext;
         moduleContext.m_pTaskSystem = m_pTaskSystem;
         moduleContext.m_pTypeRegistry = m_pTypeRegistry;
         moduleContext.m_pResourceSystem = m_pResourceSystem;
@@ -99,6 +99,13 @@ namespace EE
         {
             return m_fatalErrorHandler( "Failed to initialize game module" );
         }
+
+        #if EE_DEVELOPMENT_TOOLS
+        if ( !InitializeToolsModules( moduleContext, iniFile ) )
+        {
+            return false;
+        }
+        #endif
 
         //-------------------------------------------------------------------------
         // Load Required Module Resources
@@ -215,7 +222,7 @@ namespace EE
 
         if ( m_moduleInitStageReached )
         {
-            GameModuleContext moduleContext;
+            ModuleContext moduleContext;
             moduleContext.m_pTaskSystem = m_pTaskSystem;
             moduleContext.m_pTypeRegistry = m_pTypeRegistry;
             moduleContext.m_pResourceSystem = m_pResourceSystem;
@@ -223,8 +230,11 @@ namespace EE
             moduleContext.m_pRenderDevice = m_pRenderDevice;
             moduleContext.m_pEntityWorldManager = m_pEntityWorldManager;
 
-            m_gameModule.ShutdownModule( moduleContext );
+            #if EE_DEVELOPMENT_TOOLS
+            ShutdownToolsModules( moduleContext );
+            #endif
 
+            m_gameModule.ShutdownModule( moduleContext );
             m_engineModule.ShutdownModule();
         }
 

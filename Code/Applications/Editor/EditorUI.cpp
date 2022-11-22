@@ -50,6 +50,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         m_pTypeRegistry = context.GetSystem<TypeSystem::TypeRegistry>();
+        m_pSystemRegistry = context.GetSystemRegistry();
         m_pWorldManager = context.GetSystem<EntityWorldManager>();
         m_pRenderingSystem = context.GetSystem<Render::RenderingSystem>();
         auto pTaskSystem = context.GetSystem<TaskSystem>();
@@ -808,14 +809,14 @@ namespace EE
         ImGui::BeginDisabled( !m_pMapEditor->HasLoadedMap() );
         if ( m_pGamePreviewer != nullptr )
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview##MapEditor", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
             {
                 DestroyGamePreviewWorkspace( context );
             }
         }
         else
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Loaded Map", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Loaded Map##MapEditor", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
             {
                 CreateGamePreviewWorkspace( context );
             }

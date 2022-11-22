@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
         virtual char const* const GetDefaultSlotName() const override { return "Bone Mask"; }

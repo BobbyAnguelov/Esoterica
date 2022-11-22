@@ -12,7 +12,6 @@
   <PropertyGroup Label="UserMacros">
     <EE_ROOT_DIR>$(SolutionDir)</EE_ROOT_DIR>
     <EE_BUILD_DIR>$(SolutionDir)Build\</EE_BUILD_DIR>
-    <EE_SYSTEM_THIRDPARTY_INCLUDE_DIR>$(SolutionDir)Code\System\ThirdParty\</EE_SYSTEM_THIRDPARTY_INCLUDE_DIR>
     <OutDir>$(EE_BUILD_DIR)$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(EE_BUILD_DIR)_Temp\$(Platform)_$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
@@ -25,7 +24,7 @@
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/Zo /Zc:inline %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(SolutionDir)Code;$(EE_SYSTEM_THIRDPARTY_INCLUDE_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Code;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>$(ProjectName.ToUpper().Replace('.', '_'));_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="$(Platform) == 'x64'">NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="$(Configuration) == 'Debug'">EE_DEBUG=1;EE_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>

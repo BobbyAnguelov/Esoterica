@@ -25,16 +25,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void ControlParameterBoolNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ControlParameterBoolNode::RecordGraphState( RecordedGraphState& outState )
     {
-        BoolValueNode::RecordGraphState( recorder );
-        recorder << m_value;
+        BoolValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
     }
 
-    void ControlParameterBoolNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ControlParameterBoolNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        BoolValueNode::RestoreGraphState( recording );
-        recording << m_value;
+        BoolValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_value );
     }
     #endif
 
@@ -61,16 +61,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void ControlParameterIDNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ControlParameterIDNode::RecordGraphState( RecordedGraphState& outState )
     {
-        IDValueNode::RecordGraphState( recorder );
-        recorder << m_value;
+        IDValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
     }
 
-    void ControlParameterIDNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ControlParameterIDNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        IDValueNode::RestoreGraphState( recording );
-        recording << m_value;
+        IDValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_value );
     }
     #endif
 
@@ -97,16 +97,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void ControlParameterIntNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ControlParameterIntNode::RecordGraphState( RecordedGraphState& outState )
     {
-        IntValueNode::RecordGraphState( recorder );
-        recorder << m_value;
+        IntValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
     }
 
-    void ControlParameterIntNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ControlParameterIntNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        IntValueNode::RestoreGraphState( recording );
-        recording << m_value;
+        IntValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_value );
     }
     #endif
 
@@ -133,16 +133,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void ControlParameterFloatNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ControlParameterFloatNode::RecordGraphState( RecordedGraphState& outState )
     {
-        FloatValueNode::RecordGraphState( recorder );
-        recorder << m_value;
+        FloatValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
     }
 
-    void ControlParameterFloatNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ControlParameterFloatNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( recording );
-        recording << m_value;
+        FloatValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_value );
     }
     #endif
 
@@ -169,16 +169,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void ControlParameterVectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ControlParameterVectorNode::RecordGraphState( RecordedGraphState& outState )
     {
-        VectorValueNode::RecordGraphState( recorder );
-        recorder << m_value;
+        VectorValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
     }
 
-    void ControlParameterVectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ControlParameterVectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        VectorValueNode::RestoreGraphState( recording );
-        recording << m_value;
+        VectorValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_value );
     }
     #endif
 
@@ -205,16 +205,16 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void ControlParameterTargetNode::RecordGraphState( GraphStateRecorder& recorder )
+    void ControlParameterTargetNode::RecordGraphState( RecordedGraphState& outState )
     {
-        TargetValueNode::RecordGraphState( recorder );
-        recorder << m_value;
+        TargetValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
     }
 
-    void ControlParameterTargetNode::RestoreGraphState( GraphStateRecording const& recording )
+    void ControlParameterTargetNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        TargetValueNode::RestoreGraphState( recording );
-        recording << m_value;
+        TargetValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_value );
     }
     #endif
 

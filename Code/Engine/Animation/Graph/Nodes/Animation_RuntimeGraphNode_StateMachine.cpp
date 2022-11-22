@@ -330,13 +330,13 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void StateMachineNode::RecordGraphState( GraphStateRecorder& recorder )
+    void StateMachineNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_activeStateIndex;
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_activeStateIndex );
 
         bool const hasActiveTransition = m_pActiveTransition != nullptr;
-        recorder << hasActiveTransition;
+        outState.WriteValue( hasActiveTransition );
 
         if ( hasActiveTransition )
         {
@@ -346,28 +346,28 @@ namespace EE::Animation::GraphNodes
                 {
                     if ( m_pActiveTransition == m_states[stateIdx].m_transitions[transitionIdx].m_pTransitionNode )
                     {
-                        recorder << stateIdx;
-                        recorder << transitionIdx;
+                        outState.WriteValue( stateIdx );
+                        outState.WriteValue( transitionIdx );
                     }
                 }
             }
         }
     }
 
-    void StateMachineNode::RestoreGraphState( GraphStateRecording const& recording )
+    void StateMachineNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_activeStateIndex;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_activeStateIndex );
 
         bool hasActiveTransition = false;
-        recording << hasActiveTransition;
+        inState.ReadValue( hasActiveTransition );
 
         if ( hasActiveTransition )
         {
             uint16_t stateIdx;
             uint16_t transitionIdx;
-            recording << stateIdx;
-            recording << transitionIdx;
+            inState.ReadValue( stateIdx );
+            inState.ReadValue( transitionIdx );
             m_pActiveTransition = m_states[stateIdx].m_transitions[transitionIdx].m_pTransitionNode;
         }
     }

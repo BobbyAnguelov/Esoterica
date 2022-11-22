@@ -1,30 +1,13 @@
 #pragma once
 #include "VisualGraph_StateMachineGraph.h"
 #include "VisualGraph_FlowGraph.h"
+#include "VisualGraph_UserContext.h"
 #include "System/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::VisualGraph
 {
-    // Helper to unsure we can maintain selection after a undo/redo
-    struct SelectedNode
-    {
-        SelectedNode( BaseNode* pNode ) : m_nodeID( pNode->GetID() ), m_pNode( pNode ) {}
-        bool operator==( SelectedNode const& rhs ) const { return m_nodeID == rhs.m_nodeID; }
-        bool operator==( BaseNode const* pNode ) const { return m_nodeID == pNode->GetID(); }
-
-        UUID            m_nodeID;
-        BaseNode*       m_pNode = nullptr;
-    };
-
-    //-------------------------------------------------------------------------
-
-    struct UserNodeContext;
-    struct UserGraphContext;
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINETOOLS_API GraphView final
     {
     protected:
@@ -115,14 +98,14 @@ namespace EE::VisualGraph
 
     public:
 
-        GraphView();
+        GraphView( UserContext* pUserContext );
         virtual ~GraphView();
 
         bool HasFocus() const { return m_hasFocus; }
 
         //-------------------------------------------------------------------------
 
-        void SetGraphToView( UserContext* pUserContext, BaseGraph* pGraph, bool tryMaintainSelection = false );
+        void SetGraphToView( BaseGraph* pGraph, bool tryMaintainSelection = false );
 
         inline BaseGraph* GetViewedGraph() { return m_pGraph; };
         inline BaseGraph const* GetViewedGraph() const { return m_pGraph; }
@@ -133,10 +116,15 @@ namespace EE::VisualGraph
         inline FlowGraph* GetFlowGraph() const { return Cast<FlowGraph>( m_pGraph ); }
         inline StateMachineGraph* GetStateMachineGraph() const { return Cast<StateMachineGraph>( m_pGraph ); }
 
+        inline bool IsReadOnly() const { return m_isReadOnly; }
+
+        // Set the view to be read only - no graph modification allowed
+        void SetReadOnly( bool isReadOnly ) { m_isReadOnly = isReadOnly; }
+
         // Drawing and view
         //-------------------------------------------------------------------------
 
-        void UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, UserContext* pUserContext, float childHeightOverride = 0.0f );
+        void UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, float childHeightOverride = 0.0f );
 
         void ResetView();
 
@@ -156,17 +144,11 @@ namespace EE::VisualGraph
         inline TVector<SelectedNode> const& GetSelectedNodes() const { return m_selectedNodes; }
         void ClearSelection();
 
-        // Event fired whenever the selection changes. First arg is the old selection, second arg is the new selection
-        inline TEventHandle<TVector<SelectedNode> const&, TVector<SelectedNode> const&> OnSelectionChanged() { return m_selectionChangedEvent; }
-
         // Copy/Paste
         //-------------------------------------------------------------------------
 
         void CopySelectedNodes( TypeSystem::TypeRegistry const& typeRegistry );
         void PasteNodes( TypeSystem::TypeRegistry const& typeRegistry, ImVec2 const& canvasPastePosition );
-
-        // Event fired whenever we paste nodes but before we complete the graph modification, allows for addition validation, manipulation of data
-        inline TEventHandle<TInlineVector<BaseNode*, 20> const&> OnPostPasteNodes() { return m_postPasteEvent; }
 
     protected:
 
@@ -214,17 +196,12 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         void UpdateSelection( BaseNode* pNewSelectedNode );
+        void UpdateSelection( TVector<SelectedNode> const& newSelection );
         void UpdateSelection( TVector<SelectedNode>&& newSelection );
         void AddToSelection( BaseNode* pNodeToAdd );
         void RemoveFromSelection( BaseNode* pNodeToRemove );
 
     private:
-
-        EE_FORCE_INLINE void OnSelectionChangedInternal( TVector<SelectedNode> const& oldSelection, TVector<SelectedNode> const& newSelection )
-        {
-            m_selectionChanged = true;
-            m_selectionChangedEvent.Execute( oldSelection, newSelection );
-        }
 
         void OnGraphModified( VisualGraph::BaseGraph* pGraph );
 
@@ -232,13 +209,13 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         void DrawStateMachineNodeTitle( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize );
-        void DrawStateMachineNodeBackground( DrawContext const& ctx, UserContext* pUserContext, SM::Node* pNode, ImVec2& newNodeSize );
-        void DrawStateMachineNode( DrawContext const& ctx, UserContext* pUserContext, SM::Node* pNode );
-        void DrawStateMachineTransitionConduit( DrawContext const& ctx, UserContext* pUserContext, SM::TransitionConduit* pTransition );
+        void DrawStateMachineNodeBackground( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize );
+        void DrawStateMachineNode( DrawContext const& ctx, SM::Node* pNode );
+        void DrawStateMachineTransitionConduit( DrawContext const& ctx, SM::TransitionConduit* pTransition );
         void DrawFlowNodeTitle( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNodePins( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNodeBackground( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNode( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode );
+        void DrawFlowNodePins( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
+        void DrawFlowNodeBackground( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
+        void DrawFlowNode( DrawContext const& ctx, Flow::Node* pNode );
 
         // Node Ops
         //-------------------------------------------------------------------------
@@ -251,18 +228,19 @@ namespace EE::VisualGraph
 
         inline bool IsContextMenuOpen() const { return m_contextMenuState.m_menuOpened; }
 
-        void HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx, UserContext* pUserContext );
+        void HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx );
 
-        void HandleContextMenu( DrawContext const& ctx, UserContext* pUserContext );
+        void HandleContextMenu( DrawContext const& ctx );
 
-        void DrawFlowGraphContextMenu( DrawContext const& ctx, UserContext* pUserContext );
+        void DrawFlowGraphContextMenu( DrawContext const& ctx );
 
-        void DrawStateMachineContextMenu( DrawContext const& ctx, UserContext* pUserContext );
+        void DrawStateMachineContextMenu( DrawContext const& ctx );
 
         void DrawDialogs();
 
     protected:
 
+        UserContext*                    m_pUserContext = nullptr;
         BaseGraph*                      m_pGraph = nullptr;
         BaseNode*                       m_pHoveredNode = nullptr;
 
@@ -272,6 +250,7 @@ namespace EE::VisualGraph
         bool                            m_hasFocus = false;
         bool                            m_isViewHovered = false;
         bool                            m_selectionChanged = false;
+        bool                            m_isReadOnly = false;
 
         DragState                       m_dragState;
         ContextMenuState                m_contextMenuState;
@@ -286,9 +265,5 @@ namespace EE::VisualGraph
 
         // Event bindings
         EventBindingID                  m_graphEndModificationBindingID;
-
-        // Events
-        TEvent<TInlineVector<BaseNode*, 20> const&>     m_postPasteEvent;
-        TEvent<TVector<SelectedNode> const&, TVector<SelectedNode> const&> m_selectionChangedEvent;
     };
 }

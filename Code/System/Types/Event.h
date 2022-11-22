@@ -11,7 +11,6 @@ namespace EE
     class EventBindingID
     {
         template<typename... Args> friend class TEvent;
-        friend class SignalInternal;
 
     public:
 

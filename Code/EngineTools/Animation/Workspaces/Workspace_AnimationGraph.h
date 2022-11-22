@@ -21,6 +21,7 @@ namespace EE::Animation
     class AnimationGraphComponent;
     class ControlParameterPreviewState;
     class VariationHierarchy;
+    class GraphRecorder;
 
     namespace GraphNodes { class VirtualParameterToolsNode; class ControlParameterToolsNode; }
 
@@ -30,10 +31,28 @@ namespace EE::Animation
     {
         friend class GraphUndoableAction;
 
+    public:
+
+        struct GraphData
+        {
+            ToolsGraphDefinition                    m_graphDefinition;
+            StringID                                m_selectedVariationID = Variation::s_defaultVariationID;
+            VisualGraph::BaseNode*                  m_pParentNode = nullptr;
+
+            //-------------------------------------------------------------------------
+
+            GraphInstance*                          m_pGraphInstance = nullptr;
+            THashMap<UUID, int16_t>                 m_nodeIDtoIndexMap;
+            THashMap<int16_t, UUID>                 m_nodeIndexToIDMap;
+        };
+
+    private:
+
         enum class DebugMode
         {
             None,
             Preview,
+            ReviewRecording,
             LiveDebug,
         };
 
@@ -42,7 +61,8 @@ namespace EE::Animation
             None,
             MainGraph,
             ChildGraph,
-            ExternalGraph
+            ExternalGraph,
+            Recording
         };
 
         enum class ParameterType
@@ -115,17 +135,21 @@ namespace EE::Animation
         // Graph Operations
         //-------------------------------------------------------------------------
 
+        inline GraphData* GetMainGraphData() { return m_graphStack[0]; }
+        inline GraphData const* GetMainGraphData() const { return m_graphStack[0]; }
+
         void OnBeginGraphModification( VisualGraph::BaseGraph* pRootGraph );
         void OnEndGraphModification( VisualGraph::BaseGraph* pRootGraph );
 
+        void GraphDoubleClicked( VisualGraph::BaseGraph* pGraph );
         void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes );
 
         // Variations
         //-------------------------------------------------------------------------
 
-        inline bool IsDefaultVariationSelected() const { return m_selectedVariationID == Variation::s_defaultVariationID; }
+        inline bool IsDefaultVariationSelected() const { return GetMainGraphData()->m_selectedVariationID == Variation::s_defaultVariationID; }
 
-        inline StringID GetSelectedVariationID() const { return m_selectedVariationID; }
+        inline StringID GetSelectedVariationID() const { return GetMainGraphData()->m_selectedVariationID; }
 
         // Sets the current selected variation. Assumes a valid variation ID!
         void SetSelectedVariation( StringID variationID );
@@ -146,6 +170,7 @@ namespace EE::Animation
         void UpdateUserContext();
         void ShutdownUserContext();
 
+
         // Graph View
         //-------------------------------------------------------------------------
 
@@ -153,11 +178,40 @@ namespace EE::Animation
         void DrawGraphViewNavigationBar();
         void UpdateSecondaryViewState();
 
+        inline bool IsInReadOnlyState() const;
+
+        inline bool IsViewingMainGraph() const { return m_graphStack.empty(); }
+        
+        inline ToolsGraphDefinition* GetCurrentlyViewedGraphDefinition() { return m_graphStack.empty() ? &GetMainGraphData()->m_graphDefinition : &m_graphStack.back()->m_graphDefinition; }
+        inline ToolsGraphDefinition const* GetCurrentlyViewedGraphDefinition() const { return m_graphStack.empty() ? &GetMainGraphData()->m_graphDefinition : &m_graphStack.back()->m_graphDefinition; }
+
+        // Get the stack index for the specified node!
+        int32_t GetStackIndexForNode( VisualGraph::BaseNode* pNode ) const;
+
+        // Get the stack index for the specified primary graph!
+        int32_t GetStackIndexForGraph( VisualGraph::BaseGraph* pGraph ) const;
+
+        // Create a new view stack based on a provided child-graph
+        void PushOnGraphStack( VisualGraph::BaseNode* pSourceNode, ResourceID const& graphID );
+
+        // Pop child graph view from stack
+        void PopGraphStack();
+
+        // Clear the entire view stack - except for the edited graph!
+        void ClearGraphStack();
+
+        // Generate the necessary debug data for the graph stack
+        bool GenerateGraphStackDebugData();
+
+        // Clear all graph stack debug data
+        void ClearGraphStackDebugData();
+
         // Navigation
         //-------------------------------------------------------------------------
 
         void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
         void NavigateTo( VisualGraph::BaseGraph* pGraph );
+        void OpenChildGraph( VisualGraph::BaseNode* pNode, ResourceID const& graphID, bool openInNewWorkspace );
         void StartNavigationOperation();
         void DrawNavigationDialogWindow( UpdateContext const& context );
         void GenerateNavigationTargetList();
@@ -239,8 +293,10 @@ namespace EE::Animation
         void DrawDebuggerWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         inline bool IsDebugging() const { return m_debugMode != DebugMode::None; }
-        inline bool IsPreviewDebugSession() const { return m_debugMode == DebugMode::Preview; }
-        inline bool IsLiveDebugSession() const { return m_debugMode == DebugMode::LiveDebug; }
+        inline bool IsPreviewing() const { return m_debugMode == DebugMode::Preview; }
+        inline bool IsLiveDebugging() const { return m_debugMode == DebugMode::LiveDebug; }
+        inline bool IsReviewingRecording() const { return m_debugMode == DebugMode::ReviewRecording; }
+        inline bool IsPreviewOrReview() const { return m_debugMode == DebugMode::Preview || m_debugMode == DebugMode::ReviewRecording; }
 
         // Hot Reload
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
@@ -263,17 +319,26 @@ namespace EE::Animation
         // Recording
         //-------------------------------------------------------------------------
 
+        // Draw all the recorder controls
+        void DrawRecorderUI( UpdateContext const& context );
+
+        // Clear recorded data
+        void ClearRecordedData();
+
         // Start recorder the live preview state
         void StartRecording();
 
         // Stop recording the live preview state
         void StopRecording();
 
-        // Clear all recorded data, needs to be done on each graph update
-        void ResetRecorderData();
+        // Set the currently reviewed frame, this is set on all clients in the review
+        void SetFrameToReview( int32_t newFrameIdx );
 
-        // Set the preview graph instance to the initial recorded state
-        void SetPreviewInstanceToPlaybackFrameIndex( int32_t newIndex );
+        // Step the review forwards one frame
+        void StepReviewForward();
+
+        // Step the review backwards one frame
+        void StepReviewBackward();
 
     private:
 
@@ -286,12 +351,13 @@ namespace EE::Animation
         PropertyGrid                                                    m_propertyGrid;
         GraphOperationType                                              m_activeOperation = GraphOperationType::None;
 
+        EventBindingID                                                  m_requestOpenChildGraphBindingID;
         EventBindingID                                                  m_rootGraphBeginModificationBindingID;
         EventBindingID                                                  m_rootGraphEndModificationBindingID;
         EventBindingID                                                  m_preEditEventBindingID;
         EventBindingID                                                  m_postEditEventBindingID;
-        EventBindingID                                                  m_primaryPostPasteNodesEventBindingID;
-        EventBindingID                                                  m_secondaryPostPasteNodesEventBindingID;
+        EventBindingID                                                  m_postPasteNodesEventBindingID;
+        EventBindingID                                                  m_graphDoubleClickedEventBindingID;
 
         // Graph Type Data
         TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
@@ -299,10 +365,9 @@ namespace EE::Animation
 
         // Graph Data
         FileSystem::Path                                                m_graphFilePath;
-        ToolsGraphDefinition                                            m_toolsGraph;
+        TVector<GraphData*>                                             m_graphStack;
         TVector<VisualGraph::SelectedNode>                              m_selectedNodes;
         TVector<VisualGraph::SelectedNode>                              m_selectedNodesPreUndoRedo;
-        StringID                                                        m_selectedVariationID = Variation::s_defaultVariationID; // NOTE: Do not set this directly!!! Use the provided functions
 
         // User Context
         ToolsGraphUserContext                                           m_userContext;
@@ -324,7 +389,7 @@ namespace EE::Animation
         ImGuiX::FilterWidget                                            m_navigationFilter;
 
         // Compilation Log
-        TVector<NodeCompilationLogEntry>                                m_compilationLog;
+        TVector<NodeCompilationLogEntry>                                m_visualLog;
 
         // Control Parameter Editor
         TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
@@ -371,11 +436,12 @@ namespace EE::Animation
         bool                                                            m_isCameraTrackingEnabled = false;
 
         // Recording
-        GraphRecorder                                                   m_recorder;
-        int32_t                                                         m_recordingPlaybackFrameIdx = InvalidIndex;
-        bool                                                            m_hasRecordedData = false;
+        RecordedGraphState                                              m_recordedGraphState;
+        GraphUpdateRecorder                                             m_updateRecorder;
+        int32_t                                                         m_currentReviewFrameIdx = InvalidIndex;
         bool                                                            m_isRecording = false;
-        bool                                                            m_isPlayingBackRecording = false;
+        bool                                                            m_reviewStarted = false;
+        bool                                                            m_drawExtraRecordingInfo = false;
     };
 
     //-------------------------------------------------------------------------
@@ -396,8 +462,8 @@ namespace EE::Animation
 
     private:
 
-        AnimationGraphWorkspace*            m_pWorkspace = nullptr;
-        String                              m_valueBefore;
-        String                              m_valueAfter;
+        AnimationGraphWorkspace*                                        m_pWorkspace = nullptr;
+        String                                                          m_valueBefore;
+        String                                                          m_valueAfter;
     };
 }

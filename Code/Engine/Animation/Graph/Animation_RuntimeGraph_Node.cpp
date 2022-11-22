@@ -7,18 +7,18 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     Color GetColorForValueType( GraphValueType type )
     {
-        static const Color colors[10] =
+        const Color colors[10] =
         {
             Colors::GhostWhite,
             Colors::PaleGreen,
-            Colors::Orange,
             Colors::Violet,
-            Colors::PaleVioletRed,
+            Colors::LightSkyBlue,
+            Colors::CornflowerBlue,
             Colors::DeepSkyBlue,
-            Colors::Cyan,
-            Colors::PeachPuff,
+            Colors::Aqua,
+            Colors::YellowGreen,
             Colors::GreenYellow,
-            Colors::Pink,
+            Colors::HotPink,
         };
 
         return colors[(uint8_t) type];
@@ -158,14 +158,14 @@ namespace EE::Animation
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void GraphNode::RecordGraphState( GraphStateRecorder& recorder )
+    void GraphNode::RecordGraphState( RecordedGraphState& outState )
     {
-        recorder << m_initializationCount;
+        outState.WriteValue( m_initializationCount );
     }
 
-    void GraphNode::RestoreGraphState( GraphStateRecording const& recording )
+    void GraphNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        recording << m_initializationCount;
+        inState.ReadValue( m_initializationCount );
     }
     #endif
 
@@ -207,22 +207,22 @@ namespace EE::Animation
         return info;
     }
 
-    void PoseNode::RecordGraphState( GraphStateRecorder& recorder )
+    void PoseNode::RecordGraphState( RecordedGraphState& outState )
     {
-        GraphNode::RecordGraphState( recorder );
-        recorder << m_loopCount;
-        recorder << m_duration;
-        recorder << m_currentTime;
-        recorder << m_previousTime;
+        GraphNode::RecordGraphState( outState );
+        outState.WriteValue( m_loopCount );
+        outState.WriteValue( m_duration );
+        outState.WriteValue( m_currentTime );
+        outState.WriteValue( m_previousTime );
     }
 
-    void PoseNode::RestoreGraphState( GraphStateRecording const& recording )
+    void PoseNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        GraphNode::RestoreGraphState( recording );
-        recording << m_loopCount;
-        recording << m_duration;
-        recording << m_currentTime;
-        recording << m_previousTime;
+        GraphNode::RestoreGraphState( inState );
+        inState.ReadValue( m_loopCount );
+        inState.ReadValue( m_duration );
+        inState.ReadValue( m_currentTime );
+        inState.ReadValue( m_previousTime );
     }
     #endif
 }

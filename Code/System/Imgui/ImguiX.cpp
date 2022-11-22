@@ -1,5 +1,4 @@
 #include "ImguiX.h"
-#include "ImguiStyle.h"
 
 #if EE_DEVELOPMENT_TOOLS
 
@@ -439,7 +438,23 @@ namespace EE::ImGuiX
         return buttonResult;
     }
 
-    void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImU32 col, float arrowWidth, float arrowHeadWidth )
+    bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size, Color onColor, Color offColor )
+    {
+        ImGui::PushStyleColor( ImGuiCol_Text, ( value ? onColor : offColor ).ToUInt32_ABGR() );
+        bool const result = ImGui::Button( value ? pOnLabel : pOffLabel, size );
+        ImGui::PopStyleColor();
+
+        //-------------------------------------------------------------------------
+
+        if ( result )
+        {
+            value = !value;
+        }
+
+        return result;
+    }
+
+    void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImColor const& color, float arrowWidth, float arrowHeadWidth )
     {
         EE_ASSERT( pDrawList != nullptr );
 
@@ -451,8 +466,8 @@ namespace EE::ImGuiX
         ImVec2 const tri1 = triBase - triangleSideOffset;
         ImVec2 const tri2 = triBase + triangleSideOffset;
 
-        pDrawList->AddLine( arrowStart, triBase, col, arrowWidth );
-        pDrawList->AddTriangleFilled( arrowEnd, tri1, tri2, col );
+        pDrawList->AddLine( arrowStart, triBase, color, arrowWidth );
+        pDrawList->AddTriangleFilled( arrowEnd, tri1, tri2, color );
     }
 
     bool DrawOverlayIcon( ImVec2 const& iconPos, char icon[4], void* iconID, bool isSelected, ImColor const& selectedColor )

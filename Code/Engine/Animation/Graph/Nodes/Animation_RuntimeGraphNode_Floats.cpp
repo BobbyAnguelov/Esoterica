@@ -236,20 +236,20 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void FloatEaseNode::RecordGraphState( GraphStateRecorder& recorder )
+    void FloatEaseNode::RecordGraphState( RecordedGraphState& outState )
     {
-        FloatValueNode::RecordGraphState( recorder );
-        recorder << m_easeRange;
-        recorder << m_currentValue;
-        recorder << m_currentEaseTime;
+        FloatValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_easeRange );
+        outState.WriteValue( m_currentValue );
+        outState.WriteValue( m_currentEaseTime );
     }
 
-    void FloatEaseNode::RestoreGraphState( GraphStateRecording const& recording )
+    void FloatEaseNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( recording );
-        recording << m_easeRange;
-        recording << m_currentValue;
-        recording << m_currentEaseTime;
+        FloatValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_easeRange );
+        inState.ReadValue( m_currentValue );
+        inState.ReadValue( m_currentEaseTime );
     }
     #endif
 

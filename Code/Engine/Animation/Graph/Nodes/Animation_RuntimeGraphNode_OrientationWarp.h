@@ -41,8 +41,8 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
-        virtual void RecordGraphState( GraphStateRecorder& recorder ) override;
-        virtual void RestoreGraphState( GraphStateRecording const& recording ) override;
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
         #endif
 
     private:

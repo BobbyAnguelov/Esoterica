@@ -11,6 +11,7 @@ namespace EE
     class Entity;
     class EntityWorld;
     class EntityWorldManager;
+    class SystemRegistry;
     namespace Resource { class ResourceSystem; class ResourceDatabase; }
     namespace TypeSystem { class TypeRegistry; }
     namespace FileSystem { class Path; }
@@ -22,7 +23,7 @@ namespace EE
     public:
 
         virtual ~ToolsContext() = default;
-        inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pResourceDatabase != nullptr; }
+        inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pResourceDatabase != nullptr && m_pSystemRegistry != nullptr; }
         FileSystem::Path const& GetRawResourceDirectory() const;
         FileSystem::Path const& GetCompiledResourceDirectory() const;
 
@@ -47,6 +48,7 @@ namespace EE
     public:
 
         TypeSystem::TypeRegistry const*                     m_pTypeRegistry = nullptr;
+        SystemRegistry const*                               m_pSystemRegistry = nullptr;
         Resource::ResourceDatabase const*                   m_pResourceDatabase = nullptr;
     };
 }

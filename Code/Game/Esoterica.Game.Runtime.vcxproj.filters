@@ -1,14 +1,26 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Interact.cpp">
+      <Filter>Player\StateMachine\Actions</Filter>
+    </ClCompile>
+    <ClCompile Include="Player\Components\Component_PlayerInteractible.cpp">
+      <Filter>Player\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Player\Systems\WorldSystem_PlayerInteractions.cpp">
+      <Filter>Player\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="AI\Animation\AIAnimationController.cpp">
-      <Filter>AI</Filter>
+      <Filter>AI\Animation</Filter>
     </ClCompile>
     <ClCompile Include="AI\Behaviors\AIBehaviorSelector.cpp">
-      <Filter>AI</Filter>
+      <Filter>AI\Behaviors</Filter>
     </ClCompile>
     <ClCompile Include="AI\Physics\AIPhysicsController.cpp">
-      <Filter>AI</Filter>
+      <Filter>AI\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="AI\Systems\EntitySystem_AIController.cpp">
+      <Filter>AI\Systems</Filter>
     </ClCompile>
     <ClCompile Include="AI\Behaviors\AIBehavior.cpp">
       <Filter>AI\Behaviors</Filter>
@@ -20,19 +32,19 @@
       <Filter>AI\Behaviors</Filter>
     </ClCompile>
     <ClCompile Include="AI\Actions\AIAction_MoveTo.cpp">
-      <Filter>AI\Behaviors\Actions</Filter>
+      <Filter>AI\Actions</Filter>
     </ClCompile>
     <ClCompile Include="AI\Actions\AIAction_Idle.cpp">
-      <Filter>AI\Behaviors\Actions</Filter>
+      <Filter>AI\Actions</Filter>
     </ClCompile>
     <ClCompile Include="AI\DebugViews\DebugView_AI.cpp">
       <Filter>AI\DebugViews</Filter>
     </ClCompile>
     <ClCompile Include="AI\Animation\AIGraphController_Locomotion.cpp">
-      <Filter>AI\GraphControllers</Filter>
+      <Filter>AI\Animation</Filter>
     </ClCompile>
-    <ClCompile Include="AI\Systems\EntitySystem_AIController.cpp">
-      <Filter>AI\Systems</Filter>
+    <ClCompile Include="Cover\Systems\WorldSystem_CoverManager.cpp">
+      <Filter>Cover\Systems</Filter>
     </ClCompile>
     <ClCompile Include="Cover\Components\Component_CoverVolume.cpp">
       <Filter>Cover\Components</Filter>
@@ -40,44 +52,44 @@
     <ClCompile Include="Cover\DebugViews\DebugView_Cover.cpp">
       <Filter>Cover\DebugViews</Filter>
     </ClCompile>
-    <ClCompile Include="Cover\Systems\WorldSystem_CoverManager.cpp">
-      <Filter>Cover\Systems</Filter>
-    </ClCompile>
     <ClCompile Include="Player\StateMachine\PlayerActionStateMachine.cpp">
-      <Filter>Player</Filter>
+      <Filter>Player\StateMachine</Filter>
     </ClCompile>
     <ClCompile Include="Player\Animation\PlayerAnimationController.cpp">
-      <Filter>Player</Filter>
+      <Filter>Player\Animation</Filter>
     </ClCompile>
     <ClCompile Include="Player\Physics\PlayerPhysicsController.cpp">
-      <Filter>Player</Filter>
+      <Filter>Player\Physics</Filter>
     </ClCompile>
     <ClCompile Include="Player\Camera\PlayerCameraController.cpp">
-      <Filter>Player</Filter>
+      <Filter>Player\Camera</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\PlayerAction.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Dash.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_DebugMode.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Falling.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Jump.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Locomotion.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Slide.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\OverlayActions\PlayerOverlayAction_Shoot.cpp">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\OverlayActions</Filter>
+    </ClCompile>
+    <ClCompile Include="Player\Systems\EntitySystem_PlayerController.cpp">
+      <Filter>Player\Systems</Filter>
     </ClCompile>
     <ClCompile Include="Player\Components\Component_MainPlayer.cpp">
       <Filter>Player\Components</Filter>
@@ -86,19 +98,16 @@
       <Filter>Player\DebugViews</Filter>
     </ClCompile>
     <ClCompile Include="Player\Animation\PlayerGraphController_Locomotion.cpp">
-      <Filter>Player\GraphControllers</Filter>
+      <Filter>Player\Animation</Filter>
     </ClCompile>
     <ClCompile Include="Player\Animation\PlayerGraphController_Ability.cpp">
-      <Filter>Player\GraphControllers</Filter>
-    </ClCompile>
-    <ClCompile Include="Player\Systems\EntitySystem_PlayerController.cpp">
-      <Filter>Player\Systems</Filter>
+      <Filter>Player\Animation</Filter>
     </ClCompile>
     <ClCompile Include="Weapon\Ammo.cpp">
-      <Filter>Weapon\Components</Filter>
+      <Filter>Weapon</Filter>
     </ClCompile>
     <ClCompile Include="Weapon\BaseWeapon.cpp">
-      <Filter>Weapon\Components</Filter>
+      <Filter>Weapon</Filter>
     </ClCompile>
     <ClCompile Include="_Module\GameModule.cpp">
       <Filter>_Module</Filter>
@@ -106,19 +115,28 @@
     <ClCompile Include="_Module\_AutoGenerated\_module.cpp">
       <Filter>_Module\_AutoGenerated</Filter>
     </ClCompile>
-    <ClCompile Include="Player\Systems\WorldSystem_PlayerInteractions.cpp" />
-    <ClCompile Include="Player\Components\Component_PlayerInteractible.cpp" />
-    <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Interact.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Player\Components\Component_PlayerInteractible.h">
+      <Filter>Player\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Interact.h">
+      <Filter>Player\StateMachine\Actions</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\Systems\WorldSystem_PlayerInteractions.h">
+      <Filter>Player\Systems</Filter>
+    </ClInclude>
     <ClInclude Include="AI\Physics\AIPhysicsController.h">
-      <Filter>AI</Filter>
+      <Filter>AI\Physics</Filter>
     </ClInclude>
     <ClInclude Include="AI\Animation\AIAnimationController.h">
-      <Filter>AI</Filter>
+      <Filter>AI\Animation</Filter>
     </ClInclude>
     <ClInclude Include="AI\Behaviors\AIBehaviorSelector.h">
-      <Filter>AI</Filter>
+      <Filter>AI\Behaviors</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Systems\EntitySystem_AIController.h">
+      <Filter>AI\Systems</Filter>
     </ClInclude>
     <ClInclude Include="AI\Behaviors\AIBehavior.h">
       <Filter>AI\Behaviors</Filter>
@@ -130,19 +148,19 @@
       <Filter>AI\Behaviors</Filter>
     </ClInclude>
     <ClInclude Include="AI\Actions\AIAction_MoveTo.h">
-      <Filter>AI\Behaviors\Actions</Filter>
+      <Filter>AI\Actions</Filter>
     </ClInclude>
     <ClInclude Include="AI\Actions\AIAction_Idle.h">
-      <Filter>AI\Behaviors\Actions</Filter>
+      <Filter>AI\Actions</Filter>
     </ClInclude>
     <ClInclude Include="AI\DebugViews\DebugView_AI.h">
       <Filter>AI\DebugViews</Filter>
     </ClInclude>
     <ClInclude Include="AI\Animation\AIGraphController_Locomotion.h">
-      <Filter>AI\GraphControllers</Filter>
+      <Filter>AI\Animation</Filter>
     </ClInclude>
-    <ClInclude Include="AI\Systems\EntitySystem_AIController.h">
-      <Filter>AI\Systems</Filter>
+    <ClInclude Include="Cover\Systems\WorldSystem_CoverManager.h">
+      <Filter>Cover\Systems</Filter>
     </ClInclude>
     <ClInclude Include="Cover\Components\Component_CoverVolume.h">
       <Filter>Cover\Components</Filter>
@@ -150,44 +168,44 @@
     <ClInclude Include="Cover\DebugViews\DebugView_Cover.h">
       <Filter>Cover\DebugViews</Filter>
     </ClInclude>
-    <ClInclude Include="Cover\Systems\WorldSystem_CoverManager.h">
-      <Filter>Cover\Systems</Filter>
-    </ClInclude>
     <ClInclude Include="Player\Camera\PlayerCameraController.h">
-      <Filter>Player</Filter>
+      <Filter>Player\Camera</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\PlayerActionStateMachine.h">
-      <Filter>Player</Filter>
+      <Filter>Player\StateMachine</Filter>
     </ClInclude>
     <ClInclude Include="Player\Animation\PlayerAnimationController.h">
-      <Filter>Player</Filter>
+      <Filter>Player\Animation</Filter>
     </ClInclude>
     <ClInclude Include="Player\Physics\PlayerPhysicsController.h">
-      <Filter>Player</Filter>
+      <Filter>Player\Physics</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_DebugMode.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Slide.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Dash.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Falling.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Jump.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Locomotion.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\PlayerAction.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\OverlayActions\PlayerOverlayAction_Shoot.h">
-      <Filter>Player\Actions</Filter>
+      <Filter>Player\StateMachine\OverlayActions</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\Systems\EntitySystem_PlayerController.h">
+      <Filter>Player\Systems</Filter>
     </ClInclude>
     <ClInclude Include="Player\Components\Component_MainPlayer.h">
       <Filter>Player\Components</Filter>
@@ -196,22 +214,19 @@
       <Filter>Player\DebugViews</Filter>
     </ClInclude>
     <ClInclude Include="Player\Animation\PlayerGraphController_Locomotion.h">
-      <Filter>Player\GraphControllers</Filter>
+      <Filter>Player\Animation</Filter>
     </ClInclude>
     <ClInclude Include="Player\Animation\PlayerGraphController_Ability.h">
-      <Filter>Player\GraphControllers</Filter>
-    </ClInclude>
-    <ClInclude Include="Player\Systems\EntitySystem_PlayerController.h">
-      <Filter>Player\Systems</Filter>
+      <Filter>Player\Animation</Filter>
     </ClInclude>
     <ClInclude Include="Weapon\Ammo.h">
-      <Filter>Weapon\Components</Filter>
+      <Filter>Weapon</Filter>
     </ClInclude>
     <ClInclude Include="Weapon\BaseWeapon.h">
-      <Filter>Weapon\Components</Filter>
+      <Filter>Weapon</Filter>
     </ClInclude>
     <ClInclude Include="Weapon\DamageInfoTypes.h">
-      <Filter>Weapon\Components</Filter>
+      <Filter>Weapon</Filter>
     </ClInclude>
     <ClInclude Include="_Module\API.h">
       <Filter>_Module</Filter>
@@ -219,73 +234,79 @@
     <ClInclude Include="_Module\GameModule.h">
       <Filter>_Module</Filter>
     </ClInclude>
-    <ClInclude Include="Player\Systems\WorldSystem_PlayerInteractions.h" />
-    <ClInclude Include="Player\Components\Component_PlayerInteractible.h" />
-    <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Interact.h" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="AI">
-      <UniqueIdentifier>{b86bb7f7-008b-44e3-98ba-19b42c85cdaf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\Behaviors">
-      <UniqueIdentifier>{20848af2-314b-4831-8d89-48e638619527}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\Behaviors\Actions">
-      <UniqueIdentifier>{1ce66096-3056-46eb-b587-3f95a03e8b0b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\DebugViews">
-      <UniqueIdentifier>{6daab90d-293c-40fb-a837-c4876dd5c341}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\GraphControllers">
-      <UniqueIdentifier>{8d5d6ebb-a2f3-46e4-8359-2a80fe130bf4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\Systems">
-      <UniqueIdentifier>{83358942-4963-4342-b13a-7aa445bf8c05}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\Components">
-      <UniqueIdentifier>{5337b0e3-9648-4740-b6ef-97f94922ceb9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Cover">
-      <UniqueIdentifier>{c2b5229d-4555-48f7-afe3-cdf92d87f9f9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Cover\Components">
-      <UniqueIdentifier>{d3dc3546-5d15-4905-ab62-a44f5158b1ba}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Cover\DebugViews">
-      <UniqueIdentifier>{f9adf5f6-6149-4103-a5e5-d43c4278702f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Cover\Systems">
-      <UniqueIdentifier>{76b5f366-72dc-492e-aadb-34e2abdbb7f7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Player">
-      <UniqueIdentifier>{40f2f102-25dd-4e09-aa84-c0c0bfda46ad}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player\Actions">
-      <UniqueIdentifier>{798cb097-8a93-4436-989e-4aa8a9233121}</UniqueIdentifier>
+      <UniqueIdentifier>{03d3f089-0d43-412b-8bd2-5d1627033581}</UniqueIdentifier>
     </Filter>
     <Filter Include="Player\Components">
-      <UniqueIdentifier>{814580a7-f585-429e-b6e3-fc2a5affa122}</UniqueIdentifier>
+      <UniqueIdentifier>{ae363868-6ba3-4720-aa55-d7cef42bea12}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Player\DebugViews">
-      <UniqueIdentifier>{0792e471-8da1-4075-b2c1-2aa0e76d6dbe}</UniqueIdentifier>
+    <Filter Include="Player\StateMachine">
+      <UniqueIdentifier>{17d9a355-0a71-425d-881d-0a84acdd4e38}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Player\GraphControllers">
-      <UniqueIdentifier>{9b9c394c-7b47-4c1b-a3d3-49a866c13496}</UniqueIdentifier>
+    <Filter Include="Player\StateMachine\Actions">
+      <UniqueIdentifier>{5c6bf77f-11b5-43e1-8bbf-c7b1e363d5e6}</UniqueIdentifier>
     </Filter>
     <Filter Include="Player\Systems">
-      <UniqueIdentifier>{a1025c62-2004-42cd-a870-f1653f73f544}</UniqueIdentifier>
+      <UniqueIdentifier>{286edfcc-6b30-49ab-97e2-2fb31079b4d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI">
+      <UniqueIdentifier>{5bd5f58e-26f9-4b1e-977d-69cc3ab546ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Animation">
+      <UniqueIdentifier>{ab2df78d-14ae-4df3-8e28-8446d49ae8f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Behaviors">
+      <UniqueIdentifier>{8a23d556-f3cd-460d-b79e-510703e5a83a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Physics">
+      <UniqueIdentifier>{64d4caee-985a-4538-b720-000bb6c5da3a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Systems">
+      <UniqueIdentifier>{f6581e5c-03a3-4d0a-a845-afb37044083d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Actions">
+      <UniqueIdentifier>{5f6dcaeb-f5dd-4d7d-900b-109a197c5e6c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\DebugViews">
+      <UniqueIdentifier>{6016b136-a9d1-49c1-b607-c0c02d5c9751}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cover">
+      <UniqueIdentifier>{682c06b3-1fb8-40b5-bf83-c1df803186e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cover\Systems">
+      <UniqueIdentifier>{61d39300-67a6-4bef-8a95-0b2db3191e86}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cover\Components">
+      <UniqueIdentifier>{4ea7dbcb-316d-471b-84ff-a4d78a13a4fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cover\DebugViews">
+      <UniqueIdentifier>{0f7b31dc-bd23-4660-808d-a40d5a55c526}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Animation">
+      <UniqueIdentifier>{833826f2-395e-4692-a3d6-b04a6f9419a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Physics">
+      <UniqueIdentifier>{5e926778-08a5-4da5-ac4a-50b1f14a6d3d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Camera">
+      <UniqueIdentifier>{96754fbd-d641-4839-9a44-487265ddfd84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\StateMachine\OverlayActions">
+      <UniqueIdentifier>{34cababa-e010-4ada-bb4f-62273c2743b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\DebugViews">
+      <UniqueIdentifier>{2771ef92-60f2-4887-bc7d-ea4c53dac3a7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Weapon">
-      <UniqueIdentifier>{e64fc5c8-c25a-41c6-9e7b-068b05892061}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Weapon\Components">
-      <UniqueIdentifier>{122ddf3c-5e2e-45c1-8dd5-e586c6e46322}</UniqueIdentifier>
+      <UniqueIdentifier>{00f20c33-2bbc-40fd-9444-a22458e636c2}</UniqueIdentifier>
     </Filter>
     <Filter Include="_Module">
-      <UniqueIdentifier>{29301b03-643f-4728-b964-66a4ed21f834}</UniqueIdentifier>
+      <UniqueIdentifier>{e0ef0978-10bc-4927-8cd2-2abb401ac5b3}</UniqueIdentifier>
     </Filter>
     <Filter Include="_Module\_AutoGenerated">
-      <UniqueIdentifier>{af5cc441-e7d5-463c-b599-3d5124f837e2}</UniqueIdentifier>
+      <UniqueIdentifier>{f6a316da-973e-4ca2-8bb0-11ebe2096819}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

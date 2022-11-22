@@ -24,8 +24,35 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    EE::ResourceTypeID ChildGraphToolsNode::GetSlotResourceTypeID() const
+    ResourceTypeID ChildGraphToolsNode::GetSlotResourceTypeID() const
     {
         return GraphVariation::GetStaticResourceTypeID();
+    }
+
+    void ChildGraphToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
+    {
+        DataSlotToolsNode::DrawContextMenuOptions( ctx, pUserContext, mouseCanvasPos, pPin );
+
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
+
+        //-------------------------------------------------------------------------
+
+        ImGui::BeginDisabled( !resourceID.IsValid() );
+        if ( ImGui::MenuItem( EE_ICON_PENCIL_BOX" Edit Child Graph" ) )
+        {
+            pGraphNodeContext->OpenChildGraph( this, resourceID, true );
+        }
+        ImGui::EndDisabled();
+    }
+
+    void ChildGraphToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
+        if ( resourceID.IsValid() )
+        {
+            pGraphNodeContext->OpenChildGraph( this, resourceID, pUserContext->m_isCtrlDown );
+        }
     }
 }

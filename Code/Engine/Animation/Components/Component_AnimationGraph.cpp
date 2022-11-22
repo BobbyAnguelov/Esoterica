@@ -148,7 +148,7 @@ namespace EE::Animation
 
     void AnimationGraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
     {
-        if ( !HasGraph() )
+        if ( !HasGraph() || !IsInitialized() || m_pGraphInstance == nullptr )
         {
             return;
         }

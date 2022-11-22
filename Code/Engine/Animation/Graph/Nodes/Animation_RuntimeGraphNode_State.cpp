@@ -290,20 +290,20 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void StateNode::RecordGraphState( GraphStateRecorder& recorder )
+    void StateNode::RecordGraphState( RecordedGraphState& outState )
     {
-        PoseNode::RecordGraphState( recorder );
-        recorder << m_elapsedTimeInState;
-        recorder << m_transitionState;
-        recorder << m_isFirstStateUpdate;
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_elapsedTimeInState );
+        outState.WriteValue( m_transitionState );
+        outState.WriteValue( m_isFirstStateUpdate );
     }
 
-    void StateNode::RestoreGraphState( GraphStateRecording const& recording )
+    void StateNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( recording );
-        recording << m_elapsedTimeInState;
-        recording << m_transitionState;
-        recording << m_isFirstStateUpdate;
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_elapsedTimeInState );
+        inState.ReadValue( m_transitionState );
+        inState.ReadValue( m_isFirstStateUpdate );
     }
     #endif
 }

@@ -76,27 +76,35 @@ namespace EE::Animation
 
     bool StateMachineGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens )
     {
+        if ( ctx.m_isReadOnly )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
         auto const CreateState = [&, this] ( StateToolsNode::StateType type )
         {
             VisualGraph::ScopedGraphModification sgm( this );
             auto pStateNode = CreateNode<StateToolsNode>( type );
             pStateNode->SetCanvasPosition( mouseCanvasPos );
             UpdateDependentNodes();
+            return true;
         };
 
         if ( ImGui::MenuItem( "Blend Tree State" ) )
         {
-            CreateState( StateToolsNode::StateType::BlendTreeState );
+            return CreateState( StateToolsNode::StateType::BlendTreeState );
         }
 
         if ( ImGui::MenuItem( "State Machine State" ) )
         {
-            CreateState( StateToolsNode::StateType::StateMachineState );
+            return CreateState( StateToolsNode::StateType::StateMachineState );
         }
 
         if ( ImGui::MenuItem( "Off State" ) )
         {
-            CreateState( StateToolsNode::StateType::OffState );
+            return CreateState( StateToolsNode::StateType::OffState );
         }
 
         return false;

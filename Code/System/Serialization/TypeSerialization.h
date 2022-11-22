@@ -110,6 +110,11 @@ namespace EE::Serialization
             return ReadNativeType( m_typeRegistry, GetObjectValueToBeDeserialized(), pType );
         }
 
+        inline IRegisteredType* TryReadType()
+        {
+            return TryCreateAndReadNativeType( m_typeRegistry, GetObjectValueToBeDeserialized() );
+        }
+
         inline TypeArchiveReader const& operator>>( IRegisteredType* pType )
         {
             bool const result = ReadType( pType );

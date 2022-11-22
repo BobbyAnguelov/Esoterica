@@ -179,6 +179,13 @@ namespace EE::Animation
 
     bool FlowGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pSourcePin )
     {
+        if ( ctx.m_isReadOnly )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
         auto pToolsGraphContext = static_cast<ToolsGraphUserContext*>( pUserContext );
 
         TypeSystem::TypeInfo const* pNodeTypeToCreate = nullptr;

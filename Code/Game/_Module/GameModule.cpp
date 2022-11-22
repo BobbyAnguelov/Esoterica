@@ -9,12 +9,12 @@ namespace EE
 
     }
 
-    bool GameModule::InitializeModule( GameModuleContext& context, IniFile const& iniFile )
+    bool GameModule::InitializeModule( ModuleContext& context, IniFile const& iniFile )
     {
         return true;
     }
 
-    void GameModule::ShutdownModule( GameModuleContext& context )
+    void GameModule::ShutdownModule( ModuleContext& context )
     {
     }
 

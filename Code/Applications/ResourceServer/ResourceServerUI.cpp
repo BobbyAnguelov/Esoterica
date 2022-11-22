@@ -145,6 +145,7 @@ namespace EE::Resource
                             {
                                 itemColor = Colors::LightGray.ToFloat4();
                                 ImGui::TextColored( itemColor, EE_ICON_CLOCK );
+                                ImGuiX::TextTooltip( "Pending" );
                             }
                             break;
 
@@ -152,6 +153,7 @@ namespace EE::Resource
                             {
                                 itemColor = Colors::Cyan.ToFloat4();
                                 ImGui::TextColored( itemColor, EE_ICON_COG );
+                                ImGuiX::TextTooltip( "Compiling" );
                             }
                             break;
 
@@ -159,6 +161,7 @@ namespace EE::Resource
                             {
                                 itemColor = Colors::Lime.ToFloat4();
                                 ImGui::TextColored( itemColor, EE_ICON_CHECK );
+                                ImGuiX::TextTooltip( "Succeeded" );
                             }
                             break;
 
@@ -166,6 +169,15 @@ namespace EE::Resource
                             {
                                 itemColor = Colors::Yellow.ToFloat4();
                                 ImGui::TextColored( itemColor, EE_ICON_ALERT );
+                                ImGuiX::TextTooltip( "Succeeded with Warnings" );
+                            }
+                            break;
+
+                            case CompilationRequest::Status::SucceededUpToDate:
+                            {
+                                itemColor = Colors::Lime.ToFloat4();
+                                ImGui::TextColored( itemColor, EE_ICON_CLOCK_CHECK );
+                                ImGuiX::TextTooltip( "Up To Date" );
                             }
                             break;
 
@@ -173,6 +185,7 @@ namespace EE::Resource
                             {
                                 itemColor = Colors::Red.ToFloat4();
                                 ImGui::TextColored( itemColor, EE_ICON_ALERT_OCTAGON );
+                                ImGuiX::TextTooltip( "Failed" );
                             }
                             break;
 

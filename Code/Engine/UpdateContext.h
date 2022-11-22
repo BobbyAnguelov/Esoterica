@@ -16,14 +16,24 @@ namespace EE
 
     public:
 
+        // Update info
+        //-------------------------------------------------------------------------
+
         EE_FORCE_INLINE Seconds GetDeltaTime() const { return m_deltaTime; }
         EE_FORCE_INLINE uint64_t GetFrameID() const { return m_frameID; }
         EE_FORCE_INLINE UpdateStage GetUpdateStage() const { return m_stage; }
-        
+
+        // Systems
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE SystemRegistry const* GetSystemRegistry() const { return m_pSystemRegistry; }
+
         template<typename T> 
         EE_FORCE_INLINE T* GetSystem() const { return m_pSystemRegistry->GetSystem<T>(); }
 
         // Frame rate limiter
+        //-------------------------------------------------------------------------
+
         inline bool HasFrameRateLimit() const { return m_frameRateLimitFPS > 0; }
         inline void SetFrameRateLimit( float FPS ) { m_frameRateLimitFPS = Math::Max( 0.0f, FPS ); }
         inline float GetFrameRateLimit() const { EE_ASSERT( HasFrameRateLimit() ); return m_frameRateLimitFPS; }

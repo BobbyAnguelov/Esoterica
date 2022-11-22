@@ -48,8 +48,10 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    GraphView::GraphView()
+    GraphView::GraphView( UserContext* m_pUserContext )
+        : m_pUserContext( m_pUserContext )
     {
+        EE_ASSERT( m_pUserContext != nullptr );
         m_graphEndModificationBindingID = VisualGraph::BaseGraph::OnEndModification().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { OnGraphModified( pGraph ); } );
     }
 
@@ -69,7 +71,7 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    void GraphView::SetGraphToView( UserContext* pUserContext, BaseGraph* pGraph, bool tryMaintainSelection )
+    void GraphView::SetGraphToView( BaseGraph* pGraph, bool tryMaintainSelection )
     {
         if ( m_pGraph == pGraph )
         {
@@ -100,14 +102,17 @@ namespace EE::VisualGraph
 
         if ( tryMaintainSelection )
         {
+            TVector<SelectedNode> newSelection;
             for ( auto const& oldSelectedNode : oldSelection )
             {
                 auto pFoundNode = GetViewedGraph()->FindNode( oldSelectedNode.m_nodeID );
                 if ( pFoundNode != nullptr )
                 {
-                    AddToSelection( pFoundNode );
+                    newSelection.emplace_back( oldSelectedNode );
                 }
             }
+
+            UpdateSelection( newSelection );
         }
     }
 
@@ -167,17 +172,48 @@ namespace EE::VisualGraph
                 pDrawList->AddLine( windowTL + ImVec2( 0.0f, y ), windowTL + ImVec2( canvasWidth, y ), ImGuiX::Style::s_gridLineColor );
             }
 
-            // Draw title
-            auto pViewedGraph = GetViewedGraph();
-            if ( pViewedGraph != nullptr )
+            // Title Block
+            //-------------------------------------------------------------------------
+
+            ImVec2 textPosition = windowRect.Min + VisualSettings::s_graphTitleMargin;
             {
                 ImGuiX::ScopedFont font( ImGuiX::Font::LargeBold );
-                pDrawList->AddText( windowRect.Min + VisualSettings::s_graphTitleMargin, VisualSettings::s_graphTitleColor, pViewedGraph->GetTitle() );
-            }
-            else
-            {
-                ImGuiX::ScopedFont font( ImGuiX::Font::LargeBold );
-                pDrawList->AddText( windowRect.Min + VisualSettings::s_graphTitleMargin, ImGuiX::Style::s_colorTextDisabled, "Nothing to Show" );
+                auto pViewedGraph = GetViewedGraph();
+                if ( pViewedGraph != nullptr )
+                {
+                    // Draw title text
+                    //-------------------------------------------------------------------------
+
+                    ImFont* pLargeFont = ImGuiX::GetFont( ImGuiX::Font::LargeBold );
+                    ImGui::PushFont( pLargeFont );
+                    pDrawList->AddText( textPosition, VisualSettings::s_graphTitleColor, pViewedGraph->GetTitle() );
+                    ImGui::PopFont();
+                    textPosition += ImVec2( 0, pLargeFont->FontSize );
+
+                    // Draw extra info
+                    //-------------------------------------------------------------------------
+
+                    ImFont* pMediumFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+                    ImGui::PushFont( pMediumFont );
+
+                    if ( !m_pUserContext->GetExtraGraphTitleInfoText().empty() )
+                    {
+                        pDrawList->AddText( textPosition, m_pUserContext->GetExtraTitleInfoTextColor(), m_pUserContext->GetExtraGraphTitleInfoText().c_str() );
+                        textPosition += ImVec2( 0, pMediumFont->FontSize );
+                    }
+
+                    if ( m_isReadOnly )
+                    {
+                        pDrawList->AddText( textPosition, ImGuiX::Style::s_colorTextDisabled, "Read-Only" );
+                        textPosition += ImVec2( 0, pMediumFont->FontSize );
+                    }
+
+                    ImGui::PopFont();
+                }
+                else
+                {
+                    pDrawList->AddText( textPosition, ImGuiX::Style::s_colorTextDisabled, "Nothing to Show" );
+                }
             }
         }
 
@@ -215,7 +251,7 @@ namespace EE::VisualGraph
         newNodeSize.y += g_spacingBetweenTitleAndNodeContents;
     }
 
-    void GraphView::DrawStateMachineNodeBackground( DrawContext const& ctx, UserContext* pUserContext, SM::Node* pNode, ImVec2& newNodeSize )
+    void GraphView::DrawStateMachineNodeBackground( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize )
     {
         EE_ASSERT( pNode != nullptr );
 
@@ -237,7 +273,7 @@ namespace EE::VisualGraph
             nodeTitleColor = ImGuiX::ConvertColor( Colors::Green );
         }
 
-        NodeVisualState visualState = pNode->IsActive( pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;
+        NodeVisualState visualState = pNode->IsActive( m_pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;
         if ( IsNodeSelected( pNode ) )
         {
             visualState = NodeVisualState::Selected;
@@ -254,16 +290,16 @@ namespace EE::VisualGraph
         {
             ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, nodeBackgroundColor, 3, ImDrawFlags_RoundCornersAll );
             ctx.m_pDrawList->AddRectFilled( rectMin, rectTitleBarMax, nodeTitleColor, 3, ImDrawFlags_RoundCornersTop );
-            ctx.m_pDrawList->AddRect( rectMin, rectMax, pNode->GetNodeBorderColor( ctx, pUserContext, visualState ), 3, ImDrawFlags_RoundCornersAll, VisualSettings::s_nodeSelectionBorder );
+            ctx.m_pDrawList->AddRect( rectMin, rectMax, pNode->GetNodeBorderColor( ctx, m_pUserContext, visualState ), 3, ImDrawFlags_RoundCornersAll, VisualSettings::s_nodeSelectionBorder );
         }
         else // Non-state node
         {
             ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, nodeBackgroundColor, 3 );
-            ctx.m_pDrawList->AddRect( rectMin, rectMax, pNode->GetNodeBorderColor( ctx, pUserContext, visualState ), 3, ImDrawFlags_RoundCornersAll, VisualSettings::s_nodeSelectionBorder );
+            ctx.m_pDrawList->AddRect( rectMin, rectMax, pNode->GetNodeBorderColor( ctx, m_pUserContext, visualState ), 3, ImDrawFlags_RoundCornersAll, VisualSettings::s_nodeSelectionBorder );
         }
     }
 
-    void GraphView::DrawStateMachineNode( DrawContext const& ctx, UserContext* pUserContext, SM::Node* pNode )
+    void GraphView::DrawStateMachineNode( DrawContext const& ctx, SM::Node* pNode )
     {
         EE_ASSERT( pNode != nullptr );
 
@@ -293,7 +329,7 @@ namespace EE::VisualGraph
             {
                 ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
                 ImGui::BeginGroup();
-                pNode->DrawExtraControls( ctx, pUserContext );
+                pNode->DrawExtraControls( ctx, m_pUserContext );
                 ImGui::EndGroup();
             }
 
@@ -307,7 +343,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         ctx.m_pDrawList->ChannelsSetCurrent( 1 );
-        DrawStateMachineNodeBackground( ctx, pUserContext, pNode, newNodeSize );
+        DrawStateMachineNodeBackground( ctx, pNode, newNodeSize );
         pNode->m_size = newNodeSize;
 
         //-------------------------------------------------------------------------
@@ -319,7 +355,7 @@ namespace EE::VisualGraph
         pNode->m_isHovered = m_isViewHovered && pNode->GetCanvasRect().Contains( ctx.m_mouseCanvasPos );
     }
 
-    void GraphView::DrawStateMachineTransitionConduit( DrawContext const& ctx, UserContext* pUserContext, SM::TransitionConduit* pTransition )
+    void GraphView::DrawStateMachineTransitionConduit( DrawContext const& ctx, SM::TransitionConduit* pTransition )
     {
         EE_ASSERT( pTransition != nullptr );
         EE_ASSERT( pTransition->m_startStateID.IsValid() && pTransition->m_endStateID.IsValid() );
@@ -347,7 +383,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         pTransition->m_isHovered = false;
-        NodeVisualState visualState = pTransition->IsActive( pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;
+        NodeVisualState visualState = pTransition->IsActive( m_pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;
 
         ImVec2 const closestPointOnTransitionToMouse = ImLineClosestPoint( startPoint, endPoint, ctx.m_mouseCanvasPos );
         if ( m_isViewHovered && ImLengthSqr( ctx.m_mouseCanvasPos - closestPointOnTransitionToMouse ) < Math::Pow( VisualSettings::s_connectionSelectionExtraRadius, 2 ) )
@@ -364,7 +400,7 @@ namespace EE::VisualGraph
         // Draw
         //-------------------------------------------------------------------------
 
-        ImColor const transitionColor = pTransition->GetNodeBorderColor( ctx, pUserContext, visualState );
+        ImColor const transitionColor = pTransition->GetNodeBorderColor( ctx, m_pUserContext, visualState );
         ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), transitionColor, g_transitionArrowWidth );
 
         // Update transition position and size
@@ -398,7 +434,7 @@ namespace EE::VisualGraph
         newNodeSize.y += g_spacingBetweenTitleAndNodeContents;
     }
 
-    void GraphView::DrawFlowNodePins( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize )
+    void GraphView::DrawFlowNodePins( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize )
     {
         EE_ASSERT( pNode != nullptr );
 
@@ -426,7 +462,7 @@ namespace EE::VisualGraph
                 ImGui::BeginGroup();
                 ImGui::AlignTextToFramePadding();
                 ImGui::Text( pNode->m_inputPins[i].m_name.c_str() );
-                if ( pNode->DrawPinControls( pUserContext, pNode->m_inputPins[i] ) )
+                if ( pNode->DrawPinControls( m_pUserContext, pNode->m_inputPins[i] ) )
                 {
                     ImGui::SameLine( 0, 0 );
                 }
@@ -474,7 +510,7 @@ namespace EE::VisualGraph
             {
                 ImGui::BeginGroup();
                 ImGui::AlignTextToFramePadding();
-                if ( pNode->DrawPinControls( pUserContext, pNode->m_outputPins[i] ) )
+                if ( pNode->DrawPinControls( m_pUserContext, pNode->m_outputPins[i] ) )
                 {
                     ImGui::SameLine( 0, 0 );
                 }
@@ -527,7 +563,7 @@ namespace EE::VisualGraph
         newNodeSize.y += pinRectSize.y;
     }
 
-    void GraphView::DrawFlowNodeBackground( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode, ImVec2& newNodeSize )
+    void GraphView::DrawFlowNodeBackground( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize )
     {
         EE_ASSERT( pNode != nullptr );
 
@@ -543,7 +579,7 @@ namespace EE::VisualGraph
         ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, VisualSettings::s_genericNodeBackgroundColor, 3, ImDrawFlags_RoundCornersAll );
         ctx.m_pDrawList->AddRectFilled( rectMin, rectTitleBarMax, pNode->GetTitleBarColor(), 3, ImDrawFlags_RoundCornersTop );
 
-        NodeVisualState visualState = pNode->IsActive( pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;
+        NodeVisualState visualState = pNode->IsActive( m_pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;
 
         if ( IsNodeSelected( pNode ) )
         {
@@ -554,10 +590,10 @@ namespace EE::VisualGraph
             visualState = NodeVisualState::Hovered;
         }
 
-        ctx.m_pDrawList->AddRect( rectMin, rectMax, pNode->GetNodeBorderColor( ctx, pUserContext, visualState ), 3, ImDrawFlags_RoundCornersAll, VisualSettings::s_nodeSelectionBorder );
+        ctx.m_pDrawList->AddRect( rectMin, rectMax, pNode->GetNodeBorderColor( ctx, m_pUserContext, visualState ), 3, ImDrawFlags_RoundCornersAll, VisualSettings::s_nodeSelectionBorder );
     }
 
-    void GraphView::DrawFlowNode( DrawContext const& ctx, UserContext* pUserContext, Flow::Node* pNode )
+    void GraphView::DrawFlowNode( DrawContext const& ctx, Flow::Node* pNode )
     {
         EE_ASSERT( pNode != nullptr );
 
@@ -587,12 +623,12 @@ namespace EE::VisualGraph
             {
                 ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
 
-                DrawFlowNodePins( ctx, pUserContext, pNode, newNodeSize );
+                DrawFlowNodePins( ctx, pNode, newNodeSize );
 
                 //-------------------------------------------------------------------------
 
                 ImGui::BeginGroup();
-                pNode->DrawExtraControls( ctx, pUserContext );
+                pNode->DrawExtraControls( ctx, m_pUserContext );
                 ImGui::EndGroup();
             }
 
@@ -606,7 +642,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         ctx.m_pDrawList->ChannelsSetCurrent( (uint8_t) DrawChannel::NodeBackground );
-        DrawFlowNodeBackground( ctx, pUserContext, pNode, newNodeSize );
+        DrawFlowNodeBackground( ctx, pNode, newNodeSize );
         pNode->m_size = newNodeSize;
 
         //-------------------------------------------------------------------------
@@ -620,14 +656,22 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    void GraphView::UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, UserContext* pUserContext, float childHeightOverride )
+    void GraphView::UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, float childHeightOverride )
     {
-        EE_ASSERT( pUserContext != nullptr );
+        EE_ASSERT( m_pUserContext != nullptr );
  
+        // Update context
+        //-------------------------------------------------------------------------
+
+        m_pUserContext->m_isAltDown = ImGui::GetIO().KeyAlt;
+        m_pUserContext->m_isCtrlDown = ImGui::GetIO().KeyCtrl;
+        m_pUserContext->m_isShiftDown = ImGui::GetIO().KeyShift;
+
         // Draw Graph
         //-------------------------------------------------------------------------
 
         DrawContext drawingContext;
+        drawingContext.m_isReadOnly = m_isReadOnly;
 
         if ( BeginDrawCanvas( childHeightOverride ) && m_pGraph != nullptr )
         {
@@ -656,11 +700,11 @@ namespace EE::VisualGraph
 
                     if ( auto pTransition = TryCast<SM::TransitionConduit>( pNode ) )
                     {
-                        DrawStateMachineTransitionConduit( drawingContext, pUserContext, pTransition );
+                        DrawStateMachineTransitionConduit( drawingContext, pTransition );
                     }
                     else
                     {
-                        DrawStateMachineNode( drawingContext, pUserContext, pStateMachineNode );
+                        DrawStateMachineNode( drawingContext, pStateMachineNode );
                     }
 
                     if ( pStateMachineNode->m_isHovered )
@@ -679,7 +723,7 @@ namespace EE::VisualGraph
                 for ( auto pNode : m_pGraph->m_nodes )
                 {
                     auto pFlowNode = Cast<Flow::Node>( pNode );
-                    DrawFlowNode( drawingContext, pUserContext, pFlowNode );
+                    DrawFlowNode( drawingContext, pFlowNode );
 
                     if ( pFlowNode->m_isHovered )
                     {
@@ -722,12 +766,12 @@ namespace EE::VisualGraph
             // Extra
             //-------------------------------------------------------------------------
 
-            m_pGraph->DrawExtraInformation( drawingContext, pUserContext );
+            m_pGraph->DrawExtraInformation( drawingContext, m_pUserContext );
 
             //-------------------------------------------------------------------------
 
-            HandleContextMenu( drawingContext, pUserContext );
-            HandleInput( typeRegistry, drawingContext, pUserContext );
+            HandleContextMenu( drawingContext );
+            HandleInput( typeRegistry, drawingContext );
             DrawDialogs();
         }
 
@@ -738,10 +782,13 @@ namespace EE::VisualGraph
 
         if ( m_pGraph != nullptr )
         {
-            if ( ImGui::BeginDragDropTarget() )
+            if ( !m_isReadOnly ) // Disable drop target if read-only
             {
-                m_pGraph->HandleDragAndDrop( pUserContext, drawingContext.m_mouseCanvasPos );
-                ImGui::EndDragDropTarget();
+                if ( ImGui::BeginDragDropTarget() )
+                {
+                    m_pGraph->HandleDragAndDrop( m_pUserContext, drawingContext.m_mouseCanvasPos );
+                    ImGui::EndDragDropTarget();
+                }
             }
         }
     }
@@ -809,7 +856,8 @@ namespace EE::VisualGraph
     {
         TVector<SelectedNode> oldSelection;
         oldSelection.swap( m_selectedNodes );
-        OnSelectionChangedInternal( oldSelection, m_selectedNodes );
+        m_selectionChanged = true;
+        m_pUserContext->NotifySelectionChanged( oldSelection, m_selectedNodes );
     }
 
     void GraphView::UpdateSelection( BaseNode* pNewSelectedNode )
@@ -827,7 +875,8 @@ namespace EE::VisualGraph
         TVector<SelectedNode> oldSelection;
         oldSelection.swap( m_selectedNodes );
         m_selectedNodes.emplace_back( pNewSelectedNode );
-        OnSelectionChangedInternal( oldSelection, m_selectedNodes );
+        m_selectionChanged = true;
+        m_pUserContext->NotifySelectionChanged( oldSelection, m_selectedNodes );
     }
 
     void GraphView::UpdateSelection( TVector<SelectedNode>&& newSelection )
@@ -840,7 +889,22 @@ namespace EE::VisualGraph
         TVector<SelectedNode> oldSelection;
         oldSelection.swap( m_selectedNodes );
         m_selectedNodes.swap( newSelection );
-        OnSelectionChangedInternal( oldSelection, m_selectedNodes );
+        m_selectionChanged = true;
+        m_pUserContext->NotifySelectionChanged( oldSelection, m_selectedNodes );
+    }
+
+    void GraphView::UpdateSelection( TVector<SelectedNode> const& newSelection )
+    {
+        for ( auto& selectedNode : newSelection )
+        {
+            EE_ASSERT( selectedNode.m_pNode != nullptr );
+        }
+
+        TVector<SelectedNode> oldSelection;
+        oldSelection.swap( m_selectedNodes );
+        m_selectedNodes = newSelection;
+        m_selectionChanged = true;
+        m_pUserContext->NotifySelectionChanged( oldSelection, m_selectedNodes );
     }
 
     void GraphView::AddToSelection( BaseNode* pNodeToAdd )
@@ -851,7 +915,8 @@ namespace EE::VisualGraph
         TVector<SelectedNode> oldSelection;
         oldSelection = m_selectedNodes;
         m_selectedNodes.emplace_back( pNodeToAdd );
-        OnSelectionChangedInternal( oldSelection, m_selectedNodes );
+        m_selectionChanged = true;
+        m_pUserContext->NotifySelectionChanged( oldSelection, m_selectedNodes );
     }
 
     void GraphView::RemoveFromSelection( BaseNode* pNodeToRemove )
@@ -861,13 +926,15 @@ namespace EE::VisualGraph
 
         TVector<SelectedNode> oldSelection = m_selectedNodes;
         m_selectedNodes.erase_first( pNodeToRemove );
-        OnSelectionChangedInternal( oldSelection, m_selectedNodes );
+        m_selectionChanged = true;
+        m_pUserContext->NotifySelectionChanged( oldSelection, m_selectedNodes );
     }
 
     void GraphView::DestroySelectedNodes()
     {
         auto pGraph = GetViewedGraph();
 
+        EE_ASSERT( !m_isReadOnly );
         ScopedGraphModification sgm( pGraph );
 
         // Exclude any state machine transitions, as we will end up double deleting them since they are removed if the state is removed
@@ -989,6 +1056,13 @@ namespace EE::VisualGraph
 
     void GraphView::PasteNodes( TypeSystem::TypeRegistry const& typeRegistry, ImVec2 const& canvasPastePosition )
     {
+        if ( m_isReadOnly )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
         Serialization::JsonArchiveReader archive;
         if ( !archive.ReadFromString( ImGui::GetClipboardText() ) )
         {
@@ -1035,6 +1109,7 @@ namespace EE::VisualGraph
         // Add nodes to the graph
         //-------------------------------------------------------------------------
 
+        EE_ASSERT( !m_isReadOnly );
         m_pGraph->BeginModification();
 
         for ( auto pPastedNode : pastedNodes )
@@ -1111,7 +1186,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         m_pGraph->PostPasteNodes( pastedNodes );
-        m_postPasteEvent.Execute( pastedNodes );
+        m_pUserContext->NotifyNodesPasted( pastedNodes );
         m_pGraph->EndModification();
     }
 
@@ -1131,6 +1206,7 @@ namespace EE::VisualGraph
             // Set new name
             //-------------------------------------------------------------------------
 
+            EE_ASSERT( !m_isReadOnly );
             ScopedNodeModification const snm( m_pNodeBeingRenamed );
             String const uniqueName = m_pNodeBeingRenamed->GetParentGraph()->GetUniqueNameForRenameableNode( m_renameBuffer, m_pNodeBeingRenamed );
             m_pNodeBeingRenamed->SetName( uniqueName );
@@ -1227,6 +1303,7 @@ namespace EE::VisualGraph
 
     void GraphView::StartDraggingNode( DrawContext const& ctx )
     {
+        EE_ASSERT( !m_isReadOnly );
         EE_ASSERT( m_dragState.m_mode == DragMode::None );
         EE_ASSERT( m_pHoveredNode != nullptr );
         m_dragState.m_mode = DragMode::Node;
@@ -1238,6 +1315,7 @@ namespace EE::VisualGraph
 
     void GraphView::OnDragNode( DrawContext const& ctx )
     {
+        EE_ASSERT( !m_isReadOnly );
         EE_ASSERT( m_dragState.m_mode == DragMode::Node );
 
         if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
@@ -1261,6 +1339,7 @@ namespace EE::VisualGraph
 
     void GraphView::StopDraggingNode( DrawContext const& ctx )
     {
+        EE_ASSERT( !m_isReadOnly );
         m_dragState.Reset();
         GetViewedGraph()->EndModification();
     }
@@ -1269,6 +1348,7 @@ namespace EE::VisualGraph
 
     void GraphView::StartDraggingConnection( DrawContext const& ctx )
     {
+        EE_ASSERT( !m_isReadOnly );
         EE_ASSERT( m_dragState.m_mode == DragMode::None );
         m_dragState.m_mode = DragMode::Connection;
         m_dragState.m_pNode = m_pHoveredNode;
@@ -1286,6 +1366,7 @@ namespace EE::VisualGraph
 
     void GraphView::OnDragConnection( DrawContext const& ctx )
     {
+        EE_ASSERT( !m_isReadOnly );
         EE_ASSERT( m_dragState.m_mode == DragMode::Connection );
 
         if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
@@ -1350,6 +1431,8 @@ namespace EE::VisualGraph
 
     void GraphView::StopDraggingConnection( DrawContext const& ctx )
     {
+        EE_ASSERT( !m_isReadOnly );
+
         if ( IsViewingStateMachineGraph() )
         {
             StateMachineGraph* pStateMachineGraph = GetStateMachineGraph();
@@ -1396,7 +1479,7 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    void GraphView::HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx, UserContext* pUserContext )
+    void GraphView::HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx )
     {
         // Allow selection without focus
         //-------------------------------------------------------------------------
@@ -1419,26 +1502,29 @@ namespace EE::VisualGraph
             }
             else if ( ImGui::GetIO().KeyAlt )
             {
-                if ( IsViewingFlowGraph() )
+                if ( !m_isReadOnly )
                 {
-                    auto pFlowGraph = GetFlowGraph();
+                    if ( IsViewingFlowGraph() )
+                    {
+                        auto pFlowGraph = GetFlowGraph();
 
-                    if ( m_hoveredConnectionID.IsValid() )
-                    {
-                        pFlowGraph->BreakConnection( m_hoveredConnectionID );
+                        if ( m_hoveredConnectionID.IsValid() )
+                        {
+                            pFlowGraph->BreakConnection( m_hoveredConnectionID );
+                        }
+                        else if ( m_pHoveredPin != nullptr )
+                        {
+                            pFlowGraph->BreakAnyConnectionsForPin( m_pHoveredPin->m_ID );
+                        }
                     }
-                    else if ( m_pHoveredPin != nullptr )
+                    else // State Machine
                     {
-                        pFlowGraph->BreakAnyConnectionsForPin( m_pHoveredPin->m_ID );
-                    }
-                }
-                else // State Machine
-                {
-                    if ( m_pHoveredNode != nullptr && IsOfType<SM::TransitionConduit>( m_pHoveredNode ) )
-                    {
-                        ClearSelection();
-                        m_pGraph->DestroyNode( m_pHoveredNode->GetID() );
-                        m_pHoveredNode = nullptr;
+                        if ( m_pHoveredNode != nullptr && IsOfType<SM::TransitionConduit>( m_pHoveredNode ) )
+                        {
+                            ClearSelection();
+                            m_pGraph->DestroyNode( m_pHoveredNode->GetID() );
+                            m_pHoveredNode = nullptr;
+                        }
                     }
                 }
             }
@@ -1464,11 +1550,11 @@ namespace EE::VisualGraph
         {
             if ( m_pHoveredNode != nullptr )
             {
-                m_pHoveredNode->OnDoubleClick( pUserContext );
+                m_pHoveredNode->OnDoubleClick( m_pUserContext );
             }
             else if ( m_isViewHovered )
             {
-                m_pGraph->OnDoubleClick( pUserContext );
+                m_pGraph->OnDoubleClick( m_pUserContext );
             }
         }
 
@@ -1519,13 +1605,16 @@ namespace EE::VisualGraph
                         {
                             if ( m_pHoveredNode != nullptr )
                             {
-                                if ( m_pHoveredPin != nullptr )
+                                if ( !m_isReadOnly )
                                 {
-                                    StartDraggingConnection( ctx );
-                                }
-                                else
-                                {
-                                    StartDraggingNode( ctx );
+                                    if ( m_pHoveredPin != nullptr )
+                                    {
+                                        StartDraggingConnection( ctx );
+                                    }
+                                    else
+                                    {
+                                        StartDraggingNode( ctx );
+                                    }
                                 }
                             }
                             else
@@ -1537,13 +1626,16 @@ namespace EE::VisualGraph
                         {
                             if ( m_pHoveredNode != nullptr )
                             {
-                                if ( ImGui::GetIO().KeyAlt && IsOfType<SM::State>( m_pHoveredNode ) )
+                                if ( !m_isReadOnly )
                                 {
-                                    StartDraggingConnection( ctx );
-                                }
-                                else if ( !IsOfType<SM::TransitionConduit>( m_pHoveredNode ) )
-                                {
-                                    StartDraggingNode( ctx );
+                                    if ( ImGui::GetIO().KeyAlt && IsOfType<SM::State>( m_pHoveredNode ) )
+                                    {
+                                        StartDraggingConnection( ctx );
+                                    }
+                                    else if ( !IsOfType<SM::TransitionConduit>( m_pHoveredNode ) )
+                                    {
+                                        StartDraggingNode( ctx );
+                                    }
                                 }
                             }
                             else
@@ -1591,58 +1683,68 @@ namespace EE::VisualGraph
         // These operation require the graph view to be focused!
         if ( m_hasFocus )
         {
-            if ( ImGui::IsKeyPressed( ImGuiKey_F2 ) )
-            {
-                if ( m_selectedNodes.size() == 1 && m_selectedNodes[0].m_pNode->IsRenameable() )
-                {
-                    BeginRenameNode( m_selectedNodes[0].m_pNode );
-                }
-            }
-            else if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_C ) )
+            // Read-only operations
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_C ) )
             {
                 CopySelectedNodes( typeRegistry );
-            }
-            else if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_X ) )
-            {
-                CopySelectedNodes( typeRegistry );
-                DestroySelectedNodes();
-            }
-            else if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_V ) )
-            {
-                ImVec2 pasteLocation( 0.0f, 0.0f );
-
-                if ( m_isViewHovered )
-                {
-                    pasteLocation = ctx.m_mouseCanvasPos;
-                }
-                else
-                {
-                    pasteLocation = ctx.m_canvasVisibleRect.GetCenter();
-                }
-
-                PasteNodes( typeRegistry, pasteLocation );
-            }
-
-            if ( !m_selectedNodes.empty() && ImGui::IsKeyPressed( ImGuiKey_Delete ) )
-            {
-                DestroySelectedNodes();
             }
 
             if ( ImGui::IsKeyPressed( ImGuiKey_Home ) )
             {
                 ResetView();
             }
+
+            // Operations that modify the graph
+            //-------------------------------------------------------------------------
+
+            if( !m_isReadOnly )
+            {
+                if ( ImGui::IsKeyPressed( ImGuiKey_F2 ) )
+                {
+                    if ( m_selectedNodes.size() == 1 && m_selectedNodes[0].m_pNode->IsRenameable() )
+                    {
+                        BeginRenameNode( m_selectedNodes[0].m_pNode );
+                    }
+                }
+                else if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_X ) )
+                {
+                    CopySelectedNodes( typeRegistry );
+                    DestroySelectedNodes();
+                }
+                else if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_V ) )
+                {
+                    ImVec2 pasteLocation( 0.0f, 0.0f );
+
+                    if ( m_isViewHovered )
+                    {
+                        pasteLocation = ctx.m_mouseCanvasPos;
+                    }
+                    else
+                    {
+                        pasteLocation = ctx.m_canvasVisibleRect.GetCenter();
+                    }
+
+                    PasteNodes( typeRegistry, pasteLocation );
+                }
+
+                if ( !m_selectedNodes.empty() && ImGui::IsKeyPressed( ImGuiKey_Delete ) )
+                {
+                    DestroySelectedNodes();
+                }
+            }
         }
     }
 
-    void GraphView::HandleContextMenu( DrawContext const& ctx, UserContext* pUserContext )
+    void GraphView::HandleContextMenu( DrawContext const& ctx )
     {
         if( m_isViewHovered && !m_contextMenuState.m_menuOpened && m_contextMenuState.m_requestOpenMenu )
         {
             m_contextMenuState.m_mouseCanvasPos = ctx.m_mouseCanvasPos;
             m_contextMenuState.m_menuOpened = true;
 
-            // If this isnt a autoconnect request, then use the hovered data
+            // If this isnt a auto-connect request, then use the hovered data
             if ( !m_contextMenuState.m_isAutoConnectMenu )
             {
                 m_contextMenuState.m_pNode = m_pHoveredNode;
@@ -1670,11 +1772,11 @@ namespace EE::VisualGraph
             {
                 if ( IsViewingFlowGraph() )
                 {
-                    DrawFlowGraphContextMenu( ctx, pUserContext );
+                    DrawFlowGraphContextMenu( ctx );
                 }
                 else
                 {
-                    DrawStateMachineContextMenu( ctx, pUserContext );
+                    DrawStateMachineContextMenu( ctx );
                 }
 
                 ImGui::EndPopup();
@@ -1688,7 +1790,7 @@ namespace EE::VisualGraph
         }
     }
 
-    void GraphView::DrawFlowGraphContextMenu( DrawContext const& ctx, UserContext* pUserContext )
+    void GraphView::DrawFlowGraphContextMenu( DrawContext const& ctx )
     {
         EE_ASSERT( IsViewingFlowGraph() );
 
@@ -1699,49 +1801,59 @@ namespace EE::VisualGraph
         {
             auto pFlowNode = m_contextMenuState.GetAsFlowNode();
 
-            // Dynamic Pins
-            if ( pFlowNode->SupportsDynamicInputPins() )
+            if ( !m_isReadOnly )
             {
-                if ( ImGui::MenuItem( EE_ICON_PLUS_CIRCLE_OUTLINE" Add Input" ) )
+                // Dynamic Pins
+                if ( pFlowNode->SupportsDynamicInputPins() )
                 {
-                    pFlowGraph->CreateDynamicPin( pFlowNode->GetID() );
-                }
-
-                if ( m_contextMenuState.m_pPin != nullptr && m_contextMenuState.m_pPin->IsDynamicPin() )
-                {
-                    if ( ImGui::MenuItem( EE_ICON_CLOSE_CIRCLE_OUTLINE" Remove Input" ) )
+                    if ( ImGui::MenuItem( EE_ICON_PLUS_CIRCLE_OUTLINE" Add Input" ) )
                     {
-                        pFlowGraph->DestroyDynamicPin( pFlowNode->GetID(), m_contextMenuState.m_pPin->m_ID );
+                        pFlowGraph->CreateDynamicPin( pFlowNode->GetID() );
+                    }
+
+                    if ( m_contextMenuState.m_pPin != nullptr && m_contextMenuState.m_pPin->IsDynamicPin() )
+                    {
+                        if ( ImGui::MenuItem( EE_ICON_CLOSE_CIRCLE_OUTLINE" Remove Input" ) )
+                        {
+                            pFlowGraph->DestroyDynamicPin( pFlowNode->GetID(), m_contextMenuState.m_pPin->m_ID );
+                        }
                     }
                 }
-            }
 
-            // Connections
-            if ( ImGui::MenuItem( EE_ICON_PIPE_DISCONNECTED" Break All Connections" ) )
-            {
-                pFlowGraph->BreakAllConnectionsForNode( pFlowNode );
-            }
-
-            // Default node Menu
-            pFlowNode->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
-
-            // Renameable Nodes
-            if ( m_contextMenuState.m_pNode->IsRenameable() )
-            {
-                if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
+                // Connections
+                if ( ImGui::MenuItem( EE_ICON_PIPE_DISCONNECTED" Break All Connections" ) )
                 {
-                    BeginRenameNode( m_contextMenuState.m_pNode );
+                    pFlowGraph->BreakAllConnectionsForNode( pFlowNode );
                 }
             }
 
-            // DestroyableNodes
-            if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
+            //-------------------------------------------------------------------------
+
+            // Default node Menu
+            pFlowNode->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
+
+            //-------------------------------------------------------------------------
+
+            if ( !m_isReadOnly )
             {
-                if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
+                // Renameable Nodes
+                if ( m_contextMenuState.m_pNode->IsRenameable() )
                 {
-                    ClearSelection();
-                    m_contextMenuState.m_pNode->Destroy();
-                    m_contextMenuState.Reset();
+                    if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
+                    {
+                        BeginRenameNode( m_contextMenuState.m_pNode );
+                    }
+                }
+
+                // DestroyableNodes
+                if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
+                {
+                    if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
+                    {
+                        ClearSelection();
+                        m_contextMenuState.m_pNode->Destroy();
+                        m_contextMenuState.Reset();
+                    }
                 }
             }
         }
@@ -1754,7 +1866,7 @@ namespace EE::VisualGraph
                 ResetView();
             }
 
-            if ( pFlowGraph->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens(), TryCast<Flow::Node>( m_contextMenuState.m_pNode ), m_contextMenuState.m_pPin ) )
+            if ( pFlowGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens(), TryCast<Flow::Node>( m_contextMenuState.m_pNode ), m_contextMenuState.m_pPin ) )
             {
                 m_contextMenuState.Reset();
                 ImGui::CloseCurrentPopup();
@@ -1762,7 +1874,7 @@ namespace EE::VisualGraph
         }
     }
 
-    void GraphView::DrawStateMachineContextMenu( DrawContext const& ctx, UserContext* pUserContext )
+    void GraphView::DrawStateMachineContextMenu( DrawContext const& ctx )
     {
         EE_ASSERT( IsViewingStateMachineGraph() );
 
@@ -1775,34 +1887,44 @@ namespace EE::VisualGraph
 
             //-------------------------------------------------------------------------
 
-            if ( ImGui::MenuItem( EE_ICON_STAR" Make Default Entry State" ) )
+            if ( !m_isReadOnly )
             {
-                auto pParentStateMachineGraph = Cast<VisualGraph::StateMachineGraph>( m_contextMenuState.m_pNode->GetParentGraph() );
-                pParentStateMachineGraph->SetDefaultEntryState( m_contextMenuState.m_pNode->GetID() );
-            }
-
-            // Default node menu
-            pStateMachineNode->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos );
-
-            // Renameable Nodes
-            if ( m_contextMenuState.m_pNode->IsRenameable() )
-            {
-                if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
+                if ( ImGui::MenuItem( EE_ICON_STAR" Make Default Entry State" ) )
                 {
-                    BeginRenameNode( m_contextMenuState.m_pNode );
+                    auto pParentStateMachineGraph = Cast<VisualGraph::StateMachineGraph>( m_contextMenuState.m_pNode->GetParentGraph() );
+                    pParentStateMachineGraph->SetDefaultEntryState( m_contextMenuState.m_pNode->GetID() );
                 }
             }
 
-            // Destroyable Nodes
-            bool nodeDestroyed = false;
-            if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
+            //-------------------------------------------------------------------------
+
+            // Default node menu
+            pStateMachineNode->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos );
+
+            //-------------------------------------------------------------------------
+
+            if ( !m_isReadOnly )
             {
-                if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
+                // Renameable Nodes
+                if ( m_contextMenuState.m_pNode->IsRenameable() )
                 {
-                    ClearSelection();
-                    m_contextMenuState.m_pNode->Destroy();
-                    m_contextMenuState.Reset();
-                    nodeDestroyed = true;
+                    if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Node" ) )
+                    {
+                        BeginRenameNode( m_contextMenuState.m_pNode );
+                    }
+                }
+
+                // Destroyable Nodes
+                bool nodeDestroyed = false;
+                if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
+                {
+                    if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
+                    {
+                        ClearSelection();
+                        m_contextMenuState.m_pNode->Destroy();
+                        m_contextMenuState.Reset();
+                        nodeDestroyed = true;
+                    }
                 }
             }
         }
@@ -1815,7 +1937,7 @@ namespace EE::VisualGraph
                 ResetView();
             }
 
-            if( pStateMachineGraph->DrawContextMenuOptions( ctx, pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens() ) )
+            if( pStateMachineGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens() ) )
             {
                 m_contextMenuState.Reset();
                 ImGui::CloseCurrentPopup();
@@ -1841,7 +1963,7 @@ namespace EE::VisualGraph
             ImGui::SetNextWindowSize( ImVec2( 400, -1 ) );
             if ( ImGui::BeginPopupModal( s_dialogID_Rename, nullptr, ImGuiWindowFlags_NoSavedSettings ) )
             {
-                if ( ImGui::IsKeyPressed( ImGuiKey_Escape ) || m_selectedNodes.size() != 1 )
+                if ( ImGui::IsKeyPressed( ImGuiKey_Escape ) || m_selectedNodes.size() != 1 || m_isReadOnly )
                 {
                     EndRenameNode( false );
                     ImGui::CloseCurrentPopup();

@@ -23,6 +23,8 @@ namespace EE::Animation
             EE::Delete( pSettings );
         }
 
+        m_nodeSettings.clear();
+
         //-------------------------------------------------------------------------
 
         m_log.clear();

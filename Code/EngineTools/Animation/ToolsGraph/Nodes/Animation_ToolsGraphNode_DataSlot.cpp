@@ -246,7 +246,7 @@ namespace EE::Animation::GraphNodes
         ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
         if ( resourceID.IsValid() )
         {
-            pGraphNodeContext->RequestOpenResource( resourceID );
+            pUserContext->RequestOpenResource( resourceID );
         }
     }
 

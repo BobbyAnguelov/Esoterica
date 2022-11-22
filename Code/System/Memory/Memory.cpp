@@ -3,7 +3,7 @@
 //-------------------------------------------------------------------------
 
 #if EE_USE_CUSTOM_ALLOCATOR
-    #include "rpmalloc/rpmalloc.h"
+    #include "System/ThirdParty/rpmalloc/rpmalloc.h"
 #else
     #include <stdlib.h>
 #endif

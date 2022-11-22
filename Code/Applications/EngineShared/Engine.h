@@ -40,6 +40,8 @@ namespace EE
         virtual void UnregisterTypes();
 
         #if EE_DEVELOPMENT_TOOLS
+        virtual bool InitializeToolsModules( ModuleContext& moduleContext, IniFile const& iniFile ) { return true; }
+        virtual void ShutdownToolsModules( ModuleContext& moduleContext ) {}
         virtual void CreateToolsUI() = 0;
         void DestroyToolsUI() { EE::Delete( m_pToolsUI ); }
         #endif

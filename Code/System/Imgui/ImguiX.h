@@ -2,7 +2,7 @@
 
 #include "System/_Module/API.h"
 #include "ImguiFont.h"
-#include "System/ThirdParty/imgui/imgui.h"
+#include "ImguiStyle.h"
 #include "System/ThirdParty/imgui/imgui_internal.h"
 #include "System/Math/Transform.h"
 #include "System/Types/Color.h"
@@ -163,8 +163,11 @@ namespace EE::ImGuiX
     // Combo button - button with extra drop down options - returns true if the primary button was pressed
     EE_SYSTEM_API bool IconComboButton( char const* pIcon, char const* pButtonLabel, Color iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
 
+    // Toggle button
+    EE_SYSTEM_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color onColor = ConvertColor(ImGuiX::Style::s_colorAccent0), Color offColor = Color(ImGui::GetStyle().Colors[ImGuiCol_Text]));
+
     // Draw an arrow between two points
-    EE_SYSTEM_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImU32 col, float arrowWidth, float arrowHeadWidth = 5.0f );
+    EE_SYSTEM_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImColor const& color, float arrowWidth, float arrowHeadWidth = 5.0f );
 
     // Draw an overlaid icon in a window, returns true if clicked
     EE_SYSTEM_API bool DrawOverlayIcon( ImVec2 const& iconPos, char icon[4], void* iconID, bool isSelected = false, ImColor const& selectedColor = ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] );

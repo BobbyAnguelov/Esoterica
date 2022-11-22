@@ -32,12 +32,12 @@ namespace EE::Animation
         inline TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> const& GetVirtualParameters() const { EE_ASSERT( m_pVirtualParameters != nullptr ); return *m_pVirtualParameters; }
         inline Category<TypeSystem::TypeInfo const*> const& GetCategorizedNodeTypes() const { return *m_pCategorizedNodeTypes; }
 
-        // Resource Helpers
+        // Navigation
         //-------------------------------------------------------------------------
 
-        void RequestOpenResource( ResourceID const& resourceID );
+        void OpenChildGraph( VisualGraph::BaseNode* pSourceNode, ResourceID const& graphID, bool openInNewWorkspace );
 
-        inline TEventHandle<ResourceID const&> OnRequestOpenResource() { return m_onRequestOpenResource; }
+        inline TEventHandle<VisualGraph::BaseNode*, ResourceID const&, bool> OnRequestOpenChildGraph() { return m_navigateToChildGraphEvent; }
 
         // Debug Data
         //-------------------------------------------------------------------------
@@ -73,9 +73,7 @@ namespace EE::Animation
 
         bool IsNodeActive( int16_t nodeIdx ) const;
 
-        #if EE_DEVELOPMENT_TOOLS
         PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const;
-        #endif
 
         template<typename T>
         inline T GetRuntimeNodeDebugValue( int16_t runtimeNodeIdx ) const
@@ -94,9 +92,6 @@ namespace EE::Animation
         TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> const*    m_pVirtualParameters = nullptr;
         Category<TypeSystem::TypeInfo const*> const*                        m_pCategorizedNodeTypes = nullptr;
         TypeSystem::TypeRegistry const*                                     m_pTypeRegistry = nullptr;
-
-    private:
-
-        TEvent<ResourceID const&>                                           m_onRequestOpenResource;
+        TEvent<VisualGraph::BaseNode*, ResourceID const&, bool>             m_navigateToChildGraphEvent;
     };
 }

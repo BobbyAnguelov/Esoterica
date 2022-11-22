@@ -56,23 +56,23 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void CachedBoolNode::RecordGraphState( GraphStateRecorder& recorder )
+    void CachedBoolNode::RecordGraphState( RecordedGraphState& outState )
     {
-        BoolValueNode::RecordGraphState( recorder );
-        recorder << m_hasCachedValue;
+        BoolValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recorder << m_value;
+            outState.WriteValue( m_value );
         }
     }
 
-    void CachedBoolNode::RestoreGraphState( GraphStateRecording const& recording )
+    void CachedBoolNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        BoolValueNode::RestoreGraphState( recording );
-        recording << m_hasCachedValue;
+        BoolValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recording << m_value;
+            inState.ReadValue( m_value );
         }
     }
     #endif
@@ -131,23 +131,23 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void CachedIDNode::RecordGraphState( GraphStateRecorder& recorder )
+    void CachedIDNode::RecordGraphState( RecordedGraphState& outState )
     {
-        IDValueNode::RecordGraphState( recorder );
-        recorder << m_hasCachedValue;
+        IDValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recorder << m_value;
+            outState.WriteValue( m_value );
         }
     }
 
-    void CachedIDNode::RestoreGraphState( GraphStateRecording const& recording )
+    void CachedIDNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        IDValueNode::RestoreGraphState( recording );
-        recording << m_hasCachedValue;
+        IDValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recording << m_value;
+            inState.ReadValue( m_value );
         }
     }
     #endif
@@ -206,23 +206,23 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void CachedIntNode::RecordGraphState( GraphStateRecorder& recorder )
+    void CachedIntNode::RecordGraphState( RecordedGraphState& outState )
     {
-        IntValueNode::RecordGraphState( recorder );
-        recorder << m_hasCachedValue;
+        IntValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recorder << m_value;
+            outState.WriteValue( m_value );
         }
     }
 
-    void CachedIntNode::RestoreGraphState( GraphStateRecording const& recording )
+    void CachedIntNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        IntValueNode::RestoreGraphState( recording );
-        recording << m_hasCachedValue;
+        IntValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recording << m_value;
+            inState.ReadValue( m_value );
         }
     }
     #endif
@@ -286,23 +286,23 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void CachedFloatNode::RecordGraphState( GraphStateRecorder& recorder )
+    void CachedFloatNode::RecordGraphState( RecordedGraphState& outState )
     {
-        FloatValueNode::RecordGraphState( recorder );
-        recorder << m_hasCachedValue;
+        FloatValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recorder << m_value;
+            outState.WriteValue( m_value );
         }
     }
 
-    void CachedFloatNode::RestoreGraphState( GraphStateRecording const& recording )
+    void CachedFloatNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( recording );
-        recording << m_hasCachedValue;
+        FloatValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recording << m_value;
+            inState.ReadValue( m_value );
         }
     }
     #endif
@@ -361,23 +361,23 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void CachedVectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    void CachedVectorNode::RecordGraphState( RecordedGraphState& outState )
     {
-        VectorValueNode::RecordGraphState( recorder );
-        recorder << m_hasCachedValue;
+        VectorValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recorder << m_value;
+            outState.WriteValue( m_value );
         }
     }
 
-    void CachedVectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    void CachedVectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        VectorValueNode::RestoreGraphState( recording );
-        recording << m_hasCachedValue;
+        VectorValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recording << m_value;
+            inState.ReadValue( m_value );
         }
     }
     #endif
@@ -436,23 +436,23 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void CachedTargetNode::RecordGraphState( GraphStateRecorder& recorder )
+    void CachedTargetNode::RecordGraphState( RecordedGraphState& outState )
     {
-        TargetValueNode::RecordGraphState( recorder );
-        recorder << m_hasCachedValue;
+        TargetValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recorder << m_value;
+            outState.WriteValue( m_value );
         }
     }
 
-    void CachedTargetNode::RestoreGraphState( GraphStateRecording const& recording )
+    void CachedTargetNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        TargetValueNode::RestoreGraphState( recording );
-        recording << m_hasCachedValue;
+        TargetValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
-            recording << m_value;
+            inState.ReadValue( m_value );
         }
     }
     #endif

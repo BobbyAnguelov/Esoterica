@@ -17,6 +17,26 @@ namespace EE::Resource
 
     public:
 
+        // Try to read a descriptor from a file without knowing the type
+        inline IRegisteredType* TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath )
+        {
+            Serialization::TypeArchiveReader typeReader( typeRegistry );
+
+            auto pDescriptor = typeReader.TryReadType();
+            if ( pDescriptor == nullptr )
+            {
+                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
+            }
+
+            if ( !pDescriptor->GetTypeInfo()->IsDerivedFrom( ResourceDescriptor::GetStaticTypeID() ) )
+            {
+                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Read type from file: %s is not a resource descriptor", descriptorPath.c_str() );
+            }
+
+            return pDescriptor;
+        }
+
+        // Try to read a specific descriptor from a file
         template<typename T>
         static bool TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath, T& outData )
         {
@@ -37,6 +57,7 @@ namespace EE::Resource
             return true;
         }
 
+        // Write a descriptor to a file
         template<typename T>
         static bool TryWriteToFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath, T const* pDescriptorData )
         {
@@ -51,7 +72,7 @@ namespace EE::Resource
 
     public:
 
-        static void ReadCompileDependencies( String const& descriptorFileContents, TVector<ResourcePath>& outDependencies );
+        static void ReadCompileDependencies( String const& descriptorFileContents, TVector<ResourceID>& outDependencies );
 
         virtual ~ResourceDescriptor() = default;
 

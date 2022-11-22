@@ -232,6 +232,9 @@ namespace EE::Animation
         }
 
         // Get the connected external graph instance
+        GraphInstance const* GetChildGraphDebugInstance( int16_t nodeIdx ) const;
+
+        // Get the connected external graph instance
         GraphInstance const* GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const;
 
         // Get all child graphs - this will return all child graph instance (recursively)
@@ -264,10 +267,10 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         inline bool IsRecording() const { return m_pUpdateRecorder != nullptr; }
-        void StartRecording( GraphStateRecorder& recorder, GraphUpdateRecorder* pUpdateRecorder = nullptr );
+        void StartRecording( RecordedGraphState& outState, GraphUpdateRecorder* pUpdateRecorder = nullptr );
         void StopRecording();
-        void SetToRecordedInitialState( GraphStateRecording& recording );
-        void SetPerFrameGraphData( GraphUpdateRecorder::FrameData const& frameData );
+        void SetToRecordedState( RecordedGraphState const& recordedState );
+        void SetRecordedUpdateData( RecordedGraphFrameData const& recordedUpdateData );
         #endif
 
     private:
@@ -288,7 +291,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void RecordPerFrameGraphData( Seconds const deltaTime, Transform const& startWorldTransform );
+        void RecordGraphUpdateData( Seconds const deltaTime, Transform const& startWorldTransform );
         #endif
 
     private:

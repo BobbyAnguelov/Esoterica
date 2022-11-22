@@ -6,12 +6,6 @@
 
 namespace EE::Animation
 {
-    void ToolsGraphUserContext::RequestOpenResource( ResourceID const& resourceID )
-    {
-        EE_ASSERT( resourceID.IsValid() );
-        m_onRequestOpenResource.Execute( resourceID );
-    }
-
     bool ToolsGraphUserContext::IsNodeActive( int16_t nodeIdx ) const
     {
         return m_pGraphInstance->IsNodeActive( nodeIdx );
@@ -22,10 +16,16 @@ namespace EE::Animation
         return m_pGraphInstance->GetActiveNodes();
     }
 
-    #if EE_DEVELOPMENT_TOOLS
+    void ToolsGraphUserContext::OpenChildGraph( VisualGraph::BaseNode* pSourceNode, ResourceID const& graphID, bool openInNewWorkspace )
+    {
+        EE_ASSERT( graphID.IsValid() );
+        m_navigateToChildGraphEvent.Execute( pSourceNode, graphID, openInNewWorkspace );
+    }
+
+    //-------------------------------------------------------------------------
+
     PoseNodeDebugInfo ToolsGraphUserContext::GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const
     {
         return m_pGraphInstance->GetPoseNodeDebugInfo( runtimeNodeIdx );
     }
-    #endif
 }

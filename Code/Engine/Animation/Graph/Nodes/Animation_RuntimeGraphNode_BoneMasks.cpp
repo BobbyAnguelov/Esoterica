@@ -254,22 +254,22 @@ namespace EE::Animation::GraphNodes
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void BoneMaskSelectorNode::RecordGraphState( GraphStateRecorder& recorder )
+    void BoneMaskSelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
-        BoneMaskValueNode::RecordGraphState( recorder );
-        recorder << m_selectedMaskIndex;
-        recorder << m_newMaskIndex;
-        recorder << m_currentTimeInBlend;
-        recorder << m_isBlending;
+        BoneMaskValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedMaskIndex );
+        outState.WriteValue( m_newMaskIndex );
+        outState.WriteValue( m_currentTimeInBlend );
+        outState.WriteValue( m_isBlending );
     }
 
-    void BoneMaskSelectorNode::RestoreGraphState( GraphStateRecording const& recording )
+    void BoneMaskSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        BoneMaskValueNode::RestoreGraphState( recording );
-        recording << m_selectedMaskIndex;
-        recording << m_newMaskIndex;
-        recording << m_currentTimeInBlend;
-        recording << m_isBlending;
+        BoneMaskValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_selectedMaskIndex );
+        inState.ReadValue( m_newMaskIndex );
+        inState.ReadValue( m_currentTimeInBlend );
+        inState.ReadValue( m_isBlending );
     }
     #endif
 }
