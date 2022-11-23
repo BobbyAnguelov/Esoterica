@@ -1,6 +1,6 @@
 #include "ResourceCompileDependencyTree.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "EngineTools/Resource/ResourceCompilerRegistry.h"
+#include "ResourceServerContext.h"
 
 //-------------------------------------------------------------------------
 
@@ -90,13 +90,10 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    CompileDependencyTree::CompileDependencyTree( FileSystem::Path const& rawResourcePath, FileSystem::Path const& compiledResourcePath, CompilerRegistry const& compilerRegistry, CompiledResourceDatabase const& compiledResourceDB )
-        : m_rawResourcePath( rawResourcePath )
-        , m_compiledResourcePath( compiledResourcePath )
-        , m_compilerRegistry( compilerRegistry )
-        , m_compiledResourceDB( compiledResourceDB )
+    CompileDependencyTree::CompileDependencyTree( ResourceServerContext const& context )
+        : m_context( context )
     {
-        EE_ASSERT( rawResourcePath.IsValid() && rawResourcePath.Exists() );
+        EE_ASSERT( context.IsValid() );
     }
 
     CompileDependencyTree::~CompileDependencyTree()
@@ -111,6 +108,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_errorMessage.clear();
+        m_uniqueDependencies.clear();
         m_root.Reset();
         return FillNode( &m_root, resourceID );
     }
@@ -119,35 +117,15 @@ namespace EE::Resource
     {
         EE_ASSERT( resourceFilePath.IsValid() );
 
-        // Read JSON descriptor file - we do this by hand since we dont want to create a type registry in the resource server
-        if ( FileSystem::Exists( resourceFilePath ) )
-        {
-            FILE* fp = fopen( resourceFilePath, "r" );
-            if ( fp == nullptr )
-            {
-                return false;
-            }
-
-            fseek( fp, 0, SEEK_END );
-            size_t filesize = (size_t) ftell( fp );
-            fseek( fp, 0, SEEK_SET );
-
-            String fileContents;
-            fileContents.resize( filesize );
-            size_t const readLength = fread( fileContents.data(), 1, filesize, fp );
-            fclose( fp );
-
-            if ( readLength == 0 )
-            {
-                return false;
-            }
-
-            ResourceDescriptor::ReadCompileDependencies( fileContents, outDependencies );
-        }
-        else
+        auto pDescriptor = ResourceDescriptor::TryReadFromFile( *m_context.m_pTypeRegistry, resourceFilePath );
+        if ( pDescriptor == nullptr )
         {
             return false;
         }
+        
+        pDescriptor->GetCompileDependencies( outDependencies );
+
+        EE::Delete( pDescriptor );
 
         return true;
     }
@@ -156,34 +134,45 @@ namespace EE::Resource
     {
         EE_ASSERT( pNode != nullptr );
 
+        // Basic resource info
         //-------------------------------------------------------------------------
 
         pNode->m_ID = resourceID;
 
-        pNode->m_sourcePath = ResourcePath::ToFileSystemPath( m_rawResourcePath, resourceID.GetResourcePath() );
+        pNode->m_sourcePath = ResourcePath::ToFileSystemPath( m_context.m_rawResourcePath, resourceID.GetResourcePath() );
         pNode->m_sourceExists = FileSystem::Exists( pNode->m_sourcePath );
         pNode->m_timestamp = pNode->m_sourceExists ? FileSystem::GetFileModifiedTime( pNode->m_sourcePath ) : 0;
 
-        pNode->m_targetPath = ResourcePath::ToFileSystemPath( m_compiledResourcePath, resourceID.GetResourcePath() );
-        pNode->m_targetExists = FileSystem::Exists( pNode->m_targetPath );
+        // Handle compilable resources
+        //-------------------------------------------------------------------------
 
-        auto pCompiler = m_compilerRegistry.GetCompilerForResourceType( resourceID.GetResourceTypeID() );
-        if ( pCompiler != nullptr )
+        auto pCompiler = m_context.m_pCompilerRegistry->GetCompilerForResourceType( resourceID.GetResourceTypeID() );
+        bool const isCompilableResource = pCompiler != nullptr;
+        if ( isCompilableResource )
         {
+            pNode->m_targetPath = ResourcePath::ToFileSystemPath( m_context.m_compiledResourcePath, resourceID.GetResourcePath() );
+            pNode->m_targetExists = FileSystem::Exists( pNode->m_targetPath );
+
             pNode->m_compilerVersion = pCompiler->GetVersion();
-            pNode->m_compiledRecord = m_compiledResourceDB.GetRecord( resourceID );
+            pNode->m_compiledRecord = m_context.m_pCompiledResourceDB->GetRecord( resourceID );
         }
 
         // Generate dependencies
         //-------------------------------------------------------------------------
 
-        if ( ShouldCheckCompileDependencies( resourceID ) )
+        if ( isCompilableResource && ShouldCheckCompileDependencies( resourceID ) )
         {
             TVector<ResourceID> dependencies;
             if ( TryReadCompileDependencies( pNode->m_sourcePath, dependencies ) )
             {
                 for ( auto const& dependencyResourceID : dependencies )
                 {
+                    // Skip resources already in the tree!
+                    if ( VectorContains( m_uniqueDependencies, dependencyResourceID ) )
+                    {
+                        continue;
+                    }
+
                     // Check for circular references
                     //-------------------------------------------------------------------------
 
@@ -208,6 +197,8 @@ namespace EE::Resource
                     {
                         return false;
                     }
+
+                    m_uniqueDependencies.emplace_back( dependencyResourceID );
                 }
             }
             else

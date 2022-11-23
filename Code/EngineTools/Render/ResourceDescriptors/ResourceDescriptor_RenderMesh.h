@@ -25,6 +25,14 @@ namespace EE::Render
 
         virtual bool IsValid() const override { return m_meshPath.IsValid(); }
 
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if ( m_meshPath.IsValid() )
+            {
+                outDependencies.emplace_back( m_meshPath );
+            }
+        }
+
     public:
 
         // The path to the mesh source file

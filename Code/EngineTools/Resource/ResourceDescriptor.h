@@ -18,22 +18,35 @@ namespace EE::Resource
     public:
 
         // Try to read a descriptor from a file without knowing the type
-        inline IRegisteredType* TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath )
+        static inline ResourceDescriptor* TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath )
         {
             Serialization::TypeArchiveReader typeReader( typeRegistry );
+
+            if ( !typeReader.ReadFromFile( descriptorPath ) )
+            {
+                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
+                return nullptr;
+            }
+
+            //-------------------------------------------------------------------------
 
             auto pDescriptor = typeReader.TryReadType();
             if ( pDescriptor == nullptr )
             {
                 EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
+                return nullptr;
             }
+
+            //-------------------------------------------------------------------------
 
             if ( !pDescriptor->GetTypeInfo()->IsDerivedFrom( ResourceDescriptor::GetStaticTypeID() ) )
             {
                 EE_LOG_ERROR( "Resource", "Resource Descriptor", "Read type from file: %s is not a resource descriptor", descriptorPath.c_str() );
+                EE::Delete( pDescriptor );
+                return nullptr;
             }
 
-            return pDescriptor;
+            return Cast<ResourceDescriptor>( pDescriptor );
         }
 
         // Try to read a specific descriptor from a file
@@ -72,9 +85,10 @@ namespace EE::Resource
 
     public:
 
-        static void ReadCompileDependencies( String const& descriptorFileContents, TVector<ResourceID>& outDependencies );
-
         virtual ~ResourceDescriptor() = default;
+
+        // Get all the resources that are required for the compilation of the resource
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) = 0;
 
         // Is this a valid descriptor - This only signifies whether all the required data is set and not whether the resource or any other authored data within the descriptor is valid
         virtual bool IsValid() const = 0;
@@ -82,7 +96,7 @@ namespace EE::Resource
         // Can this descriptor be created by a user in the editor?
         virtual bool IsUserCreateableDescriptor() const { return false; }
 
-        // What is the compiled resource type for this descriptor - Only needed for user creatable descriptors
+        // What is the compiled resource type for this descriptor - Only needed for user createable descriptors
         virtual ResourceTypeID GetCompiledResourceTypeID() const { return ResourceTypeID(); }
     };
 }

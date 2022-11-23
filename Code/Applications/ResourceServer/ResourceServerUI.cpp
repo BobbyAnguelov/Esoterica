@@ -13,7 +13,7 @@ namespace EE::Resource
     static char const* const g_pendingRequestsWindowName = "Pending Requests";
     static char const* const g_completedRequestsWindowName = "Completed Requests";
     static char const* const g_workerStatusWindowName = "Worker Status";
-    static char const* const g_serverInfoWindowName = "Server Info";
+    static char const* const g_serverControlsWindowName = "Server";
     static char const* const g_connectionInfoWindowName = "Connected Clients";
     static char const* const g_packagingControlsWindowName = "Packaging";
 
@@ -54,7 +54,7 @@ namespace EE::Resource
 
                 ImGui::DockBuilderDockWindow( g_workerStatusWindowName, topRightDockID );
                 ImGui::DockBuilderDockWindow( g_connectionInfoWindowName, topLeftDockID );
-                ImGui::DockBuilderDockWindow( g_serverInfoWindowName, topLeftDockID );
+                ImGui::DockBuilderDockWindow( g_serverControlsWindowName, topLeftDockID );
                 ImGui::DockBuilderDockWindow( g_packagingControlsWindowName, topLeftDockID );
                 ImGui::DockBuilderDockWindow( g_pendingRequestsWindowName, topLeftDockID );
                 ImGui::DockBuilderDockWindow( g_completedRequestsWindowName, bottomDockID );
@@ -70,7 +70,7 @@ namespace EE::Resource
         // Draw windows
         //-------------------------------------------------------------------------
 
-        DrawServerInfo();
+        DrawServerControls();
         DrawConnectionInfo();
         DrawRequests();
         DrawWorkerStatus();
@@ -211,6 +211,7 @@ namespace EE::Resource
                             break;
 
                             case CompilationRequest::Origin::ManualCompile:
+                            case CompilationRequest::Origin::ManualCompileForced:
                             {
                                 ImGui::Text( "Manual" );
                             }
@@ -349,7 +350,7 @@ namespace EE::Resource
             {
                 ImGui::Text( "Worker %02d: ", i );
                 ImGui::SameLine();
-                if ( m_resourceServer.GetWorkerStatus( i ) == ResourceServerWorker::Status::Compiling )
+                if ( m_resourceServer.GetWorkerStatus( i ) == ResourceServerWorker::Status::Working )
                 {
                     ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), m_resourceServer.GetCompilationTaskResourceID( i ).c_str() );
                 }
@@ -362,20 +363,45 @@ namespace EE::Resource
         ImGui::End();
     }
 
-    void ResourceServerUI::DrawServerInfo()
+    void ResourceServerUI::DrawServerControls()
     {
-        if ( ImGui::Begin( g_serverInfoWindowName ) )
+        if ( ImGui::Begin( g_serverControlsWindowName ) )
         {
+            ImGuiX::TextSeparator( "Info" );
+
             ImGui::Text( "Raw Resource Path: %s", m_resourceServer.GetRawResourceDir().c_str() );
             ImGui::Text( "Compiled Resource Path: %s", m_resourceServer.GetCompiledResourceDir().c_str() );
             ImGui::Text( "IP Address: %s:%d", m_resourceServer.GetNetworkAddress().c_str(), m_resourceServer.GetNetworkPort() );
 
-            ImGui::NewLine();
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "Tools" );
+
+            ImVec2 buttonSize( 155, 0 );
+            float const fieldWidth = ImGui::GetContentRegionAvail().x - buttonSize.x - ImGui::GetStyle().ItemSpacing.x - 28;
+
+            ImGui::SetNextItemWidth( fieldWidth );
+            ImGui::InputText( "##Path", m_resourcePathbuffer, 255 );
+
+            ImGui::SameLine();
+            ImGui::Checkbox( "##ForceRecompile", &m_forceRecompilation );
+            ImGuiX::TextTooltip( "Force Recompilation" );
+
+            ImGui::BeginDisabled( !ResourcePath::IsValidPath( m_resourcePathbuffer ) );
+            ImGui::SameLine();
+            if ( ImGui::Button( "Request Compilation", buttonSize ) )
+            {
+                m_resourceServer.CompileResource( ResourceID( m_resourcePathbuffer ), m_forceRecompilation );
+            }
+            ImGui::EndDisabled();
 
             //-------------------------------------------------------------------------
 
+            ImGuiX::TextSeparator( "Registered Compilers" );
+
             if ( ImGui::BeginTable( "Registered Compilers Table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
             {
+                ImGuiX::TextSeparator( "Info" );
                 ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 150 );
                 ImGui::TableSetupColumn( "Ver", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 25 );
                 ImGui::TableSetupColumn( "Output Types", ImGuiTableColumnFlags_WidthStretch );

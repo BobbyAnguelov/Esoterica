@@ -18,6 +18,14 @@ namespace EE::Physics
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return PhysicsMesh::GetStaticResourceTypeID(); }
 
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if ( m_meshPath.IsValid() )
+            {
+                outDependencies.emplace_back( m_meshPath );
+            }
+        }
+
     public:
 
         EE_EXPOSE ResourcePath     m_meshPath;

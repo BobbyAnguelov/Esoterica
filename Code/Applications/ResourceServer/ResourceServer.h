@@ -1,10 +1,9 @@
 #pragma once
 
+#include "ResourceServerContext.h"
 #include "ResourceServerWorker.h"
 #include "ResourceCompilationRequest.h"
-#include "CompiledResourceDatabase.h"
 #include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
-#include "EngineTools/Resource/ResourceCompilerRegistry.h"
 #include "System/Network/IPC/IPCMessageServer.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
@@ -51,12 +50,12 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         inline CompilerRegistry const* GetCompilerRegistry() const { return m_pCompilerRegistry; }
-        inline void CompileResource( ResourceID const& resourceID ) { CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::ManualCompile ); }
+        inline void CompileResource( ResourceID const& resourceID, bool forceRecompile = true ) { CreateResourceRequest( resourceID, 0, forceRecompile ? CompilationRequest::Origin::ManualCompileForced : CompilationRequest::Origin::ManualCompile ); }
         inline void PackageResource( ResourceID const& resourceID ) { CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::Package ); }
 
         // Requests
         //-------------------------------------------------------------------------
-        
+
         TVector<CompilationRequest const*> const& GetActiveRequests() const { return ( TVector<CompilationRequest const*>& ) m_activeRequests; }
         TVector<CompilationRequest const*> const& GetPendingRequests() const { return ( TVector<CompilationRequest const*>& ) m_pendingRequests; }
         TVector<CompilationRequest const*> const& GetCompletedRequests() const { return ( TVector<CompilationRequest const*>& ) m_completedRequests; }
@@ -149,6 +148,7 @@ namespace EE::Resource
         TVector<CompilationRequest*>            m_activeRequests;
 
         // Workers
+        ResourceServerContext                   m_context;
         TaskSystem                              m_taskSystem;
         TVector<ResourceServerWorker*>          m_workers;
 

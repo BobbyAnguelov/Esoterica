@@ -99,6 +99,7 @@
     <ClCompile Include="ResourceCompileDependencyTree.cpp" />
     <ClCompile Include="ResourceServer.cpp" />
     <ClCompile Include="ResourceServerApplication.cpp" />
+    <ClCompile Include="ResourceServerContext.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
     <ClCompile Include="CompiledResourceDatabase.cpp" />
     <ClCompile Include="ResourceServerWorker.cpp" />
@@ -113,6 +114,7 @@
   <ItemGroup>
     <ClInclude Include="ResourceCompileDependencyTree.h" />
     <ClInclude Include="ResourceServerApplication.h" />
+    <ClInclude Include="ResourceServerContext.h" />
     <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="ResourceCompilationRequest.h" />
     <ClInclude Include="ResourceServerWorker.h" />

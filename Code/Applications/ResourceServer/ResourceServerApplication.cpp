@@ -261,7 +261,7 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
     int result = 0;
     {
         #if EE_ENABLE_LPP
-        //auto lppAgent = EE::ScopedLPPAgent();
+        auto lppAgent = EE::ScopedLPPAgent();
         #endif
 
         EE::ApplicationGlobalState globalState;

@@ -6,7 +6,7 @@
 
 namespace EE::Resource
 {
-    class CompilerRegistry;
+    struct ResourceServerContext;
 
     //-------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ namespace EE::Resource
     {
     public:
 
-        CompileDependencyTree( FileSystem::Path const& rawResourcePath, FileSystem::Path const& compiledResourcePath, CompilerRegistry const& compilerRegistry, CompiledResourceDatabase const& compiledResourceDB );
+        CompileDependencyTree( ResourceServerContext const& context );
         ~CompileDependencyTree();
 
         bool BuildTree( ResourceID const& resourceID );
@@ -61,10 +61,8 @@ namespace EE::Resource
 
     private:
 
-        FileSystem::Path const&                 m_rawResourcePath;
-        FileSystem::Path const&                 m_compiledResourcePath;
-        CompilerRegistry const&                 m_compilerRegistry;
-        CompiledResourceDatabase const&         m_compiledResourceDB;
+        ResourceServerContext const&            m_context;
+        TVector<ResourceID>                     m_uniqueDependencies;
         CompileDependencyNode                   m_root;
         String                                  m_errorMessage;
 

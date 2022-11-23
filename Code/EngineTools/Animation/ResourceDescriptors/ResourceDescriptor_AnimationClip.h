@@ -17,6 +17,19 @@ namespace EE::Animation
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return AnimationClip::GetStaticResourceTypeID(); }
 
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if ( m_skeleton.IsSet() )
+            {
+                outDependencies.emplace_back( m_skeleton.GetResourceID() );
+            }
+
+            if ( m_animationPath.IsValid() )
+            {
+                outDependencies.emplace_back( m_animationPath );
+            }
+        }
+
     public:
 
         EE_EXPOSE ResourcePath                m_animationPath;

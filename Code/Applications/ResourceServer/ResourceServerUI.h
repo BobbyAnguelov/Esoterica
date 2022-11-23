@@ -22,7 +22,7 @@ namespace EE::Resource
 
         void DrawRequests();
         void DrawWorkerStatus();
-        void DrawServerInfo();
+        void DrawServerControls();
         void DrawConnectionInfo();
         void DrawPackagingControls();
 
@@ -31,5 +31,8 @@ namespace EE::Resource
         ResourceServer&                         m_resourceServer;
         CompilationRequest const*               m_pSelectedCompletedRequest = nullptr;
         TVector<CompilationRequest const*>      m_combinedRequests; // Temp working memory for UI
+
+        char                                    m_resourcePathbuffer[255] = { 0 };
+        bool                                    m_forceRecompilation = false;
     };
 }

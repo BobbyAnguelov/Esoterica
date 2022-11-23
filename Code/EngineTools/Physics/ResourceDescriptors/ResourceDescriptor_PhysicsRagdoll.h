@@ -18,6 +18,7 @@ namespace EE::Physics
         virtual bool IsValid() const override { return m_skeleton.IsSet(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return RagdollDefinition::GetStaticResourceTypeID(); }
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override {}
 
     public:
 

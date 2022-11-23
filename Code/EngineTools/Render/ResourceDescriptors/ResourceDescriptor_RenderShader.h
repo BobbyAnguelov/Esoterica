@@ -28,6 +28,14 @@ namespace EE::Render
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Shader::GetStaticResourceTypeID(); }
 
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if ( m_shaderPath.IsValid() )
+            {
+                outDependencies.emplace_back( m_shaderPath );
+            }
+        }
+
     public:
 
         EE_EXPOSE ShaderType           m_shaderType = ShaderType::Vertex;

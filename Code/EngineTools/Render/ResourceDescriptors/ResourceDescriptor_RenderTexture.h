@@ -27,6 +27,14 @@ namespace EE::Render
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Texture::GetStaticResourceTypeID(); }
 
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if ( m_path.IsValid() )
+            {
+                outDependencies.emplace_back( m_path );
+            }
+        }
+
     public:
 
         EE_EXPOSE ResourcePath     m_path;
@@ -43,6 +51,14 @@ namespace EE::Render
         virtual bool IsValid() const override { return m_path.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return CubemapTexture::GetStaticResourceTypeID(); }
+
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if ( m_path.IsValid() )
+            {
+                outDependencies.emplace_back( m_path );
+            }
+        }
 
     public:
 

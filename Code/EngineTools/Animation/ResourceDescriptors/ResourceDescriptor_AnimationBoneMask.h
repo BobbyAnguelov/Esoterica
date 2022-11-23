@@ -17,6 +17,14 @@ namespace EE::Animation
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return BoneMaskDefinition::GetStaticResourceTypeID(); }
 
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        {
+            if( m_skeleton.IsSet() )
+            {
+                outDependencies.emplace_back( m_skeleton.GetResourceID() );
+            }
+        }
+
     public:
 
         EE_EXPOSE TResourcePtr<Skeleton>                    m_skeleton = nullptr;
