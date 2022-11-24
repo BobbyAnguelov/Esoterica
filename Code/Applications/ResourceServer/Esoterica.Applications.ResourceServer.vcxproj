@@ -102,7 +102,6 @@
     <ClCompile Include="ResourceServerContext.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
     <ClCompile Include="CompiledResourceDatabase.cpp" />
-    <ClCompile Include="ResourceServerWorker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\ResourceServer.ico" />
@@ -117,7 +116,6 @@
     <ClInclude Include="ResourceServerContext.h" />
     <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="ResourceCompilationRequest.h" />
-    <ClInclude Include="ResourceServerWorker.h" />
     <ClInclude Include="CompiledResourceDatabase.h" />
     <ClInclude Include="ResourceServer.h" />
     <ClInclude Include="Resources\Resource.h" />

@@ -406,7 +406,6 @@ namespace EE::TypeSystem::Reflection
                 resource.m_headerID = headerID;
                 resource.m_className = cursorName;
                 resource.m_namespace = pContext->GetCurrentNamespace();
-                resource.m_isVirtual = macro.m_type == ReflectionMacro::RegisterVirtualResource;
 
                 pContext->m_pCurrentEntry = &resource;
                 clang_visitChildren( cr, VisitResourceStructureContents, pContext );

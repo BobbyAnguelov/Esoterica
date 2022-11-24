@@ -15,7 +15,6 @@ namespace EE::TypeSystem
 
         TypeID                      m_typeID;
         ResourceTypeID              m_resourceTypeID;
-        bool                        m_isVirtualResource = false;
         TVector<ResourceTypeID>     m_parentTypes;
 
         #if EE_DEVELOPMENT_TOOLS

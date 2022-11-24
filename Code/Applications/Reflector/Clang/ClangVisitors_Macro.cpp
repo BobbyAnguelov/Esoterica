@@ -61,10 +61,6 @@ namespace EE::TypeSystem::Reflection
         {
             pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterTypeResource, cr, range ) );
         }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterVirtualResource ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterVirtualResource, cr, range ) );
-        }
 
         //-------------------------------------------------------------------------
 

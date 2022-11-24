@@ -60,9 +60,6 @@ namespace EE::Resource
         // The list of resource type we can compile
         virtual TVector<ResourceTypeID> const& GetOutputTypes() const { return m_outputTypes; }
 
-        // The list of virtual resources we produce as part of the compilation process
-        virtual TVector<ResourceTypeID> const& GetVirtualTypes() const { return m_virtualTypes; }
-
         // Does this compiler actually require the input file or is it optional.
         virtual bool IsInputFileRequired() const { return true; }
 
@@ -102,6 +99,5 @@ namespace EE::Resource
         int32_t const                                   m_version;
         String const                                    m_name;
         TVector<ResourceTypeID>                         m_outputTypes;
-        TVector<ResourceTypeID>                         m_virtualTypes;
     };
 }

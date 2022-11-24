@@ -15,7 +15,6 @@ namespace EE::TypeSystem::Reflection
         RegisterType,
         RegisterResource,
         RegisterTypeResource,
-        RegisterVirtualResource,
         RegisterEntityComponent,
         RegisterSingletonEntityComponent,
         RegisterEntitySystem,

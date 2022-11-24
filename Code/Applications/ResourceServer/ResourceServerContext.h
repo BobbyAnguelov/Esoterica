@@ -14,8 +14,12 @@ namespace EE::Resource
 
         FileSystem::Path                        m_rawResourcePath;
         FileSystem::Path                        m_compiledResourcePath;
+        FileSystem::Path                        m_compilerExecutablePath;
         TypeSystem::TypeRegistry const*         m_pTypeRegistry = nullptr;
         CompilerRegistry const*                 m_pCompilerRegistry = nullptr;
         CompiledResourceDatabase const*         m_pCompiledResourceDB = nullptr;
+
+        // Set when we shutdown the server to skip processing of any scheduled tasks
+        bool                                    m_isExiting = false;
     };
 }

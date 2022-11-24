@@ -10,9 +10,7 @@
 
 namespace EE::Resource
 {
-    static char const* const g_pendingRequestsWindowName = "Pending Requests";
     static char const* const g_completedRequestsWindowName = "Completed Requests";
-    static char const* const g_workerStatusWindowName = "Worker Status";
     static char const* const g_serverControlsWindowName = "Server";
     static char const* const g_connectionInfoWindowName = "Connected Clients";
     static char const* const g_packagingControlsWindowName = "Packaging";
@@ -52,11 +50,9 @@ namespace EE::Resource
                 ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.7f, nullptr, &topDockID );
                 ImGuiID topLeftDockID = ImGui::DockBuilderSplitNode( topDockID, ImGuiDir_Left, 0.5f, nullptr, &topRightDockID );
 
-                ImGui::DockBuilderDockWindow( g_workerStatusWindowName, topRightDockID );
                 ImGui::DockBuilderDockWindow( g_connectionInfoWindowName, topLeftDockID );
-                ImGui::DockBuilderDockWindow( g_serverControlsWindowName, topLeftDockID );
+                ImGui::DockBuilderDockWindow( g_serverControlsWindowName, topRightDockID );
                 ImGui::DockBuilderDockWindow( g_packagingControlsWindowName, topLeftDockID );
-                ImGui::DockBuilderDockWindow( g_pendingRequestsWindowName, topLeftDockID );
                 ImGui::DockBuilderDockWindow( g_completedRequestsWindowName, bottomDockID );
 
                 ImGui::DockBuilderFinish( dockspaceID );
@@ -73,7 +69,6 @@ namespace EE::Resource
         DrawServerControls();
         DrawConnectionInfo();
         DrawRequests();
-        DrawWorkerStatus();
         DrawPackagingControls();
     }
 
@@ -93,21 +88,9 @@ namespace EE::Resource
 
             ImGuiX::ScopedFont const BigScopedFont( ImGuiX::Font::Small );
 
-            if ( ImGui::BeginTable( "Completed Requests Table", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
+            if ( ImGui::BeginTable( "Requests", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
             {
-                auto const& activeRequests = m_resourceServer.GetActiveRequests();
-                auto const& pendingRequests = m_resourceServer.GetPendingRequests();
-                auto const& completedRequests = m_resourceServer.GetCompletedRequests();
-
-                m_combinedRequests.clear();
-                m_combinedRequests.reserve( activeRequests.size() + pendingRequests.size() + completedRequests.size() );
-                
-                m_combinedRequests.insert( m_combinedRequests.end(), activeRequests.begin(), activeRequests.end() );
-                m_combinedRequests.insert( m_combinedRequests.end(), pendingRequests.begin(), pendingRequests.end() );
-                m_combinedRequests.insert( m_combinedRequests.end(), completedRequests.begin(), completedRequests.end() );
-
-                auto SortPredicate = [] ( CompilationRequest const* pRequestA, CompilationRequest const* pRequestB ) { return pRequestA->GetTimeRequested() < pRequestB->GetTimeRequested(); };
-                eastl::sort( m_combinedRequests.begin(), m_combinedRequests.end(), SortPredicate );
+                auto const& requests = m_resourceServer.GetRequests();
 
                 //-------------------------------------------------------------------------
 
@@ -125,12 +108,12 @@ namespace EE::Resource
                 ImGui::TableHeadersRow();
 
                 ImGuiListClipper clipper;
-                clipper.Begin( (int32_t) m_combinedRequests.size() );
+                clipper.Begin( (int32_t) requests.size() );
                 while ( clipper.Step() )
                 {
                     for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                     {
-                        CompilationRequest const* pRequest = m_combinedRequests[i];
+                        CompilationRequest const* pRequest = requests[i];
                         ImGui::PushID( pRequest );
 
                         ImVec4 itemColor;
@@ -323,7 +306,7 @@ namespace EE::Resource
                 ImGui::SameLine();
                 if ( ImGui::Button( EE_ICON_DELETE "Clear History", ImVec2( buttonWidth, 0 ) ) )
                 {
-                    m_resourceServer.RequestCleanupOfCompletedRequests();
+                    m_resourceServer.CleanHistory();
                 }
             }
 
@@ -336,28 +319,6 @@ namespace EE::Resource
             else
             {
                 ImGui::InputTextMultiline( "##Output", emptyBuffer, 255, ImVec2( ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x, compilationLogFieldHeight ), ImGuiInputTextFlags_ReadOnly );
-            }
-        }
-        ImGui::End();
-    }
-
-    void ResourceServerUI::DrawWorkerStatus()
-    {
-        if ( ImGui::Begin( g_workerStatusWindowName ) )
-        {
-            int32_t const numWorkers = m_resourceServer.GetNumWorkers();
-            for ( auto i = 0; i < numWorkers; i++ )
-            {
-                ImGui::Text( "Worker %02d: ", i );
-                ImGui::SameLine();
-                if ( m_resourceServer.GetWorkerStatus( i ) == ResourceServerWorker::Status::Working )
-                {
-                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), m_resourceServer.GetCompilationTaskResourceID( i ).c_str() );
-                }
-                else
-                {
-                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::Yellow ), "Idle" );
-                }
             }
         }
         ImGui::End();
@@ -399,13 +360,12 @@ namespace EE::Resource
 
             ImGuiX::TextSeparator( "Registered Compilers" );
 
-            if ( ImGui::BeginTable( "Registered Compilers Table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
+            if ( ImGui::BeginTable( "Registered Compilers Table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
             {
                 ImGuiX::TextSeparator( "Info" );
                 ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 150 );
                 ImGui::TableSetupColumn( "Ver", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 25 );
                 ImGui::TableSetupColumn( "Output Types", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupColumn( "Virtual Types", ImGuiTableColumnFlags_WidthStretch );
 
                 //-------------------------------------------------------------------------
 
@@ -429,14 +389,6 @@ namespace EE::Resource
 
                     ImGui::TableSetColumnIndex( 2 );
                     for ( auto const& type : pCompiler->GetOutputTypes() )
-                    {
-                        type.GetString( str );
-                        ImGui::Text( str );
-                        ImGui::SameLine();
-                    }
-
-                    ImGui::TableSetColumnIndex( 3 );
-                    for ( auto const& type : pCompiler->GetVirtualTypes() )
                     {
                         type.GetString( str );
                         ImGui::Text( str );

@@ -27,7 +27,6 @@ namespace EE::Resource
         }
 
         EE_ASSERT( m_compilerTypeMap.empty() );
-        EE_ASSERT( m_compilerVirtualTypeMap.empty() );
     }
 
     void CompilerRegistry::RegisterCompiler( Compiler const* pCompiler )
@@ -44,14 +43,6 @@ namespace EE::Resource
             EE_ASSERT( m_compilerTypeMap.find( type ) == m_compilerTypeMap.end() );
             m_compilerTypeMap.insert( TPair<ResourceTypeID, Resource::Compiler const*>( type, pCompiler ) );
         }
-
-        auto const& virtualResourceTypes = pCompiler->GetVirtualTypes();
-        for ( auto& type : virtualResourceTypes )
-        {
-            // Two compilers registering for the same resource type is not allowed
-            EE_ASSERT( m_compilerVirtualTypeMap.find( type ) == m_compilerVirtualTypeMap.end() );
-            m_compilerVirtualTypeMap.insert( TPair<ResourceTypeID, Resource::Compiler const*>( type, pCompiler ) );
-        }
     }
 
     void CompilerRegistry::UnregisterCompiler( Compiler const* pCompiler )
@@ -65,12 +56,6 @@ namespace EE::Resource
         for ( auto& type : resourceTypes )
         {
             m_compilerTypeMap.erase( type );
-        }
-
-        auto const& virtualResourceTypes = pCompiler->GetVirtualTypes();
-        for ( auto& type : virtualResourceTypes )
-        {
-            m_compilerVirtualTypeMap.erase( type );
         }
     }
 }

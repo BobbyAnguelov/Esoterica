@@ -580,7 +580,6 @@ namespace EE::TypeSystem::Reflection
                 resourceType.m_headerID = StringID( sqlite3_column_int( pStatement, 3 ) );
                 resourceType.m_className = (char const*) sqlite3_column_text( pStatement, 4 );
                 resourceType.m_namespace = (char const*) sqlite3_column_text( pStatement, 5 );
-                resourceType.m_isVirtual = sqlite3_column_int( pStatement, 6 ) != 0;
                 m_reflectedResourceTypes.push_back( resourceType );
 
                 if ( !ReadAdditionalResourceTypeData( resourceType ) )
@@ -679,7 +678,7 @@ namespace EE::TypeSystem::Reflection
 
         for ( auto const& resourceType : m_reflectedResourceTypes )
         {
-            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `ResourceTypes`( `TypeID`, `ResourceTypeID`, `FriendlyName`, `HeaderID`,`ClassName`,`Namespace`,`IsVirtual`) VALUES ( \"%s\", %u, \"%s\", %u, \"%s\",\"%s\",%d);", resourceType.m_typeID.c_str(), (uint32_t) resourceType.m_resourceTypeID, resourceType.m_friendlyName.c_str(), (uint32_t) resourceType.m_headerID, resourceType.m_className.c_str(), resourceType.m_namespace.c_str(), resourceType.m_isVirtual ? 1 : 0 ) )
+            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `ResourceTypes`( `TypeID`, `ResourceTypeID`, `FriendlyName`, `HeaderID`,`ClassName`,`Namespace`) VALUES ( \"%s\", %u, \"%s\", %u, \"%s\",\"%s\");", resourceType.m_typeID.c_str(), (uint32_t) resourceType.m_resourceTypeID, resourceType.m_friendlyName.c_str(), (uint32_t) resourceType.m_headerID, resourceType.m_className.c_str(), resourceType.m_namespace.c_str() ) )
             {
                 return false;
             }
@@ -745,7 +744,7 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `ResourceTypes` ( `TypeID` TEXT, `ResourceTypeID` INTEGER, `FriendlyName` TEXT, `HeaderID` INTEGER, `ClassName` TEXT, `Namespace` TEXT, `IsVirtual` INTEGER, PRIMARY KEY( `ResourceTypeID`) );" ) )
+        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `ResourceTypes` ( `TypeID` TEXT, `ResourceTypeID` INTEGER, `FriendlyName` TEXT, `HeaderID` INTEGER, `ClassName` TEXT, `Namespace` TEXT, PRIMARY KEY( `ResourceTypeID`) );" ) )
         {
             return false;
         }

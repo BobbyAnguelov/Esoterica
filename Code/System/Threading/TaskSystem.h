@@ -40,6 +40,7 @@ namespace EE
         void Initialize();
         void Shutdown();
 
+        inline bool IsBusy() const { return m_taskScheduler.GetIsRunning(); }
         inline uint32_t GetNumWorkers() const { return m_numWorkers; }
 
         inline void WaitForAll() { m_taskScheduler.WaitforAll(); }

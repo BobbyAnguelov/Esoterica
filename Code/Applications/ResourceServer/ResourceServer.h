@@ -1,13 +1,13 @@
 #pragma once
 
 #include "ResourceServerContext.h"
-#include "ResourceServerWorker.h"
 #include "ResourceCompilationRequest.h"
 #include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
 #include "System/Network/IPC/IPCMessageServer.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Threading/TaskSystem.h"
+#include "System/Threading/Threading.h"
 
 //-------------------------------------------------------------------------
 // The network resource server
@@ -18,6 +18,10 @@
 
 namespace EE::Resource
 {
+    class CompilationTask;
+
+    //-------------------------------------------------------------------------
+
     class ResourceServer : public FileSystem::IFileSystemChangeListener
     {
     public:
@@ -31,14 +35,14 @@ namespace EE::Resource
 
     public:
 
-        ResourceServer();
+        ResourceServer() = default;
         ~ResourceServer();
 
         bool Initialize( IniFile const& iniFile );
         void Shutdown();
         void Update();
 
-        BusyState GetBusyState() const;
+        bool IsBusy() const;
 
         inline String const& GetErrorMessage() const { return m_errorMessage; }
         inline String const& GetNetworkAddress() const { return m_settings.m_resourceServerNetworkAddress; }
@@ -56,17 +60,8 @@ namespace EE::Resource
         // Requests
         //-------------------------------------------------------------------------
 
-        TVector<CompilationRequest const*> const& GetActiveRequests() const { return ( TVector<CompilationRequest const*>& ) m_activeRequests; }
-        TVector<CompilationRequest const*> const& GetPendingRequests() const { return ( TVector<CompilationRequest const*>& ) m_pendingRequests; }
-        TVector<CompilationRequest const*> const& GetCompletedRequests() const { return ( TVector<CompilationRequest const*>& ) m_completedRequests; }
-        inline void RequestCleanupOfCompletedRequests() { m_cleanupRequested = true; }
-
-        // Workers
-        //-------------------------------------------------------------------------
-
-        inline int32_t GetNumWorkers() const { return (int32_t) m_workers.size(); }
-        inline ResourceServerWorker::Status GetWorkerStatus( int32_t workerIdx ) const { return m_workers[workerIdx]->GetStatus(); }
-        inline ResourceID const& GetCompilationTaskResourceID( int32_t workerIdx ) const { return m_workers[workerIdx]->GetRequestResourceID(); }
+        TVector<CompilationRequest const*> const& GetRequests() const { return ( TVector<CompilationRequest const*>& ) m_requests; }
+        inline void CleanHistory() { m_cleanupRequested = true; }
 
         // Clients
         //-------------------------------------------------------------------------
@@ -109,15 +104,9 @@ namespace EE::Resource
         // Requests
         //-------------------------------------------------------------------------
 
-        void CleanupCompletedRequests();
         void CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
+        void ProcessCompletedRequests();
         void NotifyClientOnCompletedRequest( CompilationRequest* pRequest );
-
-        // Compilation
-        //-------------------------------------------------------------------------
-
-        void WriteCompiledResourceRecord( CompilationRequest* pRequest );
-        bool IsCompileableResourceType( ResourceTypeID ID ) const;
 
         // File system listener
         //-------------------------------------------------------------------------
@@ -131,38 +120,33 @@ namespace EE::Resource
 
     private:
 
-        TypeSystem::TypeRegistry                m_typeRegistry;
-        CompilerRegistry*                       m_pCompilerRegistry = nullptr;
-        String                                  m_errorMessage;
-        bool                                    m_cleanupRequested = false;
-        Network::IPC::Server                    m_networkServer;
+        Network::IPC::Server                                        m_networkServer;
+        TypeSystem::TypeRegistry                                    m_typeRegistry;
+        TaskSystem                                                  m_taskSystem;
+        CompilerRegistry*                                           m_pCompilerRegistry = nullptr;
+        String                                                      m_errorMessage;
+        bool                                                        m_cleanupRequested = false;
 
         // Settings
-        ResourceSettings                        m_settings;
-        uint32_t                                m_maxSimultaneousCompilationTasks = 16;
+        ResourceSettings                                            m_settings;
 
         // Compilation Requests
-        CompiledResourceDatabase                m_compiledResourceDatabase;
-        TVector<CompilationRequest*>            m_completedRequests;
-        TVector<CompilationRequest*>            m_pendingRequests;
-        TVector<CompilationRequest*>            m_activeRequests;
+        CompiledResourceDatabase                                    m_compiledResourceDatabase;
+        TVector<CompilationRequest*>                                m_requests;
+        Threading::LockFreeQueue<CompilationTask*>                  m_completedTasks;
+        std::atomic<int64_t>                                        m_numScheduledTasks = 0;
 
         // Workers
-        ResourceServerContext                   m_context;
-        TaskSystem                              m_taskSystem;
-        TVector<ResourceServerWorker*>          m_workers;
+        ResourceServerContext                                       m_context;
 
         // Packaging
-        TVector<ResourceID>                     m_allMaps;
-        TVector<ResourceID>                     m_mapsToBePackaged;
-        TVector<ResourceID>                     m_resourcesToBePackaged;
-        TVector<ResourceID>                     m_completedPackagingRequests;
-        bool                                    m_isPackaging = false;
-
-        // Busy state tracker
-        int32_t                                 m_numRequestedResources = 0; // Counter that is request each time the server becomes idle
+        TVector<ResourceID>                                         m_allMaps;
+        TVector<ResourceID>                                         m_mapsToBePackaged;
+        TVector<ResourceID>                                         m_resourcesToBePackaged;
+        TVector<ResourceID>                                         m_completedPackagingRequests;
+        bool                                                        m_isPackaging = false;
 
         // File System Watcher
-        FileSystem::FileSystemWatcher           m_fileSystemWatcher;
+        FileSystem::FileSystemWatcher                               m_fileSystemWatcher;
     };
 }

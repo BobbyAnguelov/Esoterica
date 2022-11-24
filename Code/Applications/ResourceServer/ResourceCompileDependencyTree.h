@@ -10,7 +10,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    bool ShouldCheckCompileDependencies( ResourceID const& resourceID );
+    bool ShouldCheckCompileDependenciesForResourceType( ResourceID const& resourceID );
 
     //-------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ namespace EE::Resource
         bool                                    m_sourceExists = false;
         bool                                    m_targetExists = false;
         bool                                    m_errorOccurredReadingDependencies = true;
+        bool                                    m_forceRecompile = false;
         int32_t                                 m_compilerVersion = -1;
         CompiledResourceRecord                  m_compiledRecord;
         uint64_t                                m_timestamp = 0;

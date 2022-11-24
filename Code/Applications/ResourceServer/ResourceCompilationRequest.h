@@ -11,7 +11,7 @@ namespace EE::Resource
     class CompilationRequest final
     {
         friend class ResourceServer;
-        friend class ResourceServerWorker;
+        friend class ResourceServerTask;
 
     public:
 

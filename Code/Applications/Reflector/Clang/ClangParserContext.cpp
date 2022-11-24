@@ -24,7 +24,7 @@ namespace EE::TypeSystem::Reflection
     {
         EE_ASSERT( m_type < ReflectionMacro::NumMacros );
 
-        if ( type == ReflectionMacro::RegisterTypeResource || type == ReflectionMacro::RegisterResource || type == ReflectionMacro::RegisterVirtualResource )
+        if ( type == ReflectionMacro::RegisterTypeResource || type == ReflectionMacro::RegisterResource )
         {
             CXTranslationUnit translationUnit = clang_Cursor_getTranslationUnit( cursor );
 

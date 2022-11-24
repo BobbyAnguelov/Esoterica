@@ -183,7 +183,6 @@ namespace EE::CPP
             typeRegistrationStr << "\n";
             typeRegistrationStr << "            resourceInfo.m_typeID = TypeSystem::TypeID( \"" << registeredResourceType.m_typeID.c_str() << "\");\n";
             typeRegistrationStr << "            resourceInfo.m_resourceTypeID = ResourceTypeID( \"" << registeredResourceType.m_resourceTypeID.ToString().c_str() << "\" );\n";
-            typeRegistrationStr << "            resourceInfo.m_isVirtualResource = " << ( registeredResourceType.m_isVirtual ? "true" : "false" ) << ";\n";
             typeRegistrationStr << "            resourceInfo.m_parentTypes.clear();\n";
 
             for ( auto const& parentType : registeredResourceType.m_parents )

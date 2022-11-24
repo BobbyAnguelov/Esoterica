@@ -41,7 +41,7 @@ namespace EE::TypeSystem::Reflection
         // Should be registered as a resource
         inline bool IsRegisteredResourceMacro() const
         { 
-            return m_type == ReflectionMacro::RegisterResource || m_type == ReflectionMacro::RegisterVirtualResource || m_type == ReflectionMacro::RegisterTypeResource; 
+            return m_type == ReflectionMacro::RegisterResource || m_type == ReflectionMacro::RegisterTypeResource; 
         }
 
     public:

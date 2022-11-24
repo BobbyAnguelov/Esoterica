@@ -21,8 +21,6 @@ namespace EE::Resource
 
         inline TVector<Compiler const*> const& GetRegisteredCompilers() const { return m_compilers; }
 
-        inline bool IsVirtualResourceType( ResourceTypeID const& typeID ) const { return m_compilerVirtualTypeMap.find( typeID ) != m_compilerVirtualTypeMap.end(); }
-
         inline bool HasCompilerForResourceType( ResourceTypeID const& typeID ) const { return m_compilerTypeMap.find( typeID ) != m_compilerTypeMap.end(); }
 
         inline Compiler const* GetCompilerForResourceType( ResourceTypeID const& typeID ) const
@@ -52,6 +50,5 @@ namespace EE::Resource
 
         TVector<Compiler const*>                            m_compilers;
         THashMap<ResourceTypeID, Compiler const*>           m_compilerTypeMap;
-        THashMap<ResourceTypeID, Compiler const*>           m_compilerVirtualTypeMap;
     };
 }

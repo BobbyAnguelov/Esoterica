@@ -5,7 +5,6 @@
     <ClCompile Include="ResourceServerApplication.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
     <ClCompile Include="CompiledResourceDatabase.cpp" />
-    <ClCompile Include="ResourceServerWorker.cpp" />
     <ClCompile Include="ResourceCompileDependencyTree.cpp" />
     <ClCompile Include="ResourceServerContext.cpp" />
   </ItemGroup>
@@ -13,7 +12,6 @@
     <ClInclude Include="ResourceServerApplication.h" />
     <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="ResourceCompilationRequest.h" />
-    <ClInclude Include="ResourceServerWorker.h" />
     <ClInclude Include="CompiledResourceDatabase.h" />
     <ClInclude Include="ResourceServer.h" />
     <ClInclude Include="Resources\Resource.h">

@@ -10,9 +10,19 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    bool ShouldCheckCompileDependencies( ResourceID const& resourceID )
+    bool ShouldCheckCompileDependenciesForResourceType( ResourceID const& resourceID )
     {
-        return resourceID.GetResourceTypeID() != ResourceTypeID( "map" );
+        if ( resourceID.GetResourceTypeID() == ResourceTypeID( "map" ) )
+        {
+            return false;
+        }
+
+        if ( resourceID.GetResourceTypeID() == ResourceTypeID( "nav" ) )
+        {
+            return false;
+        }
+
+        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -43,6 +53,13 @@ namespace EE::Resource
 
     bool CompileDependencyNode::IsUpToDate() const
     {
+        if ( m_forceRecompile )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
         if ( !m_sourceExists )
         {
             return false;
@@ -148,6 +165,7 @@ namespace EE::Resource
 
         auto pCompiler = m_context.m_pCompilerRegistry->GetCompilerForResourceType( resourceID.GetResourceTypeID() );
         bool const isCompilableResource = pCompiler != nullptr;
+        bool skipDependencyCheck = !isCompilableResource || !ShouldCheckCompileDependenciesForResourceType( resourceID );
         if ( isCompilableResource )
         {
             pNode->m_targetPath = ResourcePath::ToFileSystemPath( m_context.m_compiledResourcePath, resourceID.GetResourcePath() );
@@ -155,12 +173,19 @@ namespace EE::Resource
 
             pNode->m_compilerVersion = pCompiler->GetVersion();
             pNode->m_compiledRecord = m_context.m_pCompiledResourceDB->GetRecord( resourceID );
+
+            // Some compilers dont require an input file to run - these resources should always be recompiled!
+            if( !pNode->m_sourceExists && !pCompiler->IsInputFileRequired() )
+            {
+                pNode->m_forceRecompile = true;
+                skipDependencyCheck = true;
+            }
         }
 
         // Generate dependencies
         //-------------------------------------------------------------------------
 
-        if ( isCompilableResource && ShouldCheckCompileDependencies( resourceID ) )
+        if ( !skipDependencyCheck )
         {
             TVector<ResourceID> dependencies;
             if ( TryReadCompileDependencies( pNode->m_sourcePath, dependencies ) )

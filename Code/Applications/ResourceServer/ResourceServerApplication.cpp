@@ -185,8 +185,8 @@ namespace EE
             m_resourceServer.Update();
 
             // Sleep when idle to reduce CPU load
-            auto const resourceServerBusyState = m_resourceServer.GetBusyState();
-            if( !resourceServerBusyState.m_isBusy )
+            auto const isBusy = m_resourceServer.IsBusy();
+            if( !isBusy )
             {
                 Threading::Sleep( 1 );
             }
@@ -200,24 +200,19 @@ namespace EE
             if ( m_busyOverlaySet )
             {
                 // Switch to idle
-                if ( !resourceServerBusyState.m_isBusy )
+                if ( !isBusy )
                 {
                     m_pTaskbarInterface->SetOverlayIcon( m_windowHandle, nullptr, L"" );
                     m_pTaskbarInterface->SetProgressState( m_windowHandle, TBPF_NOPROGRESS );
                     m_busyOverlaySet = false;
                 }
-                else // Update percentage
-                {
-                    m_pTaskbarInterface->SetProgressValue( m_windowHandle, resourceServerBusyState.m_completedRequests, resourceServerBusyState.m_totalRequests );
-                }
             }
             else // Idle
             {
-                if ( resourceServerBusyState.m_isBusy )
+                if ( isBusy )
                 {
                     m_pTaskbarInterface->SetOverlayIcon( m_windowHandle, m_busyOverlayIcon, L"" );
                     m_pTaskbarInterface->SetProgressState( m_windowHandle, TBPF_NORMAL );
-                    m_pTaskbarInterface->SetProgressValue( m_windowHandle, resourceServerBusyState.m_completedRequests, resourceServerBusyState.m_totalRequests );
                     m_busyOverlaySet = true;
                 }
             }
