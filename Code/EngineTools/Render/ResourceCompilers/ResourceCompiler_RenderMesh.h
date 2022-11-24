@@ -31,7 +31,7 @@ namespace EE::Render
         void OptimizeMeshGeometry( Mesh& mesh ) const;
         void SetMeshDefaultMaterials( MeshResourceDescriptor const& descriptor, Mesh& mesh ) const;
         void SetMeshInstallDependencies( Mesh const& mesh, Resource::ResourceHeader& hdr ) const;
-        virtual bool GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
+        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
     };
 
     //-------------------------------------------------------------------------

@@ -252,7 +252,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool AnimationGraphCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
+    bool AnimationGraphCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
         if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
         {

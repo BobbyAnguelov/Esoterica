@@ -19,6 +19,7 @@
 namespace EE::Resource
 {
     class CompilationTask;
+    class PackagingTask;
 
     //-------------------------------------------------------------------------
 
@@ -31,6 +32,14 @@ namespace EE::Resource
             int32_t     m_completedRequests = 0;
             int32_t     m_totalRequests = 0;
             bool        m_isBusy = false;
+        };
+
+        enum class PackagingStage
+        {
+            None, // Not Packaging
+            Preparing,
+            Packaging,
+            Complete
         };
 
     public:
@@ -73,14 +82,6 @@ namespace EE::Resource
         // Packaging
         //-------------------------------------------------------------------------
 
-        bool IsPackaging() const { return m_isPackaging; }
-
-        // How far are we along with the packaging process
-        inline float GetPackagingProgress() const { return ( float( m_completedPackagingRequests.size() ) / m_resourcesToBePackaged.size() ); }
-
-        // Start the packaging process
-        void StartPackaging();
-
         // Refresh the list of available maps to package
         void RefreshAvailableMapList();
 
@@ -90,8 +91,14 @@ namespace EE::Resource
         // Get the current list of maps queued to be packaged
         TVector<ResourceID> const& GetMapsQueuedForPackaging() const { return m_mapsToBePackaged; }
 
-        // Do we have any maps on the to-be-packaged list
-        bool CanStartPackaging() const;
+        // Are we currently packaging a map
+        inline bool IsPackaging() const { return m_packagingStage != PackagingStage::None && m_packagingStage != PackagingStage::Complete; }
+
+        // Get the current stage of packaging
+        PackagingStage GetPackagingStage() const { return m_packagingStage; }
+
+        // How far are we along with the packaging process
+        float GetPackagingProgress() const;
 
         // Add map to the to-be-packaged list
         void AddMapToPackagingList( ResourceID mapResourceID );
@@ -99,12 +106,18 @@ namespace EE::Resource
         // Remove map from the to-be-packaged list
         void RemoveMapFromPackagingList( ResourceID mapResourceID );
 
+        // Do we have any maps on the to-be-packaged list
+        bool CanStartPackaging() const;
+
+        // Start the packaging process
+        void StartPackaging();
+
     private:
 
         // Requests
         //-------------------------------------------------------------------------
 
-        void CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
+        CompilationRequest* CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
         void ProcessCompletedRequests();
         void NotifyClientOnCompletedRequest( CompilationRequest* pRequest );
 
@@ -112,11 +125,6 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         virtual void OnFileModified( FileSystem::Path const& filePath ) override final;
-
-        // Packaging
-        //-------------------------------------------------------------------------
-
-        void EnqueueResourceForPackaging( ResourceID const& resourceID );
 
     private:
 
@@ -142,9 +150,9 @@ namespace EE::Resource
         // Packaging
         TVector<ResourceID>                                         m_allMaps;
         TVector<ResourceID>                                         m_mapsToBePackaged;
-        TVector<ResourceID>                                         m_resourcesToBePackaged;
-        TVector<ResourceID>                                         m_completedPackagingRequests;
-        bool                                                        m_isPackaging = false;
+        TVector<CompilationRequest const*>                          m_packagingRequests;
+        PackagingTask*                                              m_pPackagingTask = nullptr;
+        PackagingStage                                              m_packagingStage = PackagingStage::None;
 
         // File System Watcher
         FileSystem::FileSystemWatcher                               m_fileSystemWatcher;

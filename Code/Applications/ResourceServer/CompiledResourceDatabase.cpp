@@ -72,6 +72,8 @@ namespace EE
 
         CompiledResourceRecord CompiledResourceDatabase::GetRecord( ResourceID resourceID ) const
         {
+            Threading::ScopeLock const lock( m_mutex );
+
             CompiledResourceRecord record;
 
             //-------------------------------------------------------------------------
@@ -101,6 +103,8 @@ namespace EE
 
         bool CompiledResourceDatabase::WriteRecord( CompiledResourceRecord const& record )
         {
+            Threading::ScopeLock const lock( m_mutex );
+
             return ExecuteSimpleQuery( "INSERT OR REPLACE INTO `CompiledResources` ( `ResourcePath`, `ResourceType`, `CompilerVersion`, `FileTimestamp`, `SourceTimestampHash` ) VALUES ( \"%s\", %d, %d, %llu, %llu );", record.m_resourceID.GetResourcePath().c_str(), (uint32_t) record.m_resourceID.GetResourceTypeID(), record.m_compilerVersion, record.m_fileTimestamp, record.m_sourceTimestampHash  );
         }
     }

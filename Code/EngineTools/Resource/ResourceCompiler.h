@@ -63,8 +63,8 @@ namespace EE::Resource
         // Does this compiler actually require the input file or is it optional.
         virtual bool IsInputFileRequired() const { return true; }
 
-        // Get all referenced resources for a specific resource
-        virtual bool GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const { return true; }
+        // Get all referenced resources needed at runtime
+        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const { return true; }
 
     protected:
 

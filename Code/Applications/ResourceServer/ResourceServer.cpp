@@ -222,6 +222,71 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
+    class PackagingTask final : public ITaskSet
+    {
+    public:
+
+        PackagingTask( ResourceServerContext const& context, TVector<ResourceID> const& mapsToBePackaged )
+            : ITaskSet( 1 )
+            , m_context( context )
+            , m_mapsToBePackaged( mapsToBePackaged )
+        {
+            EE_ASSERT( m_context.IsValid() );
+        }
+
+        inline TVector<ResourceID> const& GetRuntimeDependencies() const { return m_runtimeDependencies; }
+
+    private:
+
+        virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
+        {
+            EngineModule::GetListOfAllRequiredModuleResources( m_runtimeDependencies );
+            GameModule::GetListOfAllRequiredModuleResources( m_runtimeDependencies );
+
+            //-------------------------------------------------------------------------
+
+            for ( auto const& mapID : m_mapsToBePackaged )
+            {
+                EnqueueResourceForPackaging( mapID );
+            }
+        }
+
+        void EnqueueResourceForPackaging( ResourceID const& resourceID )
+        {
+            if ( m_context.m_isExiting )
+            {
+                return;
+            }
+
+            //-------------------------------------------------------------------------
+
+            auto pCompiler = m_context.m_pCompilerRegistry->GetCompilerForResourceType( resourceID.GetResourceTypeID() );
+            if ( pCompiler != nullptr )
+            {
+                // Add resource for packaging
+                VectorEmplaceBackUnique( m_runtimeDependencies, resourceID );
+
+                // Get all runtime install dependencies
+                TVector<ResourceID> referencedResources;
+                pCompiler->GetInstallDependencies( resourceID, referencedResources );
+
+                // Recursively enqueue all referenced resources
+                for ( auto const& referenceResourceID : referencedResources )
+                {
+                    EnqueueResourceForPackaging( referenceResourceID );
+                }
+            }
+        }
+
+    public:
+
+        ResourceServerContext const&            m_context;
+        TVector<ResourceID> const&              m_mapsToBePackaged;
+        TVector<ResourceID>                     m_runtimeDependencies;
+    };
+
+    //-------------------------------------------------------------------------
+
     ResourceServer::~ResourceServer()
     {
         EE_ASSERT( m_pCompilerRegistry == nullptr );
@@ -305,6 +370,15 @@ namespace EE::Resource
 
         EE_ASSERT( m_numScheduledTasks == 0 );
 
+        // Packaging
+        //-------------------------------------------------------------------------
+
+        if ( m_pPackagingTask != nullptr )
+        {
+            EE_ASSERT( m_pPackagingTask->GetIsComplete() );
+            EE::Delete( m_pPackagingTask );
+        }
+
         // Unregister File Watcher
         //-------------------------------------------------------------------------
 
@@ -358,11 +432,49 @@ namespace EE::Resource
             m_networkServer.ProcessIncomingMessages( ProcessIncomingMessages );
         }
 
+        // Update Packaging
+        //-------------------------------------------------------------------------
+
+        if ( m_packagingStage == PackagingStage::Preparing )
+        {
+            EE_ASSERT( m_pPackagingTask != nullptr );
+
+            if ( m_pPackagingTask->GetIsComplete() )
+            {
+                for ( auto const& resourceID : m_pPackagingTask->GetRuntimeDependencies() )
+                {
+                    m_packagingRequests.emplace_back( CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::Package ) );
+                }
+
+                EE::Delete( m_pPackagingTask );
+                m_packagingStage = PackagingStage::Packaging;
+            }
+        }
+        else if ( m_packagingStage == PackagingStage::Packaging )
+        {
+            bool isComplete = true;
+
+            for ( auto pRequest : m_packagingRequests )
+            {
+                if ( !pRequest->IsComplete() )
+                {
+                    isComplete = false;
+                    break;
+                }
+            }
+
+            if ( isComplete )
+            {
+                m_packagingRequests.clear();
+                m_packagingStage = PackagingStage::Complete;
+            }
+        }
+
         // Process completed requests
         //-------------------------------------------------------------------------
         
         ProcessCompletedRequests();
-        
+
         // Process cleanup request
         //-------------------------------------------------------------------------
 
@@ -387,24 +499,11 @@ namespace EE::Resource
         {
             m_fileSystemWatcher.Update();
         }
-
-        // Packaging
-        //-------------------------------------------------------------------------
-
-        if ( m_isPackaging )
-        {
-            if ( m_completedPackagingRequests.size() == m_resourcesToBePackaged.size() )
-            {
-                m_resourcesToBePackaged.clear();
-                m_completedPackagingRequests.clear();
-                m_isPackaging = false;
-            }
-        }
     }
 
     bool ResourceServer::IsBusy() const
     {
-        return m_numScheduledTasks != 0;
+        return IsPackaging() || m_numScheduledTasks != 0;
     }
 
     void ResourceServer::OnFileModified( FileSystem::Path const& filePath )
@@ -429,7 +528,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    void ResourceServer::CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID, CompilationRequest::Origin origin )
+    CompilationRequest* ResourceServer::CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID, CompilationRequest::Origin origin )
     {
         EE_ASSERT( m_compiledResourceDatabase.IsConnected() );
 
@@ -478,6 +577,10 @@ namespace EE::Resource
         auto pTask = EE::New<CompilationTask>( m_context, m_completedTasks, pRequest );
         m_taskSystem.ScheduleTask( pTask );
         m_numScheduledTasks++;
+
+        //-------------------------------------------------------------------------
+
+        return pRequest;
     }
 
     void ResourceServer::ProcessCompletedRequests()
@@ -538,12 +641,6 @@ namespace EE::Resource
         // Notify all clients
         if ( pRequest->IsInternalRequest() )
         {
-            // Remove from list of resources being packaged since the request is complete
-            if ( pRequest->m_origin == CompilationRequest::Origin::Package )
-            {
-                m_completedPackagingRequests.emplace_back( pRequest->m_resourceID );
-            }
-
             // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
             for ( auto const& clientInfo : m_networkServer.GetConnectedClients() )
             {
@@ -578,39 +675,6 @@ namespace EE::Resource
         }
     }
 
-    void ResourceServer::StartPackaging()
-    {
-        EE_ASSERT( !m_isPackaging && m_resourcesToBePackaged.empty() );
-        m_completedPackagingRequests.clear();
-
-        // Package Module Resources
-        //-------------------------------------------------------------------------
-        // TODO: is there a less error prone mechanism for this?
-
-        EngineModule::GetListOfAllRequiredModuleResources( m_resourcesToBePackaged );
-        GameModule::GetListOfAllRequiredModuleResources( m_resourcesToBePackaged );
-
-        // Package Selected Maps
-        //-------------------------------------------------------------------------
-
-        for ( auto const& mapID : m_mapsToBePackaged )
-        {
-            EnqueueResourceForPackaging( mapID );
-        }
-
-        for ( auto const& resourceID : m_resourcesToBePackaged )
-        {
-            CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::Package );
-        }
-
-        m_isPackaging = true;
-    }
-
-    bool ResourceServer::CanStartPackaging() const
-    {
-        return !m_mapsToBePackaged.empty();
-    }
-
     void ResourceServer::AddMapToPackagingList( ResourceID mapResourceID )
     {
         EE_ASSERT( mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
@@ -623,23 +687,59 @@ namespace EE::Resource
         m_mapsToBePackaged.erase_first_unsorted( mapResourceID );
     }
 
-    void ResourceServer::EnqueueResourceForPackaging( ResourceID const& resourceID )
+    bool ResourceServer::CanStartPackaging() const
     {
-        auto pCompiler = m_pCompilerRegistry->GetCompilerForResourceType( resourceID.GetResourceTypeID() );
-        if ( pCompiler != nullptr )
+        return ( m_packagingStage == PackagingStage::None || m_packagingStage == PackagingStage::Complete ) && !m_mapsToBePackaged.empty();
+    }
+
+    void ResourceServer::StartPackaging()
+    {
+        EE_ASSERT( CanStartPackaging() );
+
+        m_pPackagingTask = EE::New<PackagingTask>( m_context, m_mapsToBePackaged );
+        m_taskSystem.ScheduleTask( m_pPackagingTask );
+        m_packagingStage = PackagingStage::Preparing;
+    }
+
+    float ResourceServer::GetPackagingProgress() const
+    {
+        switch ( m_packagingStage )
         {
-            // Add resource for packaging
-            VectorEmplaceBackUnique( m_resourcesToBePackaged, resourceID );
-
-            // Get all referenced resources
-            TVector<ResourceID> referencedResources;
-            pCompiler->GetReferencedResources( resourceID, referencedResources );
-
-            // Recursively enqueue all referenced resources
-            for ( auto const& referenceResourceID : referencedResources )
+            case PackagingStage::None:
             {
-                EnqueueResourceForPackaging( referenceResourceID );
+                return 1.0f;
             }
+            break;
+
+            case PackagingStage::Preparing:
+            {
+                return 0.1f;
+            }
+            break;
+
+            case PackagingStage::Packaging:
+            {
+                float numComplete = 0.0f;
+                for ( auto pRequest : m_packagingRequests )
+                {
+                    if ( pRequest->IsComplete() )
+                    {
+                        numComplete++;
+                    }
+                }
+
+                float const percentageComplete = numComplete / m_packagingRequests.size();
+                return 0.05f + ( 0.95f * percentageComplete );
+            }
+            break;
+
+            case PackagingStage::Complete:
+            {
+                return 1.0f;
+            }
+            break;
         }
+
+        return 0.0f;
     }
 }

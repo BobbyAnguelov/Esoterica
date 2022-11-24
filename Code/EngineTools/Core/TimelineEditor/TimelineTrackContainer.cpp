@@ -10,6 +10,11 @@ namespace EE::Timeline
 
     //-------------------------------------------------------------------------
 
+    TrackContainer::~TrackContainer()
+    {
+        Reset();
+    }
+
     void TrackContainer::Reset()
     {
         for ( auto pTrack : m_tracks )

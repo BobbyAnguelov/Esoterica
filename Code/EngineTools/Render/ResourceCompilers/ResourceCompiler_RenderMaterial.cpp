@@ -83,7 +83,7 @@ namespace EE::Render
         }
     }
 
-    bool MaterialCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
+    bool MaterialCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
         FileSystem::Path const filePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
         MaterialResourceDescriptor resourceDescriptor;

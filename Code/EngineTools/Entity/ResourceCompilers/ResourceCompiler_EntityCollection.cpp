@@ -52,7 +52,7 @@ namespace EE::EntityModel
         }
     }
 
-    bool EntityCollectionCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
+    bool EntityCollectionCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
         EE_ASSERT( resourceID.GetResourceTypeID() == SerializedEntityCollection::GetStaticResourceTypeID() );
 

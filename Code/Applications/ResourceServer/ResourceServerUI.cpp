@@ -202,7 +202,7 @@ namespace EE::Resource
 
                             case CompilationRequest::Origin::Package:
                             {
-                                ImGui::Text( "Packaging" );
+                                ImGui::Text( "Package" );
                             }
                             break;
                         }
@@ -304,10 +304,12 @@ namespace EE::Resource
                 ImGui::EndDisabled();
 
                 ImGui::SameLine();
+                ImGui::BeginDisabled( m_resourceServer.IsBusy() );
                 if ( ImGui::Button( EE_ICON_DELETE "Clear History", ImVec2( buttonWidth, 0 ) ) )
                 {
                     m_resourceServer.CleanHistory();
                 }
+                ImGui::EndDisabled();
             }
 
             //-------------------------------------------------------------------------
@@ -437,23 +439,14 @@ namespace EE::Resource
     {
         if ( ImGui::Begin( g_packagingControlsWindowName ) )
         {
-            if ( m_resourceServer.IsPackaging() )
-            {
-                ImGui::Text( "Packaging in Progress:" );
+            auto const packagingStage = m_resourceServer.GetPackagingStage();
 
-                float const progress = m_resourceServer.GetPackagingProgress();
-                ImGui::ProgressBar( progress, ImVec2( -1, 0 ) );
+            //-------------------------------------------------------------------------
+            // Packaging UI
+            //-------------------------------------------------------------------------
 
-                ImGui::NewLine();
-                ImGui::Text( "Maps being packaged:" );
-
-                auto const& mapsToBePackaged = m_resourceServer.GetMapsQueuedForPackaging();
-                for ( auto const& mapID : mapsToBePackaged )
-                {
-                    ImGui::BulletText( mapID.c_str() );
-                }
-            }
-            else
+            bool const disablePackagingUI = ( packagingStage == ResourceServer::PackagingStage::Preparing ) || ( packagingStage == ResourceServer::PackagingStage::Packaging );
+            ImGui::BeginDisabled( disablePackagingUI );
             {
                 InlineString previewStr;
                 auto const& mapsToBePackaged = m_resourceServer.GetMapsQueuedForPackaging();
@@ -477,13 +470,13 @@ namespace EE::Resource
 
                 auto const& allMaps = m_resourceServer.GetAllFoundMaps();
                 constexpr static float const buttonSize = 28;
-                ImGui::SetNextItemWidth( dimensions.x - buttonSize - ImGui::GetStyle().ItemSpacing.x );
+                ImGui::SetNextItemWidth( dimensions.x  - 50 - buttonSize - ( ImGui::GetStyle().ItemSpacing.x * 2 ) );
                 {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
-                    if ( ImGui::BeginCombo( "##SelectedMaps", previewStr.c_str(), ImGuiComboFlags_HeightLargest) )
+                    if ( ImGui::BeginCombo( "##SelectedMaps", previewStr.c_str(), ImGuiComboFlags_HeightLargest ) )
                     {
                         for ( auto const& mapID : allMaps )
                         {
+                            ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
                             bool isSelected = VectorContains( mapsToBePackaged, mapID );
                             if ( ImGui::Checkbox( mapID.c_str(), &isSelected ) )
                             {
@@ -512,12 +505,50 @@ namespace EE::Resource
 
                 //-------------------------------------------------------------------------
 
+                ImGui::SameLine();
                 ImGui::BeginDisabled( !m_resourceServer.CanStartPackaging() );
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Package Selected Maps", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Start", ImVec2( 50, 0 ) ) )
                 {
                     m_resourceServer.StartPackaging();
                 }
                 ImGui::EndDisabled();
+            }
+            ImGui::EndDisabled();
+
+            //-------------------------------------------------------------------------
+            // Packaging Progress
+            //-------------------------------------------------------------------------
+
+            if ( packagingStage != ResourceServer::PackagingStage::None )
+            {
+                ImGuiX::TextSeparator( "Selected Maps");
+
+                auto const& mapsToBePackaged = m_resourceServer.GetMapsQueuedForPackaging();
+                for ( auto const& mapID : mapsToBePackaged )
+                {
+                    ImGui::BulletText( mapID.c_str() );
+                }
+
+                ImGuiX::TextSeparator( "Progress" );
+
+                if ( packagingStage != ResourceServer::PackagingStage::Complete )
+                {
+                    ImGui::Indent( 4.0f );
+                    ImGuiX::DrawSpinner( "##Packaging" );
+                    ImGui::Unindent( 4.0f );
+                }
+                else
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Medium, Colors::Lime );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( EE_ICON_CHECK_BOLD );
+                }
+
+                ImGui::SameLine( 26 );
+
+                float const progress = m_resourceServer.GetPackagingProgress();
+                TInlineString<32> overlay( TInlineString<32>::CtorSprintf(), "%.2f%%", progress * 100 );
+                ImGui::ProgressBar( progress, ImVec2( -1, 0 ), overlay.c_str() );
             }
         }
         ImGui::End();

@@ -27,15 +27,17 @@ namespace EE::Player
         //-------------------------------------------------------------------------
         // Base Actions
         //-------------------------------------------------------------------------
-        #if EE_DEVELOPMENT_TOOLS
-        m_baseActions[DebugMode] = EE::New<DebugModeAction>();
-        #endif
+
         m_baseActions[Locomotion] = EE::New<LocomotionAction>();
         m_baseActions[Falling] = EE::New<FallingAction>();
         m_baseActions[Jump] = EE::New<JumpAction>();
         m_baseActions[Dash] = EE::New<DashAction>();
         m_baseActions[Slide] = EE::New<SlideAction>();
         m_baseActions[Interact] = EE::New<InteractAction>();
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_baseActions[DebugMode] = EE::New<DebugModeAction>();
+        #endif
 
         //-------------------------------------------------------------------------
         // State Transitions
@@ -56,10 +58,12 @@ namespace EE::Player
         // Global Transitions
         //-------------------------------------------------------------------------
 
-        m_highPriorityGlobalTransitions.emplace_back( DebugMode, Transition::Availability::Always );
-
         m_lowPriorityGlobalTransitions.emplace_back( Falling, Transition::Availability::OnlyOnCompleted );
         m_lowPriorityGlobalTransitions.emplace_back( Locomotion, Transition::Availability::OnlyOnCompleted );
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_highPriorityGlobalTransitions.emplace_back( DebugMode, Transition::Availability::Always );
+        #endif
     }
 
     ActionStateMachine::~ActionStateMachine()

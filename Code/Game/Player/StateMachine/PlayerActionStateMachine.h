@@ -52,7 +52,10 @@ namespace EE::Player
             Slide,
             Interact,
 
+            #if EE_DEVELOPMENT_TOOLS
             DebugMode,
+            #endif
+
             NumActions,
             DefaultAction = Locomotion,
         };

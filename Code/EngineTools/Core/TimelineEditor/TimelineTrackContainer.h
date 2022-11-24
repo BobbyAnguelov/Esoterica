@@ -23,7 +23,7 @@ namespace EE::Timeline
 
     public:
 
-        virtual ~TrackContainer() = default;
+        virtual ~TrackContainer();
 
         // Frees all tracks
         void Reset();

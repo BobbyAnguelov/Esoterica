@@ -22,7 +22,7 @@ namespace EE::Animation
 
         AnimationGraphCompiler();
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const final;
-        virtual bool GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
+        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
 
     private:
 

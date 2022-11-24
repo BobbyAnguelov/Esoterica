@@ -3,6 +3,7 @@
 #include "EngineTools/ThirdParty/sqlite/SqliteHelpers.h"
 #include "System/Resource/ResourceID.h"
 #include "System/FileSystem/FileSystemPath.h"
+#include "System/Threading/Threading.h"
 
 //-------------------------------------------------------------------------
 
@@ -39,6 +40,10 @@ namespace EE
 
             bool CreateTables();
             bool DropTables();
+
+        private:
+
+            mutable Threading::Mutex m_mutex;
         };
     }
 }

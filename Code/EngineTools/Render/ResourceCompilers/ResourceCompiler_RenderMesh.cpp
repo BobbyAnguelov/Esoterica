@@ -189,7 +189,7 @@ namespace EE::Render
         }
     }
 
-    bool MeshCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
+    bool MeshCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
         FileSystem::Path const filePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
         MeshResourceDescriptor resourceDescriptor;

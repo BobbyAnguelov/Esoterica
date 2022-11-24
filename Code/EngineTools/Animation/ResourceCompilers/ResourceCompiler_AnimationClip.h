@@ -30,7 +30,7 @@ namespace EE::Animation
 
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const final;
 
-        virtual bool GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
+        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
 
         void TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange ) const;
 

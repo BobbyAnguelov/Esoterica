@@ -46,7 +46,7 @@ namespace EE::Resource
         inline bool IsInternalRequest() const { return m_origin != Origin::External; }
 
         // Do we require a force recompile of this resource even if it's up to date
-        inline bool RequiresForcedRecompiliation() const { return m_origin == Origin::ManualCompileForced; }
+        inline bool RequiresForcedRecompiliation() const { return m_origin == Origin::ManualCompileForced || m_origin == Origin::Package; }
 
         // Status
         inline Status GetStatus() const { return m_status; }

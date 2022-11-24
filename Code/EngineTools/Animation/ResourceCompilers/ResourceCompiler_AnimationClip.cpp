@@ -624,7 +624,7 @@ namespace EE::Animation
         return true;
     }
 
-    bool AnimationClipCompiler::GetReferencedResources( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
+    bool AnimationClipCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
         // Try read event tracks
         //-------------------------------------------------------------------------
