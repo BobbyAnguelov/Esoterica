@@ -2,7 +2,6 @@
 #include "EngineTools/Animation/Events/AnimationEventEditor.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
-#include "EngineTools/Core/Widgets/InterfaceHelpers.h"
 #include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
@@ -354,14 +353,14 @@ namespace EE::Animation
 
         if ( m_eventEditor.IsPlaying() )
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PAUSE, "Pause", Colors::Yellow, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_PAUSE, "Pause", ImGuiX::ImColors::Yellow, ImVec2( buttonDimensions, 0 ) ) )
             {
                 m_eventEditor.Pause();
             }
         }
         else
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Play", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Play", ImGuiX::ImColors::Lime, ImVec2( buttonDimensions, 0 ) ) )
             {
                 m_eventEditor.Play();
             }

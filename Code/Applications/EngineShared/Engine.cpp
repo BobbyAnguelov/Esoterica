@@ -101,7 +101,7 @@ namespace EE
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        if ( !InitializeToolsModules( moduleContext, iniFile ) )
+        if ( !InitializeToolsModulesAndSystems( moduleContext, iniFile ) )
         {
             return false;
         }
@@ -151,7 +151,7 @@ namespace EE
         #if EE_DEVELOPMENT_TOOLS
         CreateToolsUI();
         EE_ASSERT( m_pToolsUI != nullptr );
-        m_pToolsUI->Initialize( m_updateContext );
+        m_pToolsUI->Initialize( m_updateContext, m_pImguiSystem->GetImageCache() );
         #endif
 
         m_initialized = true;
@@ -231,7 +231,7 @@ namespace EE
             moduleContext.m_pEntityWorldManager = m_pEntityWorldManager;
 
             #if EE_DEVELOPMENT_TOOLS
-            ShutdownToolsModules( moduleContext );
+            ShutdownToolsModulesAndSystems( moduleContext );
             #endif
 
             m_gameModule.ShutdownModule( moduleContext );

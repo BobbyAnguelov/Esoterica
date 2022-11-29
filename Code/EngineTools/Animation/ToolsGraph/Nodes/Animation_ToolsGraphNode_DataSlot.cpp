@@ -1,7 +1,6 @@
 #include "Animation_ToolsGraphNode_DataSlot.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 

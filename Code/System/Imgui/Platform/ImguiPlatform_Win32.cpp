@@ -10,12 +10,11 @@
 
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
     namespace Platform
     {
-        Input::InputSystem* g_pInputSystem = nullptr;
-
         //-------------------------------------------------------------------------
         // This code is taken from the imgui docking branch examples
         //-------------------------------------------------------------------------
@@ -37,10 +36,12 @@ namespace EE::ImGuiX
             HWND                        MouseHwnd;
             bool                        MouseTracked = false;
             int                         MouseButtonsDown = 0;
-            WNDCLASSEX                  m_imguiWindowClass;
             ImGuiMouseCursor            LastMouseCursor;
             bool                        WantUpdateHasGamepad = false;
             bool                        WantUpdateMonitors = false;
+
+            WNDCLASSEX                  m_imguiWindowClass;
+            Input::InputSystem*         m_pEngineInputSystem = nullptr;
         };
 
         static BOOL CALLBACK ImGui_ImplWin32_UpdateMonitors_EnumFunc( HMONITOR monitor, HDC, LPRECT, LPARAM )
@@ -718,14 +719,26 @@ namespace EE::ImGuiX
         // Return the default wnd proc if the message isn't handled, needed for child windows
         static LRESULT ImGui_ImplWin32_ChildWndProcHandler( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam )
         {
+            // Store application information in window user data
+            if ( msg == WM_NCCREATE )
+            {
+                auto pUserdata = reinterpret_cast<CREATESTRUCTW*>( lParam )->lpCreateParams;
+                ::SetWindowLongPtrW( hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>( pUserdata ) );
+            }
+
+            //-------------------------------------------------------------------------
+
             LRESULT result = ImGui_ImplWin32_WndProcHandler( hwnd, msg, wParam, lParam );
             if ( result != 0 )
             {
                 return result;
             }
 
-            // We need to forward any inputs from child windows into the main input system
-            if ( g_pInputSystem != nullptr )
+            //-------------------------------------------------------------------------
+
+            ImGuiIO& io = ImGui::GetIO();
+            ImGuiBackendDataWin32* pBackendData = reinterpret_cast<ImGuiBackendDataWin32*>( io.BackendPlatformUserData );
+            if ( pBackendData->m_pEngineInputSystem != nullptr )
             {
                 switch ( msg )
                 {
@@ -740,7 +753,7 @@ namespace EE::ImGuiX
                     case WM_CHAR:
                     case WM_MOUSEMOVE:
                     {
-                        g_pInputSystem->ForwardInputMessageToInputDevices( { msg, (uintptr_t) wParam, (uintptr_t) lParam } );
+                        pBackendData->m_pEngineInputSystem->ForwardInputMessageToInputDevices( { msg, (uintptr_t) wParam, (uintptr_t) lParam } );
                     }
                     break;
                 }
@@ -858,7 +871,7 @@ namespace EE::ImGuiX
             }
         }
 
-        intptr_t WindowsMessageHandler( HWND hWnd, uint32_t message, uintptr_t wParam, intptr_t lParam )
+        intptr_t WindowMessageProcessor( HWND hWnd, uint32_t message, uintptr_t wParam, intptr_t lParam )
         {
             return ImGui_ImplWin32_WndProcHandler( hWnd, message, wParam, lParam );
         }
@@ -866,14 +879,9 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
-    #if EE_DEVELOPMENT_TOOLS
     void ImguiSystem::InitializePlatform()
     {
         ImGuiIO& io = ImGui::GetIO();
-
-        //-------------------------------------------------------------------------
-
-        Platform::g_pInputSystem = m_pInputSystem;
 
         //-------------------------------------------------------------------------
 
@@ -883,6 +891,7 @@ namespace EE::ImGuiX
         pBackendData->WantUpdateHasGamepad = true;
         pBackendData->WantUpdateMonitors = true;
         pBackendData->LastMouseCursor = ImGuiMouseCursor_COUNT;
+        pBackendData->m_pEngineInputSystem = m_pInputSystem;
 
         io.BackendPlatformUserData = pBackendData;
         io.BackendPlatformName = "imgui_impl_win32";
@@ -961,10 +970,6 @@ namespace EE::ImGuiX
 
         io.BackendPlatformName = nullptr;
         io.BackendPlatformUserData = nullptr;
-
-        //-------------------------------------------------------------------------
-
-        Platform::g_pInputSystem = nullptr;
     }
 
     void ImguiSystem::PlatformUpdate()
@@ -972,6 +977,6 @@ namespace EE::ImGuiX
         Platform::UpdateDisplayInformation();
         Platform::UpdateInputInformation();
     }
-    #endif
 }
+#endif
 #endif

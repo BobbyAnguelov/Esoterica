@@ -106,7 +106,7 @@ namespace EE::Animation
                 ImGui::TableNextRow();
 
                 ImGui::TableSetColumnIndex( 0 );
-                ImGui::TextColored( ImGuiX::ConvertColor( GetColorForValueType( valueType ) ), "%s", nodeID.c_str() );
+                ImGui::TextColored( ImGuiX::ToIm( GetColorForValueType( valueType ) ), "%s", nodeID.c_str() );
 
                 ImGui::TableSetColumnIndex( 1 );
                 ImGui::Text( stringValue.c_str() );

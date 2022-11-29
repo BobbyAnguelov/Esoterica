@@ -3,7 +3,6 @@
 #include "Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
-#include "System/Imgui/ImguiStyle.h"
 #include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
@@ -50,19 +49,19 @@ namespace EE::Animation::GraphNodes
         {
             case StateType::OffState:
             {
-                return ImGuiX::ConvertColor( Colors::DarkRed );
+                return ImGuiX::ImColors::DarkRed;
             }
             break;
 
             case StateType::BlendTreeState:
             {
-                return ImGuiX::ConvertColor( Colors::DarkSlateBlue );
+                return ImGuiX::ImColors::DarkSlateBlue;
             }
             break;
 
             case StateType::StateMachineState:
             {
-                return ImGuiX::ConvertColor( Colors::DarkCyan );
+                return ImGuiX::ImColors::DarkCyan;
             }
             break;
         }

@@ -1,6 +1,5 @@
 #include "Workspace_Skeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/Core/Widgets/InterfaceHelpers.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "Engine/Entity/EntityWorld.h"

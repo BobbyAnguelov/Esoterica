@@ -1,5 +1,4 @@
 #include "TimelineTrack.h"
-#include "System/Imgui/ImguiStyle.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Serialization/TypeSerialization.h"
 

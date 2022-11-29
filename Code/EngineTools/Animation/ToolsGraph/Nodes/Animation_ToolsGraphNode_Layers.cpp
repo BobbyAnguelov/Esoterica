@@ -2,7 +2,6 @@
 #include "Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 

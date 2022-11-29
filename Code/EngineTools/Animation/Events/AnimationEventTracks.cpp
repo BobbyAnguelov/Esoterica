@@ -218,12 +218,12 @@ namespace EE::Animation
             {
                 float const value = curve.GetPoint( 0 ).m_value;
                 float const linePosY = adjustedItemEndPos.y - ( value * curveCanvasHeight );
-                pDrawList->AddLine( ImVec2( adjustedItemStartPos.x, linePosY ), ImVec2( adjustedItemEndPos.x, linePosY ), ImGuiX::ConvertColor( Colors::HotPink ), lineWidth );
+                pDrawList->AddLine( ImVec2( adjustedItemStartPos.x, linePosY ), ImVec2( adjustedItemEndPos.x, linePosY ), ImGuiX::ImColors::HotPink, lineWidth );
 
                 if ( isHovered )
                 {
-                    pDrawList->AddLine( ImVec2( mousePos.x, adjustedItemStartPos.y ), ImVec2( mousePos.x, adjustedItemEndPos.y ), ImGuiX::ConvertColor( Colors::LightGray ), 1.0f );
-                    pDrawList->AddCircleFilled( ImVec2( mousePos.x, linePosY ), 3.0f, ImGuiX::ConvertColor( Colors::LimeGreen ) );
+                    pDrawList->AddLine( ImVec2( mousePos.x, adjustedItemStartPos.y ), ImVec2( mousePos.x, adjustedItemEndPos.y ), ImGuiX::ImColors::LightGray, 1.0f );
+                    pDrawList->AddCircleFilled( ImVec2( mousePos.x, linePosY ), 3.0f, ImGuiX::ImColors::LimeGreen );
                     ImGui::SetTooltip( " %.2f ", value );
                 }
             }
@@ -245,7 +245,7 @@ namespace EE::Animation
                     curvePoints.emplace_back( curvePoint );
                 }
 
-                pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, ImGuiX::ConvertColor( Colors::HotPink ), 0, lineWidth);
+                pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, ImGuiX::ImColors::HotPink, 0, lineWidth);
 
                 if ( isHovered )
                 {
@@ -253,8 +253,8 @@ namespace EE::Animation
                     float const value = curve.Evaluate( percentageThroughRange );
                     float const valuePixelY = adjustedItemEndPos.y - ( value * curveCanvasHeight );
 
-                    pDrawList->AddLine( ImVec2( mousePos.x, adjustedItemStartPos.y ), ImVec2( mousePos.x, adjustedItemEndPos.y ), ImGuiX::ConvertColor( Colors::LightGray ), 1.0f );
-                    pDrawList->AddCircleFilled( ImVec2( mousePos.x, valuePixelY ), 3.0f, ImGuiX::ConvertColor( Colors::LimeGreen ) );
+                    pDrawList->AddLine( ImVec2( mousePos.x, adjustedItemStartPos.y ), ImVec2( mousePos.x, adjustedItemEndPos.y ), ImGuiX::ImColors::LightGray, 1.0f );
+                    pDrawList->AddCircleFilled( ImVec2( mousePos.x, valuePixelY ), 3.0f, ImGuiX::ImColors::LimeGreen );
                     ImGui::SetTooltip( " %.2f ", value );
                 }
             }

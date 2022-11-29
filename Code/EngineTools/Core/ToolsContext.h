@@ -15,6 +15,7 @@ namespace EE
     namespace Resource { class ResourceSystem; class ResourceDatabase; }
     namespace TypeSystem { class TypeRegistry; }
     namespace FileSystem { class Path; }
+    namespace ImGuiX { class ImageCache; }
 
     //-------------------------------------------------------------------------
 
@@ -50,5 +51,6 @@ namespace EE
         TypeSystem::TypeRegistry const*                     m_pTypeRegistry = nullptr;
         SystemRegistry const*                               m_pSystemRegistry = nullptr;
         Resource::ResourceDatabase const*                   m_pResourceDatabase = nullptr;
+        ImGuiX::ImageCache*                                 m_pImageCache = nullptr;
     };
 }

@@ -1,5 +1,4 @@
 #include "VisualGraph_View.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -270,7 +269,7 @@ namespace EE::VisualGraph
         auto pStateMachineGraph = GetStateMachineGraph();
         if ( pNode->m_ID == pStateMachineGraph->m_entryStateID )
         {
-            nodeTitleColor = ImGuiX::ConvertColor( Colors::Green );
+            nodeTitleColor = ImGuiX::ImColors::Green;
         }
 
         NodeVisualState visualState = pNode->IsActive( m_pUserContext ) ? NodeVisualState::Active : NodeVisualState::None;

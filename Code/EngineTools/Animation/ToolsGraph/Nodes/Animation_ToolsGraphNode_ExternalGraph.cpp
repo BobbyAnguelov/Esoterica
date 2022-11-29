@@ -1,7 +1,6 @@
 #include "Animation_ToolsGraphNode_ExternalGraph.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 

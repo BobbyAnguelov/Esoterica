@@ -19,11 +19,14 @@
     <ClInclude Include="Algorithm\Quantization.h" />
     <ClInclude Include="Algorithm\TopologicalSort.h" />
     <ClInclude Include="Algorithm\Encoding.h" />
+    <ClInclude Include="Application\ApplicationGlobalState.h" />
+    <ClInclude Include="Application\Platform\Application_Win32.h" />
     <ClInclude Include="Fonts\FontData_Lexend.h" />
     <ClInclude Include="Fonts\FontData_MaterialDesign.h" />
     <ClInclude Include="Fonts\FontData_Proggy.h" />
     <ClInclude Include="Fonts\FontDecompressor.h" />
     <ClInclude Include="Imgui\ImguiFont.h" />
+    <ClInclude Include="Imgui\ImguiImageCache.h" />
     <ClInclude Include="Imgui\ImguiStyle.h" />
     <ClInclude Include="Imgui\ImguiSystem.h" />
     <ClInclude Include="Imgui\ImguiX.h" />
@@ -57,13 +60,14 @@
     <ClInclude Include="Render\Platform\TextureLoader_Win32.h" />
     <ClInclude Include="Render\RenderAPI.h" />
     <ClInclude Include="Render\RenderBuffer.h" />
-    <ClInclude Include="Render\RenderDefaultResources.h" />
+    <ClInclude Include="Render\RenderCoreResources.h" />
     <ClInclude Include="Render\RenderDevice.h" />
     <ClInclude Include="Render\RenderPipelineState.h" />
     <ClInclude Include="Render\RenderShader.h" />
     <ClInclude Include="Render\RenderStates.h" />
     <ClInclude Include="Render\RenderTarget.h" />
     <ClInclude Include="Render\RenderTexture.h" />
+    <ClInclude Include="Render\RenderUtils.h" />
     <ClInclude Include="Render\RenderVertexFormats.h" />
     <ClInclude Include="Render\RenderWindow.h" />
     <ClInclude Include="Resource\IResource.h" />
@@ -87,6 +91,7 @@
     <ClInclude Include="Drawing\DebugDrawingCommands.h" />
     <ClInclude Include="Drawing\DebugDrawing.h" />
     <ClInclude Include="IniFile.h" />
+    <ClInclude Include="ThirdParty\cmdParser\cmdParser.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\blockingconcurrentqueue.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\concurrentqueue.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\lightweightsemaphore.h" />
@@ -357,6 +362,7 @@
     <ClInclude Include="ThirdParty\imgui\imstb_textedit.h" />
     <ClInclude Include="ThirdParty\imgui\imstb_truetype.h" />
     <ClInclude Include="ThirdParty\imgui\misc\freetype\imgui_freetype.h" />
+    <ClInclude Include="ThirdParty\LivePP\LivePP.h" />
     <ClInclude Include="ThirdParty\mpack\mpack-config.h" />
     <ClInclude Include="ThirdParty\mpack\mpack.h" />
     <ClInclude Include="ThirdParty\rapidjson\allocators.h" />
@@ -489,6 +495,8 @@
     <ClCompile Include="Algorithm\Hash.cpp" />
     <ClCompile Include="Algorithm\TopologicalSort.cpp" />
     <ClCompile Include="Algorithm\Encoding.cpp" />
+    <ClCompile Include="Application\ApplicationGlobalState.cpp" />
+    <ClCompile Include="Application\Platform\Application_Win32.cpp" />
     <ClCompile Include="Drawing\DebugDrawingSystem.cpp" />
     <ClCompile Include="FileSystem\Platform\FileSystemUtils_Win32.cpp" />
     <ClCompile Include="FileSystem\Platform\FileSystemPath_Win32.cpp" />
@@ -497,10 +505,12 @@
     <ClCompile Include="Fonts\FontData_Proggy.cpp" />
     <ClCompile Include="Fonts\FontDecompressor.cpp" />
     <ClCompile Include="Imgui\ImguiFont.cpp" />
+    <ClCompile Include="Imgui\ImguiImageCache.cpp" />
     <ClCompile Include="Imgui\ImguiStyle.cpp" />
     <ClCompile Include="Imgui\ImguiSystem.cpp" />
     <ClCompile Include="Imgui\ImguiX.cpp" />
     <ClCompile Include="Imgui\Platform\ImguiPlatform_Win32.cpp" />
+    <ClCompile Include="Imgui\Platform\ImguiX_Win32.cpp" />
     <ClCompile Include="Input\InputDevices\InputDevice_Controller.cpp" />
     <ClCompile Include="Input\InputDevices\InputDevice_KeyboardMouse.cpp" />
     <ClCompile Include="Input\InputDevices\Platform\InputDevice_KeyboardMouse_Win32.cpp" />
@@ -520,10 +530,11 @@
     <ClCompile Include="Render\Platform\RenderContext_DX11.cpp" />
     <ClCompile Include="Render\Platform\RenderDevice_DX11.cpp" />
     <ClCompile Include="Render\Platform\TextureLoader_Win32.cpp" />
-    <ClCompile Include="Render\RenderDefaultResources.cpp" />
+    <ClCompile Include="Render\RenderCoreResources.cpp" />
     <ClCompile Include="Render\RenderShader.cpp" />
     <ClCompile Include="Render\RenderTarget.cpp" />
     <ClCompile Include="Render\RenderTexture.cpp" />
+    <ClCompile Include="Render\RenderUtils.cpp" />
     <ClCompile Include="Render\RenderVertexFormats.cpp" />
     <ClCompile Include="Resource\ResourceID.cpp" />
     <ClCompile Include="Resource\ResourceLoader.cpp" />
@@ -603,6 +614,7 @@
     <ClCompile Include="Types\Platform\Types_Win32.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ThirdParty\cmdParser\LICENSE" />
     <None Include="ThirdParty\concurrentqueue\LICENSE.md" />
     <None Include="ThirdParty\concurrentqueue\README.md" />
     <None Include="ThirdParty\EA\EABase\doc\EABase.html" />

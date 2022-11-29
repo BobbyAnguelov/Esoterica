@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "State Machine"; }
         virtual char const* GetCategory() const override { return "Animation"; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::CornflowerBlue ); }
+        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::CornflowerBlue; }
         virtual void OnShowNode() override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }

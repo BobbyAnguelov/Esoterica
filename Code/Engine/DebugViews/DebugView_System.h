@@ -17,7 +17,7 @@ namespace EE
 
     public:
 
-        static void DrawFrameLimiterMenu( UpdateContext& context );
+        static void DrawFrameLimiterCombo( UpdateContext& context );
 
     public:
 

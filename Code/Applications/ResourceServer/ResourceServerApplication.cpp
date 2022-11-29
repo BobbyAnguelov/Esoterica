@@ -19,47 +19,11 @@ namespace EE
     //-------------------------------------------------------------------------
 
     ResourceServerApplication::ResourceServerApplication( HINSTANCE pInstance )
-        : Win32Application( pInstance, "Esoterica Resource Server", IDI_RESOURCESERVER, true )
-        , m_resourceServerUI( m_resourceServer )
+        : Win32Application( pInstance, "Esoterica Resource Server", IDI_RESOURCESERVER, TBitFlags<InitOptions>( Win32Application::InitOptions::StartMinimized, Win32Application::InitOptions::Borderless ) )
+        , m_resourceServerUI( m_resourceServer, m_imguiSystem.GetImageCache() )
     {}
 
-    LRESULT ResourceServerApplication::WndProcess( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
-    {
-        // ImGui specific message processing
-        //-------------------------------------------------------------------------
-
-        auto const imguiResult = ImGuiX::Platform::WindowsMessageHandler( hWnd, message, wParam, lParam );
-        if ( imguiResult != 0 )
-        {
-            return imguiResult;
-        }
-
-        // General
-        //-------------------------------------------------------------------------
-
-        switch ( message )
-        {
-            case WM_SIZE:
-            {
-                Int2 const newDimensions( LOWORD( lParam ), HIWORD( lParam ) );
-                if ( newDimensions.m_x > 0 && newDimensions.m_y > 0 )
-                {
-                    m_pRenderDevice->ResizePrimaryWindowRenderTarget( newDimensions );
-                    m_viewport.Resize( Int2::Zero, newDimensions );
-
-                    // Hack to fix client area offset bug
-                    RECT rect;
-                    GetWindowRect( hWnd, &rect );
-                    MoveWindow( hWnd, rect.left + 1, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE );
-                }
-            }
-            break;
-        }
-
-        return 0;
-    }
-
-    void ResourceServerApplication::OnWindowDestruction()
+    void ResourceServerApplication::ProcessWindowDestructionMessage()
     {
         if ( m_pTaskbarInterface != nullptr )
         {
@@ -74,7 +38,23 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        Win32Application::OnWindowDestruction();
+        Win32Application::ProcessWindowDestructionMessage();
+    }
+
+    void ResourceServerApplication::GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outTitlebarRegion ) const
+    {
+        outTitlebarRegion = m_resourceServerUI.GetTitleBarDraggableRegions();
+    }
+
+    void ResourceServerApplication::ProcessWindowResizeMessage( Int2 const& newWindowSize )
+    {
+        m_pRenderDevice->ResizePrimaryWindowRenderTarget( newWindowSize );
+        m_viewport.Resize( Int2::Zero, newWindowSize );
+
+        // Hack to fix client area offset bug
+        RECT rect;
+        GetWindowRect( m_windowHandle, &rect );
+        MoveWindow( m_windowHandle, rect.left + 1, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE );
     }
 
     bool ResourceServerApplication::OnExitRequest()
@@ -141,11 +121,7 @@ namespace EE
 
         m_imguiSystem.Initialize( m_pRenderDevice );
         m_imguiRenderer.Initialize( m_pRenderDevice );
-
-        //-------------------------------------------------------------------------
-
-        // Always start resource server minimized
-        ShowWindow( m_windowHandle, SW_MINIMIZE );
+        m_resourceServerUI.Initialize();
 
         return true;
     }
@@ -154,6 +130,7 @@ namespace EE
     {
         if ( IsInitialized() )
         {
+            m_resourceServerUI.Shutdown();
             m_imguiRenderer.Shutdown();
             m_imguiSystem.Shutdown();
         }

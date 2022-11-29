@@ -1,5 +1,5 @@
 #pragma once
-#include "System/Types/Arrays.h"
+#include "System/Types/Containers_ForwardDecl.h"
 
 //-------------------------------------------------------------------------
 

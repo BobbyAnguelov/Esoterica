@@ -1,7 +1,6 @@
 #include "TimelineEditor.h"
 #include "Engine/UpdateContext.h"
 #include "System/Imgui/ImguiX.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -443,7 +442,7 @@ namespace EE::Timeline
             float const spacerWidth = ImGui::GetContentRegionAvail().x - addTracksButtonSize.x;
             ImGui::SameLine( 0, spacerWidth );
 
-            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::LimeGreen ).Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ImColors::LimeGreen.Value );
             bool const showAddTracksMenu = ImGuiX::FlatButton( EE_ICON_MOVIE_PLUS"##AddTrack", addTracksButtonSize );
             ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Add Track" );

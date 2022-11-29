@@ -5,7 +5,6 @@
 #include "Engine/Entity/EntitySerialization.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Math/MathRandom.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -187,7 +186,7 @@ namespace EE::EntityModel
                 {
                     {
                         ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "CREATE NEW ENTITY", ImVec2( -1, 0 ) ) )
+                        if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, "CREATE NEW ENTITY", ImVec2( -1, 0 ) ) )
                         {
                             CreateEntity( pMap->GetID() );
                         }

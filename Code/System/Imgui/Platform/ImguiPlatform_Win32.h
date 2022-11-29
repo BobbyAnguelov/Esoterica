@@ -10,12 +10,11 @@ struct HWND__;
 
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX::Platform
 {
-    void InitializePlatform();
-    void ShutdownPlatform();
-
     // Returns 0 when the message isnt handled, used to embed into another wnd proc
-    EE_SYSTEM_API intptr_t WindowsMessageHandler( HWND__* hWnd, uint32_t message, uintptr_t wParam, intptr_t lParam );
+    EE_SYSTEM_API intptr_t WindowMessageProcessor( HWND__* hWnd, uint32_t message, uintptr_t wParam, intptr_t lParam );
 }
+#endif
 #endif

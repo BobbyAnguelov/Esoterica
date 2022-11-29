@@ -3,6 +3,7 @@
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "EngineTools/Core/ToolsEmbeddedResources.inl"
 #include "Engine/Physics/Debug/DebugView_Physics.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -10,10 +11,10 @@
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
+#include "System/Imgui/ImguiImageCache.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -44,7 +45,7 @@ namespace EE
         }
     }
 
-    void EditorUI::Initialize( UpdateContext const& context )
+    void EditorUI::Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache )
     {
         // Systems
         //-------------------------------------------------------------------------
@@ -63,6 +64,13 @@ namespace EE
         m_resourceDeletedEventID = m_resourceDB.OnResourceDeleted().Bind( [this] ( ResourceID const& resourceID ) { OnResourceDeleted( resourceID ); } );
         m_pResourceDatabase = &m_resourceDB;
         m_pResourceBrowser = EE::New<ResourceBrowser>( *this );
+
+        // Icons/Images
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( pImageCache != nullptr );
+        m_pImageCache = pImageCache;
+        m_editorIcon = m_pImageCache->LoadImageFromMemoryBase64( g_encodedDataGreen, 3328 );
 
         // Map Editor
         //-------------------------------------------------------------------------
@@ -106,6 +114,11 @@ namespace EE
 
         m_workspaces.clear();
 
+        // Misc
+        //-------------------------------------------------------------------------
+
+        m_pImageCache->UnloadImage( m_editorIcon );
+
         // Resources
         //-------------------------------------------------------------------------
 
@@ -128,6 +141,97 @@ namespace EE
         {
             const_cast<EditorUI*>( this )->QueueCreateWorkspace( resourceID );
         }
+    }
+
+    //-------------------------------------------------------------------------
+    // Title bar
+    //-------------------------------------------------------------------------
+
+    void EditorUI::DrawTitleBarMenu( UpdateContext const& context )
+    {
+        ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 6, 6 ) );
+
+        //-------------------------------------------------------------------------
+
+        ImGuiX::Image( m_editorIcon );
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine( 0, 0 );
+
+        if ( ImGui::BeginChild( "#HackChild", ImVec2(0, 0 ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar ) )
+        {
+            if ( ImGui::BeginMenuBar() )
+            {
+                if ( ImGui::BeginMenu( "Resource" ) )
+                {
+                    ImGui::MenuItem( "Resource Browser", nullptr, &m_isResourceBrowserWindowOpen );
+                    ImGui::MenuItem( "Resource System Overview", nullptr, &m_isResourceOverviewWindowOpen );
+                    ImGui::MenuItem( "Resource Log", nullptr, &m_isResourceLogWindowOpen );
+                    ImGui::EndMenu();
+                }
+
+                ImGui::SameLine();
+                if ( ImGui::BeginMenu( "Physics" ) )
+                {
+                    ImGui::MenuItem( "Physics Material DB", nullptr, &m_isPhysicsMaterialDatabaseWindowOpen );
+                    ImGui::EndMenu();
+                }
+
+                ImGui::SameLine();
+                if ( ImGui::BeginMenu( "System" ) )
+                {
+                    ImGui::MenuItem( "System Log", nullptr, &m_isSystemLogWindowOpen );
+
+                    ImGui::Separator();
+
+                    ImGui::MenuItem( "Imgui UI Test Window", nullptr, &m_isUITestWindowOpen );
+                    ImGui::MenuItem( "Imgui Demo Window", nullptr, &m_isImguiDemoWindowOpen );
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenuBar();
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    void EditorUI::DrawTitleBarGamePreviewControls( UpdateContext const& context )
+    {
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 6 );
+        ImGui::BeginDisabled( !m_pMapEditor->HasLoadedMap() );
+        if ( m_pGamePreviewer != nullptr )
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview##MapEditor", ImGuiX::ImColors::Red, ImVec2( -1, 0 ) ) )
+            {
+                DestroyGamePreviewWorkspace( context );
+            }
+        }
+        else
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Loaded Map##MapEditor", ImGuiX::ImColors::Lime, ImVec2( -1, 0 ) ) )
+            {
+                CreateGamePreviewWorkspace( context );
+            }
+        }
+        ImGui::EndDisabled();
+    }
+
+    void EditorUI::DrawTitleBarPerformanceStats( UpdateContext const& context )
+    {
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 6 );
+        SystemDebugView::DrawFrameLimiterCombo( const_cast<UpdateContext&>( context ) );
+
+        ImGui::SameLine();
+        float const currentFPS = 1.0f / context.GetDeltaTime();
+        TInlineString<100> const perfStats( TInlineString<100>::CtorSprintf(), "FPS: %3.0f", currentFPS );
+        ImGui::Text( perfStats.c_str() );
+
+        ImGui::SameLine();
+        float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
+        TInlineString<100> const memStats( TInlineString<100>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
+        ImGui::Text( memStats.c_str() );
     }
 
     //-------------------------------------------------------------------------
@@ -165,16 +269,25 @@ namespace EE
         m_workspaceCreationRequests.clear();
 
         //-------------------------------------------------------------------------
-        // Main Menu
+        // Title Bar
         //-------------------------------------------------------------------------
 
-        ImGui::PushStyleColor( ImGuiCol_MenuBarBg, ImGuiX::Style::s_colorGray9.Value );
-        if ( ImGui::BeginMainMenuBar() )
+        auto TitleBarLeftContents = [this, &context] ()
         {
-            DrawMainMenu( context );
-            ImGui::EndMainMenuBar();
-        }
-        ImGui::PopStyleColor();
+            DrawTitleBarMenu( context );
+        };
+
+        auto TitleBarMidContents = [this, &context] ()
+        {
+            DrawTitleBarGamePreviewControls( context );
+        };
+
+        auto TitleBarRightContents = [this, &context] ()
+        {
+            DrawTitleBarPerformanceStats( context );
+        };
+
+        m_titleBar.Draw( TitleBarLeftContents, 210, TitleBarMidContents, 170, TitleBarRightContents, 190 );
 
         //-------------------------------------------------------------------------
         // Create main dock window
@@ -687,27 +800,27 @@ namespace EE
 
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
             }
 
             //-------------------------------------------------------------------------
@@ -751,105 +864,16 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::IconButton( EE_ICON_KANGAROO, "Test", Colors::PaleGreen, ImVec2( 100, 0 ) );
+            ImGuiX::IconButton( EE_ICON_KANGAROO, "Test", ImGuiX::ImColors::PaleGreen, ImVec2( 100, 0 ) );
 
-            ImGuiX::IconButton( EE_ICON_HOME, "Home", Colors::RoyalBlue, ImVec2( 100, 0 ) );
+            ImGuiX::IconButton( EE_ICON_HOME, "Home", ImGuiX::ImColors::RoyalBlue, ImVec2( 100, 0 ) );
 
-            ImGuiX::IconButton( EE_ICON_MOVIE_PLAY, "Play", Colors::LightPink, ImVec2( 100, 0 ) );
+            ImGuiX::IconButton( EE_ICON_MOVIE_PLAY, "Play", ImGuiX::ImColors::LightPink, ImVec2( 100, 0 ) );
 
-            ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::Yellow, EE_ICON_KANGAROO, "Test", ImVec2( 100, 0 ) );
+            ImGuiX::ColoredIconButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, ImGuiX::ImColors::Yellow, EE_ICON_KANGAROO, "Test", ImVec2( 100, 0 ) );
 
-            ImGuiX::FlatIconButton( EE_ICON_HOME, "Home", Colors::RoyalBlue, ImVec2( 100, 0 ) );
-
+            ImGuiX::FlatIconButton( EE_ICON_HOME, "Home", ImGuiX::ImColors::RoyalBlue, ImVec2( 100, 0 ) );
         }
         ImGui::End();
-    }
-
-    void EditorUI::DrawMainMenu( UpdateContext const& context )
-    {
-        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
-
-        //-------------------------------------------------------------------------
-        // Engine
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::BeginMenu( "Resource" ) )
-        {
-            ImGui::MenuItem( "Resource Browser", nullptr, &m_isResourceBrowserWindowOpen );
-            ImGui::MenuItem( "Resource System Overview", nullptr, &m_isResourceOverviewWindowOpen );
-            ImGui::MenuItem( "Resource Log", nullptr, &m_isResourceLogWindowOpen );
-            ImGui::EndMenu();
-        }
-
-        if ( ImGui::BeginMenu( "Physics" ) )
-        {
-            ImGui::MenuItem( "Physics Material DB", nullptr, &m_isPhysicsMaterialDatabaseWindowOpen );
-            ImGui::EndMenu();
-        }
-
-        if ( ImGui::BeginMenu( "System" ) )
-        {
-            ImGui::MenuItem( "System Log", nullptr, &m_isSystemLogWindowOpen );
-
-            ImGui::Separator();
-
-            ImGui::MenuItem( "Imgui UI Test Window", nullptr, &m_isUITestWindowOpen );
-            ImGui::MenuItem( "Imgui Demo Window", nullptr, &m_isImguiDemoWindowOpen );
-
-            ImGui::EndMenu();
-        }
-
-        //-------------------------------------------------------------------------
-        // Preview Map Button
-        //-------------------------------------------------------------------------
-
-        float buttonDimensions = 170;
-        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
-
-        ImGui::BeginDisabled( !m_pMapEditor->HasLoadedMap() );
-        if ( m_pGamePreviewer != nullptr )
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview##MapEditor", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                DestroyGamePreviewWorkspace( context );
-            }
-        }
-        else
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Loaded Map##MapEditor", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                CreateGamePreviewWorkspace( context );
-            }
-        }
-        ImGui::EndDisabled();
-
-        //-------------------------------------------------------------------------
-        // Draw Frame Limiter and Performance Stats
-        //-------------------------------------------------------------------------
-
-        float const currentFPS = 1.0f / context.GetDeltaTime();
-        float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
-
-        TInlineString<100> const perfStats( TInlineString<100>::CtorSprintf(), "FPS: %3.0f", currentFPS );
-        TInlineString<100> const memStats( TInlineString<100>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
-
-        float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-        float const frameLimiterSize = 30;
-        float const perfStatsSize = 64;
-        float const memStatsSize = ImGui::CalcTextSize( memStats.c_str() ).x;
-
-        float const memStatsOffset = menuDimensions.x - ( itemSpacing * 2 ) - memStatsSize;
-        float const perfStatsOffset = memStatsOffset - perfStatsSize;
-        float const frameLimiterOffset = perfStatsOffset - frameLimiterSize;
-
-        ImGui::SameLine( frameLimiterOffset, 0 );
-
-        SystemDebugView::DrawFrameLimiterMenu( const_cast<UpdateContext&>( context ) );
-
-        ImGui::SameLine( perfStatsOffset );
-        ImGui::Text( perfStats.c_str() );
-
-        ImGui::SameLine( memStatsOffset );
-        ImGui::Text( memStats.c_str() );
     }
 }

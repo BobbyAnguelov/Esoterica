@@ -4,7 +4,6 @@
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "System/TypeSystem/TypeRegistry.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 

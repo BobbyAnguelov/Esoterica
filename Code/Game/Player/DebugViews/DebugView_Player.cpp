@@ -205,19 +205,19 @@ namespace EE::Player
                                 {
                                     case ActionStateMachine::LoggedStatus::ActionStarted:
                                     {
-                                        ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), "Started" );
+                                        ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Started" );
                                     }
                                     break;
 
                                     case ActionStateMachine::LoggedStatus::ActionCompleted:
                                     {
-                                        ImGui::TextColored( ImGuiX::ConvertColor( Colors::White ), "Completed" );
+                                        ImGui::TextColored( ImGuiX::ImColors::White, "Completed" );
                                     }
                                     break;
 
                                     case ActionStateMachine::LoggedStatus::ActionInterrupted:
                                     {
-                                        ImGui::TextColored( ImGuiX::ConvertColor( Colors::Red ), "Interrupted" );
+                                        ImGui::TextColored( ImGuiX::ImColors::Red, "Interrupted" );
                                     }
                                     break;
 
@@ -343,7 +343,7 @@ namespace EE::Player
             ImVec2 const statusTextSize = ImGui::CalcTextSize( statusString.c_str() );
             ImVec2 const statusTextCursorPos( windowCenter.x - ( statusTextSize.x / 2 ), windowCenter.y + 8 );
             ImGui::SetCursorPos( statusTextCursorPos );
-            ImGui::TextColored( ImGuiX::ConvertColor( Colors::Red ), statusString.c_str() );
+            ImGui::TextColored( ImGuiX::ImColors::Red, statusString.c_str() );
         }
 
         {

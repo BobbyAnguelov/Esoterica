@@ -1,4 +1,5 @@
 #include "ImguiX.h"
+#include "System/Render/RenderTexture.h"
 
 #if EE_DEVELOPMENT_TOOLS
 
@@ -6,6 +7,20 @@
 
 namespace EE::ImGuiX
 {
+    //-------------------------------------------------------------------------
+    // Conversion
+    //-------------------------------------------------------------------------
+
+    ImTextureID ToIm( Render::Texture const& texture )
+    {
+        return (void*) &texture.GetShaderResourceView();
+    }
+
+    ImTextureID ToIm( Render::Texture const* pTexture )
+    {
+        return (void*) &pTexture->GetShaderResourceView();
+    }
+
     //-------------------------------------------------------------------------
     // General helpers
     //-------------------------------------------------------------------------
@@ -218,7 +233,7 @@ namespace EE::ImGuiX
         ImGui::PopStyleVar();
     }
 
-    bool IconButton( char const* pIcon, char const* pLabel, ImVec4 const& iconColor, ImVec2 const& size_arg )
+    bool IconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor, ImVec2 const& size_arg )
     {
         ImGuiContext& g = *GImGui;
         ImGuiStyle const& style = g.Style;
@@ -253,7 +268,7 @@ namespace EE::ImGuiX
         ImGui::RenderFrame( bb.Min, bb.Max, col, true, style.FrameRounding );
         ImGui::RenderTextClipped( bb.Min + style.FramePadding + ImVec2( icon_size.x + style.ItemSpacing.x, 0 ), bb.Max - style.FramePadding, pLabel, NULL, &label_size, ImVec2( 0, 0.5f ), &bb );
 
-        pWindow->DrawList->AddText( pos + style.FramePadding, ImGui::GetColorU32( iconColor ), pIcon );
+        pWindow->DrawList->AddText( pos + style.FramePadding, iconColor, pIcon );
 
         return pressed;
     }
@@ -282,7 +297,7 @@ namespace EE::ImGuiX
         return result;
     }
 
-    bool ColoredIconButton( ImColor const& backgroundColor, ImColor const& foregroundColor, ImVec4 const& iconColor, char const* pIcon, char const* pLabel, ImVec2 const& size )
+    bool ColoredIconButton( ImColor const& backgroundColor, ImColor const& foregroundColor, ImColor const& iconColor, char const* pIcon, char const* pLabel, ImVec2 const& size )
     {
         ImVec4 const hoveredColor = (ImVec4) AdjustColorBrightness( backgroundColor, 1.15f );
         ImVec4 const activeColor = (ImVec4) AdjustColorBrightness( backgroundColor, 1.25f );
@@ -297,7 +312,7 @@ namespace EE::ImGuiX
         return result;
     }
 
-    bool FlatIconButton( char const* pIcon, char const* pLabel, ImVec4 const& iconColor, ImVec2 const& size )
+    bool FlatIconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor, ImVec2 const& size )
     {
         ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
         bool const result = IconButton( pIcon, pLabel, iconColor, size );
@@ -372,7 +387,7 @@ namespace EE::ImGuiX
         return buttonResult;
     }
 
-    bool IconComboButton( char const* pIcon, const char* pButtonLabel, Color iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback )
+    bool IconComboButton( char const* pIcon, const char* pButtonLabel, ImColor const& iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback )
     {
         InlineString const comboIDStr( InlineString::CtorSprintf(), "##%s", comboID );
 
@@ -438,9 +453,9 @@ namespace EE::ImGuiX
         return buttonResult;
     }
 
-    bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size, Color onColor, Color offColor )
+    bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size, ImColor  const& onColor, ImColor const& offColor )
     {
-        ImGui::PushStyleColor( ImGuiCol_Text, ( value ? onColor : offColor ).ToUInt32_ABGR() );
+        ImGui::PushStyleColor( ImGuiCol_Text, ( value ? onColor : offColor ).Value );
         bool const result = ImGui::Button( value ? pOnLabel : pOffLabel, size );
         ImGui::PopStyleColor();
 
@@ -566,13 +581,13 @@ namespace EE::ImGuiX
     constexpr static float const g_labelWidth = 14.0f;
     constexpr static float const g_labelHeight = 22.0f;
 
-    static bool BeginElementFrame( char const* pLabel, float labelWidth, ImVec2 const& size, ImVec4 backgroundColor)
+    static bool BeginElementFrame( char const* pLabel, float labelWidth, ImVec2 const& size, ImColor const& backgroundColor)
     {
         ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 3.0f );
         ImGui::PushStyleVar( ImGuiStyleVar_ChildBorderSize, 0.0f );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 3 ) );
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, backgroundColor );
+        ImGui::PushStyleColor( ImGuiCol_ChildBg, backgroundColor.Value );
 
         if ( ImGui::BeginChild( pLabel, size, true, ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
@@ -601,7 +616,7 @@ namespace EE::ImGuiX
         ImGui::PopStyleColor();
     }
 
-    static bool DrawVectorElement( char const* pID, char const* pLabel, float const& width, ImVec4 backgroundColor, float* pValue, bool isReadOnly = false )
+    static bool DrawVectorElement( char const* pID, char const* pLabel, float const& width, ImColor const& backgroundColor, float* pValue, bool isReadOnly = false )
     {
         bool result = false;
 
@@ -632,13 +647,13 @@ namespace EE::ImGuiX
 
         ImGui::PushID( pID );
         {
-            if ( DrawVectorElement( "##x", "X", inputWidth, Colors::MediumRed.ToFloat4(), &value.m_x, isReadOnly ) )
+            if ( DrawVectorElement( "##x", "X", inputWidth, ImColors::MediumRed, &value.m_x, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##y", "Y", inputWidth, Colors::Green.ToFloat4(), &value.m_y, isReadOnly ) )
+            if ( DrawVectorElement( "##y", "Y", inputWidth, ImColors::Green, &value.m_y, isReadOnly ) )
             {
                 valueUpdated = true;
             }
@@ -660,19 +675,19 @@ namespace EE::ImGuiX
 
         ImGui::PushID( pID );
         {
-            if ( DrawVectorElement( "##x", "X", inputWidth, Colors::MediumRed.ToFloat4(), &value.m_x, isReadOnly ) )
+            if ( DrawVectorElement( "##x", "X", inputWidth, ImColors::MediumRed, &value.m_x, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##y", "Y", inputWidth, Colors::Green.ToFloat4(), &value.m_y, isReadOnly ) )
+            if ( DrawVectorElement( "##y", "Y", inputWidth, ImColors::Green, &value.m_y, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##z", "Z", inputWidth, Colors::RoyalBlue.ToFloat4(), &value.m_z, isReadOnly ) )
+            if ( DrawVectorElement( "##z", "Z", inputWidth, ImColors::RoyalBlue, &value.m_z, isReadOnly ) )
             {
                 valueUpdated = true;
             }
@@ -694,25 +709,25 @@ namespace EE::ImGuiX
 
         ImGui::PushID( pID );
         {
-            if ( DrawVectorElement( "##x", "X", inputWidth, Colors::MediumRed.ToFloat4(), &value.m_x, isReadOnly ) )
+            if ( DrawVectorElement( "##x", "X", inputWidth, ImColors::MediumRed, &value.m_x, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##y", "Y", inputWidth, Colors::Green.ToFloat4(), &value.m_y, isReadOnly ) )
+            if ( DrawVectorElement( "##y", "Y", inputWidth, ImColors::Green, &value.m_y, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##z", "Z", inputWidth, Colors::RoyalBlue.ToFloat4(), &value.m_z, isReadOnly ) )
+            if ( DrawVectorElement( "##z", "Z", inputWidth, ImColors::RoyalBlue, &value.m_z, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##w", "W", inputWidth, Colors::DarkOrange.ToFloat4(), &value.m_w, isReadOnly ) )
+            if ( DrawVectorElement( "##w", "W", inputWidth, ImColors::DarkOrange, &value.m_w, isReadOnly ) )
             {
                 valueUpdated = true;
             }
@@ -734,25 +749,25 @@ namespace EE::ImGuiX
 
         ImGui::PushID( pID );
         {
-            if ( DrawVectorElement( "##x", "X", inputWidth, Colors::MediumRed.ToFloat4(), &value.m_x, isReadOnly ) )
+            if ( DrawVectorElement( "##x", "X", inputWidth, ImColors::MediumRed, &value.m_x, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##y", "Y", inputWidth, Colors::Green.ToFloat4(), &value.m_y, isReadOnly ) )
+            if ( DrawVectorElement( "##y", "Y", inputWidth, ImColors::Green, &value.m_y, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##z", "Z", inputWidth, Colors::RoyalBlue.ToFloat4(), &value.m_z, isReadOnly ) )
+            if ( DrawVectorElement( "##z", "Z", inputWidth, ImColors::RoyalBlue, &value.m_z, isReadOnly ) )
             {
                 valueUpdated = true;
             }
 
             ImGui::SameLine( 0, itemSpacing );
-            if ( DrawVectorElement( "##w", "W", inputWidth, Colors::DarkOrange.ToFloat4(), &value.m_w, isReadOnly ) )
+            if ( DrawVectorElement( "##w", "W", inputWidth, ImColors::DarkOrange, &value.m_w, isReadOnly ) )
             {
                 valueUpdated = true;
             }

@@ -1,8 +1,7 @@
 #include "ImguiSystem.h"
 
 #if EE_DEVELOPMENT_TOOLS
-#include "ImguiFont.h"
-#include "ImguiStyle.h"
+#include "System/Render/RenderDevice.h"
 #include "System/Fonts/FontDecompressor.h"
 #include "System/Fonts/FontData_Lexend.h"
 #include "System/Fonts/FontData_MaterialDesign.h"
@@ -20,8 +19,6 @@ namespace EE::ImGuiX
 {
     bool ImguiSystem::Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem, bool enableViewports )
     {
-        EE_ASSERT( pRenderDevice != nullptr  );
-
         m_pInputSystem = pInputSystem;
 
         //-------------------------------------------------------------------------
@@ -62,6 +59,8 @@ namespace EE::ImGuiX
         InitializePlatform();
         InitializeFonts();
 
+        m_imageCache.Initialize( pRenderDevice );
+
         //-------------------------------------------------------------------------
 
         Style::Apply();
@@ -71,6 +70,10 @@ namespace EE::ImGuiX
 
     void ImguiSystem::Shutdown()
     {
+        m_imageCache.Shutdown();
+
+        //-------------------------------------------------------------------------
+
         ShutdownFonts();
         ShutdownPlatform();
         ImGui::DestroyContext();

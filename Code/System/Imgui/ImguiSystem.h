@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../_Module/API.h"
-#include "System/Types/String.h"
+#include "System/_Module/API.h"
+#include "System/Esoterica.h"
 
 #if EE_DEVELOPMENT_TOOLS
-#include "System/ThirdParty/imgui/imgui.h"
+#include "ImguiImageCache.h"
+#include "System/Types/String.h"
 
 //-------------------------------------------------------------------------
 // Base ImGui integration
@@ -20,13 +21,23 @@ namespace EE
 
 namespace EE::ImGuiX
 {
-    class EE_SYSTEM_API ImguiSystem
+    //-------------------------------------------------------------------------
+    // Main integration point for DearImGui in Esoterica
+    //-------------------------------------------------------------------------
+
+    class EE_SYSTEM_API ImguiSystem final
     {
 
     public:
 
-        bool Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem = nullptr, bool enableViewports = false);
+        bool Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem = nullptr, bool enableViewports = false );
         void Shutdown();
+
+        //-------------------------------------------------------------------------
+
+        ImageCache* GetImageCache() { return &m_imageCache; }
+
+        //-------------------------------------------------------------------------
 
         void StartFrame( float deltaTime );
         void EndFrame();
@@ -42,9 +53,10 @@ namespace EE::ImGuiX
 
     private:
 
-        Input::InputSystem*     m_pInputSystem = nullptr;
-        String                  m_iniFilename;
-        String                  m_logFilename;
+        Input::InputSystem*             m_pInputSystem = nullptr;
+        ImageCache                      m_imageCache;
+        String                          m_iniFilename;
+        String                          m_logFilename;
     };
 }
 #endif

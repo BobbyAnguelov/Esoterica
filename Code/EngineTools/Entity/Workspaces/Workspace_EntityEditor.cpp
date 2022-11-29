@@ -21,7 +21,6 @@
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Volumes/Components/Component_Volumes.h"
 #include "Engine/Player/Components/Component_PlayerSpawn.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 

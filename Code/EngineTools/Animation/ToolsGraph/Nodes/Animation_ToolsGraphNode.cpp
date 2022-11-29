@@ -1,5 +1,4 @@
 #include "Animation_ToolsGraphNode.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -33,7 +32,7 @@ namespace EE::Animation::GraphNodes
         for ( auto const& evt : debugInfo.m_pSyncTrack->GetEvents() )
         {
             eventBottomRight.x = eventTopLeft.x + Math::Floor( playbackBarSize.x * evt.m_duration );
-            ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? ImGuiX::ConvertColor( Colors::White ) : ImGuiX::ConvertColor( Colors::DarkGray ) );
+            ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? ImGuiX::ImColors::White : ImGuiX::ImColors::DarkGray );
             eventTopLeft.x = eventBottomRight.x;
             useAlternateColor = !useAlternateColor;
         }
@@ -41,14 +40,14 @@ namespace EE::Animation::GraphNodes
         // Draw progress bar
         ImVec2 progressBarTopLeft = playbackBarTopLeft;
         ImVec2 progressBarBottomRight = playbackBarTopLeft + ImVec2( pixelOffsetForPercentageThrough, playbackBarSize.y );
-        ctx.m_pDrawList->AddRectFilled( progressBarTopLeft, progressBarBottomRight, ImGuiX::ConvertColor( Colors::LimeGreen.GetAlphaVersion( 0.65f ) ) );
+        ctx.m_pDrawList->AddRectFilled( progressBarTopLeft, progressBarBottomRight, ImGuiX::ToIm( Colors::LimeGreen.GetAlphaVersion( 0.65f ) ) );
 
         // Draw Marker
         ImVec2 t0( progressBarTopLeft.x + pixelOffsetForPercentageThrough, playbackBarBottomRight.y );
         ImVec2 t1( t0.x - g_playbackBarMarkerSize, playbackBarBottomRight.y + g_playbackBarMarkerSize );
         ImVec2 t2( t0.x + g_playbackBarMarkerSize, playbackBarBottomRight.y + g_playbackBarMarkerSize );
-        ctx.m_pDrawList->AddLine( t0, t0 - ImVec2( 0, playbackBarSize.y ), ImGuiX::ConvertColor( Colors::LimeGreen ) );
-        ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, ImGuiX::ConvertColor( Colors::LimeGreen ) );
+        ctx.m_pDrawList->AddLine( t0, t0 - ImVec2( 0, playbackBarSize.y ), ImGuiX::ImColors::LimeGreen );
+        ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, ImGuiX::ImColors::LimeGreen );
 
         // Draw text info
         ImGui::Text( "Time: %.2f/%.2fs", debugInfo.m_currentTime.ToFloat() * debugInfo.m_duration, debugInfo.m_duration.ToFloat() );
@@ -70,7 +69,7 @@ namespace EE::Animation::GraphNodes
         ImGui::InvisibleButton( "Spacer", playbackBarRegion );
 
         // Draw empty playback visualization bar
-        ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, ImGuiX::ConvertColor( Colors::DarkGray ) );
+        ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, ImGuiX::ImColors::DarkGray );
 
         // Draw text placeholders
         ImGui::Text( "Time: N/A" );
@@ -260,12 +259,12 @@ namespace EE::Animation::GraphNodes
 
     ImColor FlowToolsNode::GetTitleBarColor() const
     {
-        return ImGuiX::ConvertColor( GetColorForValueType( GetValueType() ) );
+        return ImGuiX::ToIm( GetColorForValueType( GetValueType() ) );
     }
 
     ImColor FlowToolsNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
     {
-        return ImGuiX::ConvertColor( GetColorForValueType( (GraphValueType) pin.m_type ) );
+        return ImGuiX::ToIm( GetColorForValueType( (GraphValueType) pin.m_type ) );
     }
 
     void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )

@@ -1,5 +1,4 @@
 #include "Workspace_Texture.h"
-#include "EngineTools/Core/Widgets/InterfaceHelpers.h"
 #include "Engine/Entity/EntityWorld.h"
 
 //-------------------------------------------------------------------------
@@ -40,8 +39,7 @@ namespace EE::Render
         {
             if ( IsResourceLoaded() )
             {
-                ImTextureID const textureID = (void*) &m_workspaceResource->GetShaderResourceView();
-                ImGui::Image( textureID, Float2( m_workspaceResource->GetDimensions() ) );
+                ImGui::Image( ImGuiX::ToIm( m_workspaceResource.GetPtr() ), Float2( m_workspaceResource->GetDimensions() ) );
             }
         }
         ImGui::End();

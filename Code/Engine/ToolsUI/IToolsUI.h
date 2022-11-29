@@ -19,13 +19,17 @@ namespace EE
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
+    class ImageCache;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API IToolsUI
     {
     public:
 
         virtual ~IToolsUI() = default;
 
-        virtual void Initialize( UpdateContext const& context ) = 0;
+        virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) = 0;
         virtual void Shutdown( UpdateContext const& context ) = 0;
 
         // This is called at the absolute start of the frame before we update the resource system, start updating any entities, etc...

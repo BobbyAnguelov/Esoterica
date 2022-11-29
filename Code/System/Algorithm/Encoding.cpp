@@ -1,5 +1,6 @@
 #include "Encoding.h"
 #include <locale>
+#include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 

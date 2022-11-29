@@ -1,10 +1,8 @@
 #ifdef _WIN32
 #include "EngineApplication_win32.h"
-#include "Engine_Win32.h"
 #include "Resource.h"
-#include "Applications/Shared/cmdParser/cmdParser.h"
+#include "System/ThirdParty/cmdParser/cmdParser.h"
 #include "Applications/Shared/LivePP/LivePP.h"
-#include "System/Imgui/ImguiStyle.h"
 #include <tchar.h>
 #include <windows.h>
 
@@ -16,6 +14,21 @@ namespace EE
         : Win32Application( hInstance, "Esoterica Engine", IDI_ENGINE_ICON )
         , m_engine( TFunction<bool( EE::String const& error )>( [this] ( String const& error )-> bool  { return FatalError( error ); } ) )
     {}
+
+    void EngineApplication::ProcessWindowResizeMessage( Int2 const& newWindowSize )
+    {
+        m_engine.GetRenderingSystem()->ResizePrimaryRenderTarget( newWindowSize );
+
+        // Hack to fix client area offset bug
+        RECT rect;
+        GetWindowRect( m_windowHandle, &rect );
+        MoveWindow( m_windowHandle, rect.left + 1, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE );
+    }
+
+    void EngineApplication::ProcessInputMessage( UINT message, WPARAM wParam, LPARAM lParam )
+    {
+        m_engine.GetInputSystem()->ForwardInputMessageToInputDevices( { message, (uintptr_t) wParam, (uintptr_t) lParam } );
+    }
 
     bool EngineApplication::ProcessCommandline( int32_t argc, char** argv )
     {
@@ -57,13 +70,6 @@ namespace EE
         // Uncomment for live editing of ImguiTheme
         //ImGuiX::Style::Apply();
         return m_engine.Update();
-    }
-
-    //-------------------------------------------------------------------------
-
-    LRESULT EngineApplication::WndProcess( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
-    {
-        return DefaultEngineWindowProcessor( &m_engine, hWnd, message, wParam, lParam );
     }
 }
 

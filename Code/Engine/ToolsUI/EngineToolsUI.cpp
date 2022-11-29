@@ -20,7 +20,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void EngineToolsUI::Initialize( UpdateContext const& context )
+    void EngineToolsUI::Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache )
     {
         m_pWorldManager = context.GetSystem<EntityWorldManager>();
         for ( auto pWorld : m_pWorldManager->GetWorlds() )
@@ -245,14 +245,14 @@ namespace EE
 
             ImGuiX::VerticalSeparator();
 
-            SystemDebugView::DrawFrameLimiterMenu( const_cast<UpdateContext&>( context ) );
+            SystemDebugView::DrawFrameLimiterCombo( const_cast<UpdateContext&>( context ) );
 
             // Log
             //-------------------------------------------------------------------------
 
             ImGuiX::VerticalSeparator();
 
-            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::Yellow ).Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ImColors::Yellow.Value );
             if ( ImGuiX::FlatButton( warningsStr.c_str() ) )
             {
                 m_isLogWindowOpen = true;
@@ -264,7 +264,7 @@ namespace EE
 
             ImGuiX::VerticalSeparator();
 
-            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ConvertColor( Colors::Red ).Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ImColors::Red.Value );
             if ( ImGuiX::FlatButton( errorsStr.c_str() ) )
             {
                 m_isLogWindowOpen = true;

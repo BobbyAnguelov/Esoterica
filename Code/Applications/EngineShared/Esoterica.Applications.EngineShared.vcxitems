@@ -16,12 +16,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)Engine_Win32.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)RenderingSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)Engine_Win32.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)RenderingSystem.cpp" />
   </ItemGroup>
 </Project>

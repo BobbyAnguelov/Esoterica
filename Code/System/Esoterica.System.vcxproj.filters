@@ -113,7 +113,7 @@
     <ClCompile Include="Input\InputDevices\Platform\InputDevice_XboxController_Win32.cpp">
       <Filter>Input\InputDevices\Platform</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderDefaultResources.cpp">
+    <ClCompile Include="Render\RenderCoreResources.cpp">
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="Render\RenderShader.cpp">
@@ -338,6 +338,11 @@
     <ClCompile Include="Serialization\TypeSerialization.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="Application\ApplicationGlobalState.cpp" />
+    <ClCompile Include="Application\Platform\Application_Win32.cpp" />
+    <ClCompile Include="Imgui\Platform\ImguiX_Win32.cpp" />
+    <ClCompile Include="Render\RenderUtils.cpp" />
+    <ClCompile Include="Imgui\ImguiImageCache.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThirdParty\EA\EASTL\Include\EASTL\internal\type_void_t.h">
@@ -555,7 +560,7 @@
     <ClInclude Include="Render\RenderBuffer.h">
       <Filter>Render</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderDefaultResources.h">
+    <ClInclude Include="Render\RenderCoreResources.h">
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="Render\RenderDevice.h">
@@ -1737,6 +1742,12 @@
     <ClInclude Include="Serialization\TypeSerialization.h">
       <Filter>Serialization</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\cmdParser\cmdParser.h" />
+    <ClInclude Include="Application\ApplicationGlobalState.h" />
+    <ClInclude Include="Application\Platform\Application_Win32.h" />
+    <ClInclude Include="ThirdParty\LivePP\LivePP.h" />
+    <ClInclude Include="Render\RenderUtils.h" />
+    <ClInclude Include="Imgui\ImguiImageCache.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\EA\EABase\doc\EABase.html">
@@ -1748,6 +1759,7 @@
     <None Include="ThirdParty\concurrentqueue\README.md">
       <Filter>ThirdParty\concurrentqueue</Filter>
     </None>
+    <None Include="ThirdParty\cmdParser\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="ThirdParty\stb\LICENSE">

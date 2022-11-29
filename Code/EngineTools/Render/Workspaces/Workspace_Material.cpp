@@ -1,5 +1,4 @@
 #include "Workspace_Material.h"
-#include "EngineTools/Core/Widgets/InterfaceHelpers.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 

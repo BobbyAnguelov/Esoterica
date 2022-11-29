@@ -296,7 +296,7 @@ namespace EE::VisualGraph
         float const separatorWidth = GetWidth() == 0 ? VisualSettings::s_minimumNodeWidth : GetWidth();
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
         ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
-        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::ConvertColor( color ) );
+        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::ToIm( color ) );
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + postMarginY );
     }
 
@@ -322,7 +322,7 @@ namespace EE::VisualGraph
         
         int32_t const previousChannel = ctx.m_pDrawList->_Splitter._Current;
         ctx.m_pDrawList->ChannelsSetCurrent( 2 );
-        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ConvertColor( m_internalRegionColor ), 3.0f );
+        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ToIm( m_internalRegionColor ), 3.0f );
         ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
 
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + VisualSettings::s_internalRegionPadding + m_internalRegionMargins[1] );

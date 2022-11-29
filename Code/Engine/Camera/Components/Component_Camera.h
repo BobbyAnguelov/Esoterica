@@ -4,7 +4,6 @@
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "System/Math/Math.h"
 #include "System/Math/ViewVolume.h"
-#include "System/Math/Rectangle.h"
 
 //-------------------------------------------------------------------------
 // Camera

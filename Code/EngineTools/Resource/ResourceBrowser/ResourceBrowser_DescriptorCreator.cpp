@@ -65,7 +65,7 @@ namespace EE
             //-------------------------------------------------------------------------
 
             ImGui::BeginDisabled( !m_pDescriptor->IsValid() );
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Save", ImVec2( 120, 0 ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, "Save", ImVec2( 120, 0 ) ) )
             {
                 SaveDescriptor();
                 ImGui::CloseCurrentPopup();

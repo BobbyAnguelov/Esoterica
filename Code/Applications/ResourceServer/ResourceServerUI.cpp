@@ -1,9 +1,8 @@
 #include "ResourceServerUI.h"
 #include "ResourceServer.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Imgui/ImguiStyle.h"
-#include "System/Types/Color.h"
 #include "System/Platform/PlatformHelpers_Win32.h"
+#include "System/Imgui/ImguiSystem.h"
+#include "EngineTools/Core/ToolsEmbeddedResources.inl"
 #include <eastl/sort.h>
 
 //-------------------------------------------------------------------------
@@ -17,12 +16,47 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    ResourceServerUI::ResourceServerUI( ResourceServer& resourceServer )
+    ResourceServerUI::ResourceServerUI( ResourceServer& resourceServer, ImGuiX::ImageCache* pImageCache )
         : m_resourceServer( resourceServer )
-    {}
+        , m_pImageCache( pImageCache )
+    {
+        EE_ASSERT( m_pImageCache != nullptr );
+    }
+
+    ResourceServerUI::~ResourceServerUI()
+    {
+        EE_ASSERT( !m_resourceServerIcon.IsValid() );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ResourceServerUI::Initialize()
+    {
+        EE_ASSERT( m_pImageCache != nullptr && m_pImageCache->IsInitialized() );
+        m_resourceServerIcon = m_pImageCache->LoadImageFromMemoryBase64( g_iconDataPurple, 3332 );
+    }
+
+    void ResourceServerUI::Shutdown()
+    {
+        m_pImageCache->UnloadImage( m_resourceServerIcon );
+    }
 
     void ResourceServerUI::Draw()
     {
+        // Window title bar
+        //-------------------------------------------------------------------------
+
+        auto DrawTitleBarContents = [this] ()
+        {
+            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 6, 6 ) );
+            ImGuiX::Image( m_resourceServerIcon );
+            ImGui::SameLine();
+            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 0, 2 ) );
+            ImGui::Text( "Resource Server" );
+        };
+
+        m_titleBar.Draw( DrawTitleBarContents, 140 );
+
         // Create dock space
         //-------------------------------------------------------------------------
 
@@ -507,7 +541,7 @@ namespace EE::Resource
 
                 ImGui::SameLine();
                 ImGui::BeginDisabled( !m_resourceServer.CanStartPackaging() );
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Start", ImVec2( 50, 0 ) ) )
+                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, "Start", ImVec2( 50, 0 ) ) )
                 {
                     m_resourceServer.StartPackaging();
                 }

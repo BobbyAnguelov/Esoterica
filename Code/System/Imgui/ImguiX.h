@@ -5,10 +5,18 @@
 #include "ImguiStyle.h"
 #include "System/ThirdParty/imgui/imgui_internal.h"
 #include "System/Math/Transform.h"
+#include "System/Math/Rectangle.h"
 #include "System/Types/Color.h"
 #include "System/Types/String.h"
 #include "System/Types/BitFlags.h"
 #include "System/Types/Function.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::Render
+{
+    class Texture;
+}
 
 //-------------------------------------------------------------------------
 // ImGui Extensions
@@ -26,12 +34,14 @@ namespace EE::ImGuiX
     // Color Helpers
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE ImColor ConvertColor( Color const& color )
+    // Convert EE color to ImColor
+    EE_FORCE_INLINE ImColor ToIm( Color const& color )
     {
         return IM_COL32( color.m_byteColor.m_r, color.m_byteColor.m_g, color.m_byteColor.m_b, color.m_byteColor.m_a );
     }
 
-    EE_FORCE_INLINE Color ConvertColor( ImColor const& color )
+    // Convert ImColor to EE color
+    EE_FORCE_INLINE Color FromIm( ImColor const& color )
     {
         return Color( uint8_t( color.Value.x * 255 ), uint8_t( color.Value.y * 255 ), uint8_t( color.Value.z * 255 ), uint8_t( color.Value.w * 255 ) );
     }
@@ -108,40 +118,22 @@ namespace EE::ImGuiX
     EE_SYSTEM_API void TextTooltip( const char* fmt, ... );
 
     // Draw a button with an explicit icon
-    EE_SYSTEM_API bool IconButton( char const* pIcon, char const* pLabel, ImVec4 const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
-
-    // Draw a button with an explicit icon
-    EE_FORCE_INLINE bool IconButton( char const* pIcon, char const* pLabel, Color const& iconColor = Color( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ) )
-    {
-        return IconButton( pIcon, pLabel, ConvertColor( iconColor ).Value, size );
-    }
+    EE_SYSTEM_API bool IconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
 
     // Draw a colored button
     EE_SYSTEM_API bool ColoredButton( ImColor const& backgroundColor, ImColor const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
 
-    // Draw a colored button
-    EE_FORCE_INLINE bool ColoredButton( Color backgroundColor, Color foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) )
-    {
-        return ColoredButton( ConvertColor( backgroundColor ), ConvertColor( foregroundColor ), label, size );
-    }
-
     // Draw a colored icon button
-    EE_SYSTEM_API bool ColoredIconButton( ImColor const& backgroundColor, ImColor const& foregroundColor, ImVec4 const& iconColor, char const* pIcon, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
-
-    // Draw a colored icon button
-    EE_FORCE_INLINE bool ColoredIconButton( Color backgroundColor, Color foregroundColor, Color iconColor, char const* pIcon, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) )
-    {
-        return ColoredIconButton( ConvertColor( backgroundColor ), ConvertColor( foregroundColor ), ConvertColor( iconColor ), pIcon, label, size );
-    }
+    EE_SYSTEM_API bool ColoredIconButton( ImColor const& backgroundColor, ImColor const& foregroundColor, ImColor const& iconColor, char const* pIcon, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
 
     // Draws a flat button - a button with no background
     EE_SYSTEM_API bool FlatButton( char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
 
     // Draws a flat button - with a custom text color
-    EE_FORCE_INLINE bool FlatButtonColored( ImVec4 const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) )
+    EE_FORCE_INLINE bool FlatButtonColored( ImColor const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) )
     {
         ImGui::PushStyleColor( ImGuiCol_Button, 0 );
-        ImGui::PushStyleColor( ImGuiCol_Text, foregroundColor );
+        ImGui::PushStyleColor( ImGuiCol_Text, foregroundColor.Value );
         bool const result = ImGui::Button( label, size );
         ImGui::PopStyleColor( 2 );
 
@@ -149,22 +141,16 @@ namespace EE::ImGuiX
     }
 
     // Draw a colored icon button
-    EE_SYSTEM_API bool FlatIconButton( char const* pIcon, char const* pLabel, ImVec4 const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
-
-    // Draw a colored icon button
-    EE_FORCE_INLINE bool FlatIconButton( char const* pIcon, char const* pLabel, Color iconColor = Color( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ) )
-    {
-        return FlatIconButton( pIcon, pLabel, ConvertColor( iconColor ).Value, size );
-    }
+    EE_SYSTEM_API bool FlatIconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
 
     // Combo button - button with extra drop down options - returns true if the primary button was pressed
     EE_SYSTEM_API bool ComboButton( char const* pButtonLabel, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
 
     // Combo button - button with extra drop down options - returns true if the primary button was pressed
-    EE_SYSTEM_API bool IconComboButton( char const* pIcon, char const* pButtonLabel, Color iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
+    EE_SYSTEM_API bool IconComboButton( char const* pIcon, char const* pButtonLabel, ImColor const& iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
 
     // Toggle button
-    EE_SYSTEM_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color onColor = ConvertColor(ImGuiX::Style::s_colorAccent0), Color offColor = Color(ImGui::GetStyle().Colors[ImGuiCol_Text]));
+    EE_SYSTEM_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), ImColor const& onColor = ImGuiX::Style::s_colorAccent0, ImColor const& offColor = ImGui::GetStyle().Colors[ImGuiCol_Text] );
 
     // Draw an arrow between two points
     EE_SYSTEM_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImColor const& color, float arrowWidth, float arrowHeadWidth = 5.0f );
@@ -183,6 +169,35 @@ namespace EE::ImGuiX
     EE_SYSTEM_API bool InputFloat4( char const* pID, Vector& value, float width = -1, bool readOnly = false );
 
     EE_SYSTEM_API bool InputTransform( char const* pID, Transform& value, float width = -1, bool readOnly = false );
+
+    //-------------------------------------------------------------------------
+    // Images
+    //-------------------------------------------------------------------------
+
+    struct ImageInfo
+    {
+        inline bool IsValid() const { return m_ID != 0; }
+
+    public:
+
+        ImTextureID             m_ID = 0;
+        Render::Texture*        m_pTexture = nullptr;
+        ImVec2                  m_size = ImVec2( 0, 0 );
+    };
+
+    EE_SYSTEM_API ImTextureID ToIm( Render::Texture const& texture );
+
+    EE_SYSTEM_API ImTextureID ToIm( Render::Texture const* pTexture );
+
+    EE_FORCE_INLINE void Image( ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), ImColor const& tintColor = ImVec4( 1, 1, 1, 1 ), ImColor const& borderColor = ImVec4( 0, 0, 0, 0 ) )
+    {
+        ImGui::Image( img.m_ID, img.m_size, uv0, uv1, tintColor, borderColor );
+    }
+
+    EE_FORCE_INLINE void ImageButton( ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), int framePadding = -1, ImColor const& backgroundColor = ImVec4( 0, 0, 0, 0 ), ImColor const& tintColor = ImVec4( 1, 1, 1, 1 ) )
+    {
+        ImGui::ImageButton( img.m_ID, img.m_size, uv0, uv1, framePadding, backgroundColor, tintColor );
+    }
 
     //-------------------------------------------------------------------------
     // Advanced widgets
@@ -212,7 +227,7 @@ namespace EE::ImGuiX
         inline TVector<String> const& GetFilterTokens() const { return m_tokens; }
 
         // Does a provided string match the current filter - the string copy is intentional!
-        bool MatchesFilter( String string ); 
+        bool MatchesFilter( String string );
 
     private:
 
@@ -220,5 +235,29 @@ namespace EE::ImGuiX
         TVector<String>     m_tokens;
     };
 
+    //-------------------------------------------------------------------------
+    // Application level widgets
+    //-------------------------------------------------------------------------
+
+    struct EE_SYSTEM_API ApplicationTitleBar
+    {
+        static Float2 const s_windowControlButtonSize;
+        constexpr static float const s_minimumDraggableGap = 20;
+
+        static inline float GetWindowsControlsWidth() { return s_windowControlButtonSize.m_x * 3; }
+        static void DrawWindowControls();
+
+    public:
+
+        // This function takes three delegates and sizes each representing an area of the title bar to draw to.
+        void Draw( TFunction<void()>&& leftSectionDrawFunction = TFunction<void()>(), float leftSectionWidth = 0, TFunction<void()>&& midSectionDrawFunction = TFunction<void()>(), float midSectionWidth = 0, TFunction<void()>&& rightSectionDrawFunction = TFunction<void()>(), float rightSectionWidth = 0 );
+
+        // Get all the draggable regions in the title bar, based on the draw functions (one frame late)
+        TInlineVector<Math::ScreenSpaceRectangle, 4> const& GetTitleBarDraggableRegions() const { return m_draggableRegions; }
+
+    private:
+
+        TInlineVector<Math::ScreenSpaceRectangle, 4> m_draggableRegions;
+    };
 }
 #endif

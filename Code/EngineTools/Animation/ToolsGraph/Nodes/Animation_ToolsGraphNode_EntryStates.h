@@ -59,7 +59,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual bool IsVisible() const override { return false; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ConvertColor( Colors::SlateBlue ); }
+        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::SlateBlue; }
         virtual char const* GetTypeName() const override { return "Entry Overrides"; }
         virtual bool IsUserCreatable() const override { return false; }
     };

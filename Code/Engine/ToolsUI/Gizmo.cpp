@@ -325,19 +325,19 @@ namespace EE::ImGuiX
 
         planeInfo[0].m_manipulationPlaneAxis = axisInfo[2].m_axisDirWS;
         planeInfo[0].m_manipulationMode = ManipulationMode::TranslateXY;
-        planeInfo[0].m_color = ConvertColor( Colors::Yellow );
+        planeInfo[0].m_color = ImColors::Yellow;
         planeInfo[0].m_isHovered = ( m_manipulationMode == planeInfo[0].m_manipulationMode );
         planeInfo[0].m_isRotationDirFlipped = Math::IsOdd( uint32_t( axisInfo[0].m_isAxisFlipped ) + uint32_t( axisInfo[1].m_isAxisFlipped ) );
 
         planeInfo[1].m_manipulationPlaneAxis = axisInfo[0].m_axisDirWS;
         planeInfo[1].m_manipulationMode = ManipulationMode::TranslateYZ;
-        planeInfo[1].m_color = ConvertColor( Colors::DarkOrchid );
+        planeInfo[1].m_color = ImColors::DarkOrchid;
         planeInfo[1].m_isHovered = ( m_manipulationMode == planeInfo[1].m_manipulationMode );
         planeInfo[1].m_isRotationDirFlipped = Math::IsOdd( uint32_t( axisInfo[1].m_isAxisFlipped ) + uint32_t( axisInfo[2].m_isAxisFlipped ) );
 
         planeInfo[2].m_manipulationPlaneAxis = axisInfo[1].m_axisDirWS;
         planeInfo[2].m_manipulationMode = ManipulationMode::TranslateXZ;
-        planeInfo[2].m_color = ConvertColor( Colors::LightSeaGreen );
+        planeInfo[2].m_color = ImColors::LightSeaGreen;
         planeInfo[2].m_isHovered = ( m_manipulationMode == planeInfo[2].m_manipulationMode );
         planeInfo[2].m_isRotationDirFlipped = Math::IsOdd( uint32_t( axisInfo[0].m_isAxisFlipped ) + uint32_t( axisInfo[2].m_isAxisFlipped ) );
 
@@ -504,9 +504,9 @@ namespace EE::ImGuiX
         // Draw Widget
         //-------------------------------------------------------------------------
 
-        axisInfo[0].m_color = ( axisInfo[0].m_isHovered ) ? ConvertColor( g_hoveredAxisColorX ) : ConvertColor( g_axisColorX );
-        axisInfo[1].m_color = ( axisInfo[1].m_isHovered ) ? ConvertColor( g_hoveredAxisColorY ) : ConvertColor( g_axisColorY );
-        axisInfo[2].m_color = ( axisInfo[2].m_isHovered ) ? ConvertColor( g_hoveredAxisColorZ ) : ConvertColor( g_axisColorZ );
+        axisInfo[0].m_color = ( axisInfo[0].m_isHovered ) ? ToIm( g_hoveredAxisColorX ) : ToIm( g_axisColorX );
+        axisInfo[1].m_color = ( axisInfo[1].m_isHovered ) ? ToIm( g_hoveredAxisColorY ) : ToIm( g_axisColorY );
+        axisInfo[2].m_color = ( axisInfo[2].m_isHovered ) ? ToIm( g_hoveredAxisColorZ ) : ToIm( g_axisColorZ );
 
         // Sort axes back to front
         TInlineVector<int32_t, 6> drawOrder = { 0, 1, 2, 3, 4, 5 };
@@ -521,7 +521,7 @@ namespace EE::ImGuiX
         eastl::sort( drawOrder.begin(), drawOrder.end(), Comparator );
 
         // Draw origin sphere
-        pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, ConvertColor( g_originColor ) );
+        pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, ToIm( g_originColor ) );
 
         // Manipulators
         for ( auto d : drawOrder )
@@ -816,9 +816,9 @@ namespace EE::ImGuiX
         // Draw Widget
         //-------------------------------------------------------------------------
 
-        axisInfo[0].m_color = ( axisInfo[0].m_isHovered ) ? ConvertColor( g_hoveredAxisColorX ) : ConvertColor( g_axisColorX );
-        axisInfo[1].m_color = ( axisInfo[1].m_isHovered ) ? ConvertColor( g_hoveredAxisColorY ) : ConvertColor( g_axisColorY );
-        axisInfo[2].m_color = ( axisInfo[2].m_isHovered ) ? ConvertColor( g_hoveredAxisColorZ ) : ConvertColor( g_axisColorZ );
+        axisInfo[0].m_color = ( axisInfo[0].m_isHovered ) ? ToIm( g_hoveredAxisColorX ) : ToIm( g_axisColorX );
+        axisInfo[1].m_color = ( axisInfo[1].m_isHovered ) ? ToIm( g_hoveredAxisColorY ) : ToIm( g_axisColorY );
+        axisInfo[2].m_color = ( axisInfo[2].m_isHovered ) ? ToIm( g_hoveredAxisColorZ ) : ToIm( g_axisColorZ );
 
         // Sort axes back to front
         TInlineVector<int32_t, 3> drawOrder = { 0, 1, 2 };
@@ -833,7 +833,7 @@ namespace EE::ImGuiX
         eastl::sort( drawOrder.begin(), drawOrder.end(), Comparator );
 
         // Draw origin sphere
-        pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, ConvertColor( g_originColor ) );
+        pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, ToIm( g_originColor ) );
 
         // Draw Axes
         for ( auto d : drawOrder )
@@ -1022,21 +1022,21 @@ namespace EE::ImGuiX
         axisInfo[0].m_planeStartAxisIdx = 2;
         axisInfo[0].m_planeEndAxisIdx = 1;
         axisInfo[0].m_manipulationMode = ManipulationMode::RotateX;
-        axisInfo[0].m_color = ConvertColor( g_axisColorX );
+        axisInfo[0].m_color = ToIm( g_axisColorX );
         axisInfo[0].m_isHovered = ( m_manipulationMode == axisInfo[0].m_manipulationMode );
 
         axisInfo[1].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitY : orientationWS.RotateVector( Vector::UnitY );
         axisInfo[1].m_planeStartAxisIdx = 2;
         axisInfo[1].m_planeEndAxisIdx = 0;
         axisInfo[1].m_manipulationMode = ManipulationMode::RotateY;
-        axisInfo[1].m_color = ConvertColor( g_axisColorY );
+        axisInfo[1].m_color = ToIm( g_axisColorY );
         axisInfo[1].m_isHovered = ( m_manipulationMode == axisInfo[1].m_manipulationMode );
 
         axisInfo[2].m_axisDirWS = ( m_coordinateSpace == CoordinateSpace::World ) ? Vector::UnitZ : orientationWS.RotateVector( Vector::UnitZ );
         axisInfo[2].m_planeStartAxisIdx = 1;
         axisInfo[2].m_planeEndAxisIdx = 0;
         axisInfo[2].m_manipulationMode = ManipulationMode::RotateZ;
-        axisInfo[2].m_color = ConvertColor( g_axisColorZ );
+        axisInfo[2].m_color = ToIm( g_axisColorZ );
         axisInfo[2].m_isHovered = ( m_manipulationMode == axisInfo[2].m_manipulationMode );
 
         if ( m_options.IsFlagSet( Options::AllowAxesFlipping ) )
@@ -1148,15 +1148,15 @@ namespace EE::ImGuiX
             }
         }
 
-        axisInfo[0].m_color = ( axisInfo[0].m_isHovered ) ? ConvertColor( g_hoveredAxisColorX ) : ConvertColor( g_axisColorX );
-        axisInfo[1].m_color = ( axisInfo[1].m_isHovered ) ? ConvertColor( g_hoveredAxisColorY ) : ConvertColor( g_axisColorY );
-        axisInfo[2].m_color = ( axisInfo[2].m_isHovered ) ? ConvertColor( g_hoveredAxisColorZ ) : ConvertColor( g_axisColorZ );
+        axisInfo[0].m_color = ( axisInfo[0].m_isHovered ) ? ToIm( g_hoveredAxisColorX ) : ToIm( g_axisColorX );
+        axisInfo[1].m_color = ( axisInfo[1].m_isHovered ) ? ToIm( g_hoveredAxisColorY ) : ToIm( g_axisColorY );
+        axisInfo[2].m_color = ( axisInfo[2].m_isHovered ) ? ToIm( g_hoveredAxisColorZ ) : ToIm( g_axisColorZ );
 
         // Draw Widgets
         //-------------------------------------------------------------------------
 
         // Draw origin
-        pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, ConvertColor( g_originColor ) );
+        pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, ToIm( g_originColor ) );
 
         // Draw preview
         if ( isManipulating )
@@ -1179,7 +1179,7 @@ namespace EE::ImGuiX
 
             //-------------------------------------------------------------------------
 
-            uint32_t const previewColor = ConvertColor( g_rotationPreviewColor );
+            uint32_t const previewColor = ToIm( g_rotationPreviewColor );
             Vector textPositionOnCircleWS = originWS + ( m_rotationStartDirection * axesScale );
             if ( Math::Abs( m_rotationDeltaAngle.ToFloat() ) > Math::DegreesToRadians )
             {
@@ -1196,7 +1196,7 @@ namespace EE::ImGuiX
                 
                 pDrawList->AddPolyline( previewCirclePointsSS, numPreviewCirclePoints, previewColor, false, 8.0f );
                 pDrawList->AddLine( originSS, previewCirclePointsSS[numPreviewCirclePoints - 1], previewColor, 1.0f );
-                pDrawList->AddLine( originSS, previewCirclePointsSS[0], ConvertColor( Colors::White ), 1.0f );
+                pDrawList->AddLine( originSS, previewCirclePointsSS[0], ImColors::White, 1.0f );
             }
 
             //-------------------------------------------------------------------------
@@ -1212,13 +1212,13 @@ namespace EE::ImGuiX
             Float2 axisDirSS = ( axisLineEnd_SS - originSS ).GetNormalized2();
 
             pDrawList->AddLine( originSS - ( axisDirSS * 10000 ), originSS + ( axisDirSS * 10000 ), pHoveredAxisInfo->m_color );
-            pDrawList->AddLine( originSS, pointOnCircle_SS, ConvertColor( Colors::White ), 1.0f );
+            pDrawList->AddLine( originSS, pointOnCircle_SS, ImColors::White, 1.0f );
             pDrawList->AddCircleFilled( pointOnCircle_SS, 3.0f, previewColor );
 
             auto textSize = ImGui::CalcTextSize( buff );
-            Vector const textPosition = Vector( pointOnCircle_SS ) - Float2( textSize.x / 2, 0 );
-            pDrawList->AddRectFilled( textPosition, textPosition + Float2( textSize.x + 3, textSize.y ), ConvertColor( Colors::Black.GetAlphaVersion( 0.5f ) ), 3.0f );
-            pDrawList->AddText( textPosition, ConvertColor( Colors::White ), buff );
+            Vector const textPosition = Vector( pointOnCircle_SS ) - Float2( textSize.x / 2, 0.0f );
+            pDrawList->AddRectFilled( textPosition, textPosition + Float2( textSize.x + 3, textSize.y ), ToIm( Colors::Black.GetAlphaVersion( 0.5f ) ), 3.0f );
+            pDrawList->AddText( textPosition, ImColors::White, buff );
         }
         else // Draw manipulation handles
         {

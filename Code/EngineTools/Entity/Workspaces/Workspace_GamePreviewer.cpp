@@ -35,7 +35,7 @@ namespace EE
     void GamePreviewer::Initialize( UpdateContext const& context )
     {
         Workspace::Initialize( context );
-        m_engineToolsUI.Initialize( context );
+        m_engineToolsUI.Initialize( context, nullptr );
         m_engineToolsUI.LockToWindow( GetViewportWindowID() );
     }
 

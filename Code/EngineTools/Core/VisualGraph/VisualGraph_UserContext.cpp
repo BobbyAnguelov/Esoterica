@@ -1,6 +1,5 @@
 #include "VisualGraph_UserContext.h"
 #include "VisualGraph_BaseGraph.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 

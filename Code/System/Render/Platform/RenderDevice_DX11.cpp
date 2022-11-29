@@ -1,6 +1,6 @@
 #include "RenderDevice_DX11.h"
 #include "TextureLoader_Win32.h"
-#include "System/Render/RenderDefaultResources.h"
+#include "System/Render/RenderCoreResources.h"
 #include "System/IniFile.h"
 #include "System/Profiling.h"
 #include "System/Log.h"
@@ -93,14 +93,14 @@ namespace EE::Render
         m_immediateContext.ClearRenderTargetViews( m_primaryWindow.m_renderTarget );
         m_immediateContext.m_pDeviceContext->OMSetDepthStencilState( RenderContext::s_pDepthTestingOn, 0 );
 
-        DefaultResources::Initialize( this );
+        CoreResources::Initialize( this );
 
         return true;
     }
 
     void RenderDevice::Shutdown()
     {
-        DefaultResources::Shutdown( this );
+        CoreResources::Shutdown( this );
 
         m_immediateContext.m_pDeviceContext->ClearState();
         m_immediateContext.m_pDeviceContext->Flush();

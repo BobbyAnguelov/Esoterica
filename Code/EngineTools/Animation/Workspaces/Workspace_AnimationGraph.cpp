@@ -21,7 +21,6 @@
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/TypeSystem/TypeRegistry.h"
-#include "System/Imgui/ImguiStyle.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
@@ -226,8 +225,8 @@ namespace EE::Animation
 
                 ImGui::SameLine();
 
-                Color const buttonColor = m_showAdvancedEditor ? Colors::Green : ImGuiX::ConvertColor( ImGuiX::Style::s_colorGray1 );
-                if ( ImGuiX::ColoredButton( buttonColor, Colors::White, EE_ICON_COG, ImVec2( 24, 0 ) ) )
+                ImColor const buttonColor = m_showAdvancedEditor ? ImGuiX::ImColors::Green : ImGuiX::Style::s_colorGray1;
+                if ( ImGuiX::ColoredButton( buttonColor, ImGuiX::ImColors::White, EE_ICON_COG, ImVec2( 24, 0 ) ) )
                 {
                     m_showAdvancedEditor = !m_showAdvancedEditor;
                     m_maxLength = 1.0f;
@@ -387,7 +386,7 @@ namespace EE::Animation
 
                             ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
                             ImVec2 const dotOrigin = circleOrigin + offset;
-                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ConvertColor( Colors::LimeGreen ) );
+                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ImColors::LimeGreen );
                         }
                         else // Mouse Control
                         {
@@ -395,7 +394,7 @@ namespace EE::Animation
 
                             constexpr float const editRegionRadius = 10.0f;
                             float const distanceFromCircleOrigin = mousePos.GetDistance2( circleOrigin );
-   
+
                             // Manage edit state
                             if ( !m_isEditingValueWithMouse )
                             {
@@ -435,7 +434,7 @@ namespace EE::Animation
                             // Calculate offset and dot position and draw dot
                             ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
                             ImVec2 const dotOrigin = circleOrigin + offset;
-                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ConvertColor( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
+                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ToIm( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
                         }
                     }
                     ImGui::EndChild();
@@ -692,7 +691,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     AnimationGraphWorkspace::AnimationGraphWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : TWorkspace<GraphDefinition>( pToolsContext, pWorld, Variation::GetGraphResourceID( resourceID ), false)
+        : TWorkspace<GraphDefinition>( pToolsContext, pWorld, Variation::GetGraphResourceID( resourceID ), false )
         , m_propertyGrid( m_pToolsContext )
         , m_primaryGraphView( &m_userContext )
         , m_secondaryGraphView( &m_userContext )
@@ -1030,14 +1029,14 @@ namespace EE::Animation
 
         if ( IsDebugging() )
         {
-            if( ImGuiX::IconComboButton( EE_ICON_STOP, "Stop Debugging", Colors::Red, "SD", buttonDimensions, DrawPreviewOptions ) )
+            if ( ImGuiX::IconComboButton( EE_ICON_STOP, "Stop Debugging", ImGuiX::ImColors::Red, "SD", buttonDimensions, DrawPreviewOptions ) )
             {
                 StopDebugging();
             }
         }
         else
         {
-            if ( ImGuiX::IconComboButton( EE_ICON_PLAY, "Preview Graph", Colors::Lime, "PG", buttonDimensions, DrawPreviewOptions ) )
+            if ( ImGuiX::IconComboButton( EE_ICON_PLAY, "Preview Graph", ImGuiX::ImColors::Lime, "PG", buttonDimensions, DrawPreviewOptions ) )
             {
                 StartDebugging( context, DebugTarget() );
             }
@@ -1449,7 +1448,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         RefreshControlParameterCache();
-    
+
         //-------------------------------------------------------------------------
 
         TWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
@@ -1459,7 +1458,7 @@ namespace EE::Animation
     {
         TWorkspace<GraphDefinition>::OnHotReloadStarted( descriptorNeedsReload, resourcesToBeReloaded );
 
-        if( IsPreviewOrReview() && !m_isFirstPreviewFrame )
+        if ( IsPreviewOrReview() && !m_isFirstPreviewFrame )
         {
             StopDebugging();
         }
@@ -1495,7 +1494,7 @@ namespace EE::Animation
                     m_reviewStarted = true;
                     SetFrameToReview( 0 );
                 }
-                else if( IsPreviewing() )
+                else if ( IsPreviewing() )
                 {
                     ReflectInitialPreviewParameterValues( updateContext );
                 }
@@ -2300,7 +2299,7 @@ namespace EE::Animation
 
         ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
 
-        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_HOME"##GoHome", ImVec2( homeButtonWidth, buttonHeight ) ) )
+        if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_HOME"##GoHome", ImVec2( homeButtonWidth, buttonHeight ) ) )
         {
             NavigateTo( pRootGraph );
         }
@@ -2541,7 +2540,7 @@ namespace EE::Animation
         {
             ImGui::SameLine( navBarDimensions.x - statemachineNavRequiredSpace, 0 );
             ImGui::AlignTextToFramePadding();
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
             {
                 auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
                 NavigateTo( pSM->GetEntryStateOverrideConduit(), false );
@@ -2549,7 +2548,7 @@ namespace EE::Animation
             ImGuiX::ItemTooltip( "Entry State Overrides" );
 
             ImGui::SameLine( 0, -1 );
-            if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::OrangeRed, ImGuiX::ImColors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
             {
                 auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
                 NavigateTo( pSM->GetGlobalTransitionConduit(), false );
@@ -2906,7 +2905,7 @@ namespace EE::Animation
             if ( m_primaryGraphView.GetViewedGraph() != pGraph )
             {
                 int32_t const stackIdx = GetStackIndexForGraph( pGraph );
-                while( stackIdx < ( m_graphStack.size() - 1 ) )
+                while ( stackIdx < ( m_graphStack.size() - 1 ) )
                 {
                     PopGraphStack();
                 }
@@ -2969,7 +2968,7 @@ namespace EE::Animation
         {
             if ( IsOfType<GraphNodes::ParameterReferenceToolsNode>( pNode ) || IsOfType<GraphNodes::ControlParameterToolsNode>( pNode ) || IsOfType<GraphNodes::VirtualParameterToolsNode>( pNode ) )
             {
-                 continue;
+                continue;
             }
 
             m_navigationTargetNodes.emplace_back( NavigationTarget( pNode, pNode->GetPathFromRoot() ) );
@@ -3050,7 +3049,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImColor const activeColor = ImGuiX::ConvertColor( Colors::Lime );
+            ImColor const activeColor = ImGuiX::ImColors::Lime;
 
             if ( IsDebugging() )
             {
@@ -3261,7 +3260,7 @@ namespace EE::Animation
             {
                 if ( m_visualLog.empty() )
                 {
-                    ImGui::TextColored( ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_CHECK );
+                    ImGui::TextColored( ImGuiX::ImColors::LimeGreen, EE_ICON_CHECK );
                     ImGui::SameLine();
                     ImGui::Text( "Graph Compiled Successfully" );
                 }
@@ -3936,7 +3935,7 @@ namespace EE::Animation
             ImGui::PopStyleColor();
 
             ImGui::TableSetColumnIndex( 1 );
-            pPreviewState->DrawPreviewEditor( context, m_graphStack.front(), m_characterTransform, IsLiveDebugging());
+            pPreviewState->DrawPreviewEditor( context, m_graphStack.front(), m_characterTransform, IsLiveDebugging() );
             ImGui::PopID();
         };
 
@@ -4490,7 +4489,7 @@ namespace EE::Animation
         bool isTreeNodeOpen = false;
         ImGui::SetNextItemOpen( true );
         {
-            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? ImGuiX::ConvertColor( Colors::LimeGreen ) : ImGui::GetStyle().Colors[ImGuiCol_Text] );
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? ImGuiX::ImColors::LimeGreen : ImGui::GetStyle().Colors[ImGuiCol_Text] );
             isTreeNodeOpen = ImGui::TreeNodeEx( variationID.c_str(), flags );
         }
         ImGuiX::TextTooltip( "Right click for options" );
@@ -4621,7 +4620,7 @@ namespace EE::Animation
             for ( auto pDataSlotNode : dataSlotNodes )
             {
                 String const nodePath = pDataSlotNode->GetPathFromRoot();
-            
+
                 // Apply filter
                 //-------------------------------------------------------------------------
 
@@ -4661,7 +4660,7 @@ namespace EE::Animation
 
                     if ( pDataSlotNode->HasOverride( currentVariationID ) )
                     {
-                        if ( ImGuiX::FlatButtonColored( ImGuiX::ConvertColor( Colors::MediumRed ), EE_ICON_CANCEL, buttonSize ) )
+                        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::MediumRed, EE_ICON_CANCEL, buttonSize ) )
                         {
                             pDataSlotNode->RemoveOverride( currentVariationID );
                         }
@@ -4669,7 +4668,7 @@ namespace EE::Animation
                     }
                     else // Create an override
                     {
-                        if ( ImGuiX::FlatButtonColored( ImGuiX::ConvertColor( Colors::LimeGreen ), EE_ICON_PLUS, buttonSize ) )
+                        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
                         {
                             pDataSlotNode->CreateOverride( currentVariationID );
                         }
@@ -4693,7 +4692,7 @@ namespace EE::Animation
                 ImColor labelColor = ImGuiX::Style::s_colorText;
                 if ( !isDefaultVariationSelected && hasOverrideForVariation )
                 {
-                    labelColor = ( pResourceID->IsValid() ) ? ImGuiX::ConvertColor( Colors::Lime ) : ImGuiX::ConvertColor( Colors::MediumRed );
+                    labelColor = ( pResourceID->IsValid() ) ? ImGuiX::ImColors::Lime : ImGuiX::ImColors::MediumRed;
                 }
 
                 ImGui::TextColored( labelColor, pDataSlotNode->GetName() );
@@ -4831,7 +4830,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         bool isValidVariationName = ValidateVariationName();
-        ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImGuiX::ConvertColor( Colors::Red ).Value );
+        ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImGuiX::ImColors::Red.Value );
         if ( ImGui::InputText( "##VariationName", m_nameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars ) )
         {
             nameChangeConfirmed = true;
@@ -4945,7 +4944,7 @@ namespace EE::Animation
             // Stop the review for every workspace
             if ( IsReviewingRecording() )
             {
-                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopReview", Colors::Red, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopReview", ImGuiX::ImColors::Red, buttonSize ) )
                 {
                     StopDebugging();
                 }
@@ -4954,7 +4953,7 @@ namespace EE::Animation
             else // Show the start/join button
             {
                 ImGui::BeginDisabled( !m_updateRecorder.HasRecordedData() );
-                if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartReview", Colors::Lime, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartReview", ImGuiX::ImColors::Lime, buttonSize ) )
                 {
                     if ( IsDebugging() )
                     {
@@ -4977,7 +4976,7 @@ namespace EE::Animation
             ImGui::BeginDisabled( !IsLiveDebugging() );
             if ( m_isRecording )
             {
-                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopRecord", Colors::White, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopRecord", ImGuiX::ImColors::White, buttonSize ) )
                 {
                     StopRecording();
                 }
@@ -4985,7 +4984,7 @@ namespace EE::Animation
             }
             else // Show start recording button
             {
-                if ( ImGuiX::IconButton( EE_ICON_RECORD, "##Record", Colors::Red, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_RECORD, "##Record", ImGuiX::ImColors::Red, buttonSize ) )
                 {
                     StartRecording();
                 }

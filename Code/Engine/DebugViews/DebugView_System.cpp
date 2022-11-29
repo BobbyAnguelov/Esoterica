@@ -9,10 +9,16 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
-    void SystemDebugView::DrawFrameLimiterMenu( UpdateContext& context )
+    void SystemDebugView::DrawFrameLimiterCombo( UpdateContext& context )
     {
-        if ( ImGui::BeginMenu( EE_ICON_CAR_SPEED_LIMITER ) )
+        ImGui::PushStyleColor( ImGuiCol_FrameBg, 0x00000000 );
+        ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGui::GetColorU32( ImGuiCol_ButtonHovered ) );
+        ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGui::GetColorU32( ImGuiCol_ButtonActive ) );
+        ImGui::SetNextItemWidth( 26 );
+        if ( ImGui::BeginCombo( "##FLC", EE_ICON_CAR_SPEED_LIMITER, ImGuiComboFlags_NoArrowButton ) )
         {
+            ImGui::PopStyleColor( 3 );
+
             bool noLimit = !context.HasFrameRateLimit();
             if ( ImGui::MenuItem( "None", nullptr, &noLimit ) )
             {
@@ -43,7 +49,11 @@ namespace EE
                 context.SetFrameRateLimit( 144.0f );
             }
 
-            ImGui::EndMenu();
+            ImGui::EndCombo();
+        }
+        else
+        {
+            ImGui::PopStyleColor( 3 );
         }
     }
 

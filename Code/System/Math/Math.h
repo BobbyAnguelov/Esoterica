@@ -367,6 +367,7 @@ namespace EE
         EE_FORCE_INLINE Float2( ZeroInit_t ) : m_x( 0 ), m_y( 0 ) {}
         EE_FORCE_INLINE explicit Float2( float v ) : m_x( v ), m_y( v ) {}
         EE_FORCE_INLINE explicit Float2( float ix, float iy ) : m_x( ix ), m_y( iy ) {}
+        EE_FORCE_INLINE explicit Float2( int32_t ix, int32_t iy ) : m_x( (float) ix ), m_y( (float) iy ) {}
         inline explicit Float2( Int2 const& v ) : m_x( (float) v.m_x ), m_y( (float) v.m_y ) {}
         inline explicit Float2( Float3 const& v );
         inline explicit Float2( Float4 const& v );

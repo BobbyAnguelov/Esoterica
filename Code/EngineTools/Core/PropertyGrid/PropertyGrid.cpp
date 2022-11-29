@@ -333,7 +333,7 @@ namespace EE
         if ( propertyInfo.IsDynamicArrayProperty() )
         {
             EE_ASSERT( arrayIdx != InvalidIndex );
-            if ( ImGuiX::FlatButtonColored( Colors::PaleVioletRed.ToFloat4(), EE_ICON_MINUS, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
+            if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::PaleVioletRed, EE_ICON_MINUS, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 command = Command::RemoveElement;
             }
@@ -341,7 +341,7 @@ namespace EE
         }
         else if ( !pTypeInfo->IsPropertyValueSetToDefault( pTypeInstance, propertyInfo.m_ID, arrayIdx ) )
         {
-            if ( ImGuiX::FlatButtonColored( Colors::LightGray.ToFloat4(), EE_ICON_UNDO_VARIANT, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
+            if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LightGray, EE_ICON_UNDO_VARIANT, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 command = Command::ResetToDefault;
             }
@@ -457,7 +457,7 @@ namespace EE
             ImGui::SameLine( 0, textAreaWidth - actualTextWidth + itemSpacing );
             ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_extraControlsButtonPadding );
             ImGui::BeginDisabled( !propertyInfo.IsExposedProperty() );
-            if ( ImGuiX::FlatButtonColored( Colors::LightGreen.ToFloat4(), EE_ICON_PLUS, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
+            if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LightGreen, EE_ICON_PLUS, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 ScopedChangeNotifier cn( this, &propertyInfo, PropertyEditInfo::Action::AddArrayElement );
                 pTypeInfo->AddArrayElement( pTypeInstance, propertyInfo.m_ID );
@@ -481,7 +481,7 @@ namespace EE
         if ( !pTypeInfo->IsPropertyValueSetToDefault( pTypeInstance, propertyInfo.m_ID ) )
         {
             ImGui::BeginDisabled( !propertyInfo.IsExposedProperty() );
-            if ( ImGuiX::FlatButtonColored( Colors::LightGray.ToFloat4(), EE_ICON_UNDO_VARIANT, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
+            if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LightGray, EE_ICON_UNDO_VARIANT, ImVec2( g_extraControlsColumnWidth, g_extraControlsButtonHeight ) ) )
             {
                 ScopedChangeNotifier cn( this, &propertyInfo );
                 pTypeInfo->ResetToDefault( pTypeInstance, propertyInfo.m_ID );

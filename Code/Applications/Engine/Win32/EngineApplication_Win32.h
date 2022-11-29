@@ -1,7 +1,7 @@
 #ifdef _WIN32
 #pragma once
 
-#include "Win32/Application_Win32.h"
+#include "System/Application/Platform/Application_Win32.h"
 #include "Applications/EngineShared/Engine.h"
 #include "Engine/ToolsUI/EngineToolsUI.h"
 
@@ -37,7 +37,8 @@ namespace EE
         virtual bool Initialize();
         virtual bool Shutdown();
 
-        virtual LRESULT WndProcess( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+        virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
+        virtual void ProcessInputMessage( UINT message, WPARAM wParam, LPARAM lParam ) override;
 
         virtual bool ApplicationLoop() override;
 

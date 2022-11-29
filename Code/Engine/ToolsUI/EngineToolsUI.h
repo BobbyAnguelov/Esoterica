@@ -31,7 +31,7 @@ namespace EE
 
         void LockToWindow( String const& windowName ) { m_windowName = windowName; }
 
-        virtual void Initialize( UpdateContext const& context ) override final;
+        virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) override final;
         virtual void Shutdown( UpdateContext const& context ) override final;
         virtual void EndFrame( UpdateContext const& context ) override final;
 

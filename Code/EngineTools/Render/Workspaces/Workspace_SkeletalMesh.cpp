@@ -1,5 +1,4 @@
 #include "Workspace_SkeletalMesh.h"
-#include "EngineTools/Core/Widgets/InterfaceHelpers.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"

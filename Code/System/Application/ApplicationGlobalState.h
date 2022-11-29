@@ -1,4 +1,5 @@
 #pragma once
+#include "System/_Module/API.h"
 
 //-------------------------------------------------------------------------
 // Application Global State
@@ -15,7 +16,7 @@
 
 namespace EE
 {
-    class ApplicationGlobalState
+    class EE_SYSTEM_API ApplicationGlobalState
     {
     public:
 

@@ -11,7 +11,6 @@
 #include "Engine/Physics/PhysicsLayers.h"
 #include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/UpdateContext.h"
-#include "System/Imgui/ImguiStyle.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/Serialization/TypeSerialization.h"
@@ -974,7 +973,7 @@ namespace EE
                     ImGui::Text( "Descriptor: %s", m_descriptorID.c_str() );
 
                     ImGui::BeginDisabled( !m_pDescriptorPropertyGrid->IsDirty() );
-                    if ( ImGuiX::ColoredButton( ImGuiX::ConvertColor( Colors::ForestGreen ), ImGuiX::ConvertColor( Colors::White ), EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
+                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::ForestGreen, ImGuiX::ImColors::White, EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
                     {
                         Save();
                     }

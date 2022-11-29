@@ -452,7 +452,7 @@ namespace EE
         float const availableWidth = ImGui::GetContentRegionAvail().x;
         float const buttonWidth = ( availableWidth - 4.0f ) / 2.0f;
 
-        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS" CREATE", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS" CREATE", ImVec2( buttonWidth, 0 ) ) )
         {
             ImGui::OpenPopup( "CreateNewDescriptor" );
         }
@@ -468,7 +468,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         ImGui::SameLine( 0, 4 );
-        if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_FILE_IMPORT" IMPORT", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGuiX::ColoredButton( ImGuiX::ImColors::OrangeRed, ImGuiX::ImColors::White, EE_ICON_FILE_IMPORT" IMPORT", ImVec2( buttonWidth, 0 ) ) )
         {
             auto const selectedFile = pfd::open_file( "Load Map", m_toolsContext.GetRawResourceDirectory().c_str() ).result();
             if ( !selectedFile.empty() )

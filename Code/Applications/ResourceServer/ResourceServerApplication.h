@@ -1,11 +1,10 @@
 #pragma once
 
-#include "ApplicationGlobalState.h"
 #include "ResourceServer.h"
 #include "ResourceServerUI.h"
-#include "Win32/Application_Win32.h"
 #include "Engine/Render/Renderers/ImguiRenderer.h"
 #include "Engine/UpdateContext.h"
+#include "System/Application/Platform/Application_Win32.h"
 #include "System/Render/RenderDevice.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/Imgui/ImguiSystem.h"
@@ -38,9 +37,11 @@ namespace EE
         virtual bool Initialize() override;
         virtual bool Shutdown() override;
         virtual bool ApplicationLoop() override;
-        virtual LRESULT WndProcess( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam ) override;
-        virtual void OnWindowDestruction() override;
         virtual bool OnExitRequest() override;
+
+        virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
+        virtual void ProcessWindowDestructionMessage() override;
+        virtual void GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outDraggableRegions ) const override;
 
     private:
 

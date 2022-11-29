@@ -6,7 +6,6 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
 #include "System/TypeSystem/TypeRegistry.h"
-#include "System/Imgui/ImguiStyle.h"
 
 //-------------------------------------------------------------------------
 
@@ -311,7 +310,7 @@ namespace EE::EntityModel
                 ImGui::SameLine( availableArea.x - 60 );
                 {
                     ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_AXIS_ARROW" ADD", addButtonSize ) )
+                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_AXIS_ARROW" ADD", addButtonSize ) )
                     {
                         m_pOperationTargetComponent = nullptr;
                         StartOperation( Operation::AddSpatialComponent );
@@ -346,7 +345,7 @@ namespace EE::EntityModel
                 ImGui::SameLine( availableArea.x - 60 );
                 {
                     ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_DATABASE" ADD", addButtonSize ) )
+                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_DATABASE" ADD", addButtonSize ) )
                     {
                         m_pOperationTargetComponent = nullptr;
                         StartOperation( Operation::AddComponent );
@@ -426,7 +425,7 @@ namespace EE::EntityModel
                 ImGui::SameLine( availableArea.x - 60 );
                 {
                     ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_COG_OUTLINE" ADD", addButtonSize ) )
+                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_COG_OUTLINE" ADD", addButtonSize ) )
                     {
                         StartOperation( Operation::AddSystem );
                     }

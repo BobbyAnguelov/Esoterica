@@ -8,7 +8,7 @@
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "System/Render/RenderDefaultResources.h"
+#include "System/Render/RenderCoreResources.h"
 #include "Engine/Render/RenderViewport.h"
 #include "System/Profiling.h"
 
@@ -437,7 +437,7 @@ namespace EE::Render
     {
         EE_ASSERT( pMaterial != nullptr );
 
-        ViewSRVHandle const& defaultSRV = DefaultResources::GetDefaultTexture()->GetShaderResourceView();
+        ViewSRVHandle const& defaultSRV = CoreResources::GetMissingTexture()->GetShaderResourceView();
 
         // TODO: cache on GPU in buffer
         MaterialData materialData;
@@ -462,7 +462,7 @@ namespace EE::Render
 
     void WorldRenderer::SetDefaultMaterial( RenderContext const& renderContext, PixelShader& pixelShader )
     {
-        ViewSRVHandle const& defaultSRV = DefaultResources::GetDefaultTexture()->GetShaderResourceView();
+        ViewSRVHandle const& defaultSRV = CoreResources::GetMissingTexture()->GetShaderResourceView();
 
         MaterialData materialData{};
         materialData.m_surfaceFlags |= MATERIAL_USE_ALBEDO_TEXTURE;
@@ -502,7 +502,7 @@ namespace EE::Render
         }
         else
         {
-            renderContext.SetShaderResource( PipelineStage::Pixel, 10, DefaultResources::GetDefaultTexture()->GetShaderResourceView() );
+            renderContext.SetShaderResource( PipelineStage::Pixel, 10, CoreResources::GetMissingTexture()->GetShaderResourceView() );
         }
 
         // Skybox
@@ -513,7 +513,7 @@ namespace EE::Render
         }
         else
         {
-            renderContext.SetShaderResource( PipelineStage::Pixel, 11, DefaultResources::GetDefaultTexture()->GetShaderResourceView() );
+            renderContext.SetShaderResource( PipelineStage::Pixel, 11, CoreResources::GetMissingTexture()->GetShaderResourceView() );
             renderContext.SetShaderResource( PipelineStage::Pixel, 12, ViewSRVHandle{} ); // TODO: fix add default cubemap resource
         }
     }

@@ -26,8 +26,10 @@ namespace EE
 
         void SetStartupMap( ResourceID const& mapID );
 
-        void Initialize( UpdateContext const& context ) override;
+        void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) override;
         void Shutdown( UpdateContext const& context ) override;
+
+        TInlineVector<Math::ScreenSpaceRectangle, 4> const& GetTitleBarDraggableRegions() const { return m_titleBar.GetTitleBarDraggableRegions(); }
 
     private:
 
@@ -36,6 +38,13 @@ namespace EE
         virtual void Update( UpdateContext const& context ) override final;
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
         virtual void TryOpenResource( ResourceID const& resourceID ) const override;
+
+        // Title bar
+        //-------------------------------------------------------------------------
+
+        void DrawTitleBarMenu( UpdateContext const& context );
+        void DrawTitleBarGamePreviewControls( UpdateContext const& context );
+        void DrawTitleBarPerformanceStats( UpdateContext const& context );
 
         // Hot Reload
         //-------------------------------------------------------------------------
@@ -75,12 +84,13 @@ namespace EE
         // Misc
         //-------------------------------------------------------------------------
 
-        void DrawMainMenu( UpdateContext const& context );
         void DrawUITestWindow();
 
     private:
 
         ResourceID                          m_startupMapResourceID;
+        ImGuiX::ApplicationTitleBar         m_titleBar;
+        ImGuiX::ImageInfo                   m_editorIcon;
 
         // Systems
         Render::RenderingSystem*            m_pRenderingSystem = nullptr;

@@ -1,5 +1,4 @@
 #include "Workspace_Ragdoll.h"
-#include "EngineTools/Core/Widgets/InterfaceHelpers.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
@@ -348,7 +347,7 @@ namespace EE::Physics
 
         if ( IsPreviewing() )
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", ImGuiX::ImColors::Red, ImVec2( buttonDimensions, 0 ) ) )
             {
                 StopPreview();
             }
@@ -356,7 +355,7 @@ namespace EE::Physics
         else
         {
             ImGui::BeginDisabled( !pRagdollDefinition->IsValid() );
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Ragdoll", Colors::Lime, ImVec2( buttonDimensions, 0 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Ragdoll", ImGuiX::ImColors::Lime, ImVec2( buttonDimensions, 0 ) ) )
             {
                 StartPreview( context );
             }
@@ -1280,14 +1279,14 @@ namespace EE::Physics
 
                 if ( m_editorMode == Mode::BodyEditor )
                 {
-                    if ( ImGuiX::ColoredButton( Colors::RoyalBlue, Colors::White, "Switch to Joint Editor", ImVec2( -1, 0 ) ) )
+                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::RoyalBlue, ImGuiX::ImColors::White, "Switch to Joint Editor", ImVec2( -1, 0 ) ) )
                     {
                         m_editorMode = Mode::JointEditor;
                     }
                 }
                 else
                 {
-                    if ( ImGuiX::ColoredButton( Colors::Orange, Colors::Black, "Switch to Body Editor", ImVec2( -1, 0 ) ) )
+                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Orange, ImGuiX::ImColors::Black, "Switch to Body Editor", ImVec2( -1, 0 ) ) )
                     {
                         m_editorMode = Mode::BodyEditor;
                     }
@@ -1739,7 +1738,7 @@ namespace EE::Physics
         ImGui::BeginDisabled( IsPreviewing() );
         {
             ImGui::SameLine();
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"New", ImVec2( createButtonWidth, 0 ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"New", ImVec2( createButtonWidth, 0 ) ) )
             {
                 auto const newUniqueName = GetUniqueProfileName( "Profile" );
                 Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
@@ -1749,7 +1748,7 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_CONTENT_COPY"##Duplicate", ImVec2( iconButtonWidth, 0 ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_CONTENT_COPY"##Duplicate", ImVec2( iconButtonWidth, 0 ) ) )
             {
                 auto const newUniqueName = GetUniqueProfileName( m_activeProfileID.c_str() );
                 Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
@@ -1759,7 +1758,7 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            if ( ImGuiX::ColoredButton( Colors::RoyalBlue, Colors::White, EE_ICON_RENAME_BOX"##Rename", ImVec2( iconButtonWidth, 0 ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::RoyalBlue, ImGuiX::ImColors::White, EE_ICON_RENAME_BOX"##Rename", ImVec2( iconButtonWidth, 0 ) ) )
             {
                 Printf( m_profileNameBuffer, 256, m_activeProfileID.c_str() );
                 m_activeOperation = Operation::RenameProfile;
@@ -1770,7 +1769,7 @@ namespace EE::Physics
 
             ImGui::SameLine();
             ImGui::BeginDisabled( pRagdollDefinition->GetNumProfiles() == 1 );
-            if ( ImGuiX::ColoredButton( Colors::MediumRed, Colors::White, EE_ICON_DELETE, ImVec2( iconButtonWidth, 0 ) ) )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::MediumRed, ImGuiX::ImColors::White, EE_ICON_DELETE, ImVec2( iconButtonWidth, 0 ) ) )
             {
                 if ( pRagdollDefinition->GetNumProfiles() > 1 )
                 {
@@ -2571,7 +2570,7 @@ namespace EE::Physics
         {
             if ( IsPreviewing() )
             {
-                if ( ImGuiX::ColoredButton( Colors::MediumRed, Colors::White, EE_ICON_STOP" Stop Preview", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::MediumRed, ImGuiX::ImColors::White, EE_ICON_STOP" Stop Preview", ImVec2( -1, 0 ) ) )
                 {
                     StopPreview();
                 }
@@ -2579,7 +2578,7 @@ namespace EE::Physics
             else
             {
                 ImGui::BeginDisabled( !pRagdollDefinition->IsValid() && m_pMeshComponent != nullptr );
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLAY" Start Preview", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLAY" Start Preview", ImVec2( -1, 0 ) ) )
                 {
                     StartPreview( context );
                 }
