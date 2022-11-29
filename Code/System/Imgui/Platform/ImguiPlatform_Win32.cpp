@@ -483,10 +483,10 @@ namespace EE::ImGuiX
         static void ImGui_ImplWin32_UpdateKeyModifiers()
         {
             ImGuiIO& io = ImGui::GetIO();
-            io.AddKeyEvent( ImGuiKey_ModCtrl, IsVkDown( VK_CONTROL ) );
-            io.AddKeyEvent( ImGuiKey_ModShift, IsVkDown( VK_SHIFT ) );
-            io.AddKeyEvent( ImGuiKey_ModAlt, IsVkDown( VK_MENU ) );
-            io.AddKeyEvent( ImGuiKey_ModSuper, IsVkDown( VK_APPS ) );
+            io.AddKeyEvent( ImGuiMod_Ctrl, IsVkDown( VK_CONTROL ) );
+            io.AddKeyEvent( ImGuiMod_Shift, IsVkDown( VK_SHIFT ) );
+            io.AddKeyEvent( ImGuiMod_Alt, IsVkDown( VK_MENU ) );
+            io.AddKeyEvent( ImGuiMod_Super, IsVkDown( VK_APPS ) );
         }
 
         //-------------------------------------------------------------------------

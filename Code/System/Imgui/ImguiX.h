@@ -194,9 +194,9 @@ namespace EE::ImGuiX
         ImGui::Image( img.m_ID, img.m_size, uv0, uv1, tintColor, borderColor );
     }
 
-    EE_FORCE_INLINE void ImageButton( ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), int framePadding = -1, ImColor const& backgroundColor = ImVec4( 0, 0, 0, 0 ), ImColor const& tintColor = ImVec4( 1, 1, 1, 1 ) )
+    EE_FORCE_INLINE void ImageButton( char const* pButtonID, ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), ImColor const& backgroundColor = ImVec4( 0, 0, 0, 0 ), ImColor const& tintColor = ImVec4( 1, 1, 1, 1 ) )
     {
-        ImGui::ImageButton( img.m_ID, img.m_size, uv0, uv1, framePadding, backgroundColor, tintColor );
+        ImGui::ImageButton( pButtonID, img.m_ID, img.m_size, uv0, uv1, backgroundColor, tintColor );
     }
 
     //-------------------------------------------------------------------------
