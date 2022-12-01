@@ -8,6 +8,7 @@ namespace EE::Player
 {
     class ActionStateMachine
     {
+        // Hack for Fake UI
         friend class PlayerDebugView;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -92,6 +93,10 @@ namespace EE::Player
 
         void Update();
         void ForceStopAllRunningActions();
+
+        #if EE_DEVELOPMENT_TOOLS
+        void DrawDebugUI() const;
+        #endif
 
     private:
 

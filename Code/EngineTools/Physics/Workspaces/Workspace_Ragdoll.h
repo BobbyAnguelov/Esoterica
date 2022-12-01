@@ -5,8 +5,6 @@
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
-#include "Engine/ToolsUI/Gizmo.h"
-#include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 

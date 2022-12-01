@@ -73,7 +73,6 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         inline ImGuiX::ImguiSystem* GetImguiSystem() { return &m_imguiSystem; }
-        void EnableImguiViewports() { m_imguiViewportsEnabled = true; }
         #endif
 
     private:
@@ -93,7 +92,7 @@ namespace EE
         // ImGui
         #if EE_DEVELOPMENT_TOOLS
         ImGuiX::ImguiSystem                             m_imguiSystem;
-        bool                                            m_imguiViewportsEnabled = false;
+        bool                                            m_imguiViewportsEnabled = true;
         #endif
 
         // Entity

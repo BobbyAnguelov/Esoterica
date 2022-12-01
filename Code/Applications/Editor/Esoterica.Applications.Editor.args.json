@@ -8,7 +8,7 @@
     },
     {
       "Id": "a49018a4-25fb-495f-9d0f-f8b9a787430c",
-      "Command": "-map data://maps/Prototype_3Cs_Minimal.map"
+      "Command": "-map data://maps/Prototype_3Cs.map"
     },
     {
       "Id": "b2f325a1-49f8-4b85-ab51-0c56a859bf7f",

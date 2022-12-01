@@ -3,7 +3,7 @@
 #include "EngineTools/Resource/ResourceBrowser/ResourceBrowser.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "Engine/ToolsUI/IToolsUI.h"
+#include "Engine/ToolsUI/IDevelopmentToolsUI.h"
 #include "Engine/DebugViews/DebugView_System.h"
 
 //-------------------------------------------------------------------------
@@ -18,7 +18,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EditorUI final : public ImGuiX::IToolsUI, public ToolsContext
+    class EditorUI final : public ImGuiX::IDevelopmentToolsUI, public ToolsContext
     {
     public:
 

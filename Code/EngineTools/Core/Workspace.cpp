@@ -9,7 +9,6 @@
 #include "Engine/Physics/PhysicsScene.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/PhysicsLayers.h"
-#include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/UpdateContext.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Resource/ResourceSystem.h"

@@ -52,8 +52,8 @@ namespace EE::Player
     private:
 
         ManualTimer                 m_unnavigableSurfaceSlideTimer;
+        ManualCountdownTimer        m_startDetectionTimer;
         ManualCountdownTimer        m_stopDetectionTimer;
-        ManualCountdownTimer        m_turnOnSpotInterruptionTimer;
 
         Vector                      m_desiredHeading = Vector::Zero;
         Vector                      m_desiredFacing = Vector::WorldForward;
@@ -61,8 +61,12 @@ namespace EE::Player
         Vector                      m_desiredTurnDirection = Vector::Zero;
         LocomotionState             m_state = LocomotionState::Idle;
 
+        //-------------------------------------------------------------------------
+
         #if EE_DEVELOPMENT_TOOLS
-        bool                        m_enableVisualizations = true;
+        float                       m_debug_desiredSpeed = 0.0f;
+        float                       m_debug_moveAngularVelocityLimit = 0.0f;
+        bool                        m_areVisualizationsEnabled = true;
         #endif
     };
 }

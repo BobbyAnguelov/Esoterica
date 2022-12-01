@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IToolsUI.h"
+#include "IDevelopmentToolsUI.h"
 #include "Engine/DebugViews/DebugView_System.h"
 #include "Engine/UpdateContext.h"
 #include "System/Types/Arrays.h"
@@ -23,19 +23,21 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API EngineToolsUI final : public ImGuiX::IToolsUI
+    class EE_ENGINE_API EngineToolsUI final : public ImGuiX::IDevelopmentToolsUI
     {
         friend class GamePreviewer;
 
     public:
 
+        // Locks the game overlay to a given imgui window by ID
         void LockToWindow( String const& windowName ) { m_windowName = windowName; }
+
+    private:
 
         virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) override final;
         virtual void Shutdown( UpdateContext const& context ) override final;
-        virtual void EndFrame( UpdateContext const& context ) override final;
 
-    private:
+        virtual void EndFrame( UpdateContext const& context ) override final;
 
         void DrawMenu( UpdateContext const& context, EntityWorld* pGameWorld );
         void DrawOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport );

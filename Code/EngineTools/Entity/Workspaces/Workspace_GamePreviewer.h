@@ -2,12 +2,15 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Core/Workspace.h"
-#include "Engine/ToolsUI/EngineToolsUI.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
+    class EngineToolsUI;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINETOOLS_API GamePreviewer final : public Workspace
     {
     public:
@@ -36,6 +39,6 @@ namespace EE
     private:
 
         ResourceID                      m_loadedMap;
-        EngineToolsUI                   m_engineToolsUI;
+        EngineToolsUI*                  m_pEngineToolsUI = nullptr;
     };
 }

@@ -1,12 +1,12 @@
 #include "DebugView_Player.h"
 #include "Game/Player/Systems/EntitySystem_PlayerController.h"
+#include "Game/Player/Physics/PlayerPhysicsController.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/UpdateContext.h"
 #include "System/Imgui/ImguiX.h"
-#include "Engine/Physics/Debug/DebugView_Physics.h"
 
 // HACK
 #include "Game/Player/StateMachine/Actions/PlayerAction_Jump.h"
@@ -40,8 +40,12 @@ namespace EE::Player
     {
         EE_ASSERT( m_pWorld != nullptr );
 
+        // HACK
+        m_isActionDebugWindowOpen = true;
+        m_isCharacterControllerDebugWindowOpen = true;
+
         PlayerController* pPlayerController = nullptr;
-        if ( m_isActionDebuggerWindowOpen || m_isPhysicsStateDebuggerWindowOpen )
+        if ( m_isActionDebugWindowOpen || m_isCharacterControllerDebugWindowOpen )
         {
             if ( m_pPlayerManager->HasPlayer() )
             {
@@ -61,16 +65,44 @@ namespace EE::Player
 
         if ( pPlayerController != nullptr )
         {
-            if ( m_isActionDebuggerWindowOpen )
+            if ( m_isActionDebugWindowOpen )
             {
                 if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-                DrawActionDebuggerWindow( context, pPlayerController );
+                
+                ImGui::SetNextWindowBgAlpha( 0.9f );
+                if ( ImGui::Begin( "Player Actions", &m_isActionDebugWindowOpen ) )
+                {
+                    if ( pPlayerController == nullptr )
+                    {
+                        ImGui::Text( "No Player Controller Found" );
+                    }
+                    else
+                    {
+                        ActionStateMachine const* pStateMachine = &pPlayerController->m_actionStateMachine;
+                        pStateMachine->DrawDebugUI();
+                    }
+                }
+                ImGui::End();
             }
 
-            if ( m_isPhysicsStateDebuggerWindowOpen )
+            if ( m_isCharacterControllerDebugWindowOpen )
             {
                 if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-                DrawPhysicsStateDebuggerWindow( context, pPlayerController );
+
+                ImGui::SetNextWindowBgAlpha( 0.9f );
+                if ( ImGui::Begin( "Player Character Controller", &m_isCharacterControllerDebugWindowOpen ) )
+                {
+                    auto pCharacterController = pPlayerController->m_actionContext.m_pCharacterController;
+                    if ( pCharacterController != nullptr )
+                    {
+                        pCharacterController->DrawDebugUI();
+                    }
+                    else
+                    {
+                        ImGui::Text( "No valid physics controller on player!" );
+                    }
+                }
+                ImGui::End();
             }
         }
     }
@@ -100,171 +132,13 @@ namespace EE::Player
 
         if ( ImGui::MenuItem( "Action Debugger" ) )
         {
-            m_isActionDebuggerWindowOpen = true;
+            m_isActionDebugWindowOpen = true;
         }
 
         if ( ImGui::MenuItem( "Physics State Debugger" ) )
         {
-            m_isPhysicsStateDebuggerWindowOpen = true;
+            m_isCharacterControllerDebugWindowOpen = true;
         }
-    }
-
-    void PlayerDebugView::DrawActionDebuggerWindow( EntityWorldUpdateContext const& context, PlayerController const* pPlayerController )
-    {
-        EE_ASSERT( pPlayerController != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextWindowBgAlpha( 0.9f );
-        if ( ImGui::Begin( "Player Actions", &m_isActionDebuggerWindowOpen ) )
-        {
-            if ( pPlayerController == nullptr )
-            {
-                ImGui::Text( "No Player Controller Found" );
-            }
-            else
-            {
-                ActionStateMachine const* pStateMachine = &pPlayerController->m_actionStateMachine;
-
-                if ( ImGui::BeginTable( "DebuggerLayout", 2, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings, ImGui::GetContentRegionAvail() ) )
-                {
-                    ImGui::TableSetupColumn( "CurrentState", ImGuiTableColumnFlags_WidthStretch );
-                    ImGui::TableSetupColumn( "HistoryLog", ImGuiTableColumnFlags_WidthStretch );
-
-                    ImGui::TableNextRow();
-
-                    // Current State
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableSetColumnIndex( 0 );
-
-                    if ( ImGui::CollapsingHeader( "Overlay Actions", ImGuiTreeNodeFlags_DefaultOpen ) )
-                    {
-                        if ( ImGui::BeginTable( "OverlayActionsTable", 2, ImGuiTableFlags_Borders ) )
-                        {
-                            ImGui::TableSetupColumn( "Action", ImGuiTableColumnFlags_WidthStretch );
-                            ImGui::TableSetupColumn( "##State", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 16 );
-                            ImGui::TableHeadersRow();
-
-                            for ( auto pOverlayAction : pStateMachine->m_overlayActions )
-                            {
-                                ImVec4 const color = pOverlayAction->IsActive() ? Colors::LimeGreen.ToFloat4() : ImGui::GetStyle().Colors[ImGuiCol_Text];
-
-                                ImGui::TableNextRow();
-
-                                ImGui::TableSetColumnIndex( 0 );
-                                ImGui::TextColored( color, "%s", pOverlayAction->GetName() );
-
-                                ImGui::TableSetColumnIndex( 1 );
-                                ImGui::TextColored( color, pOverlayAction->IsActive() ? EE_ICON_CHECK : EE_ICON_CLOSE );
-                            }
-
-                            ImGui::EndTable();
-                        }
-                    }
-
-                    Action* pBaseAction = ( pStateMachine->m_activeBaseActionID != ActionStateMachine::InvalidAction ) ? pStateMachine->m_baseActions[pStateMachine->m_activeBaseActionID] : nullptr;
-                    TInlineString<50> const headerString( TInlineString<50>::CtorSprintf(), "Base Action: %s###BaseActionHeader", ( pBaseAction != nullptr ) ? pBaseAction->GetName() : "None" );
-
-                    if ( ImGui::CollapsingHeader( headerString.c_str(), ImGuiTreeNodeFlags_DefaultOpen ) )
-                    {
-                        if ( pBaseAction != nullptr )
-                        {
-                            pBaseAction->DrawDebugUI();
-                        }
-                    }
-
-                    //-------------------------------------------------------------------------
-                    // History
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableSetColumnIndex( 1 );
-
-                    if ( ImGui::BeginTable( "ActionHistoryTable", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders, ImGui::GetContentRegionAvail() - ImGui::GetStyle().WindowPadding ) )
-                    {
-                        {
-                            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-
-                            ImGui::TableSetupColumn( "Frame", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 36 );
-                            ImGui::TableSetupColumn( "Action", ImGuiTableColumnFlags_WidthStretch );
-                            ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 100 );
-                            ImGui::TableHeadersRow();
-
-                            for ( auto const& logEntry : pStateMachine->m_actionLog )
-                            {
-                                ImGui::TableNextRow();
-
-                                ImGui::TableSetColumnIndex( 0 );
-                                ImGui::Text( "%u", logEntry.m_frameID );
-
-                                ImGui::TableSetColumnIndex( 1 );
-                                ImGui::Text( logEntry.m_pActionName );
-
-                                ImGui::TableSetColumnIndex( 2 );
-                                switch ( logEntry.m_status )
-                                {
-                                    case ActionStateMachine::LoggedStatus::ActionStarted:
-                                    {
-                                        ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Started" );
-                                    }
-                                    break;
-
-                                    case ActionStateMachine::LoggedStatus::ActionCompleted:
-                                    {
-                                        ImGui::TextColored( ImGuiX::ImColors::White, "Completed" );
-                                    }
-                                    break;
-
-                                    case ActionStateMachine::LoggedStatus::ActionInterrupted:
-                                    {
-                                        ImGui::TextColored( ImGuiX::ImColors::Red, "Interrupted" );
-                                    }
-                                    break;
-
-                                    default:
-                                    {
-                                        EE_UNREACHABLE_CODE();
-                                    }
-                                    break;
-                                }
-                            }
-
-                            // Auto scroll the table
-                            if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
-                            {
-                                ImGui::SetScrollHereY( 1.0f );
-                            }
-                        }
-
-                        ImGui::EndTable();
-                    }
-
-                    ImGui::EndTable();
-                }
-            }
-        }
-        ImGui::End();
-    }
-
-    void PlayerDebugView::DrawPhysicsStateDebuggerWindow( EntityWorldUpdateContext const& context, PlayerController const* pPlayerController )
-    {
-        EE_ASSERT( pPlayerController != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextWindowBgAlpha( 0.9f );
-        if ( ImGui::Begin( "Player Physics States", &m_isPhysicsStateDebuggerWindowOpen ) )
-        {
-            if ( pPlayerController->m_actionContext.m_pCharacterController != nullptr )
-            {
-                // TODO: Debug...
-            }
-            else
-            {
-                ImGui::Text( "No valid physics controller on player!" );
-            }
-        }
-        ImGui::End();
     }
 
     // Called within the context of a large overlay window allowing you to draw helpers and widgets over a viewport

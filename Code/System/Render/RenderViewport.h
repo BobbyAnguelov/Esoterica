@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Engine/_Module/API.h"
 #include "System/Render/RenderTarget.h"
 #include "System/Math/ViewVolume.h"
 #include "System/Math/Rectangle.h"
@@ -20,7 +19,7 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API Viewport
+    class EE_SYSTEM_API Viewport
     {
     public:
 

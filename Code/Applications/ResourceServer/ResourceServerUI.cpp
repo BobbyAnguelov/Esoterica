@@ -48,10 +48,10 @@ namespace EE::Resource
 
         auto DrawTitleBarContents = [this] ()
         {
-            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 6, 6 ) );
+            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 4 ) );
             ImGuiX::Image( m_resourceServerIcon );
             ImGui::SameLine();
-            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 0, 2 ) );
+            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 3 ) );
             ImGui::Text( "Resource Server" );
         };
 

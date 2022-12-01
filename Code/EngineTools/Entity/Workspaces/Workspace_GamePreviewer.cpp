@@ -1,6 +1,7 @@
 #include "Workspace_GamePreviewer.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
+#include "Engine/ToolsUI/EngineToolsUI.h"
 #include "System/IniFile.h"
 
 //-------------------------------------------------------------------------
@@ -28,15 +29,17 @@ namespace EE
             // Load map
             m_loadedMap = mapResourceID;
             m_pWorld->LoadMap( m_loadedMap );
-            SetDisplayName( m_loadedMap.GetResourcePath().GetFileNameWithoutExtension() );
+            String const displayName( String::CtorSprintf(), "Game Preview: %s", m_loadedMap.GetResourcePath().GetFileName().c_str() );
+            SetDisplayName( displayName );
         }
     }
 
     void GamePreviewer::Initialize( UpdateContext const& context )
     {
         Workspace::Initialize( context );
-        m_engineToolsUI.Initialize( context, nullptr );
-        m_engineToolsUI.LockToWindow( GetViewportWindowID() );
+        m_pEngineToolsUI = EE::New<EngineToolsUI>();
+        m_pEngineToolsUI->Initialize( context, nullptr );
+        m_pEngineToolsUI->LockToWindow( GetViewportWindowID() );
     }
 
     void GamePreviewer::Shutdown( UpdateContext const& context )
@@ -44,13 +47,15 @@ namespace EE
         EE_ASSERT( m_loadedMap.IsValid() );
         m_pWorld->UnloadMap( m_loadedMap );
 
-        m_engineToolsUI.Shutdown( context );
+        m_pEngineToolsUI->Shutdown( context );
+        EE::Delete( m_pEngineToolsUI );
+
         Workspace::Shutdown( context );
     }
 
     bool GamePreviewer::HasWorkspaceToolbar() const
     {
-         return m_engineToolsUI.m_debugOverlayEnabled;
+         return m_pEngineToolsUI->m_debugOverlayEnabled;
     }
 
     //-------------------------------------------------------------------------
@@ -69,19 +74,19 @@ namespace EE
     void GamePreviewer::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_engineToolsUI.HandleUserInput( context, m_pWorld );
-        m_engineToolsUI.DrawWindows( context, m_pWorld, pWindowClass );
+        m_pEngineToolsUI->HandleUserInput( context, m_pWorld );
+        m_pEngineToolsUI->DrawWindows( context, m_pWorld, pWindowClass );
     }
 
     void GamePreviewer::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_engineToolsUI.DrawOverlayElements( context, pViewport );
+        m_pEngineToolsUI->DrawOverlayElements( context, pViewport );
     }
 
     void GamePreviewer::DrawWorkspaceToolbarItems( UpdateContext const& context )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_engineToolsUI.DrawMenu( context, m_pWorld );
+        m_pEngineToolsUI->DrawMenu( context, m_pWorld );
     }
 }

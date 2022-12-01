@@ -1,6 +1,5 @@
 #pragma once
 #include "Engine/_Module/API.h"
-#include "Engine/Render/RenderViewport.h"
 #include "System/Resource/ResourceRequesterID.h"
 #include "System/Types/Arrays.h"
 
@@ -23,11 +22,11 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API IToolsUI
+    class EE_ENGINE_API IDevelopmentToolsUI
     {
     public:
 
-        virtual ~IToolsUI() = default;
+        virtual ~IDevelopmentToolsUI() = default;
 
         virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) = 0;
         virtual void Shutdown( UpdateContext const& context ) = 0;

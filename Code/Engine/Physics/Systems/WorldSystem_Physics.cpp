@@ -472,7 +472,7 @@ namespace EE::Physics
 
         PxMaterial* const defaultMaterial[1] = { m_pPhysicsSystem->GetDefaultMaterial() };
         PxShapeFlags shapeFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
-        PxCapsuleGeometry const capsuleGeo( pComponent->m_radius, pComponent->m_cylinderPortionHalfHeight );
+        PxCapsuleGeometry const capsuleGeo( pComponent->m_radius, pComponent->m_halfHeight );
 
         pComponent->m_pCapsuleShape = pPhysics->createShape( capsuleGeo, defaultMaterial, 1, true, shapeFlags );
         pComponent->m_pCapsuleShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );

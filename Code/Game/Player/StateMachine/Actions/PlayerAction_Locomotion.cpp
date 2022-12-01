@@ -8,6 +8,7 @@
 #include "System/Drawing/DebugDrawingSystem.h"
 #include "System/Input/InputSystem.h"
 #include "System/Math/MathHelpers.h"
+#include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,12 +24,11 @@ namespace EE::Player
     constexpr static float      g_idle_immediateStartThresholdAngle = Math::DegreesToRadians * 45.0f;
     constexpr static float      g_idle_minimumStickAmplitudeThreshold = 0.2f;
     constexpr static float      g_turnOnSpot_turnTime = 0.2f;
-    constexpr static float      g_moving_detectStopTimer = 0.2f;
+    constexpr static float      g_moving_detectStopTimer = 0.1f;
     constexpr static float      g_moving_detectTurnTimer = 0.2f;
     constexpr static float      g_stop_stopTime = 0.15f;
     constexpr static float      g_unnavigableSurfaceSlideThreshold = 0.35f;
     constexpr static float      g_turnOnSpotInterruptionTime = 0.2f;
-
 
     //-------------------------------------------------------------------------
 
@@ -155,7 +155,7 @@ namespace EE::Player
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        if ( m_enableVisualizations )
+        if ( m_areVisualizationsEnabled )
         {
             Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
             Vector const characterPosition = characterWorldTransform.GetTranslation();
@@ -245,7 +245,7 @@ namespace EE::Player
         pAnimController->RequestTurnOnSpot( m_desiredFacing );
 
         // Start the interruption timer
-        m_turnOnSpotInterruptionTimer.Start( g_turnOnSpotInterruptionTime );
+        m_startDetectionTimer.Start( g_turnOnSpotInterruptionTime );
 
         m_state = LocomotionState::TurningOnSpot;
     }
@@ -255,44 +255,36 @@ namespace EE::Player
         EE_ASSERT( m_state == LocomotionState::TurningOnSpot );
 
         #if EE_DEVELOPMENT_TOOLS
-        Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
-        Vector const characterPosition = characterWorldTransform.GetTranslation();
-        auto drawingCtx = ctx.GetDrawingContext();
-        if ( m_turnOnSpotInterruptionTimer.IsRunning() )
+        if ( m_areVisualizationsEnabled )
         {
-            InlineString const str( InlineString::CtorSprintf(), "Turn On Spot - Interruption Timer: %.3fs", m_turnOnSpotInterruptionTimer.GetRemainingTime().ToFloat() );
-            drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
+            Vector const characterPosition = ctx.m_pCharacterComponent->GetWorldTransform().GetTranslation();
+            auto drawingCtx = ctx.GetDrawingContext();
+            drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Orange, 3.0f );
         }
-        else
-        {
-            InlineString const str( InlineString::CtorSprintf(), "Turn On Spot" );
-            drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
-        }
-        drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Orange, 3.0f );
         #endif
 
         //-------------------------------------------------------------------------
 
+        // If we have stick input check if we should trigger a start
         if ( stickAmplitude > 0.1f )
         {
             // Restart timer if stopped
-            if ( !m_turnOnSpotInterruptionTimer.IsRunning() )
+            if ( !m_startDetectionTimer.IsRunning() )
             {
-                m_turnOnSpotInterruptionTimer.Start( g_turnOnSpotInterruptionTime );
+                m_startDetectionTimer.Start( g_turnOnSpotInterruptionTime );
             }
-            else
+            else // If the timer elapses, trigger a start
             {
-                // If the timer elapses, trigger a start
-                if ( m_turnOnSpotInterruptionTimer.Update( ctx.GetDeltaTime() ) )
+                if ( m_startDetectionTimer.Update( ctx.GetDeltaTime() ) )
                 {
                     RequestStart( ctx, stickInputVectorWS, stickAmplitude );
                     return;
                 }
             }
         }
-        else // Stop the timer
+        else // Stop the timer if no input
         {
-            m_turnOnSpotInterruptionTimer.Stop();
+            m_startDetectionTimer.Stop();
         }
 
         //-------------------------------------------------------------------------
@@ -334,12 +326,12 @@ namespace EE::Player
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
-        Vector const characterPosition = characterWorldTransform.GetTranslation();
-        auto drawingCtx = ctx.GetDrawingContext();
-        InlineString const str( InlineString::CtorSprintf(), "Starting" );
-        drawingCtx.DrawText3D( characterPosition + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
-        drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Yellow, 3.0f );
+        if ( m_areVisualizationsEnabled )
+        {
+            auto drawingCtx = ctx.GetDrawingContext();
+            Vector const characterPosition = ctx.m_pCharacterComponent->GetWorldTransform().GetTranslation();
+            drawingCtx.DrawArrow( characterPosition, characterPosition + m_desiredTurnDirection, Colors::Yellow, 3.0f );
+        }
         #endif
     }
 
@@ -377,13 +369,6 @@ namespace EE::Player
             // Start a stop timer but also keep the previous frames desires
             if ( m_stopDetectionTimer.IsRunning() )
             {
-                #if EE_DEVELOPMENT_TOOLS
-                auto drawingCtx = ctx.GetDrawingContext();
-                float remainingTime = m_stopDetectionTimer.GetRemainingTime().ToFloat();
-                InlineString const str( InlineString::CtorSprintf(), "Check for stop Timer: %.2fs left", remainingTime );
-                drawingCtx.DrawText3D( characterWorldTransform.GetTranslation() + Vector( 0, 0, 1.0f ), str.c_str(), Colors::White, Drawing::FontNormal );
-                #endif
-
                 if ( m_stopDetectionTimer.Update( ctx.GetDeltaTime() ) )
                 {
                     RequestStop( ctx );
@@ -434,6 +419,11 @@ namespace EE::Player
             float const speed = ConvertStickAmplitudeToSpeed( ctx, stickAmplitude );
             float const maxAngularVelocity = Math::DegreesToRadians * ctx.m_pPlayerComponent->GetAngularVelocityLimit( speed );
             float const maxAngularDeltaThisFrame = maxAngularVelocity * ctx.GetDeltaTime();
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_debug_desiredSpeed = speed;
+            m_debug_moveAngularVelocityLimit = maxAngularVelocity * Math::RadiansToDegrees;
+            #endif
 
             Vector const characterForward = characterWorldTransform.GetForwardVector();
             Radians const deltaAngle = Math::GetAngleBetweenVectors( characterForward, stickInputVectorWS );
@@ -488,14 +478,6 @@ namespace EE::Player
             // TODO: handle starting directly from here
             RequestIdle( ctx );
         }
-        else
-        {
-            #if EE_DEVELOPMENT_TOOLS
-            Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
-            auto drawingCtx = ctx.GetDrawingContext();
-            drawingCtx.DrawText3D( characterWorldTransform.GetTranslation() + Vector( 0, 0, 1.0f ), "Stopping", Colors::White, Drawing::FontNormal);
-            #endif
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -503,7 +485,87 @@ namespace EE::Player
     #if EE_DEVELOPMENT_TOOLS
     void LocomotionAction::DrawDebugUI()
     {
-        ImGui::Checkbox( "Enable Visualization", &m_enableVisualizations );
+        ImGuiX::TextSeparator( "Options" );
+
+        ImGui::Checkbox( "Enable 3D Visualization", &m_areVisualizationsEnabled );
+
+        ImGuiX::TextSeparator( "State Info" );
+
+        switch ( m_state )
+        {
+            case LocomotionState::Idle:
+            {
+                ImGui::Text( "Current State: Idle" );
+            }
+            break;
+
+            case LocomotionState::TurningOnSpot:
+            {
+                ImGui::Text( "Current State: Turn On Spot" );
+
+                if ( m_startDetectionTimer.IsRunning() )
+                {
+                    ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Has Input!" );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Start Detection Timer: " );
+                    ImGui::SameLine();
+                    ImGui::ProgressBar( m_startDetectionTimer.GetPercentageThrough().ToFloat(), ImVec2( -1, 0 ) );
+                }
+                else
+                {
+                    ImGui::Text( "No Input!" );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Start Detection Timer: " );
+                    ImGui::SameLine();
+                    ImGui::ProgressBar( 0.0f, ImVec2( -1, 0 ) );
+                }
+            }
+            break;
+
+            case LocomotionState::Starting:
+            {
+                ImGui::Text( "Current State: Start" );
+            }
+            break;
+
+            case LocomotionState::Moving:
+            {
+                ImGui::Text( "Current State: Move" );
+
+                if ( m_stopDetectionTimer.IsRunning() )
+                {
+                    ImGui::Text( "No Input!" );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Stop Detection Timer: " );
+                    ImGui::SameLine();
+                    ImGui::ProgressBar( m_stopDetectionTimer.GetPercentageThrough().ToFloat(), ImVec2( -1, 0 ) );
+                }
+                else
+                {
+                    ImGui::Text( "Has Input!" );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Stop Detection Timer: " );
+                    ImGui::SameLine();
+                    ImGui::ProgressBar( 0.0f, ImVec2( -1, 0 ) );
+
+                    ImGui::Text( "Desired Speed: %.2fm/s", m_debug_desiredSpeed );
+                    ImGui::Text( "Angular Velocity Limit: %.2fdeg/s", m_debug_moveAngularVelocityLimit );
+                }
+            }
+            break;
+
+            case LocomotionState::PlantingAndTurning:
+            {
+                ImGui::Text( "Current State: Planted Turn" );
+            }
+            break;
+
+            case LocomotionState::Stopping:
+            {
+                ImGui::Text( "Current State: Stop" );
+            }
+            break;
+        };
     }
     #endif
 }

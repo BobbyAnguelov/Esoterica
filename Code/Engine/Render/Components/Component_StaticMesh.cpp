@@ -15,6 +15,7 @@ namespace EE::Render
         if ( HasMeshResourceSet() )
         {
             OBB scaledMeshBounds = m_mesh->GetBounds();
+            scaledMeshBounds.m_center *= m_localScale;
             scaledMeshBounds.m_extents *= m_localScale;
             return scaledMeshBounds;
         }

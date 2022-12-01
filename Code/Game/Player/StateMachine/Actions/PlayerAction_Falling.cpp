@@ -28,7 +28,7 @@ namespace EE::Player
             filter.SetLayerMask( Physics::CreateLayerMask( Physics::Layers::Environment ) );
             filter.AddIgnoredEntity( ctx.m_pCharacterComponent->GetEntityID() );
 
-            float const capsuleCylinderPortionHalfHeight = ctx.m_pCharacterComponent->GetCapsuleCylinderPortionHalfHeight();
+            float const capsuleHalfHeight = ctx.m_pCharacterComponent->GetCapsuleHalfHeight();
             float const capsuleRadius = ctx.m_pCharacterComponent->GetCapsuleRadius();
             Quaternion const capsuleOrientation = ctx.m_pCharacterComponent->GetCapsuleOrientation();
             Vector const capsulePosition = ctx.m_pCharacterComponent->GetCapsulePosition();
@@ -36,7 +36,7 @@ namespace EE::Player
             // Test for environment collision right below the player
             ctx.m_pPhysicsScene->AcquireReadLock();
             Physics::SweepResults sweepResults;
-            bool collided = ctx.m_pPhysicsScene->CapsuleSweep( capsuleCylinderPortionHalfHeight, capsuleRadius, capsuleOrientation, capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
+            bool collided = ctx.m_pPhysicsScene->CapsuleSweep( capsuleHalfHeight, capsuleRadius, capsuleOrientation, capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
             ctx.m_pPhysicsScene->ReleaseReadLock();
 
             if( collided )

@@ -2,9 +2,13 @@
 #include "Engine/Physics/PhysicsScene.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-
-#include "System/Drawing/DebugDrawing.h"
 #include "System/Math/MathHelpers.h"
+
+#if EE_DEVELOPMENT_TOOLS
+#include "System/Drawing/DebugDrawing.h"
+#include "System/Imgui/ImguiX.h"
+#include "System/Math/MathStringHelpers.h"
+#endif
 
 //-------------------------------------------------------------------------
 
@@ -13,13 +17,9 @@ namespace EE::Player
     static float g_floorDetectionDistance = 0.01f; // meters
     static float g_cylinderDiscretisationOffset = 0.02f; // meters
 
-    #if EE_DEVELOPMENT_TOOLS
-    static bool g_debugCylinderSweep = false;
-    static bool g_debugCapsuleVerticalSweep = false;
-    static bool g_debugBottomFloor = false;
-    #endif
+    //-------------------------------------------------------------------------
 
-    Vector CorrectOverllapingPosition( Physics::SweepResults const& sweepResults )
+    Vector CorrectOverlappingPosition( Physics::SweepResults const& sweepResults )
     {
         EE_ASSERT( sweepResults.hasBlock && sweepResults.block.hadInitialOverlap() );
 
@@ -46,69 +46,146 @@ namespace EE::Player
 
     bool CharacterPhysicsController::TryMoveCapsule( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, Vector const& deltaTranslation, Quaternion const& deltaRotation )
     {
+        Transform const& capsuleOriginalWorldTransform = m_pCharacterComponent->GetCapsuleWorldTransform();
+        Transform finalCapsuleWorldTransform = capsuleOriginalWorldTransform;
+
         #if EE_DEVELOPMENT_TOOLS
-        if( m_isInDebugMode )
+        if ( m_debug_characterCapsule )
         {
-            Transform worldTransform = m_pCharacterComponent->GetLocalTransform();
-            worldTransform.AddTranslation( deltaTranslation );
-            worldTransform.AddRotation( deltaRotation );
-            m_pCharacterComponent->MoveCharacter( ctx.GetDeltaTime(), worldTransform );
-            return true;
+            m_debug_capsuleBeforeTransform = capsuleOriginalWorldTransform;
         }
         #endif
 
-        // Be careful that deltaTransform only rotate the Z axis !
-        Vector const stepHeightOffset = Vector( 0.0f, 0.0f, 0.5f * m_settings.m_stepHeight );
+        // No Clip / Ghost Mode
+        //-------------------------------------------------------------------------
 
-        Transform capsuleWorldTransform = m_pCharacterComponent->GetCapsuleWorldTransform();
-        if( m_isStepHeightEnabled )
+        #if EE_DEVELOPMENT_TOOLS
+        if ( m_isInGhostMode )
         {
-            capsuleWorldTransform.AddTranslation( stepHeightOffset );
+            finalCapsuleWorldTransform.AddTranslation( deltaTranslation );
+        }
+        else
+        #endif
+
+        // Collision Tests
+        //-------------------------------------------------------------------------
+
+        {
+            pPhysicsScene->AcquireReadLock();
+            finalCapsuleWorldTransform = SweepCharacterThroughWorld( ctx, pPhysicsScene, capsuleOriginalWorldTransform, deltaTranslation );
+            finalCapsuleWorldTransform = ApplyGravity( ctx, pPhysicsScene, finalCapsuleWorldTransform );
+            pPhysicsScene->ReleaseReadLock();
         }
 
-        float const cylinderRadius = m_pCharacterComponent->GetCapsuleRadius();
-        float const cylinderHalfHeight = m_isStepHeightEnabled ? 0.5f * ( m_pCharacterComponent->GetCapsuleHeight() - m_settings.m_stepHeight ) : m_pCharacterComponent->GetCapsuleHalfHeight();
+        // Set the final character position
+        //-------------------------------------------------------------------------
+
+        auto characterWorldTransform = m_pCharacterComponent->CalculateWorldTransformFromCapsuleTransform( finalCapsuleWorldTransform );
+        characterWorldTransform.SetRotation( deltaRotation * characterWorldTransform.GetRotation() );
+        m_pCharacterComponent->MoveCharacter( ctx.GetDeltaTime(), characterWorldTransform );
 
         //-------------------------------------------------------------------------
 
-        pPhysicsScene->AcquireReadLock();
+        #if EE_DEVELOPMENT_TOOLS
+        auto debugRenderer = ctx.GetDrawingContext();
+        if ( m_debug_characterCapsule )
+        {
+            Transform const& worldTransform = m_pCharacterComponent->GetCapsuleWorldTransform();
+            m_debug_capsuleAfterTransform = worldTransform;
+            float const characterRadius = m_pCharacterComponent->GetCapsuleRadius();
+            float const characterHalfHeight = m_pCharacterComponent->GetCapsuleHalfHeight();
+            debugRenderer.DrawCapsuleHeightX( m_debug_capsuleBeforeTransform, characterRadius, characterHalfHeight, Colors::Gold );
+            debugRenderer.DrawCapsuleHeightX( m_debug_capsuleAfterTransform, characterRadius, characterHalfHeight, Colors::Lime );
+        }
+
+        if( m_debug_visualizeFloor )
+        {
+            Vector const floorPosition = m_pCharacterComponent->GetCapsuleBottom();
+            debugRenderer.DrawPoint( floorPosition, Colors::Yellow );
+            debugRenderer.DrawArrow( floorPosition, floorPosition + ( m_floorNormal * 0.5f ), Colors::Yellow );
+            debugRenderer.DrawCircle( floorPosition, Axis::Z, m_pCharacterComponent->GetCapsuleRadius(), Colors::Yellow );
+        }
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        return true;
+    }
+
+    Transform CharacterPhysicsController::SweepCharacterThroughWorld( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, Transform const& capsuleWorldTransform, Vector const& deltaTranslation )
+    {
+        Transform finalWorldTransform = capsuleWorldTransform;
+
+        // Try project movement along the current floor
+        //-------------------------------------------------------------------------
 
         Vector deltaMovement = deltaTranslation;
-        if( m_floorType == FloorType::Navigable && m_projectOntoFloor )
+        if ( m_floorType == FloorType::Navigable && m_projectOntoFloor )
         {
             Vector const projection = Plane::FromNormal( m_floorNormal ).ProjectVectorVertically( deltaTranslation );
             deltaMovement = projection.GetNormalized3() * deltaTranslation.GetLength3();
         }
 
-        // Move horizontally
-        int32_t moveRecursion = 0;
-        auto moveResult = SweepCylinder( ctx, pPhysicsScene, cylinderHalfHeight, cylinderRadius, capsuleWorldTransform.GetTranslation(), deltaMovement, moveRecursion );
+        // Calculate cylinder shape dimensions
+        //-------------------------------------------------------------------------
 
-        // Update gravity if needed
-        Vector verticalAjustement;
-        if( m_isGravityEnabled )
+        float const stepHeight = m_isStepHeightEnabled ? m_settings.m_stepHeight : 0.0f;
+        float const cylinderRadius = m_pCharacterComponent->GetCapsuleRadius();
+        float const cylinderHalfHeight = Math::Max( 0.01f, ( ( m_pCharacterComponent->GetCharacterHeight() - stepHeight ) / 2 ) ); // Step-height can only be so high
+
+        Vector const characterTop = capsuleWorldTransform.GetTranslation() + Vector( 0, 0, m_pCharacterComponent->GetCharacterHalfHeight() );
+        Vector const cylinderPosition( characterTop - Vector( 0, 0, cylinderHalfHeight ) );
+        Vector const cylinderOffset( cylinderPosition - capsuleWorldTransform.GetTranslation() );
+
+        int32_t moveRecursion = 0;
+        auto moveResult = SweepCylinder( ctx, pPhysicsScene, cylinderHalfHeight, cylinderRadius, cylinderPosition, deltaMovement, moveRecursion );
+
+        finalWorldTransform.SetTranslation( moveResult.GetFinalPosition() - cylinderOffset );
+        return finalWorldTransform;
+    }
+
+    Transform CharacterPhysicsController::ApplyGravity( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, Transform const& capsuleWorldTransform )
+    {
+        Transform finalWorldTransform = capsuleWorldTransform;
+
+        #if EE_DEVELOPMENT_TOOLS
+        if ( m_debug_verticalSweep )
         {
-            m_verticalSpeed -= ( m_settings.m_gravitationalAcceleration * ctx.GetDeltaTime() );
-            verticalAjustement = Vector::UnitZ * m_verticalSpeed * ctx.GetDeltaTime();
+            m_debug_verticalSweepBeforePos = capsuleWorldTransform.GetTranslation();
         }
-        else
+        #endif
+
+        if ( !m_isGravityEnabled )
         {
             m_verticalSpeed = 0.f;
-            verticalAjustement = Vector::Zero;
+            return finalWorldTransform;
         }
 
-        // Move vertically
+        // Calculate vertical delta for this frame
+        //-------------------------------------------------------------------------
+
+        m_verticalSpeed -= ( m_settings.m_gravitationalAcceleration * ctx.GetDeltaTime() );
+        Vector const verticalAdjustment = Vector::UnitZ * m_verticalSpeed * ctx.GetDeltaTime();
+
+        // Collision Checks
+        //-------------------------------------------------------------------------
+
+        // Because we are using a mesh for the cylinder the capsule need to be slightly smaller to account for the discretization and be fully inside the cylinder
+        float const capsuleRadius = m_pCharacterComponent->GetCapsuleRadius() - g_cylinderDiscretisationOffset;
+        float const capsuleHalfHeight = m_pCharacterComponent->GetCapsuleHalfHeight();
+
         int32_t verticalMoveRecursion = 0;
-        float const capsuleRadius = cylinderRadius - g_cylinderDiscretisationOffset; // Because we are using a mesh for the cylinder the capsule need to be slightly smaller to account for the discretization and be fully inside the cylinder
-        float const capsuleCylinderPartHalfHeight = cylinderHalfHeight - cylinderRadius + g_cylinderDiscretisationOffset;
-        auto const verticalMoveResult = SweepCapsuleVertical( ctx, pPhysicsScene, capsuleCylinderPartHalfHeight, capsuleRadius, moveResult.GetFinalPosition(), verticalAjustement, m_isStepHeightEnabled ? m_settings.m_stepHeight : 0.f, verticalMoveRecursion );
+        auto const verticalMoveResult = SweepCapsuleVertical( ctx, pPhysicsScene, capsuleHalfHeight, capsuleRadius, capsuleWorldTransform.GetTranslation(), verticalAdjustment, m_isStepHeightEnabled ? m_settings.m_stepHeight : 0.f, verticalMoveRecursion );
+        finalWorldTransform.SetTranslation( verticalMoveResult.GetFinalPosition() );
 
         // Update ground state
-        if( verticalMoveResult.GetSweepResults().hasBlock )
+        //-------------------------------------------------------------------------
+
+        if ( verticalMoveResult.GetSweepResults().hasBlock )
         {
-            if( deltaTranslation.m_z > Math::Epsilon )
+            // Collided with a "ceiling"
+            if ( verticalAdjustment.m_z > Math::Epsilon )
             {
-                // Collided with a "ceiling"
                 m_floorType = FloorType::NoFloor;
                 m_verticalSpeed = 0.0;
                 m_floorNormal = Vector::Zero;
@@ -117,14 +194,14 @@ namespace EE::Player
             else // Collided with a "floor"
             {
                 Vector const normal = Physics::FromPx( verticalMoveResult.GetSweepResults().block.normal );
-                if( Math::GetAngleBetweenNormalizedVectors( normal, Vector::UnitZ ) < m_settings.m_maxNavigableSlopeAngle )
+                if ( Math::GetAngleBetweenNormalizedVectors( normal, Vector::UnitZ ) < m_settings.m_maxNavigableSlopeAngle )
                 {
                     m_floorType = FloorType::Navigable;
                     m_verticalSpeed = 0.0;
                     m_floorNormal = normal;
                     m_timeWithoutFloor.Reset();
                 }
-                else
+                else // Wall/Slope
                 {
                     m_floorType = FloorType::Unnavigable;
                     m_floorNormal = Vector::Zero;
@@ -132,7 +209,7 @@ namespace EE::Player
                 }
             }
         }
-        else
+        else // In-Air
         {
             m_floorType = FloorType::NoFloor;
             m_floorNormal = Vector::Zero;
@@ -141,29 +218,14 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        Transform finalCapsuleWorldTransform( m_pCharacterComponent->GetCapsuleOrientation(), verticalMoveResult.GetFinalPosition() );
-        if( m_isStepHeightEnabled )
-        {
-            finalCapsuleWorldTransform.AddTranslation( -stepHeightOffset );
-        }
-
-        pPhysicsScene->ReleaseReadLock();
-
-        auto characterWorldTransform = m_pCharacterComponent->CalculateWorldTransformFromCapsuleTransform( finalCapsuleWorldTransform );
-        characterWorldTransform.SetRotation( deltaRotation * characterWorldTransform.GetRotation() );
-
-        m_pCharacterComponent->MoveCharacter( ctx.GetDeltaTime(), characterWorldTransform );
-
         #if EE_DEVELOPMENT_TOOLS
-        if( g_debugBottomFloor )
+        if ( m_debug_verticalSweep )
         {
-            auto debugRenderer = ctx.GetDrawingContext();
-            Vector const debugPosition = characterWorldTransform.GetTranslation() + Vector( 0.f, 0.f, -m_pCharacterComponent->GetCapsuleHalfHeight() );
-            debugRenderer.DrawCircle( debugPosition, Axis::Z, 0.5f, Colors::Yellow );
+            m_debug_verticalSweepAfterPos = finalWorldTransform.GetTranslation();
         }
         #endif
 
-        return true;
+        return finalWorldTransform;
     }
 
     CharacterPhysicsController::MoveResult CharacterPhysicsController::SweepCylinder( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, float cylinderHalfHeight, float cylinderRadius, Vector const& startPosition, Vector const& deltaTranslation, int32_t& idx )
@@ -205,11 +267,11 @@ namespace EE::Player
         {
             if ( sweepResults.hasBlock && sweepResults.block.hadInitialOverlap() )
             {
-                Vector const correctedStartPosition = CorrectOverllapingPosition( sweepResults );
+                Vector const correctedStartPosition = CorrectOverlappingPosition( sweepResults );
 
                 // Debug drawing
                 #if EE_DEVELOPMENT_TOOLS
-                if( g_debugCylinderSweep )
+                if( m_debug_cylinderSweep )
                 {
                     DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::initialPenetration, idx, DebugSweepShapeType::cylinder );
                 }
@@ -256,7 +318,7 @@ namespace EE::Player
 
                     // Debug drawing
                     #if EE_DEVELOPMENT_TOOLS
-                    if( g_debugCylinderSweep )
+                    if( m_debug_cylinderSweep )
                     {
                         DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::reprojection, idx, DebugSweepShapeType::cylinder );
                     }
@@ -292,7 +354,7 @@ namespace EE::Player
 
                         // Debug drawing
                         #if EE_DEVELOPMENT_TOOLS
-                        if( g_debugCylinderSweep )
+                        if( m_debug_cylinderSweep )
                         {
                             DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::reprojection, idx, DebugSweepShapeType::cylinder );
                         }
@@ -305,7 +367,7 @@ namespace EE::Player
                     {
                         // Debug drawing
                         #if EE_DEVELOPMENT_TOOLS
-                        if( g_debugCylinderSweep )
+                        if( m_debug_cylinderSweep )
                         {
                             DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::collision, idx, DebugSweepShapeType::cylinder );
                         }
@@ -320,7 +382,7 @@ namespace EE::Player
         {
             // Debug drawing
             #if EE_DEVELOPMENT_TOOLS
-            if( g_debugCylinderSweep )
+            if( m_debug_cylinderSweep )
             {
                 DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::success, idx, DebugSweepShapeType::cylinder );
             }
@@ -369,11 +431,11 @@ namespace EE::Player
                     // This should not happen since we swept vertically and resolved collision earlier, but we should handle it just in case I'm proved wrong
                     EE_ASSERT( false ); // this assumption need to be validated
 
-                    Vector const correctedStartPosition = CorrectOverllapingPosition( sweepResults );
+                    Vector const correctedStartPosition = CorrectOverlappingPosition( sweepResults );
 
                     // Debug drawing
                     #if EE_DEVELOPMENT_TOOLS
-                    if( g_debugCapsuleVerticalSweep )
+                    if( m_debug_verticalSweep )
                     {
                         DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::initialPenetration, idx, DebugSweepShapeType::capsule );
                     }
@@ -387,7 +449,7 @@ namespace EE::Player
                 {
                     // Debug drawing
                     #if EE_DEVELOPMENT_TOOLS
-                    if( g_debugCapsuleVerticalSweep )
+                    if( m_debug_verticalSweep )
                     {
                         DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::collision, idx, DebugSweepShapeType::capsule );
                     }
@@ -401,7 +463,7 @@ namespace EE::Player
             {
                 // Debug drawing
                 #if EE_DEVELOPMENT_TOOLS
-                if( g_debugCapsuleVerticalSweep )
+                if( m_debug_verticalSweep )
                 {
                     DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::success, idx, DebugSweepShapeType::capsule );
                 }
@@ -409,10 +471,9 @@ namespace EE::Player
 
                 moveResult.FinalizePosition( sweepResults );
                 return moveResult;
-            }   
+            }
         }
-        // sweep going down, we need to account for the step height
-        else
+        else // sweep going down, we need to account for the step height
         {
             bool const onlySweepForStepHeight = deltaTranslation.IsNearZero3();
 
@@ -451,11 +512,11 @@ namespace EE::Player
                     // This should not happen since we swept vertically and resolved collision earlier, but we should handle it just in case I'm proved wrong
                     //EE_ASSERT( false ); // this assumption need to be validated
 
-                    Vector const correctedStartPosition = CorrectOverllapingPosition( sweepResults );
+                    Vector const correctedStartPosition = CorrectOverlappingPosition( sweepResults );
 
                     // Debug drawing
                     #if EE_DEVELOPMENT_TOOLS
-                    if( g_debugCapsuleVerticalSweep )
+                    if( m_debug_verticalSweep )
                     {
                         DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::initialPenetration, idx, DebugSweepShapeType::capsule );
                     }
@@ -478,13 +539,13 @@ namespace EE::Player
                     {
                         // Debug drawing
                         #if EE_DEVELOPMENT_TOOLS
-                        if( g_debugCapsuleVerticalSweep )
+                        if( m_debug_verticalSweep )
                         {
                             DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::collision, idx, DebugSweepShapeType::capsule );
                         }
                         #endif
 
-                        moveResult.FinalizePosition( sweepResults, stepHeightOffset );
+                        moveResult.FinalizePosition( sweepResults );
                         return moveResult;
                     }
 
@@ -496,13 +557,13 @@ namespace EE::Player
                     {
                         // Debug drawing
                         #if EE_DEVELOPMENT_TOOLS
-                        if( g_debugCapsuleVerticalSweep )
+                        if( m_debug_verticalSweep )
                         {
                             DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::success, idx, DebugSweepShapeType::capsule );
                         }
                         #endif
 
-                        moveResult.FinalizePosition( sweepResults, stepHeightOffset + Vector( 0.0f, 0.0f, collisionDistanceWithEndOfRealSweep ) );
+                        moveResult.FinalizePosition( sweepResults );
                         return moveResult;
                     }
                     else // this is a real collision
@@ -536,7 +597,7 @@ namespace EE::Player
 
                                 // Debug drawing
                                 #if EE_DEVELOPMENT_TOOLS
-                                if( g_debugCapsuleVerticalSweep )
+                                if( m_debug_verticalSweep )
                                 {
                                     DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::reprojection, idx, DebugSweepShapeType::capsule );
                                 }
@@ -550,13 +611,13 @@ namespace EE::Player
                             {
                                 // Debug drawing
                                 #if EE_DEVELOPMENT_TOOLS
-                                if( g_debugCapsuleVerticalSweep )
+                                if( m_debug_verticalSweep )
                                 {
                                     DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::collision, idx, DebugSweepShapeType::capsule );
                                 }
                                 #endif
 
-                                moveResult.FinalizePosition( sweepResults, stepHeightOffset );
+                                moveResult.FinalizePosition( sweepResults );
                                 return moveResult;
                             }
                         }
@@ -566,13 +627,13 @@ namespace EE::Player
                         {
                             // Debug drawing
                             #if EE_DEVELOPMENT_TOOLS
-                            if( g_debugCapsuleVerticalSweep )
+                            if( m_debug_verticalSweep )
                             {
                                 DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::collision, idx, DebugSweepShapeType::capsule );
                             }
                             #endif
 
-                            moveResult.FinalizePosition( sweepResults, stepHeightOffset );
+                            moveResult.FinalizePosition( sweepResults );
                             return moveResult;
                         }
                     }
@@ -590,29 +651,31 @@ namespace EE::Player
                 {
                     // Debug drawing
                     #if EE_DEVELOPMENT_TOOLS
-                    if( g_debugCapsuleVerticalSweep )
+                    if( m_debug_verticalSweep )
                     {
                         DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::success, idx, DebugSweepShapeType::capsule );
                     }
                     #endif
 
-                    moveResult.FinalizePosition( sweepResults, stepHeightOffset + Vector( 0.0f, 0.0f, g_floorDetectionDistance ) );
+                    moveResult.FinalizePosition( sweepResults );
                     return moveResult;
                 }
 
                 // Debug drawing
                 #if EE_DEVELOPMENT_TOOLS
-                if( g_debugCapsuleVerticalSweep )
+                if( m_debug_verticalSweep )
                 {
                     DrawDebugSweep( ctx, cylinderHalfHeight, cylinderRadius, startPosition, sweepResults.GetShapePosition(), DebugSweepResultType::success, idx, DebugSweepShapeType::capsule );
                 }
                 #endif
 
-                moveResult.FinalizePosition( sweepResults, stepHeightOffset );
+                moveResult.FinalizePosition( sweepResults );
                 return moveResult;
             }
         }
     }
+
+    //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
     void CharacterPhysicsController::DrawDebugSweep( EntityWorldUpdateContext const& ctx, float cylinderHalfHeight, float cylinderRadius, Vector const& startPosition, Vector const& endPosition, DebugSweepResultType resultType, int32_t idx, DebugSweepShapeType shapeType )
@@ -666,6 +729,60 @@ namespace EE::Player
             {
                 drawContext.DrawCapsule( startTrans, cylinderRadius, cylinderHalfHeight, endColor );
             }
+        }
+    }
+
+    void CharacterPhysicsController::DrawDebugUI()
+    {
+        ImGuiX::TextSeparator( "Capsule" );
+        ImGui::Checkbox( "Debug Capsule", &m_debug_characterCapsule );
+        if ( m_debug_characterCapsule )
+        {
+            ImGui::Text( "Before: %s", Math::ToString( m_debug_capsuleBeforeTransform.GetTranslation() ).c_str() );
+            ImGui::Text( "After: %s", Math::ToString( m_debug_capsuleAfterTransform.GetTranslation() ).c_str() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGuiX::TextSeparator( "Character Sweep" );
+        ImGui::Checkbox( "Debug Cylinder Sweep", &m_debug_cylinderSweep );
+
+        //-------------------------------------------------------------------------
+
+        ImGuiX::TextSeparator( "Vertical Sweep" );
+        ImGui::Checkbox( "Debug Vertical Sweep", &m_debug_verticalSweep );
+        if ( m_debug_verticalSweep )
+        {
+            ImGui::Text( "Before: %s", Math::ToString( m_debug_verticalSweepBeforePos ).c_str() );
+            ImGui::Text( "After: %s", Math::ToString( m_debug_verticalSweepAfterPos ).c_str() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGuiX::TextSeparator( "Floor" );
+        ImGui::Checkbox( "Draw Floor", &m_debug_visualizeFloor );
+
+        switch ( m_floorType )
+        {
+            case FloorType::Navigable:
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::ImColors::Lime );
+                ImGui::Text( "Floor Type: Navigable" );
+            }
+            break;
+
+            case FloorType::Unnavigable:
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::ImColors::Red );
+                ImGui::Text( "Floor Type: Unnavigable" );
+            }
+            break;
+
+            case FloorType::NoFloor:
+            {
+                ImGui::Text( "Floor Type: None" );
+            }
+            break;
         }
     }
     #endif

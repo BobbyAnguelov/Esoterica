@@ -15,9 +15,7 @@ namespace EE
 {
     EditorEngine::EditorEngine( TFunction<bool( EE::String const& error )>&& errorHandler )
         : Engine( eastl::forward<TFunction<bool( EE::String const& error )>&&>( errorHandler ) )
-    {
-        m_engineModule.EnableImguiViewports();
-    }
+    {}
 
     void EditorEngine::CreateToolsUI()
     {

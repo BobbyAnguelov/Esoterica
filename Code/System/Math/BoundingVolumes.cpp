@@ -352,6 +352,12 @@ namespace EE
         m_extents = ( m_extents * currentTransform.GetScale() ).Abs();
     }
 
+    void OBB::ApplyScale( Vector const& scale )
+    {
+        EE_ASSERT( !scale.IsAnyEqualToZero3() );
+        m_extents *= scale;
+    }
+
     bool OBB::Overlaps( OBB const& box ) const
     {
         // Build the 3x3 rotation matrix that defines the orientation of B relative to A.

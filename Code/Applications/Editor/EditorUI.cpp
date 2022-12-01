@@ -5,7 +5,6 @@
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
 #include "Engine/Physics/Debug/DebugView_Physics.h"
-#include "Engine/ToolsUI/OrientationGuide.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/DebugViews/DebugView_Resource.h"
 #include "Engine/Entity/EntityWorldManager.h"
@@ -149,7 +148,7 @@ namespace EE
 
     void EditorUI::DrawTitleBarMenu( UpdateContext const& context )
     {
-        ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 6, 6 ) );
+        ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 4 ) );
 
         //-------------------------------------------------------------------------
 
@@ -157,9 +156,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        ImGui::SameLine( 0, 0 );
+        ImGui::SameLine();
 
-        if ( ImGui::BeginChild( "#HackChild", ImVec2(0, 0 ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar ) )
+        if ( ImGui::BeginChild( "#HackChild", ImVec2( 0, 0 ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar ) )
         {
             if ( ImGui::BeginMenuBar() )
             {

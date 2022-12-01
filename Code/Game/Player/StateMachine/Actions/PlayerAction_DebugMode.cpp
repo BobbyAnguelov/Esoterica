@@ -14,7 +14,7 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Player
 {
-    bool DebugModeAction::TryStartInternal( ActionContext const& ctx )
+    bool GhostModeAction::TryStartInternal( ActionContext const& ctx )
     {
         bool isOnCooldown = false;
         if( m_CooldownTimer.IsRunning() )
@@ -26,15 +26,15 @@ namespace EE::Player
         bool isThumbstickRightDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickRight ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickRight );
         if( !isOnCooldown && isThumbstickLeftDown && isThumbstickRightDown )
         {
-            ctx.m_pCharacterController->SetDebugMode( true );
-            m_HackTimer.Reset();
+            ctx.m_pCharacterController->EnableGhostMode( true );
+            m_hackTimer.Reset();
             return true;
         }
 
         return false;
     }
 
-    Action::Status DebugModeAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status GhostModeAction::UpdateInternal( ActionContext const& ctx )
     {
         auto const pControllerState = ctx.m_pInputState->GetControllerState();
         EE_ASSERT( pControllerState != nullptr );
@@ -75,19 +75,19 @@ namespace EE::Player
         
         bool isThumbstickLeftDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickLeft ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickLeft );
         bool isThumbstickRightDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickRight ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickRight );
-        if( m_HackTimer.GetElapsedTimeSeconds() > 0.5f && isThumbstickLeftDown && isThumbstickRightDown )
+        if( m_hackTimer.GetElapsedTimeSeconds() > 0.5f && isThumbstickLeftDown && isThumbstickRightDown )
         {
             return Status::Completed;
         }
 
-        m_HackTimer.Update( ctx.GetDeltaTime() );
+        m_hackTimer.Update( ctx.GetDeltaTime() );
 
         return Status::Uninterruptible;
     }
 
-    void DebugModeAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void GhostModeAction::StopInternal( ActionContext const& ctx, StopReason reason )
     {
-        ctx.m_pCharacterController->SetDebugMode( false );
+        ctx.m_pCharacterController->EnableGhostMode( false );
         m_CooldownTimer.Start( 0.5f );
     }
 }

@@ -45,12 +45,15 @@ namespace EE::ImGuiX
     public:
 
         ScopedFont( Font font );
+        ScopedFont( ImColor const& color );
         ScopedFont( Font font, ImColor const& color );
-        explicit ScopedFont( Font font, Color const& color ) : ScopedFont( font, (ImColor) IM_COL32( color.m_byteColor.m_r, color.m_byteColor.m_g, color.m_byteColor.m_b, color.m_byteColor.m_a ) ) {}
         ~ScopedFont();
+
+        explicit ScopedFont( Font font, Color const& color ) : ScopedFont( font, (ImColor) IM_COL32( color.m_byteColor.m_r, color.m_byteColor.m_g, color.m_byteColor.m_b, color.m_byteColor.m_a ) ) {}
 
     private:
 
+        bool m_fontApplied = false;
         bool m_colorApplied = false;
     };
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RenderingSystem.h"
-#include "Engine/ToolsUI/IToolsUI.h"
+#include "Engine/ToolsUI/IDevelopmentToolsUI.h"
 #include "System/Types/Function.h"
 #include "Engine/UpdateContext.h"
 
@@ -76,7 +76,7 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         ImGuiX::ImguiSystem*                            m_pImguiSystem = nullptr;
-        ImGuiX::IToolsUI*                               m_pToolsUI = nullptr;
+        ImGuiX::IDevelopmentToolsUI*                               m_pToolsUI = nullptr;
         #endif
 
         // Application data

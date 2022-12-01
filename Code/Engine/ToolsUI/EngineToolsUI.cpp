@@ -1,5 +1,4 @@
 #include "EngineToolsUI.h"
-#include "OrientationGuide.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldDebugger.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -97,8 +96,9 @@ namespace EE
         }
         else
         {
-            windowPos = ImVec2( 0, 0 );
-            windowSize = ImVec2( pViewport->GetDimensions() );
+            ImGuiViewport const* viewport = ImGui::GetMainViewport();
+            windowPos = viewport->WorkPos;
+            windowSize = viewport->WorkSize;
         }
 
         ImGui::SetNextWindowPos( windowPos );

@@ -31,8 +31,11 @@ namespace EE::Physics
         // The character radius
         EE_FORCE_INLINE float GetCharacterRadius() const { return m_radius; }
 
+        // The character half height (capsule radius + cylinder portion half-height)
+        EE_FORCE_INLINE float GetCharacterHalfHeight() const { return ( m_radius + m_halfHeight ); }
+
         // The character total height
-        EE_FORCE_INLINE float GetCharacterHeight() const { return ( m_radius + m_cylinderPortionHalfHeight ) * 2; }
+        EE_FORCE_INLINE float GetCharacterHeight() const { return GetCharacterHalfHeight() * 2; }
 
         // Get the current linear velocity (m/s)
         EE_FORCE_INLINE Vector const& GetCharacterVelocity() const { return m_linearVelocity; }
@@ -57,20 +60,20 @@ namespace EE::Physics
         // The character capsule radius
         EE_FORCE_INLINE float GetCapsuleRadius() const { return m_radius; }
 
-        // The half-height of the cylinder portion of the character capsule
-        EE_FORCE_INLINE float GetCapsuleCylinderPortionHalfHeight() const { return m_cylinderPortionHalfHeight; }
-
-        // Get the full height of the character capsule
-        EE_FORCE_INLINE float GetCapsuleHeight() const { return ( m_cylinderPortionHalfHeight + m_radius ) * 2.0f; }
-
-        // Get the half-height of the character capsule
-        EE_FORCE_INLINE float GetCapsuleHalfHeight() const { return ( m_cylinderPortionHalfHeight + m_radius ); }
+        // Get the half-height of the character capsule - this is the cylinder portion
+        EE_FORCE_INLINE float GetCapsuleHalfHeight() const { return m_halfHeight; }
 
         // In physX the capsule's height is along the x-axis, this component apply a corrective rotation to the capsule transform to ensure that the height is along the Z axis
         EE_FORCE_INLINE Transform const& GetCapsuleWorldTransform() const { return m_capsuleWorldTransform; }
 
         // Get the physics capsule world space position
         EE_FORCE_INLINE Vector const& GetCapsulePosition() const { return m_capsuleWorldTransform.GetTranslation(); }
+
+        // Get the world space top point of the capsule
+        EE_FORCE_INLINE Vector GetCapsuleTop() const { return GetCapsulePosition() + Vector( 0, 0, m_radius + m_halfHeight ); }
+
+        // Get the world space bottom point of the capsule
+        EE_FORCE_INLINE Vector GetCapsuleBottom() const { return GetCapsulePosition() - Vector( 0, 0, m_radius + m_halfHeight ); }
 
         // Get the physics capsule world space orientation
         EE_FORCE_INLINE Quaternion const& GetCapsuleOrientation() const { return m_capsuleWorldTransform.GetRotation(); }
@@ -116,8 +119,8 @@ namespace EE::Physics
     protected:
 
         EE_EXPOSE StringID                                 m_physicsMaterialID;
-        EE_EXPOSE float                                    m_radius = 0.5f;
-        EE_EXPOSE float                                    m_cylinderPortionHalfHeight = 1.0f;
+        EE_EXPOSE float                                    m_radius = 0.5f; // The radius of the capsule's end caps
+        EE_EXPOSE float                                    m_halfHeight = 1.0f; // The half-height of the cylinder portion of the capsule (between the end caps)
 
         // What layers does this shape belong to?
         EE_EXPOSE TBitFlags<Layers>                        m_layers = Layers::Environment;

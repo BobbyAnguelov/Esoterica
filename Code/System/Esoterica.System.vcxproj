@@ -25,6 +25,7 @@
     <ClInclude Include="Fonts\FontData_MaterialDesign.h" />
     <ClInclude Include="Fonts\FontData_Proggy.h" />
     <ClInclude Include="Fonts\FontDecompressor.h" />
+    <ClInclude Include="Imgui\ImguiGizmo.h" />
     <ClInclude Include="Imgui\ImguiFont.h" />
     <ClInclude Include="Imgui\ImguiImageCache.h" />
     <ClInclude Include="Imgui\ImguiStyle.h" />
@@ -69,6 +70,7 @@
     <ClInclude Include="Render\RenderTexture.h" />
     <ClInclude Include="Render\RenderUtils.h" />
     <ClInclude Include="Render\RenderVertexFormats.h" />
+    <ClInclude Include="Render\RenderViewport.h" />
     <ClInclude Include="Render\RenderWindow.h" />
     <ClInclude Include="Resource\IResource.h" />
     <ClInclude Include="Resource\ResourceHeader.h" />
@@ -362,7 +364,6 @@
     <ClInclude Include="ThirdParty\imgui\imstb_textedit.h" />
     <ClInclude Include="ThirdParty\imgui\imstb_truetype.h" />
     <ClInclude Include="ThirdParty\imgui\misc\freetype\imgui_freetype.h" />
-    <ClInclude Include="ThirdParty\LivePP\LivePP.h" />
     <ClInclude Include="ThirdParty\mpack\mpack-config.h" />
     <ClInclude Include="ThirdParty\mpack\mpack.h" />
     <ClInclude Include="ThirdParty\rapidjson\allocators.h" />
@@ -504,6 +505,7 @@
     <ClCompile Include="Fonts\FontData_MaterialDesign.cpp" />
     <ClCompile Include="Fonts\FontData_Proggy.cpp" />
     <ClCompile Include="Fonts\FontDecompressor.cpp" />
+    <ClCompile Include="Imgui\ImguiGizmo.cpp" />
     <ClCompile Include="Imgui\ImguiFont.cpp" />
     <ClCompile Include="Imgui\ImguiImageCache.cpp" />
     <ClCompile Include="Imgui\ImguiStyle.cpp" />
@@ -536,6 +538,7 @@
     <ClCompile Include="Render\RenderTexture.cpp" />
     <ClCompile Include="Render\RenderUtils.cpp" />
     <ClCompile Include="Render\RenderVertexFormats.cpp" />
+    <ClCompile Include="Render\RenderViewport.cpp" />
     <ClCompile Include="Resource\ResourceID.cpp" />
     <ClCompile Include="Resource\ResourceLoader.cpp" />
     <ClCompile Include="Resource\ResourcePath.cpp" />

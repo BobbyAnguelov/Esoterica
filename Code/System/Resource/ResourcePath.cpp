@@ -145,6 +145,17 @@ namespace EE
         }
     }
 
+    EE::String ResourcePath::GetFileName() const
+    {
+        EE_ASSERT( IsValid() && IsFile() );
+
+        auto filenameStartIdx = m_path.find_last_of( s_pathDelimiter );
+        EE_ASSERT( filenameStartIdx != String::npos );
+        filenameStartIdx++;
+
+        return m_path.substr( filenameStartIdx, filenameStartIdx - 1 );
+    }
+
     String ResourcePath::GetFileNameWithoutExtension() const
     {
         EE_ASSERT( IsValid() && IsFile() );

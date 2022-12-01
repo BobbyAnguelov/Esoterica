@@ -1,4 +1,5 @@
 #include "PlayerActionStateMachine.h"
+#include "System/Imgui/ImguiX.h"
 #include "System/Log.h"
 
 // Actions
@@ -36,7 +37,7 @@ namespace EE::Player
         m_baseActions[Interact] = EE::New<InteractAction>();
 
         #if EE_DEVELOPMENT_TOOLS
-        m_baseActions[DebugMode] = EE::New<DebugModeAction>();
+        m_baseActions[DebugMode] = EE::New<GhostModeAction>();
         #endif
 
         //-------------------------------------------------------------------------
@@ -259,4 +260,127 @@ namespace EE::Player
             }
         }
     }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ActionStateMachine::DrawDebugUI() const
+    {
+        if ( ImGui::BeginTable( "DebuggerLayout", 2, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings, ImGui::GetContentRegionAvail() ) )
+        {
+            ImGui::TableSetupColumn( "CurrentState", ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "HistoryLog", ImGuiTableColumnFlags_WidthStretch );
+
+            ImGui::TableNextRow();
+
+            // Current State
+            //-------------------------------------------------------------------------
+
+            ImGui::TableSetColumnIndex( 0 );
+
+            if ( ImGui::CollapsingHeader( "Overlay Actions", ImGuiTreeNodeFlags_DefaultOpen ) )
+            {
+                if ( ImGui::BeginTable( "OverlayActionsTable", 2, ImGuiTableFlags_Borders ) )
+                {
+                    ImGui::TableSetupColumn( "Action", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "##State", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 16 );
+                    ImGui::TableHeadersRow();
+
+                    for ( auto pOverlayAction : m_overlayActions )
+                    {
+                        ImVec4 const color = pOverlayAction->IsActive() ? Colors::LimeGreen.ToFloat4() : ImGui::GetStyle().Colors[ImGuiCol_Text];
+
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex( 0 );
+                        ImGui::TextColored( color, "%s", pOverlayAction->GetName() );
+
+                        ImGui::TableSetColumnIndex( 1 );
+                        ImGui::TextColored( color, pOverlayAction->IsActive() ? EE_ICON_CHECK : EE_ICON_CLOSE );
+                    }
+
+                    ImGui::EndTable();
+                }
+            }
+
+            Action* pBaseAction = ( m_activeBaseActionID != ActionStateMachine::InvalidAction ) ? m_baseActions[m_activeBaseActionID] : nullptr;
+            TInlineString<50> const headerString( TInlineString<50>::CtorSprintf(), "Base Action: %s###BaseActionHeader", ( pBaseAction != nullptr ) ? pBaseAction->GetName() : "None" );
+
+            if ( ImGui::CollapsingHeader( headerString.c_str(), ImGuiTreeNodeFlags_DefaultOpen ) )
+            {
+                if ( pBaseAction != nullptr )
+                {
+                    pBaseAction->DrawDebugUI();
+                }
+            }
+
+            //-------------------------------------------------------------------------
+            // History
+            //-------------------------------------------------------------------------
+
+            ImGui::TableSetColumnIndex( 1 );
+
+            if ( ImGui::BeginTable( "ActionHistoryTable", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders, ImGui::GetContentRegionAvail() - ImGui::GetStyle().WindowPadding ) )
+            {
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+
+                    ImGui::TableSetupColumn( "Frame", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 36 );
+                    ImGui::TableSetupColumn( "Action", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 100 );
+                    ImGui::TableHeadersRow();
+
+                    for ( auto const& logEntry : m_actionLog )
+                    {
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex( 0 );
+                        ImGui::Text( "%u", logEntry.m_frameID );
+
+                        ImGui::TableSetColumnIndex( 1 );
+                        ImGui::Text( logEntry.m_pActionName );
+
+                        ImGui::TableSetColumnIndex( 2 );
+                        switch ( logEntry.m_status )
+                        {
+                            case ActionStateMachine::LoggedStatus::ActionStarted:
+                            {
+                                ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Started" );
+                            }
+                            break;
+
+                            case ActionStateMachine::LoggedStatus::ActionCompleted:
+                            {
+                                ImGui::TextColored( ImGuiX::ImColors::White, "Completed" );
+                            }
+                            break;
+
+                            case ActionStateMachine::LoggedStatus::ActionInterrupted:
+                            {
+                                ImGui::TextColored( ImGuiX::ImColors::Red, "Interrupted" );
+                            }
+                            break;
+
+                            default:
+                            {
+                                EE_UNREACHABLE_CODE();
+                            }
+                            break;
+                        }
+                    }
+
+                    // Auto scroll the table
+                    if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
+                    {
+                        ImGui::SetScrollHereY( 1.0f );
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+
+            ImGui::EndTable();
+        }
+    }
+    #endif
 }

@@ -30,8 +30,6 @@ namespace EE::Player
         virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
 
         void DrawMenu( EntityWorldUpdateContext const& context );
-        void DrawActionDebuggerWindow( EntityWorldUpdateContext const& context, PlayerController const* pController );
-        void DrawPhysicsStateDebuggerWindow( EntityWorldUpdateContext const& context, PlayerController const* pController );
 
         virtual void DrawOverlayElements( EntityWorldUpdateContext const& context ) override;
 
@@ -42,8 +40,8 @@ namespace EE::Player
 
         EntityWorld const*              m_pWorld = nullptr;
         PlayerManager*                  m_pPlayerManager = nullptr;
-        bool                            m_isActionDebuggerWindowOpen = false;
-        bool                            m_isPhysicsStateDebuggerWindowOpen = false;
+        bool                            m_isActionDebugWindowOpen = false;
+        bool                            m_isCharacterControllerDebugWindowOpen = false;
     };
 }
 #endif

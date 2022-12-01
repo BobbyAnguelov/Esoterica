@@ -184,7 +184,7 @@ namespace EE
         EE_FORCE_INLINE bool Overlaps( Sphere const& sphere ) const;
         EE_FORCE_INLINE bool Overlaps( OBB const& box ) const;
 
-    public:
+        public:
 
         Vector          m_center = Vector::UnitW;
         Vector          m_extents = Vector::NegativeOne;
@@ -232,6 +232,8 @@ namespace EE
         EE_FORCE_INLINE void Rotate( Quaternion const& deltaRotation ) { m_orientation = deltaRotation * m_orientation; }
 
         void ApplyTransform( Transform const& transform );
+
+        void ApplyScale( Vector const& scale );
 
         EE_FORCE_INLINE OBB GetTransformed( Transform const& transform ) const
         {
@@ -352,9 +354,10 @@ namespace EE
     // Fast overlap test
     EE_FORCE_INLINE bool AABB::Overlaps( AABB const& other ) const
     {
-        Vector const deltaCenters = ( m_center - other.m_center ).GetAbs();
         Vector const sumExtents = m_extents + other.m_extents;
-        return deltaCenters.IsLessThanEqual3( sumExtents );
+        Vector const sumExtentsSq = m_extents * sumExtentsSq;
+        Vector const deltaCenters = ( m_center - other.m_center ) + sumExtents;
+        return deltaCenters.IsGreaterThan3( sumExtentsSq );
     }
 
     EE_FORCE_INLINE bool AABB::Overlaps( Sphere const& sphere ) const

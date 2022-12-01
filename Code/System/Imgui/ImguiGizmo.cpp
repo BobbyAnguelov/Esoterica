@@ -1,5 +1,4 @@
-#include "Gizmo.h"
-#include "imgui.h"
+#include "ImguiGizmo.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Math/MathHelpers.h"
 #include "EASTL/sort.h"

@@ -60,7 +60,7 @@ namespace EE::Animation::GraphNodes
         EE_EXPOSE RootMotionBlendMode                           m_rootMotionBlend = RootMotionBlendMode::Blend;
 
         // How long should this transition take?
-        EE_EXPOSE Seconds                                       m_duration = 0.3f;
+        EE_EXPOSE Seconds                                       m_duration = 0.2f;
 
         // Should we clamp the transition duration to the estimated remaining time left in the source state (prevent looping of source states)
         EE_EXPOSE bool                                          m_clampDurationToSource = false;

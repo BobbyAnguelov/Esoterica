@@ -5,6 +5,7 @@
 #include "Engine/Physics/PhysicsLayers.h"
 #include "System/Types/Arrays.h"
 #include "System/Time/Timers.h"
+#include "System/Math/Transform.h"
 
 //-------------------------------------------------------------------------
 
@@ -43,35 +44,32 @@ namespace EE::Player
 
             MoveResult( Vector const& position )
                 : m_initialPosition( position )
-                , m_correctedPosition( position )
                 , m_finalPosition( position )
                 , m_remainingDistance( 0.0f )
             {}
 
             inline Vector const& GetInitialPosition() const { return m_initialPosition; }
-            inline Vector const& GetCorrectedPosition() const { return m_correctedPosition; }
             inline Vector const& GetFinalPosition() const { return m_finalPosition; }
             inline float GetRemainingDistance() const { return m_remainingDistance; }
             inline Physics::SweepResults const& GetSweepResults() const { return m_sweepResults; }
 
-            inline void FinalizePosition( Physics::SweepResults sweepResults, Vector offset = Vector::Zero )
+            inline void FinalizePosition( Physics::SweepResults sweepResults )
             {
                 m_sweepResults = sweepResults;
                 if( sweepResults.hasBlock )
                 {
-                    m_finalPosition = sweepResults.GetShapePosition() + offset;
+                    m_finalPosition = sweepResults.GetShapePosition();
                     m_remainingDistance = sweepResults.GetRemainingDistance();
                 }
                 else
                 {
-                    m_finalPosition = sweepResults.m_sweepEnd + offset;
+                    m_finalPosition = sweepResults.m_sweepEnd;
                     m_remainingDistance = 0.0f;
                 }
             }
 
             inline void ApplyCorrectiveMove( MoveResult const& correctiveMove )
             {
-                m_correctedPosition     = correctiveMove.m_correctedPosition;
                 m_finalPosition         = correctiveMove.m_finalPosition;
                 m_remainingDistance     = correctiveMove.m_remainingDistance;
                 m_sweepResults          = correctiveMove.m_sweepResults;
@@ -87,7 +85,6 @@ namespace EE::Player
         private:
 
             Vector                  m_initialPosition = Vector::Zero;
-            Vector                  m_correctedPosition = Vector::Zero;
             Vector                  m_finalPosition = Vector::Zero;
             float                   m_remainingDistance = 0.0f;
             Physics::SweepResults   m_sweepResults;
@@ -140,11 +137,6 @@ namespace EE::Player
         inline void EnableProjectionOntoFloor() { m_projectOntoFloor = true; }
         inline void DisableProjectionOntoFloor() { m_projectOntoFloor = false; }
 
-        #if EE_DEVELOPMENT_TOOLS
-        inline void SetDebugMode( bool isInDebugMode ) { m_isInDebugMode = isInDebugMode; }
-        #endif
-
-
         // Controller Move
         //-------------------------------------------------------------------------
 
@@ -153,7 +145,21 @@ namespace EE::Player
         FloorType GetFloorType() const { return m_floorType; }
         bool TryMoveCapsule( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, Vector const& deltaTranslation, Quaternion const& deltaRotation );
 
+        // Debugging
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        inline void EnableGhostMode( bool isEnabled ) { m_isInGhostMode = isEnabled; }
+        void DrawDebugUI();
+        #endif
+
     private:
+
+        // Tries to move the character with the desired displacement
+        Transform SweepCharacterThroughWorld( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, Transform const& capsuleWorldTransform, Vector const& deltaTranslation );
+
+        // Applies gravity to the character
+        Transform ApplyGravity( EntityWorldUpdateContext const& ctx, Physics::Scene* pPhysicsScene, Transform const& capsuleWorldTransform );
 
         // Sweep function
         //-------------------------------------------------------------------------
@@ -181,7 +187,15 @@ namespace EE::Player
         float                               m_verticalSpeed = 0.0f;
 
         #if EE_DEVELOPMENT_TOOLS
-        bool                                m_isInDebugMode = false;
+        bool                                m_isInGhostMode = false;
+        bool                                m_debug_characterCapsule = false;
+        bool                                m_debug_cylinderSweep = false;
+        bool                                m_debug_verticalSweep = false;
+        bool                                m_debug_visualizeFloor = false;
+        Vector                              m_debug_verticalSweepBeforePos;
+        Vector                              m_debug_verticalSweepAfterPos;
+        Transform                           m_debug_capsuleBeforeTransform;
+        Transform                           m_debug_capsuleAfterTransform;
         #endif
     };
 }

@@ -18,7 +18,7 @@ namespace EE::ImGuiX
 
         //-------------------------------------------------------------------------
 
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 2 ) );
         ImGuiViewport* pViewport = ImGui::GetMainViewport();
         if ( ImGui::BeginViewportSideBar( "TitleBar", pViewport, ImGuiDir_Up, 34, ImGuiWindowFlags_NoDecoration ) )
         {
@@ -35,7 +35,8 @@ namespace EE::ImGuiX
             ImVec2 const windowControlsStartPos( windowControlsStartPosX, ImGui::GetCursorPosY() );
 
             // Calculate the available space
-            float const availableSpace = titleBarWidth - windowControlsWidth - s_minimumDraggableGap;
+            constexpr float const leftSectionExtraPadding = 6.f;
+            float const availableSpace = titleBarWidth - windowControlsWidth - s_minimumDraggableGap - leftSectionExtraPadding;
             float remainingSpace = availableSpace;
 
             // Calculate section widths
@@ -47,6 +48,7 @@ namespace EE::ImGuiX
             remainingSpace -= rightSectionFinalWidth;
 
             // Calculate start positions
+            ImVec2 const leftSectionStartPos( leftSectionExtraPadding, ImGui::GetCursorPosY() );
             ImVec2 midSectionStartPos( leftSectionFinalWidth, 0 );
             ImVec2 rightSectionStartPos( midSectionStartPos.x + midSectionFinalWidth, 0 );
 
@@ -105,11 +107,16 @@ namespace EE::ImGuiX
             // Draw sections
             //-------------------------------------------------------------------------
 
+            /*static */ImVec2 const titleBarSectionPadding( 0, 0 );
+
             if ( leftSectionFinalWidth > 0 )
             {
                 //ImGui::PushStyleColor( ImGuiCol_ChildBg, 0xFFFF0000 ); // Debug Color
-                if ( ImGui::BeginChild( "Left", ImVec2( leftSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration ) )
+                ImGui::SetCursorPos( leftSectionStartPos );
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, titleBarSectionPadding );
+                if ( ImGui::BeginChild( "Left", ImVec2( leftSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysUseWindowPadding ) )
                 {
+                    ImGui::PopStyleVar();
                     leftSectionDrawFunction();
                 }
                 ImGui::EndChild();
@@ -120,8 +127,10 @@ namespace EE::ImGuiX
             {
                 //ImGui::PushStyleColor( ImGuiCol_ChildBg, 0xFF00FF00 ); // Debug Color
                 ImGui::SetCursorPos( midSectionStartPos );
-                if ( ImGui::BeginChild( "Middle", ImVec2( midSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration ) )
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, titleBarSectionPadding );
+                if ( ImGui::BeginChild( "Middle", ImVec2( midSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysUseWindowPadding ) )
                 {
+                    ImGui::PopStyleVar();
                     midSectionDrawFunction();
                 }
                 ImGui::EndChild();
@@ -132,8 +141,10 @@ namespace EE::ImGuiX
             {
                 //ImGui::PushStyleColor( ImGuiCol_ChildBg, 0xFF0000FF ); // Debug Color
                 ImGui::SetCursorPos( rightSectionStartPos );
-                if ( ImGui::BeginChild( "Right", ImVec2( rightSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration ) )
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, titleBarSectionPadding );
+                if ( ImGui::BeginChild( "Right", ImVec2( rightSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysUseWindowPadding ) )
                 {
+                    ImGui::PopStyleVar();
                     rightSectionDrawFunction();
                 }
                 ImGui::EndChild();

@@ -55,9 +55,9 @@ namespace EE
 
         private:
 
-            String                                              m_path;
-            String                                              m_category;
-            TFunction<void( EntityWorldUpdateContext const& )>       m_drawFunction;
+            String                                                  m_path;
+            String                                                  m_category;
+            TFunction<void( EntityWorldUpdateContext const& )>      m_drawFunction;
         };
 
     public:

@@ -4,7 +4,6 @@
 #include "EngineTools/Entity/EntityEditor/EntityStructureEditor.h"
 #include "EngineTools/Entity/EntityEditor/EntityWorldPropertyGrid.h"
 #include "EngineTools/Core/Workspace.h"
-#include "Engine/ToolsUI/Gizmo.h"
 
 //-------------------------------------------------------------------------
 

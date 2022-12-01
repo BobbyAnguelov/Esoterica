@@ -21,15 +21,15 @@ namespace EE::AI
 
         // Attempt a sweep from current position to the bottom of the capsule including some "gravity"
         float const verticalDistanceAllowedToTravelThisFrame = ( ctx.GetDeltaTime() * 0.5f );
-        Vector halfHeightVector = Vector( 0, 0, m_pCharacterComponent->GetCapsuleCylinderPortionHalfHeight() + sphereRadiusReduction );
+        Vector halfHeightVector = Vector( 0, 0, m_pCharacterComponent->GetCapsuleHalfHeight() + sphereRadiusReduction );
         Vector sweepStartPos = sphereOrigin + deltaTranslation + halfHeightVector;
-        Vector sweepEndPos = sweepStartPos - Vector( 0, 0, ( ( m_pCharacterComponent->GetCapsuleCylinderPortionHalfHeight() + sphereRadiusReduction ) * 2 ) + verticalDistanceAllowedToTravelThisFrame );
+        Vector sweepEndPos = sweepStartPos - Vector( 0, 0, ( ( m_pCharacterComponent->GetCapsuleHalfHeight() + sphereRadiusReduction ) * 2 ) + verticalDistanceAllowedToTravelThisFrame );
         Vector capsuleFinalPosition = sphereOrigin;
 
         #if EE_DEVELOPMENT_TOOLS
         auto drawingContext = ctx.GetDrawingContext();
         //drawingContext.DrawSphere( sweepStartPos, Vector( sphereRadius ), Colors::Gray, 5.0f );
-        //drawingContext.DrawCapsuleHeightX( capsuleWorldTransform, m_pCharacterComponent->GetCapsuleRadius(), m_pCharacterComponent->GetCapsuleCylinderPortionHalfHeight(), Colors::Red );
+        //drawingContext.DrawCapsuleHeightX( capsuleWorldTransform, m_pCharacterComponent->GetCapsuleRadius(), m_pCharacterComponent->GetCapsuleHalfHeight(), Colors::Red );
         #endif
 
         //-------------------------------------------------------------------------

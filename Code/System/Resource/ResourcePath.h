@@ -59,6 +59,9 @@ namespace EE
         // Path info
         //-------------------------------------------------------------------------
 
+        // Returns the filename
+        String GetFileName() const;
+
         // Returns the filename with all the 'extensions' removed (i.e. file.final.png -> file )
         String GetFileNameWithoutExtension() const;
 

@@ -1,9 +1,5 @@
 #pragma once
-#include "Engine/_Module/API.h"
-#include "Engine/Render/RenderViewport.h"
-#include "System/Math/Matrix.h"
-#include "System/Types/Color.h"
-#include "System/Types/Event.h"
+#include "System/Render/RenderViewport.h"
 #include "System/Types/BitFlags.h"
 
 //-------------------------------------------------------------------------
@@ -11,14 +7,8 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
-    class EE_ENGINE_API Gizmo
+    class EE_SYSTEM_API Gizmo
     {
-        enum class AxisCap
-        {
-            Dot,
-            Arrow
-        };
-
     public:
 
         enum class GizmoMode
@@ -73,7 +63,7 @@ namespace EE::ImGuiX
             NonUniformScale
         };
 
-        struct EE_ENGINE_API Result
+        struct EE_SYSTEM_API Result
         {
             // Apply the results of the gizmo manipulation to a transform
             void ApplyResult( Transform& transform ) const;

@@ -7,11 +7,11 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Player
 {
-    class DebugModeAction final : public Action
+    class GhostModeAction final : public Action
     {
     public:
 
-        EE_PLAYER_ACTION_ID( DebugModeAction );
+        EE_PLAYER_ACTION_ID( GhostModeAction );
 
         virtual bool TryStartInternal( ActionContext const& ctx ) override;
         virtual Status UpdateInternal( ActionContext const& ctx ) override;
@@ -19,7 +19,7 @@ namespace EE::Player
 
     private:
 
-        ManualTimer m_HackTimer;
+        ManualTimer m_hackTimer;
         ManualCountdownTimer m_CooldownTimer;
         float speed = 10.0f;
     };

@@ -8,7 +8,8 @@ namespace EE::Physics
     OBB PhysicsMeshComponent::CalculateLocalBounds() const
     {
         OBB meshBounds = m_physicsMesh->GetBounds();
-        meshBounds.m_extents *= GetLocalScale();
+        meshBounds.m_center *= m_localScale;
+        meshBounds.m_extents *= m_localScale;
         return meshBounds;
     }
 
