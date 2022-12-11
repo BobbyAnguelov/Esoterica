@@ -923,6 +923,7 @@
     <ClInclude Include="DebugViews\DebugView_System.h">
       <Filter>DebugViews</Filter>
     </ClInclude>
+    <ClInclude Include="Animation\Events\AnimationEvent_RootMotion.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">

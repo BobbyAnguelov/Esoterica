@@ -484,25 +484,24 @@ namespace EE
 
             case client:
             {
-                // Get title bar size
-                TInlineVector<Math::ScreenSpaceRectangle, 4> draggableRegions;
-                GetBorderLessWindowDraggableRegions( draggableRegions );
-                if ( !draggableRegions.empty() )
-                {
-                    // Test cursor against regions
-                    for ( auto const& region : draggableRegions )
-                    {
-                        int32_t const titleBarTop = window.top + (int32_t) region.GetTopLeft().m_y;
-                        int32_t const titleBarLeft = window.left + (int32_t) region.GetTopLeft().m_x;
-                        int32_t const titleBarBottom = titleBarTop + (int32_t) region.GetSize().m_y;
-                        int32_t const titleBarRight = titleBarLeft + (int32_t) region.GetSize().m_x;
+                Math::ScreenSpaceRectangle titleBarRect;
+                bool isAnyInteractibleWidgetHovered = false;
+                GetBorderlessTitleBarInfo( titleBarRect, isAnyInteractibleWidgetHovered );
 
-                        bool const isCursorWithinTitleBarX = cursor.x > titleBarLeft + borderSize.x && cursor.x < titleBarRight + borderSize.x;
-                        bool const isCursorWithinTitleBarY = cursor.y > titleBarTop && cursor.y < titleBarBottom;
-                        if ( isCursorWithinTitleBarX && isCursorWithinTitleBarY )
-                        {
-                            return HTCAPTION;
-                        }
+                //-------------------------------------------------------------------------
+
+                if ( !isAnyInteractibleWidgetHovered )
+                {
+                    int32_t const titleBarTop = window.top + (int32_t) titleBarRect.GetTopLeft().m_y;
+                    int32_t const titleBarLeft = window.left + (int32_t) titleBarRect.GetTopLeft().m_x;
+                    int32_t const titleBarBottom = titleBarTop + (int32_t) titleBarRect.GetSize().m_y;
+                    int32_t const titleBarRight = titleBarLeft + (int32_t) titleBarRect.GetSize().m_x;
+
+                    bool const isCursorWithinTitleBarX = cursor.x > titleBarLeft + borderSize.x && cursor.x < titleBarRight + borderSize.x;
+                    bool const isCursorWithinTitleBarY = cursor.y > titleBarTop && cursor.y < titleBarBottom;
+                    if ( isCursorWithinTitleBarX && isCursorWithinTitleBarY )
+                    {
+                        return HTCAPTION;
                     }
                 }
 

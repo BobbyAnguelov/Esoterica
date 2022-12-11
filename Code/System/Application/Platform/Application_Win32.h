@@ -57,7 +57,7 @@ namespace EE
         virtual void ProcessInputMessage( UINT message, WPARAM wParam, LPARAM lParam ) {};
 
         // Get title bar region for border less windows
-        virtual void GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outDraggableRegions ) const {};
+        virtual void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const {};
 
         //-------------------------------------------------------------------------
 

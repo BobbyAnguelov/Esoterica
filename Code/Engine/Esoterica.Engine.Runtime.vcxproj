@@ -215,6 +215,7 @@
     <ClInclude Include="Animation\AnimationTarget.h" />
     <ClInclude Include="Animation\Components\Component_AnimationClipPlayer.h" />
     <ClInclude Include="Animation\Components\Component_AnimationGraph.h" />
+    <ClInclude Include="Animation\Events\AnimationEvent_RootMotion.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Transition.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h" />
     <ClInclude Include="Animation\DebugViews\DebugView_Animation.h" />

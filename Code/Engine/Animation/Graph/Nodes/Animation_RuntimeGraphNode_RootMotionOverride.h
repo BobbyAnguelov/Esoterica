@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Animation_RuntimeGraphNode_Passthrough.h"
+#include "Engine/Animation/AnimationBlender.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,6 +18,7 @@ namespace EE::Animation::GraphNodes
             AllowHeadingY,
             AllowHeadingZ,
             AllowFacingPitch,
+            ListenForEvents,
         };
 
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
@@ -43,7 +45,10 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        void ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult ) const;
+        void ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult );
+
+        // Uses events to calculate the weight of the override( 0.0f mean use the original root motion whereas 1.0f means fully override)
+        float CalculateOverrideWeight( GraphContext& context );
 
     private:
 
@@ -51,5 +56,9 @@ namespace EE::Animation::GraphNodes
         VectorValueNode*                        m_pDesiredFacingDirectionNode = nullptr;
         FloatValueNode*                         m_pLinearVelocityLimitNode = nullptr;
         FloatValueNode*                         m_pAngularVelocityLimitNode = nullptr;
+        float                                   m_blendTime = 0.0f; // The time in the current blend
+        float                                   m_desiredBlendDuration = 0.0f; // The total time the blend should take
+        BlendState                              m_blendState = BlendState::None;
+        bool                                    m_isFirstUpdate = false;
     };
 }

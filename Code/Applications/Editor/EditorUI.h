@@ -29,7 +29,7 @@ namespace EE
         void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) override;
         void Shutdown( UpdateContext const& context ) override;
 
-        TInlineVector<Math::ScreenSpaceRectangle, 4> const& GetTitleBarDraggableRegions() const { return m_titleBar.GetTitleBarDraggableRegions(); }
+        void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const;
 
     private:
 

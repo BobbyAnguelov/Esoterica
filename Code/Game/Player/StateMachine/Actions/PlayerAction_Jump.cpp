@@ -95,11 +95,11 @@ namespace EE::Player
             // Jump Completed
             return Status::Completed;
         }
-        else if( m_jumpTimer.GetElapsedTimeSeconds() > 0.0f && ctx.m_pCharacterComponent->GetCharacterVelocity().m_z <= 0.0f )
-        {
-            // Jump Collided with a over head collision
-            return Status::Completed;
-        }
+        //else if( m_jumpTimer.GetElapsedTimeSeconds() > 0.0f /*&& ctx.m_pCharacterComponent->GetCharacterVelocity().m_z <= 0.0f*/ )
+        //{
+        //    // Jump Collided with a over head collision
+        //    return Status::Completed;
+        //}
         else
         {
             m_jumpTimer.Update( ctx.GetDeltaTime() );
@@ -118,27 +118,27 @@ namespace EE::Player
             auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
 
             // Use last frame camera orientation
-            Vector const CurrentVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
-            Vector const CurrentVelocity2D = CurrentVelocity * Vector( 1.0f, 1.0f, 0.0f );
+            Vector const currentVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
+            Vector const currentVelocity2D = currentVelocity * Vector( 1.0f, 1.0f, 0.0f );
 
             Vector const forward = camFwd * movementInputs.m_y;
             Vector const right = camRight * movementInputs.m_x;
             Vector const desiredHeadingVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
 
-            Vector ResultingVelocity = CurrentVelocity2D + desiredHeadingVelocity2D;
-            float const Length = ResultingVelocity.GetLength2();
-            if( Length > g_maxAirControlSpeed )
+            Vector resultingVelocity = currentVelocity2D + desiredHeadingVelocity2D;
+            float const length = resultingVelocity.GetLength2();
+            if( length > g_maxAirControlSpeed )
             {
-                ResultingVelocity = ResultingVelocity.GetNormalized2() * g_maxAirControlSpeed;
+                resultingVelocity = resultingVelocity.GetNormalized2() * g_maxAirControlSpeed;
             }
-            ResultingVelocity.m_z = verticalVelocity;
+            resultingVelocity.m_z = verticalVelocity;
 
-            Vector const Facing = desiredHeadingVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredHeadingVelocity2D.GetNormalized2();
+            Vector const facing = desiredHeadingVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredHeadingVelocity2D.GetNormalized2();
 
             // Update animation controller
             //-------------------------------------------------------------------------
             auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-            pLocomotionGraphController->SetLocomotionDesires( ctx.GetDeltaTime(), ResultingVelocity, Facing );
+            pLocomotionGraphController->SetLocomotionDesires( ctx.GetDeltaTime(), resultingVelocity, facing );
         }
 
         return Status::Interruptible;

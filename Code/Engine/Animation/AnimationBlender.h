@@ -30,6 +30,18 @@ namespace EE::Animation
         InterpolativeGlobalSpace,
     };
 
+    // Commonly need state enum
+    enum class BlendState : uint8_t
+    {
+        None = 0,
+        BlendingIn,
+        BlendingOut,
+
+        // Optional values to provide more context in some scenarios
+        FullyIn,
+        FullyOut = None,
+    };
+
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API Blender

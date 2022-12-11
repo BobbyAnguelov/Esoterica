@@ -1,5 +1,6 @@
 #include "Animation_RuntimeGraphNode_RootMotionOverride.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
+#include "Engine/Animation/Events/AnimationEvent_RootMotion.h"
 
 //-------------------------------------------------------------------------
 
@@ -40,6 +41,11 @@ namespace EE::Animation::GraphNodes
         {
             m_pLinearVelocityLimitNode->Initialize( context );
         }
+
+        m_blendTime = 0.0f;
+        m_desiredBlendDuration = 0.0f;
+        m_blendState = BlendState::None;
+        m_isFirstUpdate = true;
     }
 
     void RootMotionOverrideNode::ShutdownInternal( GraphContext& context )
@@ -69,7 +75,145 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::ShutdownInternal( context );
     }
 
-    void RootMotionOverrideNode::ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult ) const
+    //-------------------------------------------------------------------------
+
+    float RootMotionOverrideNode::CalculateOverrideWeight( GraphContext& context )
+    {
+        EE_ASSERT( GetSettings<RootMotionOverrideNode>()->m_overrideFlags.IsFlagSet( OverrideFlags::ListenForEvents ) );
+
+        //-------------------------------------------------------------------------
+
+        SampledEvent const* pSampledEvent = nullptr;
+
+        for ( auto const& sampledEvent : context.m_sampledEventsBuffer )
+        {
+            if ( sampledEvent.IsIgnored() || !sampledEvent.IsFromActiveBranch() || sampledEvent.IsStateEvent() )
+            {
+                continue;
+            }
+
+            // Animation Event
+            if ( auto pRMEvent = sampledEvent.TryGetEvent<RootMotionEvent>() )
+            {
+                // If we are not blending, check all events to find the one with the greatest weight to determine the blend duration
+                if ( m_blendState == BlendState::None )
+                {
+                    if ( pSampledEvent == nullptr || sampledEvent.GetWeight() > pSampledEvent->GetWeight() )
+                    {
+                        pSampledEvent = &sampledEvent;
+                    }
+                }
+                else // Just checking if we still have an event or not
+                {
+                    pSampledEvent = &sampledEvent;
+                    break;
+                }
+            }
+        }
+
+        // Update blend state
+        //-------------------------------------------------------------------------
+
+        if ( pSampledEvent != nullptr )
+        {
+            // Start blend in
+            if ( m_blendState == BlendState::FullyOut )
+            {
+                m_desiredBlendDuration = pSampledEvent->GetEvent<RootMotionEvent>()->GetBlendTime();
+                EE_ASSERT( m_desiredBlendDuration >= 0.0f );
+
+                // If we have an event on the first update, then skip the blend
+                if ( m_isFirstUpdate )
+                {
+                    m_blendState = BlendState::FullyIn;
+                    m_blendTime = m_desiredBlendDuration;
+                }
+                else
+                {
+                    m_blendState = BlendState::BlendingIn;
+                    m_blendTime = 0.0f;
+                }
+            }
+            // Cancel blend out
+            else if( m_blendState == BlendState::BlendingOut )
+            {
+                float const currentPercentageThroughBlend = m_blendTime / m_desiredBlendDuration;
+
+                m_blendState = BlendState::BlendingIn;
+                m_desiredBlendDuration = pSampledEvent->GetEvent<RootMotionEvent>()->GetBlendTime();
+                m_blendTime = currentPercentageThroughBlend * m_desiredBlendDuration;
+
+                EE_ASSERT( m_desiredBlendDuration >= 0.0f );
+            }
+        }
+        else // No event
+        {
+            // Start blend out
+            if ( m_blendState == BlendState::FullyIn )
+            {
+                m_blendState = BlendState::BlendingOut;
+                m_blendTime = 0.0f;
+            }
+            // Cancel blend in
+            else if ( m_blendState == BlendState::BlendingIn )
+            {
+                m_blendState = BlendState::BlendingOut;
+                m_blendTime = m_desiredBlendDuration - m_blendTime;
+            }
+        }
+
+        // Update blend
+        //-------------------------------------------------------------------------
+
+        if ( m_blendState == BlendState::BlendingIn || m_blendState == BlendState::BlendingOut )
+        {
+            EE_ASSERT( m_desiredBlendDuration > 0.0f );
+            m_blendTime += context.m_deltaTime.ToFloat();
+            if ( m_blendTime > m_desiredBlendDuration )
+            {
+                m_blendTime = m_desiredBlendDuration;
+                m_blendState = ( m_blendState == BlendState::BlendingIn ) ? BlendState::FullyIn : BlendState::FullyOut;
+            }
+        }
+
+        // Calculate override weight
+        //-------------------------------------------------------------------------
+
+        float overrideWeight = 0.0f;
+
+        switch ( m_blendState )
+        {
+            case BlendState::FullyOut:
+            {
+                overrideWeight = 1.0f;
+            }
+            break;
+
+            case BlendState::BlendingIn:
+            {
+                overrideWeight = 1.0f - ( m_blendTime / m_desiredBlendDuration );
+            }
+            break;
+
+            case BlendState::BlendingOut:
+            {
+                overrideWeight = m_blendTime / m_desiredBlendDuration;
+            }
+            break;
+
+            case BlendState::FullyIn:
+            {
+                overrideWeight = 0.0f;
+            }
+            break;
+        }
+
+        //-------------------------------------------------------------------------
+
+        return overrideWeight;
+    }
+
+    void RootMotionOverrideNode::ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult )
     {
         auto pSettings = GetSettings<RootMotionOverrideNode>();
         EE_ASSERT( context.IsValid() && pSettings != nullptr );
@@ -156,13 +300,38 @@ namespace EE::Animation::GraphNodes
             }
         }
 
+        // Perform Modification
         //-------------------------------------------------------------------------
 
-        nodeResult.m_rootMotionDelta = adjustedDisplacementDelta;
+        float const overrideWeight = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::ListenForEvents ) ? CalculateOverrideWeight( context ) : 1.0f;
 
-        #if EE_DEVELOPMENT_TOOLS
-        context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), nodeResult.m_rootMotionDelta );
-        #endif
+        // Leave original root motion intact
+        if ( overrideWeight == 0.0f )
+        {
+            // Do nothing
+        }
+        // Full override
+        else if ( overrideWeight == 1.0f )
+        {
+            nodeResult.m_rootMotionDelta = adjustedDisplacementDelta;
+
+            #if EE_DEVELOPMENT_TOOLS
+            context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), nodeResult.m_rootMotionDelta );
+            #endif
+        }
+        // Blend
+        else if ( overrideWeight > 0.0f )
+        {
+            nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, adjustedDisplacementDelta, overrideWeight );
+
+            #if EE_DEVELOPMENT_TOOLS
+            context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), nodeResult.m_rootMotionDelta );
+            #endif
+        }
+        else
+        {
+            EE_UNREACHABLE_CODE();
+        }
     }
 
     GraphPoseNodeResult RootMotionOverrideNode::Update( GraphContext& context )
@@ -171,6 +340,7 @@ namespace EE::Animation::GraphNodes
 
         // Always modify root motion even if child is invalid
         ModifyRootMotion( context, Result );
+        m_isFirstUpdate = false;
         return Result;
     }
 
@@ -180,6 +350,7 @@ namespace EE::Animation::GraphNodes
 
         // Always modify root motion even if child is invalid
         ModifyRootMotion( context, Result );
+        m_isFirstUpdate = false;
         return Result;
     }
 }

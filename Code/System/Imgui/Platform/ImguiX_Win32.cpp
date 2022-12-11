@@ -14,7 +14,7 @@ namespace EE::ImGuiX
 
     void ApplicationTitleBar::Draw( TFunction<void()>&& leftSectionDrawFunction, float leftSectionDesiredWidth, TFunction<void()>&& midSectionDrawFunction, float midSectionDesiredWidth, TFunction<void()>&& rightSectionDrawFunction, float rightSectionDesiredWidth )
     {
-        m_draggableRegions.clear();
+        m_rect.Reset();
 
         //-------------------------------------------------------------------------
 
@@ -29,6 +29,7 @@ namespace EE::ImGuiX
 
             float const titleBarWidth = ImGui::GetWindowSize().x;
             float const titleBarHeight = ImGui::GetWindowSize().y;
+            m_rect = Math::ScreenSpaceRectangle( Float2::Zero, Float2( titleBarWidth, titleBarHeight ) );
 
             float const windowControlsWidth = GetWindowsControlsWidth();
             float const windowControlsStartPosX = Math::Max( 0.0f, ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - windowControlsWidth );
@@ -70,18 +71,15 @@ namespace EE::ImGuiX
                 // Add draggable regions
                 Float2 const leftToMidRegionStart( leftSectionFinalWidth, 0.0f );
                 Float2 const leftToMidRegionSize( midSectionStartPos.x - leftSectionFinalWidth, titleBarHeight );
-                m_draggableRegions.emplace_back( Math::ScreenSpaceRectangle( leftToMidRegionStart, leftToMidRegionSize ) );
 
                 Float2 const midToRightRegionStart( midSectionStartPos.x + midSectionFinalWidth, 0.0f );
                 Float2 const midToRightRegionSize( rightSectionStartPos.x - midToRightRegionStart.m_x, titleBarHeight );
-                m_draggableRegions.emplace_back( Math::ScreenSpaceRectangle( midToRightRegionStart, midToRightRegionSize ) );
             }
             // Right section is cut-off
             else if ( rightSectionFinalWidth > 0 && ( rightSectionFinalWidth != rightSectionDesiredWidth ) )
             {
                 Float2 const grabRegionStart( windowControlsStartPos.x - rightSectionFinalWidth - s_minimumDraggableGap, 0.0f );
                 Float2 const grabRegionSize( s_minimumDraggableGap, titleBarHeight );
-                m_draggableRegions.emplace_back( Math::ScreenSpaceRectangle( grabRegionStart, grabRegionSize ) );
 
                 rightSectionStartPos.x = windowControlsStartPos.x - rightSectionFinalWidth;
             }
@@ -92,7 +90,6 @@ namespace EE::ImGuiX
 
                 Float2 const grabRegionStart( windowControlsStartPos.x - rightSectionFinalWidth - s_minimumDraggableGap, 0.0f );
                 Float2 const grabRegionSize( s_minimumDraggableGap, titleBarHeight );
-                m_draggableRegions.emplace_back( Math::ScreenSpaceRectangle( grabRegionStart, grabRegionSize ) );
 
                 midSectionStartPos.x = leftSectionFinalWidth;
             }
@@ -101,7 +98,6 @@ namespace EE::ImGuiX
             {
                 Float2 const grabRegionStart( windowControlsStartPos.x - s_minimumDraggableGap, 0.0f );
                 Float2 const grabRegionSize( s_minimumDraggableGap, titleBarHeight );
-                m_draggableRegions.emplace_back( Math::ScreenSpaceRectangle( grabRegionStart, grabRegionSize ) );
             }
 
             // Draw sections

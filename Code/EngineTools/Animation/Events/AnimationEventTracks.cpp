@@ -81,6 +81,35 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    TypeSystem::TypeInfo const* RootMotionEventTrack::GetEventTypeInfo() const
+    {
+        return RootMotionEvent::s_pTypeInfo;
+    }
+
+    InlineString RootMotionEventTrack::GetItemLabel( Timeline::TrackItem const * pItem ) const
+    {
+        auto pAnimEvent = GetAnimEvent<RootMotionEvent>( pItem );
+        return pAnimEvent->GetDebugText();
+    }
+
+    Timeline::Track::Status RootMotionEventTrack::GetValidationStatus( float timelineLength ) const
+    {
+        int32_t const numItems = GetNumItems();
+        for ( int32_t i = 0; i < numItems; i++ )
+        {
+            auto pEvent = GetAnimEvent<RootMotionEvent>( m_items[i]);
+            if ( pEvent->GetBlendTime() < 0.0f )
+            {
+                m_statusMessage = String( String::CtorSprintf(), "Invalid blend time on event %d!", i );
+                return Status::HasErrors;
+            }
+        }
+
+        return Status::Valid;
+    }
+
+    //-------------------------------------------------------------------------
+
     TypeSystem::TypeInfo const* TargetWarpEventTrack::GetEventTypeInfo() const
     {
         return TargetWarpEvent::s_pTypeInfo;

@@ -124,6 +124,7 @@ namespace EE::Animation::GraphNodes
             pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingY, m_overrideHeadingY );
             pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingZ, m_overrideHeadingZ );
             pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowFacingPitch, m_allowPitchForFacing );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::ListenForEvents, m_listenForRootMotionEvents );
         }
         return pSettings->m_nodeIdx;
     }

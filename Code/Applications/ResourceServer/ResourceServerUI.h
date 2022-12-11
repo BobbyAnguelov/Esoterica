@@ -27,7 +27,7 @@ namespace EE::Resource
         void Shutdown();
         void Draw();
 
-        TInlineVector<Math::ScreenSpaceRectangle, 4> const& GetTitleBarDraggableRegions() const { return m_titleBar.GetTitleBarDraggableRegions(); }
+        void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const;
 
     private:
 

@@ -41,7 +41,7 @@ namespace EE
 
         virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
         virtual void ProcessWindowDestructionMessage() override;
-        virtual void GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outDraggableRegions ) const override;
+        virtual void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const override { m_resourceServerUI.GetBorderlessTitleBarInfo( outTitlebarRect, isInteractibleWidgetHovered ); }
 
     private:
 

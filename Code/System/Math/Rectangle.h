@@ -32,6 +32,8 @@ namespace EE::Math
             EE_ASSERT( size.m_x >= 0 && size.m_y >= 0 );
         }
 
+        inline void Reset() { m_topLeft = Float2::Zero; m_size = Float2::Zero; }
+
         inline Float2 GetTopLeft() const { return m_topLeft; }
         inline Float2 GetBottomRight() const { return m_topLeft + Float2( m_size.m_x, -m_size.m_y ); }
         inline Float2 GetSize() const { return m_size; }
@@ -111,6 +113,8 @@ namespace EE::Math
         {
             EE_ASSERT( size.m_x >= 0 && size.m_y >= 0 );
         }
+
+        inline void Reset() { m_topLeft = Float2::Zero; m_size = Float2::Zero; }
 
         inline Float2 GetTopLeft() const { return m_topLeft; }
         inline Float2 GetBottomRight() const { return m_topLeft + Float2( m_size.m_x, m_size.m_y ); }

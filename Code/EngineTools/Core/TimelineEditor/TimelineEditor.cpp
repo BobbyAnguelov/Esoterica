@@ -486,10 +486,10 @@ namespace EE::Timeline
 
         //-------------------------------------------------------------------------
 
-        float startPosX = timelineRect.GetTL().x;
-        float startPosY = timelineRect.GetTL().y;
-        float endPosX = timelineRect.GetBR().x;
-        float endPosY = timelineRect.GetBR().y;
+        float const startPosX = timelineRect.GetTL().x;
+        float const startPosY = timelineRect.GetTL().y;
+        float const endPosX = timelineRect.GetBR().x;
+        float const endPosY = timelineRect.GetBR().y;
 
         for ( int32_t i = 0; i <= visibleRangeLength; i += numFramesForSmallInterval )
         {
@@ -501,8 +501,7 @@ namespace EE::Timeline
 
             //-------------------------------------------------------------------------
 
-            bool const isRangeEndLine = ( ( m_viewRange.m_begin + i ) == m_timeRange.m_end );
-            bool const isLargeLine = ( ( i % numFramesForLargeInterval ) == 0 ) || ( i == m_viewRange.GetLength() || i == 0 ) || isRangeEndLine;
+            bool const isLargeLine = ( ( i % numFramesForLargeInterval ) == 0 ) || ( i == m_viewRange.GetLength() || i == 0 );
             bool const isMediumLine = ( i % numFramesForMediumInterval ) == 0;
 
             //-------------------------------------------------------------------------
@@ -510,17 +509,11 @@ namespace EE::Timeline
             if ( isLargeLine )
             {
                 float lineOffsetY = g_timelineLargeLineOffset;
-                ImColor lineColor = isRangeEndLine ? g_timelineRangeEndLineColor :  g_timelineLargeLineColor;
-
-                pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + lineOffsetY ), ImVec2( lineOffsetX, endPosY ), lineColor, 1 );
+                pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + lineOffsetY ), ImVec2( lineOffsetX, endPosY ), g_timelineLargeLineColor, 1 );
 
                 // Draw text label
-                if ( !isRangeEndLine )
-                {
-                    InlineString label;
-                    label.sprintf( "%.0f", m_viewRange.m_begin + i );
-                    pDrawList->AddText( ImVec2( lineOffsetX + g_timelineLabelLeftPadding, startPosY ), g_headerLabelColor, label.c_str() );
-                }
+                InlineString label( InlineString::CtorSprintf(), "%.0f", m_viewRange.m_begin + i );
+                pDrawList->AddText( ImVec2( lineOffsetX + g_timelineLabelLeftPadding, startPosY ), g_headerLabelColor, label.c_str() );
             }
             else if( isMediumLine )
             {
@@ -533,6 +526,19 @@ namespace EE::Timeline
                 pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + lineOffsetY ), ImVec2( lineOffsetX, startPosY + g_headerHeight ), g_timelineLargeLineColor, 1 );
                 pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + g_headerHeight ), ImVec2( lineOffsetX, endPosY ), g_timelineSmallLineColor, 1 );
             }
+        }
+
+        // Draw End Line
+        //-------------------------------------------------------------------------
+
+        if ( m_viewRange.ContainsInclusive( m_timeRange.m_end ) )
+        {
+            float const lineOffsetX = startPosX + Math::Round( m_timeRange.m_end * m_pixelsPerFrame );
+            pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + g_timelineLargeLineOffset ), ImVec2( lineOffsetX, endPosY ), g_timelineRangeEndLineColor, 1 );
+
+            // Draw text label
+            InlineString label( InlineString::CtorSprintf(), "%.0f", m_viewRange.m_begin + m_timeRange.m_end );
+            pDrawList->AddText( ImVec2( lineOffsetX + g_timelineLabelLeftPadding, startPosY ), g_timelineRangeEndLineColor, label.c_str() );
         }
     }
 
@@ -580,7 +586,7 @@ namespace EE::Timeline
         // Draw marker lines
         //-------------------------------------------------------------------------
 
-        pDrawList->AddLine( playheadPosition, ImVec2( playheadPosition.x, timelineRect.GetBR().y ), playheadColor );
+        pDrawList->AddLine( playheadPosition, ImVec2( playheadPosition.x, timelineRect.GetBR().y ), m_playheadTime != m_timeRange.m_end ? playheadColor : g_timelineRangeEndLineColor );
     }
 
     void TimelineEditor::DrawTracks( ImRect const& fullTrackAreaRect )

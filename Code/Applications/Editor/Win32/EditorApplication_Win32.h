@@ -55,7 +55,7 @@ namespace EE
         virtual bool Initialize() override;
         virtual bool Shutdown() override;
 
-        virtual void GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outDraggableRegions ) const override;
+        virtual void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const override;
         virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
         virtual void ProcessInputMessage( UINT message, WPARAM wParam, LPARAM lParam ) override;
 

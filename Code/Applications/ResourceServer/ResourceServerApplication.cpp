@@ -41,11 +41,6 @@ namespace EE
         Win32Application::ProcessWindowDestructionMessage();
     }
 
-    void ResourceServerApplication::GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outTitlebarRegion ) const
-    {
-        outTitlebarRegion = m_resourceServerUI.GetTitleBarDraggableRegions();
-    }
-
     void ResourceServerApplication::ProcessWindowResizeMessage( Int2 const& newWindowSize )
     {
         m_pRenderDevice->ResizePrimaryWindowRenderTarget( newWindowSize );

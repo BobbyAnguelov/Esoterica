@@ -75,6 +75,11 @@ namespace EE::Animation::GraphNodes
 
             SampledEvent const& sampledEvent = context.m_sampledEventsBuffer[i];
 
+            if ( sampledEvent.IsIgnored() )
+            {
+                continue;
+            }
+
             // Skip events from inactive branch if so requested
             if ( pNodeSettings->m_onlyCheckEventsFromActiveBranch && !sampledEvent.IsFromActiveBranch() )
             {
@@ -196,7 +201,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
                 {
                     continue;
                 }
@@ -321,7 +326,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
                 {
                     continue;
                 }
@@ -449,7 +454,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
                 {
                     continue;
                 }
@@ -719,7 +724,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
                 {
                     continue;
                 }

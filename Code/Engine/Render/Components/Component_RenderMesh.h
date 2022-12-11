@@ -20,6 +20,13 @@ namespace EE::Render
         // Does this component have a valid mesh set
         virtual bool HasMeshResourceSet() const = 0;
 
+        // Visibility
+        //-------------------------------------------------------------------------
+
+        inline bool IsVisible() const { return m_isVisible; }
+
+        inline void SetVisible( bool isVisible ) { m_isVisible = isVisible; }
+
         // Materials
         //-------------------------------------------------------------------------
 
@@ -46,5 +53,8 @@ namespace EE::Render
 
         // The final set of materials to use for this component
         TVector<Material const*>                                            m_materials;
+
+        // Should this component be rendered
+        bool                                                                m_isVisible = true;
     };
 }

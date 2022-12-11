@@ -32,5 +32,8 @@ namespace EE::Animation::GraphNodes
         EE_EXPOSE bool                 m_overrideHeadingY = true;
         EE_EXPOSE bool                 m_overrideHeadingZ = true;
         EE_EXPOSE bool                 m_allowPitchForFacing = false;
+
+        // Events
+        EE_EXPOSE bool                 m_listenForRootMotionEvents = false;
     };
 }

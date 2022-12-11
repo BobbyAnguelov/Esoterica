@@ -491,17 +491,20 @@ namespace EE::Player
 
         ImGuiX::TextSeparator( "State Info" );
 
+        ImGui::Text( "Current State:" );
+        ImGui::SameLine();
+
         switch ( m_state )
         {
             case LocomotionState::Idle:
             {
-                ImGui::Text( "Current State: Idle" );
+                ImGui::Text( "Idle" );
             }
             break;
 
             case LocomotionState::TurningOnSpot:
             {
-                ImGui::Text( "Current State: Turn On Spot" );
+                ImGui::TextColored( ImGuiX::ImColors::Yellow, "Turn On Spot" );
 
                 if ( m_startDetectionTimer.IsRunning() )
                 {
@@ -524,13 +527,13 @@ namespace EE::Player
 
             case LocomotionState::Starting:
             {
-                ImGui::Text( "Current State: Start" );
+                ImGui::Text( "Start" );
             }
             break;
 
             case LocomotionState::Moving:
             {
-                ImGui::Text( "Current State: Move" );
+                ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Move" );
 
                 if ( m_stopDetectionTimer.IsRunning() )
                 {
@@ -556,13 +559,13 @@ namespace EE::Player
 
             case LocomotionState::PlantingAndTurning:
             {
-                ImGui::Text( "Current State: Planted Turn" );
+                ImGui::TextColored( ImGuiX::ImColors::Orange, "Planted Turn" );
             }
             break;
 
             case LocomotionState::Stopping:
             {
-                ImGui::Text( "Current State: Stop" );
+                ImGui::TextColored( ImGuiX::ImColors::Red, "Stop" );
             }
             break;
         };

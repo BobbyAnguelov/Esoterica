@@ -267,12 +267,12 @@ namespace EE::ImGuiX
         // This function takes three delegates and sizes each representing an area of the title bar to draw to.
         void Draw( TFunction<void()>&& leftSectionDrawFunction = TFunction<void()>(), float leftSectionWidth = 0, TFunction<void()>&& midSectionDrawFunction = TFunction<void()>(), float midSectionWidth = 0, TFunction<void()>&& rightSectionDrawFunction = TFunction<void()>(), float rightSectionWidth = 0 );
 
-        // Get all the draggable regions in the title bar, based on the draw functions (one frame late)
-        TInlineVector<Math::ScreenSpaceRectangle, 4> const& GetTitleBarDraggableRegions() const { return m_draggableRegions; }
+        // Get the screen space rectangle for this title bar
+        Math::ScreenSpaceRectangle const& GetScreenRectangle() const { return m_rect; }
 
     private:
 
-        TInlineVector<Math::ScreenSpaceRectangle, 4> m_draggableRegions;
+        Math::ScreenSpaceRectangle  m_rect;
     };
 }
 #endif

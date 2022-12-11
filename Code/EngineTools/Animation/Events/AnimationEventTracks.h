@@ -7,6 +7,7 @@
 #include "Engine/Animation/Events/AnimationEvent_Warp.h"
 #include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
 #include "Engine/Animation/Events/AnimationEvent_Transition.h"
+#include "Engine/Animation/Events/AnimationEvent_RootMotion.h"
 #include "EngineTools/Core/Widgets/CurveEditor.h"
 
 //-------------------------------------------------------------------------
@@ -59,6 +60,21 @@ namespace EE::Animation
         virtual const char* GetTypeName() const override { return "Orientation Warp"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
         virtual bool CanCreateNewItems() const override;
+
+    private:
+
+        virtual Status GetValidationStatus( float timelineLength ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class RootMotionEventTrack final : public EventTrack
+    {
+        EE_REGISTER_TYPE( RootMotionEventTrack );
+
+        virtual const char* GetTypeName() const override { return "Root Motion"; }
+        virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
 
     private:
 

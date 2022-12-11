@@ -299,13 +299,21 @@ namespace EE::Render
         {
             EE_PROFILE_SCOPE_RENDER( "Static Mesh AABB Cull" );
             m_staticMobilityTree.FindOverlaps( viewBounds, m_visibleStaticMeshComponents );
+
+            for ( int32_t i = int32_t( m_visibleStaticMeshComponents.size() ) - 1; i >= 0 ; i-- )
+            {
+                if ( !m_visibleStaticMeshComponents[i]->IsVisible() )
+                {
+                    m_visibleStaticMeshComponents.erase_unsorted( m_visibleStaticMeshComponents.begin() + i );
+                }
+            }
         }
 
         for ( auto pMeshComponent : m_dynamicStaticMeshComponents )
         {
             EE_PROFILE_SCOPE_RENDER( "Static Mesh Dynamic Cull" );
 
-            if ( viewBounds.Overlaps( pMeshComponent->GetWorldBounds() ) )
+            if ( pMeshComponent->IsVisible() && viewBounds.Overlaps( pMeshComponent->GetWorldBounds() ) )
             {
                 m_visibleStaticMeshComponents.emplace_back( pMeshComponent );
             }
@@ -321,7 +329,7 @@ namespace EE::Render
 
             for ( auto pMeshComponent : meshGroup.m_components )
             {
-                if ( viewBounds.Overlaps( pMeshComponent->GetWorldBounds() ) )
+                if ( pMeshComponent->IsVisible() && viewBounds.Overlaps( pMeshComponent->GetWorldBounds() ) )
                 {
                     m_visibleSkeletalMeshComponents.emplace_back( pMeshComponent );
                 }
@@ -339,8 +347,16 @@ namespace EE::Render
         {
             for ( auto const& pMeshComponent : m_registeredStaticMeshComponents )
             {
-                drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan );
-                drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen );
+                if ( pMeshComponent->IsVisible() )
+                {
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan );
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen );
+                }
+                else
+                {
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan.GetAlphaVersion( 0.2f ) );
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen.GetAlphaVersion( 0.2f ) );
+                }
             }
         }
 
@@ -348,8 +364,16 @@ namespace EE::Render
         {
             if ( m_showSkeletalMeshBounds )
             {
-                drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan );
-                drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen );
+                if ( pMeshComponent->IsVisible() )
+                {
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan );
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen );
+                }
+                else
+                {
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds(), Colors::Cyan.GetAlphaVersion( 0.2f ) );
+                    drawCtx.DrawWireBox( pMeshComponent->GetWorldBounds().GetAABB(), Colors::LimeGreen.GetAlphaVersion( 0.2f ) );
+                }
             }
 
             if ( m_showSkeletalMeshBones )

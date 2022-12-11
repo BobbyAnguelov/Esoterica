@@ -146,6 +146,12 @@ namespace EE
     // Title bar
     //-------------------------------------------------------------------------
 
+    void EditorUI::GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const
+    {
+        outTitlebarRect = m_titleBar.GetScreenRectangle();
+        isInteractibleWidgetHovered = ImGui::IsAnyItemHovered();
+    }
+
     void EditorUI::DrawTitleBarMenu( UpdateContext const& context )
     {
         ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 4 ) );

@@ -106,6 +106,16 @@ namespace EE::Resource
         DrawPackagingControls();
     }
 
+    //-------------------------------------------------------------------------
+
+    void ResourceServerUI::GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const
+    {
+        outTitlebarRect = m_titleBar.GetScreenRectangle();
+        isInteractibleWidgetHovered = ImGui::IsAnyItemHovered();
+    }
+
+    //-------------------------------------------------------------------------
+
     void ResourceServerUI::DrawRequests()
     {
         if ( ImGui::Begin( g_completedRequestsWindowName ) )

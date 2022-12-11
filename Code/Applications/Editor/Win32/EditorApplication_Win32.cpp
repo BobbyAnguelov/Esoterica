@@ -66,9 +66,9 @@ namespace EE
         , m_engine( TFunction<bool( String const& error )>( [this] ( String const& error )-> bool  { return FatalError( error ); } ) )
     {}
 
-    void EditorApplication::GetBorderLessWindowDraggableRegions( TInlineVector<Math::ScreenSpaceRectangle, 4>& outDragabbleRegions ) const
+    void EditorApplication::GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const
     {
-        outDragabbleRegions = static_cast<EditorUI*>( m_engine.m_pToolsUI )->GetTitleBarDraggableRegions();
+        static_cast<EditorUI*>( m_engine.m_pToolsUI )->GetBorderlessTitleBarInfo( outTitlebarRect, isInteractibleWidgetHovered );
     }
 
     void EditorApplication::ProcessWindowResizeMessage( Int2 const& newWindowSize )
