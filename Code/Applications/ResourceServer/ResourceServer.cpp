@@ -330,7 +330,11 @@ namespace EE::Resource
             return false;
         }
 
+        // File System
         //-------------------------------------------------------------------------
+
+        m_settings.m_rawResourcePath.EnsureDirectoryExists();
+        m_settings.m_compiledResourcePath.EnsureDirectoryExists();
 
         if ( m_fileSystemWatcher.StartWatching( m_settings.m_rawResourcePath ) )
         {
