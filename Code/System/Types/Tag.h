@@ -2,6 +2,7 @@
 #include "System/Types/StringID.h"
 #include "System/Serialization/BinarySerialization.h"
 #include "Arrays.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 // General Tag

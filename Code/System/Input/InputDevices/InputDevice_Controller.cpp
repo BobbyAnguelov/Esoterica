@@ -12,7 +12,7 @@ namespace EE::Input
 
     void ControllerInputDevice::SetTriggerValues( float leftRawValue, float rightRawValue )
     {
-        auto calculateFilteredTriggerValue = [this] ( float rawValue, float threshold )
+        auto calculateFilteredTriggerValue = [] ( float rawValue, float threshold )
         {
             EE_ASSERT( threshold >= 0 && threshold <= 1.0f );
 
@@ -35,7 +35,7 @@ namespace EE::Input
 
     void ControllerInputDevice::SetAnalogStickValues( Float2 const& leftRawValue, Float2 const& rightRawValue )
     {
-        auto calculateRawValue = [this] ( Float2 const rawValue, bool bInvertY )
+        auto calculateRawValue = [] ( Float2 const rawValue, bool bInvertY )
         {
             float const normalizedX = Math::Clamp( rawValue.m_x, -1.0f, 1.0f );
             float const normalizedY = Math::Clamp( rawValue.m_y, -1.0f, 1.0f );
@@ -45,7 +45,7 @@ namespace EE::Input
         m_controllerState.m_analogInputRaw[ControllerInputState::Direction::Left] = calculateRawValue( leftRawValue, m_settings.m_leftStickInvertY );
         m_controllerState.m_analogInputRaw[ControllerInputState::Direction::Right] = calculateRawValue( rightRawValue, m_settings.m_rightStickInvertY );
 
-        auto calculateFilteredValue = [this] ( Float2 const rawValue, float const innerDeadzoneRange, float const outerDeadzoneRange )
+        auto calculateFilteredValue = [] ( Float2 const rawValue, float const innerDeadzoneRange, float const outerDeadzoneRange )
         {
             EE_ASSERT( innerDeadzoneRange >= 0 && innerDeadzoneRange <= 1.0f && outerDeadzoneRange >= 0 && outerDeadzoneRange <= 1.0f );
 

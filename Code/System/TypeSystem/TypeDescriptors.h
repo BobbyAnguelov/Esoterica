@@ -4,6 +4,7 @@
 #include "PropertyPath.h"
 #include "CoreTypeIDs.h"
 #include "CoreTypeConversions.h"
+#include "TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 // Basic descriptor of a reflected property
@@ -252,7 +253,7 @@ namespace EE::TypeSystem
         {
             for ( auto& pType : types )
             {
-                EE::Delete( type )
+                EE::Delete( pType );
             }
             types.clear();
         }

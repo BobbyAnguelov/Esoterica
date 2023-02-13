@@ -18,7 +18,7 @@ namespace EE::Animation
         inline Seconds GetBlendTime() const { return m_blendTime; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return InlineString( InlineString::CtorSprintf(), "Disable Override - BT: %.2fs", m_blendTime.ToFloat() ); }
+        virtual InlineString GetDebugText() const override { return InlineString( InlineString::CtorSprintf(), "Disable Override - %.2f", m_blendTime.ToFloat() ); }
         #endif
 
     private:

@@ -148,12 +148,10 @@ namespace EE::VisualGraph
             m_hasFocus = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows );
             m_isViewHovered = ImGui::IsWindowHovered();
             m_canvasSize = ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin();
-            pDrawList->ChannelsSplit( (uint8_t) DrawChannel::NumChannels );
 
             // Background
             //-------------------------------------------------------------------------
 
-            pDrawList->ChannelsSetCurrent( (uint8_t) DrawChannel::Background );
 
             ImRect const windowRect = pWindow->Rect();
             ImVec2 const windowTL = windowRect.GetTL();
@@ -221,10 +219,6 @@ namespace EE::VisualGraph
 
     void GraphView::EndDrawCanvas()
     {
-        ImGui::GetWindowDrawList()->ChannelsMerge();
-
-        //-------------------------------------------------------------------------
-
         ImGui::EndChild();
         ImGui::PopStyleColor();
         ImGui::PopID();
@@ -311,11 +305,13 @@ namespace EE::VisualGraph
 
         ImGui::PushID( pNode );
 
+        ctx.SplitDrawChannels();
+
         //-------------------------------------------------------------------------
         // Draw contents
         //-------------------------------------------------------------------------
 
-        ctx.m_pDrawList->ChannelsSetCurrent( 2 );
+        ctx.SetDrawChannel( (uint8_t) DrawChannel::Foreground );
 
         ImVec2 newNodeSize( 0, 0 );
         ImGui::SetCursorPos( ImVec2( pNode->m_canvasPosition ) - ctx.m_viewOffset );
@@ -341,12 +337,13 @@ namespace EE::VisualGraph
         // Draw background
         //-------------------------------------------------------------------------
 
-        ctx.m_pDrawList->ChannelsSetCurrent( 1 );
+        ctx.SetDrawChannel( (uint8_t) DrawChannel::Background );
         DrawStateMachineNodeBackground( ctx, pNode, newNodeSize );
         pNode->m_size = newNodeSize;
 
         //-------------------------------------------------------------------------
 
+        ctx.MergeDrawChannels();
         ImGui::PopID();
 
         //-------------------------------------------------------------------------
@@ -605,11 +602,13 @@ namespace EE::VisualGraph
 
         ImGui::PushID( pNode );
 
+        ctx.SplitDrawChannels();
+
         //-------------------------------------------------------------------------
         // Draw Node
         //-------------------------------------------------------------------------
 
-        ctx.m_pDrawList->ChannelsSetCurrent( (uint8_t) DrawChannel::NodeForeground );
+        ctx.SetDrawChannel( (uint8_t) DrawChannel::Foreground );
 
         ImVec2 newNodeSize( 0, 0 );
         ImGui::SetCursorPos( ImVec2( pNode->m_canvasPosition ) - ctx.m_viewOffset );
@@ -640,12 +639,13 @@ namespace EE::VisualGraph
         // Draw background
         //-------------------------------------------------------------------------
 
-        ctx.m_pDrawList->ChannelsSetCurrent( (uint8_t) DrawChannel::NodeBackground );
+        ctx.SetDrawChannel( (uint8_t) DrawChannel::Background );
         DrawFlowNodeBackground( ctx, pNode, newNodeSize );
         pNode->m_size = newNodeSize;
 
         //-------------------------------------------------------------------------
 
+        ctx.MergeDrawChannels();
         ImGui::PopID();
 
         //-------------------------------------------------------------------------
@@ -734,8 +734,6 @@ namespace EE::VisualGraph
                 // Draw connections
                 //-------------------------------------------------------------------------
 
-                drawingContext.m_pDrawList->ChannelsSetCurrent( (uint8_t) DrawChannel::Connections );
-
                 m_hoveredConnectionID.Clear();
                 for ( auto const& connection : pFlowGraph->m_connections )
                 {
@@ -759,8 +757,6 @@ namespace EE::VisualGraph
                     drawingContext.m_pDrawList->AddBezierCubic( p1, p2, p3, p4, connectionColor, 3.0f );
                 }
             }
-
-            drawingContext.m_pDrawList->ChannelsMerge();
 
             // Extra
             //-------------------------------------------------------------------------

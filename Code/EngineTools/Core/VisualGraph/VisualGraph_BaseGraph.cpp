@@ -321,7 +321,7 @@ namespace EE::VisualGraph
         ImVec2 const rectMax = rectMin + ImVec2( GetWidth() + ( VisualSettings::s_internalRegionPadding * 2 ), ImGui::GetCursorPosY() - m_internalRegionStartY + VisualSettings::s_internalRegionPadding - m_internalRegionMargins[0] - 1 );
         
         int32_t const previousChannel = ctx.m_pDrawList->_Splitter._Current;
-        ctx.m_pDrawList->ChannelsSetCurrent( 2 );
+        ctx.SetDrawChannel( (uint8_t) DrawChannel::ContentBackground );
         ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ToIm( m_internalRegionColor ), 3.0f );
         ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
 

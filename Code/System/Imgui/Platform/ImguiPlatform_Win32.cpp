@@ -6,6 +6,7 @@
 #include "System/Platform/PlatformHelpers_Win32.h"
 #include "System/Memory/Memory.h"
 #include <windows.h>
+#include <windowsx.h>
 #include <tchar.h>
 
 //-------------------------------------------------------------------------
@@ -510,11 +511,27 @@ namespace EE::ImGuiX
                         pBackendData->MouseTracked = true;
                     }
 
-                    POINT mouse_pos = { (LONG) ( (int) (short) LOWORD( lParam ) ), (LONG) ( (int) (short) HIWORD( lParam ) ) };
+                    POINT mouse_pos = { (LONG) GET_X_LPARAM( lParam ), (LONG) GET_Y_LPARAM( lParam ) };
                     if ( io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable )
                     {
                         ::ClientToScreen( hwnd, &mouse_pos );
                     }
+                    io.AddMousePosEvent( (float) mouse_pos.x, (float) mouse_pos.y );
+                }
+                break;
+
+                case WM_NCMOUSEMOVE:
+                {
+                    // We need to call TrackMouseEvent in order to receive WM_MOUSELEAVE events
+                    pBackendData->MouseHwnd = hwnd;
+                    if ( !pBackendData->MouseTracked )
+                    {
+                        TRACKMOUSEEVENT tme = { sizeof( tme ), TME_LEAVE, hwnd, 0 };
+                        ::TrackMouseEvent( &tme );
+                        pBackendData->MouseTracked = true;
+                    }
+
+                    POINT mouse_pos = { (LONG) GET_X_LPARAM( lParam ), (LONG) GET_Y_LPARAM( lParam ) };
                     io.AddMousePosEvent( (float) mouse_pos.x, (float) mouse_pos.y );
                 }
                 break;

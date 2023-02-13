@@ -45,7 +45,7 @@
 
 inline int Vsnprintf8( char8_t* pDestination, size_t n, const char8_t* pFormat, va_list arguments )
 {
-    return vsnprintf( pDestination, n, pFormat, arguments );
+    return vsnprintf( (char*) pDestination, n, (char*) pFormat, arguments );
 }
 
 inline int Vsnprintf16( char16_t* pDestination, size_t n, const char16_t* pFormat, va_list arguments )

@@ -46,8 +46,23 @@ namespace EE::VisualGraph
     // Drawing Context
     //-------------------------------------------------------------------------
 
+    enum class DrawChannel
+    {
+        Background = 1,
+        // Empty user channel
+        ContentBackground = 3,
+        // Empty user channel
+        Foreground = 5,
+
+        NumChannels,
+    };
+
     struct DrawContext
     {
+        friend class GraphView;
+
+    public:
+
         // Convert from a position relative to the window TL to a position relative to the screen TL
         EE_FORCE_INLINE ImVec2 WindowToScreenPosition( ImVec2 const& windowPosition ) const
         {
@@ -90,14 +105,44 @@ namespace EE::VisualGraph
             return m_canvasVisibleRect.Overlaps( itemCanvasRect );
         }
 
+        // Set the draw list channel to use
+        EE_FORCE_INLINE void SetDrawChannel( uint8_t channelIndex ) const
+        {
+            EE_ASSERT( m_areChannelsSplit );
+            m_channelSplitter.SetCurrentChannel( m_pDrawList, channelIndex ); 
+        }
+
+    private:
+
+        // Split the draw list channels
+        void SplitDrawChannels() const
+        {
+            EE_ASSERT( !m_areChannelsSplit );
+            m_channelSplitter.Split( m_pDrawList, (uint8_t) DrawChannel::NumChannels );
+            m_areChannelsSplit = true;
+        }
+
+        // Merge all the draw list channels together
+        void MergeDrawChannels() const
+        {
+            EE_ASSERT( m_areChannelsSplit );
+            m_channelSplitter.Merge( m_pDrawList );
+            m_areChannelsSplit = false;
+        }
+
     public:
 
-        ImDrawList*         m_pDrawList = nullptr;
-        ImVec2              m_viewOffset = ImVec2( 0, 0 );
-        ImRect              m_windowRect;
-        ImRect              m_canvasVisibleRect;
-        ImVec2              m_mouseScreenPos = ImVec2( 0, 0 );
-        ImVec2              m_mouseCanvasPos = ImVec2( 0, 0 );
-        bool                m_isReadOnly = false;
+        ImDrawList*                 m_pDrawList = nullptr;
+        ImVec2                      m_viewOffset = ImVec2( 0, 0 );
+        ImRect                      m_windowRect;
+        ImRect                      m_canvasVisibleRect;
+        ImVec2                      m_mouseScreenPos = ImVec2( 0, 0 );
+        ImVec2                      m_mouseCanvasPos = ImVec2( 0, 0 );
+        bool                        m_isReadOnly = false;
+
+    private:
+
+        mutable ImDrawListSplitter  m_channelSplitter;
+        mutable bool                m_areChannelsSplit = false;
     };
 }

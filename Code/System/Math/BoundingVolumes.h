@@ -354,10 +354,9 @@ namespace EE
     // Fast overlap test
     EE_FORCE_INLINE bool AABB::Overlaps( AABB const& other ) const
     {
+        Vector const deltaCenters = ( m_center - other.m_center ).Abs();
         Vector const sumExtents = m_extents + other.m_extents;
-        Vector const sumExtentsSq = m_extents * sumExtentsSq;
-        Vector const deltaCenters = ( m_center - other.m_center ) + sumExtents;
-        return deltaCenters.IsGreaterThan3( sumExtentsSq );
+        return deltaCenters.IsLessThanEqual3( sumExtents );
     }
 
     EE_FORCE_INLINE bool AABB::Overlaps( Sphere const& sphere ) const

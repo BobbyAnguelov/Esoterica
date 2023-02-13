@@ -473,7 +473,7 @@ namespace EE::Network
             // Send
             //-------------------------------------------------------------------------
 
-            auto ServerSendFunction = [pInterface, pServerConnection] ( uint32_t connectionHandle, void* pData, uint32_t size )
+            auto ServerSendFunction = [pInterface] ( uint32_t connectionHandle, void* pData, uint32_t size )
             {
                 pInterface->SendMessageToConnection( connectionHandle, pData, size, k_nSteamNetworkingSend_Reliable, nullptr );
             };

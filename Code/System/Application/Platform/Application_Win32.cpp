@@ -180,10 +180,11 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        // Enable shadow
         if ( IsCompositionEnabled() ) 
         {
-            static const MARGINS shadow_state[2]{ { 0,0,0,0 },{ 1,1,1,1 } };
-            ::DwmExtendFrameIntoClientArea( m_windowHandle, &shadow_state[true] );
+            static MARGINS const shadowOffset = { 1 };
+            ::DwmExtendFrameIntoClientArea( m_windowHandle, &shadowOffset );
         }
 
         //-------------------------------------------------------------------------

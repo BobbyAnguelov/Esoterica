@@ -18,17 +18,6 @@ namespace EE::VisualGraph
 
     protected:
 
-        enum class DrawChannel
-        {
-            Background = 0,
-            NodeBackground = 1,
-            NodeContentBackground = 2,
-            NodeForeground = 3,
-            Connections = 4,
-
-            NumChannels,
-        };
-
         enum class DragMode
         {
             None,

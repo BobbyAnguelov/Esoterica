@@ -171,7 +171,7 @@ namespace EE::ImGuiX
 
     void VerticalSeparator( ImVec2 const& size, ImColor const& color )
     {
-        ImColor const separatorColor = ( (int) color == 0 ) ? ImGui::GetStyleColorVec4( ImGuiCol_Separator ) : ImColor( color );
+        ImColor const separatorColor = ( (int) color == 0 ) ? ImColor( ImGui::GetStyleColorVec4( ImGuiCol_Separator ) ) : ImColor( color );
 
         ImGui::SameLine( 0, 0 );
 
