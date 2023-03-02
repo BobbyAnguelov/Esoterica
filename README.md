@@ -37,7 +37,7 @@ We are also looking for a someone to help us build out the renderer. More detail
 
 ## Requirements
 
-* Visual Studio 2022
+* Visual Studio 2022 (17.4+)
 * FBX SDK
 
 ## Building Esoterica
