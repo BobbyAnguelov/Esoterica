@@ -7,16 +7,19 @@ namespace EE::Animation::GraphNodes
 {
     class DataSlotToolsNode : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( DataSlotToolsNode );
+        EE_REFLECT_TYPE( DataSlotToolsNode );
 
     public:
 
-        struct OverrideValue : public IRegisteredType
+        struct OverrideValue : public IReflectedType
         {
-            EE_REGISTER_TYPE( OverrideValue );
+            EE_REFLECT_TYPE( OverrideValue );
 
-            EE_REGISTER StringID               m_variationID;
-            EE_REGISTER ResourceID             m_resourceID;
+            EE_REFLECT( "IsToolsReadOnly" : true );
+            StringID               m_variationID;
+
+            EE_REFLECT( "IsToolsReadOnly" : true );
+            ResourceID             m_resourceID;
         };
 
     public:
@@ -37,7 +40,7 @@ namespace EE::Animation::GraphNodes
         // Slot
         //-------------------------------------------------------------------------
 
-        virtual char const* const GetDefaultSlotName() const { return "Slot"; }
+        virtual char const* GetDefaultSlotName() const { return "Slot"; }
 
         // What resource is expected in this slot
         virtual ResourceTypeID GetSlotResourceTypeID() const { return ResourceTypeID(); }
@@ -75,8 +78,13 @@ namespace EE::Animation::GraphNodes
 
     protected:
 
-        EE_REGISTER String                      m_name;
-        EE_REGISTER ResourceID                  m_defaultResourceID;
-        EE_REGISTER TVector<OverrideValue>      m_overrides;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        String                      m_name;
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        ResourceID                  m_defaultResourceID;
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        TVector<OverrideValue>      m_overrides;
     };
 }

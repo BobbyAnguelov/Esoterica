@@ -408,6 +408,11 @@ namespace EE::Render
         EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() );
         EE_ASSERT( pComponent->GetMobility() == Mobility::Static );
 
+        if ( !pComponent->HasMeshResourceSet() )
+        {
+            return;
+        }
+
         if ( m_registeredStaticMeshComponents.HasItemForID( pComponent->GetID() ) )
         {
             Threading::ScopeLock lock( m_mobilityUpdateListLock );

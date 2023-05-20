@@ -2,7 +2,7 @@
 
 #include "ResourceDescriptor.h"
 #include "System/Resource/ResourceHeader.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Log.h"
 #include "System/Types/Function.h"
 
@@ -10,11 +10,12 @@
 
 namespace EE::Resource
 {
-    enum class CompilationResult
+    enum class CompilationResult : int32_t
     {
         Failure = -1,
-        Success = 0,
-        SuccessWithWarnings = 1,
+        SuccessUpToDate = 0,
+        Success = 1,
+        SuccessWithWarnings = 2,
     };
 
     //-------------------------------------------------------------------------
@@ -31,6 +32,7 @@ namespace EE::Resource
     public:
 
         Platform::Target const                          m_platform = Platform::Target::PC;
+        FileSystem::Path const                          m_rawResourceDirectoryPath;
         FileSystem::Path const                          m_compiledResourceDirectoryPath;
         bool                                            m_isCompilingForPackagedBuild = false;
 
@@ -41,9 +43,9 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API Compiler : public IRegisteredType
+    class EE_ENGINETOOLS_API Compiler : public IReflectedType
     {
-        EE_REGISTER_TYPE( Compiler );
+        EE_REFLECT_TYPE( Compiler );
 
     public:
 

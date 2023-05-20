@@ -46,7 +46,7 @@ namespace EE::ImGuiX
 
         void InitializePlatform();
         void ShutdownPlatform();
-        void PlatformUpdate();
+        void PlatformNewFrame();
 
         void InitializeFonts();
         void ShutdownFonts();

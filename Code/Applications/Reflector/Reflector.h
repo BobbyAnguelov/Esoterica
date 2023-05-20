@@ -38,7 +38,7 @@ namespace EE::TypeSystem::Reflection
         bool LogError( char const* pErrorFormat, ... ) const;
         bool ParseProject( FileSystem::Path const& prjPath );
 
-        HeaderProcessResult ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacro );
+        HeaderProcessResult ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacro, TVector<String>& headerFileContents );
         uint64_t CalculateHeaderChecksum( FileSystem::Path const& engineIncludePath, FileSystem::Path const& filePath );
 
         bool UpToDateCheck();

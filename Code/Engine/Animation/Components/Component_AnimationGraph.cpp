@@ -3,7 +3,7 @@
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "Engine/UpdateContext.h"
-#include "Engine/Physics/PhysicsScene.h"
+#include "Engine/Physics/PhysicsWorld.h"
 
 //-------------------------------------------------------------------------
 
@@ -51,11 +51,11 @@ namespace EE::Animation
         return m_pGraphInstance->GetPose();
     }
 
-    void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene )
+    void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::PhysicsWorld* pPhysicsWorld )
     {
         EE_ASSERT( HasGraph() );
 
-        auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsScene, m_graphStateResetRequested );
+        auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsWorld, m_graphStateResetRequested );
         m_graphStateResetRequested = false;
         m_rootMotionDelta = result.m_rootMotionDelta;
     }

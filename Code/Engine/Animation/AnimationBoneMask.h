@@ -4,7 +4,7 @@
 #include "System/Types/Arrays.h"
 #include "System/Types/StringID.h"
 #include "System/Serialization/BinarySerialization.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Resource/IResource.h"
 
 //-------------------------------------------------------------------------
@@ -20,7 +20,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API BoneMaskDefinition final : public Resource::IResource
     {
-        EE_REGISTER_RESOURCE( 'bmsk', "Animation Bone Mask" );
+        EE_RESOURCE( 'bmsk', "Animation Bone Mask" );
         EE_SERIALIZE( m_weights );
 
         friend class BoneMaskCompiler;

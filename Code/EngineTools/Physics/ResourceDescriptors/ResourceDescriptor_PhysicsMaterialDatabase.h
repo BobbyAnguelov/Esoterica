@@ -10,11 +10,11 @@ namespace EE::Physics
 {
     struct EE_ENGINETOOLS_API PhysicsMaterialDatabaseResourceDescriptor : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( PhysicsMaterialDatabaseResourceDescriptor );
+        EE_REFLECT_TYPE( PhysicsMaterialDatabaseResourceDescriptor );
 
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
-        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return PhysicsMaterialDatabase::GetStaticResourceTypeID(); }
+        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return MaterialDatabase::GetStaticResourceTypeID(); }
 
         virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
         {
@@ -29,6 +29,7 @@ namespace EE::Physics
 
     public:
 
-        EE_EXPOSE TVector<ResourcePath>         m_materialLibraries;
+        EE_REFLECT();
+        TVector<ResourcePath>         m_materialLibraries;
     };
 }

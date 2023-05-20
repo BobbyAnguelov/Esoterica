@@ -15,11 +15,12 @@ namespace EE::Animation::GraphNodes
 
         struct TransitionSettings
         {
-            EE_SERIALIZE( m_targetStateIdx, m_transitionNodeIdx, m_conditionNodeIdx );
+            EE_SERIALIZE( m_targetStateIdx, m_transitionNodeIdx, m_conditionNodeIdx, m_canBeForced );
 
             StateIndex                                              m_targetStateIdx = InvalidIndex;
             int16_t                                                 m_conditionNodeIdx = InvalidIndex;
             int16_t                                                 m_transitionNodeIdx = InvalidIndex;
+            bool                                                    m_canBeForced = false;
         };
 
         struct StateSettings
@@ -35,7 +36,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_stateSettings, m_defaultStateIndex );
 
         public:
@@ -55,15 +56,15 @@ namespace EE::Animation::GraphNodes
             TransitionNode*                                         m_pTransitionNode = nullptr;
             BoolValueNode*                                          m_pConditionNode = nullptr;
             StateIndex                                              m_targetStateIdx = InvalidIndex;
+            bool                                                    m_canBeForced = false;
         };
 
         struct StateInfo
         {
-            bool HasForceableTransitions() const;
-
             StateNode*                                              m_pStateNode = nullptr;
             BoolValueNode*                                          m_pEntryConditionNode = nullptr;
             TInlineVector<TransitionInfo, 5>                        m_transitions;
+            bool                                                    m_hasForceableTransitions = false;
         };
 
     public:
@@ -85,7 +86,6 @@ namespace EE::Animation::GraphNodes
         void ShutdownTransitionConditions( GraphContext& context );
 
         void EvaluateTransitions( GraphContext& context, GraphPoseNodeResult& NodeResult );
-        void UpdateTransitionStack( GraphContext& context );
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;

@@ -389,7 +389,7 @@ namespace EE::Timeline
             // Options
             //-------------------------------------------------------------------------
 
-            ImGuiX::VerticalSeparator( ImVec2( 9, -1 ) );
+            ImGuiX::SameLineSeparator( 9 );
 
             if ( ImGuiX::ColoredButton( ImVec4( 0, 0, 0, 0 ), m_isFrameSnappingEnabled ? ImGuiX::Style::s_colorText : ImGuiX::Style::s_colorTextDisabled, EE_ICON_CURSOR_DEFAULT_CLICK"##Snap", buttonSize ) )
             {

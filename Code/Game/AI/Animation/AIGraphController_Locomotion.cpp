@@ -21,7 +21,7 @@ namespace EE::AI
 
     void LocomotionGraphController::SetLocomotionDesires( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
     {
-        EE_ASSERT( Math::IsNearZero( facingDirectionWS.m_z ) );
+        EE_ASSERT( Math::IsNearZero( facingDirectionWS.GetZ() ) );
 
         Vector const characterSpaceHeading = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
         float const speed = characterSpaceHeading.GetLength3();

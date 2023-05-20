@@ -2,7 +2,7 @@
 
 #include "System/_Module/API.h"
 #include "System/TypeSystem/TypeDescriptors.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/FileSystem/FileSystemPath.h"
 #include "System/Serialization/JsonSerialization.h"
 
@@ -34,28 +34,28 @@ namespace EE::Serialization
     //-------------------------------------------------------------------------
 
     // Read the data for a native type from JSON - expect a fully created type to be supplied and will override the values
-    EE_SYSTEM_API bool ReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, IRegisteredType* pTypeInstance );
+    EE_SYSTEM_API bool ReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, IReflectedType* pTypeInstance );
 
     // Read the data for a native type from JSON - expect a fully created type to be supplied and will override the values
-    EE_SYSTEM_API bool ReadNativeTypeFromString( TypeSystem::TypeRegistry const& typeRegistry, String const& jsonString, IRegisteredType* pTypeInstance );
+    EE_SYSTEM_API bool ReadNativeTypeFromString( TypeSystem::TypeRegistry const& typeRegistry, String const& jsonString, IReflectedType* pTypeInstance );
 
     // Serialize a supplied native type to JSON - creates a new JSON object for this type
-    EE_SYSTEM_API void WriteNativeType( TypeSystem::TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, Serialization::JsonWriter& writer );
+    EE_SYSTEM_API void WriteNativeType( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer );
 
     // Writes out the type ID and property data for a supplied native type to an existing JSON object - Note: This function does not create a new json object!
-    EE_SYSTEM_API void WriteNativeTypeContents( TypeSystem::TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, Serialization::JsonWriter& writer );
+    EE_SYSTEM_API void WriteNativeTypeContents( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer );
 
     // Write the property data for a supplied native type to JSON
-    EE_SYSTEM_API void WriteNativeTypeToString( TypeSystem::TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, String& outString );
+    EE_SYSTEM_API void WriteNativeTypeToString( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString );
 
     // Create a new instance of a type from a supplied JSON version
-    EE_SYSTEM_API IRegisteredType* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue );
+    EE_SYSTEM_API IReflectedType* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue );
 
     // Create a new instance of a type from a supplied JSON version
     template<typename T>
     T* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
     {
-        IRegisteredType* pCreatedType = TryCreateAndReadNativeType( typeRegistry, typeObjectValue );
+        IReflectedType* pCreatedType = TryCreateAndReadNativeType( typeRegistry, typeObjectValue );
         if ( pCreatedType != nullptr )
         {
             if ( IsOfType<T>( pCreatedType ) )
@@ -105,24 +105,24 @@ namespace EE::Serialization
         //-------------------------------------------------------------------------
         // Do not try to serialize core-types using this reader
 
-        inline bool ReadType( IRegisteredType* pType )
+        inline bool ReadType( IReflectedType* pType )
         {
             return ReadNativeType( m_typeRegistry, GetObjectValueToBeDeserialized(), pType );
         }
 
-        inline IRegisteredType* TryReadType()
+        inline IReflectedType* TryReadType()
         {
             return TryCreateAndReadNativeType( m_typeRegistry, GetObjectValueToBeDeserialized() );
         }
 
-        inline TypeArchiveReader const& operator>>( IRegisteredType* pType )
+        inline TypeArchiveReader const& operator>>( IReflectedType* pType )
         {
             bool const result = ReadType( pType );
             EE_ASSERT( result );
             return *this;
         }
 
-        inline TypeArchiveReader const& operator>>( IRegisteredType& type )
+        inline TypeArchiveReader const& operator>>( IReflectedType& type )
         {
             bool const result = ReadType( &type );
             EE_ASSERT( result );

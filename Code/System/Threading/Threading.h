@@ -30,6 +30,7 @@ namespace EE
         // Mutexes and Locks
         //-------------------------------------------------------------------------
 
+        typedef std::thread Thread;
         typedef std::mutex Mutex;
         typedef std::recursive_mutex RecursiveMutex;
         typedef std::condition_variable ConditionVariable;

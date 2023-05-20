@@ -15,7 +15,7 @@ namespace EE::Animation
 {
     enum class TransitionMarker : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         AllowTransition = 0,
         ConditionallyAllowTransition,
@@ -24,7 +24,7 @@ namespace EE::Animation
 
     enum class TransitionMarkerCondition : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         AnyAllowed = 0,
         FullyAllowed,
@@ -43,7 +43,7 @@ namespace EE::Animation
     // Helper event to provide easy flags for use within the animation graph
     class EE_ENGINE_API TransitionEvent final : public Event
     {
-        EE_REGISTER_TYPE( TransitionEvent );
+        EE_REFLECT_TYPE( TransitionEvent );
 
     public:
 
@@ -60,7 +60,7 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE TransitionMarker      m_marker;
-        EE_EXPOSE StringID              m_optionalMarkerID;
+        EE_REFLECT() TransitionMarker      m_marker;
+        EE_REFLECT() StringID              m_optionalMarkerID;
     };
 }

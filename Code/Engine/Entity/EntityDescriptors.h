@@ -110,7 +110,7 @@ namespace EE::EntityModel
 {
     class EE_ENGINE_API SerializedEntityCollection : public Resource::IResource
     {
-        EE_REGISTER_RESOURCE( 'ec', "Entity Collection" );
+        EE_RESOURCE( 'ec', "Entity Collection" );
         EE_SERIALIZE( m_entityDescriptors, m_entityLookupMap, m_entitySpatialAttachmentInfo );
 
         friend class EntityCollectionLoader;
@@ -256,7 +256,7 @@ namespace EE::EntityModel
 
     class EE_ENGINE_API SerializedEntityMap final : public SerializedEntityCollection
     {
-        EE_REGISTER_RESOURCE( 'map', "Map" );
+        EE_RESOURCE( 'map', "Map" );
         EE_SERIALIZE( EE_SERIALIZE_BASE( SerializedEntityCollection ) );
 
         friend class EntityCollectionCompiler;

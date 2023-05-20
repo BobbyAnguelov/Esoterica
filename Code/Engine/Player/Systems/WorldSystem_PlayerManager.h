@@ -34,7 +34,7 @@ namespace EE
 
     public:
 
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( PlayerManager, RequiresUpdate( UpdateStage::FrameStart, UpdatePriority::Highest ) );
+        EE_ENTITY_WORLD_SYSTEM( PlayerManager, RequiresUpdate( UpdateStage::FrameStart, UpdatePriority::Highest ) );
 
         // Player
         //-------------------------------------------------------------------------

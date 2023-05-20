@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
     // The result node for a state's layer settings
     class StateLayerDataToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( StateLayerDataToolsNode );
+        EE_REFLECT_TYPE( StateLayerDataToolsNode );
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
@@ -28,23 +28,23 @@ namespace EE::Animation::GraphNodes
     class StateToolsNode final : public VisualGraph::SM::State
     {
         friend class StateMachineToolsNode;
-        EE_REGISTER_TYPE( StateToolsNode );
+        EE_REFLECT_TYPE( StateToolsNode );
 
     public:
 
-        struct TimedStateEvent : public IRegisteredType
+        struct TimedStateEvent : public IReflectedType
         {
-            EE_REGISTER_TYPE( TimedStateEvent );
+            EE_REFLECT_TYPE( TimedStateEvent );
 
-            EE_EXPOSE StringID                 m_ID;
-            EE_EXPOSE Seconds                  m_timeValue;
+            EE_REFLECT() StringID                 m_ID;
+            EE_REFLECT() Seconds                  m_timeValue;
         };
 
     public:
 
         enum class StateType
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             OffState,
             BlendTreeState,
@@ -66,6 +66,9 @@ namespace EE::Animation::GraphNodes
         inline bool IsBlendTreeState() const { return m_type == StateType::BlendTreeState; }
         inline bool IsStateMachineState() const { return m_type == StateType::StateMachineState; }
 
+        // Return any logic or event IDs entered into this node (things like event IDs, parameter ID values, etc...)
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const;
+
     private:
 
         virtual char const* GetTypeName() const override { return "State"; }
@@ -84,12 +87,25 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER String                      m_name = "State";
-        EE_EXPOSE TVector<StringID>             m_entryEvents;
-        EE_EXPOSE TVector<StringID>             m_executeEvents;
-        EE_EXPOSE TVector<StringID>             m_exitEvents;
-        EE_EXPOSE TVector<TimedStateEvent>      m_timeRemainingEvents;
-        EE_EXPOSE TVector<TimedStateEvent>      m_timeElapsedEvents;
-        EE_REGISTER StateType                   m_type = StateType::BlendTreeState;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        String                          m_name = "State";
+        
+        EE_REFLECT();
+        TVector<StringID>               m_entryEvents;
+
+        EE_REFLECT();
+        TVector<StringID>               m_executeEvents;
+
+        EE_REFLECT();
+        TVector<StringID>               m_exitEvents;
+
+        EE_REFLECT();
+        TVector<TimedStateEvent>        m_timeRemainingEvents;
+
+        EE_REFLECT();
+        TVector<TimedStateEvent>        m_timeElapsedEvents;
+        
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        StateType                       m_type = StateType::BlendTreeState;
     };
 }

@@ -7,7 +7,7 @@ namespace EE::Animation::GraphNodes
 {
     class ChildGraphToolsNode final : public DataSlotToolsNode
     {
-        EE_REGISTER_TYPE( ChildGraphToolsNode );
+        EE_REFLECT_TYPE( ChildGraphToolsNode );
 
     public:
 
@@ -22,7 +22,7 @@ namespace EE::Animation::GraphNodes
         virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::Gold; }
         virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
 
-        virtual char const* const GetDefaultSlotName() const override { return "Graph"; }
+        virtual char const* GetDefaultSlotName() const override { return "Graph"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override;
     };
 }

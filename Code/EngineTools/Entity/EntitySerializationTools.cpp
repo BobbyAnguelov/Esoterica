@@ -26,6 +26,15 @@ namespace EE::EntityModel
         return false;
     }
 
+    static bool Warning( char const* pFormat, ... )
+    {
+        va_list args;
+        va_start( args, pFormat );
+        Log::AddEntryVarArgs( Log::Severity::Warning, "Entity", "Serializer", __FILE__, __LINE__, pFormat, args );
+        va_end( args );
+        return false;
+    }
+
     //-------------------------------------------------------------------------
     // Reading
     //-------------------------------------------------------------------------
@@ -69,7 +78,7 @@ namespace EE::EntityModel
         {
             if ( !memberIter->value.IsString() )
             {
-                return Error( "Property value for (%s) must be a string value.", memberIter->name.GetString() );
+                return Warning( "Property value for (%s) must be a string value.", memberIter->name.GetString() );
             }
 
             //-------------------------------------------------------------------------
@@ -82,14 +91,14 @@ namespace EE::EntityModel
             auto const pPropertyInfo = ctx.m_typeRegistry.ResolvePropertyPath( pTypeInfo, outPropertyDesc.m_path );
             if ( pPropertyInfo == nullptr )
             {
-                return Error( "Failed to resolve property path: %s, for type (%s)", outPropertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
+                return Warning( "Failed to resolve property path: %s, for type (%s)", outPropertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
             }
 
             if ( TypeSystem::IsCoreType( pPropertyInfo->m_typeID ) || pPropertyInfo->IsEnumProperty() || pPropertyInfo->IsBitFlagsProperty() )
             {
                 if ( !TypeSystem::Conversion::ConvertStringToBinary( ctx.m_typeRegistry, *pPropertyInfo, outPropertyDesc.m_stringValue, outPropertyDesc.m_byteValue ) )
                 {
-                    return Error( "Failed to convert string value (%s) to binary for property: %s for type (%s)", outPropertyDesc.m_stringValue.c_str(), outPropertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
+                    return Warning( "Failed to convert string value (%s) to binary for property: %s for type (%s)", outPropertyDesc.m_stringValue.c_str(), outPropertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
                 }
             }
 
@@ -174,13 +183,10 @@ namespace EE::EntityModel
                 }
 
                 // If we successfully read the property value add a new property value
+                // Reading of properties is allowed to fail
                 if ( ReadAndConvertPropertyValue( ctx, pTypeInfo, itr, outComponentDesc.m_properties.back() ) )
                 {
                     outComponentDesc.m_properties.push_back( TypeSystem::PropertyDescriptor() );
-                }
-                else
-                {
-                    return false;
                 }
             }
 

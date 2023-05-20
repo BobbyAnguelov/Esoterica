@@ -294,7 +294,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, bool resetGraphState )
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
         #if EE_DEVELOPMENT_TOOLS
@@ -310,7 +310,7 @@ namespace EE::Animation
             m_pTaskSystem->Reset();
         }
 
-        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsScene );
+        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsWorld );
 
         //-------------------------------------------------------------------------
 
@@ -329,7 +329,7 @@ namespace EE::Animation
         return m_pRootNode->Update( m_graphContext );
     }
 
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange, bool resetGraphState )
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const& updateRange, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
 
@@ -346,7 +346,7 @@ namespace EE::Animation
             m_pTaskSystem->Reset();
         }
 
-        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsScene );
+        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsWorld );
 
         //-------------------------------------------------------------------------
 

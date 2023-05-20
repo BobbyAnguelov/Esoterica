@@ -24,7 +24,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API Skeleton : public Resource::IResource
     {
-        EE_REGISTER_RESOURCE( 'skel', "Animation Skeleton" );
+        EE_RESOURCE( 'skel', "Animation Skeleton" );
         EE_SERIALIZE( m_boneIDs, m_localReferencePose, m_parentIndices, m_boneFlags );
 
         friend class SkeletonCompiler;

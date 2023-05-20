@@ -72,4 +72,12 @@ namespace EE::AI
 
         return true;
     }
+
+    void AIManager::HackTrySpawnAI( EntityWorldUpdateContext const& ctx, int32_t numAIToSpawn )
+    {
+        for ( int32_t i = 0; i < numAIToSpawn; i++ )
+        {
+            TrySpawnAI( ctx );
+        }
+    }
 }

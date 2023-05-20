@@ -136,10 +136,10 @@ namespace EE::Math
     // Returns the pitch angle (rotation around X) between two vectors, relative to the reference vector
     inline Radians GetPitchAngleBetweenNormalizedVectors( Vector const& reference, Vector const& v )
     {
-        float const clampedVZ = Math::Clamp( v.m_z, -1.0f, 1.0f );
+        float const clampedVZ = Math::Clamp( v.GetZ(), -1.0f, 1.0f );
         float const vElevationAngle = Math::ASin( clampedVZ );
 
-        float const clampedReferenceZ = Math::Clamp( reference.m_z, -1.0f, 1.0f );
+        float const clampedReferenceZ = Math::Clamp( reference.GetZ(), -1.0f, 1.0f );
         float const referenceElevationAngle = Math::ASin( clampedReferenceZ );
 
         return Radians( vElevationAngle - referenceElevationAngle );

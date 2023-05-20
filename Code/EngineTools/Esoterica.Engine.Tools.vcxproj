@@ -43,26 +43,26 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
-    <Import Project="..\PropertySheets\SQLite.props" />
     <Import Project="..\PropertySheets\FBXSDK.props" />
     <Import Project="..\PropertySheets\DirectXTex.props" />
     <Import Project="..\PropertySheets\MeshOptimizer.props" />
+    <Import Project="..\PropertySheets\PhysX.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
-    <Import Project="..\PropertySheets\SQLite.props" />
     <Import Project="..\PropertySheets\FBXSDK.props" />
     <Import Project="..\PropertySheets\DirectXTex.props" />
     <Import Project="..\PropertySheets\MeshOptimizer.props" />
+    <Import Project="..\PropertySheets\PhysX.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
-    <Import Project="..\PropertySheets\SQLite.props" />
     <Import Project="..\PropertySheets\FBXSDK.props" />
     <Import Project="..\PropertySheets\DirectXTex.props" />
     <Import Project="..\PropertySheets\MeshOptimizer.props" />
+    <Import Project="..\PropertySheets\PhysX.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
@@ -115,6 +115,7 @@
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationGraph.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_Skeleton.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp" />
+    <ClCompile Include="Core\PropertyGrid\PropertyGridHelper.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_UserContext.cpp" />
     <ClCompile Include="Core\ToolsContext.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp" />
@@ -134,12 +135,14 @@
     <ClCompile Include="Navmesh\NavmeshGenerator.cpp" />
     <ClCompile Include="Navmesh\NavmeshGeneratorDialog.cpp" />
     <ClCompile Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.cpp" />
+    <ClCompile Include="Physics\PropertyGrid\PropertyGrid_PhysicsBodySettings.cpp" />
+    <ClCompile Include="Physics\PropertyGrid\PropertyGrid_Component_PhysicsCollision.cpp" />
+    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp" />
-    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMesh.cpp" />
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.cpp" />
+    <ClCompile Include="Physics\Workspaces\Workspace_CollisionMesh.cpp" />
     <ClCompile Include="Physics\Workspaces\Workspace_Ragdoll.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGrid.cpp" />
-    <ClCompile Include="Core\PropertyGrid\PropertyGridCoreEditors.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderMaterial.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderMesh.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderShader.cpp" />
@@ -174,7 +177,6 @@
     <ClCompile Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.cpp" />
     <ClCompile Include="Resource\ResourceDatabase.cpp" />
     <ClCompile Include="Resource\ResourcePicker.cpp" />
-    <ClCompile Include="ThirdParty\sqlite\SqliteHelpers.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineTrack.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineEditor.cpp" />
     <ClCompile Include="Core\UndoStack.cpp" />
@@ -243,6 +245,7 @@
     <ClInclude Include="Animation\Workspaces\Workspace_Skeleton.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
     <ClInclude Include="Core\Helpers\SkeletonHelpers.h" />
+    <ClInclude Include="Core\PropertyGrid\PropertyGridHelper.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
     <ClInclude Include="Core\VisualGraph\VisualGraph_UserContext.h" />
     <ClInclude Include="Entity\EntityEditor\EntityStructureEditor.h" />
@@ -265,15 +268,15 @@
     <ClInclude Include="Navmesh\NavmeshGenerator.h" />
     <ClInclude Include="Navmesh\NavmeshGeneratorDialog.h" />
     <ClInclude Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.h" />
+    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h" />
-    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMesh.h" />
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.h" />
+    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h" />
-    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMesh.h" />
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsRagdoll.h" />
+    <ClInclude Include="Physics\Workspaces\Workspace_CollisionMesh.h" />
     <ClInclude Include="Physics\Workspaces\Workspace_Ragdoll.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGrid.h" />
-    <ClInclude Include="Core\PropertyGrid\PropertyGridCoreEditors.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderMaterial.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderMesh.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderShader.h" />
@@ -315,7 +318,6 @@
     <ClInclude Include="ThirdParty\cgltf\cgltf.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf_write.h" />
     <ClInclude Include="ThirdParty\pfd\portable-file-dialogs.h" />
-    <ClInclude Include="ThirdParty\sqlite\SqliteHelpers.h" />
     <ClInclude Include="ThirdParty\subprocess\subprocess.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineTrack.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineEditor.h" />

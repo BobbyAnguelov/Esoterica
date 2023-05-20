@@ -1,13 +1,13 @@
 #if EE_ENABLE_NAVPOWER
 #include "NavmeshGenerator.h"
-#include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsMesh.h"
+#include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsCollisionMesh.h"
 #include "EngineTools/RawAssets/RawAssetReader.h"
 #include "EngineTools/RawAssets/RawMesh.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Navmesh/NavmeshData.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
-#include "Engine/Physics/Components/Component_PhysicsMesh.h"
+#include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 #include "Engine/Entity/EntitySerialization.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/Entity.h"
@@ -112,7 +112,7 @@ namespace EE::Navmesh
         // Collect all collision geometry
         //-------------------------------------------------------------------------
 
-        auto foundPhysicsComponents = m_entityCollection.GetComponentsOfType( m_typeRegistry, Physics::PhysicsMeshComponent::GetStaticTypeID() );
+        auto foundPhysicsComponents = m_entityCollection.GetComponentsOfType( m_typeRegistry, Physics::CollisionMeshComponent::GetStaticTypeID() );
         numComponentsToProgress += foundPhysicsComponents.size();
 
         float cnt = 0;
@@ -127,17 +127,17 @@ namespace EE::Navmesh
             Entity const* pEntity = createdEntities[entityIdx];
             EE_ASSERT( pEntity != nullptr );
 
-            auto pPhysicsComponent = Cast<Physics::PhysicsMeshComponent>( pEntity->GetComponents()[componentIdx] );
+            auto pPhysicsComponent = Cast<Physics::CollisionMeshComponent>( pEntity->GetComponents()[componentIdx] );
             EE_ASSERT( pPhysicsComponent != nullptr );
 
-            ResourceID geometryResourceID = pPhysicsComponent->GetMeshResourceID();
+            ResourceID geometryResourceID = pPhysicsComponent->GetCollisionResourceID();
             if ( geometryResourceID.IsValid() )
             {
                 CollisionMesh const cm = { pPhysicsComponent->GetWorldTransform(), Vector( pPhysicsComponent->GetLocalScale() ) };
 
                 if ( cm.m_localScale.IsAnyEqualToZero3() )
                 {
-                    EE_LOG_WARNING( "Navmesh", "Generation", "Detected 0 local scale for physics mesh component ( %s ). This is not supported so mesh will be skipped!", pPhysicsComponent->GetNameID().c_str() );
+                    EE_LOG_WARNING( "Navmesh", "Generation", "Detected 0 local scale for physics collision component ( %s ). This is not supported so collision will be skipped!", pPhysicsComponent->GetNameID().c_str() );
                 }
                 else
                 {
@@ -198,7 +198,7 @@ namespace EE::Navmesh
                 return LogError( "Invalid source data path (%s) for physics mesh descriptor", primitiveDesc.first.c_str() );
             }
 
-            Physics::PhysicsMeshResourceDescriptor resourceDescriptor;
+            Physics::PhysicsCollisionMeshResourceDescriptor resourceDescriptor;
             if ( !Resource::ResourceDescriptor::TryReadFromFile( m_typeRegistry, meshDescriptorFilePath, resourceDescriptor ) )
             {
                 return LogError( "Failed to read physics mesh resource descriptor from file: %s", meshDescriptorFilePath.c_str() );
@@ -210,11 +210,11 @@ namespace EE::Navmesh
             FileSystem::Path meshFilePath;
             if ( primitiveDesc.first.IsValid() )
             {
-                meshFilePath = ResourcePath::ToFileSystemPath( m_rawResourceDirectoryPath, resourceDescriptor.m_meshPath );
+                meshFilePath = ResourcePath::ToFileSystemPath( m_rawResourceDirectoryPath, resourceDescriptor.m_sourcePath );
             }
             else
             {
-                return LogError( "Invalid source data path (%) in physics mesh descriptor: %s", resourceDescriptor.m_meshPath.c_str(), meshDescriptorFilePath.c_str() );
+                return LogError( "Invalid source data path (%) in physics collision descriptor: %s", resourceDescriptor.m_sourcePath.c_str(), meshDescriptorFilePath.c_str() );
             }
 
             RawAssets::ReaderContext readerCtx = 
@@ -223,7 +223,7 @@ namespace EE::Navmesh
                 [this] ( char const* pString ) { EE_LOG_ERROR( "Navmesh", "Generation", pString ); }
             };
 
-            TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshName );
+            TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_sourceItemName );
             if ( pRawMesh == nullptr )
             {
                 return LogError( "Failed to read mesh from source file: %s" );
@@ -236,7 +236,7 @@ namespace EE::Navmesh
 
             for ( CollisionMesh const& cm : primitiveDesc.second )
             {
-                Vector const finalScale = cm.m_localScale * cm.m_worldTransform.GetScale();
+                Float3 const finalScale = ( cm.m_localScale * cm.m_worldTransform.GetScale() ).ToFloat3();
  
                 int32_t numNegativelyScaledAxes = ( finalScale.m_x < 0 ) ? 1 : 0;
                 numNegativelyScaledAxes += ( finalScale.m_y < 0 ) ? 1 : 0;

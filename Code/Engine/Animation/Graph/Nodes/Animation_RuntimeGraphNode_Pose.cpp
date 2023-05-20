@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::InitializeInternal( context, initialTime );
 
         m_previousTime = m_currentTime;
-        m_duration = 1 / 30.0f;
+        m_duration = s_oneFrameDuration;
     }
 
     GraphPoseNodeResult ZeroPoseNode::Update( GraphContext& context )
@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ZeroPose );
         return result;
     }
@@ -44,7 +44,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::InitializeInternal( context, initialTime );
 
         m_previousTime = m_currentTime;
-        m_duration = 1 / 30.0f;
+        m_duration = s_oneFrameDuration;
     }
 
     GraphPoseNodeResult ReferencePoseNode::Update( GraphContext& context )
@@ -53,7 +53,7 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         return result;
     }
@@ -77,6 +77,9 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( context.IsValid() && m_pPoseTimeValue != nullptr );
         PoseNode::InitializeInternal( context, initialTime );
         m_pPoseTimeValue->Initialize( context );
+
+        m_previousTime = m_currentTime;
+        m_duration = s_oneFrameDuration;
     }
 
     void AnimationPoseNode::ShutdownInternal( GraphContext& context )
@@ -99,34 +102,25 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_pAnimation != nullptr );
 
         MarkNodeActive( context );
-        m_currentTime = m_previousTime = GetTimeValue( context );
 
+        // Register the sample task
         //-------------------------------------------------------------------------
 
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, m_currentTime );
-        return result;
-    }
+        float timeValue = m_pPoseTimeValue->GetValue<float>( context );
 
-    float AnimationPoseNode::GetTimeValue( GraphContext& context )
-    {
-        EE_ASSERT( IsValid() );
-
-        float timeValue = 0.0f;
-        if ( m_pPoseTimeValue != nullptr )
+        // Optional Remap
+        auto pSettings = GetSettings<AnimationPoseNode>();
+        if ( pSettings->m_inputTimeRemapRange.IsSet() )
         {
-            auto pSettings = GetSettings<AnimationPoseNode>();
-            timeValue = m_pPoseTimeValue->GetValue<float>( context );
-
-            // Optional Remap
-            if ( pSettings->m_inputTimeRemapRange.IsSet() )
-            {
-                timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
-            }
+            timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
         }
 
         // Ensure valid time value
         timeValue = Math::Clamp( timeValue, 0.0f, 1.0f );
-        return Percentage( timeValue );
+        Percentage const sampleTime( timeValue );
+
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, sampleTime );
+        return result;
     }
 }

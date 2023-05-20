@@ -1,19 +1,21 @@
 #include "Workspace.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
+#include "EngineTools/Resource/ResourceCompiler.h"
+#include "EngineTools/ThirdParty/subprocess/subprocess.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
 #include "Engine/Camera/DebugViews/DebugView_Camera.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Camera/Systems/EntitySystem_DebugCameraController.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "Engine/Physics/PhysicsScene.h"
+#include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
-#include "Engine/Physics/PhysicsLayers.h"
 #include "Engine/UpdateContext.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/Serialization/TypeSerialization.h"
 #include "System/Resource/ResourceRequesterID.h"
+#include "System/Resource/ResourceSettings.h"
 
 //-------------------------------------------------------------------------
 
@@ -250,65 +252,74 @@ namespace EE
         ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), dockspaceID );
     }
 
-    void Workspace::DrawWorkspaceToolbar( UpdateContext const& context )
+    //-------------------------------------------------------------------------
+
+    void Workspace::DrawWorkspaceToolBar_Default()
     {
-        if ( HasWorkspaceToolbarDefaultItems() )
+        bool const isSavingAllowed = AlwaysAllowSaving() || IsDirty();
+
+        ImGui::BeginDisabled( !isSavingAllowed );
+        if ( ImGui::MenuItem( EE_ICON_CONTENT_SAVE"##Save" ) )
         {
-            bool const isSavingAllowed = AlwaysAllowSaving() || IsDirty();
+            Save();
+        }
+        ImGuiX::ItemTooltip( "Save" );
+        ImGui::EndDisabled();
 
-            ImGui::BeginDisabled( !isSavingAllowed );
-            if ( ImGui::MenuItem( EE_ICON_CONTENT_SAVE"##Save" ) )
-            {
-                Save();
-            }
-            ImGuiX::ItemTooltip( "Save" );
-            ImGui::EndDisabled();
+        ImGui::BeginDisabled( !CanUndo() );
+        if ( ImGui::MenuItem( EE_ICON_UNDO_VARIANT"##Undo" ) )
+        {
+            Undo();
+        }
+        ImGuiX::ItemTooltip( "Undo" );
+        ImGui::EndDisabled();
 
-            ImGui::BeginDisabled( !CanUndo() );
-            if ( ImGui::MenuItem( EE_ICON_UNDO"##Undo" ) )
-            {
-                Undo();
-            }
-            ImGuiX::ItemTooltip( "Undo" );
-            ImGui::EndDisabled();
+        ImGui::BeginDisabled( !CanRedo() );
+        if ( ImGui::MenuItem( EE_ICON_REDO_VARIANT"##Redo" ) )
+        {
+            Redo();
+        }
+        ImGuiX::ItemTooltip( "Redo" );
+        ImGui::EndDisabled();
+    }
 
-            ImGui::BeginDisabled( !CanRedo() );
-            if ( ImGui::MenuItem( EE_ICON_REDO"##Redo" ) )
-            {
-                Redo();
-            }
-            ImGuiX::ItemTooltip( "Redo" );
-            ImGui::EndDisabled();
+    void Workspace::DrawWorkspaceToolBar_Descriptor()
+    {
+        if ( !IsADescriptorWorkspace() )
+        {
+            return;
         }
 
         //-------------------------------------------------------------------------
 
-        if ( IsADescriptorWorkspace() )
+        if ( ImGui::BeginMenu( EE_ICON_FILE_COG"##descriptorOpts" ) )
         {
-            if ( ImGui::MenuItem( EE_ICON_FILE_EDIT"##Show Descriptor Window" ) )
+            if ( ImGui::MenuItem( EE_ICON_FILE_DOCUMENT_OUTLINE" Show Descriptor Window" ) )
             {
                 m_showDescriptorEditor = true;
             }
             ImGuiX::ItemTooltip( "Show Descriptor Editor" );
 
-            if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY"##Copy Path" ) )
+            if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Resource Path" ) )
             {
                 ImGui::SetClipboardText( m_descriptorID.c_str() );
             }
             ImGuiX::ItemTooltip( "Copy Resource Path" );
+
+            ImGui::EndMenu();
         }
+    }
 
-        //-------------------------------------------------------------------------
-
-        DrawWorkspaceToolbarItems( context );
+    void Workspace::DrawWorkspaceToolbar( UpdateContext const& context )
+    {
+        DrawWorkspaceToolBar_Default();
+        DrawWorkspaceToolBar_Descriptor();
     }
 
     //-------------------------------------------------------------------------
 
     bool Workspace::BeginViewportToolbarGroup( char const* pGroupID, ImVec2 groupSize, ImVec2 const& padding )
     {
-        ImGui::SameLine();
-
         ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray5.Value );
         ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray5.Value );
         ImGui::PushStyleColor( ImGuiCol_FrameBg, ImGuiX::Style::s_colorGray5.Value );
@@ -332,101 +343,138 @@ namespace EE
         ImGui::EndChild();
         ImGui::PopStyleVar( 2 );
         ImGui::PopStyleColor( 5 );
+    }
+
+    void Workspace::DrawViewportToolbarCombo( char const* pID, char const* pLabel, char const* pTooltip, TFunction<void()> const& function, float width )
+    {
+        if ( width > 0 )
+        {
+            ImGui::SetNextItemWidth( width );
+        }
+
+        if ( ImGui::BeginCombo( pID, pLabel, ImGuiComboFlags_HeightLarge ) )
+        {
+            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 8 ) );
+            ImGui::PushStyleColor( ImGuiCol_TableBorderStrong, 0 );
+            ImGui::PushStyleColor( ImGuiCol_TableBorderLight, 0 );
+            bool const drawTable = ImGui::BeginTable( "LayoutTable", 1, ImGuiTableFlags_Borders );
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor( 2 );
+
+            if ( drawTable )
+            {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                function();
+                ImGui::EndTable();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if ( pTooltip != nullptr )
+        {
+            ImGuiX::ItemTooltip( pTooltip );
+        }
+    }
+
+    void Workspace::DrawViewportToolBar_Common()
+    {
+        auto RenderingOptions = [this]()
+        {
+            Render::RenderDebugView::DrawRenderVisualizationModesMenu( GetWorld() );
+        };
+
+        DrawViewportToolbarComboIcon( "##RenderingOptions", EE_ICON_EYE, "Rendering Modes", RenderingOptions );
+
+        //-------------------------------------------------------------------------
 
         ImGui::SameLine();
+
+        //-------------------------------------------------------------------------
+
+        auto CameraOptions = [this]()
+        {
+            CameraDebugView::DrawDebugCameraOptions( GetWorld() );
+        };
+
+        DrawViewportToolbarComboIcon( "##CameraOptions", EE_ICON_CCTV, "Camera", CameraOptions );
+    }
+
+    void Workspace::DrawViewportToolBar_TimeControls()
+    {
+        if ( !HasViewportToolbarTimeControls() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+
+        if ( BeginViewportToolbarGroup( "TimeControls", ImVec2( 170, 0 ), ImVec2( 2, 1 ) ) )
+        {
+            ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
+
+            ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, 3 ) );
+
+            // Play/Pause
+            if ( m_pWorld->IsPaused() )
+            {
+                if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", ImVec2( 20, 0 ) ) )
+                {
+                    SetWorldPaused( false );
+                }
+                ImGuiX::ItemTooltip( "Resume" );
+            }
+            else
+            {
+                if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", ImVec2( 20, 0 ) ) )
+                {
+                    SetWorldPaused( true );
+                }
+                ImGuiX::ItemTooltip( "Pause" );
+            }
+
+            // Step
+            ImGui::SameLine( 0, 0 );
+            ImGui::BeginDisabled( !m_pWorld->IsPaused() );
+            if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", ImVec2( 20, 0 ) ) )
+            {
+                m_pWorld->RequestTimeStep();
+            }
+            ImGuiX::ItemTooltip( "Step Frame" );
+            ImGui::EndDisabled();
+
+            // Slider
+            ImGui::SameLine( 0, 0 );
+            ImGui::SetNextItemWidth( 106 );
+            float newTimeScale = m_worldTimeScale;
+            if ( ImGui::SliderFloat( "##TimeScale", &newTimeScale, 0.1f, 3.5f, "%.2f" ) )
+            {
+                SetWorldTimeScale( Math::Clamp( newTimeScale, 0.1f, 3.5f ) );
+            }
+            ImGuiX::ItemTooltip( "Time Scale" );
+
+            // Reset
+            ImGui::SameLine( 0, 0 );
+            if ( ImGui::Button( EE_ICON_UPDATE"##ResetTimeScale", ImVec2( 20, 0 ) ) )
+            {
+                ResetWorldTimeScale();
+            }
+            ImGuiX::ItemTooltip( "Reset TimeScale" );
+
+            ImGui::PopStyleVar();
+        }
+        EndViewportToolbarGroup();
     }
 
     void Workspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        ImGui::SetNextItemWidth( 48 );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 5, 5 ) );
-        if ( ImGui::BeginCombo( "##RenderingOptions", EE_ICON_EYE, ImGuiComboFlags_HeightLarge ) )
-        {
-            Render::RenderDebugView::DrawRenderVisualizationModesMenu( GetWorld() );
-            ImGui::EndCombo();
-        }
-        ImGuiX::ItemTooltip( "Render Modes" );
-        ImGui::PopStyleVar();
+        DrawViewportToolBar_Common();
+
         ImGui::SameLine();
 
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextItemWidth( 48 );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 5, 5 ) );
-        if ( ImGui::BeginCombo( "##CameraOptions", EE_ICON_CCTV, ImGuiComboFlags_HeightLarge ) )
-        {
-            CameraDebugView::DrawDebugCameraOptions( GetWorld() );
-
-            ImGui::EndCombo();
-        }
-        ImGuiX::ItemTooltip( "Camera Options" );
-        ImGui::PopStyleVar();
-        ImGui::SameLine();
-
-        //-------------------------------------------------------------------------
-
-        if ( HasViewportToolbarTimeControls() )
-        {
-            if ( BeginViewportToolbarGroup( "TimeControls", ImVec2( 200, 0 ), ImVec2( 2, 1 ) ) )
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-
-                ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, 3 ) );
-
-                // Play/Pause
-                if ( m_pWorld->IsPaused() )
-                {
-                    if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", ImVec2( 20, 0 ) ) )
-                    {
-                        SetWorldPaused( false );
-                    }
-                    ImGuiX::ItemTooltip( "Resume" );
-                }
-                else
-                {
-                    if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", ImVec2( 20, 0 ) ) )
-                    {
-                        SetWorldPaused( true );
-                    }
-                    ImGuiX::ItemTooltip( "Pause" );
-                }
-
-                // Step
-                ImGui::SameLine( 0, 0 );
-                ImGui::BeginDisabled( !m_pWorld->IsPaused() );
-                if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", ImVec2( 20, 0 ) ) )
-                {
-                    m_pWorld->RequestTimeStep();
-                }
-                ImGuiX::ItemTooltip( "Step Frame" );
-                ImGui::EndDisabled();
-
-                // Slider
-                ImGui::SameLine( 0, 0 );
-                ImGui::SetNextItemWidth( 136 );
-                float newTimeScale = m_worldTimeScale;
-                if ( ImGui::SliderFloat( "##TimeScale", &newTimeScale, 0.1f, 3.5f, "%.2f", ImGuiSliderFlags_NoInput ) )
-                {
-                    SetWorldTimeScale( newTimeScale );
-                }
-                ImGuiX::ItemTooltip( "Time Scale" );
-
-                // Reset
-                ImGui::SameLine( 0, 0 );
-                if ( ImGui::Button( EE_ICON_UPDATE"##ResetTimeScale", ImVec2( 20, 0 ) ) )
-                {
-                    ResetWorldTimeScale();
-                }
-                ImGuiX::ItemTooltip( "Reset TimeScale" );
-
-                ImGui::PopStyleVar();
-            }
-            EndViewportToolbarGroup();
-        }
-
-        //-------------------------------------------------------------------------
-
-        DrawViewportToolbarItems( context, pViewport );
+        DrawViewportToolBar_TimeControls();
     }
 
     bool Workspace::DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass )
@@ -444,7 +492,10 @@ namespace EE
         ImGui::SetNextWindowClass( pWindowClass );
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-        if ( ImGui::Begin( GetViewportWindowID(), nullptr, viewportWindowFlags ) )
+        bool const shouldDrawWindow = ImGui::Begin( GetViewportWindowID(), nullptr, viewportWindowFlags );
+        ImGui::PopStyleVar();
+
+        if ( shouldDrawWindow )
         {
             m_isViewportFocused = ImGui::IsWindowFocused();
             m_isViewportHovered = ImGui::IsWindowHovered();
@@ -494,20 +545,21 @@ namespace EE
                             Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
                             Vector worldPosition = Vector::Zero;
 
-                            // Raycast against the environmental collision
-                            Physics::RayCastResults results;
-                            Physics::QueryFilter filter( Physics::CreateLayerMask( Physics::Layers::Environment ) );
-                            Physics::Scene* pPhysicsScene = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>()->GetScene();
-                            pPhysicsScene->AcquireReadLock();
-                            if ( pPhysicsScene->RayCast( nearPointWS, farPointWS, filter, results ) )
-                            {
-                                worldPosition = results.GetHitPosition();
-                            }
-                            else // Arbitrary position
-                            {
-                                worldPosition = nearPointWS + ( ( farPointWS - nearPointWS ).GetNormalized3() * 10.0f );
-                            }
-                            pPhysicsScene->ReleaseReadLock();
+                            EE_UNIMPLEMENTED_FUNCTION();
+                            //// Raycast against the environmental collision
+                            //Physics::RayCastResults results;
+                            //Physics::QueryFilter filter( Physics::CreateLayerMask( Physics::Layers::Environment ) );
+                            //Physics::PhysicsWorld* pPhysicsWorld = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>()->GetScene();
+                            //pPhysicsWorld->AcquireReadLock();
+                            //if ( pPhysicsWorld->RayCast( nearPointWS, farPointWS, filter, results ) )
+                            //{
+                            //    worldPosition = results.GetHitPosition();
+                            //}
+                            //else // Arbitrary position
+                            //{
+                            //    worldPosition = nearPointWS + ( ( farPointWS - nearPointWS ).GetNormalized3() * 10.0f );
+                            //}
+                            //pPhysicsWorld->ReleaseReadLock();
 
                             // Notify workspace of a resource drag and drop operation
                             DropResourceInViewport( resourceID, worldPosition );
@@ -536,11 +588,8 @@ namespace EE
             // Draw viewport toolbar
             //-------------------------------------------------------------------------
 
-            if ( HasViewportToolbar() )
-            {
-                ImGui::SetCursorPos( ImGui::GetWindowContentRegionMin() + ImGui::GetStyle().ItemSpacing );
-                DrawViewportToolbar( context, pViewport );
-            }
+            ImGui::SetCursorPos( ImGui::GetWindowContentRegionMin() + ImGui::GetStyle().ItemSpacing );
+            DrawViewportToolbar( context, pViewport );
 
             // Handle picking
             //-------------------------------------------------------------------------
@@ -571,7 +620,6 @@ namespace EE
             }
         }
         ImGui::End();
-        ImGui::PopStyleVar();
 
         //-------------------------------------------------------------------------
 
@@ -683,6 +731,47 @@ namespace EE
         m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
         m_requestedResources.erase_first_unsorted( pResourcePtr );
     }
+
+    bool Workspace::RequestImmediateResourceCompilation( ResourceID const& resourceID )
+    {
+        EE_ASSERT( resourceID.IsValid() );
+
+        // Trigger external recompile request and wait for it
+        //-------------------------------------------------------------------------
+
+        char const* processCommandLineArgs[5] = { m_pResourceSystem->GetSettings().m_resourceCompilerExecutablePath.c_str(), "-compile", resourceID.c_str(), nullptr, nullptr };
+
+        subprocess_s subProcess;
+        int32_t result = subprocess_create( processCommandLineArgs, subprocess_option_combined_stdout_stderr | subprocess_option_inherit_environment | subprocess_option_no_window, &subProcess );
+        if ( result != 0 )
+        {
+            return false;
+        }
+
+        int32_t exitCode = -1;
+        result = subprocess_join( &subProcess, &exitCode );
+        if ( result != 0 )
+        {
+            subprocess_destroy( &subProcess );
+            return false;
+        }
+
+        subprocess_destroy( &subProcess );
+
+        // Notify resource server to reload the resource
+        //-------------------------------------------------------------------------
+
+        if ( exitCode >= (int32_t) Resource::CompilationResult::SuccessUpToDate )
+        {
+            m_pResourceSystem->RequestResourceHotReload( resourceID );
+        }
+
+        //-------------------------------------------------------------------------
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
 
     void Workspace::AddEntityToWorld( Entity* pEntity )
     {
@@ -1035,7 +1124,7 @@ namespace EE
 
 namespace EE
 {
-    EE_DEFINE_GLOBAL_REGISTRY( ResourceWorkspaceFactory );
+    EE_GLOBAL_REGISTRY( ResourceWorkspaceFactory );
 
     //-------------------------------------------------------------------------
 

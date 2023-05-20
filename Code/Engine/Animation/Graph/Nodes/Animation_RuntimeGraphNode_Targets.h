@@ -11,7 +11,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -39,7 +39,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Info
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             AngleHorizontal, // The horizontal angle (around z) between the target point and the character
             AngleVertical, // The vertical angle (around x) between the target point and the character
@@ -55,7 +55,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public TargetValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( TargetValueNode::Settings, m_inputValueNodeIdx, m_isWorldSpaceTarget, m_infoType );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -86,7 +86,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public TargetValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( TargetValueNode::Settings, m_inputValueNodeIdx, m_isBoneSpaceOffset, m_rotationOffset, m_translationOffset );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

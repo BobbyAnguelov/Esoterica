@@ -59,13 +59,13 @@ namespace EE::Animation
         #endif
     }
 
-    void GraphContext::Update( Seconds const deltaTime, Transform const& currentWorldTransform, Physics::Scene* pPhysicsScene )
+    void GraphContext::Update( Seconds const deltaTime, Transform const& currentWorldTransform, Physics::PhysicsWorld* pPhysicsWorld )
     {
         m_deltaTime = deltaTime;
         m_updateID++;
         m_worldTransform = currentWorldTransform;
         m_worldTransformInverse = m_worldTransform.GetInverse();
-        m_pPhysicsScene = pPhysicsScene;
+        m_pPhysicsWorld = pPhysicsWorld;
         m_branchState = BranchState::Active;
         m_boneMaskPool.Reset();
         m_sampledEventsBuffer.Clear();

@@ -1,23 +1,13 @@
 #pragma once
 
-#include "Engine/_Module/API.h"
-
 #include "Engine/Entity/EntityWorldSystem.h"
 #include "Engine/UpdateContext.h"
+#include "System/Threading/Threading.h"
 #include "System/Systems.h"
+#include "System/Math/Transform.h"
 #include "System/Types/IDVector.h"
 #include "System/Types/ScopedValue.h"
 #include "System/Types/Event.h"
-
-//-------------------------------------------------------------------------
-
-namespace physx
-{
-    class PxPhysics;
-    class PxScene;
-    class PxRigidActor;
-    class PxShape;
-}
 
 //-------------------------------------------------------------------------
 
@@ -30,10 +20,11 @@ namespace EE
 
 namespace EE::Physics
 {
-    class PhysicsSystem;
     class PhysicsShapeComponent;
     class CharacterComponent;
-    class Scene;
+    class PhysicsTestComponent;
+    class PhysicsWorld;
+    enum class DynamicMotionType;
 
     //-------------------------------------------------------------------------
 
@@ -45,37 +36,19 @@ namespace EE::Physics
         {
             inline bool IsEmpty() const { return m_components.empty(); }
 
-            TVector<PhysicsShapeComponent*>                  m_components;
+            TVector<PhysicsShapeComponent*>                     m_components;
         };
 
     public:
 
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( PhysicsWorldSystem, RequiresUpdate( UpdateStage::Physics ), RequiresUpdate( UpdateStage::PostPhysics ) );
+        EE_ENTITY_WORLD_SYSTEM( PhysicsWorldSystem, RequiresUpdate( UpdateStage::Physics ), RequiresUpdate( UpdateStage::PostPhysics ), RequiresUpdate( UpdateStage::Paused ) );
 
     public:
 
         PhysicsWorldSystem() = default;
-        PhysicsWorldSystem( PhysicsSystem& physicsSystem );
 
-        Scene const* GetScene() const { return m_pScene; }
-        Scene* GetScene() { return m_pScene; }
-
-        physx::PxScene* GetPxScene();
-
-        // Debug
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        inline uint32_t GetDebugFlags() const { return m_sceneDebugFlags; }
-        void SetDebugFlags( uint32_t debugFlags );
-
-        inline bool IsDebugDrawingEnabled() const;
-        void SetDebugDrawingEnabled( bool enableDrawing );
-        inline float GetDebugDrawDistance() const { return m_debugDrawDistance; }
-        inline void SetDebugDrawDistance( float drawDistance ) { m_debugDrawDistance = Math::Max( drawDistance, 0.0f ); }
-
-        void SetDebugCullingBox( AABB const& cullingBox );
-        #endif
+        PhysicsWorld const* GetWorld() const { return m_pWorld; }
+        PhysicsWorld* GetWorld() { return m_pWorld; }
 
     private:
 
@@ -85,34 +58,26 @@ namespace EE::Physics
         virtual void UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
         virtual void UpdateSystem( EntityWorldUpdateContext const& ctx ) override final;
 
-        bool CreateActorAndShape( PhysicsShapeComponent* pComponent ) const;
-        physx::PxRigidActor* CreateActor( PhysicsShapeComponent* pComponent ) const;
-        physx::PxShape* CreateShape( PhysicsShapeComponent* pComponent, physx::PxRigidActor* pActor ) const;
-        void DestroyActor( PhysicsShapeComponent* pComponent ) const;
+        void RegisterDynamicComponent( PhysicsShapeComponent* pComponent );
+        void UnregisterDynamicComponent( PhysicsShapeComponent* pComponent );
 
-        bool CreateCharacterActorAndShape( CharacterComponent* pComponent ) const;
-        void DestroyCharacterActor( CharacterComponent* pComponent ) const;
+        void ProcessActorRebuildRequests( EntityWorldUpdateContext const& ctx );
 
-        void UpdateStaticActorAndShape( PhysicsShapeComponent* pComponent ) const;
-        void OnStaticShapeTransformUpdated( PhysicsShapeComponent* pComponent );
+        void PhysicsUpdate( EntityWorldUpdateContext const& ctx );
+        void PostPhysicsUpdate( EntityWorldUpdateContext const& ctx );
 
     private:
 
-        PhysicsSystem*                                          m_pPhysicsSystem = nullptr;
-        Scene*                                                  m_pScene = nullptr;
+        PhysicsWorld*                                           m_pWorld = nullptr;
 
         TIDVector<ComponentID, CharacterComponent*>             m_characterComponents;
         TIDVector<ComponentID, PhysicsShapeComponent*>          m_physicsShapeComponents;
         TIDVector<ComponentID, PhysicsShapeComponent*>          m_dynamicShapeComponents; // TODO: profile and see if we need to use a dynamic pool
 
-        EventBindingID                                          m_shapeTransformChangedBindingID;
-        TVector<PhysicsShapeComponent*>                         m_staticActorShapeUpdateList;
+        EventBindingID                                          m_actorRebuildBindingID;
+        Threading::Mutex                                        m_mutex;
+        TVector<PhysicsShapeComponent*>                         m_actorRebuildRequests;
 
-        #if EE_DEVELOPMENT_TOOLS
-        bool                                                    m_drawDynamicActorBounds = false;
-        bool                                                    m_drawKinematicActorBounds = false;
-        uint32_t                                                m_sceneDebugFlags = 0;
-        float                                                   m_debugDrawDistance = 10.0f;
-        #endif
+        TVector<PhysicsTestComponent*>                          m_testComponents;
     };
 }

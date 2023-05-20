@@ -119,7 +119,7 @@ namespace EE
                 auto const& camTranslation = camTransform.GetTranslation();
                 auto const camRotation = camTransform.GetRotation().ToEulerAngles().GetAsDegrees();
 
-                String const camTransformStr( String::CtorSprintf(), "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, 1.0f, 1.0f, 1.0f", camRotation.m_x, camRotation.m_y, camRotation.m_z, camTranslation.m_x, camTranslation.m_y, camTranslation.m_z );
+                String const camTransformStr( String::CtorSprintf(), "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, 1.0f, 1.0f, 1.0f", camRotation.m_x, camRotation.m_y, camRotation.m_z, camTranslation.GetX(), camTranslation.GetY(), camTranslation.GetZ() );
                 ImGui::SetClipboardText( camTransformStr.c_str() );
             }
         };

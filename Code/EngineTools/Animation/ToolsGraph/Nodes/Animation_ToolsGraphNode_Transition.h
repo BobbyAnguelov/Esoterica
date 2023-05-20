@@ -19,11 +19,11 @@ namespace EE::Animation::GraphNodes
     class TransitionToolsNode : public FlowToolsNode
     {
         friend class StateMachineToolsNode;
-        EE_REGISTER_TYPE( TransitionToolsNode );
+        EE_REFLECT_TYPE( TransitionToolsNode );
 
         enum class TimeMatchMode
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             None,
             Synchronized,
@@ -48,38 +48,40 @@ namespace EE::Animation::GraphNodes
         virtual bool IsUserCreatable() const override { return true; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual ImColor GetTitleBarColor() const override;
 
     protected:
 
-        EE_REGISTER String                                      m_name = "Transition";
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        String                                        m_name = "Transition";
 
-        // Should we use a easing mode for the blend weight calculation?
-        EE_EXPOSE Math::Easing::Type                            m_blendWeightEasingType = Math::Easing::Type::Linear;
+        EE_REFLECT();
+        Math::Easing::Type                            m_blendWeightEasingType = Math::Easing::Type::Linear; // Should we use a easing mode for the blend weight calculation?
 
-        // How should we blend the root motion for this transition
-        EE_EXPOSE RootMotionBlendMode                           m_rootMotionBlend = RootMotionBlendMode::Blend;
+        EE_REFLECT();
+        RootMotionBlendMode                           m_rootMotionBlend = RootMotionBlendMode::Blend; // How should we blend the root motion for this transition
 
-        // How long should this transition take?
-        EE_EXPOSE Seconds                                       m_duration = 0.2f;
+        EE_REFLECT();
+        Seconds                                       m_duration = 0.2f; // How long should this transition take?
 
-        // Should we clamp the transition duration to the estimated remaining time left in the source state (prevent looping of source states)
-        EE_EXPOSE bool                                          m_clampDurationToSource = false;
+        EE_REFLECT();
+        bool                                          m_clampDurationToSource = false; // Should we clamp the transition duration to the estimated remaining time left in the source state (prevent looping of source states)
 
-        // Can this transition be force started, needed when you want to emergency transition back to your original state
-        EE_EXPOSE bool                                          m_canBeForced = false;
+        EE_REFLECT();
+        bool                                          m_canBeForced = false; // Can this transition be force started, needed when you want to emergency transition back to your original state
 
-        // How should we determine the start time of the target node?
-        EE_EXPOSE TimeMatchMode                                 m_timeMatchMode = TimeMatchMode::None;
+        EE_REFLECT();
+        TimeMatchMode                                 m_timeMatchMode = TimeMatchMode::None; // How should we determine the start time of the target node?
 
-        // Sync event offset to apply to target node start time - with no time match mode it will start the target node at the specified offset
-        EE_EXPOSE float                                         m_syncEventOffset = 0.0f;
+        EE_REFLECT();
+        float                                         m_syncEventOffset = 0.0f; // Sync event offset to apply to target node start time - with no time match mode it will start the target node at the specified offset
     };
 
     //-------------------------------------------------------------------------
 
     class TransitionConduitToolsNode final : public VisualGraph::SM::TransitionConduit
     {
-        EE_REGISTER_TYPE( TransitionConduitToolsNode );
+        EE_REFLECT_TYPE( TransitionConduitToolsNode );
 
     public:
 
@@ -87,6 +89,11 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
         virtual char const* GetTypeName() const override { return "Transition"; }
-        virtual ImColor GetNodeBorderColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const override;
+        virtual ImColor GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const override;
+        virtual void PreDrawUpdate( VisualGraph::UserContext* pUserContext ) override;
+
+    private:
+
+        bool isAnyChildActive = false;
     };
 }

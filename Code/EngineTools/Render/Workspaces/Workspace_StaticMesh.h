@@ -20,7 +20,7 @@ namespace EE::Render
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_PINE_TREE; }
 

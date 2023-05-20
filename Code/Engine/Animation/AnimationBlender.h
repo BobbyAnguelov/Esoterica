@@ -5,7 +5,7 @@
 #include "Engine/Animation/AnimationPose.h"
 #include "System/Math/Quaternion.h"
 #include "System/Types/BitFlags.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ namespace EE::Animation
 {
     enum class RootMotionBlendMode : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Blend = 0,
         Additive,
@@ -23,7 +23,7 @@ namespace EE::Animation
 
     enum class PoseBlendMode : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Interpolative, // Regular blend
         Additive,

@@ -13,7 +13,9 @@
 
 namespace physx
 {
+    class PxPhysics;
     class PxScene;
+    class PxArticulationReducedCoordinate;
     class PxArticulationLink;
     class PxDistanceJoint;
     class PxRigidDynamic;
@@ -32,10 +34,10 @@ namespace EE::Physics
     // Ragdoll Settings
     //-------------------------------------------------------------------------
 
-    struct EE_ENGINE_API RagdollBodyMaterialSettings : public IRegisteredType
+    struct EE_ENGINE_API RagdollBodyMaterialSettings : public IReflectedType
     {
         EE_SERIALIZE( m_staticFriction, m_dynamicFriction, m_restitution, m_frictionCombineMode, m_restitutionCombineMode );
-        EE_REGISTER_TYPE( RagdollBodyMaterialSettings );
+        EE_REFLECT_TYPE( RagdollBodyMaterialSettings );
 
     public:
 
@@ -46,19 +48,19 @@ namespace EE::Physics
 
     public:
 
-        EE_EXPOSE float                                    m_staticFriction = PhysicsMaterial::DefaultStaticFriction;
-        EE_EXPOSE float                                    m_dynamicFriction = PhysicsMaterial::DefaultDynamicFriction;
-        EE_EXPOSE float                                    m_restitution = PhysicsMaterial::DefaultRestitution;
-        EE_EXPOSE PhysicsCombineMode                       m_frictionCombineMode = PhysicsCombineMode::Average;
-        EE_EXPOSE PhysicsCombineMode                       m_restitutionCombineMode = PhysicsCombineMode::Average;
+        EE_REFLECT() float                             m_staticFriction = MaterialSettings::s_defaultStaticFriction;
+        EE_REFLECT() float                             m_dynamicFriction = MaterialSettings::s_defaultDynamicFriction;
+        EE_REFLECT() float                             m_restitution = MaterialSettings::s_defaultRestitution;
+        EE_REFLECT() CombineMode                       m_frictionCombineMode = CombineMode::Average;
+        EE_REFLECT() CombineMode                       m_restitutionCombineMode = CombineMode::Average;
     };
 
     //-------------------------------------------------------------------------
 
-    struct EE_ENGINE_API RagdollBodySettings : public IRegisteredType
+    struct EE_ENGINE_API RagdollBodySettings : public IReflectedType
     {
         EE_SERIALIZE( m_mass, m_enableCCD, m_enableSelfCollision, m_followPose );
-        EE_REGISTER_TYPE( RagdollBodySettings );
+        EE_REFLECT_TYPE( RagdollBodySettings );
 
         // Are all the settings valid
         bool IsValid() const;
@@ -68,22 +70,22 @@ namespace EE::Physics
 
     public:
 
-        EE_REGISTER float                                  m_mass = 1.0f;
-        EE_REGISTER bool                                   m_enableCCD = false;
-        EE_REGISTER bool                                   m_enableSelfCollision = false;
-        EE_REGISTER bool                                   m_followPose = false; // Should this body be externally driven towards to the pose
+        EE_REFLECT() float                                  m_mass = 1.0f;
+        EE_REFLECT() bool                                   m_enableCCD = false;
+        EE_REFLECT() bool                                   m_enableSelfCollision = false;
+        EE_REFLECT() bool                                   m_followPose = false; // Should this body be externally driven towards to the pose
     };
 
     //-------------------------------------------------------------------------
 
-    struct EE_ENGINE_API RagdollJointSettings : public IRegisteredType
+    struct EE_ENGINE_API RagdollJointSettings : public IReflectedType
     {
         EE_SERIALIZE(   m_useVelocity, m_twistLimitEnabled, m_swingLimitEnabled,
                         m_stiffness, m_damping, m_internalCompliance, m_externalCompliance,
                         m_twistLimitMin, m_twistLimitMax, m_twistLimitContactDistance,
                         m_swingLimitY, m_swingLimitZ, m_tangentialStiffness, m_tangentialDamping, m_swingLimitContactDistance );
 
-        EE_REGISTER_TYPE( RagdollJointSettings );
+        EE_REFLECT_TYPE( RagdollJointSettings );
 
     public:
 
@@ -98,27 +100,27 @@ namespace EE::Physics
 
     public:
 
-        EE_REGISTER bool                                     m_useVelocity = true;
-        EE_REGISTER bool                                     m_twistLimitEnabled = false;
-        EE_REGISTER bool                                     m_swingLimitEnabled = false;
+        EE_REFLECT() bool                                     m_useVelocity = true;
+        EE_REFLECT() bool                                     m_twistLimitEnabled = false;
+        EE_REFLECT() bool                                     m_swingLimitEnabled = false;
 
         // General
-        EE_REGISTER float                                    m_stiffness = 0.0f;
-        EE_REGISTER float                                    m_damping = 0.0f;
-        EE_REGISTER float                                    m_internalCompliance = 0.01f;
-        EE_REGISTER float                                    m_externalCompliance = 0.01f;
+        EE_REFLECT() float                                    m_stiffness = 0.0f;
+        EE_REFLECT() float                                    m_damping = 0.0f;
+        EE_REFLECT() float                                    m_internalCompliance = 0.01f;
+        EE_REFLECT() float                                    m_externalCompliance = 0.01f;
 
         // Twist
-        EE_REGISTER float                                    m_twistLimitMin = -45;
-        EE_REGISTER float                                    m_twistLimitMax = 45;
-        EE_REGISTER float                                    m_twistLimitContactDistance = 3.0f;
+        EE_REFLECT() float                                    m_twistLimitMin = -45;
+        EE_REFLECT() float                                    m_twistLimitMax = 45;
+        EE_REFLECT() float                                    m_twistLimitContactDistance = 3.0f;
 
         // Swing
-        EE_REGISTER float                                    m_swingLimitY = 45.0f;
-        EE_REGISTER float                                    m_swingLimitZ = 45.0f;
-        EE_REGISTER float                                    m_tangentialStiffness = 0.0f; // Only for swing limit
-        EE_REGISTER float                                    m_tangentialDamping = 0.0f; // Only for swing limit
-        EE_REGISTER float                                    m_swingLimitContactDistance = 3.0f;
+        EE_REFLECT() float                                    m_swingLimitY = 45.0f;
+        EE_REFLECT() float                                    m_swingLimitZ = 45.0f;
+        EE_REFLECT() float                                    m_tangentialStiffness = 0.0f; // Only for swing limit
+        EE_REFLECT() float                                    m_tangentialDamping = 0.0f; // Only for swing limit
+        EE_REFLECT() float                                    m_swingLimitContactDistance = 3.0f;
     };
 
     //-------------------------------------------------------------------------
@@ -128,42 +130,42 @@ namespace EE::Physics
     // Note: The root body control concept is an additional copy of the root body of the articulation 
     //       which is used to help drive the articulation relative to input pose.
 
-    struct EE_ENGINE_API RagdollDefinition : public Resource::IResource, public IRegisteredType
+    struct EE_ENGINE_API RagdollDefinition : public Resource::IResource, public IReflectedType
     {
         EE_SERIALIZE( m_skeleton, m_bodies, m_profiles );
-        EE_REGISTER_TYPE_RESOURCE( 'rgdl', "Physics Ragdoll", RagdollDefinition );
+        EE_REFLECTED_RESOURCE( 'rgdl', "Physics Ragdoll", RagdollDefinition );
 
     public:
 
         constexpr static uint32_t const s_maxNumBodies = 64;
 
-        struct EE_ENGINE_API BodyDefinition : public IRegisteredType
+        struct EE_ENGINE_API BodyDefinition : public IReflectedType
         {
             EE_SERIALIZE( m_boneID, m_offsetTransform, m_radius, m_halfHeight, m_jointTransform );
-            EE_REGISTER_TYPE( BodyDefinition );
+            EE_REFLECT_TYPE( BodyDefinition );
 
-            EE_REGISTER StringID                            m_boneID;
+            EE_REFLECT() StringID                           m_boneID;
             int32_t                                         m_parentBodyIdx = InvalidIndex;
-            EE_EXPOSE float                                 m_radius = 0.075f;
-            EE_EXPOSE float                                 m_halfHeight = 0.025f;
-            EE_EXPOSE Transform                             m_offsetTransform;
+            EE_REFLECT() float                              m_radius = 0.075f;
+            EE_REFLECT() float                              m_halfHeight = 0.025f;
+            EE_REFLECT() Transform                          m_offsetTransform;
             Transform                                       m_initialGlobalTransform;
             Transform                                       m_inverseOffsetTransform;
-            EE_EXPOSE Transform                             m_jointTransform; // Global joint transform
+            EE_REFLECT() Transform                          m_jointTransform; // Global joint transform
             Transform                                       m_bodyRelativeJointTransform; // The joint transform relative to the current body
             Transform                                       m_parentRelativeJointTransform; // The joint transform relative to the parent body
         };
 
         //-------------------------------------------------------------------------
 
-        struct EE_ENGINE_API Profile : public IRegisteredType
+        struct EE_ENGINE_API Profile : public IReflectedType
         {
             EE_SERIALIZE
             (
                 m_ID, m_bodySettings, m_jointSettings, m_materialSettings,
                 m_solverPositionIterations, m_solverVelocityIterations, m_maxProjectionIterations, m_internalDriveIterations, m_externalDriveIterations, m_separationTolerance, m_stabilizationThreshold, m_sleepThreshold
             );
-            EE_REGISTER_TYPE( Profile );
+            EE_REFLECT_TYPE( Profile );
 
             constexpr static char const* const s_defaultProfileID = "Default";
 
@@ -206,22 +208,22 @@ namespace EE::Physics
 
         public:
 
-            EE_REGISTER StringID                                m_ID = StringID( s_defaultProfileID );
-            EE_REGISTER TVector<RagdollBodySettings>            m_bodySettings;
-            EE_REGISTER TVector<RagdollJointSettings>           m_jointSettings;
-            EE_REGISTER TVector<RagdollBodyMaterialSettings>    m_materialSettings;
+            EE_REFLECT() StringID                                   m_ID = StringID( s_defaultProfileID );
+            EE_REFLECT() TVector<RagdollBodySettings>               m_bodySettings;
+            EE_REFLECT() TVector<RagdollJointSettings>              m_jointSettings;
+            EE_REFLECT() TVector<RagdollBodyMaterialSettings>       m_materialSettings;
 
             // Solver Settings
-            EE_EXPOSE uint32_t                                  m_solverPositionIterations = 4;
-            EE_EXPOSE uint32_t                                  m_solverVelocityIterations = 4;
-            EE_EXPOSE uint32_t                                  m_maxProjectionIterations = 4;
-            EE_EXPOSE uint32_t                                  m_internalDriveIterations = 4;
-            EE_EXPOSE uint32_t                                  m_externalDriveIterations = 4;
-            EE_EXPOSE float                                     m_separationTolerance = 0.1f;
-            EE_EXPOSE float                                     m_stabilizationThreshold;
-            EE_EXPOSE float                                     m_sleepThreshold = 1;
+            EE_REFLECT() uint32_t                                   m_solverPositionIterations = 4;
+            EE_REFLECT() uint32_t                                   m_solverVelocityIterations = 4;
+            EE_REFLECT() uint32_t                                   m_maxProjectionIterations = 4;
+            EE_REFLECT() uint32_t                                   m_internalDriveIterations = 4;
+            EE_REFLECT() uint32_t                                   m_externalDriveIterations = 4;
+            EE_REFLECT() float                                      m_separationTolerance = 0.1f;
+            EE_REFLECT() float                                      m_stabilizationThreshold;
+            EE_REFLECT() float                                      m_sleepThreshold = 1;
 
-            TVector<uint64_t>                                   m_selfCollisionRules;
+            TVector<uint64_t>                                       m_selfCollisionRules;
         };
 
     public:
@@ -251,9 +253,9 @@ namespace EE::Physics
 
     public:
 
-        EE_REGISTER TResourcePtr<Animation::Skeleton>           m_skeleton;
-        EE_REGISTER TVector<BodyDefinition>                     m_bodies;
-        EE_REGISTER TVector<Profile>                            m_profiles;
+        EE_REFLECT() TResourcePtr<Animation::Skeleton>          m_skeleton;
+        EE_REFLECT() TVector<BodyDefinition>                    m_bodies;
+        EE_REFLECT() TVector<Profile>                           m_profiles;
 
         // Runtime Data
         TVector<int32_t>                                        m_boneToBodyMap;
@@ -270,7 +272,7 @@ namespace EE::Physics
 
     class EE_ENGINE_API Ragdoll
     {
-        friend class PhysicsWorldSystem;
+        friend class PhysicsWorld;
 
         class [[nodiscard]] ScopedWriteLock
         {
@@ -317,13 +319,10 @@ namespace EE::Physics
     public:
 
         // Create a new ragdoll instance. The userID is used to prevent collisions between the ragdolls on the same user
-        Ragdoll( physx::PxPhysics* pPhysics, RagdollDefinition const* pDefinition, StringID const profileID = StringID(), uint64_t userID = 0 );
+        Ragdoll( RagdollDefinition const* pDefinition, StringID const profileID = StringID(), uint64_t userID = 0 );
         ~Ragdoll();
 
         bool IsValid() const { return m_pArticulation != nullptr; }
-
-        void AddToScene( physx::PxScene* pScene );
-        void RemoveFromScene();
 
         // Collision Rules
         //-------------------------------------------------------------------------
@@ -421,6 +420,9 @@ namespace EE::Physics
 
     private:
 
+        void AddToScene( physx::PxScene* pScene );
+        void RemoveFromScene();
+
         void UpdateBodySettings();
         void UpdateSolverSettings();
         void UpdateJointSettings();
@@ -435,7 +437,7 @@ namespace EE::Physics
         physx::PxPhysics*                                       m_pPhysics = nullptr;
         RagdollDefinition const*                                m_pDefinition = nullptr;
         RagdollDefinition::Profile const*                       m_pProfile = nullptr;
-        physx::PxArticulation*                                  m_pArticulation = nullptr;
+        physx::PxArticulationReducedCoordinate*                 m_pArticulation = nullptr;
         uint64_t                                                m_userID = 0;
         TVector<physx::PxArticulationLink*>                     m_links;
 

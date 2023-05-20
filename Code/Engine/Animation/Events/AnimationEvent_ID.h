@@ -8,7 +8,7 @@ namespace EE::Animation
 {
     class EE_ENGINE_API IDEvent final : public Event
     {
-        EE_REGISTER_TYPE( IDEvent );
+        EE_REFLECT_TYPE( IDEvent );
 
     public:
 
@@ -22,6 +22,6 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE StringID         m_ID;
+        EE_REFLECT() StringID         m_ID;
     };
 }

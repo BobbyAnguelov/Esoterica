@@ -10,7 +10,7 @@ namespace EE::Animation
     {
         friend class RagdollEventTrack;
 
-        EE_REGISTER_TYPE( RagdollEvent );
+        EE_REFLECT_TYPE( RagdollEvent );
 
     public:
 
@@ -29,6 +29,6 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE FloatCurve         m_physicsWeightCurve;
+        EE_REFLECT() FloatCurve         m_physicsWeightCurve;
     };
 }

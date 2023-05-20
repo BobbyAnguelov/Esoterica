@@ -202,10 +202,6 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        DrawInternalSeparator( ctx );
-
-        //-------------------------------------------------------------------------
-
         FlowToolsNode::DrawExtraControls( ctx, pUserContext );
     }
 

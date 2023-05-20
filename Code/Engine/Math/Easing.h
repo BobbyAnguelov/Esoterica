@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "System/Math/Math.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 // Easing utility functions 
@@ -13,7 +13,7 @@ namespace EE::Math::Easing
 {
     enum class Type : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Linear,
         InQuad,

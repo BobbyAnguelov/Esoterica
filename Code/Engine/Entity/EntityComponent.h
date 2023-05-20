@@ -3,7 +3,7 @@
 #include "Engine/_Module/API.h"
 #include "EntityIDs.h"
 #include "EntityContexts.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,9 +19,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API EntityComponent : public IRegisteredType
+    class EE_ENGINE_API EntityComponent : public IReflectedType
     {
-        EE_REGISTER_TYPE( EntityComponent );
+        EE_REFLECT_TYPE( EntityComponent );
 
         friend class Entity;
         friend class EntityWorld;
@@ -87,27 +87,27 @@ namespace EE
 
     protected:
 
-        ComponentID                 m_ID = ComponentID::Generate();                 // The unique ID for this component
-        EntityID                    m_entityID;                                     // The ID of the entity that owns this component
-        EE_REGISTER StringID        m_name;                                         // The name of the component
-        Status                      m_status = Status::Unloaded;                    // Component status
-        bool                        m_isRegisteredWithEntity = false;               // Registered with its parent entity's local systems
-        bool                        m_isRegisteredWithWorld = false;                // Registered with the global systems in it's parent world
+        ComponentID                                         m_ID = ComponentID::Generate();                 // The unique ID for this component
+        EntityID                                            m_entityID;                                     // The ID of the entity that owns this component
+        EE_REFLECT( "IsToolsReadOnly" : true ) StringID     m_name;                                         // The name of the component
+        Status                                              m_status = Status::Unloaded;                    // Component status
+        bool                                                m_isRegisteredWithEntity = false;               // Registered with its parent entity's local systems
+        bool                                                m_isRegisteredWithWorld = false;                // Registered with the global systems in it's parent world
     };
 }
 
 //-------------------------------------------------------------------------
 
-#define EE_REGISTER_ENTITY_COMPONENT( TypeName ) \
-        EE_REGISTER_TYPE( TypeName );\
+#define EE_ENTITY_COMPONENT( TypeName ) \
+        EE_REFLECT_TYPE( TypeName );\
         protected:\
         virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
         virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
         virtual void UpdateLoading() override;
 
 // Use this macro to create a singleton component (and hierarchy) - Note: All derived types must use the regular registration macro
-#define EE_REGISTER_SINGLETON_ENTITY_COMPONENT( TypeName ) \
-        EE_REGISTER_TYPE( TypeName );\
+#define EE_SINGLETON_ENTITY_COMPONENT( TypeName ) \
+        EE_REFLECT_TYPE( TypeName );\
         protected:\
         virtual bool IsSingletonComponent() const override final { return true; }\
         virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\

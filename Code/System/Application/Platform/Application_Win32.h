@@ -39,7 +39,7 @@ namespace EE
         virtual LRESULT WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
 
         // Called whenever we receive an application exit request. Return true to allow the exit
-        virtual bool OnExitRequest() { return true; }
+        virtual bool OnUserExitRequest() { return true; }
 
     protected:
 
@@ -74,6 +74,10 @@ namespace EE
 
         // The actual application loop
         virtual bool ApplicationLoop() = 0;
+
+        //-------------------------------------------------------------------------
+
+        void RequestApplicationExit() { m_applicationRequestedExit = true; }
 
     private:
 

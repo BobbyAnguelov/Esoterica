@@ -3,7 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "VisualGraph_DrawingContext.h"
 #include "System/Serialization/JsonSerialization.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Esoterica.h"
 #include "System/Types/Event.h"
 #include "System/Types/Function.h"
@@ -29,7 +29,7 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API BaseNode : public IRegisteredType
+    class EE_ENGINETOOLS_API BaseNode : public IReflectedType
     {
         friend BaseGraph;
         friend class GraphView;
@@ -40,7 +40,7 @@ namespace EE::VisualGraph
 
     public:
 
-        EE_REGISTER_TYPE( BaseNode );
+        EE_REFLECT_TYPE( BaseNode );
 
         static BaseNode* TryCreateNodeFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue, BaseGraph* pParentGraph );
 
@@ -143,7 +143,7 @@ namespace EE::VisualGraph
         virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }
 
         // Draw an internal separator
-        void DrawInternalSeparator( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeSeparatorColor, float preMarginY = 2, float postMarginY = 4 ) const;
+        void DrawInternalSeparator( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeSeparatorColor, float preMarginY = 4, float postMarginY = 4 ) const;
 
         // Start an internal box region
         void BeginDrawInternalRegion( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeInternalRegionDefaultColor, float preMarginY = 0, float postMarginY = 0 ) const;
@@ -195,6 +195,9 @@ namespace EE::VisualGraph
 
     protected:
 
+        // Override this if you need to do some logic each frame before the node is drawn - use sparingly
+        virtual void PreDrawUpdate( UserContext* pUserContext ) {}
+
         // Override this if you want to add extra controls to this node (the derived nodes will determine where this content is placed)
         virtual void DrawExtraControls( DrawContext const& ctx, UserContext* pUserContext ) {}
 
@@ -221,8 +224,12 @@ namespace EE::VisualGraph
 
     protected:
 
-        EE_REGISTER UUID            m_ID;
-        EE_REGISTER Float2          m_canvasPosition = Float2( 0, 0 ); // Updated each frame
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        UUID                        m_ID;
+        
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        Float2                      m_canvasPosition = Float2( 0, 0 ); // Updated each frame
+
         Float2                      m_size = Float2( 0, 0 ); // Updated each frame
         Float2                      m_titleRectSize = Float2( 0, 0 ); // Updated each frame
         bool                        m_isHovered = false;
@@ -245,7 +252,7 @@ namespace EE::VisualGraph
     enum class SearchMode { Localized, Recursive };
     enum class SearchTypeMatch { Exact, Derived };
 
-    class EE_ENGINETOOLS_API BaseGraph : public IRegisteredType
+    class EE_ENGINETOOLS_API BaseGraph : public IReflectedType
     {
         friend class GraphView;
 
@@ -253,7 +260,7 @@ namespace EE::VisualGraph
 
     public:
 
-        EE_REGISTER_TYPE( BaseGraph );
+        EE_REFLECT_TYPE( BaseGraph );
 
         static BaseGraph* CreateGraphFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue, BaseNode* pParentNode  );
 
@@ -506,13 +513,18 @@ namespace EE::VisualGraph
 
     protected:
 
-        EE_REGISTER UUID                        m_ID;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        UUID                                    m_ID;
+
         TVector<BaseNode*>                      m_nodes;
 
     private:
+
         BaseNode*                               m_pParentNode = nullptr; // Private so that we can enforce usage
         int32_t                                 m_beginModificationCallCount = 0;
-        EE_REGISTER Float2                      m_viewOffset = Float2( 0, 0 ); // Updated each frame
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        Float2                                  m_viewOffset = Float2( 0, 0 ); // Updated each frame
     };
 
     //-------------------------------------------------------------------------

@@ -61,7 +61,7 @@ namespace EE
             return &m_vector[itemIdx];
         }
 
-        // Add a new item
+        // Add a new item - Expects the item to not already have an entry and will crash otherwise
         ItemType* Add( ItemType const&& item )
         {
             IDType const ID = GetItemID( std::is_pointer<ItemType>(), item );
@@ -72,7 +72,7 @@ namespace EE
             return &m_vector[itemIdx];
         }
 
-        // Emplace a new item
+        // Emplace a new item - Expects the item to not already have an entry and will crash otherwise
         template<class... Args>
         ItemType* Emplace( IDType const& ID, Args&&... args )
         {
@@ -84,7 +84,7 @@ namespace EE
             return &m_vector[itemIdx];
         }
 
-        // Remove item
+        // Removes an item - Expect the item to exist and will crash otherwise!
         void Remove( IDType const& ID )
         {
             auto foundIter = m_indexMap.find( ID );

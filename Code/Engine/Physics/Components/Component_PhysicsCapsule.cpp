@@ -1,5 +1,6 @@
 #include "Component_PhysicsCapsule.h"
 #include "Engine/Entity/EntityLog.h"
+#include "Engine/Physics/Physics.h"
 
 //-------------------------------------------------------------------------
 
@@ -7,18 +8,8 @@ namespace EE::Physics
 {
     OBB CapsuleComponent::CalculateLocalBounds() const
     {
-        Vector const boundsExtents( m_cylinderPortionHalfHeight + m_radius, m_radius, m_radius );
+        Vector const boundsExtents( m_radius, m_radius, m_radius + m_cylinderPortionHalfHeight );
         return OBB( Vector::Origin, boundsExtents );
-    }
-
-    // This constructor only exists to lazy initialize the static default material ID
-    CapsuleComponent::CapsuleComponent()
-    {
-        static StringID const defaultMaterialID( PhysicsMaterial::DefaultID );
-        m_materialID = defaultMaterialID;
-
-        static Transform const rotatedUpright( Quaternion( Vector::UnitY, Radians( Math::PiDivTwo ) ) );
-        SetLocalTransform( rotatedUpright );
     }
 
     bool CapsuleComponent::HasValidPhysicsSetup() const
@@ -29,12 +20,12 @@ namespace EE::Physics
             return false;
         }
 
-        if ( !m_materialID.IsValid() )
-        {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid physical material setup on Physics Component: %s (%u)", GetNameID().c_str() );
-            return false;
-        }
-
         return true;
+    }
+
+    Transform CapsuleComponent::ConvertTransformToPhysics( Transform const& esotericaTransform ) const
+    {
+        Transform const physicsTransform( PX::Conversion::s_capsuleConversionToPx * esotericaTransform.GetRotation(), esotericaTransform.GetTranslation() );
+        return physicsTransform;
     }
 }

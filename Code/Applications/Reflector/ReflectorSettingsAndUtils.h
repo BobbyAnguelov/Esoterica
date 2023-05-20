@@ -7,26 +7,24 @@
 
 namespace EE::TypeSystem::Reflection
 {
-    enum class ReflectionMacro
+    enum class ReflectionMacroType
     {
-        IgnoreHeader,
-        RegisterModule,
-        RegisterEnum,
-        RegisterType,
-        RegisterResource,
-        RegisterTypeResource,
-        RegisterEntityComponent,
-        RegisterSingletonEntityComponent,
-        RegisterEntitySystem,
-        RegisterEntityWorldSystem,
-        RegisterProperty,
-        ExposeProperty,
+        ReflectModule,
+        ReflectEnum,
+        ReflectType,
+        ReflectProperty,
+        Resource,
+        ReflectedResource,
+        EntityComponent,
+        SingletonEntityComponent,
+        EntitySystem,
+        EntityWorldSystem,
 
         NumMacros,
         Unknown = NumMacros,
     };
 
-    char const* GetReflectionMacroText( ReflectionMacro macro );
+    char const* GetReflectionMacroText( ReflectionMacroType macro );
 
     //-------------------------------------------------------------------------
 
@@ -66,7 +64,7 @@ namespace EE::TypeSystem::Reflection
         // Core class and type names
         //-------------------------------------------------------------------------
 
-        constexpr static char const* const g_registeredTypeInterfaceClassName = "IRegisteredType";
+        constexpr static char const* const g_reflectedTypeInterfaceClassName = "IReflectedType";
         constexpr static char const* const g_baseEntityClassName = "Entity";
         constexpr static char const* const g_baseEntityComponentClassName = "EntityComponent";
         constexpr static char const* const g_baseEntitySystemClassName = "IEntitySystem";
@@ -84,7 +82,6 @@ namespace EE::TypeSystem::Reflection
             "Code\\System\\ThirdParty\\EA\\EASTL\\include\\",
             "Code\\System\\ThirdParty\\",
             "Code\\System\\ThirdParty\\imgui\\",
-            "External\\PhysX\\pxshared\\include\\",
             "External\\PhysX\\physx\\include\\",
             #if EE_ENABLE_NAVPOWER
             "External\\NavPower\\include\\"

@@ -61,7 +61,7 @@ namespace EE
         // Curve query
         //-------------------------------------------------------------------------
 
-        inline int32_t const GetNumPoints() const { return (int32_t) m_points.size(); }
+        inline int32_t GetNumPoints() const { return (int32_t) m_points.size(); }
         Point const& GetPoint( int32_t pointIdx ) const { EE_ASSERT( pointIdx >= 0 && pointIdx < GetNumPoints() ); return m_points[pointIdx]; }
 
         // Get the range for the parameters that this curve covers

@@ -71,7 +71,7 @@ namespace EE
     Vector Vector::SLerp( Vector const& from, Vector const& to, float t )
     {
         EE_ASSERT( t >= 0.0f && t <= 1.0f );
-        if ( from.GetLengthSquared3() < Epsilon.m_x || from.GetLengthSquared3() < Epsilon.m_x )
+        if ( from.LengthSquared3().IsLessThan4( Epsilon ) || from.LengthSquared3().IsLessThan4( Epsilon ) )
         {
             return Lerp( from, to, t );
         }

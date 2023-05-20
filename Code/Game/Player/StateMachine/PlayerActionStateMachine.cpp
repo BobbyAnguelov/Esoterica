@@ -9,7 +9,7 @@
 #include "Game/Player/StateMachine/Actions/PlayerAction_Dash.h"
 #include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Shoot.h"
 #include "Actions/PlayerAction_Slide.h"
-#include "Actions/PlayerAction_DebugMode.h"
+#include "Actions/PlayerAction_Ghost.h"
 #include "Actions/PlayerAction_Interact.h"
 
 //-------------------------------------------------------------------------

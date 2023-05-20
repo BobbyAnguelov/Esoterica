@@ -9,7 +9,7 @@ namespace EE::Animation::GraphNodes
 {
     class IDEventConditionToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( IDEventConditionToolsNode );
+        EE_REFLECT_TYPE( IDEventConditionToolsNode );
 
     public:
 
@@ -21,20 +21,21 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
 
     private:
 
-        EE_EXPOSE IDEventConditionNode::Operator                m_operator = IDEventConditionNode::Operator::Or;
-        EE_EXPOSE IDEventConditionNode::SearchRule              m_searchRule = IDEventConditionNode::SearchRule::SearchAll;
-        EE_EXPOSE bool                                          m_onlyCheckEventsFromActiveBranch = false;
-        EE_EXPOSE TVector<StringID>                             m_eventIDs;
+        EE_REFLECT() IDEventConditionNode::Operator                m_operator = IDEventConditionNode::Operator::Or;
+        EE_REFLECT() IDEventConditionNode::SearchRule              m_searchRule = IDEventConditionNode::SearchRule::SearchAll;
+        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT() TVector<StringID>                             m_eventIDs;
     };
 
     //-------------------------------------------------------------------------
 
     class GenericEventPercentageThroughToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( GenericEventPercentageThroughToolsNode );
+        EE_REFLECT_TYPE( GenericEventPercentageThroughToolsNode );
 
     public:
 
@@ -46,19 +47,20 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_eventID ); }
 
     private:
 
-        EE_EXPOSE EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
-        EE_EXPOSE bool                                          m_onlyCheckEventsFromActiveBranch = false;
-        EE_EXPOSE StringID                                      m_eventID;
+        EE_REFLECT() EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
+        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT() StringID                                      m_eventID;
     };
 
     //-------------------------------------------------------------------------
 
     class FootEventConditionToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( FootEventConditionToolsNode );
+        EE_REFLECT_TYPE( FootEventConditionToolsNode );
 
     public:
 
@@ -73,15 +75,15 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-        EE_EXPOSE bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT() FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
     };
 
     //-------------------------------------------------------------------------
 
     class FootstepEventPercentageThroughToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( FootstepEventPercentageThroughToolsNode );
+        EE_REFLECT_TYPE( FootstepEventPercentageThroughToolsNode );
 
     public:
 
@@ -96,16 +98,16 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-        EE_EXPOSE EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
-        EE_EXPOSE bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT() FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+        EE_REFLECT() EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
+        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
     };
 
     //-------------------------------------------------------------------------
 
     class SyncEventIndexConditionToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( SyncEventIndexConditionToolsNode );
+        EE_REFLECT_TYPE( SyncEventIndexConditionToolsNode );
 
     public:
 
@@ -120,15 +122,15 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE SyncEventIndexConditionNode::TriggerMode      m_triggerMode = SyncEventIndexConditionNode::TriggerMode::ExactlyAtEventIndex;
-        EE_EXPOSE int32_t                                       m_syncEventIdx = InvalidIndex;
+        EE_REFLECT() SyncEventIndexConditionNode::TriggerMode      m_triggerMode = SyncEventIndexConditionNode::TriggerMode::ExactlyAtEventIndex;
+        EE_REFLECT() int32_t                                       m_syncEventIdx = InvalidIndex;
     };
 
     //-------------------------------------------------------------------------
 
     class CurrentSyncEventToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CurrentSyncEventToolsNode );
+        EE_REFLECT_TYPE( CurrentSyncEventToolsNode );
 
     public:
 
@@ -145,7 +147,7 @@ namespace EE::Animation::GraphNodes
 
     class TransitionEventConditionToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( TransitionEventConditionToolsNode );
+        EE_REFLECT_TYPE( TransitionEventConditionToolsNode );
 
     public:
 
@@ -157,12 +159,13 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_markerIDToMatch ); }
 
     private:
 
-        EE_EXPOSE TransitionMarkerCondition                     m_markerCondition = TransitionMarkerCondition::AnyAllowed;
-        EE_EXPOSE bool                                          m_onlyCheckEventsFromActiveBranch = false;
-        EE_EXPOSE bool                                          m_matchOnlySpecificMarkerID = false;
-        EE_EXPOSE StringID                                      m_markerIDToMatch;
+        EE_REFLECT() TransitionMarkerCondition                     m_markerCondition = TransitionMarkerCondition::AnyAllowed;
+        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT() bool                                          m_matchOnlySpecificMarkerID = false;
+        EE_REFLECT() StringID                                      m_markerIDToMatch;
     };
 }

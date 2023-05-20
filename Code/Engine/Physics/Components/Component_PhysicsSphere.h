@@ -9,13 +9,11 @@ namespace EE::Physics
 {
     class EE_ENGINE_API SphereComponent : public PhysicsShapeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( SphereComponent );
+        EE_ENTITY_COMPONENT( SphereComponent );
 
-        friend class PhysicsWorldSystem;
+        friend class PhysicsWorld;
 
     public:
-
-        SphereComponent();
 
         EE_FORCE_INLINE float GetRadius() const { return m_radius; }
 
@@ -23,11 +21,13 @@ namespace EE::Physics
 
         virtual OBB CalculateLocalBounds() const override final;
         virtual bool HasValidPhysicsSetup() const override final;
-        virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const override final { return { m_materialID }; }
 
     protected:
 
-        EE_EXPOSE StringID                                 m_materialID;
-        EE_EXPOSE float                                    m_radius = 0.5f;
+        EE_REFLECT( "Category" : "Shape" );
+        float                                   m_radius = 0.5f;
+
+        EE_REFLECT( "Category" : "Physics" );
+        MaterialID                              m_materialID;
     };
 }

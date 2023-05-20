@@ -11,7 +11,7 @@ namespace EE::Animation
 {
     struct EE_ENGINETOOLS_API SkeletonResourceDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( SkeletonResourceDescriptor );
+        EE_REFLECT_TYPE( SkeletonResourceDescriptor );
     
         virtual bool IsValid() const override { return m_skeletonPath.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
@@ -27,12 +27,12 @@ namespace EE::Animation
 
     public:
 
-        EE_EXPOSE ResourcePath                             m_skeletonPath;
+        EE_REFLECT() ResourcePath                             m_skeletonPath;
 
         // Optional value that specifies the name of the skeleton hierarchy to use, if it is unset, we use the first skeleton we find
-        EE_EXPOSE String                                   m_skeletonRootBoneName;
+        EE_REFLECT() String                                   m_skeletonRootBoneName;
 
         // Editor-only preview mesh
-        EE_EXPOSE TResourcePtr<Render::SkeletalMesh>       m_previewMesh;
+        EE_REFLECT() TResourcePtr<Render::SkeletalMesh>       m_previewMesh;
     };
 }

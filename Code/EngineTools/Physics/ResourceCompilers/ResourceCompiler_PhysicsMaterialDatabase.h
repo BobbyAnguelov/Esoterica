@@ -9,8 +9,8 @@ namespace EE::Physics
 {
     class PhysicsMaterialDatabaseCompiler : public Resource::Compiler
     {
-        EE_REGISTER_TYPE( PhysicsMaterialDatabaseCompiler );
-        static const int32_t s_version = 0;
+        EE_REFLECT_TYPE( PhysicsMaterialDatabaseCompiler );
+        static const int32_t s_version = 1;
 
     public:
 

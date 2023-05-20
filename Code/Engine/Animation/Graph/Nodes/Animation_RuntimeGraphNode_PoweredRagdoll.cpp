@@ -4,7 +4,7 @@
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
-#include "Engine/Physics/PhysicsScene.h"
+#include "Engine/Physics/PhysicsWorld.h"
 #include "System/Log.h"
 
 //-------------------------------------------------------------------------
@@ -80,8 +80,7 @@ namespace EE::Animation::GraphNodes
         // Destroy the ragdoll
         if ( m_pRagdoll != nullptr )
         {
-            m_pRagdoll->RemoveFromScene();
-            EE::Delete( m_pRagdoll );
+            context.m_pPhysicsWorld->DestroyRagdoll( m_pRagdoll );
         }
 
         PassthroughNode::ShutdownInternal( context );
@@ -155,10 +154,10 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( m_pRagdoll == nullptr && m_isFirstUpdate );
 
-        if ( m_pRagdollDefinition != nullptr && context.m_pPhysicsScene != nullptr )
+        if ( m_pRagdollDefinition != nullptr && context.m_pPhysicsWorld != nullptr )
         {
             auto pNodeSettings = GetSettings<PoweredRagdollNode>();
-            m_pRagdoll = context.m_pPhysicsScene->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_profileID, context.m_graphUserID );
+            m_pRagdoll = context.m_pPhysicsWorld->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_profileID, context.m_graphUserID );
             m_pRagdoll->SetPoseFollowingEnabled( true );
             m_pRagdoll->SetGravityEnabled( pNodeSettings->m_isGravityEnabled );
         }

@@ -11,7 +11,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

@@ -4,13 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE
+namespace EE::TypeSystem::Reflection
 {
-    namespace TypeSystem
-    {
-        namespace Reflection
-        {
-            CXChildVisitResult VisitMacro( ClangParserContext* pContext, HeaderID headerID, CXCursor cr, String const& cursorName );
-        }
-    }
+    CXChildVisitResult VisitMacro( ClangParserContext* pContext, HeaderInfo const* pHeaderInfo, CXCursor cr, String const& cursorName );
 }

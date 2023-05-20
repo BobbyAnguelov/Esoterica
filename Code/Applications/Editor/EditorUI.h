@@ -101,7 +101,6 @@ namespace EE
         bool                                m_isResourceBrowserWindowOpen = true;
         bool                                m_isResourceLogWindowOpen = false;
         bool                                m_isResourceOverviewWindowOpen = false;
-        bool                                m_isPhysicsMaterialDatabaseWindowOpen = false;
         bool                                m_isImguiDemoWindowOpen = false;
         bool                                m_isUITestWindowOpen = false;
 
@@ -120,10 +119,10 @@ namespace EE
         TVector<ResourceID>                 m_workspaceCreationRequests;
         TVector<Workspace*>                 m_workspaceDestructionRequests;
 
-        // Map Editor
+        // Map Editor and Game Preview
         EntityModel::EntityMapEditor*       m_pMapEditor = nullptr;
         GamePreviewer*                      m_pGamePreviewer = nullptr;
-        EventBindingID                      m_gamePreviewStartedEventBindingID;
-        EventBindingID                      m_gamePreviewStoppedEventBindingID;
+        EventBindingID                      m_gamePreviewStartRequestEventBindingID;
+        EventBindingID                      m_gamePreviewStopRequestEventBindingID;
     };
 }

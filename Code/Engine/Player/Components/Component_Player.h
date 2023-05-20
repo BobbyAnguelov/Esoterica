@@ -12,7 +12,7 @@ namespace EE::Player
 {
     class EE_ENGINE_API PlayerComponent : public EntityComponent
     {
-        EE_REGISTER_SINGLETON_ENTITY_COMPONENT( PlayerComponent );
+        EE_SINGLETON_ENTITY_COMPONENT( PlayerComponent );
 
     public:
 

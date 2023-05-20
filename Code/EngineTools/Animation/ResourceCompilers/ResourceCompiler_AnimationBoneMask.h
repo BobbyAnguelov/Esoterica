@@ -9,7 +9,7 @@ namespace EE::Animation
 {
     class BoneMaskCompiler : public Resource::Compiler
     {
-        EE_REGISTER_TYPE( BoneMaskCompiler );
+        EE_REFLECT_TYPE( BoneMaskCompiler );
         static const int32_t s_version = 1;
 
     public:

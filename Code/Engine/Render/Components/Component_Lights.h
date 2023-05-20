@@ -10,7 +10,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API LightComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( LightComponent );
+        EE_ENTITY_COMPONENT( LightComponent );
         friend class RenderDebugView;
 
     public:
@@ -22,16 +22,16 @@ namespace EE::Render
 
     private:
 
-        EE_EXPOSE Color                m_color = Colors::White;
-        EE_EXPOSE float                m_intensity = 1.0f;
-        EE_EXPOSE bool                 m_shadowed = false;
+        EE_REFLECT() Color                m_color = Colors::White;
+        EE_REFLECT() float                m_intensity = 1.0f;
+        EE_REFLECT() bool                 m_shadowed = false;
     };
 
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API DirectionalLightComponent: public LightComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( DirectionalLightComponent );
+        EE_ENTITY_COMPONENT( DirectionalLightComponent );
         friend class RenderDebugView;
 
     public:
@@ -44,7 +44,7 @@ namespace EE::Render
 
     class EE_ENGINE_API PointLightComponent : public LightComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( PointLightComponent );
+        EE_ENTITY_COMPONENT( PointLightComponent );
         friend class RenderDebugView;
 
     public:
@@ -53,14 +53,14 @@ namespace EE::Render
 
     private:
 
-        EE_EXPOSE float                m_radius = 1.0f;
+        EE_REFLECT() float                m_radius = 1.0f;
     };
 
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API SpotLightComponent : public LightComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( SpotLightComponent );
+        EE_ENTITY_COMPONENT( SpotLightComponent );
         friend class RenderDebugView;
 
     public:
@@ -72,9 +72,9 @@ namespace EE::Render
 
     private:
 
-        EE_EXPOSE Degrees              m_innerUmbraAngle = 0.0f;
-        EE_EXPOSE Degrees              m_outerUmbraAngle = 45.0f;
-        EE_EXPOSE float                m_radius = 1.0f;
+        EE_REFLECT() Degrees              m_innerUmbraAngle = 0.0f;
+        EE_REFLECT() Degrees              m_outerUmbraAngle = 45.0f;
+        EE_REFLECT() float                m_radius = 1.0f;
 
         // TODO: Fall-off parameters
     };

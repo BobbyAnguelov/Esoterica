@@ -153,23 +153,25 @@ namespace EE::CPP
         // Implement required virtual methods
         //-------------------------------------------------------------------------
 
-        file << "        virtual IRegisteredType* CreateType() const override { EE_HALT(); return nullptr; }\n";
-        file << "        virtual void CreateTypeInPlace( IRegisteredType * pAllocatedMemory ) const override { EE_HALT(); }\n";
-        file << "        virtual void LoadResources( Resource::ResourceSystem * pResourceSystem, Resource::ResourceRequesterID const& requesterID, IRegisteredType * pType ) const override { EE_HALT(); }\n";
-        file << "        virtual void UnloadResources( Resource::ResourceSystem * pResourceSystem, Resource::ResourceRequesterID const& requesterID, IRegisteredType * pType ) const override { EE_HALT(); }\n";
-        file << "        virtual LoadingStatus GetResourceLoadingStatus( IRegisteredType * pType ) const override { EE_HALT(); return LoadingStatus::Failed; }\n";
-        file << "        virtual LoadingStatus GetResourceUnloadingStatus( IRegisteredType * pType ) const override { EE_HALT(); return LoadingStatus::Failed; }\n";
-        file << "        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IRegisteredType * pType, uint32_t propertyID ) const override { EE_HALT(); return ResourceTypeID(); }\n";
-        file << "        virtual void GetReferencedResources( IRegisteredType * pType, TVector<ResourceID>&outReferencedResources ) const override {};\n";
-        file << "        virtual uint8_t* GetArrayElementDataPtr( IRegisteredType * pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override { EE_HALT(); return 0; }\n";
-        file << "        virtual size_t GetArraySize( IRegisteredType const* pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); return 0; }\n";
+        file << "        virtual IReflectedType* CreateType() const override { EE_HALT(); return nullptr; }\n";
+        file << "        virtual void CreateTypeInPlace( IReflectedType * pAllocatedMemory ) const override { EE_HALT(); }\n";
+        file << "        virtual void LoadResources( Resource::ResourceSystem * pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType * pType ) const override { EE_HALT(); }\n";
+        file << "        virtual void UnloadResources( Resource::ResourceSystem * pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType * pType ) const override { EE_HALT(); }\n";
+        file << "        virtual LoadingStatus GetResourceLoadingStatus( IReflectedType * pType ) const override { EE_HALT(); return LoadingStatus::Failed; }\n";
+        file << "        virtual LoadingStatus GetResourceUnloadingStatus( IReflectedType * pType ) const override { EE_HALT(); return LoadingStatus::Failed; }\n";
+        file << "        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IReflectedType * pType, uint32_t propertyID ) const override { EE_HALT(); return ResourceTypeID(); }\n";
+        file << "        virtual void GetReferencedResources( IReflectedType * pType, TVector<ResourceID>&outReferencedResources ) const override {};\n";
+        file << "        virtual uint8_t* GetArrayElementDataPtr( IReflectedType * pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override { EE_HALT(); return 0; }\n";
+        file << "        virtual size_t GetArraySize( IReflectedType const* pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); return 0; }\n";
         file << "        virtual size_t GetArrayElementSize( uint32_t arrayID ) const override { EE_HALT(); return 0; }\n";
-        file << "        virtual void ClearArray( IRegisteredType * pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); }\n";
-        file << "        virtual void AddArrayElement( IRegisteredType * pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); }\n";
-        file << "        virtual void RemoveArrayElement( IRegisteredType * pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override { EE_HALT(); }\n";
-        file << "        virtual bool AreAllPropertyValuesEqual( IRegisteredType const* pTypeInstance, IRegisteredType const* pOtherTypeInstance ) const override { EE_HALT(); return false; }\n";
-        file << "        virtual bool IsPropertyValueEqual( IRegisteredType const* pTypeInstance, IRegisteredType const* pOtherTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const override { EE_HALT(); return false; }\n";
-        file << "        virtual void ResetToDefault( IRegisteredType * pTypeInstance, uint32_t propertyID ) const override { EE_HALT(); }\n";
+        file << "        virtual void ClearArray( IReflectedType * pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); }\n";
+        file << "        virtual void AddArrayElement( IReflectedType * pTypeInstance, uint32_t arrayID ) const override { EE_HALT(); }\n";
+        file << "        virtual void InsertArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t insertIdx ) const override { EE_HALT(); }\n";
+        file << "        virtual void MoveArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t originalElementIdx, size_t newElementIdx ) const override { EE_HALT(); }\n";
+        file << "        virtual void RemoveArrayElement( IReflectedType * pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override { EE_HALT(); }\n";
+        file << "        virtual bool AreAllPropertyValuesEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance ) const override { EE_HALT(); return false; }\n";
+        file << "        virtual bool IsPropertyValueEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const override { EE_HALT(); return false; }\n";
+        file << "        virtual void ResetToDefault( IReflectedType * pTypeInstance, uint32_t propertyID ) const override { EE_HALT(); }\n";
 
         //-------------------------------------------------------------------------
 

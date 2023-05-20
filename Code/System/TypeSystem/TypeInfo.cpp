@@ -31,19 +31,6 @@ namespace EE::TypeSystem
 
     //-------------------------------------------------------------------------
 
-    bool TypeInfo::HasExposedProperties() const
-    {
-        for ( auto const& propertyInfo : m_properties )
-        {
-            if ( propertyInfo.IsExposedProperty() )
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     PropertyInfo const* TypeInfo::GetPropertyInfo( StringID propertyID ) const
     {
         PropertyInfo const* pProperty = nullptr;

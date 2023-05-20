@@ -254,7 +254,7 @@ namespace EE
                     }
                     else
                     {
-                        String const buttonLabel = String( String::CtorSprintf(), "%s##%d", m_entities[i]->GetNameID().c_str(), i );
+                        String const buttonLabel = String( String::CtorSprintf(), "%u - %s##%d", m_entities[i]->GetID().m_value, m_entities[i]->GetNameID().c_str(), i );
                         if ( ImGui::Button( buttonLabel.c_str() ) )
                         {
                             m_pSelectedEntity = m_entities[i];
@@ -302,7 +302,7 @@ namespace EE
                             auto const& transform = m_pSelectedEntity->GetWorldTransform();
                             auto const eulerAngles = transform.GetRotation().ToEulerAngles();
                             ImGui::Text( "Rotation: %.2f %.2f %.2f", eulerAngles.m_x, eulerAngles.m_y, eulerAngles.m_z );
-                            ImGui::Text( "Translation: %.2f %.2f %.2f", transform.GetTranslation().m_x, transform.GetTranslation().m_y, transform.GetTranslation().m_z );
+                            ImGui::Text( "Translation: %.2f %.2f %.2f", transform.GetTranslation().GetX(), transform.GetTranslation().GetY(), transform.GetTranslation().GetZ() );
                             ImGui::Text( "Scale: %.2f", transform.GetScale() );
                         }
                     }

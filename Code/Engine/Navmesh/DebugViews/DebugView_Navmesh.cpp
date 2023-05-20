@@ -84,10 +84,10 @@ namespace EE::Navmesh
 
         if ( ImGui::BeginMenu( "Drawing Options" ) )
         {
-            bool isDepthTestEnabled = !pNavmeshWorldSystem->m_renderer.IsDepthTestEnabled();
+            bool isDepthTestEnabled = !pNavmeshWorldSystem->IsDebugRendererDepthTestEnabled();
             if ( ImGui::Checkbox( "Enable Depth Test", &isDepthTestEnabled ) )
             {
-                pNavmeshWorldSystem->m_renderer.SetDepthTestState( isDepthTestEnabled );
+                pNavmeshWorldSystem->SetDebugRendererDepthTestState( isDepthTestEnabled );
             }
 
             ImGui::EndMenu();

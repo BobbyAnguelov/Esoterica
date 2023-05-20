@@ -7,7 +7,7 @@ namespace EE::Animation::GraphNodes
 {
     class ConstBoolToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ConstBoolToolsNode );
+        EE_REFLECT_TYPE( ConstBoolToolsNode );
 
     public:
 
@@ -22,14 +22,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool m_value;
+        EE_REFLECT() bool m_value;
     };
 
     //-------------------------------------------------------------------------
 
     class ConstIDToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ConstIDToolsNode );
+        EE_REFLECT_TYPE( ConstIDToolsNode );
 
     public:
 
@@ -41,17 +41,18 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_value ); }
 
     private:
 
-        EE_EXPOSE StringID m_value;
+        EE_REFLECT() StringID m_value;
     };
 
     //-------------------------------------------------------------------------
     
     class ConstIntToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ConstIntToolsNode );
+        EE_REFLECT_TYPE( ConstIntToolsNode );
 
     public:
 
@@ -66,14 +67,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE int32_t m_value;
+        EE_REFLECT() int32_t m_value;
     };
 
     //-------------------------------------------------------------------------
 
     class ConstFloatToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ConstFloatToolsNode );
+        EE_REFLECT_TYPE( ConstFloatToolsNode );
 
     public:
 
@@ -88,14 +89,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE float m_value;
+        EE_REFLECT() float m_value;
     };
 
     //-------------------------------------------------------------------------
 
     class ConstVectorToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ConstVectorToolsNode );
+        EE_REFLECT_TYPE( ConstVectorToolsNode );
 
     public:
 
@@ -110,14 +111,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE Float4 m_value;
+        EE_REFLECT() Float4 m_value;
     };
 
     //-------------------------------------------------------------------------
 
     class ConstTargetToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ConstTargetToolsNode );
+        EE_REFLECT_TYPE( ConstTargetToolsNode );
 
     public:
 
@@ -132,6 +133,6 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE Transform m_value;
+        EE_REFLECT() Transform m_value;
     };
 }

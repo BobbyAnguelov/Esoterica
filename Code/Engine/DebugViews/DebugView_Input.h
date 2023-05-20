@@ -15,7 +15,7 @@ namespace EE::Input
 
     class InputDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( InputDebugView );
+        EE_REFLECT_TYPE( InputDebugView );
 
     public:
 

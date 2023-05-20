@@ -13,7 +13,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_scaleValueNodeIdx, m_scaleLimits, m_blendInTime );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -57,7 +57,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_desiredVelocityValueNodeIdx, m_blendInTime );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

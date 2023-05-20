@@ -72,7 +72,6 @@ namespace EE
         Render::RenderingSystem                         m_renderingSystem;
         EntityWorldManager*                             m_pEntityWorldManager = nullptr;
         Input::InputSystem*                             m_pInputSystem = nullptr;
-        Physics::PhysicsSystem*                         m_pPhysicsSystem = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
         ImGuiX::ImguiSystem*                            m_pImguiSystem = nullptr;

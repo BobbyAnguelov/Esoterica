@@ -15,7 +15,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_transitionDurationOverrideNodeIdx, m_transitionDuration );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -51,7 +51,7 @@ namespace EE::Animation::GraphNodes
 
         enum class ComparisonType : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             PercentageThroughState,
             PercentageThroughSyncEvent,
@@ -60,7 +60,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Operator : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             LessThan = 0,
             LessThanEqual,
@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_comparand, m_inputValueNodeIdx, m_type, m_operator );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

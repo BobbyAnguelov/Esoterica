@@ -6,6 +6,10 @@
 
 //-------------------------------------------------------------------------
 
+struct SteamNetConnectionStatusChangedCallback_t;
+
+//-------------------------------------------------------------------------
+
 namespace EE::Network
 {
     class NetworkSystem;
@@ -19,7 +23,8 @@ namespace EE::Network
     class EE_SYSTEM_API ServerConnection
     {
         friend NetworkSystem;
-        friend struct NetworkCallbackHandler;
+
+        static void ConnectionChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo );
 
     public:
 
@@ -76,14 +81,15 @@ namespace EE::Network
 
         bool TryStartConnection( uint16_t portNumber );
         void CloseConnection();
+        void Update();
 
         void AddConnectedClient( ClientConnectionID clientID, AddressString const& clientAddress );
         void RemoveConnectedClient( ClientConnectionID clientID );
 
     protected:
 
-        uint32_t                                          m_socketHandle = 0;
-        uint32_t                                          m_pollingGroupHandle = 0;
+        uint32_t                                        m_socketHandle = 0;
+        uint32_t                                        m_pollingGroupHandle = 0;
         TVector<ClientInfo>                             m_connectedClients;
     };
 
@@ -92,7 +98,8 @@ namespace EE::Network
     class EE_SYSTEM_API ClientConnection
     {
         friend NetworkSystem;
-        friend struct NetworkCallbackHandler;
+
+        static void ConnectionChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo );
 
     public:
 
@@ -130,8 +137,8 @@ namespace EE::Network
     private:
 
         AddressString                                   m_address;
-        uint32_t                                          m_connectionHandle = 0;
-        uint32_t                                          m_reconnectionAttemptsRemaining = 5;
+        uint32_t                                        m_connectionHandle = 0;
+        uint32_t                                        m_reconnectionAttemptsRemaining = 5;
         Status                                          m_status = Status::Disconnected;
     };
 

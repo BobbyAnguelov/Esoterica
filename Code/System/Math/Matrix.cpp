@@ -16,6 +16,14 @@ namespace EE
         m_rows[3] = Vector( v30, v31, v32, v33 );
     }
 
+    Matrix::Matrix( float values[16] )
+    {
+        m_rows[0] = Vector( values[0], values[1], values[2], values[3] );
+        m_rows[1] = Vector( values[4], values[5], values[6], values[7] );
+        m_rows[2] = Vector( values[8], values[9], values[10], values[11] );
+        m_rows[3] = Vector( values[12], values[13], values[14], values[15] );
+    }
+
     Matrix::Matrix( Vector const& xAxis, Vector const& yAxis, Vector const& zAxis )
     {
         m_rows[0] = xAxis;
@@ -103,6 +111,9 @@ namespace EE
         scale = Vector::Zero;
         shear = Vector::Zero;
 
+        Float3 scaleValues = Float3::Zero;
+        Float3 shearValues = Float3::Zero;
+
         // This implementation follows the technique described in the paper by
         // Spencer W. Thomas in the Graphics Gems II article: "Decomposing a 
         // Matrix into Simple Transformations", p. 320.
@@ -147,14 +158,14 @@ namespace EE
         }
 
         // Compute X scale factor.
-        scale.m_x = row[0].Length3().GetX();
-        if ( !CheckForZeroScaleInRow( scale.m_x, row[0] ) )
+        scaleValues.m_x = row[0].Length3().ToFloat();
+        if ( !CheckForZeroScaleInRow( scaleValues.m_x, row[0] ) )
         {
             return false;
         }
 
         // Normalize first row.
-        row[0] /= scale.m_x;
+        row[0] /= scaleValues.m_x;
 
         // An XY shear factor will shear the X coord. as the Y coord. changes.
         // There are 6 combinations (XY, XZ, YZ, YX, ZX, ZY), although we only
@@ -167,37 +178,37 @@ namespace EE
         //                  0,   0,   0,  1 >
 
         // Compute XY shear factor and make 2nd row orthogonal to 1st.
-        shear[0] = Vector::Dot3( row[0], row[1] ).ToFloat();
-        row[1] -= row[0] * shear[0];
+        shearValues[0] = Vector::Dot3( row[0], row[1] ).ToFloat();
+        row[1] -= row[0] * shearValues[0];
 
         // Now, compute Y scale.
-        scale.m_y = row[1].Length3().GetX();
-        if ( !CheckForZeroScaleInRow( scale.m_y, row[1] ) )
+        scaleValues.m_y = row[1].Length3().ToFloat();
+        if ( !CheckForZeroScaleInRow( scaleValues.m_y, row[1] ) )
         {
             return false;
         }
 
         // Normalize 2nd row and correct the XY shear factor for Y scaling.
-        row[1] /= scale.m_y;
-        shear[0] /= scale.m_y;
+        row[1] /= scaleValues.m_y;
+        shearValues[0] /= scaleValues.m_y;
 
         // Compute XZ and YZ shears, orthogonalize 3rd row.
-        shear[1] = Vector::Dot3( row[0], row[2] ).ToFloat();
-        row[2] -= row[0] * shear[1];
-        shear[2] = Vector::Dot3( row[1], row[2] ).ToFloat();
-        row[2] -= row[1] * shear[2];
+        shearValues[1] = Vector::Dot3( row[0], row[2] ).ToFloat();
+        row[2] -= row[0] * shearValues[1];
+        shearValues[2] = Vector::Dot3( row[1], row[2] ).ToFloat();
+        row[2] -= row[1] * shearValues[2];
 
         // Next, get Z scale.
-        scale.m_z = row[2].Length3().ToFloat();
-        if ( !CheckForZeroScaleInRow( scale.m_z, row[2] ) )
+        scaleValues.m_z = row[2].Length3().ToFloat();
+        if ( !CheckForZeroScaleInRow( scaleValues.m_z, row[2] ) )
         {
             return false;
         }
 
         // Normalize 3rd row and correct the XZ and YZ shear factors for Z scaling.
-        row[2] /= scale.m_z;
-        shear[1] /= scale.m_z;
-        shear[2] /= scale.m_z;
+        row[2] /= scaleValues.m_z;
+        shearValues[1] /= scaleValues.m_z;
+        shearValues[2] /= scaleValues.m_z;
 
         // At this point, the upper 3x3 matrix in mat is orthonormal.
         // Check for a coordinate system flip. If the determinant
@@ -206,7 +217,7 @@ namespace EE
         {
             for ( int i = 0; i < 3; i++ )
             {
-                scale[i] *= -1;
+                scaleValues[i] *= -1;
                 row[i] *= -1;
             }
         }
@@ -215,15 +226,20 @@ namespace EE
         // The upper 3x3 matrix in mat is now a rotation matrix.
         for ( int i = 0; i < 3; i++ )
         {
-            matrix[i][0] = row[i][0];
-            matrix[i][1] = row[i][1];
-            matrix[i][2] = row[i][2];
+            matrix[i].SetX( row[i][0] );
+            matrix[i].SetY( row[i][1] );
+            matrix[i].SetZ( row[i][2] );
         }
 
         // Correct the scaling factors for the normalization step that we 
         // performed above; shear and rotation are not affected by the 
         // normalization.
-        scale *= maxVal;
+        scaleValues *= maxVal;
+
+        //-------------------------------------------------------------------------
+
+        scale = Vector( scaleValues );
+        shear = Vector( shearValues );
 
         return true;
     }
@@ -271,9 +287,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        m_rows[0] = m_rows[0] * newScale.m_x;
-        m_rows[1] = m_rows[1] * newScale.m_y;
-        m_rows[2] = m_rows[2] * newScale.m_z;
+        m_rows[0] = m_rows[0] * newScale.GetSplatX();
+        m_rows[1] = m_rows[1] * newScale.GetSplatY();
+        m_rows[2] = m_rows[2] * newScale.GetSplatZ();
         return *this;
     }
 

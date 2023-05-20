@@ -16,7 +16,7 @@ namespace EE
                 CXCursorKind kind = clang_getCursorKind( cr );
                 if ( kind == CXCursor_EnumConstantDecl )
                 {
-                    auto pEnum = reinterpret_cast<ReflectedType*>( pContext->m_pCurrentEntry );
+                    auto pEnum = reinterpret_cast<ReflectedType*>( pContext->m_pParentReflectedType );
                     clang::EnumConstantDecl* pEnumConstantDecl = ( clang::EnumConstantDecl* ) cr.data[0];
 
                     ReflectedEnumConstant constant;
@@ -118,7 +118,8 @@ namespace EE
                     return CXChildVisit_Continue;
                 }
 
-                if ( pContext->ShouldRegisterType( cr ) )
+                ReflectionMacro macro;
+                if ( pContext->GetReflectionMacroForType( headerID, cr, macro ) )
                 {
                     if ( pContext->m_detectDevOnlyTypesAndProperties || !pContext->m_pDatabase->IsTypeRegistered( enumTypeID ) )
                     {
@@ -127,9 +128,15 @@ namespace EE
                         enumDescriptor.m_namespace = pContext->GetCurrentNamespace();
                         enumDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEnum );
                         enumDescriptor.m_underlyingType = underlyingCoreType;
-                        pContext->m_pCurrentEntry = &enumDescriptor;
 
-                        clang_visitChildren( cr, VisitEnumContents, pContext );
+                        // Record current parent type, and update it to the new type
+                        void* pPreviousParentReflectedType = pContext->m_pParentReflectedType;
+                        pContext->m_pParentReflectedType = &enumDescriptor;
+                        {
+                            clang_visitChildren( cr, VisitEnumContents, pContext );
+                        }
+                        // Reset parent type back to original parent
+                        pContext->m_pParentReflectedType = pPreviousParentReflectedType;
 
                         pContext->m_pDatabase->RegisterType( &enumDescriptor, pContext->m_detectDevOnlyTypesAndProperties );
                     }

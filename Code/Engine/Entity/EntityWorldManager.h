@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
+#include "EntityWorldType.h"
 #include "System/Resource/ResourceRequesterID.h"
 #include "System/Systems.h"
 
@@ -11,7 +12,6 @@ namespace EE
     class UpdateContext;
     class EntityWorld;
     class SystemRegistry;
-    enum class EntityWorldType : uint8_t;
     namespace TypeSystem { class TypeInfo; }
     namespace Render { class Viewport; }
 
@@ -23,7 +23,7 @@ namespace EE
 
     public:
 
-        EE_SYSTEM_ID( EntityWorldManager );
+        EE_SYSTEM( EntityWorldManager );
 
     public:
 

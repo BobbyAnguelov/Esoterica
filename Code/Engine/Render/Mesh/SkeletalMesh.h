@@ -10,7 +10,7 @@ namespace EE::Render
         friend class SkeletalMeshCompiler;
         friend class MeshLoader;
 
-        EE_REGISTER_RESOURCE( 'smsh', "Skeletal Mesh" );
+        EE_RESOURCE( 'smsh', "Skeletal Mesh" );
         EE_SERIALIZE( EE_SERIALIZE_BASE( Mesh ), m_boneIDs, m_parentBoneIndices, m_bindPose, m_inverseBindPose );
 
     public:

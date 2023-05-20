@@ -17,7 +17,7 @@
     </Link>
     <Lib>
       <AdditionalLibraryDirectories Condition="$(Configuration) == 'Shipping'">$(GNS_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies Condition="$(Configuration) == 'Shipping'">GameNetworkingSockets.lib;</AdditionalDependencies>
+      <AdditionalDependencies Condition="$(Configuration) == 'Shipping'">GameNetworkingSockets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <Target Name="GNS_CopyDLL" BeforeTargets="Build">

@@ -2,6 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="ResourceCompiler.cpp" />
+    <ClCompile Include="CompiledResourceDatabase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Resources">
@@ -12,6 +13,8 @@
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
+    <ClInclude Include="CompiledResourceDatabase.h" />
+    <ClInclude Include="ResourceCompiler.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resources\Resource.rc">

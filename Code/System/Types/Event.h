@@ -106,6 +106,7 @@ namespace EE
 
     private:
 
+        // TODO: make this threadsafe!
         TVector<BoundUser>              m_boundUsers;
     };
 

@@ -74,11 +74,6 @@ namespace EE
     void EditorApplication::ProcessWindowResizeMessage( Int2 const& newWindowSize )
     {
         m_engine.GetRenderingSystem()->ResizePrimaryRenderTarget( newWindowSize );
-
-        // Hack to fix client area offset bug
-        RECT rect;
-        GetWindowRect( m_windowHandle, &rect );
-        MoveWindow( m_windowHandle, rect.left + 1, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE );
     }
 
     void EditorApplication::ProcessInputMessage( UINT message, WPARAM wParam, LPARAM lParam )

@@ -63,11 +63,11 @@
   </Type>
 
   <Type Name="EE::Vector">
-    <DisplayString>{{x={m_x} y={m_y} z={m_z} w={m_w}}}</DisplayString>
+    <DisplayString>{{x={m_data.m128_f32[0]} y={m_data.m128_f32[1]} z={m_data.m128_f32[2]} w={m_data.m128_f32[3]}}}</DisplayString>
   </Type>
 
   <Type Name="EE::Quaternion">
-    <DisplayString>{{x={m_x} y={m_y} z={m_z} w={m_w}}}</DisplayString>
+    <DisplayString>{{x={m_data.m128_f32[0]} y={m_data.m128_f32[1]} z={m_data.m128_f32[2]} w={m_data.m128_f32[3]}}}</DisplayString>
   </Type>
 
   <Type Name="EE::TypeSystem::TypeID">
@@ -79,11 +79,11 @@
   </Type>
 
   <Type Name="EE::AABB">
-    <DisplayString>{{Ctr( {m_center.m_x}, {m_center.m_y}, {m_center.m_z} ), Ext( {m_extents.m_x}, {m_extents.m_y}, {m_extents.m_z} )}}</DisplayString>
+    <DisplayString>{{Ctr( {m_center.m_data.m128_f32[0]}, {m_center.m_data.m128_f32[1]}, {m_center.m_data.m128_f32[2]} ), Ext( {m_extents.m_data.m128_f32[0]}, {m_extents.m_data.m128_f32[1]}, {m_extents.m_data.m128_f32[2]} )}}</DisplayString>
   </Type>
 
   <Type Name="EE::OBB">
-    <DisplayString>{{Ctr( {m_center.m_x}, {m_center.m_y}, {m_center.m_z} ), Ext( {m_extents.m_x}, {m_extents.m_y}, {m_extents.m_z} ), Rot( {m_orientation} )}}</DisplayString>
+    <DisplayString>{{Ctr( {m_center.m_data.m128_f32[0]}, {m_center.m_data.m128_f32[1]}, {m_center.m_data.m128_f32[2]} ), Ext( {m_extents.m_data.m128_f32[0]}, {m_extents.m_data.m128_f32[1]}, {m_extents.m_data.m128_f32[2]} ), Rot( {m_orientation} )}}</DisplayString>
   </Type>
 
   <Type Name="EE::FileSystem::Path">

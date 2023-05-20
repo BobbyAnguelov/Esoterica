@@ -10,7 +10,7 @@ namespace EE::AI
 {
     class EE_ENGINE_API AISpawnComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( AISpawnComponent );
+        EE_ENTITY_COMPONENT( AISpawnComponent );
 
     public:
 
@@ -20,6 +20,6 @@ namespace EE::AI
 
     private:
 
-        EE_EXPOSE TResourcePtr<EntityModel::SerializedEntityCollection>    m_pAIEntityDesc = nullptr;
+        EE_REFLECT() TResourcePtr<EntityModel::SerializedEntityCollection>    m_pAIEntityDesc = nullptr;
     };
 }

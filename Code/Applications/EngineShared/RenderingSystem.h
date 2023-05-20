@@ -43,7 +43,7 @@ namespace EE
 
         public:
 
-            EE_SYSTEM_ID( RenderingSystem );
+            EE_SYSTEM( RenderingSystem );
 
         public:
 

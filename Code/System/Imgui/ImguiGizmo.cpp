@@ -26,7 +26,7 @@ namespace EE::ImGuiX
 
             case ResultDeltaType::Scale:
             {
-                float newScale = transform.GetScale() + m_deltaPositionScale.m_x;
+                float newScale = transform.GetScale() + m_deltaPositionScale.GetX();
                 if ( Math::IsNearZero( newScale ) )
                 {
                     newScale = 0.01f;

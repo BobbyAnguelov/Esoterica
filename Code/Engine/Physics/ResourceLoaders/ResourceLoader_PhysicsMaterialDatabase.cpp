@@ -1,5 +1,4 @@
 #include "ResourceLoader_PhysicsMaterialDatabase.h"
-#include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Physics/PhysicsMaterial.h"
 #include "System/Serialization/BinarySerialization.h"
 
@@ -12,24 +11,18 @@ namespace EE::Physics
 {
     PhysicsMaterialDatabaseLoader::PhysicsMaterialDatabaseLoader()
     {
-        m_loadableTypes.push_back( PhysicsMaterialDatabase::GetStaticResourceTypeID() );
-    }
-
-    void PhysicsMaterialDatabaseLoader::SetPhysicsSystemPtr( PhysicsSystem* pPhysicsSystem )
-    {
-        EE_ASSERT( pPhysicsSystem != nullptr && m_pPhysicsSystem == nullptr );
-        m_pPhysicsSystem = pPhysicsSystem;
+        m_loadableTypes.push_back( MaterialDatabase::GetStaticResourceTypeID() );
     }
 
     bool PhysicsMaterialDatabaseLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
-        TVector<PhysicsMaterialSettings> serializedMaterials;
-        archive << serializedMaterials;
+        MaterialDatabase* pPhysicsMaterialDB = EE::New<MaterialDatabase>();
+        archive << *pPhysicsMaterialDB;
 
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        for ( auto const& materialSettings : serializedMaterials )
+        for ( auto const& materialSettings : pPhysicsMaterialDB->m_materials )
         {
             EE_ASSERT( materialSettings.IsValid() );
         }
@@ -37,21 +30,22 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        m_pPhysicsSystem->FillMaterialDatabase( serializedMaterials );
+        EE_ASSERT( m_pRegistry != nullptr );
+        m_pRegistry->RegisterMaterials( pPhysicsMaterialDB->m_materials );
         
         //-------------------------------------------------------------------------
 
-        PhysicsMaterialDatabase* pPhysicsMaterialDB = EE::New<PhysicsMaterialDatabase>();
         pResourceRecord->SetResourceData( pPhysicsMaterialDB );
         return true;
     }
 
     void PhysicsMaterialDatabaseLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
     {
-        PhysicsMaterialDatabase* pPhysicsMaterialDB = pResourceRecord->GetResourceData<PhysicsMaterialDatabase>();
+        MaterialDatabase* pPhysicsMaterialDB = pResourceRecord->GetResourceData<MaterialDatabase>();
         if ( pPhysicsMaterialDB != nullptr )
         {
-            m_pPhysicsSystem->ClearMaterialDatabase();
+            EE_ASSERT( m_pRegistry != nullptr );
+            m_pRegistry->UnregisterMaterials( pPhysicsMaterialDB->m_materials );
         }
 
         ResourceLoader::UnloadInternal( resID, pResourceRecord );

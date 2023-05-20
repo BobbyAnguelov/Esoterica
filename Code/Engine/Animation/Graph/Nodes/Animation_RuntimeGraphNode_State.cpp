@@ -36,10 +36,13 @@ namespace EE::Animation::GraphNodes
         m_transitionState = TransitionState::None;
         m_elapsedTimeInState = 0.0f;
         m_sampledEventRange = SampledEventRange();
+        m_previousTime = m_currentTime = 0.0f;
+        m_duration = s_oneFrameDuration; // Ensure that we always have a valid duration
 
         if ( m_pChildNode != nullptr )
         {
             m_pChildNode->Initialize( context, initialTime );
+
             if ( m_pChildNode->IsValid() )
             {
                 m_duration = m_pChildNode->GetDuration();
@@ -47,6 +50,8 @@ namespace EE::Animation::GraphNodes
                 m_currentTime = m_pChildNode->GetCurrentTime();
             }
         }
+
+        EE_ASSERT( m_duration != 0.0f );
 
         if ( m_pBoneMaskNode != nullptr )
         {
@@ -100,7 +105,7 @@ namespace EE::Animation::GraphNodes
         m_transitionState = TransitionState::TransitioningIn;
     }
 
-    void StateNode::StartTransitionOut( GraphContext& context )
+    SampledEventRange StateNode::StartTransitionOut( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -114,6 +119,8 @@ namespace EE::Animation::GraphNodes
 
         // Resample state events
         SampleStateEvents( context );
+
+        return m_sampledEventRange;
     }
 
     void StateNode::SampleStateEvents( GraphContext& context )
@@ -174,12 +181,12 @@ namespace EE::Animation::GraphNodes
         m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
     }
 
-    void StateNode::UpdateLayerContext( GraphContext& context )
+    void StateNode::UpdateLayerWeights( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
 
         // Early out if we are not in a layer
-        if ( !context.m_layerContext.IsSet() )
+        if ( !context.IsInLayer() )
         {
             return;
         }
@@ -227,7 +234,7 @@ namespace EE::Animation::GraphNodes
 
         // Set the result to a valid event range since we are recording it
         GraphPoseNodeResult result;
-        m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+        m_sampledEventRange = context.GetEmptySampledEventRange();
 
         // Update child
         if ( m_pChildNode != nullptr && m_pChildNode->IsValid() )
@@ -249,7 +256,7 @@ namespace EE::Animation::GraphNodes
         result.m_sampledEventRange = m_sampledEventRange;
 
         // Update layer context and return
-        UpdateLayerContext( context );
+        UpdateLayerWeights( context );
         m_isFirstStateUpdate = false;
         return result;
     }
@@ -262,7 +269,7 @@ namespace EE::Animation::GraphNodes
 
         // Set the result to a valid event range since we are recording it
         GraphPoseNodeResult result;
-        m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+        m_sampledEventRange = context.GetEmptySampledEventRange();
 
         // Update child
         if ( m_pChildNode != nullptr && m_pChildNode->IsValid() )
@@ -284,7 +291,7 @@ namespace EE::Animation::GraphNodes
         result.m_sampledEventRange = m_sampledEventRange;
 
         // Update layer context and return
-        UpdateLayerContext( context );
+        UpdateLayerWeights( context );
         m_isFirstStateUpdate = false;
         return result;
     }

@@ -68,11 +68,8 @@ namespace EE::Animation
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( numEventsTrack0 > 0 && numEventsTrack1 > 0 );
 
-        int32_t const minEvents = Math::Min( numEventsTrack0, numEventsTrack1 );
-        int32_t const maxEvents = Math::Max( numEventsTrack0, numEventsTrack1 );
-
         // Calculate the number of events in the blended track (the LCM of the two tracks)
-        int32_t const LCM = Math::LowestCommonMultiple( minEvents, maxEvents );
+        int32_t const LCM = Math::LowestCommonMultiple( numEventsTrack0, numEventsTrack1 );
         float durationScaleTrack0 = float( numEventsTrack0 ) / LCM;
         float durationScaleTrack1 = float( numEventsTrack1 ) / LCM;
 

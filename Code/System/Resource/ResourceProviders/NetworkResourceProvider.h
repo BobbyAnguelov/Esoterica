@@ -43,10 +43,7 @@ namespace EE::Resource
         bool                                                m_networkFailureDetected = false;
 
         TVector<ResourceRequest*>                           m_requests;
-
-        #if EE_DEVELOPMENT_TOOLS
         TVector<ResourceID>                                 m_externallyUpdatedResources;
-        #endif
     };
 }
 #endif

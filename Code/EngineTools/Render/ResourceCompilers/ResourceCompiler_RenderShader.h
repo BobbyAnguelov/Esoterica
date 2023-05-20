@@ -9,7 +9,7 @@ namespace EE::Render
 {
     class ShaderCompiler : public Resource::Compiler
     {
-        EE_REGISTER_TYPE( ShaderCompiler );
+        EE_REFLECT_TYPE( ShaderCompiler );
         static const int32_t s_version = 1;
 
     public:

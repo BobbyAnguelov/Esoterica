@@ -8,7 +8,7 @@ namespace EE
 {
     class EE_ENGINE_API FreeLookCameraComponent : public CameraComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( FreeLookCameraComponent );
+        EE_ENTITY_COMPONENT( FreeLookCameraComponent );
 
         friend class CameraDebugView;
 

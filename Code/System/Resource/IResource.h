@@ -45,8 +45,9 @@ namespace EE::Resource
 
 //-------------------------------------------------------------------------
 
+// Define a resource
 // Note: The expected fourCC can only contain lowercase letters and digits
-#define EE_REGISTER_RESOURCE( typeFourCC, friendlyName ) \
+#define EE_RESOURCE( typeFourCC, friendlyName ) \
     public: \
         static bool const IsVirtualResource = false;\
         static ResourceTypeID const& GetStaticResourceTypeID() { static ResourceTypeID const typeID( typeFourCC ); return typeID; } \
@@ -54,3 +55,8 @@ namespace EE::Resource
         EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( constexpr static char const* const s_friendlyName = #friendlyName; )\
         EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( virtual char const* GetFriendlyName() const override { return friendlyName; } )\
     private:
+
+// Define a resource that is also a reflected type
+#define EE_REFLECTED_RESOURCE( ResourceTypeFourCC, ResourceFriendlyName, TypeName ) \
+        EE_RESOURCE( ResourceTypeFourCC, ResourceFriendlyName )\
+        EE_REFLECT_TYPE( TypeName )

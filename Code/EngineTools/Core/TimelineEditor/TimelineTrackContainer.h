@@ -76,7 +76,7 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         bool IsDirty() const;
-        void ClearDirtyFlags();
+        void ClearDirty();
         inline void MarkDirty() { m_isDirty = true; }
 
         // Serialization

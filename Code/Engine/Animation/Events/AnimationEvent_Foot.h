@@ -15,14 +15,14 @@ namespace EE::Animation
 {
     class EE_ENGINE_API FootEvent final : public Event
     {
-        EE_REGISTER_TYPE( FootEvent );
+        EE_REFLECT_TYPE( FootEvent );
 
     public:
 
         // The actual foot phase
         enum class Phase : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             LeftFootDown = 0,
             RightFootPassing = 1,
@@ -33,7 +33,7 @@ namespace EE::Animation
         // Used wherever we need to specify a phase (or phase group)
         enum class PhaseCondition : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             LeftFootDown = 0,
             LeftFootPassing = 1,
@@ -61,6 +61,6 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE Phase     m_phase = Phase::LeftFootDown;
+        EE_REFLECT() Phase     m_phase = Phase::LeftFootDown;
     };
 }

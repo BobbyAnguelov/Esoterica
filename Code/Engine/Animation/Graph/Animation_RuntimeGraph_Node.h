@@ -5,7 +5,7 @@
 #include "Animation_RuntimeGraph_Recording.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationTarget.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Serialization/BinarySerialization.h"
 #include "System/Types/Color.h"
 #include "System/Time/Time.h"
@@ -27,7 +27,7 @@ namespace EE::Animation
 
     enum class GraphValueType
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Unknown = 0,
         Bool,
@@ -46,6 +46,7 @@ namespace EE::Animation
     EE_ENGINE_API char const* GetNameForValueType( GraphValueType type );
     #endif
 
+
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API GraphNode
@@ -53,13 +54,17 @@ namespace EE::Animation
         friend class PoseNode;
         friend class ValueNode;
 
+    protected:
+
+        constexpr static float const s_oneFrameDuration = 1.0f / 30.0f;
+
     public:
 
         // This is the base for each node's individual settings
         // The settings are all shared for all graph instances since they are immutable, the nodes themselves contain the actual graph state
-        struct EE_ENGINE_API Settings : public IRegisteredType
+        struct EE_ENGINE_API Settings : public IReflectedType
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
 
         public:
 

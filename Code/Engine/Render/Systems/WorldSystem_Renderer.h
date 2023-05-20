@@ -30,7 +30,7 @@ namespace EE::Render
 
     public:
 
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( RendererWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ), RequiresUpdate( UpdateStage::Paused ) );
+        EE_ENTITY_WORLD_SYSTEM( RendererWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ), RequiresUpdate( UpdateStage::Paused ) );
 
         #if EE_DEVELOPMENT_TOOLS
         enum class VisualizationMode : int8_t

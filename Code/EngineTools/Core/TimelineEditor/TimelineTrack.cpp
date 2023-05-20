@@ -6,7 +6,7 @@
 
 namespace EE::Timeline
 {
-    TrackItem::TrackItem( FloatRange const& inRange, IRegisteredType* pData )
+    TrackItem::TrackItem( FloatRange const& inRange, IReflectedType* pData )
         : m_pData( pData )
     {
         EE_ASSERT( m_pData != nullptr && inRange.IsSetAndValid() );
@@ -105,13 +105,13 @@ namespace EE::Timeline
         return false;
     }
 
-    void Track::ClearDirtyFlags()
+    void Track::ClearDirty()
     {
         m_isDirty = false;
 
         for ( auto pItem : m_items )
         {
-            pItem->ClearDirtyFlag();
+            pItem->ClearDirty();
         }
     }
 

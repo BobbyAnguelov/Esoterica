@@ -13,7 +13,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_sourceNodeIndices, m_inputParameterValueNodeIdx, m_isSynchronized );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -95,7 +95,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public ParameterizedBlendNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( ParameterizedBlendNode::Settings, m_parameterization );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -116,7 +116,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public ParameterizedBlendNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 

@@ -1,8 +1,10 @@
 #include "EngineModule.h"
+#include "Engine/Entity/EntityLog.h"
+#include "Engine/Navmesh/NavPower.h"
+#include "Engine/Physics/Physics.h"
 #include "System/Resource/ResourceProviders/NetworkResourceProvider.h"
 #include "System/Resource/ResourceProviders/PackagedResourceProvider.h"
 #include "System/Network/NetworkSystem.h"
-#include "Engine/Entity/EntityLog.h"
 
 //-------------------------------------------------------------------------
 
@@ -144,10 +146,15 @@ namespace EE
         m_taskSystem.Initialize();
         m_resourceSystem.Initialize( m_pResourceProvider );
         m_inputSystem.Initialize();
-        m_physicsSystem.Initialize();
+        Physics::Core::Initialize();
+        m_physicsMaterialRegistry.Initialize();
+
+        #if EE_ENABLE_NAVPOWER
+        Navmesh::NavPower::Initialize();
+        #endif
 
         #if EE_DEVELOPMENT_TOOLS
-        m_imguiSystem.Initialize( m_pRenderDevice, &m_inputSystem, m_imguiViewportsEnabled );
+        m_imguiSystem.Initialize( m_pRenderDevice, &m_inputSystem, true );
         #endif
 
         // Initialize and register renderers
@@ -245,7 +252,12 @@ namespace EE
             m_imguiSystem.Shutdown();
             #endif
 
-            m_physicsSystem.Shutdown();
+            #if EE_ENABLE_NAVPOWER
+            Navmesh::NavPower::Shutdown();
+            #endif
+
+            m_physicsMaterialRegistry.Shutdown();
+            Physics::Core::Shutdown();
             m_inputSystem.Shutdown();
             m_resourceSystem.Shutdown();
             m_taskSystem.Shutdown();
@@ -287,12 +299,8 @@ namespace EE
         m_systemRegistry.RegisterSystem( &m_resourceSystem );
         m_systemRegistry.RegisterSystem( &m_inputSystem );
         m_systemRegistry.RegisterSystem( &m_entityWorldManager );
-        m_systemRegistry.RegisterSystem( &m_physicsSystem );
         m_systemRegistry.RegisterSystem( &m_rendererRegistry );
-
-        #if EE_ENABLE_NAVPOWER
-        m_systemRegistry.RegisterSystem( &m_navmeshSystem );
-        #endif
+        m_systemRegistry.RegisterSystem( &m_physicsMaterialRegistry );
 
         // Register resource loaders
         //-------------------------------------------------------------------------
@@ -323,11 +331,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        m_physicsMeshLoader.SetPhysicsSystemPtr( &m_physicsSystem );
-        m_physicsMaterialLoader.SetPhysicsSystemPtr( &m_physicsSystem );
-        m_physicsRagdollLoader.SetPhysicsSystemPtr( &m_physicsSystem );
+        m_physicsMaterialLoader.SetMaterialRegistryPtr( &m_physicsMaterialRegistry );
 
-        m_resourceSystem.RegisterResourceLoader( &m_physicsMeshLoader );
+        m_resourceSystem.RegisterResourceLoader( &m_physicsCollisionMeshLoader );
         m_resourceSystem.RegisterResourceLoader( &m_physicsMaterialLoader );
         m_resourceSystem.RegisterResourceLoader( &m_physicsRagdollLoader );
 
@@ -355,11 +361,10 @@ namespace EE
 
         m_resourceSystem.UnregisterResourceLoader( &m_physicsRagdollLoader );
         m_resourceSystem.UnregisterResourceLoader( &m_physicsMaterialLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_physicsMeshLoader );
+        m_resourceSystem.UnregisterResourceLoader( &m_physicsCollisionMeshLoader );
 
-        m_physicsRagdollLoader.ClearPhysicsSystemPtr();
-        m_physicsMaterialLoader.ClearPhysicsSystemPtr();
-        m_physicsMeshLoader.ClearPhysicsSystemPtr();
+        m_physicsMaterialLoader.ClearMaterialRegistryPtr();
+        m_physicsMaterialRegistry.Shutdown();
 
         //-------------------------------------------------------------------------
 
@@ -390,38 +395,35 @@ namespace EE
         // Unregister systems
         //-------------------------------------------------------------------------
 
+        m_systemRegistry.UnregisterSystem( &m_physicsMaterialRegistry );
         m_systemRegistry.UnregisterSystem( &m_rendererRegistry );
-
         m_systemRegistry.UnregisterSystem( &m_entityWorldManager );
         m_systemRegistry.UnregisterSystem( &m_inputSystem );
         m_systemRegistry.UnregisterSystem( &m_resourceSystem );
         m_systemRegistry.UnregisterSystem( &m_taskSystem );
         m_systemRegistry.UnregisterSystem( &m_typeRegistry );
-        m_systemRegistry.UnregisterSystem( &m_physicsSystem );
-
-        #if EE_ENABLE_NAVPOWER
-        m_systemRegistry.UnregisterSystem( &m_navmeshSystem );
-        #endif
 
         //-------------------------------------------------------------------------
 
         m_moduleInitialized = false;
     }
 
+    //-------------------------------------------------------------------------
+
     void EngineModule::LoadModuleResources( Resource::ResourceSystem& resourceSystem )
     {
-        m_pPhysicMaterialDB = ResourceID( g_physicsMaterialDatabaseResourceID );
-        EE_ASSERT( m_pPhysicMaterialDB.IsSet() );
-        resourceSystem.LoadResource( m_pPhysicMaterialDB );
+        m_physicsMaterialDB = ResourceID( g_physicsMaterialDatabaseResourceID );
+        EE_ASSERT( m_physicsMaterialDB.IsSet() );
+        resourceSystem.LoadResource( m_physicsMaterialDB );
     }
 
     bool EngineModule::VerifyModuleResourceLoadingComplete()
     {
-        return m_pPhysicMaterialDB.IsLoaded() && m_pPhysicMaterialDB->IsValid();
+        return m_physicsMaterialDB.IsLoaded() && m_physicsMaterialDB->IsValid();
     }
 
     void EngineModule::UnloadModuleResources( Resource::ResourceSystem& resourceSystem )
     {
-        resourceSystem.UnloadResource( m_pPhysicMaterialDB );
+        resourceSystem.UnloadResource( m_physicsMaterialDB );
     }
 }

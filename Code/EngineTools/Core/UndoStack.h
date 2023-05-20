@@ -1,6 +1,6 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Types/Arrays.h"
 #include "System/Types/Event.h"
 
@@ -8,11 +8,11 @@
 
 namespace EE
 {
-    class EE_ENGINETOOLS_API IUndoableAction : public IRegisteredType
+    class EE_ENGINETOOLS_API IUndoableAction : public IReflectedType
     {
         friend class UndoStack;
 
-        EE_REGISTER_TYPE( IUndoableAction );
+        EE_REFLECT_TYPE( IUndoableAction );
 
     public:
 
@@ -30,7 +30,7 @@ namespace EE
     {
         friend class UndoStack;
 
-        EE_REGISTER_TYPE( CompoundStackAction );
+        EE_REFLECT_TYPE( CompoundStackAction );
 
     public:
 

@@ -10,7 +10,7 @@ namespace EE::EntityModel
 {
     struct EE_ENGINETOOLS_API EntityMapDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( EntityMapDescriptor );
+        EE_REFLECT_TYPE( EntityMapDescriptor );
 
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return false; }

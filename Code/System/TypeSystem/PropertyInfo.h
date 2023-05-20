@@ -14,8 +14,7 @@ namespace EE::TypeSystem
 
         enum class Flags
         {
-            IsExposed = 0,
-            IsArray,
+            IsArray = 0,
             IsDynamicArray,
             IsEnum,
             IsBitFlags,
@@ -31,7 +30,6 @@ namespace EE::TypeSystem
         // General queries
         //-------------------------------------------------------------------------
 
-        inline bool IsExposedProperty() const { return m_flags.IsFlagSet( Flags::IsExposed ); }
         inline bool IsStructureProperty() const { return m_flags.IsFlagSet( Flags::IsStructure ); }
         inline bool IsEnumProperty() const { return m_flags.IsFlagSet( Flags::IsEnum ); }
         inline bool IsBitFlagsProperty() const { return m_flags.IsFlagSet( Flags::IsBitFlags ); }
@@ -106,6 +104,7 @@ namespace EE::TypeSystem
 
         #if EE_DEVELOPMENT_TOOLS
         bool                        m_isForDevelopmentUseOnly = false;      // Whether this property only exists in development builds
+        bool                        m_isToolsReadOnly = false;              // Whether this property can be modified by any tools or if it's just a serializable value
         String                      m_friendlyName;
         String                      m_category;
         String                      m_description;                          // Generated from the comments for the property

@@ -26,9 +26,9 @@ namespace EE::Animation
         // Dirty State
         //-------------------------------------------------------------------------
 
-        inline bool IsDirty() const { return m_isDirty; }
+      /*  inline bool IsDirty() const { return m_isDirty; }
         inline void MarkDirty() { m_isDirty = true; }
-        inline void ClearDirty() { m_isDirty = false; }
+        inline void ClearDirty() { m_isDirty = false; }*/
 
         // Graph State
         //-------------------------------------------------------------------------

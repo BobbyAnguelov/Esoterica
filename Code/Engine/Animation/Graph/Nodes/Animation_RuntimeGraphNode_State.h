@@ -39,7 +39,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_entryEvents, m_executeEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerWeightNodeIdx, m_isOffState );
 
         public:
@@ -83,10 +83,17 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
 
+        // Starts a transition into this state
         void StartTransitionIn( GraphContext& context );
-        void StartTransitionOut( GraphContext& context );
+
+        // Starts a transition out of this state, this call may change the sampled event range so we return the new range
+        SampledEventRange StartTransitionOut( GraphContext& context );
+
+        // Sample all the state events for this given update
         void SampleStateEvents( GraphContext& context );
-        void UpdateLayerContext( GraphContext& context );
+
+        // Update the layer weights for this state
+        void UpdateLayerWeights( GraphContext& context );
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;

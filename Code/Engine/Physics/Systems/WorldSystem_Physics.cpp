@@ -1,85 +1,45 @@
 #include "WorldSystem_Physics.h"
-#include "Engine/Physics/PhysicsScene.h"
-#include "Engine/Physics/PhysicsSystem.h"
+#include "Engine/Physics/Physics.h"
+#include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
-#include "Engine/Physics/Components/Component_PhysicsMesh.h"
+#include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 #include "Engine/Physics/Components/Component_PhysicsCapsule.h"
 #include "Engine/Physics/Components/Component_PhysicsSphere.h"
 #include "Engine/Physics/Components/Component_PhysicsBox.h"
-#include "Engine/Physics/PhysX.h"
+#include "Engine/Physics/Components/Component_PhysicsTest.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityLog.h"
-#include "System/Math/BoundingVolumes.h"
 #include "System/Profiling.h"
 #include "System/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
-using namespace physx;
-
-//-------------------------------------------------------------------------
-
 namespace EE::Physics
 {
-    static inline PxBoxGeometry CreateBoxGeometry( float scale, Vector const& extents )
-    {
-        Vector const scaledExtents = extents * scale;
-        return PxBoxGeometry( ToPx( scaledExtents ) );
-    }
-
-    static inline PxSphereGeometry CreateSphereGeometry( float scale, float radius )
-    {
-        EE_ASSERT( !Math::IsNearZero( scale ) );
-        float const scaledRadius = radius * scale;
-        return PxSphereGeometry( scaledRadius );
-    }
-
-    static inline PxCapsuleGeometry CreateCapsuleGeometry( float scale, float radius, float halfHeight )
-    {
-        EE_ASSERT( !Math::IsNearZero( scale ) );
-        float const scaledRadius = radius * scale;
-        float const scaledHalfHeight = halfHeight * scale;
-        return PxCapsuleGeometry( scaledRadius, scaledHalfHeight );
-    }
-
-    //-------------------------------------------------------------------------
-
-    PhysicsWorldSystem::PhysicsWorldSystem( PhysicsSystem& physicsSystem )
-        : m_pPhysicsSystem( &physicsSystem )
-    {}
-
-    physx::PxScene* PhysicsWorldSystem::GetPxScene()
-    {
-        return m_pScene->m_pScene;
-    }
-
-    //-------------------------------------------------------------------------
-
     void PhysicsWorldSystem::InitializeSystem( SystemRegistry const& systemRegistry )
     {
-        m_shapeTransformChangedBindingID = PhysicsShapeComponent::OnStaticActorTransformUpdated().Bind( [this] ( PhysicsShapeComponent* pShapeComponent ) { OnStaticShapeTransformUpdated( pShapeComponent ); } );
+        auto OnRebuild = [this] ( PhysicsShapeComponent* pShapeComponent )
+        {
+            Threading::ScopeLock const lock( m_mutex );
+            m_actorRebuildRequests.emplace_back( pShapeComponent );
+        };
 
-        m_pPhysicsSystem = systemRegistry.GetSystem<PhysicsSystem>();
-        EE_ASSERT( m_pPhysicsSystem != nullptr );
+        m_actorRebuildBindingID = PhysicsShapeComponent::OnRebuildBodyRequested().Bind( OnRebuild );
 
-        m_pScene = m_pPhysicsSystem->CreateScene();
-        EE_ASSERT( m_pScene != nullptr );
+        //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
-        SetDebugFlags( 1 << PxVisualizationParameter::eCOLLISION_SHAPES );
-        #endif
+        m_pWorld = EE::New<PhysicsWorld>( systemRegistry.GetSystem<MaterialRegistry>(), IsInAGameWorld() );
+        EE_ASSERT( m_pWorld != nullptr );
     }
 
     void PhysicsWorldSystem::ShutdownSystem()
     {
-        // Destroy scene
-        EE::Delete( m_pScene );
-        m_pPhysicsSystem = nullptr;
+        EE::Delete( m_pWorld );
 
-        PhysicsShapeComponent::OnStaticActorTransformUpdated().Unbind( m_shapeTransformChangedBindingID );
+        PhysicsShapeComponent::OnRebuildBodyRequested().Unbind( m_actorRebuildBindingID );
 
-        EE_ASSERT( m_staticActorShapeUpdateList.empty() );
+        EE_ASSERT( m_actorRebuildRequests.empty() );
         EE_ASSERT( m_physicsShapeComponents.empty() );
         EE_ASSERT( m_dynamicShapeComponents.empty() );
     }
@@ -92,12 +52,14 @@ namespace EE::Physics
         {
             m_physicsShapeComponents.Add( pPhysicsComponent );
 
-            if ( pPhysicsComponent->m_actorType != ActorType::Static )
+            if ( m_pWorld->CreateActor( pPhysicsComponent ) )
             {
-                m_dynamicShapeComponents.Add( pPhysicsComponent );
+                if ( pPhysicsComponent->IsDynamic() )
+                {
+                    RegisterDynamicComponent( pPhysicsComponent );
+                }
             }
-
-            if ( !CreateActorAndShape( pPhysicsComponent ) )
+            else // Failed
             {
                 EE_LOG_ENTITY_ERROR( pPhysicsComponent, "Physics", "Failed to create physics actor/shape for shape component %s (%u)!", pPhysicsComponent->GetNameID().c_str(), pPhysicsComponent->GetID() );
             }
@@ -108,10 +70,17 @@ namespace EE::Physics
         if ( auto pCharacterComponent = TryCast<CharacterComponent>( pComponent ) )
         {
             m_characterComponents.Add( pCharacterComponent );
-            if ( !CreateCharacterActorAndShape( pCharacterComponent ) )
+            if ( !m_pWorld->CreateCharacterController( pCharacterComponent ) )
             {
                 EE_LOG_ENTITY_ERROR( pCharacterComponent, "Physics", "Failed to create physics actor/shape for character %s (%u)!", pCharacterComponent->GetNameID().c_str(), pCharacterComponent->GetID() );
             }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( auto pTestComponent = TryCast<PhysicsTestComponent>( pComponent ) )
+        {
+            m_testComponents.emplace_back( pTestComponent );
         }
     }
 
@@ -119,495 +88,205 @@ namespace EE::Physics
     {
         if ( auto pPhysicsComponent = TryCast<PhysicsShapeComponent>( pComponent ) )
         {
-            if ( pPhysicsComponent->m_pPhysicsActor != nullptr && pPhysicsComponent->m_actorType != ActorType::Static )
+            // Remove any pending change requests
             {
-                m_dynamicShapeComponents.Remove( pPhysicsComponent->GetID() );
+                Threading::ScopeLock const lock( m_mutex );
+                for ( auto i = 0; i < m_actorRebuildRequests.size(); i++ )
+                {
+                    if ( m_actorRebuildRequests[i] == pPhysicsComponent )
+                    {
+                        m_actorRebuildRequests.erase_unsorted( m_actorRebuildRequests.begin() + i );
+                        break;
+                    }
+                }
             }
 
-            m_staticActorShapeUpdateList.erase_first_unsorted( pPhysicsComponent );
+            // Remove any tracked dynamic components
+            if ( pPhysicsComponent->IsDynamic() )
+            {
+                UnregisterDynamicComponent( pPhysicsComponent );
+            }
+
+            // Remove from general component list
             m_physicsShapeComponents.Remove( pComponent->GetID() );
 
-            DestroyActor( pPhysicsComponent );
+            // Destroy the actual physics body
+            m_pWorld->DestroyActor( pPhysicsComponent );
         }
 
         //-------------------------------------------------------------------------
 
         if ( auto pCharacterComponent = TryCast<CharacterComponent>( pComponent ) )
         {
-            DestroyCharacterActor( pCharacterComponent );
+            m_pWorld->DestroyCharacterController( pCharacterComponent );
             m_characterComponents.Remove( pComponent->GetID() );
         }
+
+        //-------------------------------------------------------------------------
+
+        if ( auto pTestComponent = TryCast<PhysicsTestComponent>( pComponent ) )
+        {
+            m_testComponents.erase_first_unsorted( pTestComponent );
+        }
+    }
+
+    void PhysicsWorldSystem::RegisterDynamicComponent( PhysicsShapeComponent* pComponent )
+    {
+        EE_ASSERT( pComponent != nullptr && pComponent->IsActorCreated() && pComponent->IsDynamic() );
+        m_dynamicShapeComponents.Add( pComponent );;
+    }
+
+    void PhysicsWorldSystem::UnregisterDynamicComponent( PhysicsShapeComponent* pComponent )
+    {
+        EE_ASSERT( pComponent != nullptr && pComponent->IsActorCreated() && pComponent->IsDynamic() );
+        m_dynamicShapeComponents.Remove( pComponent->GetID() );
     }
 
     //-------------------------------------------------------------------------
 
-    bool PhysicsWorldSystem::CreateActorAndShape( PhysicsShapeComponent* pComponent ) const
+    void PhysicsWorldSystem::ProcessActorRebuildRequests( EntityWorldUpdateContext const& ctx )
     {
-        if ( !pComponent->HasValidPhysicsSetup() )
-        {
-            EE_LOG_ENTITY_WARNING( pComponent, "Physics", "Invalid physics setup set for component: %s (%u), no physics actors will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            return false;
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName = pComponent->GetNameID().IsValid() ? pComponent->GetNameID().c_str() : "Invalid Name";
-        #endif
-
-        PxRigidActor* pPhysicsActor = CreateActor( pComponent );
-        if ( pPhysicsActor == nullptr )
-        {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics actor for component %s (%u)!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            return false;
-        }
-
-        PxShape* pShape = CreateShape( pComponent, pPhysicsActor );
-        if ( pShape == nullptr )
-        {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics shape for component %s (%u)!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            return false;
-        }
-
-        // Add actor to scene
-        PxScene* pPxScene = m_pScene->m_pScene;
-        pPxScene->lockWrite();
-        pPxScene->addActor( *pPhysicsActor );
-        pPxScene->unlockWrite();
-        return true;
-    }
-
-    physx::PxRigidActor* PhysicsWorldSystem::CreateActor( PhysicsShapeComponent* pComponent ) const
-    {
-        EE_ASSERT( pComponent != nullptr );
-
-        PxPhysics* pPhysics = m_pPhysicsSystem->GetPxPhysics();
-
-        // Create and setup actor
-        //-------------------------------------------------------------------------
-
-        Transform const& worldTransform = pComponent->GetWorldTransform();
-        PxTransform const actorPose( ToPx( worldTransform.GetTranslation() ), ToPx( worldTransform.GetRotation() ) );
-
-        physx::PxRigidActor* pPhysicsActor = nullptr;
-
-        switch ( pComponent->m_actorType )
-        {
-            case ActorType::Static:
-            {
-                pPhysicsActor = pPhysics->createRigidStatic( actorPose );
-            }
-            break;
-
-            case ActorType::Dynamic:
-            {
-                pPhysicsActor = pPhysics->createRigidDynamic( actorPose );
-            }
-            break;
-
-            case ActorType::Kinematic:
-            {
-                PxRigidDynamic* pRigidDynamicActor = pPhysics->createRigidDynamic( actorPose );
-                pRigidDynamicActor->setRigidBodyFlag( PxRigidBodyFlag::eKINEMATIC, true );
-                pRigidDynamicActor->setRigidBodyFlag( PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES, true );
-                PxRigidBodyExt::setMassAndUpdateInertia( *pRigidDynamicActor, pComponent->m_mass );
-                pPhysicsActor = pRigidDynamicActor;
-            }
-            break;
-        }
-
-        // Set up component <-> physics links
-        //-------------------------------------------------------------------------
-
-        pPhysicsActor->userData = pComponent;
-        pComponent->m_pPhysicsActor = pPhysicsActor;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pPhysicsActor->setName( pComponent->m_debugName.c_str() );
-        #endif
+        EE_PROFILE_SCOPE_PHYSICS( "Component Body Transform Update" );
 
         //-------------------------------------------------------------------------
 
-        return pPhysicsActor;
-    }
+        Threading::ScopeLock const lock( m_mutex );
 
-    physx::PxShape* PhysicsWorldSystem::CreateShape( PhysicsShapeComponent* pComponent, physx::PxRigidActor* pPhysicsActor ) const
-    {
-        EE_ASSERT( pComponent != nullptr && pPhysicsActor != nullptr );
-
-        physx::PxShape* pPhysicsShape = nullptr;
-
-        // Get physics materials
-        //-------------------------------------------------------------------------
-
-        // Get physic materials
-        TInlineVector<StringID, 4> const physicsMaterialIDs = pComponent->GetPhysicsMaterialIDs();
-        TInlineVector<PxMaterial*, 4> physicsMaterials;
-
-        for ( auto const& materialID : physicsMaterialIDs )
+        for ( auto const& pShapeComponent : m_actorRebuildRequests )
         {
-            PxMaterial* pPhysicsMaterial = m_pPhysicsSystem->GetMaterial( materialID );
-            if ( pPhysicsMaterial == nullptr )
+            EE_ASSERT( pShapeComponent != nullptr );
+
+            if ( pShapeComponent->IsActorCreated() )
             {
-                return false;
+                m_pWorld->DestroyActor( pShapeComponent );
+
+                if ( m_dynamicShapeComponents.HasItemForID( pShapeComponent->GetID() ) )
+                {
+                    UnregisterDynamicComponent( pShapeComponent );
+                }
             }
 
-            physicsMaterials.emplace_back( pPhysicsMaterial );
-        }
-
-        if ( physicsMaterials.empty() )
-        {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "No physics materials set for component %s (%u). No shapes will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            return false;
-        }
-
-        // Calculate shape flags
-        //-------------------------------------------------------------------------
-
-        PxShapeFlags shapeFlags( PxShapeFlag::eVISUALIZATION );
-
-        switch ( pComponent->m_shapeType )
-        {
-            case ShapeType::SimulationAndQuery:
+            if ( pShapeComponent->HasValidPhysicsSetup() )
             {
-                shapeFlags |= PxShapeFlag::eSCENE_QUERY_SHAPE;
-                shapeFlags |= PxShapeFlag::eSIMULATION_SHAPE;
-            }
-            break;
+                m_pWorld->CreateActor( pShapeComponent );
 
-            case ShapeType::SimulationOnly:
-            {
-                shapeFlags |= PxShapeFlag::eSIMULATION_SHAPE;
-            }
-            break;
-
-            case ShapeType::QueryOnly:
-            {
-                shapeFlags |= PxShapeFlag::eSCENE_QUERY_SHAPE;
-            }
-            break;
-        }
-
-        // Create PhysX shape
-        //-------------------------------------------------------------------------
-        // We also calculate and set the component local bounds
-
-        Transform const& physicsComponentTransform = pComponent->GetWorldTransform();
-        float const scale = physicsComponentTransform.GetScale();
-
-        PxPhysics* pPhysics = m_pPhysicsSystem->GetPxPhysics();
-        if ( auto pMeshComponent = TryCast<PhysicsMeshComponent>( pComponent ) )
-        {
-            EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
-
-            Vector const finalScale = pMeshComponent->GetLocalScale() * scale;
-
-            // Triangle Mesh
-            if ( pMeshComponent->m_physicsMesh->IsTriangleMesh() )
-            {
-                PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
-                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
-                pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-            }
-            else // Convex Mesh
-            {
-                PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
-                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
-                pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
+                if ( pShapeComponent->IsDynamic() )
+                {
+                    RegisterDynamicComponent( pShapeComponent );
+                }
             }
         }
-        else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
-        {
-            PxBoxGeometry const boxGeo = CreateBoxGeometry( scale, pBoxComponent->m_boxExtents );
-            pPhysicsShape = pPhysics->createShape( boxGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-        }
-        else if ( auto pSphereComponent = TryCast<SphereComponent>( pComponent ) )
-        {
-            PxSphereGeometry const sphereGeo = CreateSphereGeometry( scale, pSphereComponent->m_radius );
-            pPhysicsShape = pPhysics->createShape( sphereGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-        }
-        else if ( auto pCapsuleComponent = TryCast<CapsuleComponent>( pComponent ) )
-        {
-            PxCapsuleGeometry const capsuleGeo = CreateCapsuleGeometry( scale, pCapsuleComponent->m_radius, pCapsuleComponent->m_cylinderPortionHalfHeight );
-            pPhysicsShape = pPhysics->createShape( capsuleGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-        }
-
-        // Set component <-> physics shape links
-        //-------------------------------------------------------------------------
-
-        pPhysicsShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-        pPhysicsShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-
-        pPhysicsShape->userData = const_cast<PhysicsShapeComponent*>( pComponent );
-        pComponent->m_pPhysicsShape = pPhysicsShape;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pPhysicsShape->setName( pComponent->m_debugName.c_str() );
-        #endif
-
-        // Attach the shape to the new actor and release the temporary reference
-        //-------------------------------------------------------------------------
-
-        pPhysicsActor->attachShape( *pPhysicsShape );
-        pPhysicsShape->release();
-
-        //-------------------------------------------------------------------------
-
-        return pPhysicsShape;
-    }
-
-    void PhysicsWorldSystem::UpdateStaticActorAndShape( PhysicsShapeComponent* pComponent ) const
-    {
-        EE_ASSERT( pComponent != nullptr );
-        if ( pComponent->m_pPhysicsActor == nullptr )
-        {
-            return;
-        }
-
-        Transform const& worldTransform = pComponent->GetWorldTransform();
-        float scale = worldTransform.GetScale();
-
-        // Update actor geometry
-        //-------------------------------------------------------------------------
-
-        if ( auto pMeshComponent = TryCast<PhysicsMeshComponent>( pComponent ) )
-        {
-            EE_ASSERT( pMeshComponent->m_physicsMesh->IsValid() );
-
-            Vector const finalScale = pMeshComponent->GetLocalScale() * scale;
-
-            // Triangle Mesh
-            if ( pMeshComponent->m_physicsMesh->IsTriangleMesh() )
-            {
-                PxTriangleMesh const* pTriMesh = pMeshComponent->m_physicsMesh->GetTriangleMesh();
-                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
-                pComponent->m_pPhysicsShape->setGeometry( meshGeo );
-            }
-            else // Convex Mesh
-            {
-                PxConvexMesh const* pConvexMesh = pMeshComponent->m_physicsMesh->GetConvexMesh();
-                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
-                pComponent->m_pPhysicsShape->setGeometry( meshGeo );
-            }
-        }
-        else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
-        {
-            PxBoxGeometry const boxGeo = CreateBoxGeometry( scale, pBoxComponent->m_boxExtents );
-            pComponent->m_pPhysicsShape->setGeometry( boxGeo );
-        }
-        else if ( auto pSphereComponent = TryCast<SphereComponent>( pComponent ) )
-        {
-            PxSphereGeometry const sphereGeo = CreateSphereGeometry( scale, pSphereComponent->m_radius );
-            pComponent->m_pPhysicsShape->setGeometry( sphereGeo );
-            
-        }
-        else if ( auto pCapsuleComponent = TryCast<CapsuleComponent>( pComponent ) )
-        {
-            PxCapsuleGeometry const capsuleGeo = CreateCapsuleGeometry( scale, pCapsuleComponent->m_radius, pCapsuleComponent->m_cylinderPortionHalfHeight );
-            pComponent->m_pPhysicsShape->setGeometry( capsuleGeo );
-        }
-
-        // Update actor position
-        //-------------------------------------------------------------------------
-
-        PxTransform const actorPose( ToPx( worldTransform.GetTranslation() ), ToPx( worldTransform.GetRotation() ) );
-        pComponent->m_pPhysicsActor->setGlobalPose( actorPose );
-    }
-
-    void PhysicsWorldSystem::DestroyActor( PhysicsShapeComponent* pComponent ) const
-    {
-        PxScene* pPxScene = m_pScene->m_pScene;
-        if ( pComponent->m_pPhysicsActor != nullptr )
-        {
-            pPxScene->lockWrite();
-            pPxScene->removeActor( *pComponent->m_pPhysicsActor );
-            pPxScene->unlockWrite();
-
-            pComponent->m_pPhysicsActor->release();
-        }
-
-        //-------------------------------------------------------------------------
-
-        pComponent->m_pPhysicsShape = nullptr;
-        pComponent->m_pPhysicsActor = nullptr;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName.clear();
-        #endif
+        m_actorRebuildRequests.clear();
     }
 
     //-------------------------------------------------------------------------
 
-    bool PhysicsWorldSystem::CreateCharacterActorAndShape( CharacterComponent* pComponent ) const
-    {
-        EE_ASSERT( pComponent != nullptr );
-        PxPhysics* pPhysics = m_pPhysicsSystem->GetPxPhysics();
-
-        if ( !pComponent->HasValidPhysicsSetup() )
-        {
-            EE_LOG_ERROR( "Physics", "No Physics Material set for component: %s (%u), no physics actors will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            return false;
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName = pComponent->GetNameID().c_str();
-        #endif
-
-        // Create actor
-        //-------------------------------------------------------------------------
-
-        PxTransform const bodyPose( ToPx( pComponent->m_capsuleWorldTransform.GetTranslation() ), ToPx( pComponent->m_capsuleWorldTransform.GetRotation() ) );
-
-        PxRigidDynamic* pRigidDynamicActor = pPhysics->createRigidDynamic( bodyPose );
-        pRigidDynamicActor->setRigidBodyFlag( PxRigidBodyFlag::eKINEMATIC, true );
-        pRigidDynamicActor->setRigidBodyFlag( PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES, true );
-        pRigidDynamicActor->userData = pComponent;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pRigidDynamicActor->setName( pComponent->m_debugName.c_str() );
-        #endif
-
-        pComponent->m_pPhysicsActor = pRigidDynamicActor;
-
-        // Create Capsule Shape
-        //-------------------------------------------------------------------------
-
-        PxMaterial* const defaultMaterial[1] = { m_pPhysicsSystem->GetDefaultMaterial() };
-        PxShapeFlags shapeFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
-        PxCapsuleGeometry const capsuleGeo( pComponent->m_radius, pComponent->m_halfHeight );
-
-        pComponent->m_pCapsuleShape = pPhysics->createShape( capsuleGeo, defaultMaterial, 1, true, shapeFlags );
-        pComponent->m_pCapsuleShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-        pComponent->m_pCapsuleShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-        pComponent->m_pCapsuleShape->userData = pComponent;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_pCapsuleShape->setName( pComponent->m_debugName.c_str() );
-        #endif
-
-        pComponent->m_pPhysicsActor->attachShape( *pComponent->m_pCapsuleShape );
-        pComponent->m_pCapsuleShape->release();
-
-        // Add to scene
-        //-------------------------------------------------------------------------
-
-        PxScene* pPxScene = m_pScene->m_pScene;
-        pPxScene->lockWrite();
-        pPxScene->addActor( *pComponent->m_pPhysicsActor );
-        pPxScene->unlockWrite();
-        return true;
-    }
-
-    void PhysicsWorldSystem::DestroyCharacterActor( CharacterComponent* pComponent ) const
-    {
-        PxScene* pPxScene = m_pScene->m_pScene;
-        if ( pComponent->m_pPhysicsActor != nullptr )
-        {
-            pPxScene->lockWrite();
-            pPxScene->removeActor( *pComponent->m_pPhysicsActor );
-            pPxScene->unlockWrite();
-
-            pComponent->m_pPhysicsActor->release();
-        }
-
-        // Clear component data
-        //-------------------------------------------------------------------------
-
-        pComponent->m_pCapsuleShape = nullptr;
-        pComponent->m_pPhysicsActor = nullptr;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName.clear();
-        #endif
-    }
-
-    //-------------------------------------------------------------------------
-
-    void PhysicsWorldSystem::OnStaticShapeTransformUpdated( PhysicsShapeComponent* pComponent )
-    {
-        EE_ASSERT( pComponent != nullptr );
-
-        if ( m_physicsShapeComponents.HasItemForID( pComponent->GetID() ) )
-        {
-            EE_ASSERT( pComponent->GetActorType() == ActorType::Static );
-            m_staticActorShapeUpdateList.emplace_back( pComponent );
-        }
-    }
-
-    //-------------------------------------------------------------------------
-    
     void PhysicsWorldSystem::UpdateSystem( EntityWorldUpdateContext const& ctx )
     {
-        PxScene* pPxScene = m_pScene->m_pScene;
+        // HACK HACK
+        #if EE_DEVELOPMENT_TOOLS
+        m_pWorld->AcquireReadLock();
+        if ( ctx.GetUpdateStage() == UpdateStage::Physics )
+        {
+            Drawing::DrawContext drawingContext = ctx.GetDrawingContext();
+
+            for ( auto pTestComponent : m_testComponents )
+            {
+                Transform const& worldTransform = pTestComponent->GetWorldTransform();
+                Transform shapeOrigin( Quaternion::Identity, worldTransform.GetTranslation() );
+                Vector const rayStart = worldTransform.GetTranslation();
+                Vector const rayDir = worldTransform.GetForwardVector();
+                Vector const rayEnd = rayStart + ( rayDir * 100 );
+
+                QueryRules rules;
+                rules.SetCollidesWith( CollisionCategory::Environment );
+                rules.SetCollidesWith( QueryChannel::Navigation );
+                rules.SetAllowMultipleHits( true );
+
+                /*RayCastResults results;
+                if ( m_pWorld->RayCast( rayStart, rayDir, 100.0f, rules, results ) )
+                {
+                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Red, 2.0f );
+
+                    for ( auto& hit : results.m_hits )
+                    {
+                        drawingContext.DrawPoint( hit.m_contactPoint, Colors::Red, 10.0f );
+                        drawingContext.DrawArrow( hit.m_contactPoint, hit.m_contactPoint + ( hit.m_normal * 0.5f ), Colors::Pink, 10.0f );
+                    }
+                }
+                else
+                {
+                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Lime, 2.0f );
+                }*/
+
+                //-------------------------------------------------------------------------
+                
+                /*drawingContext.DrawCapsule( shapeOrigin, 0.45f, 0.45f, Colors::Yellow, 2.0f );
+
+                SweepResults castResults;
+                if ( m_pWorld->CapsuleSweep( 0.45f, 0.45f, shapeOrigin, rayDir, 100, rules, castResults ) )
+                {
+                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Red, 2.0f );
+
+                    for ( auto& hit : castResults.m_hits )
+                    {
+                        drawingContext.DrawPoint( hit.m_contactPoint, Colors::HotPink, 15.0f );
+                        drawingContext.DrawCapsule( Transform( shapeOrigin.GetRotation(), hit.m_shapePosition ), 0.45f, 0.45f, hit.m_isInitiallyOverlapping ? Colors::Red : Colors::Orange, 4.0f );
+
+                        if ( hit.m_isInitiallyOverlapping )
+                        {
+                            drawingContext.DrawArrow( hit.m_contactPoint, hit.m_contactPoint + ( hit.m_normal * 0.5f ), Colors::White, 4.0f );
+
+                            Transform t( shapeOrigin.GetRotation(), hit.m_shapePosition + ( hit.m_normal * hit.m_distance ) );
+                            drawingContext.DrawCapsule( t, 0.45f, 0.45f, Colors::White, 2.0f );
+                        }
+                        else
+                        {
+                            drawingContext.DrawArrow( hit.m_contactPoint, hit.m_contactPoint + ( hit.m_normal * 0.5f ), Colors::White, 4.0f );
+                        }
+                    }
+                }
+                else
+                {
+                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Lime, 2.0f );
+                }*/
+
+                //-------------------------------------------------------------------------
+
+                /*OverlapResults overlapResults;
+                if ( m_pWorld->CapsuleOverlap( 0.45f, 0.45f, shapeOrigin, rules, overlapResults ) )
+                {
+                    drawingContext.DrawCapsule( shapeOrigin, 0.45f, 0.45f, Colors::Red, 3.0f);
+
+                    for ( auto& hit : overlapResults.m_overlaps )
+                    {
+                        drawingContext.DrawPoint( worldTransform.GetTranslation(), Colors::Yellow, 5.0f );
+                        drawingContext.DrawArrow( worldTransform.GetTranslation(), worldTransform.GetTranslation() + ( hit.m_normal * hit.m_distance ), Colors::Yellow, 2.0f );
+
+                        Transform t( shapeOrigin.GetRotation(), worldTransform.GetTranslation() + ( hit.m_normal * hit.m_distance ) );
+                        drawingContext.DrawCapsule( t, 0.45f, 0.45f, Colors::White, 2.0f );
+                    }
+                }
+                else
+                {
+                    drawingContext.DrawCapsule( shapeOrigin, 0.45f, 0.45f, Colors::LimeGreen, 3.0f );
+                }*/
+            }
+        }
+        m_pWorld->ReleaseReadLock();
+        #endif
+        // END HACK HACK HACK
+
+        //-------------------------------------------------------------------------
 
         if ( ctx.GetUpdateStage() == UpdateStage::Physics )
         {
-            m_pScene->AcquireWriteLock();
-            {
-                EE_PROFILE_SCOPE_PHYSICS( "Simulate" );
-             
-                // Handle any static component updates this should not happen in the running game
-                for ( auto pShapeComponent : m_staticActorShapeUpdateList )
-                {
-                    if ( ctx.IsGameWorld() )
-                    {
-                        EE_LOG_ENTITY_ERROR( pShapeComponent, "Physics", "Someone moved a static physics actor: %s with entity ID %u. This should not be done!", pShapeComponent->GetNameID().c_str(), pShapeComponent->GetEntityID().m_value );
-                    }
-
-                    UpdateStaticActorAndShape( pShapeComponent );
-                }
-                m_staticActorShapeUpdateList.clear();
-
-                // TODO: run at fixed time step
-                pPxScene->simulate( ctx.GetDeltaTime() );
-            }
-
-            //-------------------------------------------------------------------------
-
-            {
-                EE_PROFILE_SCOPE_PHYSICS( "Fetch Results" );
-                pPxScene->fetchResults( true );
-            }
-            m_pScene->ReleaseWriteLock();
+            ProcessActorRebuildRequests( ctx );
+            PhysicsUpdate( ctx );
         }
         else if ( ctx.GetUpdateStage() == UpdateStage::PostPhysics )
         {
-            EE_PROFILE_SCOPE_PHYSICS( "Update Dynamic Objects" );
-
-            #if EE_DEVELOPMENT_TOOLS
-            Drawing::DrawContext drawingContext = ctx.GetDrawingContext();
-            #endif
-
-            m_pScene->AcquireReadLock();
-
-            //-------------------------------------------------------------------------
-
-            for ( auto const& pDynamicPhysicsComponent : m_dynamicShapeComponents )
-            {
-                // Transfer physics pose back to component
-                if ( pDynamicPhysicsComponent->m_pPhysicsActor != nullptr && pDynamicPhysicsComponent->m_actorType == ActorType::Dynamic )
-                {
-                    auto physicsPose = pDynamicPhysicsComponent->m_pPhysicsActor->getGlobalPose();
-                    pDynamicPhysicsComponent->SetWorldTransform( FromPx( physicsPose ) );
-                }
-
-                // Debug
-                //-------------------------------------------------------------------------
-
-                #if EE_DEVELOPMENT_TOOLS
-                if ( m_drawDynamicActorBounds && pDynamicPhysicsComponent->m_actorType == ActorType::Dynamic )
-                {
-                    drawingContext.DrawBox( pDynamicPhysicsComponent->GetWorldBounds(), Colors::Orange.GetAlphaVersion( 0.5f ) );
-                    drawingContext.DrawWireBox( pDynamicPhysicsComponent->GetWorldBounds(), Colors::Orange );
-                }
-
-                if ( m_drawKinematicActorBounds && pDynamicPhysicsComponent->m_actorType == ActorType::Kinematic )
-                {
-                    drawingContext.DrawBox( pDynamicPhysicsComponent->GetWorldBounds(), Colors::HotPink.GetAlphaVersion( 0.5f ) );
-                    drawingContext.DrawWireBox( pDynamicPhysicsComponent->GetWorldBounds(), Colors::HotPink );
-                }
-                #endif
-            }
-
-            m_pScene->ReleaseReadLock();
+            PostPhysicsUpdate( ctx );
         }
         else
         {
@@ -615,71 +294,41 @@ namespace EE::Physics
         }
     }
 
-    //------------------------------------------------------------------------- 
-    // Debug
-    //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    bool PhysicsWorldSystem::IsDebugDrawingEnabled() const
+    void PhysicsWorldSystem::PhysicsUpdate( EntityWorldUpdateContext const& ctx )
     {
-        uint32_t const result = m_sceneDebugFlags & ( 1 << physx::PxVisualizationParameter::eSCALE );
-        return result != 0;
+        EE_PROFILE_FUNCTION_PHYSICS();
+
+        m_pWorld->Simulate( ctx.GetDeltaTime() );
     }
 
-    void PhysicsWorldSystem::SetDebugDrawingEnabled( bool enableDrawing )
+    void PhysicsWorldSystem::PostPhysicsUpdate( EntityWorldUpdateContext const& ctx )
     {
-        if ( enableDrawing )
-        {
-            m_sceneDebugFlags |= ( 1 << physx::PxVisualizationParameter::eSCALE );
-        }
-        else
-        {
-            m_sceneDebugFlags = m_sceneDebugFlags & ~( 1 << physx::PxVisualizationParameter::eSCALE );
-        }
+        EE_PROFILE_FUNCTION_PHYSICS();
 
-        SetDebugFlags( m_sceneDebugFlags );
-    }
-
-    void PhysicsWorldSystem::SetDebugFlags( uint32_t debugFlags )
-    {
-        EE_ASSERT( m_pScene != nullptr );
-        PxScene* pPxScene = m_pScene->m_pScene;
-        m_sceneDebugFlags = debugFlags;
-
+        // Transfer physics poses back to dynamic components
         //-------------------------------------------------------------------------
 
-        auto SetVisualizationParameter = [this, pPxScene] ( PxVisualizationParameter::Enum flag, float onValue, float offValue )
+        if ( IsInAGameWorld() )
         {
-            bool const isFlagSet = ( m_sceneDebugFlags & ( 1 << flag ) ) != 0;
-            pPxScene->setVisualizationParameter( flag, isFlagSet ? onValue : offValue );
-        };
+            m_pWorld->AcquireWriteLock();
 
-        m_pScene->AcquireWriteLock();
-        SetVisualizationParameter( PxVisualizationParameter::eSCALE, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_AABBS, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_SHAPES, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_AXES, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_FNORMALS, 0.15f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_EDGES, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCONTACT_POINT, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCONTACT_NORMAL, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCONTACT_FORCE, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eACTOR_AXES, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_AXES, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_LIN_VELOCITY, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_ANG_VELOCITY, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_MASS_AXES, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eJOINT_LIMITS, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eJOINT_LOCAL_FRAMES, 1.0f, 0.0f );
-        m_pScene->ReleaseWriteLock();
-    }
+            for ( auto const& pDynamicPhysicsComponent : m_dynamicShapeComponents )
+            {
+                EE_ASSERT( pDynamicPhysicsComponent->IsActorCreated() && pDynamicPhysicsComponent->IsDynamic() );
 
-    void PhysicsWorldSystem::SetDebugCullingBox( AABB const& cullingBox )
-    {
-        PxScene* pPxScene = m_pScene->m_pScene;
-        m_pScene->AcquireWriteLock();
-        pPxScene->setVisualizationCullingBox( ToPx( cullingBox ) );
-        m_pScene->ReleaseWriteLock();
+                if ( auto pCapsuleComponent = TryCast<CapsuleComponent>( pDynamicPhysicsComponent ) )
+                {
+                    auto physicsPose = pDynamicPhysicsComponent->m_pPhysicsActor->getGlobalPose();
+                    pCapsuleComponent->SetWorldTransformDirectly( FromPxCapsuleTransform( physicsPose ), false );
+                }
+                else // Doesnt need a conversion
+                {
+                    auto physicsPose = pDynamicPhysicsComponent->m_pPhysicsActor->getGlobalPose();
+                    pDynamicPhysicsComponent->SetWorldTransformDirectly( FromPx( physicsPose ), false );
+                }
+            }
+
+            m_pWorld->ReleaseWriteLock();
+        }
     }
-    #endif
 }

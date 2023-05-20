@@ -189,9 +189,11 @@ namespace EE::Animation
 
         // Reset node state
         m_loopCount = 0;
-        m_duration = 0.0f;
         m_previousTime = 0.0f;
         m_currentTime = m_previousTime;
+
+        // Set the duration to 0.0f even though this is an invalid value as it is expected that nodes will set this correctly at initialization time
+        m_duration = 0.0f; 
     }
 
     #if EE_DEVELOPMENT_TOOLS

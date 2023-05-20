@@ -100,7 +100,7 @@ namespace EE
         if ( pMouseState->IsHeldDown( Input::MouseButton::Right ) )
         {
             Vector const mouseDelta = pMouseState->GetMovementDelta();
-            Vector const directionDelta = mouseDelta.GetNegated() * g_mouseSensitivity;
+            Float2 const directionDelta = ( mouseDelta.GetNegated() * g_mouseSensitivity ).ToFloat2();
             m_pCameraComponent->OrientCamera( deltaTime, directionDelta.m_x, directionDelta.m_y );
         }
     }

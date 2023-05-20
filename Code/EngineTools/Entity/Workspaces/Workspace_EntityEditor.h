@@ -27,10 +27,9 @@ namespace EE::EntityModel
 
         virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
         virtual bool HasViewportWindow() const override { return true; }
-        virtual bool HasViewportToolbar() const override { return true; }
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
-        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual void OnMousePick( Render::PickingID pickingID ) override;
@@ -43,7 +42,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         void OnOutlinerSelectionChanged( TreeListView::ChangeReason reason );
-        void OnStructureEditorSelectionChanged( IRegisteredType* pTypeToEdit );
+        void OnStructureEditorSelectionChanged( IReflectedType* pTypeToEdit );
         void OnActionPerformed();
         void UpdateSelectionSpatialInfo();
 

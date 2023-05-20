@@ -1,6 +1,5 @@
 #pragma once
 #if EE_ENABLE_NAVPOWER
-#include "Engine/_Module/API.h"
 #include "System/Math/Transform.h"
 #include "System/Types/Color.h"
 #include "System/Memory/Memory.h"
@@ -10,6 +9,7 @@
 
 //-------------------------------------------------------------------------
 
+namespace bfx { class CustomAllocator; }
 namespace EE::Drawing { class DrawingSystem; }
 
 //-------------------------------------------------------------------------
@@ -49,16 +49,19 @@ namespace EE::Navmesh
 
     EE_FORCE_INLINE bfx::Vector3 ToBfx( Vector const& v )
     {
-        return bfx::Vector3( v.m_x, v.m_y, v.m_z );
+        Float3 const f3 = v.ToFloat3();
+        return ToBfx( f3 );
     }
 
     EE_FORCE_INLINE bfx::Quaternion ToBfx( Quaternion const& q )
     {
+        Float4 const f4 = q.ToFloat4();
+
         bfx::Quaternion quaternion;
-        quaternion.m_x = q.m_x;
-        quaternion.m_y = q.m_y;
-        quaternion.m_z = q.m_z;
-        quaternion.m_w = q.m_w;
+        quaternion.m_x = f4.m_x;
+        quaternion.m_y = f4.m_y;
+        quaternion.m_z = f4.m_z;
+        quaternion.m_w = f4.m_w;
         return quaternion;
     }
 
@@ -68,54 +71,14 @@ namespace EE::Navmesh
     }
 
     //-------------------------------------------------------------------------
-    // Debug drawing
-    //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    class NavpowerRenderer final : public bfx::Renderer
-    {
-
-    public:
-
-        void SetDebugDrawingSystem( Drawing::DrawingSystem* pDebugDrawingSystem )
-        {
-            m_pDebugDrawingSystem = pDebugDrawingSystem;
-        }
-
-        void Reset()
-        {
-            m_statsPos = Float2( 5, 20 );
-        }
-
-        inline bool IsDepthTestEnabled() const { return m_depthTestEnabled; }
-        inline void SetDepthTestState( bool isEnabled ) { m_depthTestEnabled = isEnabled; }
-
-    private:
-
-        virtual void DrawLineList( bfx::LineSegment const* pLines, uint32_t numLines, bfx::Color const& color ) override;
-        virtual void DrawTriList( bfx::Triangle const* pTris, uint32_t numTris, bfx::Color const& color ) override;
-        virtual void DrawString( bfx::Color const& color, char const* str ) override;
-        virtual void DrawString( bfx::Color const& color, bfx::Vector3 const& pos, char const* str ) override;
-
-    private:
-
-        Drawing::DrawingSystem*                     m_pDebugDrawingSystem = nullptr;
-        Float2                                      m_statsPos = Float2::Zero;
-        bool                                        m_depthTestEnabled = true;
-    };
-    #endif
-
-    //-------------------------------------------------------------------------
     // System and Allocator
     //-------------------------------------------------------------------------
 
-    class NavPowerAllocator final : public bfx::CustomAllocator
+    namespace NavPower
     {
-        virtual void* CustomMalloc( size_t size ) override final { return EE::Alloc( size ); }
-        virtual void* CustomAlignedMalloc( uint32_t alignment, size_t size ) override final { return EE::Alloc( size, alignment ); }
-        virtual void CustomFree( void* ptr ) override final { EE::Free( ptr ); }
-        virtual bool IsThreadSafe() const override final { return true; }
-        virtual const char* GetName() const override { return "NavpowerCustomAllocator"; }
-    };
+        void Initialize();
+        void Shutdown();
+        bfx::CustomAllocator* GetAllocator();
+    }
 }
 #endif

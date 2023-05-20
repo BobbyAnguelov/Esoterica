@@ -53,11 +53,6 @@ namespace EE
         Workspace::Shutdown( context );
     }
 
-    bool GamePreviewer::HasWorkspaceToolbar() const
-    {
-         return m_pEngineToolsUI->m_debugOverlayEnabled;
-    }
-
     //-------------------------------------------------------------------------
 
     void GamePreviewer::InitializeDockingLayout( ImGuiID dockspaceID ) const
@@ -71,22 +66,26 @@ namespace EE
         ImGui::DockBuilderDockWindow( GetViewportWindowID(), topDockID );
     }
 
-    void GamePreviewer::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
-    {
-        EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_pEngineToolsUI->HandleUserInput( context, m_pWorld );
-        m_pEngineToolsUI->DrawWindows( context, m_pWorld, pWindowClass );
-    }
-
     void GamePreviewer::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
         m_pEngineToolsUI->DrawOverlayElements( context, pViewport );
     }
 
-    void GamePreviewer::DrawWorkspaceToolbarItems( UpdateContext const& context )
+    void GamePreviewer::DrawWorkspaceToolbar( UpdateContext const& context )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_pEngineToolsUI->DrawMenu( context, m_pWorld );
+        if ( m_pEngineToolsUI->m_debugOverlayEnabled )
+        {
+            m_pEngineToolsUI->DrawMenu( context, m_pWorld );
+        }
+    }
+
+    void GamePreviewer::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    {
+        EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
+        m_pEngineToolsUI->m_debugOverlayEnabled = true;
+        m_pEngineToolsUI->HandleUserInput( context, m_pWorld );
+        m_pEngineToolsUI->DrawWindows( context, m_pWorld, pWindowClass );
     }
 }

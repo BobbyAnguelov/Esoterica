@@ -62,7 +62,6 @@ namespace EE
         m_pResourceSystem = m_engineModule.GetResourceSystem();
         m_pRenderDevice = m_engineModule.GetRenderDevice();
         m_pEntityWorldManager = m_engineModule.GetEntityWorldManager();
-        m_pPhysicsSystem = m_engineModule.GetPhysicsSystem();
 
         #if EE_DEVELOPMENT_TOOLS
         m_pImguiSystem = m_engineModule.GetImguiSystem();
@@ -139,8 +138,8 @@ namespace EE
         m_pEntityWorldManager->Initialize( *m_pSystemRegistry );
         if ( m_startupMap.IsValid() )
         {
-            auto const sceneResourceID = EE::ResourceID( m_startupMap );
-            m_pEntityWorldManager->GetWorlds()[0]->LoadMap( sceneResourceID );
+            auto const mapResourceID = EE::ResourceID( m_startupMap );
+            m_pEntityWorldManager->GetWorlds()[0]->LoadMap( mapResourceID );
         }
 
         // Initialize rendering system
@@ -265,7 +264,6 @@ namespace EE
         m_pResourceSystem = nullptr;
         m_pRenderDevice = nullptr;
         m_pEntityWorldManager = nullptr;
-        m_pPhysicsSystem = nullptr;
 
         m_engineModule.ShutdownCoreSystems();
 
@@ -395,10 +393,6 @@ namespace EE
                 #endif
 
                 m_pEntityWorldManager->UpdateWorlds( m_updateContext );
-
-                // Any global non-simulation updates needed (i.e. PVD)
-                // Scene simulations is run via the physics world system updates
-                m_pPhysicsSystem->Update( m_updateContext );
             }
 
             // Post-Physics

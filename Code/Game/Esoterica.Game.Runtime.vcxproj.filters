@@ -58,9 +58,6 @@
     <ClCompile Include="Player\Animation\PlayerAnimationController.cpp">
       <Filter>Player\Animation</Filter>
     </ClCompile>
-    <ClCompile Include="Player\Physics\PlayerPhysicsController.cpp">
-      <Filter>Player\Physics</Filter>
-    </ClCompile>
     <ClCompile Include="Player\Camera\PlayerCameraController.cpp">
       <Filter>Player\Camera</Filter>
     </ClCompile>
@@ -70,7 +67,7 @@
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Dash.cpp">
       <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
-    <ClCompile Include="Player\StateMachine\Actions\PlayerAction_DebugMode.cpp">
+    <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Ghost.cpp">
       <Filter>Player\StateMachine\Actions</Filter>
     </ClCompile>
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Falling.cpp">
@@ -177,10 +174,7 @@
     <ClInclude Include="Player\Animation\PlayerAnimationController.h">
       <Filter>Player\Animation</Filter>
     </ClInclude>
-    <ClInclude Include="Player\Physics\PlayerPhysicsController.h">
-      <Filter>Player\Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Player\StateMachine\Actions\PlayerAction_DebugMode.h">
+    <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Ghost.h">
       <Filter>Player\StateMachine\Actions</Filter>
     </ClInclude>
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Slide.h">

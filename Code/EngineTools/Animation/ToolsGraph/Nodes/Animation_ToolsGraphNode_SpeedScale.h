@@ -9,7 +9,7 @@ namespace EE::Animation::GraphNodes
 {
     class SpeedScaleToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( SpeedScaleToolsNode );
+        EE_REFLECT_TYPE( SpeedScaleToolsNode );
 
     public:
 
@@ -23,15 +23,15 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE FloatRange              m_scaleLimits = FloatRange( 0.01f, 10.0f );
-        EE_EXPOSE float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
+        EE_REFLECT() FloatRange              m_scaleLimits = FloatRange( 0.01f, 10.0f );
+        EE_REFLECT() float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
     };
 
     //-------------------------------------------------------------------------
 
     class VelocityBasedSpeedScaleToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( VelocityBasedSpeedScaleToolsNode );
+        EE_REFLECT_TYPE( VelocityBasedSpeedScaleToolsNode );
 
     public:
 
@@ -45,6 +45,6 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
+        EE_REFLECT() float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
     };
 }

@@ -117,36 +117,38 @@ namespace EE::Quantization
         {
             EE_ASSERT( value.IsNormalized() );
 
+            Float4 const floatValues = value.ToFloat4();
+
             // X
             uint16_t largestValueIndex = 0;
-            float maxAbsValue = Math::Abs( value.m_x );
-            float signMultiplier = ( value.m_x < 0 ) ? -1.0f : 1.0f;
+            float maxAbsValue = Math::Abs( floatValues.m_x );
+            float signMultiplier = ( floatValues.m_x < 0 ) ? -1.0f : 1.0f;
 
             // Y
-            float absValue = Math::Abs( value.m_y );
+            float absValue = Math::Abs( floatValues.m_y );
             if ( absValue > maxAbsValue )
             {
                 largestValueIndex = 1;
                 maxAbsValue = absValue;
-                signMultiplier = ( value.m_y < 0 ) ? -1.0f : 1.0f;
+                signMultiplier = ( floatValues.m_y < 0 ) ? -1.0f : 1.0f;
             }
 
             // Z
-            absValue = Math::Abs( value.m_z );
+            absValue = Math::Abs( floatValues.m_z );
             if ( absValue > maxAbsValue )
             {
                 largestValueIndex = 2;
                 maxAbsValue = absValue;
-                signMultiplier = ( value.m_z < 0 ) ? -1.0f : 1.0f;
+                signMultiplier = ( floatValues.m_z < 0 ) ? -1.0f : 1.0f;
             }
 
             // W
-            absValue = Math::Abs( value.m_w );
+            absValue = Math::Abs( floatValues.m_w );
             if ( absValue > maxAbsValue )
             {
                 largestValueIndex = 3;
                 maxAbsValue = absValue;
-                signMultiplier = ( value.m_w < 0 ) ? -1.0f : 1.0f;
+                signMultiplier = ( floatValues.m_w < 0 ) ? -1.0f : 1.0f;
             }
 
             //-------------------------------------------------------------------------
@@ -157,31 +159,31 @@ namespace EE::Quantization
 
             if ( largestValueIndex == 0 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( value.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( value.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( value.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
             }
             else if ( largestValueIndex == 1 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( value.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( value.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( value.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
 
                 m_data1 = 0x8000; // 1 << 16
             }
             else if ( largestValueIndex == 2 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( value.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( value.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( value.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
 
                 m_data0 = 0x8000; // 1 << 16
             }
             else if ( largestValueIndex == 3 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( value.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( value.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( value.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
 
                 m_data0 = 0x8000; // 1 << 16
                 m_data1 = 0x8000; // 1 << 16

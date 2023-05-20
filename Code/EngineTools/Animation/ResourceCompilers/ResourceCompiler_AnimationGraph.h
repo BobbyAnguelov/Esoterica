@@ -3,6 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceCompiler.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_Version.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,8 +16,8 @@ namespace EE::Animation
 
     class AnimationGraphCompiler final : public Resource::Compiler
     {
-        EE_REGISTER_TYPE( AnimationGraphCompiler );
-        constexpr static const int32_t s_version = 16 + GraphDefinitionCompiler::s_version;
+        EE_REFLECT_TYPE( AnimationGraphCompiler );
+        constexpr static const int32_t s_version = 16 + g_graphDataVersion;
 
     public:
 

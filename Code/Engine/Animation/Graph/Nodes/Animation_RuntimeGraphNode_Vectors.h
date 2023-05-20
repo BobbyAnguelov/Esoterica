@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Info : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             X,
             Y,
@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_desiredInfo );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -56,7 +56,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public VectorValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_inputVectorValueNodeIdx, m_inputValueXNodeIdx, m_inputValueYNodeIdx, m_inputValueZNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -90,7 +90,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public VectorValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_inputValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

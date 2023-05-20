@@ -11,46 +11,112 @@
 
 namespace EE::EntityModel
 {
-    using namespace TypeSystem;
-
-    //-------------------------------------------------------------------------
-
-    class SpatialComponentItem final : public TreeListViewItem
+    class StructureEditorItem : public TreeListViewItem
     {
-    public:
-
-        constexpr static char const* const s_dragAndDropID = "ComponentItem";
 
     public:
 
-        SpatialComponentItem( SpatialEntityComponent* pComponent )
+        constexpr static char const* const s_dragAndDropID = "SpatialComponentItem";
+        constexpr static char const* const s_spatialComponentsHeaderID = EE_ICON_AXIS_ARROW" Spatial Components";
+        constexpr static char const* const s_componentsHeaderID = EE_ICON_PACKAGE_VARIANT_CLOSED" Components";
+        constexpr static char const* const s_systemsHeaderID = EE_ICON_PROGRESS_WRENCH" Systems";
+
+    public:
+
+        StructureEditorItem( char const* const pLabel )
             : TreeListViewItem()
+            , m_ID( pLabel )
+            , m_tooltip( pLabel )
+        {
+            SetExpanded( true );
+        }
+
+        explicit StructureEditorItem( SpatialEntityComponent* pComponent )
+            : TreeListViewItem()
+            , m_ID( pComponent->GetNameID() )
+            , m_pComponent( pComponent )
+            , m_pSpatialComponent( pComponent )
+            , m_componentID( pComponent->GetID() )
+        {
+            m_tooltip.sprintf( "Type: %s", m_pComponent->GetTypeInfo()->GetFriendlyTypeName() );
+            SetExpanded( true );
+        }
+
+        StructureEditorItem( EntityComponent* pComponent )
+            : TreeListViewItem()
+            , m_ID( pComponent->GetNameID() )
             , m_pComponent( pComponent )
             , m_componentID( pComponent->GetID() )
         {
-            EE_ASSERT( m_pComponent != nullptr );
+            EE_ASSERT( !IsOfType<SpatialEntityComponent>( pComponent ) );
             m_tooltip.sprintf( "Type: %s", m_pComponent->GetTypeInfo()->GetFriendlyTypeName() );
         }
 
-        virtual StringID GetNameID() const override { return m_pComponent->GetNameID(); }
-        virtual uint64_t GetUniqueID() const override { return m_componentID.m_value; }
+        StructureEditorItem( EntitySystem* pSystem )
+            : TreeListViewItem()
+            , m_ID( pSystem->GetTypeInfo()->GetFriendlyTypeName() )
+            , m_pSystem( pSystem )
+        {
+            EE_ASSERT( pSystem != nullptr );
+            m_tooltip.sprintf( "Type: %s", m_pSystem->GetTypeInfo()->GetFriendlyTypeName() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        virtual bool IsHeader() const { return m_pComponent == nullptr && m_pSystem == nullptr; }
+        bool IsComponent() const { return m_pComponent != nullptr; }
+        bool IsSpatialComponent() const { return m_pComponent != nullptr && m_pSpatialComponent != nullptr; }
+        bool IsSystem() const { return m_pSystem == nullptr; }
+
+        //-------------------------------------------------------------------------
+
+        virtual StringID GetNameID() const override { return m_ID; }
+
+        virtual uint64_t GetUniqueID() const override
+        {
+            if ( IsComponent() )
+            {
+                return m_componentID.m_value;
+            }
+
+            return m_ID.GetID();
+        }
+
         virtual bool HasContextMenu() const override { return true; }
+
         virtual char const* GetTooltipText() const override { return m_tooltip.c_str(); }
-        virtual bool IsDragAndDropSource() const override { return !m_pComponent->IsRootComponent(); }
-        virtual bool IsDragAndDropTarget() const override { return true; }
+        
+        virtual bool IsDragAndDropSource() const override { return IsSpatialComponent() && !m_pSpatialComponent->IsRootComponent(); }
+        
+        virtual bool IsDragAndDropTarget() const override { return IsSpatialComponent(); }
 
         virtual void SetDragAndDropPayloadData() const override
         {
+            EE_ASSERT( IsDragAndDropSource() );
             uintptr_t itemAddress = uintptr_t( this );
             ImGui::SetDragDropPayload( s_dragAndDropID, &itemAddress, sizeof( uintptr_t ) );
         }
 
     public:
 
-        SpatialEntityComponent*     m_pComponent = nullptr;
-        ComponentID                 m_componentID; // Cached since we want to access this on rebuild without touching the component memory which might have been invalidated
+        StringID                    m_ID;
         String                      m_tooltip;
+
+        // Components - if this is a component, the component ptr must be set, the spatial component ptr is optionally set for spatial components
+        EntityComponent*            m_pComponent = nullptr;
+        SpatialEntityComponent*     m_pSpatialComponent = nullptr;
+        ComponentID                 m_componentID; // Cached since we want to access this on rebuild without touching the component memory which might have been invalidated
+
+        // Systems
+        EntitySystem*               m_pSystem = nullptr;
     };
+}
+
+//-------------------------------------------------------------------------
+
+namespace EE::EntityModel
+{
+    using namespace TypeSystem;
 
     //-------------------------------------------------------------------------
 
@@ -71,6 +137,7 @@ namespace EE::EntityModel
         m_drawRowBackground = false;
         m_useSmallFont = false;
         m_showBulletsOnLeaves = true;
+        m_prioritizeBranchesOverLeavesInVisualTree = false;
 
         // Dialogs
         //-------------------------------------------------------------------------
@@ -91,11 +158,6 @@ namespace EE::EntityModel
         }
     }
 
-    EntityStructureEditor::~EntityStructureEditor()
-    {
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
-    }
-
     void EntityStructureEditor::Initialize( UpdateContext const& context, uint32_t widgetUniqueID )
     {
         m_windowName.sprintf( "Entity##%u", widgetUniqueID );
@@ -105,11 +167,6 @@ namespace EE::EntityModel
     void EntityStructureEditor::Shutdown( UpdateContext const& context )
     {
         Entity::OnEntityUpdated().Unbind( m_entityStateChangedBindingID );
-
-        if ( m_pActiveUndoAction != nullptr )
-        {
-            EE::Delete( m_pActiveUndoAction );
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -181,24 +238,6 @@ namespace EE::EntityModel
 
     bool EntityStructureEditor::UpdateAndDraw( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
-        // Handle active operations
-        //-------------------------------------------------------------------------
-
-        if ( m_pActiveUndoAction != nullptr )
-        {
-            EE_ASSERT( m_pActiveUndoActionEntity != nullptr );
-
-            if ( !m_pActiveUndoActionEntity->HasStateChangeActionsPending() )
-            {
-                m_pActiveUndoAction->RecordEndEdit();
-                m_pUndoStack->RegisterAction( m_pActiveUndoAction );
-                m_pActiveUndoAction = nullptr;
-                m_pActiveUndoActionEntity = nullptr;
-            }
-
-            m_shouldRefreshEditorState = true;
-        }
-
         // Refresh entity editor state
         //-------------------------------------------------------------------------
 
@@ -279,189 +318,43 @@ namespace EE::EntityModel
                 // Header
                 //-------------------------------------------------------------------------
 
+                float const editButtonWidth = 26;
+                float const addButtonWidth = 60;
+                float const buttonHeight = ImGui::GetFrameHeight();
+                float const spacing = ImGui::GetStyle().ItemSpacing.x;
+
                 {
                     ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold );
                     ImGui::AlignTextToFramePadding();
                     ImGui::Text( "Entity: %s", m_pEditedEntity->GetNameID().c_str() );
                 }
 
-                ImGui::SameLine( ImGui::GetContentRegionAvail().x + ImGui::GetStyle().ItemSpacing.x - 28, 0 );
-                if ( ImGui::Button( EE_ICON_PLAYLIST_EDIT, ImVec2( 26, 26 ) ) )
+                ImGui::SameLine( ImGui::GetContentRegionAvail().x - ( addButtonWidth + editButtonWidth + spacing ), 0);
+                if ( ImGui::Button( EE_ICON_PLAYLIST_EDIT, ImVec2( editButtonWidth, buttonHeight ) ) )
                 {
                     ClearSelection();
                     m_onRequestedTypeToEditChanged.Execute( m_pEditedEntity );
                 }
                 ImGuiX::ItemTooltip( "Edit Entity Details" );
+
+                ImGui::SameLine();
+
+                ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
+                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS" ADD", ImVec2( addButtonWidth, buttonHeight ) ) )
+                {
+                    m_pOperationTargetComponent = nullptr;
+                    StartOperation( Operation::AddAny );
+                }
+                ImGuiX::ItemTooltip( "Add Component/System" );
+
                 ImGui::Separator();
 
                 //-------------------------------------------------------------------------
-
-                ImVec2 const availableArea = ImGui::GetContentRegionAvail();
-                ImVec2 const addButtonSize = ImVec2( 60, 26 );
-                float const sectionHeaderHeight = addButtonSize.y + ( ImGui::GetStyle().ItemSpacing.y * 2 );
-                float const listWidgetHeight = ( availableArea.y - ( sectionHeaderHeight * 3 ) ) / 3;
-
+                // Entity Tree
                 //-------------------------------------------------------------------------
-                // Spatial Components
-                //-------------------------------------------------------------------------
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( EE_ICON_AXIS_ARROW" Spatial Components" );
-                ImGui::SameLine( availableArea.x - 60 );
-                {
-                    ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_AXIS_ARROW" ADD", addButtonSize ) )
-                    {
-                        m_pOperationTargetComponent = nullptr;
-                        StartOperation( Operation::AddSpatialComponent );
-                    }
-                    ImGuiX::ItemTooltip( "Add Spatial Component" );
-                }
 
                 auto const& style = ImGui::GetStyle();
-                ImGui::PushStyleColor( ImGuiCol_ChildBg, style.Colors[ImGuiCol_FrameBg] );
-                ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, style.FrameRounding );
-                ImGui::PushStyleVar( ImGuiStyleVar_ChildBorderSize, style.FrameBorderSize );
-                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, style.FramePadding );
-                if ( ImGui::BeginChild( "ST", ImVec2( -1, listWidgetHeight ), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding ) )
-                {
-                    TreeListView::UpdateAndDraw( -1.0f );
-
-                    if ( GetNumItems() == 0 )
-                    {
-                        ImGui::Text( "No Components" );
-                    }
-                }
-                ImGui::EndChild();
-                ImGui::PopStyleVar( 3 );
-                ImGui::PopStyleColor();
-
-                //-------------------------------------------------------------------------
-                // Components
-                //-------------------------------------------------------------------------
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( EE_ICON_DATABASE" Components" );
-                ImGui::SameLine( availableArea.x - 60 );
-                {
-                    ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_DATABASE" ADD", addButtonSize ) )
-                    {
-                        m_pOperationTargetComponent = nullptr;
-                        StartOperation( Operation::AddComponent );
-                    }
-                    ImGuiX::ItemTooltip( "Add Component" );
-                }
-
-                if( ImGui::BeginListBox( "Components", ImVec2( -1, listWidgetHeight ) ) )
-                {
-                    for ( auto pComponent : m_pEditedEntity->GetComponents() )
-                    {
-                        if ( IsOfType<SpatialEntityComponent>( pComponent ) )
-                        {
-                            continue;
-                        }
-
-                        ImGui::PushID( pComponent );
-
-                        bool const wasSelected = VectorContains( m_selectedComponents, pComponent );
-                        if ( wasSelected )
-                        {
-                            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent1.Value );
-                        }
-
-                        bool isSelected = wasSelected;
-                        if ( ImGui::Selectable( pComponent->GetNameID().c_str(), &isSelected ) )
-                        {
-                            if ( isSelected )
-                            {
-                                ClearSelection();
-                                m_selectedComponents.clear();
-                                m_selectedComponents.emplace_back( pComponent );
-
-                                // Notify listeners that we want to edit the selected component
-                                m_onRequestedTypeToEditChanged.Execute( pComponent );
-                            }
-                        }
-
-                        if ( wasSelected )
-                        {
-                            ImGui::PopStyleColor();
-                        }
-
-                        ImGuiX::ItemTooltip( "Type: %s", pComponent->GetTypeInfo()->GetFriendlyTypeName() );
-
-                        if ( ImGui::BeginPopupContextItem( "Component" ) )
-                        {
-                            if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Component" ) )
-                            {
-                                StartOperation( Operation::RenameComponent, pComponent );
-                            }
-
-                            if ( ImGui::MenuItem( EE_ICON_DELETE" Remove Component" ) )
-                            {
-                                DestroyComponent( pComponent );
-                            }
-
-                            ImGui::EndPopup();
-                        }
-                        ImGui::PopID();
-                    }
-
-                    if ( m_pEditedEntity->GetComponents().empty() )
-                    {
-                        ImGui::Text( "No Components" );
-                    }
-
-                    ImGui::EndListBox();
-                }
-
-                //-------------------------------------------------------------------------
-                // Systems
-                //-------------------------------------------------------------------------
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( EE_ICON_COG_OUTLINE" Systems" );
-                ImGui::SameLine( availableArea.x - 60 );
-                {
-                    ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_COG_OUTLINE" ADD", addButtonSize ) )
-                    {
-                        StartOperation( Operation::AddSystem );
-                    }
-                    ImGuiX::ItemTooltip( "Add System" );
-                }
-
-                if ( ImGui::BeginListBox( "Systems", ImVec2( -1, listWidgetHeight ) ) )
-                {
-                    for ( auto pSystem : m_pEditedEntity->GetSystems() )
-                    {
-                        ImGui::PushID( pSystem );
-                        if ( ImGui::Selectable( pSystem->GetTypeInfo()->GetFriendlyTypeName() ) )
-                        {
-                            ClearSelection();
-                            m_onRequestedTypeToEditChanged.Execute( nullptr );
-                        }
-
-                        if ( ImGui::BeginPopupContextItem( "System" ) )
-                        {
-                            if ( ImGui::MenuItem( EE_ICON_DELETE" Remove System" ) )
-                            {
-                                DestroySystem( pSystem );
-                            }
-
-                            ImGui::EndPopup();
-                        }
-                        ImGui::PopID();
-                    }
-
-                    if ( m_pEditedEntity->GetSystems().empty() )
-                    {
-                        ImGui::Text( "No Systems" );
-                    }
-
-                    ImGui::EndListBox();
-                }
+                TreeListView::UpdateAndDraw( -1.0f );
             }
             else
             {
@@ -512,14 +405,6 @@ namespace EE::EntityModel
         EE_ASSERT( m_pEditedEntity != nullptr );
         EE_ASSERT( operation != Operation::None );
 
-        //-------------------------------------------------------------------------
-
-        // If we are waiting for an operation to complete, we cant start a new one
-        if ( m_pActiveUndoAction != nullptr )
-        {
-            return;
-        }
-
         // Set operation common data
         //-------------------------------------------------------------------------
 
@@ -542,7 +427,7 @@ namespace EE::EntityModel
         // Filter available selection options
         //-------------------------------------------------------------------------
 
-        if ( operation == Operation::AddSystem )
+        auto AddAvailableSystemOptions = [this] ()
         {
             TInlineVector<TypeSystem::TypeID, 10> restrictions;
             for ( auto pSystem : m_pEditedEntity->GetSystems() )
@@ -569,8 +454,9 @@ namespace EE::EntityModel
                     m_operationOptions.emplace_back( pSystemTypeInfo );
                 }
             }
-        }
-        else if ( operation == Operation::AddComponent )
+        };
+
+        auto AddAvailableComponentOptions = [this] ()
         {
             TInlineVector<TypeSystem::TypeID, 10> restrictions;
             for ( auto pComponent : m_pEditedEntity->GetComponents() )
@@ -608,8 +494,9 @@ namespace EE::EntityModel
                     m_operationOptions.emplace_back( pComponentTypeInfo );
                 }
             }
-        }
-        else if ( operation == Operation::AddSpatialComponent )
+        };
+
+        auto AddAvailableSpatialComponentOptions = [this] ()
         {
             if ( m_pOperationTargetComponent != nullptr )
             {
@@ -654,7 +541,28 @@ namespace EE::EntityModel
                     m_operationOptions.emplace_back( pComponentTypeInfo );
                 }
             }
+        };
+
+        if ( operation == Operation::AddAny )
+        {
+            AddAvailableSystemOptions();
+            AddAvailableComponentOptions();
+            AddAvailableSpatialComponentOptions();
         }
+        else if ( operation == Operation::AddSystem )
+        {
+            AddAvailableSystemOptions();
+        }
+        else if ( operation == Operation::AddComponent )
+        {
+            AddAvailableComponentOptions();
+        }
+        else if ( operation == Operation::AddSpatialComponent )
+        {
+            AddAvailableSpatialComponentOptions();
+        }
+
+        //-------------------------------------------------------------------------
 
         if ( m_activeOperation != Operation::RenameComponent )
         {
@@ -665,7 +573,7 @@ namespace EE::EntityModel
 
     void EntityStructureEditor::DrawDialogs()
     {
-        constexpr static const char* const dialogTitles[3] = { "Add System##ASC", "Add Spatial Component##ASC", "Add Component##ASC" };
+        constexpr static const char* const dialogTitles[4] = {  "Add Item##ASC", "Add System##ASC", "Add Spatial Component##ASC", "Add Component##ASC" };
 
         bool isDialogOpen = m_activeOperation != Operation::None;
         bool completeOperation = false;
@@ -954,15 +862,15 @@ namespace EE::EntityModel
                         EE_ASSERT( m_activeOperation != Operation::None );
                         EE_ASSERT( m_pOperationSelectedOption != nullptr );
 
-                        if ( m_activeOperation == Operation::AddSystem )
+                        if ( VectorContains( m_allSystemTypes, m_pOperationSelectedOption ) )
                         {
                             CreateSystem( m_pOperationSelectedOption );
                         }
-                        else if ( m_activeOperation == Operation::AddComponent )
+                        else if ( VectorContains( m_allComponentTypes, m_pOperationSelectedOption ) )
                         {
                             CreateComponent( m_pOperationSelectedOption );
                         }
-                        else if ( m_activeOperation == Operation::AddSpatialComponent )
+                        else if ( VectorContains( m_allSpatialComponentTypes, m_pOperationSelectedOption ) )
                         {
                             ComponentID parentComponentID;
                             if ( m_pOperationTargetComponent != nullptr )
@@ -996,15 +904,20 @@ namespace EE::EntityModel
     // Tree View
     //-------------------------------------------------------------------------
 
-    static void FillTree( SpatialComponentItem* pParentItem, TInlineVector<SpatialEntityComponent*, 10> const& spatialComponents )
+    static void FillTree( StructureEditorItem* pParentItem, TInlineVector<SpatialEntityComponent*, 10> const& spatialComponents )
     {
-        EE_ASSERT( pParentItem != nullptr );
+        EE_ASSERT( pParentItem != nullptr && pParentItem->IsSpatialComponent() );
 
         for ( auto i = 0u; i < spatialComponents.size(); i++ )
         {
+            if ( !spatialComponents[i]->HasSpatialParent() )
+            {
+                continue;
+            }
+
             if ( spatialComponents[i]->GetSpatialParentID() == pParentItem->m_pComponent->GetID() )
             {
-                auto pNewParentSpatialComponent = pParentItem->CreateChild<SpatialComponentItem>( spatialComponents[i] );
+                auto pNewParentSpatialComponent = pParentItem->CreateChild<StructureEditorItem>( spatialComponents[i] );
                 pNewParentSpatialComponent->SetExpanded( true );
                 FillTree( pNewParentSpatialComponent, spatialComponents );
             }
@@ -1023,9 +936,11 @@ namespace EE::EntityModel
             return;
         }
 
+        // Split Components
         //-------------------------------------------------------------------------
 
         TInlineVector<SpatialEntityComponent*, 10> spatialComponents;
+        TInlineVector<EntityComponent*, 10> nonSpatialComponents;
 
         for ( auto pComponent : m_pEditedEntity->GetComponents() )
         {
@@ -1033,49 +948,127 @@ namespace EE::EntityModel
             {
                 spatialComponents.emplace_back( pSpatialComponent );
             }
+            else
+            {
+                nonSpatialComponents.emplace_back( pComponent );
+            }
         }
 
-        if ( !spatialComponents.empty() )
+        // Spatial Components
+        //-------------------------------------------------------------------------
+
+        auto pSpatialComponentsHeaderItem = m_rootItem.CreateChild<StructureEditorItem>( StructureEditorItem::s_spatialComponentsHeaderID );
+        if( m_pEditedEntity->IsSpatialEntity() )
         {
-            auto pParentSpatialComponent = m_rootItem.CreateChild<SpatialComponentItem>( m_pEditedEntity->GetRootSpatialComponent() );
-            pParentSpatialComponent->SetExpanded( true );
-            spatialComponents.erase_first_unsorted( m_pEditedEntity->GetRootSpatialComponent() );
-            FillTree( pParentSpatialComponent, spatialComponents );
+            auto pRootComponentItem = pSpatialComponentsHeaderItem->CreateChild<StructureEditorItem>( m_pEditedEntity->GetRootSpatialComponent() );
+            FillTree( pRootComponentItem, spatialComponents );
         }
+
+        SortItemChildren( pSpatialComponentsHeaderItem );
+
+        // Non-Spatial Components
+        //-------------------------------------------------------------------------
+
+        auto pComponentsHeaderItem = m_rootItem.CreateChild<StructureEditorItem>( StructureEditorItem::s_componentsHeaderID );
+        for ( auto pComponent : nonSpatialComponents )
+        {
+            pComponentsHeaderItem->CreateChild<StructureEditorItem>( pComponent );
+        }
+
+        SortItemChildren( pComponentsHeaderItem );
+
+        // Systems
+        //-------------------------------------------------------------------------
+
+        auto pSystemsHeaderItem = m_rootItem.CreateChild<StructureEditorItem>( StructureEditorItem::s_systemsHeaderID );
+        for ( auto pSystem : m_pEditedEntity->GetSystems() )
+        {
+            pSystemsHeaderItem->CreateChild<StructureEditorItem>( pSystem );
+        }
+
+        SortItemChildren( pSystemsHeaderItem );
     }
 
     void EntityStructureEditor::DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
     {
-        auto pItem = static_cast<SpatialComponentItem*>( selectedItemsWithContextMenus[0] );
-
-        if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Component" ) )
-        {
-            StartOperation( Operation::RenameComponent, pItem->m_pComponent );
-        }
-
-        if ( ImGui::MenuItem( EE_ICON_PLUS" Add Child Component" ) )
-        {
-            StartOperation( Operation::AddSpatialComponent, pItem->m_pComponent );
-        }
+        auto pItem = static_cast<StructureEditorItem const*>( selectedItemsWithContextMenus[0] );
 
         //-------------------------------------------------------------------------
-
-        bool const isRootComponent = pItem->m_pComponent->IsRootComponent();
-
-        if ( !isRootComponent )
+        // Header Context Menu
+        //-------------------------------------------------------------------------
+        if ( pItem->IsHeader() )
         {
-            if ( ImGui::MenuItem( EE_ICON_STAR" Make Root Component" ) )
+            if ( pItem->m_ID == StringID( StructureEditorItem::s_spatialComponentsHeaderID ) )
             {
-                MakeRootComponent( pItem->m_pComponent );
+                if ( ImGui::MenuItem( EE_ICON_PLUS" Add Component" ) )
+                {
+                    StartOperation( Operation::AddSpatialComponent );
+                }
+            }
+            else if ( pItem->m_ID == StringID( StructureEditorItem::s_componentsHeaderID ) )
+            {
+                if ( ImGui::MenuItem( EE_ICON_PLUS" Add Component" ) )
+                {
+                    StartOperation( Operation::AddComponent, pItem->m_pComponent );
+                }
+            }
+            else if ( pItem->m_ID == StringID( StructureEditorItem::s_systemsHeaderID ) )
+            {
+                if ( ImGui::MenuItem( EE_ICON_PLUS" Add System" ) )
+                {
+                    StartOperation( Operation::AddSystem, pItem->m_pComponent );
+                }
             }
         }
-
-        // Only allow removal of the root if we can easily replace it
-        if ( !isRootComponent || pItem->GetChildren().size() <= 1 )
+        //-------------------------------------------------------------------------
+        // Component Context Menu
+        //-------------------------------------------------------------------------
+        else if ( pItem->IsComponent() )
         {
-            if ( ImGui::MenuItem( EE_ICON_DELETE" Remove Component" ) )
+            bool canRemoveItem = true;
+
+            if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Component" ) )
             {
-                DestroyComponent( pItem->m_pComponent );
+                StartOperation( Operation::RenameComponent, pItem->m_pComponent );
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( pItem->IsSpatialComponent() )
+            {
+                bool const isRootComponent = pItem->m_pSpatialComponent->IsRootComponent();
+                if ( !isRootComponent )
+                {
+                    if ( ImGui::MenuItem( EE_ICON_STAR" Make Root Component" ) )
+                    {
+                        MakeRootComponent( pItem->m_pSpatialComponent );
+                    }
+                }
+
+                if ( ImGui::MenuItem( EE_ICON_PLUS" Add Child Component" ) )
+                {
+                    StartOperation( Operation::AddSpatialComponent, pItem->m_pComponent );
+                }
+
+                canRemoveItem = !isRootComponent || pItem->GetChildren().size() <= 1;
+            }
+
+            if ( canRemoveItem )
+            {
+                if ( ImGui::MenuItem( EE_ICON_DELETE" Remove" ) )
+                {
+                    DestroyComponent( pItem->m_pComponent );
+                }
+            }
+        }
+        //-------------------------------------------------------------------------
+        // System Context Menu
+        //-------------------------------------------------------------------------
+        else
+        {
+            if ( ImGui::MenuItem( EE_ICON_DELETE" Remove" ) )
+            {
+                DestroySystem( pItem->m_pSystem );
             }
         }
     }
@@ -1083,43 +1076,51 @@ namespace EE::EntityModel
     void EntityStructureEditor::HandleSelectionChanged( TreeListView::ChangeReason reason )
     {
         m_selectedSpatialComponents.clear();
+        m_selectedComponents.clear();
+        m_selectedSystems.clear();
+
+        //-------------------------------------------------------------------------
 
         auto const& selection = GetSelection();
+        IReflectedType* pLastSelectedEditableType = nullptr;
         for( auto pSelectedItem : selection )
         {
-            auto pSCItem = static_cast<SpatialComponentItem*>( pSelectedItem );
-            m_selectedSpatialComponents.emplace_back( pSCItem->m_pComponent );
-        }
-
-        // If we have selected spatial components, clear the selected components
-        if ( !m_selectedSpatialComponents.empty() )
-        {
-            m_selectedComponents.clear();
+            auto pItem = static_cast<StructureEditorItem*>( pSelectedItem );
+            if ( pItem->IsSpatialComponent() )
+            {
+                m_selectedSpatialComponents.emplace_back( pItem->m_pSpatialComponent );
+                pLastSelectedEditableType = pItem->m_pSpatialComponent;
+            }
+            else if ( pItem->IsComponent() )
+            {
+                m_selectedComponents.emplace_back( pItem->m_pComponent );
+                pLastSelectedEditableType = pItem->m_pComponent;
+            }
+            else if( pItem->IsSystem() )
+            {
+                m_selectedSystems.emplace_back( pItem->m_pSystem );
+                pLastSelectedEditableType = pItem->m_pSystem;
+            }
         }
 
         // Notify listeners that we want to edit the selected component
         if ( reason != TreeListView::ChangeReason::TreeRebuild )
         {
-            if ( m_selectedSpatialComponents.empty() )
-            {
-                m_onRequestedTypeToEditChanged.Execute( nullptr );
-            }
-            else
-            {
-                m_onRequestedTypeToEditChanged.Execute( m_selectedSpatialComponents.back() );
-            }
+            m_onRequestedTypeToEditChanged.Execute( pLastSelectedEditableType );
         }
     }
 
     void EntityStructureEditor::HandleDragAndDropOnItem( TreeListViewItem* pDragAndDropTargetItem ) 
     {
-        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( SpatialComponentItem::s_dragAndDropID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( StructureEditorItem::s_dragAndDropID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
         {
             if ( payload->IsDelivery() )
             {
                 auto pRawData = (uintptr_t*) payload->Data;
-                auto pSourceComponentItem = (SpatialComponentItem*) *pRawData;
-                auto pTargetComponentItem = (SpatialComponentItem*) pDragAndDropTargetItem;
+                auto pSourceComponentItem = (StructureEditorItem*) *pRawData;
+                auto pTargetComponentItem = (StructureEditorItem*) pDragAndDropTargetItem;
+
+                EE_ASSERT( pSourceComponentItem->IsSpatialComponent() && pTargetComponentItem->IsSpatialComponent() );
 
                 // Same items, nothing to do
                 if ( pSourceComponentItem == pTargetComponentItem )
@@ -1128,13 +1129,13 @@ namespace EE::EntityModel
                 }
 
                 // We cannot re-parent ourselves to one of our children
-                if ( pTargetComponentItem->m_pComponent->IsSpatialChildOf( pSourceComponentItem->m_pComponent ) )
+                if ( pTargetComponentItem->m_pSpatialComponent->IsSpatialChildOf( pSourceComponentItem->m_pSpatialComponent ) )
                 {
                     return;
                 }
 
                 // Perform operation
-                ReparentComponent( pSourceComponentItem->m_pComponent, pTargetComponentItem->m_pComponent );
+                ReparentComponent( pSourceComponentItem->m_pSpatialComponent, pTargetComponentItem->m_pSpatialComponent );
             }
         }
     }
@@ -1146,65 +1147,95 @@ namespace EE::EntityModel
     void EntityStructureEditor::CreateSystem( TypeSystem::TypeInfo const* pSystemTypeInfo )
     {
         EE_ASSERT( pSystemTypeInfo != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
         EE_ASSERT( m_pEditedEntity != nullptr );
         EE_ASSERT( m_pEditedEntity->IsAddedToMap() );
 
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+
+        //-------------------------------------------------------------------------
+
         m_pEditedEntity->CreateSystem( pSystemTypeInfo );
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        //-------------------------------------------------------------------------
+
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
     }
 
     void EntityStructureEditor::DestroySystem( TypeSystem::TypeID systemTypeID )
     {
         EE_ASSERT( systemTypeID.IsValid() );
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
 
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+
+        //-------------------------------------------------------------------------
+
         m_pEditedEntity->DestroySystem( systemTypeID );
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        //-------------------------------------------------------------------------
+
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
+
+        ClearSelection();
     }
 
     void EntityStructureEditor::DestroySystem( EntitySystem* pSystem )
     {
         EE_ASSERT( pSystem != nullptr );
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
         EE_ASSERT( VectorContains( m_pEditedEntity->GetSystems(), pSystem ) );
 
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+
+        //-------------------------------------------------------------------------
+
         m_pEditedEntity->DestroySystem( pSystem->GetTypeID() );
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        //-------------------------------------------------------------------------
+
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
+
+        ClearSelection();
     }
 
     void EntityStructureEditor::CreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo, ComponentID const& parentSpatialComponentID )
     {
         EE_ASSERT( pComponentTypeInfo != nullptr );
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
 
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+
+        //-------------------------------------------------------------------------
+
         m_pEditedEntity->CreateComponent( pComponentTypeInfo, parentSpatialComponentID );
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        //-------------------------------------------------------------------------
+
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
     }
 
     void EntityStructureEditor::DestroyComponent( EntityComponent* pComponent )
     {
         EE_ASSERT( pComponent != nullptr );
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
 
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+
+        //-------------------------------------------------------------------------
+
         m_pEditedEntity->DestroyComponent( pComponent->GetID() );
 
         // Check if there are any other spatial components left
@@ -1231,36 +1262,39 @@ namespace EE::EntityModel
             }
         }
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        //-------------------------------------------------------------------------
+
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
+
+        ClearSelection();
     }
 
     void EntityStructureEditor::RenameComponent( EntityComponent* pComponent, StringID newNameID )
     {
         EE_ASSERT( pComponent != nullptr );
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
 
         //-------------------------------------------------------------------------
 
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
 
         //-------------------------------------------------------------------------
 
         m_pEditedEntity->RenameComponent( pComponent, newNameID );
 
         //-------------------------------------------------------------------------
-        m_pActiveUndoAction->RecordEndEdit();
-        m_pUndoStack->RegisterAction( m_pActiveUndoAction );
-        m_pActiveUndoAction = nullptr;
 
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
         m_shouldRefreshEditorState = true;
     }
 
     void EntityStructureEditor::ReparentComponent( SpatialEntityComponent* pComponent, SpatialEntityComponent* pNewParentComponent )
     {
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
         EE_ASSERT( pComponent != nullptr && pNewParentComponent != nullptr );
         EE_ASSERT( !pComponent->IsRootComponent() );
 
@@ -1271,16 +1305,11 @@ namespace EE::EntityModel
         }
 
         // Create undo action
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        m_pWorld->BeginComponentEdit( m_pEditedEntity );
 
         //-------------------------------------------------------------------------
-
-        // Flag all components for edit
-        for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
-        {
-            m_pWorld->BeginComponentEdit( pExistingComponent );
-        }
 
         // Remove the component from its old parent
         pComponent->m_pSpatialParent->m_spatialChildren.erase_first( pComponent );
@@ -1290,21 +1319,17 @@ namespace EE::EntityModel
         pNewParentComponent->m_spatialChildren.emplace_back( pComponent );
         pComponent->m_pSpatialParent = pNewParentComponent;
 
-        // Complete Component edits
-        for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
-        {
-            m_pWorld->EndComponentEdit( pExistingComponent );
-        }
-
         //-------------------------------------------------------------------------
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        m_pWorld->EndComponentEdit( m_pEditedEntity );
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
     }
 
     void EntityStructureEditor::MakeRootComponent( SpatialEntityComponent* pComponent )
     {
         EE_ASSERT( m_pEditedEntity != nullptr );
-        EE_ASSERT( m_pActiveUndoAction == nullptr );
         EE_ASSERT( pComponent != nullptr );
 
         // This component is already the root
@@ -1314,8 +1339,9 @@ namespace EE::EntityModel
         }
 
         // Create undo action
-        m_pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
-        m_pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        auto pActiveUndoAction = EE::New<EntityUndoableAction>( *m_pToolsContext->m_pTypeRegistry, m_pWorld );
+        pActiveUndoAction->RecordBeginEdit( { m_pEditedEntity } );
+        m_pWorld->BeginComponentEdit( m_pEditedEntity );
 
         //-------------------------------------------------------------------------
 
@@ -1324,12 +1350,6 @@ namespace EE::EntityModel
         if ( recreateSpatialAttachment )
         {
             m_pEditedEntity->DestroySpatialAttachment( Entity::SpatialAttachmentRule::KeepLocalTranform );
-        }
-
-        // Flag all components for edit
-        for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
-        {
-            m_pWorld->BeginComponentEdit( pExistingComponent );
         }
 
         // Remove the component from its parent
@@ -1349,14 +1369,11 @@ namespace EE::EntityModel
             m_pEditedEntity->CreateSpatialAttachment();
         }
 
-        // End components edit operations
-        for ( auto pExistingComponent : m_pEditedEntity->GetComponents() )
-        {
-            m_pWorld->EndComponentEdit( pExistingComponent );
-        }
-
         //-------------------------------------------------------------------------
 
-        m_pActiveUndoActionEntity = m_pEditedEntity;
+        m_pWorld->EndComponentEdit( m_pEditedEntity );
+        pActiveUndoAction->RecordEndEdit();
+        m_pUndoStack->RegisterAction( pActiveUndoAction );
+        m_shouldRefreshEditorState = true;
     }
 }

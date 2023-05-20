@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/UpdateStage.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,9 +14,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API EntitySystem : public IRegisteredType
+    class EE_ENGINE_API EntitySystem : public IReflectedType
     {
-        EE_REGISTER_TYPE( EntitySystem );
+        EE_REFLECT_TYPE( EntitySystem );
 
         friend class Entity;
 
@@ -28,10 +28,10 @@ namespace EE
         // Called just before we register all the components with this system
         virtual void Initialize() {}
 
-        // Called after all components have been registered with the system
+        // Called after all initial components have been registered with the system (on entity creation)
         virtual void PostComponentRegister() {}
 
-        // Called before we start unregistering components from this system
+        // Called before we start unregistering components from this system (on entity destruction)
         virtual void PreComponentUnregister() {}
 
         // Called after all components have been unregistered from the system
@@ -53,7 +53,7 @@ namespace EE
 
 //-------------------------------------------------------------------------
 
-#define EE_REGISTER_ENTITY_SYSTEM( TypeName, ... )\
-        EE_REGISTER_TYPE( TypeName );\
+#define EE_ENTITY_SYSTEM( TypeName, ... )\
+        EE_REFLECT_TYPE( TypeName );\
         virtual UpdatePriorityList const& GetRequiredUpdatePriorities() override { static UpdatePriorityList const priorityList = UpdatePriorityList( __VA_ARGS__ ); return priorityList; };\
         virtual char const* GetName() const override { return #TypeName; }

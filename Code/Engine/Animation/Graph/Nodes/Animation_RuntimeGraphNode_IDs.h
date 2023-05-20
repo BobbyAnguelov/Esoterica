@@ -11,14 +11,14 @@ namespace EE::Animation::GraphNodes
 
         enum class Comparison : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
             Matches = 0,
             DoesntMatch,
         };
 
         struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx, m_comparison, m_comparisionIDs );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -48,7 +48,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_defaultValue, m_IDs, m_values );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

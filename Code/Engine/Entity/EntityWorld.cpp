@@ -67,6 +67,7 @@ namespace EE
         {
             // Create and initialize world system
             auto pWorldSystem = Cast<IEntityWorldSystem>( pTypeInfo->CreateType() );
+            pWorldSystem->m_worldType = m_worldType;
             pWorldSystem->InitializeSystem( systemsRegistry );
             m_worldSystems.push_back( pWorldSystem );
 
@@ -449,6 +450,25 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+
+    void EntityWorld::BeginComponentEdit( Entity* pEntity )
+    {
+        EE_ASSERT( pEntity != nullptr );
+
+        auto pMap = GetMap( pEntity->GetMapID() );
+        EE_ASSERT( pMap != nullptr );
+        pMap->BeginComponentEdit( m_loadingContext, m_initializationContext, pEntity->GetID() );
+    }
+
+    void EntityWorld::EndComponentEdit( Entity* pEntity )
+    {
+        EE_ASSERT( pEntity != nullptr );
+
+        auto pMap = GetMap( pEntity->GetMapID() );
+        EE_ASSERT( pMap != nullptr );
+        pMap->EndComponentEdit( m_loadingContext, m_initializationContext, pEntity->GetID() );
+    }
+
     void EntityWorld::BeginComponentEdit( EntityComponent* pComponent )
     {
         EE_ASSERT( pComponent != nullptr );

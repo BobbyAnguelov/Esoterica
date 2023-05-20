@@ -9,13 +9,11 @@ namespace EE::Physics
 {
     class EE_ENGINE_API CapsuleComponent : public PhysicsShapeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( CapsuleComponent );
+        EE_ENTITY_COMPONENT( CapsuleComponent );
 
-        friend class PhysicsWorldSystem;
+        friend class PhysicsWorld;
 
     public:
-
-        CapsuleComponent();
 
         // The capsule radius
         EE_FORCE_INLINE float GetRadius() const { return m_radius; }
@@ -33,12 +31,17 @@ namespace EE::Physics
 
         virtual OBB CalculateLocalBounds() const override final;
         virtual bool HasValidPhysicsSetup() const override final;
-        virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const override final { return { m_materialID }; }
+        virtual Transform ConvertTransformToPhysics( Transform const& esotericaTransform ) const override final;
 
     protected:
 
-        EE_EXPOSE StringID                                 m_materialID;
-        EE_EXPOSE float                                    m_radius = 0.5f;
-        EE_EXPOSE float                                    m_cylinderPortionHalfHeight = 1.0f;
+        EE_REFLECT( "Category" : "Shape" );
+        float                                   m_radius = 0.5f;
+
+        EE_REFLECT( "Category" : "Shape" );
+        float                                   m_cylinderPortionHalfHeight = 1.0f;
+
+        EE_REFLECT( "Category" : "Physics" );
+        MaterialID                              m_materialID;
     };
 }

@@ -11,7 +11,7 @@ namespace EE::Animation::GraphNodes
 
     class EntryStateOverrideConditionsToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( EntryStateOverrideConditionsToolsNode );
+        EE_REFLECT_TYPE( EntryStateOverrideConditionsToolsNode );
 
         friend class EntryStateOverrideConduitToolsNode;
 
@@ -34,7 +34,8 @@ namespace EE::Animation::GraphNodes
     private:
 
         // For each pin, what state does it represent
-        EE_REGISTER TVector<UUID>  m_pinToStateMapping;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        TVector<UUID>  m_pinToStateMapping;
     };
 
     // State Machine Node
@@ -42,7 +43,7 @@ namespace EE::Animation::GraphNodes
 
     class EntryStateOverrideConduitToolsNode final : public VisualGraph::SM::Node
     {
-        EE_REGISTER_TYPE( EntryStateOverrideConduitToolsNode );
+        EE_REFLECT_TYPE( EntryStateOverrideConduitToolsNode );
 
     public:
 

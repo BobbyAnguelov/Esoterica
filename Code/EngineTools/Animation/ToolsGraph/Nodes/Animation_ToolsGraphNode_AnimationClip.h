@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class AnimationClipToolsNode final : public DataSlotToolsNode
     {
-        EE_REGISTER_TYPE( AnimationClipToolsNode );
+        EE_REFLECT_TYPE( AnimationClipToolsNode );
 
     public:
 
@@ -20,13 +20,13 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
-        virtual char const* const GetDefaultSlotName() const override { return "Animation"; }
+        virtual char const* GetDefaultSlotName() const override { return "Animation"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override { return AnimationClip::GetStaticResourceTypeID(); }
 
     private:
 
-        EE_EXPOSE bool         m_sampleRootMotion = true;
-        EE_EXPOSE bool         m_allowLooping = false;
+        EE_REFLECT() bool         m_sampleRootMotion = true;
+        EE_REFLECT() bool         m_allowLooping = false;
     };
 
     //-------------------------------------------------------------------------
@@ -34,6 +34,6 @@ namespace EE::Animation::GraphNodes
     // This is a base class for all nodes that directly reference an animation clip
     class AnimationClipReferenceToolsNode : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( AnimationClipReferenceToolsNode );
+        EE_REFLECT_TYPE( AnimationClipReferenceToolsNode );
     };
 }

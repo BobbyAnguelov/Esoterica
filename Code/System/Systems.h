@@ -64,6 +64,6 @@ namespace EE
 
 //-------------------------------------------------------------------------
 
-#define EE_SYSTEM_ID( TypeName ) \
+#define EE_SYSTEM( TypeName ) \
 constexpr static uint32_t const s_systemID = Hash::FNV1a::GetHash32( #TypeName ); \
 virtual uint32_t GetSystemID() const override final { return TypeName::s_systemID; }

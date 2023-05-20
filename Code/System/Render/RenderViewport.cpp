@@ -53,8 +53,8 @@ namespace EE::Render
     Float2 Viewport::ClipSpaceToScreenSpace( Vector const& pointCS ) const
     {
         // Convert from [-1,1] to [0,1]
-        float m_x = ( pointCS.m_x + 1 ) / 2;
-        float m_y = ( pointCS.m_y + 1 ) / 2;
+        float m_x = ( pointCS.GetX() + 1 ) / 2;
+        float m_y = ( pointCS.GetY() + 1 ) / 2;
 
         // Invert Y since screen space origin (0,0) is the top left and in CS it is the bottom right
         m_y = 1.0f - m_y;
@@ -85,8 +85,9 @@ namespace EE::Render
 
     LineSegment Viewport::ClipSpaceToWorldSpace( Vector const& pointCS ) const
     {
-        Vector nearPoint( pointCS.m_x, pointCS.m_y, 0.0f, 1.0f );
-        Vector farPoint( pointCS.m_x, pointCS.m_y, 1.0f, 1.0f );
+        Float2 const p = pointCS.ToFloat2();
+        Vector nearPoint( p.m_x, p.m_y, 0.0f, 1.0f);
+        Vector farPoint( p.m_x, p.m_y, 1.0f, 1.0f );
 
         Matrix const& invViewProj = m_viewVolume.GetInverseViewProjectionMatrix();
         nearPoint = invViewProj.TransformVector3( nearPoint );
@@ -101,7 +102,7 @@ namespace EE::Render
     Vector Viewport::ScreenSpaceToWorldSpaceNearPlane( Vector const& pointSS ) const
     {
         Vector pointCS = ScreenSpaceToClipSpace( pointSS ).SetW1();
-        pointCS.m_z = 0.0f;
+        pointCS.SetZ( 0.0f );
         pointCS = m_viewVolume.GetInverseViewProjectionMatrix().TransformVector4( pointCS );
         pointCS /= pointCS.GetSplatW();
         return pointCS;
@@ -110,7 +111,7 @@ namespace EE::Render
     Vector Viewport::ScreenSpaceToWorldSpaceFarPlane( Vector const& pointSS ) const
     {
         Vector pointCS = ScreenSpaceToClipSpace( pointSS ).SetW1();
-        pointCS.m_z = 1.0f;
+        pointCS.SetZ( 1.0f );
         pointCS = m_viewVolume.GetInverseViewProjectionMatrix().TransformVector4( pointCS );
         pointCS /= pointCS.GetSplatW();
         return pointCS;

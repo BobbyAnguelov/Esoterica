@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class CachedBoolToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CachedBoolToolsNode );
+        EE_REFLECT_TYPE( CachedBoolToolsNode );
 
     public:
 
@@ -23,14 +23,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE CachedValueMode          m_mode = CachedValueMode::OnEntry;
+        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
     };
 
     //-------------------------------------------------------------------------
 
     class CachedIDToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CachedIDToolsNode );
+        EE_REFLECT_TYPE( CachedIDToolsNode );
 
     public:
 
@@ -45,14 +45,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE CachedValueMode          m_mode = CachedValueMode::OnEntry;
+        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
     };
 
     //-------------------------------------------------------------------------
     
     class CachedIntToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CachedIntToolsNode );
+        EE_REFLECT_TYPE( CachedIntToolsNode );
 
     public:
 
@@ -67,14 +67,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE CachedValueMode          m_mode = CachedValueMode::OnEntry;
+        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
     };
 
     //-------------------------------------------------------------------------
 
     class CachedFloatToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CachedFloatToolsNode );
+        EE_REFLECT_TYPE( CachedFloatToolsNode );
 
     public:
 
@@ -89,14 +89,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE CachedValueMode          m_mode = CachedValueMode::OnEntry;
+        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
     };
 
     //-------------------------------------------------------------------------
 
     class CachedVectorToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CachedVectorToolsNode );
+        EE_REFLECT_TYPE( CachedVectorToolsNode );
 
     public:
 
@@ -111,14 +111,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE CachedValueMode          m_mode = CachedValueMode::OnEntry;
+        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
     };
 
     //-------------------------------------------------------------------------
 
     class CachedTargetToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( CachedTargetToolsNode );
+        EE_REFLECT_TYPE( CachedTargetToolsNode );
 
     public:
 
@@ -133,6 +133,6 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE CachedValueMode          m_mode = CachedValueMode::OnEntry;
+        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
     };
 }

@@ -40,15 +40,6 @@ namespace EE
 
     bool ResourceDescriptorCreator::Draw()
     {
-        auto pTypeInfo = m_pDescriptor->GetTypeInfo();
-        if ( !pTypeInfo->HasExposedProperties() )
-        {
-            SaveDescriptor();
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
         if ( !ImGui::IsPopupOpen( s_title ) )
         {
             ImGui::OpenPopup( s_title );

@@ -146,7 +146,7 @@ namespace EE
 
         inline int32_t GreatestCommonDivisor( int32_t a, int32_t b )
         {
-            return b == 0 ? a : GreatestCommonDivisor( b, a % b );
+            return ( b == 0 ) ? Abs( a ) : GreatestCommonDivisor( b, a % b );
         }
 
         inline int32_t LowestCommonMultiple( int32_t a, int32_t b )
@@ -201,7 +201,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Note: returns true for 0
-        EE_FORCE_INLINE bool IsPowerOf2( const int x ) { return ( x & ( x - 1 ) ) == 0; }
+        EE_FORCE_INLINE bool IsPowerOf2( int32_t x ) { return ( x & ( x - 1 ) ) == 0; }
 
         EE_FORCE_INLINE uint32_t GetClosestPowerOfTwo( uint32_t x )
         {
@@ -271,6 +271,8 @@ namespace EE
         inline explicit Int2( int32_t v ) : m_x( v ), m_y( v ) {}
         inline explicit Int2( int32_t ix, int32_t iy ) : m_x( ix ), m_y( iy ) {}
 
+        inline bool IsZero() const { return *this == Zero; }
+
         inline int32_t& operator[]( uint32_t i ) { EE_ASSERT( i < 2 ); return ( (int32_t*) this )[i]; }
         inline int32_t const& operator[]( uint32_t i ) const { EE_ASSERT( i < 2 ); return ( (int32_t*) this )[i]; }
 
@@ -317,6 +319,8 @@ namespace EE
         inline Int4( ZeroInit_t ) : m_x( 0 ), m_y( 0 ), m_z( 0 ), m_w( 0 ) {}
         inline explicit Int4( int32_t v ) : m_x( v ), m_y( v ), m_z( v ), m_w( v ) {}
         inline explicit Int4( int32_t ix, int32_t iy, int32_t iz, int32_t iw ) : m_x( ix ), m_y( iy ), m_z( iz ), m_w( iw ) {}
+
+        inline bool IsZero() const { return *this == Zero; }
 
         inline int32_t& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( (int32_t*) this )[i]; }
         inline int32_t const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( (int32_t*) this )[i]; }
@@ -372,6 +376,8 @@ namespace EE
         inline explicit Float2( Float3 const& v );
         inline explicit Float2( Float4 const& v );
 
+        inline bool IsZero() const { return *this == Zero; }
+
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
 
@@ -425,6 +431,8 @@ namespace EE
         EE_FORCE_INLINE explicit Float3( float ix, float iy, float iz ) : m_x( ix ), m_y( iy ), m_z( iz ) {}
         inline explicit Float3( Float2 const& v, float iz = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( iz ) {}
         inline explicit Float3( Float4 const& v );
+
+        inline bool IsZero() const { return *this == Zero; }
 
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
@@ -482,6 +490,8 @@ namespace EE
         EE_FORCE_INLINE explicit Float4( float ix, float iy, float iz, float iw ) : m_x( ix ), m_y( iy ), m_z( iz ), m_w( iw ) {}
         explicit Float4( Float2 const& v, float iz = 0.0f, float iw = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( iz ), m_w( iw ) {}
         explicit Float4( Float3 const& v, float iw = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( v.m_z ), m_w( iw ) {}
+
+        inline bool IsZero() const { return *this == Zero; }
 
         float& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }
         float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }

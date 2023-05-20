@@ -5,7 +5,7 @@
 namespace EE::VisualGraph
 {
     constexpr static float const g_transitionArrowWidth = 3.0f;
-    constexpr static float const g_transitionArrowOffset = 4.0f;
+    constexpr static float const g_transitionArrowOffset = 8.0f;
     constexpr static float const g_spacingBetweenTitleAndNodeContents = 6.0f;
     constexpr static float const g_pinRadius = 5.0f;
     constexpr static float const g_pinSelectionExtraRadius = 10.0f;
@@ -323,8 +323,13 @@ namespace EE::VisualGraph
 
             {
                 ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+
+                auto const cursorStartPos = ImGui::GetCursorPos();
                 ImGui::BeginGroup();
                 pNode->DrawExtraControls( ctx, m_pUserContext );
+                auto const cursorEndPos = ImGui::GetCursorPos();
+                ImGui::SetCursorPos( cursorStartPos );
+                ImGui::Dummy( cursorEndPos - cursorStartPos );
                 ImGui::EndGroup();
             }
 
@@ -393,11 +398,28 @@ namespace EE::VisualGraph
             visualState = NodeVisualState::Selected;
         }
 
-        // Draw
+        // Draw Extra Controls
         //-------------------------------------------------------------------------
 
-        ImColor const transitionColor = pTransition->GetNodeBorderColor( ctx, m_pUserContext, visualState );
-        ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), transitionColor, g_transitionArrowWidth );
+        pTransition->DrawExtraControls( ctx, m_pUserContext, startPoint, endPoint );
+
+        // Draw Arrows
+        //-------------------------------------------------------------------------
+
+        float const transitionProgress = pTransition->m_transitionProgress.GetNormalizedTime().ToFloat();
+        bool const hasTransitionProgress = transitionProgress > 0.0f;
+        ImColor const transitionColor = pTransition->GetColor( ctx, m_pUserContext, visualState );
+
+        if ( hasTransitionProgress )
+        {
+            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), ImGuiX::ImColors::DimGray, g_transitionArrowWidth );
+            ImVec2 const progressEndPoint = Math::Lerp( startPoint, endPoint, transitionProgress );
+            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( progressEndPoint ), transitionColor, g_transitionArrowWidth );
+        }
+        else
+        {
+            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), transitionColor, g_transitionArrowWidth );
+        }
 
         // Update transition position and size
         //-------------------------------------------------------------------------
@@ -625,8 +647,12 @@ namespace EE::VisualGraph
 
                 //-------------------------------------------------------------------------
 
+                auto const cursorStartPos = ImGui::GetCursorPos();
                 ImGui::BeginGroup();
                 pNode->DrawExtraControls( ctx, m_pUserContext );
+                auto const cursorEndPos = ImGui::GetCursorPos();
+                ImGui::SetCursorPos( cursorStartPos );
+                ImGui::Dummy( cursorEndPos - cursorStartPos );
                 ImGui::EndGroup();
             }
 
@@ -665,6 +691,17 @@ namespace EE::VisualGraph
         m_pUserContext->m_isAltDown = ImGui::GetIO().KeyAlt;
         m_pUserContext->m_isCtrlDown = ImGui::GetIO().KeyCtrl;
         m_pUserContext->m_isShiftDown = ImGui::GetIO().KeyShift;
+
+        // Node visual update
+        //-------------------------------------------------------------------------
+
+        if ( m_pGraph != nullptr )
+        {
+            for ( auto pNode : m_pGraph->m_nodes )
+            {
+                pNode->PreDrawUpdate( m_pUserContext );
+            }
+        }
 
         // Draw Graph
         //-------------------------------------------------------------------------

@@ -10,7 +10,7 @@ namespace EE::Render
 {
     enum class Mobility
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Static = 0,
         Dynamic = 1
@@ -20,7 +20,7 @@ namespace EE::Render
 
     class EE_ENGINE_API StaticMeshComponent final : public MeshComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( StaticMeshComponent );
+        EE_ENTITY_COMPONENT( StaticMeshComponent );
 
         static TEvent<StaticMeshComponent*> s_mobilityChangedEvent; // Fired whenever we switch mobility 
         static TEvent<StaticMeshComponent*> s_staticMobilityTransformUpdatedEvent; // Fired whenever a "static" component is moved
@@ -78,14 +78,14 @@ namespace EE::Render
     protected:
 
         // A local scale that doesnt propagate but that can allow for non-uniform scaling of meshes
-        EE_EXPOSE Float3                                m_localScale = Float3::One;
+        EE_REFLECT() Float3                                m_localScale = Float3::One;
 
     private:
 
         // The mesh resource for this component
-        EE_EXPOSE TResourcePtr<StaticMesh>              m_mesh;
+        EE_REFLECT() TResourcePtr<StaticMesh>              m_mesh;
 
         // Is this component expected to be static (immovable) or dynamic (allowed to move)
-        EE_EXPOSE Mobility                              m_mobility = Mobility::Static;
+        EE_REFLECT() Mobility                              m_mobility = Mobility::Static;
     };
 }

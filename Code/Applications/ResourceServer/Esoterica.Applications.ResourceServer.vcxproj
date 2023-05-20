@@ -96,27 +96,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ResourceCompileDependencyTree.cpp" />
     <ClCompile Include="ResourceServer.cpp" />
     <ClCompile Include="ResourceServerApplication.cpp" />
     <ClCompile Include="ResourceServerContext.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
-    <ClCompile Include="CompiledResourceDatabase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\ResourceServer.ico" />
     <Image Include="Resources\ResourceServerBusyOverlay.ico" />
+    <Image Include="Resources\TrayIconBusy.ico" />
+    <Image Include="Resources\TrayIconBusy.png" />
+    <Image Include="Resources\TrayIconIdle.ico" />
+    <Image Include="Resources\TrayIconIdle.png" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resources\Esoterica.Applications.ResourceServer.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ResourceCompileDependencyTree.h" />
     <ClInclude Include="ResourceServerApplication.h" />
     <ClInclude Include="ResourceServerContext.h" />
     <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="ResourceCompilationRequest.h" />
-    <ClInclude Include="CompiledResourceDatabase.h" />
     <ClInclude Include="ResourceServer.h" />
     <ClInclude Include="Resources\Resource.h" />
   </ItemGroup>

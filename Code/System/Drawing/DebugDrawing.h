@@ -115,17 +115,17 @@ namespace EE::Drawing
 
         inline void DrawBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            DrawBox( Transform( rotation, position), halfsize, color, depthTestState, TTL);
+            DrawBox( Transform( rotation, position ), halfsize, color, depthTestState, TTL );
         }
 
         inline void DrawBox( OBB const& box, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            DrawBox( Transform( box.m_orientation, box.m_center ),box.m_extents, color, depthTestState, TTL );
+            DrawBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, depthTestState, TTL );
         }
 
         inline void DrawBox( AABB const& box, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            DrawBox( Transform( Quaternion::Identity, box.m_center ), box.m_extents, color, depthTestState, TTL );
+            DrawBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, depthTestState, TTL );
         }
 
         inline void DrawWireBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
@@ -140,7 +140,7 @@ namespace EE::Drawing
 
         inline void DrawWireBox( AABB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
-            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_extents, color, lineThickness, depthTestState, TTL );
+            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, lineThickness, depthTestState, TTL );
         }
 
         //-------------------------------------------------------------------------
@@ -149,7 +149,7 @@ namespace EE::Drawing
 
         void DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
-        inline void DrawCircle( Vector const& worldPosition , Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        inline void DrawCircle( Vector const& worldPosition, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
         {
             DrawCircle( Transform( Quaternion::Identity, worldPosition ), upAxis, radius, color, lineThickness, depthTestState, TTL );
         }
@@ -163,38 +163,22 @@ namespace EE::Drawing
             DrawSphere( Transform( Quaternion::Identity, position ), radius, color, lineThickness, depthTestState, TTL );
         }
 
-        inline void DrawSphere( Sphere const& sphere, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            DrawSphere( Transform( Quaternion::Identity, sphere.GetCenter() ), sphere.GetRadius(), color, lineThickness, depthTestState, TTL );
-        }
-
-        //-------------------------------------------------------------------------
-
-        // A half sphere from the transform point sliced along the XY plane ( Z is up )
-        void DrawHalfSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
-
-        // A half sphere from the transform point sliced along the YZ plane ( X is up )
-        void DrawHalfSphereYZ( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
-
-        // A half sphere from the transform point, with the radius along the +Z axis
-        inline void DrawHalfSphere( Float3 const& position, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
-        {
-            DrawHalfSphere( Transform( Quaternion::Identity, position ), radius, color, lineThickness, depthTestState, TTL );
-        }
-
         //-------------------------------------------------------------------------
 
         // Disc align to the XY plane
         void DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
 
         // Cylinder with radius on the XY plane and half-height along Z
-        void DrawCylinder( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
+        void DrawCylinder( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        {
+            InternalDrawCylinderOrCapsule( false, worldTransform, radius, halfHeight, color, thickness, depthTestState, TTL );
+        }
 
         // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
-        void DrawCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
-
-        // Capsule with radius on the YZ plane and half-height along X, total capsule height = 2 * ( halfHeight + radius )
-        void DrawCapsuleHeightX( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 );
+        void DrawCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTestState depthTestState = DepthTestState::DisableDepthTest, Seconds TTL = -1 )
+        {
+            InternalDrawCylinderOrCapsule( true, worldTransform, radius, halfHeight, color, thickness, depthTestState, TTL );
+        }
 
         //-------------------------------------------------------------------------
         // Complex Shapes
@@ -286,6 +270,8 @@ namespace EE::Drawing
         {
             cmdList.AddCommand( TextCommand( position, pText, color, size, alignment, true, TTL ), depthTestState);
         }
+
+        void InternalDrawCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DepthTestState depthTestState, Seconds TTL );
 
         // Try to prevent users from copying these contexts around - TODO: we should record the thread ID and assert everywhere that we are on the correct thread
         inline DrawContext( ThreadCommandBuffer& buffer ) : m_commandBuffer( buffer ) {}

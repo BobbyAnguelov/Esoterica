@@ -180,13 +180,13 @@ namespace EE::Timeline
         return false;
     }
 
-    void TrackContainer::ClearDirtyFlags()
+    void TrackContainer::ClearDirty()
     {
         m_isDirty = false;
 
         for ( auto pTrack : m_tracks )
         {
-            pTrack->ClearDirtyFlags();
+            pTrack->ClearDirty();
         }
     }
 
@@ -286,7 +286,7 @@ namespace EE::Timeline
             return false;
         }
 
-        ClearDirtyFlags();
+        ClearDirty();
         return true;
     }
 
@@ -335,6 +335,6 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         writer.EndArray();
-        ClearDirtyFlags();
+        ClearDirty();
     }
 }

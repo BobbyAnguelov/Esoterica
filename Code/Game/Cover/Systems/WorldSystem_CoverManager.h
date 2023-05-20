@@ -18,7 +18,7 @@ namespace EE
 
     public:
 
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( CoverManager, RequiresUpdate( UpdateStage::PrePhysics ) );
+        EE_ENTITY_WORLD_SYSTEM( CoverManager, RequiresUpdate( UpdateStage::PrePhysics ) );
 
     private:
 

@@ -8,7 +8,7 @@
 
 namespace EE::Physics
 {
-    class Scene;
+    class PhysicsWorld;
 }
 
 //-------------------------------------------------------------------------
@@ -91,10 +91,10 @@ namespace EE::Animation
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
 
         // Run the graph logic - returns the root motion delta for the update
-        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, bool resetGraphState = false );
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, bool resetGraphState = false );
 
         // Run the graph logic synchronized (needed for external graph support) - returns the root motion delta for the update
-        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::Scene* pPhysicsScene, SyncTrackTimeRange const& updateRange, bool resetGraphState = false );
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const& updateRange, bool resetGraphState = false );
 
         // Execute any pre-physics pose tasks (assumes the character is at its final position for this frame)
         void ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform );
@@ -253,6 +253,13 @@ namespace EE::Animation
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
             auto pValueNode = reinterpret_cast<ValueNode*>( const_cast<GraphNode*>( m_nodes[nodeIdx] ) );
             return pValueNode->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
+        }
+
+        // Get a node instance for debugging
+        inline GraphNode const* GetNodeDebugInstance( int16_t nodeIdx ) const
+        {
+            EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
+            return m_nodes[nodeIdx];
         }
 
         // Get the runtime log for this graph instance

@@ -111,7 +111,7 @@ namespace EE::TypeSystem::Reflection
         mutable String                      m_errorMessage;
         mutable char                        m_statementBuffer[s_defaultStatementBufferSize] = { 0 };
 
-        ReflectedType                       m_registeredTypeBase;
+        ReflectedType                       m_reflectedTypeBase;
         TVector<ReflectedType>              m_reflectedTypes;
         TVector<HeaderInfo>                 m_reflectedHeaders;
         TVector<ProjectInfo>                m_reflectedProjects;

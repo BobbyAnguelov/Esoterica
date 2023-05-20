@@ -195,7 +195,7 @@ namespace EE::Animation
                 InlineString const tR( InlineString::CtorSprintf(), "x=%.3f, y=%.3f, z=%.3f", vR.m_x, vR.m_y, vR.m_z );
 
                 Vector vT = pAction->m_rootMotionDelta.GetTranslation();
-                InlineString const tT( InlineString::CtorSprintf(), "x=%f, y=%f, z=%f", vT.m_x, vT.m_y, vT.m_z );
+                InlineString const tT( InlineString::CtorSprintf(), "x=%f, y=%f, z=%f", vT.GetX(), vT.GetY(), vT.GetZ() );
 
                 ImGui::Text( "R: %s, T: %s", tR.c_str(), tT.c_str() );
             }

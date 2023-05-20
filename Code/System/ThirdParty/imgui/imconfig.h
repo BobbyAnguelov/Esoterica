@@ -17,6 +17,8 @@
 //---- Define assertion handler. Defaults to calling assert().
 // If your macro uses multiple statements, make sure is enclosed in a 'do { .. } while (0)' block so it can be used as a single statement.
 
+#include "System/Esoterica.h"
+
 #if EE_DEVELOPMENT_TOOLS
 #define IM_ASSERT(_EXPR)  EE_ASSERT(_EXPR)
 #else
@@ -99,13 +101,13 @@
 #define IM_VEC2_CLASS_EXTRA                                                 \
         ImVec2(const EE::Float2& f) { x = f.m_x; y = f.m_y; }\
         operator EE::Float2() const { return EE::Float2(x,y); }\
-        ImVec2(const EE::Vector& f) { x = f.m_x; y = f.m_y; }\
+        ImVec2(const EE::Vector& f) { x = f.GetX(); y = f.GetY(); }\
         operator EE::Vector() const { return EE::Vector(x,y,0,0); }
 
 #define IM_VEC4_CLASS_EXTRA                                                 \
         ImVec4(const EE::Float4& f) { x = f.m_x; y = f.m_y; z = f.m_z; w = f.m_w; }\
         operator EE::Float4() const { return EE::Float4(x,y,z,w); }\
-        ImVec4(const EE::Vector& f) { x = f.m_x; y = f.m_y; z = f.m_z; w = f.m_w; }\
+        ImVec4(const EE::Vector& f) { x = f.GetX(); y = f.GetY(); z = f.GetZ(); w = f.GetW(); }\
         operator EE::Vector() const { return EE::Vector(x,y,z,w); }
 
 #define IMGUI_DEFINE_MATH_OPERATORS

@@ -44,11 +44,11 @@ namespace EE::EntityModel
 
         Entity* pEntity = nullptr;
 
-        if ( auto pEditedEntity = TryCast<Entity>( eventInfo.m_pEditedTypeInstance ) )
+        if ( auto pEditedEntity = TryCast<Entity>( eventInfo.m_pOwnerTypeInstance ) )
         {
             pEntity = pEditedEntity;
         }
-        else if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pEditedTypeInstance ) )
+        else if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pOwnerTypeInstance ) )
         {
             pEntity = m_pWorld->FindEntity( pComponent->GetEntityID() );
         }
@@ -62,7 +62,7 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pEditedTypeInstance ) )
+        if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pOwnerTypeInstance ) )
         {
             m_pWorld->BeginComponentEdit( pComponent );
         }
@@ -75,7 +75,7 @@ namespace EE::EntityModel
         // Reset the local transform to ensure that the world transform is recalculated
         if ( eventInfo.m_pPropertyInfo->m_ID == StringID( "m_transform" ) )
         {
-            if ( auto pSpatialComponent = TryCast<SpatialEntityComponent>( eventInfo.m_pEditedTypeInstance ) )
+            if ( auto pSpatialComponent = TryCast<SpatialEntityComponent>( eventInfo.m_pOwnerTypeInstance ) )
             {
                 pSpatialComponent->SetLocalTransform( pSpatialComponent->GetLocalTransform() );
             }
@@ -89,7 +89,7 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pEditedTypeInstance ) )
+        if ( auto pComponent = TryCast<EntityComponent>( eventInfo.m_pOwnerTypeInstance ) )
         {
             m_pWorld->EndComponentEdit( pComponent );
         }
@@ -147,7 +147,7 @@ namespace EE::EntityModel
         return true;
     }
 
-    void EntityWorldPropertyGrid::SetTypeInstanceToEdit( IRegisteredType* pTypeInstance )
+    void EntityWorldPropertyGrid::SetTypeInstanceToEdit( IReflectedType* pTypeInstance )
     {
         if ( pTypeInstance == nullptr )
         {
@@ -213,7 +213,10 @@ namespace EE::EntityModel
                 {
                     auto pEntity = m_pWorld->FindEntity( m_editedEntityID );
                     auto pComponent = pEntity->FindComponent( m_editedComponentID );
-                    ImGui::Text( "Entity: %s, Component: %s", pEntity->GetNameID().c_str(), pComponent->GetNameID().c_str() );
+                    if ( pComponent != nullptr )
+                    {
+                        ImGui::Text( "Entity: %s, Component: %s", pEntity->GetNameID().c_str(), pComponent->GetNameID().c_str() );
+                    }
                 }
                 else if ( m_editedEntityID.IsValid() )
                 {

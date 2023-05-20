@@ -81,7 +81,7 @@ namespace EE::Animation
         {
             EE_ASSERT( nodeIdx != InvalidIndex );
             int16_t const idx = (int16_t) m_recordedActions.size();
-            m_recordedActions.emplace_back( nodeIdx, ActionType::Sample, rootMotionDelta);
+            m_recordedActions.emplace_back( nodeIdx, ActionType::Sample, rootMotionDelta );
             return idx;
         }
 

@@ -15,7 +15,7 @@ namespace EE::Render
 
     class EE_ENGINE_API RenderDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( RenderDebugView );
+        EE_REFLECT_TYPE( RenderDebugView );
 
     public:
 

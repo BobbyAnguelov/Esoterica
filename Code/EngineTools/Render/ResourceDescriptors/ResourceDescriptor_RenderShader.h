@@ -9,7 +9,7 @@ namespace EE::Render
 {
     enum class ShaderType : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Vertex = 0,
         Geometry,
@@ -20,7 +20,7 @@ namespace EE::Render
 
     struct ShaderResourceDescriptor : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( ShaderResourceDescriptor );
+        EE_REFLECT_TYPE( ShaderResourceDescriptor );
 
     public:
 
@@ -38,7 +38,7 @@ namespace EE::Render
 
     public:
 
-        EE_EXPOSE ShaderType           m_shaderType = ShaderType::Vertex;
-        EE_EXPOSE ResourcePath         m_shaderPath;
+        EE_REFLECT() ShaderType           m_shaderType = ShaderType::Vertex;
+        EE_REFLECT() ResourcePath         m_shaderPath;
     };
 }

@@ -14,7 +14,7 @@ namespace EE::Physics
     PhysicsMaterialDatabaseCompiler::PhysicsMaterialDatabaseCompiler()
         : Resource::Compiler( "PhysicsMaterialCompiler", s_version )
     {
-        m_outputTypes.push_back( PhysicsMaterialDatabase::GetStaticResourceTypeID() );
+        m_outputTypes.push_back( MaterialDatabase::GetStaticResourceTypeID() );
     }
 
     Resource::CompilationResult PhysicsMaterialDatabaseCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -28,7 +28,7 @@ namespace EE::Physics
         // Read material libraries
         //-------------------------------------------------------------------------
 
-        TVector<PhysicsMaterialSettings> materialSettings;
+        MaterialDatabase db;
 
         for ( ResourcePath const& libraryPath : resourceDescriptor.m_materialLibraries )
         {
@@ -51,7 +51,7 @@ namespace EE::Physics
 
                 for ( auto i = 0; i < numSerializedTypes; i++ )
                 {
-                    PhysicsMaterialSettings material;
+                    MaterialSettings material;
                     typeReader >> material;
 
                     // Validity check
@@ -61,18 +61,18 @@ namespace EE::Physics
                     }
 
                     // Duplicate check
-                    auto DuplicateCheck = [] ( PhysicsMaterialSettings const& materialSettings, StringID const& ID )
+                    auto DuplicateCheck = [] ( MaterialSettings const& materialSettings, StringID const& ID )
                     {
                         return materialSettings.m_ID == ID;
                     };
 
-                    if ( eastl::find( materialSettings.begin(), materialSettings.end(), material.m_ID, DuplicateCheck ) != materialSettings.end() )
+                    if ( eastl::find( db.m_materials.begin(), db.m_materials.end(), material.m_ID, DuplicateCheck ) != db.m_materials.end() )
                     {
                         return Error( "ResourceCompiler", "Duplicate physics material ID '%s' detected", material.m_ID.c_str() );
                     }
 
                     // Add valid material
-                    materialSettings.emplace_back( material );
+                    db.m_materials.emplace_back( material );
                 }
             }
             else
@@ -84,10 +84,10 @@ namespace EE::Physics
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, PhysicsMaterialDatabase::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, MaterialDatabase::GetStaticResourceTypeID() );
 
         Serialization::BinaryOutputArchive archive;
-        archive << hdr << materialSettings;
+        archive << hdr << db;
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {

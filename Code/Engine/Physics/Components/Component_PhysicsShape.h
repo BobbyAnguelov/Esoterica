@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
+#include "Engine/Physics/PhysicsSettings.h"
 #include "Engine/Physics/PhysicsMaterial.h"
-#include "Engine/Physics/PhysicsLayers.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "System/Types/Event.h"
 
@@ -10,113 +10,105 @@
 
 namespace physx
 {
-    class PxShape;
     class PxRigidActor;
-}
-
-//-------------------------------------------------------------------------
-
-namespace physx
-{
-    class PxActor;
+    class PxShape;
 }
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    enum class ActorType
-    {
-        EE_REGISTER_ENUM
-
-        Static = 0,     // Immovable static object
-        Dynamic,        // Movable, controlled by simulation
-        Kinematic       // Movable, controlled by code
-    };
-
-    enum class ShapeType
-    {
-        EE_REGISTER_ENUM
-
-        SimulationAndQuery = 0,
-        SimulationOnly,
-        QueryOnly,
-    };
-
     //-------------------------------------------------------------------------
     // Base class for all physics shape components
     //-------------------------------------------------------------------------
-    // Each physics component will create a new actor in the scene
+    // Each physics component will create a new body in the physics world
     // TODO: provide option to simple weld the shape from the component to its parent actor
 
     class EE_ENGINE_API PhysicsShapeComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( PhysicsShapeComponent );
+        EE_ENTITY_COMPONENT( PhysicsShapeComponent );
 
+        friend class PhysicsWorld;
         friend class PhysicsWorldSystem;
 
-        static TEvent<PhysicsShapeComponent*> s_staticActorTransformChanged; // Fired whenever we change the scale for a physics shape
+        // Event fired whenever we require the body to be recreated
+        static TEvent<PhysicsShapeComponent*> s_rebuildBodyRequest;
 
     public:
 
-        inline static TEventHandle<PhysicsShapeComponent*> OnStaticActorTransformUpdated() { return s_staticActorTransformChanged; }
+        // Args: Component
+        inline static TEventHandle<PhysicsShapeComponent*> OnRebuildBodyRequested() { return s_rebuildBodyRequest; }
 
     public:
 
         inline PhysicsShapeComponent() = default;
         inline PhysicsShapeComponent( StringID name ) : SpatialEntityComponent( name ) {}
 
-        inline ActorType GetActorType() const { return m_actorType; }
-        inline ShapeType GetShapeType() const { return m_shapeType; }
+        // Did we create a physics body for this shape?
+        inline bool IsActorCreated() const { return m_pPhysicsActor != nullptr; }
 
-        // Static API
+        // Collision Settings
         //-------------------------------------------------------------------------
 
-        inline bool IsStatic() const { return m_actorType == ActorType::Static; }
+        // Update the component's current collision settings
+        virtual CollisionSettings const& GetCollisionSettings() const { return m_collisionSettings; }
 
-        // Dynamic API
+        // Update the component's collision settings
+        virtual void SetCollisionSettings( CollisionSettings const& newSettings );
+
+        // Simulation Settings
         //-------------------------------------------------------------------------
 
-        inline bool IsDynamic() const { return m_actorType == ActorType::Dynamic; }
+        // Update the component's current simulation settings
+        inline SimulationSettings const& GetSimulationSettings() const { return m_simulationSettings; }
 
-        void SetVelocity( Float3 newVelocity );
+        // Are we a static body
+        EE_FORCE_INLINE bool IsStatic() const { return m_simulationSettings.IsStatic(); }
 
-        // Kinematic API
+        // Are we a dynamic (simulated) body
+        EE_FORCE_INLINE bool IsDynamic() const { return m_simulationSettings.IsDynamic(); }
+
+        // Are we a kinematic ( key-framed/user positioned ) body
+        EE_FORCE_INLINE bool IsKinematic() const { return m_simulationSettings.IsKinematic(); }
+
+        // Spatial API
         //-------------------------------------------------------------------------
 
-        inline bool IsKinematic() const { return m_actorType == ActorType::Kinematic; }
+        // Moves the body in the physics world
+        // For kinematic bodies: This will set the immediately set component's world transform and request that the kinematic actor be moved to the desired location, correctly interacting with other actors on it's path.
+        //                       The actual physics body will only be moved during the next physics simulation step
+        // For static/dynamic bodies : this is the same as requesting a teleport!
+        void MoveTo( Transform const& newWorldTransform );
 
-        // This will set the component's world transform and teleport the physics actor to the desired location
+        // Teleport the body to the requested transform
         void TeleportTo( Transform const& newWorldTransform );
 
-        // This will set the component's world transform and request that the kinematic actor be moved to the desired location, correctly interacting with other actors on it's path.
-        // Note: the actual physics actor will only be moved during the next physics simulation step
-        void MoveTo( Transform const& newWorldTransform );
+        // Set the body's velocity
+        // Note: This is only valid to call for created dynamic bodies!!!
+        void SetVelocity( Float3 newVelocity );
 
     protected:
 
         // Check if the physics setup if valid for this component, will log any problems detected!
         virtual bool HasValidPhysicsSetup() const = 0;
 
-        // Get physics materials for this component
-        virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const = 0;
-
         // Update physics world position for this shape
         virtual void OnWorldTransformUpdated() override final;
 
+        // Some shapes require a conversion between esoterica and physx (notably capsules)
+        virtual Transform ConvertTransformToPhysics( Transform const& esotericaTransform ) const { return esotericaTransform; }
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+        #endif
+
     protected:
 
-        // The type of physics actor for this component
-        EE_EXPOSE ActorType                             m_actorType = ActorType::Static;
+        EE_REFLECT( "Category" : "Simulation" )
+        SimulationSettings                              m_simulationSettings;
 
-        // How is this shape to be used
-        EE_EXPOSE ShapeType                             m_shapeType = ShapeType::SimulationAndQuery;
-
-        // What layers does this shape belong to?
-        EE_EXPOSE TBitFlags<Layers>                     m_layers = Layers::Environment;
-
-        // The mass of the shape, only relevant for dynamic actors
-        EE_EXPOSE float                                 m_mass = 1.0f;
+        EE_REFLECT( "Category" : "Collision" )
+        CollisionSettings                               m_collisionSettings;
 
     private:
 

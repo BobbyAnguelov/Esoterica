@@ -47,9 +47,9 @@ namespace EE::Animation
     void PoseBufferPool::Reset()
     {
         // Reset all buffers
-        for ( auto& PoseBuffer : m_poseBuffers )
+        for ( auto& poseBuffer : m_poseBuffers )
         {
-            PoseBuffer.Reset();
+            poseBuffer.Reset();
         }
 
         m_firstFreeBuffer = 0;
@@ -102,11 +102,11 @@ namespace EE::Animation
         return freeBufferIdx;
     }
 
-    void PoseBufferPool::ReleasePoseBuffer( int8_t BufferIdx )
+    void PoseBufferPool::ReleasePoseBuffer( int8_t bufferIdx )
     {
-        EE_ASSERT( m_poseBuffers[BufferIdx].m_isUsed );
-        m_poseBuffers[BufferIdx].m_isUsed = false;
-        m_firstFreeBuffer = Math::Min( BufferIdx, m_firstFreeBuffer );
+        EE_ASSERT( m_poseBuffers[bufferIdx].m_isUsed );
+        m_poseBuffers[bufferIdx].m_isUsed = false;
+        m_firstFreeBuffer = Math::Min( bufferIdx, m_firstFreeBuffer );
     }
 
     UUID PoseBufferPool::CreateCachedPoseBuffer()
@@ -149,13 +149,13 @@ namespace EE::Animation
         return pCachedPoseBuffer->m_ID;
     }
 
-    void PoseBufferPool::DestroyCachedPoseBuffer( UUID const& InCachedPoseID )
+    void PoseBufferPool::DestroyCachedPoseBuffer( UUID const& cachedPoseID )
     {
-        EE_ASSERT( InCachedPoseID.IsValid() );
+        EE_ASSERT( cachedPoseID.IsValid() );
 
         for ( auto& cachedBuffer : m_cachedBuffers )
         {
-            if ( cachedBuffer.m_ID == InCachedPoseID )
+            if ( cachedBuffer.m_ID == cachedPoseID )
             {
                 // Cached buffer destruction is deferred to the next frame since we may already have tasks reading from it already
                 cachedBuffer.m_shouldBeDestroyed = true;
@@ -164,6 +164,19 @@ namespace EE::Animation
         }
 
         EE_UNREACHABLE_CODE();
+    }
+
+    void PoseBufferPool::ResetCachedPoseBuffer( UUID const& cachedPoseID )
+    {
+        for ( auto& cachedBuffer : m_cachedBuffers )
+        {
+            if ( cachedBuffer.m_ID == cachedPoseID )
+            {
+                // Cached buffer destruction is deferred to the next frame since we may already have tasks reading from it already
+                cachedBuffer.m_pose.Reset( Pose::Type::ReferencePose );
+                return;
+            }
+        }
     }
 
     PoseBuffer* PoseBufferPool::GetCachedPoseBuffer( UUID const& cachedPoseID )

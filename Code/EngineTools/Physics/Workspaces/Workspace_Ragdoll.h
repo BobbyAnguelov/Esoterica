@@ -14,10 +14,6 @@ namespace EE::Render { class SkeletalMeshComponent; }
 
 namespace EE::Physics
 {
-    class PhysicsSystem;
-
-    //-------------------------------------------------------------------------
-
     class RagdollWorkspace : public TWorkspace<RagdollDefinition>
     {
         friend class ScopedRagdollSettingsModification;
@@ -64,9 +60,8 @@ namespace EE::Physics
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_HUMAN_GREETING; }
 
-        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
-        virtual bool HasViewportToolbar() const override { return true; }
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
 
@@ -204,9 +199,5 @@ namespace EE::Physics
         float                                           m_collisionActorInitialVelocity = 20.0f;
         bool                                            m_collisionActorGravity = true;
         TVector<CollisionActor>                         m_spawnedCollisionActors;
-
-        // PVD connection
-        PhysicsSystem*                                  m_pPhysicsSystem = nullptr;
-        bool                                            m_autoConnectToPVD = false;
     };
 }

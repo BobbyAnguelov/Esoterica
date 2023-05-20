@@ -50,9 +50,19 @@ namespace EE::AI
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::Button( "Hack Spawn" ) )
+        if ( ImGui::Button( "Hack Spawn 5" ) )
         {
-            m_pAIManager->TrySpawnAI( context );
+            m_pAIManager->HackTrySpawnAI( context, 5 );
+        }
+
+        if ( ImGui::Button( "Hack Spawn 25" ) )
+        {
+            m_pAIManager->HackTrySpawnAI( context, 25 );
+        }
+
+        if ( ImGui::Button( "Hack Spawn 100" ) )
+        {
+            m_pAIManager->HackTrySpawnAI( context, 100 );
         }
     }
 

@@ -1,65 +1,57 @@
 #include "ClangVisitors_Macro.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
+#include "clang-c/Documentation.h"
+#include <iostream>
 
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem::Reflection
 {
-    CXChildVisitResult VisitMacro( ClangParserContext * pContext, HeaderID headerID, CXCursor cr, String const& cursorName )
+    CXChildVisitResult VisitMacro( ClangParserContext * pContext, HeaderInfo const* pHeaderInfo, CXCursor cr, String const& cursorName )
     {
         CXSourceRange range = clang_getCursorExtent( cr );
 
-        if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterProperty ) )
-        {
-            uint32_t lineNumber;
-            clang_getExpansionLocation( clang_getRangeStart( range ), nullptr, &lineNumber, nullptr, nullptr );
-            pContext->AddFoundRegisteredPropertyMacro( RegisteredPropertyMacro( headerID, lineNumber, false ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::ExposeProperty ) )
-        {
-            uint32_t lineNumber;
-            clang_getExpansionLocation( clang_getRangeStart( range ), nullptr, &lineNumber, nullptr, nullptr );
-            pContext->AddFoundRegisteredPropertyMacro( RegisteredPropertyMacro( headerID, lineNumber, true ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterEnum ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterEnum, cr, range ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterType ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterType, cr, range ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterEntityComponent ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterEntityComponent, cr, range ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterSingletonEntityComponent ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterSingletonEntityComponent, cr, range ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterEntitySystem ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterEntitySystem, cr, range ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterEntityWorldSystem ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterEntityWorldSystem, cr, range ) );
-        }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterModule ) )
-        {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterModule, cr, range ) );
-        }
-
-        // Resources
         //-------------------------------------------------------------------------
 
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterResource ) )
+        if ( cursorName == GetReflectionMacroText( ReflectionMacroType::ReflectProperty ) )
         {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterResource, cr, range ) );
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::ReflectProperty ) );
         }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::RegisterTypeResource ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::ReflectEnum ) )
         {
-            pContext->AddFoundTypeRegistrationMacro( TypeRegistrationMacro( ReflectionMacro::RegisterTypeResource, cr, range ) );
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::ReflectEnum ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::ReflectType ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::ReflectType ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::EntityComponent ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::EntityComponent ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::SingletonEntityComponent ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::SingletonEntityComponent ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::EntitySystem ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::EntitySystem ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::EntityWorldSystem ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::EntityWorldSystem ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::ReflectModule ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::ReflectModule ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::Resource ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::Resource ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::ReflectedResource ) )
+        {
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::ReflectedResource ) );
         }
 
         //-------------------------------------------------------------------------

@@ -291,7 +291,7 @@ namespace EE::Render
             for ( int i = 1; i < platformIO.Viewports.Size; i++ )
             {
                 ImGuiViewport* pViewport = platformIO.Viewports[i];
-                if ( pViewport->Flags & ImGuiViewportFlags_Minimized )
+                if ( pViewport->Flags & ImGuiViewportFlags_IsMinimized )
                 {
                     continue;
                 }

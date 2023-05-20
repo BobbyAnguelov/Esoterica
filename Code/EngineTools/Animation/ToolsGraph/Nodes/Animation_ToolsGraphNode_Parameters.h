@@ -7,7 +7,7 @@ namespace EE::Animation::GraphNodes
 {
     class ControlParameterToolsNode : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ControlParameterToolsNode );
+        EE_REFLECT_TYPE( ControlParameterToolsNode );
 
     public:
 
@@ -31,15 +31,15 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER String                     m_name;
-        EE_REGISTER String                     m_parameterCategory;
+        EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_name;
+        EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_parameterCategory;
     };
 
     //-------------------------------------------------------------------------
 
     class VirtualParameterToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( VirtualParameterToolsNode );
+        EE_REFLECT_TYPE( VirtualParameterToolsNode );
 
     public:
 
@@ -64,16 +64,16 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER String                     m_name;
-        EE_REGISTER String                     m_parameterCategory;
-        EE_REGISTER GraphValueType             m_type = GraphValueType::Float;
+        EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_name;
+        EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_parameterCategory;
+        EE_REFLECT( "IsToolsReadOnly" : true ) GraphValueType             m_type = GraphValueType::Float;
     };
 
     //-------------------------------------------------------------------------
 
     class ParameterReferenceToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ParameterReferenceToolsNode );
+        EE_REFLECT_TYPE( ParameterReferenceToolsNode );
 
     public:
 
@@ -121,17 +121,17 @@ namespace EE::Animation::GraphNodes
 
         // These values are cached and serialize to help with restoring references after serialization and for copy/pasting
 
-        EE_REGISTER UUID                       m_parameterUUID;
-        EE_REGISTER GraphValueType             m_parameterValueType;
-        EE_REGISTER String                     m_parameterName;
-        EE_REGISTER String                     m_parameterCategory;
+        EE_REFLECT( "IsToolsReadOnly" : true ) UUID                       m_parameterUUID;
+        EE_REFLECT( "IsToolsReadOnly" : true ) GraphValueType             m_parameterValueType;
+        EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_parameterName;
+        EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_parameterCategory;
     };
 
     //-------------------------------------------------------------------------
 
     class BoolControlParameterToolsNode : public ControlParameterToolsNode
     {
-        EE_REGISTER_TYPE( BoolControlParameterToolsNode );
+        EE_REFLECT_TYPE( BoolControlParameterToolsNode );
 
     public:
 
@@ -145,14 +145,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool m_previewStartValue = false;
+        EE_REFLECT() bool m_previewStartValue = false;
     };
 
     //-------------------------------------------------------------------------
 
     class FloatControlParameterToolsNode : public ControlParameterToolsNode
     {
-        EE_REGISTER_TYPE( FloatControlParameterToolsNode );
+        EE_REFLECT_TYPE( FloatControlParameterToolsNode );
 
     public:
 
@@ -168,16 +168,16 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE float m_previewStartValue = 0;
-        EE_EXPOSE float m_previewMin = 0;
-        EE_EXPOSE float m_previewMax = 1;
+        EE_REFLECT() float m_previewStartValue = 0;
+        EE_REFLECT() float m_previewMin = 0;
+        EE_REFLECT() float m_previewMax = 1;
     };
 
     //-------------------------------------------------------------------------
 
     class IntControlParameterToolsNode : public ControlParameterToolsNode
     {
-        EE_REGISTER_TYPE( IntControlParameterToolsNode );
+        EE_REFLECT_TYPE( IntControlParameterToolsNode );
 
     public:
 
@@ -191,14 +191,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE int32_t m_previewStartValue = 0;
+        EE_REFLECT() int32_t m_previewStartValue = 0;
     };
 
     //-------------------------------------------------------------------------
 
     class IDControlParameterToolsNode : public ControlParameterToolsNode
     {
-        EE_REGISTER_TYPE( IDControlParameterToolsNode );
+        EE_REFLECT_TYPE( IDControlParameterToolsNode );
 
     public:
 
@@ -212,14 +212,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE StringID m_previewStartValue;
+        EE_REFLECT() StringID m_previewStartValue;
     };
 
     //-------------------------------------------------------------------------
 
     class VectorControlParameterToolsNode : public ControlParameterToolsNode
     {
-        EE_REGISTER_TYPE( VectorControlParameterToolsNode );
+        EE_REFLECT_TYPE( VectorControlParameterToolsNode );
 
     public:
 
@@ -233,14 +233,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE Vector m_previewStartValue = Vector::Zero;
+        EE_REFLECT() Vector m_previewStartValue = Vector::Zero;
     };
 
     //-------------------------------------------------------------------------
 
     class TargetControlParameterToolsNode : public ControlParameterToolsNode
     {
-        EE_REGISTER_TYPE( TargetControlParameterToolsNode );
+        EE_REFLECT_TYPE( TargetControlParameterToolsNode );
 
     public:
 
@@ -275,9 +275,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool         m_isSet = false;
-        EE_EXPOSE bool         m_isBoneID = false;
-        EE_EXPOSE Transform    m_previewStartTransform = Transform::Identity;
-        EE_EXPOSE StringID     m_previewStartBoneID;
+        EE_REFLECT() bool         m_isSet = false;
+        EE_REFLECT() bool         m_isBoneID = false;
+        EE_REFLECT() Transform    m_previewStartTransform = Transform::Identity;
+        EE_REFLECT() StringID     m_previewStartBoneID;
     };
 }

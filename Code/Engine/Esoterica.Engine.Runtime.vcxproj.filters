@@ -131,34 +131,16 @@
     <ClCompile Include="Player\Systems\WorldSystem_PlayerManager.cpp">
       <Filter>Player\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\PhysicsMaterial.cpp">
-      <Filter>Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\PhysicsMesh.cpp">
-      <Filter>Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\PhysicsQuery.cpp">
+    <ClCompile Include="Physics\PhysicsCollisionMesh.cpp">
       <Filter>Physics</Filter>
     </ClCompile>
     <ClCompile Include="Physics\PhysicsRagdoll.cpp">
       <Filter>Physics</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\PhysicsScene.cpp">
-      <Filter>Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\PhysicsSimulationFilter.cpp">
-      <Filter>Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\PhysicsSystem.cpp">
-      <Filter>Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\PhysX.cpp">
+    <ClCompile Include="Physics\PhysicsWorld.cpp">
       <Filter>Physics</Filter>
     </ClCompile>
     <ClCompile Include="Physics\Debug\DebugView_Physics.cpp">
-      <Filter>Physics\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp">
       <Filter>Physics\Debug</Filter>
     </ClCompile>
     <ClCompile Include="Physics\Systems\WorldSystem_Physics.cpp">
@@ -173,7 +155,7 @@
     <ClCompile Include="Physics\Components\Component_PhysicsCharacter.cpp">
       <Filter>Physics\Components</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\Components\Component_PhysicsMesh.cpp">
+    <ClCompile Include="Physics\Components\Component_PhysicsCollisionMesh.cpp">
       <Filter>Physics\Components</Filter>
     </ClCompile>
     <ClCompile Include="Physics\Components\Component_PhysicsShape.cpp">
@@ -182,10 +164,7 @@
     <ClCompile Include="Physics\Components\Component_PhysicsSphere.cpp">
       <Filter>Physics\Components</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp">
-      <Filter>Physics\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMesh.cpp">
+    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.cpp">
       <Filter>Physics\ResourceLoaders</Filter>
     </ClCompile>
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.cpp">
@@ -194,10 +173,7 @@
     <ClCompile Include="Navmesh\NavmeshData.cpp">
       <Filter>Navmesh</Filter>
     </ClCompile>
-    <ClCompile Include="Navmesh\Navpower.cpp">
-      <Filter>Navmesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Navmesh\NavmeshSystem.cpp">
+    <ClCompile Include="Navmesh\NavPower.cpp">
       <Filter>Navmesh</Filter>
     </ClCompile>
     <ClCompile Include="Navmesh\Systems\WorldSystem_Navmesh.cpp">
@@ -431,6 +407,13 @@
     <ClCompile Include="DebugViews\DebugView_System.cpp">
       <Filter>DebugViews</Filter>
     </ClCompile>
+    <ClCompile Include="Physics\Physics.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp" />
+    <ClCompile Include="Physics\PhysicsQuery.cpp" />
+    <ClCompile Include="Physics\PhysicsMaterial.cpp" />
+    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -605,37 +588,16 @@
     <ClInclude Include="Player\Components\Component_PlayerSpawn.h">
       <Filter>Player\Components</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\PhysicsLayers.h">
-      <Filter>Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\PhysicsMaterial.h">
-      <Filter>Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\PhysicsMesh.h">
-      <Filter>Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\PhysicsQuery.h">
+    <ClInclude Include="Physics\PhysicsCollisionMesh.h">
       <Filter>Physics</Filter>
     </ClInclude>
     <ClInclude Include="Physics\PhysicsRagdoll.h">
       <Filter>Physics</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\PhysicsScene.h">
-      <Filter>Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\PhysicsSimulationFilter.h">
-      <Filter>Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\PhysicsSystem.h">
-      <Filter>Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\PhysX.h">
+    <ClInclude Include="Physics\PhysicsWorld.h">
       <Filter>Physics</Filter>
     </ClInclude>
     <ClInclude Include="Physics\Debug\DebugView_Physics.h">
-      <Filter>Physics\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h">
       <Filter>Physics\Debug</Filter>
     </ClInclude>
     <ClInclude Include="Physics\Systems\WorldSystem_Physics.h">
@@ -650,7 +612,7 @@
     <ClInclude Include="Physics\Components\Component_PhysicsCharacter.h">
       <Filter>Physics\Components</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\Components\Component_PhysicsMesh.h">
+    <ClInclude Include="Physics\Components\Component_PhysicsCollisionMesh.h">
       <Filter>Physics\Components</Filter>
     </ClInclude>
     <ClInclude Include="Physics\Components\Component_PhysicsShape.h">
@@ -659,10 +621,7 @@
     <ClInclude Include="Physics\Components\Component_PhysicsSphere.h">
       <Filter>Physics\Components</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h">
-      <Filter>Physics\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMesh.h">
+    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.h">
       <Filter>Physics\ResourceLoaders</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.h">
@@ -672,9 +631,6 @@
       <Filter>Navmesh</Filter>
     </ClInclude>
     <ClInclude Include="Navmesh\NavPower.h">
-      <Filter>Navmesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\NavmeshSystem.h">
       <Filter>Navmesh</Filter>
     </ClInclude>
     <ClInclude Include="Navmesh\Systems\WorldSystem_Navmesh.h">
@@ -924,6 +880,15 @@
       <Filter>DebugViews</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Events\AnimationEvent_RootMotion.h" />
+    <ClInclude Include="Physics\Physics.h" />
+    <ClInclude Include="Physics\Components\Component_PhysicsTest.h" />
+    <ClInclude Include="Entity\EntityWorldType.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h" />
+    <ClInclude Include="Physics\PhysicsSettings.h" />
+    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h" />
+    <ClInclude Include="Physics\PhysicsQuery.h" />
+    <ClInclude Include="Physics\PhysicsMaterial.h" />
+    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">

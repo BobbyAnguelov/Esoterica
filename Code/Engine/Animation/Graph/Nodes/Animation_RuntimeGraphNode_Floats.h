@@ -11,18 +11,18 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API RemapRange : public IRegisteredType
+        struct EE_ENGINE_API RemapRange : public IReflectedType
         {
-            EE_REGISTER_TYPE( RemapRange );
+            EE_REFLECT_TYPE( RemapRange );
             EE_SERIALIZE( m_begin, m_end );
 
-            EE_EXPOSE float             m_begin = 0;
-            EE_EXPOSE float             m_end = 0;
+            EE_REFLECT() float             m_begin = 0;
+            EE_REFLECT() float             m_end = 0;
         };
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_inputRange, m_outputRange );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -52,7 +52,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_clampRange );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -81,7 +81,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -109,7 +109,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_easeTime, m_startValue, m_inputValueNodeIdx, m_easingType, m_useStartValue );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -148,7 +148,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_curve );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -178,7 +178,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Operator : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             Add,
             Sub,
@@ -188,7 +188,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdxA, m_inputValueNodeIdxB, m_returnAbsoluteResult, m_operator, m_valueB );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -221,7 +221,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Comparison : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             GreaterThanEqual = 0,
             LessThanEqual,
@@ -232,7 +232,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx, m_comparandValueNodeIdx, m_comparison, m_epsilon, m_comparisonValue );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -265,7 +265,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx, m_range, m_isInclusiveCheck );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -295,7 +295,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_switchValueNodeIdx, m_trueValueNodeIdx, m_falseValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -327,7 +327,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Operation : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             ClampTo180, // Clamps the input angle between [-180, 180]
             ClampTo360, // Clamps the input angle between [0, 360]
@@ -337,7 +337,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_operation );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

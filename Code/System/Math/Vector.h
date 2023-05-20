@@ -14,7 +14,21 @@ namespace EE
 {
     class EE_SYSTEM_API alignas( 16 ) Vector
     {
-        EE_SERIALIZE( m_x, m_y, m_z, m_w );
+        EE_CUSTOM_SERIALIZE_READ_FUNCTION( archive )
+        {
+            Float4 f4;
+            archive << f4;
+            *this = Vector( f4 );
+            return archive;
+        }
+
+        EE_CUSTOM_SERIALIZE_WRITE_FUNCTION( archive )
+        {
+
+            Float4 const f4 = ToFloat4();
+            archive << f4;
+            return archive;
+        }
 
     public:
 
@@ -67,6 +81,9 @@ namespace EE
 
         static Vector const BoxCorners[8];
 
+        // Utils
+        //-------------------------------------------------------------------------
+
         EE_FORCE_INLINE static Vector Cross2( Vector const& v0, Vector const& v1 ) { return v0.Cross2( v1 ); }
         EE_FORCE_INLINE static Vector Cross3( Vector const& v0, Vector const& v1 ) { return v0.Cross3( v1 ); }
         EE_FORCE_INLINE static Vector Dot2( Vector const& v0, Vector const& v1 ) { return v0.Dot2( v1 ); }
@@ -78,14 +95,38 @@ namespace EE
         EE_FORCE_INLINE static Vector Min( Vector const& v0, Vector const& v1 );
         EE_FORCE_INLINE static Vector Max( Vector const& v0, Vector const& v1 );
         EE_FORCE_INLINE static Vector Clamp( Vector const& v, Vector const& min, Vector const& max );
+        EE_FORCE_INLINE static Vector Xor( Vector const& vec0, Vector const& vec1 );
+
         // Add the multiplied results to a vector: ( vec * mul ) + addend
         EE_FORCE_INLINE static Vector MultiplyAdd( Vector const& vec, Vector const& multiplier, Vector const& addend );
+
         // Subtract a vector from the multiplied result: (vec * mul ) - subtrahend
         EE_FORCE_INLINE static Vector MultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& subtrahend );
+
         // Subtract the multiplied result from a vector: minuend - (vec * mul )
         EE_FORCE_INLINE static Vector NegativeMultiplySubtract( Vector const& vec, Vector const& multiplier, Vector const& minuend );
-        EE_FORCE_INLINE static Vector Xor( Vector const& vec0, Vector const& vec1 );
+
+        // Sum up scaled versions of two vectors
         EE_FORCE_INLINE static Vector LinearCombination( Vector const& v0, Vector const& v1, float scale0, float scale1 ) { return ( v0 * scale0 ) + ( v1 * scale1 ); }
+
+        // Linear interpolation of one vector to another
+        EE_FORCE_INLINE static Vector Lerp( Vector const& from, Vector const& to, float t );
+
+        // Normalized linear interpolation of one vector to another
+        EE_FORCE_INLINE static Vector NLerp( Vector const& from, Vector const& to, float t );
+
+        // Spherical interpolation of one vector to another
+        static Vector SLerp( Vector const& from, Vector const& to, float t ); 
+
+        // Combine the two vectors based on the control: 0 means select from v0, 1 means select from v1. E.G. To select XY from v0 and ZW from v1, control = Vector( 0, 0, 1, 1 )
+        EE_FORCE_INLINE static Vector Select( Vector const& v0, Vector const& v1, Vector const& control );
+
+        // Get a permutation of two vectors, each template argument represents the element index to select ( v0: 0-3, v1: 4-7 );
+        template<uint32_t PermuteX, uint32_t PermuteY, uint32_t PermuteZ, uint32_t PermuteW>
+        EE_FORCE_INLINE static Vector Permute( Vector const& v0, Vector const& v1 );
+
+        // Trigonometry
+        //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE static Vector Sin( Vector const& vec );
         EE_FORCE_INLINE static Vector Cos( Vector const& vec );
@@ -107,19 +148,6 @@ namespace EE
         EE_FORCE_INLINE static void SinCos( Vector& sin, Vector& cos, Vector const& angle );
 
         EE_FORCE_INLINE static Vector AngleMod2Pi( Vector const& angles );
-
-        EE_FORCE_INLINE static Vector Lerp( Vector const& from, Vector const& to, float t ); // Linear interpolation
-        EE_FORCE_INLINE static Vector NLerp( Vector const& from, Vector const& to, float t ); // Normalized linear interpolation of a vector
-        static Vector SLerp( Vector const& from, Vector const& to, float t ); // Spherical interpolation of a vector
-
-        //-------------------------------------------------------------------------
-
-        // Combine the two vectors based on the control: 0 means select from v0, 1 means select from v1. E.G. To select XY from v0 and ZW from v1, control = Vector( 0, 0, 1, 1 )
-        EE_FORCE_INLINE static Vector Select( Vector const& v0, Vector const& v1, Vector const& control );
-
-        // Get a permutation of two vectors, each template argument represents the element index to select ( v0: 0-3, v1: 4-7 );
-        template<uint32_t PermuteX, uint32_t PermuteY, uint32_t PermuteZ, uint32_t PermuteW>
-        EE_FORCE_INLINE static Vector Permute( Vector const& v0, Vector const& v1 );
 
     public:
 
@@ -157,28 +185,33 @@ namespace EE
         EE_FORCE_INLINE operator Float3() const { return ToFloat3(); }
         EE_FORCE_INLINE operator Float4() const { return ToFloat4(); }
 
-        //-------------------------------------------------------------------------
-
-        float& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( ( float* ) this )[i]; }
-        float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( ( float* ) this )[i]; }
-
-        // W component operations - needed primarily for homogeneous coordinate operations
-        //-------------------------------------------------------------------------
-
-        EE_FORCE_INLINE bool IsW1() const { return m_w == 1.0f; }
-        EE_FORCE_INLINE bool IsW0() const { return m_w == 0.0f; }
-        EE_FORCE_INLINE Vector& SetW0() { m_w = 0.0f; return *this; }
-        EE_FORCE_INLINE Vector& SetW1() { m_w = 1.0f; return *this; }
-        EE_FORCE_INLINE Vector GetWithW0() const { Vector v = *this; v.SetW0(); return v; }
-        EE_FORCE_INLINE Vector GetWithW1() const { Vector v = *this; v.SetW1(); return v; }
-
-        // Element access (while you can still access the individual elements via the union, that is not performant, and it is preferable to call these functions to go between scalar and vector)
+        // Element accessors
         //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE float GetX() const { return _mm_cvtss_f32( m_data ); }
         EE_FORCE_INLINE float GetY() const { auto vTemp = GetSplatY(); return _mm_cvtss_f32( vTemp ); }
         EE_FORCE_INLINE float GetZ() const { auto vTemp = GetSplatZ(); return _mm_cvtss_f32( vTemp ); }
         EE_FORCE_INLINE float GetW() const { auto vTemp = GetSplatW(); return _mm_cvtss_f32( vTemp ); }
+
+        EE_FORCE_INLINE void SetX( float x ) { m_data = _mm_move_ss( m_data, _mm_set_ss( x ) ); }
+        EE_FORCE_INLINE void SetY( float y ) { m_data = _mm_insert_ps( m_data, _mm_set_ss( y ), 0x10 ); }
+        EE_FORCE_INLINE void SetZ( float z ) { m_data = _mm_insert_ps( m_data, _mm_set_ss( z ), 0x20 ); }
+        EE_FORCE_INLINE void SetW( float w ) { m_data = _mm_insert_ps( m_data, _mm_set_ss( w ), 0x30 ); }
+
+        EE_FORCE_INLINE float operator[]( uint32_t i ) const;
+
+        // TODO: fix this since it is UB
+        //EE_FORCE_INLINE float& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return m_data.m128_f32[i]; }
+
+        // W component operations - needed primarily for homogeneous coordinate operations
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE bool IsW1() const { return GetSplatW().IsEqual4( Vector::One ); }
+        EE_FORCE_INLINE bool IsW0() const { return GetSplatW().IsZero4(); }
+        EE_FORCE_INLINE Vector& SetW0() { SetW( 0.0f ); return *this; }
+        EE_FORCE_INLINE Vector& SetW1() { SetW( 1.0f ); return *this; }
+        EE_FORCE_INLINE Vector GetWithW0() const { Vector v = *this; v.SetW0(); return v; }
+        EE_FORCE_INLINE Vector GetWithW1() const { Vector v = *this; v.SetW1(); return v; }
 
         // Dimensional Getters
         //-------------------------------------------------------------------------
@@ -263,23 +296,32 @@ namespace EE
         EE_FORCE_INLINE Vector GetSplatZ() const { return _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 2, 2, 2, 2 ) ); }
         EE_FORCE_INLINE Vector GetSplatW() const { return _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 3, 3, 3, 3 ) ); }
 
-        // Get a shuffled version of the vector, each template argument represents the element index in the original vector
-        template<uint32_t ElementX, uint32_t ElementY, uint32_t ElementZ, uint32_t ElementW>
+        // Get a shuffled version of this vector, each argument represents the element index in the original vector
+        template<uint32_t xIdx, uint32_t yIdx, uint32_t zIdx, uint32_t wIdx>
         EE_FORCE_INLINE Vector Swizzle() const
         {
-            static_assert( ElementX <= 3, "Element index parameter out of range" );
-            static_assert( ElementY <= 3, "Element index parameter out of range" );
-            static_assert( ElementZ <= 3, "Element index parameter out of range" );
-            static_assert( ElementW <= 3, "Element index parameter out of range" );
-            return _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( ElementW, ElementZ, ElementY, ElementX ) );
+            static_assert( xIdx < 4, "Element index parameter out of range" );
+            static_assert( yIdx < 4, "Element index parameter out of range" );
+            static_assert( zIdx < 4, "Element index parameter out of range" );
+            static_assert( wIdx < 4, "Element index parameter out of range" );
+            return _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( wIdx, zIdx, yIdx, xIdx  ) );
         }
 
-        EE_FORCE_INLINE Vector Shuffle( uint32_t xIdx, uint32_t yIdx, uint32_t zIdx, uint32_t wIdx ) const
+        // Get a shuffled version of this vector, each argument represents the element index in the original vector
+        EE_FORCE_INLINE Vector Swizzle( uint32_t xIdx, uint32_t yIdx, uint32_t zIdx, uint32_t wIdx ) const
         {
             EE_ASSERT( xIdx < 4 && yIdx < 4 && zIdx < 4 && wIdx < 4 );
-            Vector result( (*this)[xIdx], ( *this )[yIdx], ( *this )[zIdx], ( *this )[wIdx] );
-            return result;
+            uint32_t const elem[4] = { xIdx, yIdx, zIdx, wIdx };
+            __m128i vControl = _mm_loadu_si128( reinterpret_cast<const __m128i*>( &elem[0] ) );
+            return _mm_permutevar_ps( m_data, vControl );
         }
+
+        // Get a shuffled version of this vector, each argument represents the element index in the original vector
+        EE_FORCE_INLINE Vector Shuffle( uint32_t xIdx, uint32_t yIdx, uint32_t zIdx, uint32_t wIdx ) const { return Swizzle( xIdx, yIdx, zIdx, wIdx ); }
+
+        // Get a shuffled version of this vector, each argument represents the element index in the original vector
+        template<uint32_t xIdx, uint32_t yIdx, uint32_t zIdx, uint32_t wIdx>
+        EE_FORCE_INLINE Vector Shuffle() const { return Swizzle<xIdx, yIdx, zIdx, wIdx>(); }
 
         // Queries
         //-------------------------------------------------------------------------
@@ -415,11 +457,7 @@ namespace EE
 
     public:
 
-        union
-        {
-            struct { float m_x, m_y, m_z, m_w; };
-            __m128 m_data;
-        };
+        __m128 m_data;
     };
 
     //-------------------------------------------------------------------------
@@ -482,6 +520,24 @@ namespace EE
         Float4 v;
         StoreFloat4( v );
         return v;
+    }
+
+    //-------------------------------------------------------------------------
+
+    EE_FORCE_INLINE float Vector::operator[]( uint32_t i ) const
+    { 
+        EE_ASSERT( i < 4 );
+
+        switch ( i )
+        {
+            case 0: return GetX(); break;
+            case 1: return GetY(); break;
+            case 2: return GetZ(); break;
+            case 3: return GetW(); break;
+        }
+
+        EE_UNREACHABLE_CODE();
+        return 0.0f;
     }
 
     //-------------------------------------------------------------------------

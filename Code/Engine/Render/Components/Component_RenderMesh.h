@@ -10,7 +10,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API MeshComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( MeshComponent );
+        EE_ENTITY_COMPONENT( MeshComponent );
 
     public:
 
@@ -49,7 +49,7 @@ namespace EE::Render
     private:
 
         // Any user material overrides
-        EE_EXPOSE TVector<TResourcePtr<Material>>                           m_materialOverrides;
+        EE_REFLECT() TVector<TResourcePtr<Material>>                           m_materialOverrides;
 
         // The final set of materials to use for this component
         TVector<Material const*>                                            m_materials;

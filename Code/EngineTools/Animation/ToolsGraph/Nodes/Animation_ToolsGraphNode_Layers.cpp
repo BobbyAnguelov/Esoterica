@@ -122,6 +122,25 @@ namespace EE::Animation::GraphNodes
         }
     }
 
+    void StateMachineLayerToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    {
+        DrawInfoText( ctx );
+        DrawInternalSeparator( ctx );
+        BeginDrawInternalRegion( ctx );
+
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
+        {
+            ImGui::Text( "%.2f", m_runtimeDebugLayerWeight );
+        }
+        else
+        {
+            ImGui::Text( "-" );
+        }
+
+        EndDrawInternalRegion( ctx );
+    }
+
     //-------------------------------------------------------------------------
 
     void LayerBlendToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
@@ -228,10 +247,10 @@ namespace EE::Animation::GraphNodes
                     auto pInputNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 0 );
                     if ( pInputNode != nullptr )
                     {
-                        auto compiledStateMachineNodeIdx = pInputNode->Compile( context );
-                        if ( compiledStateMachineNodeIdx != InvalidIndex )
+                        int16_t const inputNodeIdx = pInputNode->Compile( context );
+                        if ( inputNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_inputNodeIdx = compiledStateMachineNodeIdx;
+                            layerSettings.m_inputNodeIdx = inputNodeIdx;
                             atLeastOneLayerCompiled = true;
                         }
                         else
@@ -252,7 +271,6 @@ namespace EE::Animation::GraphNodes
                         if ( compiledWeightNodeIdx != InvalidIndex )
                         {
                             layerSettings.m_weightValueNodeIdx = compiledWeightNodeIdx;
-                            atLeastOneLayerCompiled = true;
                         }
                         else
                         {
@@ -267,7 +285,6 @@ namespace EE::Animation::GraphNodes
                         if ( compiledBoneMaskValueNodeIdx != InvalidIndex )
                         {
                             layerSettings.m_boneMaskValueNodeIdx = compiledBoneMaskValueNodeIdx;
-                            atLeastOneLayerCompiled = true;
                         }
                         else
                         {
@@ -316,5 +333,24 @@ namespace EE::Animation::GraphNodes
             }
         }
         return pSettings->m_nodeIdx;
+    }
+
+    void LayerBlendToolsNode::PreDrawUpdate( VisualGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        bool const isPreviewing = pGraphNodeContext->HasDebugData();
+        int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
+        bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
+
+        if ( isPreviewingAndValidRuntimeNodeIdx )
+        {
+            for ( auto i = 1; i < GetNumInputPins(); i++ )
+            {
+                if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
+                {
+                    pStateMachineLayerNode->m_runtimeDebugLayerWeight = pGraphNodeContext->GetLayerWeight( runtimeNodeIdx, i - 1 );
+                }
+            }
+        }
     }
 }

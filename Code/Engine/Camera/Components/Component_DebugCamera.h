@@ -9,6 +9,7 @@ namespace EE
 {
     class EE_ENGINE_API DebugCameraComponent : public FreeLookCameraComponent
     {
+        EE_ENTITY_COMPONENT( DebugCameraComponent );
 
     public:
 
@@ -59,9 +60,9 @@ namespace EE
 
     private:
 
-        EE_EXPOSE float                             m_defaultMoveSpeed = 5.0f;
+        EE_REFLECT() float                          m_defaultMoveSpeed = 5.0f;
         float                                       m_moveSpeed = 0;
-        Vector                                      m_directionChangeAccumulator = Vector::Zero;
+        Float3                                      m_directionChangeAccumulator = Float3::Zero;
         bool                                        m_isEnabled = true;
     };
 }

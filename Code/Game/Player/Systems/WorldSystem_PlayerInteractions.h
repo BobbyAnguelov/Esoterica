@@ -14,7 +14,7 @@ namespace EE::Player
 
     class EE_GAME_API PlayerInteractionSystem final : public IEntityWorldSystem
     {
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( PlayerInteractionSystem, RequiresUpdate( UpdateStage::PrePhysics ) );
+        EE_ENTITY_WORLD_SYSTEM( PlayerInteractionSystem, RequiresUpdate( UpdateStage::PrePhysics ) );
 
         struct RegisteredPlayer
         {

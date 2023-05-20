@@ -18,7 +18,7 @@ namespace EE::VisualGraph
             friend StateMachineGraph;
             friend GraphView;
 
-            EE_REGISTER_TYPE( Node );
+            EE_REFLECT_TYPE( Node );
 
         protected:
 
@@ -33,7 +33,7 @@ namespace EE::VisualGraph
             friend StateMachineGraph;
             friend GraphView;
 
-            EE_REGISTER_TYPE( State );
+            EE_REFLECT_TYPE( State );
         };
 
         //-------------------------------------------------------------------------
@@ -43,18 +43,35 @@ namespace EE::VisualGraph
             friend StateMachineGraph;
             friend GraphView;
 
-            EE_REGISTER_TYPE( TransitionConduit );
+            EE_REFLECT_TYPE( TransitionConduit );
 
             // Conduits are special since they are drawn as connections
-            virtual ImColor GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const override;
 
             inline UUID const GetStartStateID() const { return m_startStateID; }
             inline UUID const GetEndStateID() const { return m_endStateID; }
 
+            // Get the conduit arrow color
+            virtual ImColor GetColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
+
+            // Conduit specific draw extra controls function, that provides the start and end points of the conduit
+            virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, ImVec2 const& startPoint, ImVec2 const& endPoint ) {}
+
         private:
 
-            EE_REGISTER UUID   m_startStateID;
-            EE_REGISTER UUID   m_endStateID;
+            virtual ImColor GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const override final { return Node::GetNodeBorderColor( ctx, pUserContext, visualState ); }
+            virtual void DrawExtraControls( DrawContext const& ctx, UserContext* pUserContext ) override final {}
+
+        protected:
+
+            Percentage m_transitionProgress = 0.0f;
+
+        private:
+
+            EE_REFLECT( "IsToolsReadOnly" : true );
+            UUID        m_startStateID;
+
+            EE_REFLECT( "IsToolsReadOnly" : true );
+            UUID        m_endStateID;
         };
     }
 
@@ -62,7 +79,7 @@ namespace EE::VisualGraph
 
     class EE_ENGINETOOLS_API StateMachineGraph : public BaseGraph
     {
-        EE_REGISTER_TYPE( StateMachineGraph );
+        EE_REFLECT_TYPE( StateMachineGraph );
 
         friend GraphView;
 
@@ -103,6 +120,7 @@ namespace EE::VisualGraph
 
     protected:
 
-        EE_REGISTER UUID       m_entryStateID;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        UUID m_entryStateID;
     };
 }

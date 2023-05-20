@@ -1,8 +1,8 @@
 #include "PhysicsRagdoll.h"
+#include "Physics.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "System/Drawing/DebugDrawing.h"
 #include "System/Math/MathHelpers.h"
-#include "PhysX.h"
 
 //-------------------------------------------------------------------------
 
@@ -679,94 +679,94 @@ namespace EE::Physics
 
 namespace EE::Physics
 {
-    Ragdoll::Ragdoll( PxPhysics* pPhysics, RagdollDefinition const* pDefinition, StringID const profileID, uint64_t userID )
-        : m_pPhysics( pPhysics )
+    Ragdoll::Ragdoll( RagdollDefinition const* pDefinition, StringID const profileID, uint64_t userID )
+        : m_pPhysics( Core::GetPxPhysics() )
         , m_pDefinition( pDefinition )
         , m_userID( userID )
     {
-        EE_ASSERT( pPhysics != nullptr );
-        EE_ASSERT( pDefinition != nullptr && pDefinition->IsValid() );
+        //EE_ASSERT( pPhysics != nullptr );
+        //EE_ASSERT( pDefinition != nullptr && pDefinition->IsValid() );
 
-        // Get profile
-        //-------------------------------------------------------------------------
+        //// Get profile
+        ////-------------------------------------------------------------------------
 
-        EE_ASSERT( profileID.IsValid() ? pDefinition->HasProfile( profileID ) : true );
+        //EE_ASSERT( profileID.IsValid() ? pDefinition->HasProfile( profileID ) : true );
 
-        if ( profileID.IsValid() )
-        {
-            m_pProfile = pDefinition->GetProfile( profileID );
-        }
-        else
-        {
-            m_pProfile = pDefinition->GetDefaultProfile();
-        }
-        EE_ASSERT( m_pProfile != nullptr );
+        //if ( profileID.IsValid() )
+        //{
+        //    m_pProfile = pDefinition->GetProfile( profileID );
+        //}
+        //else
+        //{
+        //    m_pProfile = pDefinition->GetDefaultProfile();
+        //}
+        //EE_ASSERT( m_pProfile != nullptr );
 
-        // Create articulation
-        //-------------------------------------------------------------------------
+        //// Create articulation
+        ////-------------------------------------------------------------------------
 
-        m_pArticulation = pPhysics->createArticulation();
-        EE_ASSERT( m_pArticulation != nullptr );
-        m_pArticulation->userData = this;
+        //m_pArticulation = pPhysics->createArticulation;
+        //EE_ASSERT( m_pArticulation != nullptr );
+        //m_pArticulation->userData = this;
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_ragdollName.sprintf( "%s - %s", pDefinition->GetResourceID().c_str(), m_pProfile->m_ID.c_str() );
-        m_pArticulation->setName( m_ragdollName.c_str() );
-        #endif
+        //#if EE_DEVELOPMENT_TOOLS
+        //m_ragdollName.sprintf( "%s - %s", pDefinition->GetResourceID().c_str(), m_pProfile->m_ID.c_str() );
+        //m_pArticulation->setName( m_ragdollName.c_str() );
+        //#endif
 
-        UpdateSolverSettings();
+        //UpdateSolverSettings();
 
-        // Create links
-        //-------------------------------------------------------------------------
+        //// Create links
+        ////-------------------------------------------------------------------------
 
-        int32_t const numBodies = pDefinition->GetNumBodies();
-        for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
-        {
-            auto const& bodyDefinition = pDefinition->m_bodies[bodyIdx];
+        //int32_t const numBodies = pDefinition->GetNumBodies();
+        //for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
+        //{
+        //    auto const& bodyDefinition = pDefinition->m_bodies[bodyIdx];
 
-            PxTransform const linkPose = ToPx( bodyDefinition.m_initialGlobalTransform );
-            PxArticulationLink* pParentLink = ( bodyIdx == 0 ) ? nullptr : m_links[bodyDefinition.m_parentBodyIdx];
-            PxArticulationLink* pLink = m_pArticulation->createLink( pParentLink, linkPose );
-            pLink->userData = (void*) uintptr_t( bodyIdx );
-            m_links.emplace_back( pLink );
+        //    PxTransform const linkPose = ToPx( bodyDefinition.m_initialGlobalTransform );
+        //    PxArticulationLink* pParentLink = ( bodyIdx == 0 ) ? nullptr : m_links[bodyDefinition.m_parentBodyIdx];
+        //    PxArticulationLink* pLink = m_pArticulation->createLink( pParentLink, linkPose );
+        //    pLink->userData = (void*) uintptr_t( bodyIdx );
+        //    m_links.emplace_back( pLink );
 
-            #if EE_DEVELOPMENT_TOOLS
-            pLink->setName( bodyDefinition.m_boneID.c_str() );
-            #endif
+        //    #if EE_DEVELOPMENT_TOOLS
+        //    pLink->setName( bodyDefinition.m_boneID.c_str() );
+        //    #endif
 
-            // Set Mass
-            EE_ASSERT( m_pProfile->m_bodySettings[bodyIdx].m_mass > 0.0f );
-            PxRigidBodyExt::setMassAndUpdateInertia( *pLink, m_pProfile->m_bodySettings[bodyIdx].m_mass );
+        //    // Set Mass
+        //    EE_ASSERT( m_pProfile->m_bodySettings[bodyIdx].m_mass > 0.0f );
+        //    PxRigidBodyExt::setMassAndUpdateInertia( *pLink, m_pProfile->m_bodySettings[bodyIdx].m_mass );
 
-            // Create material
-            auto const& materialSettings = m_pProfile->m_materialSettings[bodyIdx];
-            auto pMaterial = pPhysics->createMaterial( materialSettings.m_staticFriction, materialSettings.m_dynamicFriction, materialSettings.m_restitution );
-            pMaterial->setFrictionCombineMode( (PxCombineMode::Enum) materialSettings.m_frictionCombineMode );
-            pMaterial->setRestitutionCombineMode( (PxCombineMode::Enum) materialSettings.m_restitutionCombineMode );
+        //    // Create material
+        //    auto const& materialSettings = m_pProfile->m_materialSettings[bodyIdx];
+        //    auto pMaterial = pPhysics->createMaterial( materialSettings.m_staticFriction, materialSettings.m_dynamicFriction, materialSettings.m_restitution );
+        //    pMaterial->setFrictionCombineMode( (PxCombineMode::Enum) materialSettings.m_frictionCombineMode );
+        //    pMaterial->setRestitutionCombineMode( (PxCombineMode::Enum) materialSettings.m_restitutionCombineMode );
 
-            // Create shape
-            PxCapsuleGeometry const capsuleGeo( bodyDefinition.m_radius, bodyDefinition.m_halfHeight );
-            auto pShape = PxRigidActorExt::createExclusiveShape( *pLink, capsuleGeo, *pMaterial );
-            pShape->setFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
-            //pShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
-            //pShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
+        //    // Create shape
+        //    PxCapsuleGeometry const capsuleGeo( bodyDefinition.m_radius, bodyDefinition.m_halfHeight );
+        //    auto pShape = PxRigidActorExt::createExclusiveShape( *pLink, capsuleGeo, *pMaterial );
+        //    pShape->setFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
+        //    //pShape->setSimulationFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
+        //    //pShape->setQueryFilterData( PxFilterData( pComponent->m_layers.Get(), 0, 0, 0 ) );
 
-            pMaterial->release();
-        }
+        //    pMaterial->release();
+        //}
 
-        // Create joints
-        //-------------------------------------------------------------------------
+        //// Create joints
+        ////-------------------------------------------------------------------------
 
-        for ( int32_t bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
-        {
-            PxArticulationJoint* pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
-            pJoint->setParentPose( ToPx( pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform ) );
-            pJoint->setChildPose( ToPx( pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform ) );
-            pJoint->setTargetVelocity( PxZero );
-            pJoint->setTargetOrientation( PxIdentity );
-        }
+        //for ( int32_t bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
+        //{
+        //    auto pJoint = static_cast<PxArticulationJointReducedCoordinate*>( m_links[bodyIdx]->getInboundJoint() );
+        //    pJoint->setParentPose( ToPx( pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform ) );
+        //    pJoint->setChildPose( ToPx( pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform ) );
+        //    pJoint->setTargetVelocity( PxZero );
+        //    pJoint->setTargetOrientation( PxIdentity );
+        //}
 
-        UpdateJointSettings();
+        //UpdateJointSettings();
     }
 
     Ragdoll::~Ragdoll()
@@ -820,14 +820,14 @@ namespace EE::Physics
     {
         EE_ASSERT( IsValid() );
 
-        ScopedWriteLock const sl( this );
+       /* ScopedWriteLock const sl( this );
         m_pArticulation->setSolverIterationCounts( m_pProfile->m_solverPositionIterations, m_pProfile->m_solverVelocityIterations );
         m_pArticulation->setStabilizationThreshold( m_pProfile->m_stabilizationThreshold );
         m_pArticulation->setMaxProjectionIterations( m_pProfile->m_maxProjectionIterations );
         m_pArticulation->setSleepThreshold( m_pProfile->m_sleepThreshold );
         m_pArticulation->setSeparationTolerance( m_pProfile->m_separationTolerance );
         m_pArticulation->setInternalDriveIterations( m_pProfile->m_internalDriveIterations );
-        m_pArticulation->setExternalDriveIterations( m_pProfile->m_externalDriveIterations );
+        m_pArticulation->setExternalDriveIterations( m_pProfile->m_externalDriveIterations );*/
     }
 
     void Ragdoll::UpdateBodySettings()
@@ -866,47 +866,47 @@ namespace EE::Physics
 
     void Ragdoll::UpdateJointSettings()
     {
-        EE_ASSERT( IsValid() );
+        //EE_ASSERT( IsValid() );
 
-        ScopedWriteLock const sl( this );
+        //ScopedWriteLock const sl( this );
 
-        // Body and joint setting
-        //-------------------------------------------------------------------------
+        //// Body and joint setting
+        ////-------------------------------------------------------------------------
 
-        int32_t const numBodies = (int32_t) m_links.size();
-        for ( int32_t bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
-        {
-            int32_t const jointIdx = bodyIdx - 1;
-            auto const& jointSettings = m_pProfile->m_jointSettings[jointIdx];
-            PxArticulationJoint* pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
+        //int32_t const numBodies = (int32_t) m_links.size();
+        //for ( int32_t bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
+        //{
+        //    int32_t const jointIdx = bodyIdx - 1;
+        //    auto const& jointSettings = m_pProfile->m_jointSettings[jointIdx];
+        //    auto pJoint = static_cast<PxArticulationJointReducedCoordinate*>( m_links[bodyIdx]->getInboundJoint() );
 
-            //-------------------------------------------------------------------------
+        //    //-------------------------------------------------------------------------
 
-            pJoint->setInternalCompliance( jointSettings.m_internalCompliance );
-            pJoint->setExternalCompliance( jointSettings.m_externalCompliance );
-            pJoint->setDriveType( PxArticulationJointDriveType::eTARGET );
+        //    pJoint->setInternalCompliance( jointSettings.m_internalCompliance );
+        //    pJoint->setExternalCompliance( jointSettings.m_externalCompliance );
+        //    pJoint->setDriveType( PxArticulationJointDriveType::eTARGET );
 
-            pJoint->setDamping( jointSettings.m_damping );
-            pJoint->setStiffness( jointSettings.m_stiffness );
+        //    pJoint->setDamping( jointSettings.m_damping );
+        //    pJoint->setStiffness( jointSettings.m_stiffness );
 
-            pJoint->setTwistLimitEnabled( jointSettings.m_twistLimitEnabled );
-            pJoint->setTwistLimit( Math::DegreesToRadians * jointSettings.m_twistLimitMin, Math::DegreesToRadians * jointSettings.m_twistLimitMax );
-            pJoint->setTwistLimitContactDistance( Math::DegreesToRadians * jointSettings.m_twistLimitContactDistance );
+        //    pJoint->setTwistLimitEnabled( jointSettings.m_twistLimitEnabled );
+        //    pJoint->setTwistLimit( Math::DegreesToRadians * jointSettings.m_twistLimitMin, Math::DegreesToRadians * jointSettings.m_twistLimitMax );
+        //    pJoint->setTwistLimitContactDistance( Math::DegreesToRadians * jointSettings.m_twistLimitContactDistance );
 
-            pJoint->setSwingLimitEnabled( jointSettings.m_swingLimitEnabled );
-            pJoint->setSwingLimit( Math::DegreesToRadians * jointSettings.m_swingLimitZ, Math::DegreesToRadians * jointSettings.m_swingLimitY );
-            pJoint->setSwingLimitContactDistance( Math::DegreesToRadians * jointSettings.m_swingLimitContactDistance );
+        //    pJoint->setSwingLimitEnabled( jointSettings.m_swingLimitEnabled );
+        //    pJoint->setSwingLimit( Math::DegreesToRadians * jointSettings.m_swingLimitZ, Math::DegreesToRadians * jointSettings.m_swingLimitY );
+        //    pJoint->setSwingLimitContactDistance( Math::DegreesToRadians * jointSettings.m_swingLimitContactDistance );
 
-            pJoint->setTangentialStiffness( jointSettings.m_tangentialStiffness );
-            pJoint->setTangentialDamping( jointSettings.m_tangentialDamping );
+        //    pJoint->setTangentialStiffness( jointSettings.m_tangentialStiffness );
+        //    pJoint->setTangentialDamping( jointSettings.m_tangentialDamping );
 
-            //-------------------------------------------------------------------------
+        //    //-------------------------------------------------------------------------
 
-            if ( !jointSettings.m_useVelocity )
-            {
-                pJoint->setTargetVelocity( PxVec3( 0, 0, 0 ) );
-            }
-        }
+        //    if ( !jointSettings.m_useVelocity )
+        //    {
+        //        pJoint->setTargetVelocity( PxVec3( 0, 0, 0 ) );
+        //    }
+        //}
     }
 
     //-------------------------------------------------------------------------
@@ -969,90 +969,90 @@ namespace EE::Physics
 
     void Ragdoll::ApplyImpulse( Vector const& impulseOriginWS, Vector const& impulseForceWS )
     {
-        PxArticulationLink* pHitLink = nullptr;
-        PxVec3 hitLocation;
+        //PxArticulationLink* pHitLink = nullptr;
+        //PxVec3 hitLocation;
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        {
-            ScopedReadLock const sl( this );
-            PxVec3 const rayOrigin = ToPx( impulseOriginWS );
-            PxVec3 const rayDir = ToPx( impulseForceWS.GetNormalized3() );
-            PxShape* shapeBuffer[1];
-            PxRaycastHit hitBuffer[1];
+        //{
+        //    ScopedReadLock const sl( this );
+        //    PxVec3 const rayOrigin = ToPx( impulseOriginWS );
+        //    PxVec3 const rayDir = ToPx( impulseForceWS.GetNormalized3() );
+        //    PxShape* shapeBuffer[1];
+        //    PxRaycastHit hitBuffer[1];
 
-            float closestDistanceHit = FLT_MAX;
+        //    float closestDistanceHit = FLT_MAX;
 
-            for ( auto pLink : m_links )
-            {
-                pLink->getShapes( shapeBuffer, 1 );
-                PxTransform pose = pLink->getGlobalPose();
-                auto Q = FromPx( pose.q ).GetNormalized();
-                pose.q = pose.q.getNormalized(); // Workaround for too strict tolerance in unit quat check: https://github.com/NVIDIAGameWorks/PhysX/issues/523
-                EE_ASSERT( pose.q.isUnit() );
+        //    for ( auto pLink : m_links )
+        //    {
+        //        pLink->getShapes( shapeBuffer, 1 );
+        //        PxTransform pose = pLink->getGlobalPose();
+        //        auto Q = FromPx( pose.q ).GetNormalized();
+        //        pose.q = pose.q.getNormalized(); // Workaround for too strict tolerance in unit quat check: https://github.com/NVIDIAGameWorks/PhysX/issues/523
+        //        EE_ASSERT( pose.q.isUnit() );
 
-                int32_t const numHits = PxGeometryQuery::raycast( rayOrigin, rayDir, shapeBuffer[0]->getGeometry().any(), pose, 100, PxHitFlag::ePOSITION, 1, hitBuffer );
-                if ( numHits > 0 )
-                {
-                    if ( hitBuffer[0].distance < closestDistanceHit )
-                    {
-                        pHitLink = pLink;
-                        closestDistanceHit = hitBuffer[0].distance;
-                        hitLocation = hitBuffer->position;
-                    }
-                }
-            }
-        }
+        //        int32_t const numHits = PxGeometryQuery::raycast( rayOrigin, rayDir, shapeBuffer[0]->getGeometry().any(), pose, 100, PxHitFlag::ePOSITION, 1, hitBuffer );
+        //        if ( numHits > 0 )
+        //        {
+        //            if ( hitBuffer[0].distance < closestDistanceHit )
+        //            {
+        //                pHitLink = pLink;
+        //                closestDistanceHit = hitBuffer[0].distance;
+        //                hitLocation = hitBuffer->position;
+        //            }
+        //        }
+        //    }
+        //}
 
-        // Apply impulse
-        //-------------------------------------------------------------------------
+        //// Apply impulse
+        ////-------------------------------------------------------------------------
 
-        if( pHitLink != nullptr )
-        {
-            PxVec3 const impulse = ToPx( impulseForceWS );
-            ScopedWriteLock const sl( this );
-            PxRigidBodyExt::addForceAtPos( *pHitLink, impulse, hitLocation, PxForceMode::eIMPULSE );
-        }
+        //if( pHitLink != nullptr )
+        //{
+        //    PxVec3 const impulse = ToPx( impulseForceWS );
+        //    ScopedWriteLock const sl( this );
+        //    PxRigidBodyExt::addForceAtPos( *pHitLink, impulse, hitLocation, PxForceMode::eIMPULSE );
+        //}
     }
 
     void Ragdoll::ApplyImpulseToBody( int32_t bodyIdx, Vector const& impulseOriginWS, Vector const& impulseForceWS )
     {
-        EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_links.size() );
+    //    EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_links.size() );
 
-        PxArticulationLink* pLink = m_links[bodyIdx];
-        PxVec3 hitLocation;
-        bool applyImpulse = false;
+    //    PxArticulationLink* pLink = m_links[bodyIdx];
+    //    PxVec3 hitLocation;
+    //    bool applyImpulse = false;
 
-        PxVec3 const rayOrigin = ToPx( impulseOriginWS );
-        PxVec3 const rayDir = ToPx( impulseForceWS.GetNormalized3() );
+    //    PxVec3 const rayOrigin = ToPx( impulseOriginWS );
+    //    PxVec3 const rayDir = ToPx( impulseForceWS.GetNormalized3() );
 
-        PxShape* shapeBuffer[1];
-        pLink->getShapes( shapeBuffer, 1 );
+    //    PxShape* shapeBuffer[1];
+    //    pLink->getShapes( shapeBuffer, 1 );
 
-        PxTransform pose = pLink->getGlobalPose();
-        auto Q = FromPx( pose.q ).GetNormalized();
-        pose.q = pose.q.getNormalized(); // Workaround for too strict tolerance in unit quat check: https://github.com/NVIDIAGameWorks/PhysX/issues/523
-        EE_ASSERT( pose.q.isUnit() );
+    //    PxTransform pose = pLink->getGlobalPose();
+    //    auto Q = FromPx( pose.q ).GetNormalized();
+    //    pose.q = pose.q.getNormalized(); // Workaround for too strict tolerance in unit quat check: https://github.com/NVIDIAGameWorks/PhysX/issues/523
+    //    EE_ASSERT( pose.q.isUnit() );
 
-        {
-            PxRaycastHit hitBuffer[1];
-            ScopedReadLock const sl( this );
-            int32_t const numHits = PxGeometryQuery::raycast( rayOrigin, rayDir, shapeBuffer[0]->getGeometry().any(), pose, 100, PxHitFlag::ePOSITION, 1, hitBuffer );
-            if ( numHits > 0 )
-            {
-                hitLocation = hitBuffer->position;
-                applyImpulse = true;
-            }
-        }
+    //    {
+    //        PxRaycastHit hitBuffer[1];
+    //        ScopedReadLock const sl( this );
+    //        int32_t const numHits = PxGeometryQuery::raycast( rayOrigin, rayDir, shapeBuffer[0]->getGeometry().any(), pose, 100, PxHitFlag::ePOSITION, 1, hitBuffer );
+    //        if ( numHits > 0 )
+    //        {
+    //            hitLocation = hitBuffer->position;
+    //            applyImpulse = true;
+    //        }
+    //    }
 
-        //-------------------------------------------------------------------------
+    //    //-------------------------------------------------------------------------
 
-        if( applyImpulse )
-        {
-            PxVec3 const impulse = ToPx( impulseForceWS );
-            ScopedWriteLock const sl( this );
-            PxRigidBodyExt::addForceAtPos( *pLink, impulse, hitLocation, PxForceMode::eIMPULSE );
-        }
+    //    if( applyImpulse )
+    //    {
+    //        PxVec3 const impulse = ToPx( impulseForceWS );
+    //        ScopedWriteLock const sl( this );
+    //        PxRigidBodyExt::addForceAtPos( *pLink, impulse, hitLocation, PxForceMode::eIMPULSE );
+    //    }
     }
 
     void Ragdoll::ApplyImpulseToBody( StringID boneID, Vector const& impulseOriginWS, Vector const& impulseForceWS )
@@ -1093,84 +1093,84 @@ namespace EE::Physics
 
     void Ragdoll::Update( Seconds const deltaTime, Transform const& worldTransform, Animation::Pose* pPose, bool shouldInitializeBodies )
     {
-        EE_ASSERT( IsValid() );
+        //EE_ASSERT( IsValid() );
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        if ( !m_shouldFollowPose && !shouldInitializeBodies )
-        {
-            return;
-        }
+        //if ( !m_shouldFollowPose && !shouldInitializeBodies )
+        //{
+        //    return;
+        //}
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        EE_ASSERT( pPose != nullptr );
-        EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
-        EE_ASSERT( pPose->HasGlobalTransforms() );
+        //EE_ASSERT( pPose != nullptr );
+        //EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
+        //EE_ASSERT( pPose->HasGlobalTransforms() );
 
-        ScopedWriteLock const sl( this );
+        //ScopedWriteLock const sl( this );
 
-        m_pArticulation->wakeUp();
+        //m_pArticulation->wakeUp();
 
-        // Update bodies and joint Targets
-        //-------------------------------------------------------------------------
+        //// Update bodies and joint Targets
+        ////-------------------------------------------------------------------------
 
-        int32_t const numBodies = (int32_t) m_links.size();
-        for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
-        {
-            int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
-            Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
-            Transform const desiredBodyWorldTransform = m_pDefinition->m_bodies[bodyIdx].m_offsetTransform * boneWorldTransform;
+        //int32_t const numBodies = (int32_t) m_links.size();
+        //for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
+        //{
+        //    int32_t const boneIdx = m_pDefinition->m_bodyToBoneMap[bodyIdx];
+        //    Transform const boneWorldTransform = pPose->GetGlobalTransform( boneIdx ) * worldTransform;
+        //    Transform const desiredBodyWorldTransform = m_pDefinition->m_bodies[bodyIdx].m_offsetTransform * boneWorldTransform;
 
-            //-------------------------------------------------------------------------
+        //    //-------------------------------------------------------------------------
 
-            if ( shouldInitializeBodies )
-            {
-                m_links[bodyIdx]->setGlobalPose( ToPx( desiredBodyWorldTransform ) );
-            }
+        //    if ( shouldInitializeBodies )
+        //    {
+        //        m_links[bodyIdx]->setGlobalPose( ToPx( desiredBodyWorldTransform ) );
+        //    }
 
-            // Drive Body
-            //-------------------------------------------------------------------------
+        //    // Drive Body
+        //    //-------------------------------------------------------------------------
 
-            if ( m_pProfile->m_bodySettings[bodyIdx].m_followPose )
-            {
-                Transform const currentBodyTransform = FromPx( m_links[bodyIdx]->getGlobalPose() );
+        //    if ( m_pProfile->m_bodySettings[bodyIdx].m_followPose )
+        //    {
+        //        Transform const currentBodyTransform = FromPx( m_links[bodyIdx]->getGlobalPose() );
 
-                Vector const linearVelocity = ( desiredBodyWorldTransform.GetTranslation() - currentBodyTransform.GetTranslation() ) / deltaTime;
-                m_links[bodyIdx]->setLinearVelocity( ToPx( linearVelocity ) );
+        //        Vector const linearVelocity = ( desiredBodyWorldTransform.GetTranslation() - currentBodyTransform.GetTranslation() ) / deltaTime;
+        //        m_links[bodyIdx]->setLinearVelocity( ToPx( linearVelocity ) );
 
-                Vector const angularVelocity = Math::CalculateAngularVelocity( currentBodyTransform.GetRotation(), desiredBodyWorldTransform.GetRotation(), deltaTime );
-                m_links[bodyIdx]->setAngularVelocity( ToPx( angularVelocity ) );
-            }
+        //        Vector const angularVelocity = Math::CalculateAngularVelocity( currentBodyTransform.GetRotation(), desiredBodyWorldTransform.GetRotation(), deltaTime );
+        //        m_links[bodyIdx]->setAngularVelocity( ToPx( angularVelocity ) );
+        //    }
 
-            // Drive Joint
-            //-------------------------------------------------------------------------
+        //    // Drive Joint
+        //    //-------------------------------------------------------------------------
 
-            if ( bodyIdx > 0 )
-            {
-                auto pJoint = static_cast<PxArticulationJoint*>( m_links[bodyIdx]->getInboundJoint() );
+        //    if ( bodyIdx > 0 )
+        //    {
+        //        auto pJoint = static_cast<PxArticulationJointReducedCoordinate*>( m_links[bodyIdx]->getInboundJoint() );
 
-                int32_t const parentBoneIdx = m_pDefinition->m_bodyToBoneMap[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx];
-                Transform const parentBoneWorldTransform = pPose->GetGlobalTransform( parentBoneIdx ) * worldTransform;
-                Transform const parentBodyWorldTransform = m_pDefinition->m_bodies[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx].m_offsetTransform * parentBoneWorldTransform;
+        //        int32_t const parentBoneIdx = m_pDefinition->m_bodyToBoneMap[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx];
+        //        Transform const parentBoneWorldTransform = pPose->GetGlobalTransform( parentBoneIdx ) * worldTransform;
+        //        Transform const parentBodyWorldTransform = m_pDefinition->m_bodies[m_pDefinition->m_bodies[bodyIdx].m_parentBodyIdx].m_offsetTransform * parentBoneWorldTransform;
 
-                Transform const jointWorldTransformRelativeToBody = m_pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform * desiredBodyWorldTransform;
-                Transform const jointWorldTransformRelativeToParentBody = m_pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform * parentBodyWorldTransform;
+        //        Transform const jointWorldTransformRelativeToBody = m_pDefinition->m_bodies[bodyIdx].m_bodyRelativeJointTransform * desiredBodyWorldTransform;
+        //        Transform const jointWorldTransformRelativeToParentBody = m_pDefinition->m_bodies[bodyIdx].m_parentRelativeJointTransform * parentBodyWorldTransform;
 
-                // Set Orientation Target
-                // Get the delta rotation and ensure that it's the shortest path rotation
-                Quaternion jointDeltaRotation = Quaternion::Delta( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation() );
-                jointDeltaRotation.MakeShortestPath();
-                pJoint->setTargetOrientation( ToPx( jointDeltaRotation ) );
+        //        // Set Orientation Target
+        //        // Get the delta rotation and ensure that it's the shortest path rotation
+        //        Quaternion jointDeltaRotation = Quaternion::Delta( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation() );
+        //        jointDeltaRotation.MakeShortestPath();
+        //        pJoint->setTargetOrientation( ToPx( jointDeltaRotation ) );
 
-                // Set angular velocity
-                if ( m_pProfile->m_jointSettings[bodyIdx - 1].m_useVelocity )
-                {
-                    Vector const angularVelocity = Math::CalculateAngularVelocity( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation(), deltaTime );
-                    pJoint->setTargetVelocity( ToPx( angularVelocity ) * 0.1f );
-                }
-            }
-        }
+        //        // Set angular velocity
+        //        if ( m_pProfile->m_jointSettings[bodyIdx - 1].m_useVelocity )
+        //        {
+        //            Vector const angularVelocity = Math::CalculateAngularVelocity( jointWorldTransformRelativeToParentBody.GetRotation(), jointWorldTransformRelativeToBody.GetRotation(), deltaTime );
+        //            pJoint->setTargetVelocity( ToPx( angularVelocity ) * 0.1f );
+        //        }
+        //    }
+        //}
     }
 
     bool Ragdoll::GetPose( Transform const& worldTransform, Animation::Pose* pPose ) const
@@ -1305,7 +1305,7 @@ namespace EE::Physics
 
     void Ragdoll::ResetState()
     {
-        ScopedWriteLock const sl( this );
+        /*ScopedWriteLock const sl( this );
         int32_t const numBodies = (int32_t) m_links.size();
         for ( int32_t i = 0; i < numBodies; i++ )
         {
@@ -1318,36 +1318,36 @@ namespace EE::Physics
                 pJoint->setTargetVelocity( PxZero );
                 pJoint->setTargetOrientation( PxIdentity );
             }
-        }
+        }*/
     }
 
     void Ragdoll::DrawDebug( Drawing::DrawContext& ctx ) const
     {
-        RagdollPose pose;
+        //RagdollPose pose;
 
-        // Get transforms
-        //-------------------------------------------------------------------------
+        //// Get transforms
+        ////-------------------------------------------------------------------------
 
-        {
-            ScopedReadLock const sl( this );
-            GetRagdollPose( pose );
-        }
+        //{
+        //    ScopedReadLock const sl( this );
+        //    GetRagdollPose( pose );
+        //}
 
-        // Draw Ragdoll Bodies
-        //-------------------------------------------------------------------------
+        //// Draw Ragdoll Bodies
+        ////-------------------------------------------------------------------------
 
-        int32_t const numBodies = m_pDefinition->GetNumBodies();
-        for ( int32_t i = 0; i < numBodies; i++ )
-        {
-            auto const& bodySettings = m_pDefinition->m_bodies[i];
-            ctx.DrawCapsuleHeightX( pose[i], bodySettings.m_radius, bodySettings.m_halfHeight, Colors::Yellow, 2.0f );
+        //int32_t const numBodies = m_pDefinition->GetNumBodies();
+        //for ( int32_t i = 0; i < numBodies; i++ )
+        //{
+        //    auto const& bodySettings = m_pDefinition->m_bodies[i];
+        //    ctx.DrawCapsuleHeightX( pose[i], bodySettings.m_radius, bodySettings.m_halfHeight, Colors::Yellow, 2.0f );
 
-            if ( i > 0 )
-            {
-                Transform const jointTransformC = bodySettings.m_bodyRelativeJointTransform * pose[i];
-                ctx.DrawArrow( jointTransformC.GetTranslation(), jointTransformC.GetTranslation() + ( jointTransformC.GetAxisX() * 0.2f ), Colors::Pink, 2.0f );
-            }
-        }
+        //    if ( i > 0 )
+        //    {
+        //        Transform const jointTransformC = bodySettings.m_bodyRelativeJointTransform * pose[i];
+        //        ctx.DrawArrow( jointTransformC.GetTranslation(), jointTransformC.GetTranslation() + ( jointTransformC.GetAxisX() * 0.2f ), Colors::Pink, 2.0f );
+        //    }
+        //}
     }
     #endif
 }

@@ -1,6 +1,5 @@
 #include "PlayerAction_Locomotion.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Physics/PlayerPhysicsController.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
@@ -47,9 +46,8 @@ namespace EE::Player
         float const horizontalSpeed = characterVelocity.GetLength2();
 
         ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Locomotion );
-        ctx.m_pCharacterController->EnableGravity( characterVelocity.m_z );
-        ctx.m_pCharacterController->EnableProjectionOntoFloor();
-        ctx.m_pCharacterController->EnableStepHeight();
+        ctx.m_pCharacterComponent->SetGravityEnabled( true, characterVelocity.GetZ() );
+        SetCrouchState( ctx, ctx.m_pPlayerComponent->m_crouchFlag );
 
         // Set initial state
         if ( horizontalSpeed > 0.1f )
@@ -79,8 +77,8 @@ namespace EE::Player
         Vector const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
 
         // Use last frame camera orientation
-        Vector const stickDesiredForward = camFwd * movementInputs.m_y;
-        Vector const stickDesiredRight = camRight * movementInputs.m_x;
+        Vector const stickDesiredForward = camFwd * movementInputs.GetY();
+        Vector const stickDesiredRight = camRight * movementInputs.GetX();
         Vector const stickInputVectorWS = ( stickDesiredForward + stickDesiredRight );
 
         // Handle player state
@@ -130,7 +128,7 @@ namespace EE::Player
 
         bool isSliding = false;
 
-        if ( ctx.m_pCharacterController->GetFloorType() != CharacterPhysicsController::FloorType::Navigable && ctx.m_pCharacterComponent->GetCharacterVelocity().m_z < -Math::Epsilon )
+        /*if ( ctx.m_pCharacterController->GetFloorType() != CharacterPhysicsController::FloorType::Navigable && ctx.m_pCharacterComponent->GetCharacterVelocity().GetZ() < -Math::Epsilon )
         {
             m_unnavigableSurfaceSlideTimer.Update( ctx.GetDeltaTime() );
             if ( m_unnavigableSurfaceSlideTimer.GetElapsedTimeSeconds() > g_unnavigableSurfaceSlideThreshold )
@@ -142,7 +140,7 @@ namespace EE::Player
         else
         {
             m_unnavigableSurfaceSlideTimer.Reset();
-        }
+        }*/
 
         // Update animation controller
         //-------------------------------------------------------------------------
@@ -172,7 +170,21 @@ namespace EE::Player
     void LocomotionAction::StopInternal( ActionContext const& ctx, StopReason reason )
     {
         ctx.m_pPlayerComponent->m_sprintFlag = false;
-        ctx.m_pPlayerComponent->m_crouchFlag = false;
+    }
+
+    void LocomotionAction::SetCrouchState( ActionContext const& ctx, bool isCrouchEnabled )
+    {
+        // Enable crouch
+        if ( isCrouchEnabled )
+        {
+            ctx.m_pCharacterComponent->ResizeCapsule( ctx.m_pCharacterComponent->GetCapsuleRadius(), 0.2f );
+            ctx.m_pPlayerComponent->m_crouchFlag = true;
+        }
+        else // Disable crouch
+        {
+            ctx.m_pCharacterComponent->ResetCapsuleSize();
+            ctx.m_pPlayerComponent->m_crouchFlag = false;
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -202,7 +214,7 @@ namespace EE::Player
         EE_ASSERT( pControllerState != nullptr );
         if ( pControllerState->WasPressed( Input::ControllerButton::FaceButtonLeft ) )
         {
-            ctx.m_pPlayerComponent->m_crouchFlag = !ctx.m_pPlayerComponent->m_crouchFlag;
+            SetCrouchState( ctx, !ctx.m_pPlayerComponent->m_crouchFlag );
         }
 
         //-------------------------------------------------------------------------
@@ -404,12 +416,12 @@ namespace EE::Player
                 if ( characterSpeed > 1.0f && pControllerState->WasPressed( Input::ControllerButton::ThumbstickLeft ) )
                 {
                     ctx.m_pPlayerComponent->m_sprintFlag = true;
-                    ctx.m_pPlayerComponent->m_crouchFlag = false;
+                    SetCrouchState( ctx, false );
                 }
 
                 if ( !ctx.m_pPlayerComponent->m_sprintFlag && pControllerState->WasPressed( Input::ControllerButton::FaceButtonLeft ) )
                 {
-                    ctx.m_pPlayerComponent->m_crouchFlag = !ctx.m_pPlayerComponent->m_crouchFlag;
+                    SetCrouchState( ctx, !ctx.m_pPlayerComponent->m_crouchFlag );
                 }
             }
 

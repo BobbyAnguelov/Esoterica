@@ -78,7 +78,7 @@ namespace EE::Animation
             { 
                 pResultPose->SetTransform( boneIdx, pSourcePose->GetTransform( boneIdx ) );
             }
-            if ( canFullyOptimizeBlend && boneBlendWeight == 1.0f )
+            else if ( canFullyOptimizeBlend && boneBlendWeight == 1.0f )
             {
                 pResultPose->SetTransform( boneIdx, pTargetPose->GetTransform( boneIdx ) );
             }

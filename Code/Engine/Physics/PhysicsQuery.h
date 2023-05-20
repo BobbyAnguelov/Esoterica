@@ -1,224 +1,286 @@
 #pragma once
-
 #include "Engine/_Module/API.h"
+#include "Engine/Physics/PhysicsSettings.h"
 #include "Engine/Entity/EntityIDs.h"
-#include "System/Types/UUID.h"
-#include "System/Math/Quaternion.h"
-#include "System/Types/Arrays.h"
+#include "System/Math/Vector.h"
 
-#include <PxQueryReport.h>
 #include <PxQueryFiltering.h>
-
-// Needed to suppress warning for exporting class derived from PxQueryFilterCallback
-#if _MSC_VER
-#pragma warning(push, 0)
-#pragma warning( disable : 4275 )
-#endif
-
-//-------------------------------------------------------------------------
-
-namespace EE { class EntityComponent; }
-namespace physx { class PxShape; class PxRigidActor; }
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
+    namespace PX { class QueryFilter; }
+
     //-------------------------------------------------------------------------
-    // Results from a given query
+    // Query Rules
     //-------------------------------------------------------------------------
 
-    template<int N>
-    struct RayCastResultBuffer : public physx::PxHitBuffer<physx::PxRaycastHit>
+    class EE_ENGINE_API QueryRules
     {
-        RayCastResultBuffer() : physx::PxHitBuffer<physx::PxRaycastHit>( m_hits, N ) {}
-
-        EE_FORCE_INLINE Vector GetHitPosition() const
-        {
-            EE_ASSERT( hasBlock );
-            return FromPx( block.position );
-        }
-
-        Vector                  m_start;
-        Vector                  m_end;
-        physx::PxRaycastHit     m_hits[N];
-    };
-
-    using RayCastResults = RayCastResultBuffer<32>;
-
-    //-------------------------------------------------------------------------
-
-    template<int N>
-    struct SweepResultBuffer : public physx::PxHitBuffer<physx::PxSweepHit>
-    {
-        friend class Scene;
+        friend class PhysicsWorld;
+        friend PX::QueryFilter;
 
     public:
 
-        SweepResultBuffer() : physx::PxHitBuffer<physx::PxSweepHit>( m_hits, N ) {}
-
-        EE_FORCE_INLINE bool HadInitialOverlap() const { return hasBlock && block.hadInitialOverlap(); }
-        EE_FORCE_INLINE Vector const& GetShapePosition() const { return m_finalShapePosition; }
-        EE_FORCE_INLINE float GetSweptDistance() const { EE_ASSERT( hasBlock ); return block.distance; }
-        EE_FORCE_INLINE float GetRemainingDistance() const { return m_remainingDistance; }
-
-    private:
-
-        inline void CalculateFinalShapePosition( float epsilon )
+        enum MobilityFilter : uint8_t
         {
-            if ( !hasBlock )
-            {
-                m_finalShapePosition = m_sweepEnd;
-                m_remainingDistance = 0.f;
-            }
-            else if ( block.hadInitialOverlap() )
-            {
-                m_finalShapePosition = m_sweepStart;
-                m_remainingDistance = ( m_sweepEnd - m_sweepStart ).GetLength3();
-            }
-            else // Regular blocking hit
-            {
-                Vector sweepDirection;
-                float originalSweepDistance = 0.0f;
-                ( m_sweepEnd - m_sweepStart ).ToDirectionAndLength3( sweepDirection, originalSweepDistance );
-
-                // Calculate the final shape position and remaining distance (including the epsilon)
-                float const finalSweepDistance( Math::Max( 0.0f, ( block.distance - epsilon ) ) );
-                m_finalShapePosition = Vector::MultiplyAdd( sweepDirection, Vector( finalSweepDistance ), m_sweepStart );
-                m_remainingDistance = originalSweepDistance - finalSweepDistance;
-            }
-        }
-
-    public:
-
-        Quaternion              m_orientation = Quaternion::Identity;
-        Vector                  m_sweepStart;
-        Vector                  m_sweepEnd;
-        Vector                  m_finalShapePosition;
-        float                   m_remainingDistance;
-        physx::PxSweepHit       m_hits[N];
-    };
-
-    using SweepResults = SweepResultBuffer<32>;
-
-    //-------------------------------------------------------------------------
-    
-    template<int N>
-    struct OverlapResultBuffer : public physx::PxHitBuffer<physx::PxOverlapHit>
-    {
-        OverlapResultBuffer() : physx::PxHitBuffer<physx::PxOverlapHit>( m_hits, N ) {}
-
-        Vector                  m_position;
-        Quaternion              m_orientation = Quaternion::Identity;
-        physx::PxOverlapHit     m_hits[N];
-    };
-
-    using OverlapResults = OverlapResultBuffer<32>;
-
-    //-------------------------------------------------------------------------
-    // PhysX Query Filter
-    //-------------------------------------------------------------------------
-    // Helper to abstract some PhysX complexity, and to provide syntactic sugar
-    // Currently word0 in the filter data is used to specify the layer to query against (all other words are currently left unset)
-    // For the currently define layers in the engine, please refer to "PhysicsLayers.h"
-
-    class EE_ENGINE_API QueryFilter final : public physx::PxQueryFilterCallback
-    {
-    public:
-
-        enum class MobilityFilter
-        {
-            None,
-            IgnoreStatic,
-            IgnoreDynamic
+            StaticAndDynamic,
+            OnlyStatic,
+            OnlyDynamic
         };
 
     public:
 
-        // By default queries will collide against ALL static and dynamic actors 
-        // The filter data is set by default to zero which skips the PxFilterData step - so will collide with all layers
-        QueryFilter()
-            : m_filterData( physx::PxQueryFilterData( physx::PxQueryFlag::eDYNAMIC | physx::PxQueryFlag::eSTATIC | physx::PxQueryFlag::ePREFILTER ) )
-        {}
-
-        // Create a query specifying the layer mask to use for filtering
-        QueryFilter( uint32_t layerMask )
-            : m_filterData( physx::PxQueryFilterData( physx::PxFilterData( layerMask, 0, 0, 0 ), physx::PxQueryFlag::eDYNAMIC | physx::PxQueryFlag::eSTATIC | physx::PxQueryFlag::ePREFILTER ) )
-        {}
-
-        // Layer Filtering
-        //-------------------------------------------------------------------------
-        // This allows you to specify what layers this query will be run against (e.g. collide with only the environment or with characters, etc... )
-
-        void SetLayerMask( uint32_t layerMask )
+        QueryRules()
         {
-            m_filterData.data.word0 = layerMask;
+            UpdateInternals();
         }
 
-        // Mobility Filtering
-        //-------------------------------------------------------------------------
-        // By default queries will collide against both static and dynamic actors
-
-        inline bool IsQueryingStaticActors()
+        QueryRules( uint32_t collidesWithMask ) : m_collidesWithMask( collidesWithMask )
         {
-            return m_filterData.flags.isSet( physx::PxQueryFlag::eSTATIC );
+            UpdateInternals();
         }
 
-        inline bool IsQueryingDynamicActors()
-        {
-            return m_filterData.flags.isSet( physx::PxQueryFlag::eDYNAMIC );
-        }
+        void Reset();
 
-        inline void SetMobilityFilter( MobilityFilter filter )
-        {
-            switch ( filter )
-            {
-                case MobilityFilter::None:
-                m_filterData.flags |= physx::PxQueryFlag::eSTATIC;
-                m_filterData.flags |= ~physx::PxQueryFlag::eDYNAMIC;
-                break;
-
-                case MobilityFilter::IgnoreStatic:
-                m_filterData.flags &= ~physx::PxQueryFlag::eSTATIC;
-                m_filterData.flags |= physx::PxQueryFlag::eDYNAMIC;
-                break;
-
-                case MobilityFilter::IgnoreDynamic:
-                m_filterData.flags |= physx::PxQueryFlag::eSTATIC;
-                m_filterData.flags &= ~physx::PxQueryFlag::eDYNAMIC;
-                break;
-            }
-        }
-
-        // Ignore 
+        // Collision Settings
         //-------------------------------------------------------------------------
 
-        void AddIgnoredComponent( ComponentID const& componentID )
+        EE_FORCE_INLINE void ClearCollidesWithMask()
         {
-            EE_ASSERT( componentID.IsValid() );
-            m_ignoredComponents.emplace_back( componentID );
+            m_collidesWithMask = 0;
+            UpdateInternals();
         }
 
-        void AddIgnoredEntity( EntityID const& entityID )
+        EE_FORCE_INLINE QueryRules& SetCollidesWith( CollisionCategory colliderType, bool value = true )
         {
-            EE_ASSERT( entityID.IsValid() );
-            m_ignoredEntities.emplace_back( entityID );
+            m_collidesWithMask |= ( 1u << (uint8_t) colliderType );
+            UpdateInternals();
+            return *this;
         }
+
+        EE_FORCE_INLINE QueryRules& SetCollidesWith( QueryChannel queryChannel, bool value = true )
+        {
+            m_collidesWithMask |= ( 1u << (uint8_t) queryChannel );
+            UpdateInternals();
+            return *this;
+        }
+
+        EE_FORCE_INLINE QueryRules& SetCollidesWith( MobilityFilter filter )
+        {
+            m_mobilityFilter = filter;
+            UpdateInternals();
+            return *this;
+        }
+
+        // Query Settings
+        //-------------------------------------------------------------------------
+
+        // Allow all detected hits along the length of the sweep/raycast - sorted by distance
+        inline QueryRules& SetAllowMultipleHits( bool allowMultipleHits )
+        {
+            m_allowMultipleHits = allowMultipleHits;
+            UpdateInternals();
+            return *this;
+        }
+
+        // Should we calculate the depenetration information if we are initially overlapping during a sweep or for overlap queries
+        inline QueryRules& SetCalculateDepenetrationInfo( bool calculateDepenetration )
+        {
+            m_calculateDepenetration = calculateDepenetration;
+            UpdateInternals();
+            return *this;
+        }
+
+        // Ignore Rules
+        //-------------------------------------------------------------------------
+
+        inline TInlineVector<EntityID, 5> const& GetIgnoredEntities() const { return m_ignoredEntities; }
+
+        inline bool IsEntityIgnored( EntityID ID ) const { return VectorContains( m_ignoredEntities, ID ); }
+
+        inline QueryRules& AddIgnoredEntity( EntityID const& ID ) { m_ignoredEntities.emplace_back( ID ); return *this; }
+
+        inline QueryRules& RemoveIgnoredEntity( EntityID const& ID ) { m_ignoredEntities.erase_first_unsorted( ID ); return *this; }
+
+        inline QueryRules& ClearIgnoredEntities() { m_ignoredEntities.clear(); return *this; }
+
+        //-------------------------------------------------------------------------
+
+        inline TInlineVector<ComponentID, 5> const& GetIgnoredComponents() const { return m_ignoredComponents; }
+
+        inline bool IsComponentIgnored( ComponentID componentID ) const { return VectorContains( m_ignoredComponents, componentID ); }
+
+        inline QueryRules& AddIgnoredComponent( ComponentID componentID ) { m_ignoredComponents.emplace_back( componentID ); return *this; }
+
+        inline QueryRules& RemoveIgnoredComponent( ComponentID componentID ) { m_ignoredComponents.erase_first_unsorted( componentID ); return *this; }
+
+        inline QueryRules& ClearIgnoredComponents() { m_ignoredComponents.clear(); return *this; }
 
     private:
 
-        virtual physx::PxQueryHitType::Enum preFilter( physx::PxFilterData const& filterData, physx::PxShape const* pShape, physx::PxRigidActor const* pActor, physx::PxHitFlags& queryFlags ) override;
-        virtual physx::PxQueryHitType::Enum postFilter( physx::PxFilterData const& filterData, physx::PxQueryHit const& hit ) override;
+        void UpdateInternals();
+
+    private:
+
+        uint32_t                        m_collidesWithMask = 0;
+        bool                            m_allowMultipleHits = false;
+        bool                            m_calculateDepenetration = true;
+        MobilityFilter                  m_mobilityFilter = StaticAndDynamic;
+        TInlineVector<EntityID, 5>      m_ignoredEntities;
+        TInlineVector<ComponentID, 5>   m_ignoredComponents;
+
+        physx::PxQueryFilterData        m_queryFilterData;
+        physx::PxHitFlags               m_hitFlags;
+    };
+
+    //-------------------------------------------------------------------------
+    // Query Results
+    //-------------------------------------------------------------------------
+
+    struct RayCastResults
+    {
+        struct Hit
+        {
+            physx::PxActor*             m_pActor = nullptr;
+            physx::PxShape*             m_pShape = nullptr;
+            Vector                      m_contactPoint; // The contact point on the body we hit
+            Vector                      m_normal; // The surface normal on the body we hit
+            float                       m_distance; // The distance to the collision
+        };
+
+        constexpr static int32_t const s_initialBufferSize = 5;
 
     public:
 
-        physx::PxQueryFilterData                            m_filterData;
-        physx::PxHitFlags                                   m_hitFlags = physx::PxHitFlag::eDEFAULT | physx::PxHitFlag::eMTD;
-        TInlineVector<ComponentID, 2>                       m_ignoredComponents;
-        TInlineVector<EntityID, 2>                          m_ignoredEntities;
+        void Reset()
+        {
+            m_startPosition = m_direction = Vector::Zero;
+            m_desiredDistance = m_actualDistance = m_remainingDistance = 0.0f;
+            m_hits.clear();
+        }
+
+        inline bool HasHits() const { return !m_hits.empty(); }
+
+        // Operators
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::iterator begin() { return m_hits.begin(); }
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::iterator end() { return m_hits.end(); }
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::const_iterator begin() const { return m_hits.begin(); }
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::const_iterator end() const { return m_hits.end(); }
+        EE_FORCE_INLINE Hit& operator[]( uint32_t i ) { EE_ASSERT( i < m_hits.size() ); return m_hits[i]; }
+        EE_FORCE_INLINE Hit const& operator[]( uint32_t i ) const { EE_ASSERT( i < m_hits.size() ); return m_hits[i]; }
+
+    public:
+
+        Vector                  m_startPosition = Vector::Zero; // The start point of the ray
+        Vector                  m_direction = Vector::Zero; // The direction we cast the ray in
+        float                   m_desiredDistance = 0.0f; // How far did we want to ray cast
+        float                   m_actualDistance = 0.0f; // How far did the ray cast actually go
+        float                   m_remainingDistance = 0.0f; // How much of the original desired distance is left
+        TInlineVector<Hit, 5>   m_hits;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct SweepResults
+    {
+        struct Hit
+        {
+            physx::PxActor*     m_pActor = nullptr;
+            physx::PxShape*     m_pShape = nullptr;
+            Vector              m_shapePosition; // The position of the shape at which the hit was hit detected
+            Vector              m_contactPoint; // The contact point on the shape we hit, if we are initially penetrating this is relatively meaningless
+            Vector              m_normal; // This is often the surface normal for the hit shape but if we are initially penetrating, it is the depenetration normal
+            float               m_distance; // The distance to the collision, if we are initially penetrating, it is the depenetration distance
+            bool                m_isInitiallyOverlapping; // Did we start the cast in collision
+        };
+
+        constexpr static int32_t const s_initialBufferSize = 5;
+
+    public:
+
+        void Reset()
+        {
+            m_sweepStartPosition = m_sweepDirection = m_sweepEndPosition = Vector::Zero;
+            m_desiredDistance = m_actualDistance = m_remainingDistance = 0.0f;
+            m_hits.clear();
+        }
+
+        // Did this cast start in collision
+        inline bool IsInitiallyOverlapping() const { return HasHits() && m_hits[0].m_isInitiallyOverlapping; }
+
+        // Did we hit anything?
+        inline bool HasHits() const { return !m_hits.empty(); }
+
+        // Get the depenetration offset if initially penetrating
+        inline Vector GetDepenetrationOffset() const 
+        {
+            EE_ASSERT( IsInitiallyOverlapping() );
+            return m_hits[0].m_normal * m_hits[0].m_distance;
+        }
+
+        // Get the resulting shape end point
+        inline Vector GetResultingEndPosition() const
+        {
+            return ( m_hits.empty() ) ? m_sweepEndPosition : m_hits[0].m_shapePosition;
+        }
+
+        // Operators
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::iterator begin() { return m_hits.begin(); }
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::iterator end() { return m_hits.end(); }
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::const_iterator begin() const { return m_hits.begin(); }
+        EE_FORCE_INLINE TInlineVector<Hit, s_initialBufferSize>::const_iterator end() const { return m_hits.end(); }
+        EE_FORCE_INLINE Hit& operator[]( uint32_t i ) { EE_ASSERT( i < m_hits.size() ); return m_hits[i]; }
+        EE_FORCE_INLINE Hit const& operator[]( uint32_t i ) const { EE_ASSERT( i < m_hits.size() ); return m_hits[i]; }
+
+    public:
+
+        Vector                  m_sweepStartPosition = Vector::Zero; // The start point for the sweep
+        Vector                  m_sweepDirection = Vector::Zero; // The direction we swept in
+        Vector                  m_sweepEndPosition = Vector::Zero; // The desired end point for the sweep
+        float                   m_desiredDistance = 0.0f; // How far did we want to sweep the shape
+        float                   m_actualDistance = 0.0f; // How far did the sweep actually go
+        float                   m_remainingDistance = 0.0f; // How much of the original desired distance is left
+        bool                    m_hasInitialOverlap = false;
+        TInlineVector<Hit, 5>   m_hits;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct OverlapResults
+    {
+        struct Overlap
+        {
+            physx::PxActor*     m_pActor = nullptr;
+            physx::PxShape*     m_pShape = nullptr;
+            Vector              m_normal; // The depenetration normal
+            float               m_distance; // The depenetration distance
+        };
+
+        constexpr static int32_t const s_initialBufferSize = 5;
+
+    public:
+
+        inline bool HasOverlaps() const { return !m_overlaps.empty(); }
+
+        // Operators
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE TInlineVector<Overlap, s_initialBufferSize>::iterator begin() { return m_overlaps.begin(); }
+        EE_FORCE_INLINE TInlineVector<Overlap, s_initialBufferSize>::iterator end() { return m_overlaps.end(); }
+        EE_FORCE_INLINE TInlineVector<Overlap, s_initialBufferSize>::const_iterator begin() const { return m_overlaps.begin(); }
+        EE_FORCE_INLINE TInlineVector<Overlap, s_initialBufferSize>::const_iterator end() const { return m_overlaps.end(); }
+        EE_FORCE_INLINE Overlap& operator[]( uint32_t i ) { EE_ASSERT( i < m_overlaps.size() ); return m_overlaps[i]; }
+        EE_FORCE_INLINE Overlap const& operator[]( uint32_t i ) const { EE_ASSERT( i < m_overlaps.size() ); return m_overlaps[i]; }
+
+    public:
+
+        Vector                                          m_overlapPosition = Vector::Zero;
+        TInlineVector<Overlap, s_initialBufferSize>     m_overlaps;
     };
 }
-
-#if _MSC_VER
-#pragma warning(pop)
-#endif

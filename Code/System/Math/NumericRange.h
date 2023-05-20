@@ -39,10 +39,10 @@ namespace EE
         inline bool IsSetAndValid() const { return IsSet() && IsValid(); }
 
         // Get the length of the range
-        inline const float GetLength() const { return m_end - m_begin; }
+        inline float GetLength() const { return m_end - m_begin; }
 
         // Get the midpoint of the range
-        inline const float GetMidpoint() const { return m_begin + ( ( m_end - m_begin ) / 2 ); }
+        inline float GetMidpoint() const { return m_begin + ( ( m_end - m_begin ) / 2 ); }
 
         // Does this range overlap the specified range
         inline bool Overlaps( FloatRange const& rhs ) const
@@ -58,14 +58,14 @@ namespace EE
             m_end += delta;
         }
 
-        // Does the range [min, max] contain the specified range
+        // Does the range [begin, end] contain the specified range
         inline bool ContainsInclusive( FloatRange const& rhs ) const
         {
             EE_ASSERT( IsSetAndValid() && rhs.IsSetAndValid() );
             return m_begin <= rhs.m_begin && m_end >= rhs.m_end;
         }
 
-        // Does the range [min, max] contain the specified value
+        // Does the range [begin, end] contain the specified value
         inline bool ContainsInclusive( float const& v ) const
         {
             EE_ASSERT( IsSetAndValid() );
@@ -86,7 +86,7 @@ namespace EE
             return v > m_begin && v < m_end;
         }
 
-        // Get a value clamped to this range i.e. Clamp to [min, max]
+        // Get a value clamped to this range i.e. Clamp to [begin, end]
         inline float GetClampedValue( float const& v ) const
         {
             EE_ASSERT( IsSetAndValid() );
@@ -109,7 +109,7 @@ namespace EE
         // Get the percentage through this range that specified value lies at. This is clamped between [0, 1]
         inline Percentage GetPercentageThroughClamped( float const& v ) const
         {
-            return GetPercentageThrough( GetClampedValue( v ) );
+            return Math::Clamp( GetPercentageThrough( v ).ToFloat(), 0.0f, 1.0f );
         }
 
         // Get the value in this range at the specified percentage through. Unclamped so returns [-FLT_MAX, FLT_MAX]
@@ -119,7 +119,7 @@ namespace EE
             return ( GetLength() * percentageThrough ) + m_begin;
         }
 
-        // Get the value in this range at the specified percentage through. Clamped to [min, max]
+        // Get the value in this range at the specified percentage through. Clamped to [begin, end]
         inline float GetValueForPercentageThroughClamped( Percentage const percentageThrough ) const
         {
             return GetValueForPercentageThrough( percentageThrough.GetClamped( false ) );
@@ -218,10 +218,10 @@ namespace EE
         inline bool IsSetAndValid() const { return IsSet() && IsValid(); }
 
         // Get the length of the range
-        inline const int32_t GetLength() const { return m_end - m_begin; }
+        inline int32_t GetLength() const { return m_end - m_begin; }
 
         // Get the midpoint of the range
-        inline const int32_t GetMidpoint() const { return m_begin + ( ( m_end - m_begin ) / 2 ); }
+        inline int32_t GetMidpoint() const { return m_begin + ( ( m_end - m_begin ) / 2 ); }
 
         // Does this range overlap the specified range
         inline bool Overlaps( IntRange const& rhs ) const
@@ -237,14 +237,14 @@ namespace EE
             m_end += delta;
         }
 
-        // Does the range [min, max] contain the specified range
+        // Does the range [begin, end] contain the specified range
         inline bool ContainsInclusive( IntRange const& rhs ) const
         {
             EE_ASSERT( IsSetAndValid() && rhs.IsSetAndValid() );
             return m_begin <= rhs.m_begin && m_end >= rhs.m_end;
         }
 
-        // Does the range [min, max] contain the specified value
+        // Does the range [begin, end] contain the specified value
         inline bool ContainsInclusive( int32_t const& v ) const
         {
             EE_ASSERT( IsSetAndValid() );
@@ -265,7 +265,7 @@ namespace EE
             return v > m_begin && v < m_end;
         }
 
-        // Get a value clamped to this range i.e. Clamp to [min, max]
+        // Get a value clamped to this range i.e. Clamp to [begin, end]
         inline int32_t GetClampedValue( int32_t const& v ) const
         {
             EE_ASSERT( IsSetAndValid() );
@@ -288,7 +288,7 @@ namespace EE
         // Get the percentage through this range that specified value lies at. This is clamped between [0, 1]
         inline Percentage GetPercentageThroughClamped( int32_t const& v ) const
         {
-            return GetPercentageThrough( GetClampedValue( v ) );
+            return Math::Clamp( GetPercentageThrough( v ).ToFloat(), 0.0f, 1.0f );
         }
 
         // Get the value in this range at the specified percentage through. Unclamped so returns [-FLT_MAX, FLT_MAX]
@@ -298,7 +298,7 @@ namespace EE
             return Math::RoundToInt( ( GetLength() * percentageThrough ) + m_begin );
         }
 
-        // Get the value in this range at the specified percentage through. Clamped to [min, max]
+        // Get the value in this range at the specified percentage through. Clamped to [begin, end]
         inline int32_t GetValueForPercentageThroughClamped( Percentage const percentageThrough ) const
         {
             return GetValueForPercentageThrough( percentageThrough.GetClamped( false ) );

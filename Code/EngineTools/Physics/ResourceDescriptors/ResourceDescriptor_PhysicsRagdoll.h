@@ -11,8 +11,8 @@ namespace EE::Physics
 {
     struct EE_ENGINETOOLS_API RagdollResourceDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( RagdollResourceDescriptor );
-    
+        EE_REFLECT_TYPE( RagdollResourceDescriptor );
+
     public:
 
         virtual bool IsValid() const override { return m_skeleton.IsSet(); }
@@ -22,7 +22,7 @@ namespace EE::Physics
 
     public:
 
-        EE_EXPOSE   TResourcePtr<Animation::Skeleton>             m_skeleton;
-        EE_REGISTER RagdollDefinition                             m_definition;
+        EE_REFLECT()    TResourcePtr<Animation::Skeleton>             m_skeleton;
+        EE_REFLECT()    RagdollDefinition                             m_definition;
     };
 }

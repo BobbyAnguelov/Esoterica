@@ -36,10 +36,9 @@ namespace EE::Animation
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
-        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
 
-        virtual bool IsDirty() const override;
         virtual bool Save() override;
 
         virtual void ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) override;

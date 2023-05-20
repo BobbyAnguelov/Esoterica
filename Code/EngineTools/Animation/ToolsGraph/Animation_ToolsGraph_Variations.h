@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "System/Resource/ResourcePtr.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Types/StringID.h"
 #include "System/Serialization/JsonSerialization.h"
 
@@ -13,9 +13,9 @@ namespace EE::TypeSystem { class TypeRegistry; }
 
 namespace EE::Animation
 {
-    struct Variation : public IRegisteredType
+    struct Variation : public IReflectedType
     {
-        EE_REGISTER_TYPE( Variation );
+        EE_REFLECT_TYPE( Variation );
 
     public:
 
@@ -47,9 +47,14 @@ namespace EE::Animation
 
     public:
 
-        EE_EXPOSE      StringID                m_ID;
-        EE_REGISTER    StringID                m_parentID;
-        EE_EXPOSE      TResourcePtr<Skeleton>  m_skeleton;
+        EE_REFLECT()
+        StringID                m_ID;
+
+        EE_REFLECT( "IsToolsReadOnly" : true )
+        StringID                m_parentID;
+
+        EE_REFLECT()
+        TResourcePtr<Skeleton>  m_skeleton;
     };
 
     //-------------------------------------------------------------------------

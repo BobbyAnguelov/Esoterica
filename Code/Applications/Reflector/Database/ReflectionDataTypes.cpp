@@ -1,4 +1,5 @@
 #include "ReflectionDataTypes.h"
+#include "System/ThirdParty/rapidjson/document.h"
 
 //-------------------------------------------------------------------------
 
@@ -66,6 +67,42 @@ namespace EE::TypeSystem::Reflection
         GenerateFriendlyName( name );
 
         return name;
+    }
+
+    void ReflectedProperty::ParseMetaData()
+    {
+        if ( !HasMetaData() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        rapidjson::Document document;
+        document.Parse( m_metaData.data() );
+        bool const isValidJson = ( document.GetParseError() == rapidjson::kParseErrorNone );
+        if ( isValidJson )
+        {
+            auto metaDataObject = document.GetObject();
+
+            auto const categoryValueIter = metaDataObject.FindMember( "Category" );
+            if ( categoryValueIter != metaDataObject.MemberEnd() )
+            {
+                m_category = categoryValueIter->value.GetString();
+            }
+
+            auto const descriptionValueIter = metaDataObject.FindMember( "Description" );
+            if ( descriptionValueIter != metaDataObject.MemberEnd() )
+            {
+                m_description = descriptionValueIter->value.GetString();
+            }
+
+            auto const toolsReadOnlyValueIter = metaDataObject.FindMember( "IsToolsReadOnly" );
+            if ( toolsReadOnlyValueIter != metaDataObject.MemberEnd() )
+            {
+                m_isToolsReadOnly = toolsReadOnlyValueIter->value.GetBool();
+            }
+        }
     }
 
     //-------------------------------------------------------------------------

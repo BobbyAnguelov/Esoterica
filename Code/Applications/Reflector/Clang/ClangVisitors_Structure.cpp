@@ -100,7 +100,7 @@ namespace EE::TypeSystem::Reflection
     CXChildVisitResult VisitStructureContents( CXCursor cr, CXCursor parent, CXClientData pClientData )
     {
         auto pContext = reinterpret_cast<ClangParserContext*>( pClientData );
-        auto pClass = reinterpret_cast<ReflectedType*>( pContext->m_pCurrentEntry );
+        auto pClass = reinterpret_cast<ReflectedType*>( pContext->m_pParentReflectedType );
 
         uint32_t const lineNumber = ClangUtils::GetLineNumberForCursor( cr );
         CXCursorKind kind = clang_getCursorKind( cr );
@@ -142,23 +142,28 @@ namespace EE::TypeSystem::Reflection
             // Extract property info
             case CXCursor_FieldDecl:
             {
-                // Should this field be exported?
-                auto const iter = std::find( pContext->m_registeredPropertyMacros.begin(), pContext->m_registeredPropertyMacros.end(), ( RegisteredPropertyMacro( pClass->m_headerID, lineNumber ) ) );
-                if ( iter != pContext->m_registeredPropertyMacros.end() )
+                ReflectionMacro propertyReflectionMacro;
+                if ( pContext->FindReflectionMacroForProperty( pClass->m_headerID, lineNumber, propertyReflectionMacro ) )
                 {
                     pClass->m_properties.push_back( ReflectedProperty( ClangUtils::GetCursorDisplayName( cr ), lineNumber ) );
                     ReflectedProperty& propertyDesc = pClass->m_properties.back();
 
-                    // Set property description
+                    // Try read any user comments for this field
                     CXString const commentString = clang_Cursor_getBriefCommentText( cr );
                     if ( commentString.data != nullptr )
                     {
                         propertyDesc.m_description = clang_getCString( commentString );
+                        StringUtils::RemoveAllOccurrencesInPlace( propertyDesc.m_description, "\r" );
+                        propertyDesc.m_description.ltrim();
+                        propertyDesc.m_description.rtrim();
                     }
                     clang_disposeString( commentString );
 
-                    // Set whether this is a registered or exposed property
-                    propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsExposed, iter->m_isExposed );
+                    // If we dont have an explicit comment for the property, try to get it from the macro declaration
+                    if ( propertyDesc.m_description.empty() )
+                    {
+                        propertyDesc.m_description = propertyReflectionMacro.m_macroComment;
+                    }
 
                     auto type = clang_getCursorType( cr );
                     auto const pFieldQualType = ClangUtils::GetQualType( type );
@@ -229,6 +234,7 @@ namespace EE::TypeSystem::Reflection
                     // If it is a templated type, we only support one level of specialization for exposed properties, so flatten the type
                     propertyDesc.m_typeName = fieldTypeInfo.m_name;
                     propertyDesc.m_typeID = fieldTypeID;
+                    propertyDesc.m_metaData = propertyReflectionMacro.m_macroContents;
 
                     if ( !fieldTypeInfo.m_templateArgs.empty() )
                     {
@@ -308,14 +314,6 @@ namespace EE::TypeSystem::Reflection
                             return CXChildVisit_Break;
                         }
                     }
-
-                    //-------------------------------------------------------------------------
-
-                    // Remove exposed property macro from the list
-                    if ( pClass->IsEntityComponent() || pClass->IsEntitySystem() )
-                    {
-                        pContext->m_registeredPropertyMacros.erase( iter );
-                    }
                 }
 
                 break;
@@ -330,7 +328,7 @@ namespace EE::TypeSystem::Reflection
     CXChildVisitResult VisitResourceStructureContents( CXCursor cr, CXCursor parent, CXClientData pClientData )
     {
         auto pContext = reinterpret_cast<ClangParserContext*>( pClientData );
-        auto pResource = reinterpret_cast<ReflectedResourceType*>( pContext->m_pCurrentEntry );
+        auto pResource = reinterpret_cast<ReflectedResourceType*>( pContext->m_pParentReflectedType );
 
         CXCursorKind kind = clang_getCursorKind( cr );
         switch ( kind )
@@ -365,8 +363,8 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
-        TypeRegistrationMacro macro;
-        if ( pContext->ShouldRegisterType( cr, &macro ) )
+        ReflectionMacro macro;
+        if ( pContext->GetReflectionMacroForType( headerID, cr, macro ) )
         {
             if ( !pContext->IsInEngineNamespace() )
             {
@@ -407,10 +405,10 @@ namespace EE::TypeSystem::Reflection
                 resource.m_className = cursorName;
                 resource.m_namespace = pContext->GetCurrentNamespace();
 
-                pContext->m_pCurrentEntry = &resource;
+                pContext->m_pParentReflectedType = &resource;
                 clang_visitChildren( cr, VisitResourceStructureContents, pContext );
 
-                if ( pContext->ErrorOccured() )
+                if ( pContext->HasErrorOccured() )
                 {
                     return CXChildVisit_Break;
                 }
@@ -435,7 +433,7 @@ namespace EE::TypeSystem::Reflection
 
             //-------------------------------------------------------------------------
 
-            if ( macro.IsRegisteredTypeMacro() )
+            if ( macro.IsReflectedTypeMacro() )
             {
                 auto cursorType = clang_getCursorType( cr );
                 auto* pRecordDecl = (clang::CXXRecordDecl*) cr.data[0];
@@ -450,10 +448,16 @@ namespace EE::TypeSystem::Reflection
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityWorldSystem, ( macro.IsEntityWorldSystemMacro() ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsAbstract, pRecordDecl->isAbstract() );
 
-                pContext->m_pCurrentEntry = &classDescriptor;
-                clang_visitChildren( cr, VisitStructureContents, pContext );
+                // Record current parent type, and update it to the new type
+                void* pPreviousParentReflectedType = pContext->m_pParentReflectedType;
+                pContext->m_pParentReflectedType = &classDescriptor;
+                {
+                    clang_visitChildren( cr, VisitStructureContents, pContext );
+                }
+                // Reset parent type back to original parent
+                pContext->m_pParentReflectedType = pPreviousParentReflectedType;
 
-                if ( pContext->ErrorOccured() )
+                if ( pContext->HasErrorOccured() )
                 {
                     return CXChildVisit_Break;
                 }

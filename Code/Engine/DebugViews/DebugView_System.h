@@ -13,7 +13,7 @@ namespace EE
 
     class EE_ENGINE_API SystemDebugView final : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( SystemDebugView );
+        EE_REFLECT_TYPE( SystemDebugView );
 
     public:
 

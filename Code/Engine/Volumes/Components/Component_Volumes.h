@@ -14,7 +14,7 @@ namespace EE
 
     class EE_ENGINE_API VolumeComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( VolumeComponent );
+        EE_ENTITY_COMPONENT( VolumeComponent );
 
     public:
 
@@ -31,7 +31,7 @@ namespace EE
 
     class EE_ENGINE_API BoxVolumeComponent : public VolumeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( BoxVolumeComponent );
+        EE_ENTITY_COMPONENT( BoxVolumeComponent );
 
     public:
 

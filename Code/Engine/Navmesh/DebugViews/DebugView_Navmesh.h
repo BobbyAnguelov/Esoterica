@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Entity/EntityWorldDebugView.h"
 
 //-------------------------------------------------------------------------
@@ -9,14 +8,13 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Navmesh
 {
-    class NavmeshSystem;
     class NavmeshWorldSystem;
 
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API NavmeshDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( NavmeshDebugView );
+        EE_REFLECT_TYPE( NavmeshDebugView );
 
     public:
 

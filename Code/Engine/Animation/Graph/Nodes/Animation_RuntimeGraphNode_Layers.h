@@ -32,7 +32,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_baseNodeIdx, m_onlySampleBaseRootMotion, m_layerSettings );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -54,6 +54,10 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override { EE_ASSERT( IsValid() ); return m_pBaseLayerNode->GetSyncTrack(); }
         virtual bool IsValid() const override { return PoseNode::IsValid() && m_pBaseLayerNode->IsValid(); }
 
+        #if EE_DEVELOPMENT_TOOLS
+        inline float GetLayerWeight( int32_t layerIdx ) const { return m_debugLayerWeights[layerIdx]; }
+        #endif
+
     private:
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
@@ -74,6 +78,7 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                             m_rootMotionActionIdxBase = InvalidIndex;
+        TVector<float>                                      m_debugLayerWeights;
         #endif
     };
 }

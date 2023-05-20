@@ -401,4 +401,32 @@ namespace EE::Animation::GraphNodes
             childSMs[0]->OnShowNode();
         }
     }
+
+    void StateToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        for ( auto& ID : m_entryEvents )
+        {
+            outIDs.emplace_back( ID );
+        }
+
+        for ( auto& ID : m_executeEvents )
+        {
+            outIDs.emplace_back( ID );
+        }
+
+        for ( auto& ID : m_exitEvents )
+        {
+            outIDs.emplace_back( ID );
+        }
+
+        for ( auto const& evt : m_timeRemainingEvents )
+        {
+            outIDs.emplace_back( evt.m_ID );
+        }
+
+        for ( auto const& evt : m_timeElapsedEvents )
+        {
+            outIDs.emplace_back( evt.m_ID );
+        }
+    }
 }

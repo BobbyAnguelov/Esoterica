@@ -3,7 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Core/TimelineEditor/TimelineTrack.h"
 #include "Engine/Animation/AnimationEvent.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 // Base class for all animation event tracks
@@ -13,7 +13,7 @@ namespace EE::Animation
 {
     enum class EventType
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Immediate,
         Duration,
@@ -25,7 +25,7 @@ namespace EE::Animation
     class EventTrack : public Timeline::Track
     {
         friend class EventEditor;
-        EE_REGISTER_TYPE( EventTrack );
+        EE_REFLECT_TYPE( EventTrack );
 
     protected:
 
@@ -59,7 +59,7 @@ namespace EE::Animation
 
     protected:
 
-        EE_EXPOSE EventType                             m_eventType = EventType::Duration;
-        EE_EXPOSE bool                                  m_isSyncTrack = false;
+        EE_REFLECT() EventType                             m_eventType = EventType::Duration;
+        EE_REFLECT() bool                                  m_isSyncTrack = false;
     };
 }

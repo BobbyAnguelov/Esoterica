@@ -15,7 +15,7 @@ namespace EE::Animation
 
     struct EE_ENGINETOOLS_API GraphResourceDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( GraphResourceDescriptor );
+        EE_REFLECT_TYPE( GraphResourceDescriptor );
 
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
@@ -27,7 +27,7 @@ namespace EE::Animation
 
     struct EE_ENGINETOOLS_API GraphVariationResourceDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( GraphVariationResourceDescriptor );
+        EE_REFLECT_TYPE( GraphVariationResourceDescriptor );
 
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return false; }
@@ -42,7 +42,10 @@ namespace EE::Animation
 
     public:
 
-        EE_REGISTER ResourcePath                 m_graphPath;
-        EE_REGISTER StringID                     m_variationID; // Optional: if not set, will use the default variation
+        EE_REFLECT( "IsToolsReadOnly" : true )
+        ResourcePath                 m_graphPath;
+
+        EE_REFLECT( "IsToolsReadOnly" : true )
+        StringID                     m_variationID; // Optional: if not set, will use the default variation
     };
 }

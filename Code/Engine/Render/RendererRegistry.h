@@ -12,7 +12,7 @@ namespace EE::Render
     {
     public:
 
-        EE_SYSTEM_ID( RendererRegistry );
+        EE_SYSTEM( RendererRegistry );
 
     public:
 

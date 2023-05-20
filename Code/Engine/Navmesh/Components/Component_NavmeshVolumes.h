@@ -8,7 +8,7 @@ namespace EE::Navmesh
 {
     class EE_ENGINE_API NavmeshInclusionVolumeComponent : public BoxVolumeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( NavmeshInclusionVolumeComponent );
+        EE_ENTITY_COMPONENT( NavmeshInclusionVolumeComponent );
 
     public:
 
@@ -20,7 +20,7 @@ namespace EE::Navmesh
 
     class EE_ENGINE_API NavmeshExclusionVolumeComponent : public BoxVolumeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( NavmeshExclusionVolumeComponent );
+        EE_ENTITY_COMPONENT( NavmeshExclusionVolumeComponent );
 
     public:
 

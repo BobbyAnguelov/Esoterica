@@ -15,7 +15,7 @@ namespace EE
     {
         friend class CameraDebugView;
 
-        EE_REGISTER_ENTITY_SYSTEM( DebugCameraController, RequiresUpdate( UpdateStage::PrePhysics, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::Paused ) );
+        EE_ENTITY_SYSTEM( DebugCameraController, RequiresUpdate( UpdateStage::PrePhysics, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::Paused ) );
 
     private:
 

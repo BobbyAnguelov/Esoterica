@@ -13,7 +13,7 @@ namespace EE
 
     class EE_ENGINE_API CameraDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( CameraDebugView );
+        EE_REFLECT_TYPE( CameraDebugView );
 
     public:
 

@@ -16,7 +16,7 @@ namespace EE::Animation
     // The animation state machine graph
     class StateMachineGraph final : public VisualGraph::StateMachineGraph
     {
-        EE_REGISTER_TYPE( StateMachineGraph );
+        EE_REFLECT_TYPE( StateMachineGraph );
 
     public:
 

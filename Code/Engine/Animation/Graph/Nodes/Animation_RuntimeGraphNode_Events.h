@@ -13,7 +13,7 @@ namespace EE::Animation::GraphNodes
 
     enum class EventPriorityRule : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         HighestWeight, // Prefer events that have a higher weight (if there are multiple events with the same weight the latest sampled will be chosen)
         HighestPercentageThrough, // Prefer events that have a higher percentage through (if there are multiple events with the same percentage through the latest sampled will be chosen)
@@ -28,7 +28,7 @@ namespace EE::Animation::GraphNodes
 
         enum class Operator : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             Or = 0,
             And,
@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
 
         enum class SearchRule : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             SearchAll = 0,
             OnlySearchStateEvents,
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_operator, m_searchRule, m_onlyCheckEventsFromActiveBranch, m_eventIDs );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -84,7 +84,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_priorityRule, m_onlyCheckEventsFromActiveBranch, m_eventID );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -117,7 +117,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_onlyCheckEventsFromActiveBranch );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -149,7 +149,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_priorityRule, m_onlyCheckEventsFromActiveBranch );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -182,7 +182,7 @@ namespace EE::Animation::GraphNodes
 
         enum class TriggerMode : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             ExactlyAtEventIndex,
             GreaterThanEqualToEventIndex,
@@ -190,7 +190,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_syncEventIdx, m_triggerMode );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -225,7 +225,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public FloatValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
@@ -258,7 +258,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_markerCondition, m_onlyCheckEventsFromActiveBranch, m_markerIDToMatch );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

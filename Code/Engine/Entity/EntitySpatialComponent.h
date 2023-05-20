@@ -19,7 +19,7 @@ namespace EE
 
     class EE_ENGINE_API SpatialEntityComponent : public EntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( SpatialEntityComponent );
+        EE_ENTITY_COMPONENT( SpatialEntityComponent );
 
         friend class Entity;
         friend class EntityDebugView;
@@ -147,8 +147,8 @@ namespace EE
 
         virtual void Initialize() override;
 
-        // Set the local scaling multiplier
-        virtual void SetLocalScale( Float3 const& newLocalScale ) {}
+        // This function should be called whenever the local scale is changed - this is left entirely up to the end user as we will have very few spatial components that support this
+        virtual void OnLocalScaleChanged( Float3 const& newLocalScale ) {}
 
         // Calculate and return the local bounds for this component - This should not be called directly!
         virtual OBB CalculateLocalBounds() const 
@@ -181,7 +181,7 @@ namespace EE
         // Called whenever the world transform is updated, try to avoid doing anything expensive in this function
         virtual void OnWorldTransformUpdated() {}
 
-        // This function allows you to directly set the world transform for a component and skip the callback.
+        // This function allows you to directly set the world transform for a component and skip the "OnWorldTransformUpdated" callback.
         // This must be used with care and so not be exposed externally.
         inline void SetWorldTransformDirectly( Transform newWorldTransform, bool triggerCallback = true )
         {
@@ -213,7 +213,7 @@ namespace EE
                 OnWorldTransformUpdated();
             }
         }
-    
+
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
         #endif
@@ -251,7 +251,7 @@ namespace EE
 
     private:
 
-        EE_EXPOSE Transform                                                 m_transform;                            // Local space transform
+        EE_REFLECT() Transform                                                 m_transform;                            // Local space transform
         OBB                                                                 m_bounds;                               // Local space bounding box
         Transform                                                           m_worldTransform;                       // World space transform (left uninitialized to catch initialization errors)
         OBB                                                                 m_worldBounds;                          // World space bounding box
@@ -259,7 +259,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         SpatialEntityComponent*                                             m_pSpatialParent = nullptr;             // The component we are attached to (spatial hierarchy is managed by the parent entity!)
-        EE_EXPOSE StringID                                                  m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
+        EE_REFLECT() StringID                                                  m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
         TInlineVector<SpatialEntityComponent*, 2>                           m_spatialChildren;                      // All components that are attached to us. DO NOT EXPOSE THIS!!!
 
         //-------------------------------------------------------------------------

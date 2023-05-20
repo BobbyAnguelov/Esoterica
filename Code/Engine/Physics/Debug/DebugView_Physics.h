@@ -12,16 +12,14 @@ namespace EE { class UpdateContext; }
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Physics
 {
-    class PhysicsSystem;
     class PhysicsWorldSystem;
     class PhysicsShapeComponent;
-    class PhysicsStateController;
 
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API PhysicsDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( PhysicsDebugView );
+        EE_REFLECT_TYPE( PhysicsDebugView );
 
     public:
 
@@ -37,20 +35,11 @@ namespace EE::Physics
         virtual void Shutdown() override;
         virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
 
-        void DrawPhysicsMenu( EntityWorldUpdateContext const& context );
-        void DrawPVDMenu( EntityWorldUpdateContext const& context );
-        void DrawComponentsWindow( EntityWorldUpdateContext const& context );
-        void DrawMaterialDatabaseWindow( EntityWorldUpdateContext const& context );
-
-        void DrawComponentVisualization( EntityWorldUpdateContext const& context, PhysicsShapeComponent const* pComponent ) const;
+        void DrawMenu( EntityWorldUpdateContext const& context );
 
     private:
 
-        PhysicsSystem*          m_pPhysicsSystem = nullptr;
         PhysicsWorldSystem*     m_pPhysicsWorldSystem = nullptr;
-        void*                   m_pSelectedComponent = nullptr;
-        float                   m_recordingTimeSeconds = 0.5f;
-        bool                    m_isComponentWindowOpen = false;
         bool                    m_isMaterialDatabaseWindowOpen = false;
     };
 }

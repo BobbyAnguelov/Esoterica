@@ -744,6 +744,11 @@ namespace EE
         // Set node flags
         uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding;
 
+        if ( pItem->IsHeader() )
+        {
+            treeNodeflags |= ImGuiTreeNodeFlags_Framed;
+        }
+
         if ( m_expandItemsOnlyViaArrow )
         {
             treeNodeflags |= ImGuiTreeNodeFlags_OpenOnArrow;
@@ -779,9 +784,7 @@ namespace EE
             ImGuiX::Font const inactiveItemFont = m_useSmallFont ? ImGuiX::Font::Small : ImGuiX::Font::Medium;
 
             ImGuiX::ScopedFont font( isActiveItem ? activeItemFont : inactiveItemFont, pItem->GetDisplayColor( state ) );
-            ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, 4 ) );
             newExpansionState = ImGui::TreeNodeEx( displayName.c_str(), treeNodeflags);
-            ImGui::PopStyleVar();
         }
 
         // Tooltip
@@ -831,7 +834,6 @@ namespace EE
         {
             if ( ImGui::BeginPopupContextItem( "ItemContextMenu" ) )
             {
-                // is this needed?
                 if ( !isSelectedItem )
                 {
                     if ( m_multiSelectionAllowed && ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl )
@@ -853,10 +855,7 @@ namespace EE
                     }
                 }
 
-                ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( ImGui::GetStyle().ItemSpacing.x, ImGui::GetStyle().ItemSpacing.x ) ); // Undo the table item spacing changes
                 DrawItemContextMenu( selectedItemsWithContextMenus );
-                ImGui::PopStyleVar();
-
                 ImGui::EndPopup();
             }
         }
@@ -916,9 +915,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( ImGui::GetStyle().ItemSpacing.x, 0 ) ); // Ensure table border and scrollbar align
-        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 0, 0 ) );
-        ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray2.Value ); // Why does 'header' control selected table row BG?!
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 2, 2 ) );
         if( ImGui::BeginChild( "TVC", ImVec2( -1, listHeight ), false ) )
         {
             float const totalVerticalSpaceAvailable = ImGui::GetContentRegionAvail().y;
@@ -1007,8 +1004,7 @@ namespace EE
             }
         }
         ImGui::EndChild();
-        ImGui::PopStyleVar( 2 );
-        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
 
         //-------------------------------------------------------------------------
 

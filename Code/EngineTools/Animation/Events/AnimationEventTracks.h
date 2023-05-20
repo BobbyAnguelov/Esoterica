@@ -18,7 +18,7 @@ namespace EE::Animation
 {
     class IDEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( IDEventTrack );
+        EE_REFLECT_TYPE( IDEventTrack );
 
         virtual const char* GetTypeName() const override { return "ID"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
@@ -31,7 +31,7 @@ namespace EE::Animation
 
     class FootEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( FootEventTrack );
+        EE_REFLECT_TYPE( FootEventTrack );
 
         virtual const char* GetTypeName() const override { return "Foot"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
@@ -43,7 +43,7 @@ namespace EE::Animation
 
     class TransitionEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( TransitionEventTrack );
+        EE_REFLECT_TYPE( TransitionEventTrack );
 
         virtual const char* GetTypeName() const override { return "Transition"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
@@ -55,7 +55,7 @@ namespace EE::Animation
 
     class OrientationWarpEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( OrientationWarpEventTrack );
+        EE_REFLECT_TYPE( OrientationWarpEventTrack );
 
         virtual const char* GetTypeName() const override { return "Orientation Warp"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
@@ -70,7 +70,7 @@ namespace EE::Animation
 
     class RootMotionEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( RootMotionEventTrack );
+        EE_REFLECT_TYPE( RootMotionEventTrack );
 
         virtual const char* GetTypeName() const override { return "Root Motion"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
@@ -85,7 +85,7 @@ namespace EE::Animation
 
     class TargetWarpEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( TargetWarpEventTrack );
+        EE_REFLECT_TYPE( TargetWarpEventTrack );
 
         virtual const char* GetTypeName() const override { return "Target Warp"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
@@ -101,7 +101,7 @@ namespace EE::Animation
 
     class RagdollEventTrack final : public EventTrack
     {
-        EE_REGISTER_TYPE( RagdollEventTrack );
+        EE_REFLECT_TYPE( RagdollEventTrack );
 
         virtual const char* GetTypeName() const override { return "Ragdoll"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;

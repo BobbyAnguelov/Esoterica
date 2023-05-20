@@ -239,6 +239,11 @@ namespace EE::Animation
             m_eventEditor.SetAnimationInfo( m_workspaceResource->GetNumFrames(), m_workspaceResource->GetFPS() );
         }
 
+        if ( m_eventEditor.IsDirty() )
+        {
+            MarkDirty();
+        }
+
         // Draw UI
         //-------------------------------------------------------------------------
 
@@ -294,8 +299,12 @@ namespace EE::Animation
         }
     }
 
-    void AnimationClipWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
+    void AnimationClipWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
     {
+        TWorkspace<AnimationClip>::DrawViewportToolbar( context, pViewport );
+
+        //-------------------------------------------------------------------------
+
         if ( !IsResourceLoaded() )
         {
             return;
@@ -332,8 +341,12 @@ namespace EE::Animation
         ImGui::Unindent();
     }
 
-    void AnimationClipWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
+    void AnimationClipWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
     {
+        TWorkspace<AnimationClip>::DrawWorkspaceToolbar( context );
+
+        //-------------------------------------------------------------------------
+
         ImGui::Separator();
 
         if ( ImGui::BeginMenu( EE_ICON_TUNE_VERTICAL" Options" ) )
@@ -428,11 +441,12 @@ namespace EE::Animation
             Vector const& translation = transform.GetTranslation();
             Quaternion const& rotation = transform.GetRotation();
             EulerAngles const angles = rotation.ToEulerAngles();
+            Float4 const quatValues = rotation.ToFloat4();
 
             ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-            ImGui::Text( "Rot (Quat): X: %.3f, Y: %.3f, Z: %.3f, W: %.3f", rotation.m_x, rotation.m_y, rotation.m_z, rotation.m_w );
+            ImGui::Text( "Rot (Quat): X: %.3f, Y: %.3f, Z: %.3f, W: %.3f", quatValues.m_x, quatValues.m_y, quatValues.m_z, quatValues.m_w );
             ImGui::Text( "Rot (Euler): X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
-            ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.m_x, translation.m_y, translation.m_z );
+            ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.GetX(), translation.GetY(), translation.GetZ() );
             ImGui::Text( "Scl: %.3f", transform.GetScale() );
         };
 
@@ -502,16 +516,6 @@ namespace EE::Animation
     }
 
     //-------------------------------------------------------------------------
-
-    bool AnimationClipWorkspace::IsDirty() const
-    {
-        if ( TWorkspace<AnimationClip>::IsDirty() )
-        {
-            return true;
-        }
-
-        return m_eventEditor.IsDirty();
-    }
 
     bool AnimationClipWorkspace::Save()
     {

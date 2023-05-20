@@ -16,7 +16,6 @@
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Animation/Systems/WorldSystem_Animation.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
-#include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "System/FileSystem/FileSystemUtils.h"
@@ -210,7 +209,7 @@ namespace EE::Animation
                 int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
                 EE_ASSERT( parameterIdx != InvalidIndex );
 
-                Vector basicEditorValue = pMainGraphData->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
+                Float4 basicEditorValue = pMainGraphData->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
 
                 // Basic Editor
                 //-------------------------------------------------------------------------
@@ -242,7 +241,7 @@ namespace EE::Animation
 
                 if ( m_showAdvancedEditor )
                 {
-                    Vector advancedEditorValue = basicEditorValue;
+                    Float4 advancedEditorValue = basicEditorValue;
 
                     if ( m_convertToCharacterSpace )
                     {
@@ -259,7 +258,7 @@ namespace EE::Animation
                         constexpr float const labelOffset = 110.0f;
                         constexpr float const widgetOffset = 175;
 
-                        Vector const previousValueRatio = advancedEditorValue.Get2D() / m_maxLength;
+                        Float2 const previousValueRatio( advancedEditorValue.m_x / m_maxLength, advancedEditorValue.m_y / m_maxLength );
 
                         ImGui::SameLine( labelOffset );
                         ImGui::AlignTextToFramePadding();
@@ -273,8 +272,8 @@ namespace EE::Animation
                                 m_maxLength = 0.01f;
                             }
 
-                            advancedEditorValue.m_x = previousValueRatio.m_x * m_maxLength;
-                            advancedEditorValue.m_y = previousValueRatio.m_y * m_maxLength;
+                            advancedEditorValue.m_x = ( previousValueRatio.m_x * m_maxLength );
+                            advancedEditorValue.m_y = ( previousValueRatio.m_y * m_maxLength );
 
                             if ( m_convertToCharacterSpace )
                             {
@@ -364,7 +363,7 @@ namespace EE::Animation
                             advancedEditorValue.m_x = scaledStickValue.m_x;
                             advancedEditorValue.m_y = scaledStickValue.m_y;
 
-                            Vector paramValue = advancedEditorValue;
+                            Float4 paramValue = advancedEditorValue;
                             if ( m_invertStickX )
                             {
                                 paramValue.m_x = -paramValue.m_x;
@@ -384,7 +383,8 @@ namespace EE::Animation
 
                             //-------------------------------------------------------------------------
 
-                            ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
+                            float const scale = circleRadius / m_maxLength;
+                            ImVec2 const offset( advancedEditorValue.m_x * scale, -advancedEditorValue.m_y * scale );
                             ImVec2 const dotOrigin = circleOrigin + offset;
                             pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ImColors::LimeGreen );
                         }
@@ -416,7 +416,7 @@ namespace EE::Animation
                             if ( m_isEditingValueWithMouse )
                             {
                                 float const distanceFromCircleOriginPercentage = Math::Min( 1.0f, distanceFromCircleOrigin / circleRadius );
-                                Vector const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
+                                Float4 const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
                                 advancedEditorValue.m_x = newValue.m_x;
                                 advancedEditorValue.m_y = -newValue.m_y;
 
@@ -856,7 +856,7 @@ namespace EE::Animation
 
         if ( m_activeOperation == GraphOperationType::None )
         {
-            if ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) )
+            if ( ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) ) || ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_F ) ) )
             {
                 StartNavigationOperation();
             }
@@ -874,13 +874,59 @@ namespace EE::Animation
         DrawDialogs( context );
     }
 
-    void AnimationGraphWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
+    void AnimationGraphWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
     {
+        TWorkspace<GraphDefinition>::DrawWorkspaceToolbar( context );
+
         ImGui::Separator();
+
+        if ( ImGui::MenuItem( EE_ICON_TAB_SEARCH ) )
+        {
+            StartNavigationOperation();
+        }
+        ImGuiX::ItemTooltip( "Find/Navigate" );
+
+
+        if ( IsLiveDebugging() )
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_POWER_PLUG_OFF_OUTLINE, "Stop Live Debug", ImGuiX::ImColors::Red ) )
+            {
+                StopDebugging();
+            }
+        }
+        else
+        {
+            ImGui::BeginDisabled( IsDebugging() );
+            if ( ImGui::BeginMenu( EE_ICON_POWER_PLUG_OUTLINE" Live Debug" ) )
+            {
+                DrawLiveDebugTargetsMenu( context );
+                ImGui::EndMenu();
+            }
+            ImGui::EndDisabled();
+        }
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginMenu( EE_ICON_BUG" Debug" ) )
+        float const gapWidth = 150.0f + ImGui::GetStyle().ItemSpacing.x;
+        float const availableX = ImGui::GetContentRegionAvail().x;
+        if ( availableX > gapWidth )
+        {
+            ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
+        }
+
+        //-------------------------------------------------------------------------
+
+        DrawVariationSelector( 150 );
+    }
+
+    void AnimationGraphWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
+    {
+        TWorkspace<GraphDefinition>::DrawViewportToolbar( context, pViewport );
+
+        // Debug Options
+        //-------------------------------------------------------------------------
+
+        auto DrawDebugOptions = [this] ()
         {
             ImGuiX::TextSeparator( "Graph Debug" );
 
@@ -963,45 +1009,18 @@ namespace EE::Animation
             {
                 m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
             }
+        };
 
-            //-------------------------------------------------------------------------
+        ImGui::SameLine();
+        DrawViewportToolbarComboIcon( "##DebugOptions", EE_ICON_BUG_CHECK, "Debug Options", DrawDebugOptions );
 
-            ImGuiX::TextSeparator( "Physics" );
-            ImGui::BeginDisabled( !IsDebugging() );
-            if ( m_pPhysicsSystem != nullptr && m_pPhysicsSystem->IsConnectedToPVD() )
-            {
-                if ( ImGui::Button( "Disconnect From PVD", ImVec2( -1, 0 ) ) )
-                {
-                    m_pPhysicsSystem->DisconnectFromPVD();
-                }
-            }
-            else
-            {
-                if ( ImGui::Button( "Connect To PVD", ImVec2( -1, 0 ) ) )
-                {
-                    m_pPhysicsSystem->ConnectToPVD();
-                }
-            }
-            ImGui::EndDisabled();
-
-            //-------------------------------------------------------------------------
-
-            ImGui::EndMenu();
-        }
-
+        // Preview Controls
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginMenu( EE_ICON_CONNECTION" Attach" ) )
-        {
-            ImGui::BeginDisabled( IsDebugging() );
-            DrawLiveDebugTargetsMenu( context );
-            ImGui::EndDisabled();
-            ImGui::EndMenu();
-        }
+        ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold );
+        ImGui::SameLine();
 
-        //-------------------------------------------------------------------------
-
-        auto DrawPreviewOptions = [this] ()
+        auto DrawPreviewOptions = [this, context]()
         {
             ImGuiX::TextSeparator( "Preview Settings" );
             ImGui::Checkbox( "Start Paused", &m_startPaused );
@@ -1023,37 +1042,24 @@ namespace EE::Animation
             }
         };
 
-        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
-        float buttonDimensions = 160;
-        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
+        //-------------------------------------------------------------------------
+
+        constexpr float const buttonWidth = 160;
 
         if ( IsDebugging() )
         {
-            if ( ImGuiX::IconComboButton( EE_ICON_STOP, "Stop Debugging", ImGuiX::ImColors::Red, "SD", buttonDimensions, DrawPreviewOptions ) )
+            if ( ImGuiX::IconButtonWithDropDown( "SD", EE_ICON_STOP, "Stop Debugging", ImGuiX::ImColors::Red,  buttonWidth, DrawPreviewOptions ) )
             {
                 StopDebugging();
             }
         }
         else
         {
-            if ( ImGuiX::IconComboButton( EE_ICON_PLAY, "Preview Graph", ImGuiX::ImColors::Lime, "PG", buttonDimensions, DrawPreviewOptions ) )
+            if ( ImGuiX::IconButtonWithDropDown( "PG", EE_ICON_PLAY, "Preview Graph", ImGuiX::ImColors::Lime,  buttonWidth, DrawPreviewOptions ) )
             {
                 StartDebugging( context, DebugTarget() );
             }
         }
-
-        //-------------------------------------------------------------------------
-
-        float const gapWidth = 150.0f + ImGui::GetStyle().ItemSpacing.x;
-        float const availableX = ImGui::GetContentRegionAvail().x;
-        if ( availableX > gapWidth )
-        {
-            ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
-        }
-
-        //-------------------------------------------------------------------------
-
-        DrawVariationSelector( 150 );
     }
 
     void AnimationGraphWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -1150,7 +1156,7 @@ namespace EE::Animation
                     {
                         if ( !IsDebugging() )
                         {
-                            GetMainGraphData()->m_graphDefinition.MarkDirty();
+                            MarkDirty();
                             GetMainGraphData()->m_graphDefinition.GetRootGraph()->BeginModification();
                         }
 
@@ -1187,10 +1193,13 @@ namespace EE::Animation
 
         if ( IsDebugging() && m_showPreviewCapsule )
         {
-            auto drawContext = GetDrawingContext();
-            Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
-            capsuleTransform.AddTranslation( capsuleTransform.GetUpVector() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
-            drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
+            if ( m_pDebugGraphComponent->HasGraphInstance() )
+            {
+                auto drawContext = GetDrawingContext();
+                Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform() * Transform( Quaternion( EulerAngles( 90, 0, 0 ) ) );
+                capsuleTransform.AddTranslation( capsuleTransform.GetAxisY() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
+                drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
+            }
         }
     }
 
@@ -1218,9 +1227,7 @@ namespace EE::Animation
 
             case GraphOperationType::Navigate:
             {
-                ImGui::OpenPopup( "Navigate" );
-                ImGui::SetNextWindowSize( ImVec2( 800, 600 ), ImGuiCond_FirstUseEver );
-                if ( ImGui::BeginPopupModal( "Navigate", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Navigate", &isDialogOpen, ImVec2( 800, 600 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings ) )
                 {
                     DrawNavigationDialogWindow( context );
                     EscCancelCheck();
@@ -1231,9 +1238,7 @@ namespace EE::Animation
 
             case GraphOperationType::CreateParameter:
             {
-                ImGui::OpenPopup( "Create Parameter" );
-                ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
-                if ( ImGui::BeginPopupModal( "Create Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Create Parameter", &isDialogOpen, ImVec2( 300, -1 ) ) )
                 {
                     DrawCreateOrRenameParameterDialogWindow();
                     EscCancelCheck();
@@ -1244,9 +1249,7 @@ namespace EE::Animation
 
             case GraphOperationType::RenameParameter:
             {
-                ImGui::OpenPopup( "Rename Parameter" );
-                ImGui::SetNextWindowSize( ImVec2( 300, -1 ) );
-                if ( ImGui::BeginPopupModal( "Rename Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Rename Parameter", &isDialogOpen, ImVec2( 300, -1 ) ) )
                 {
                     DrawCreateOrRenameParameterDialogWindow();
                     EscCancelCheck();
@@ -1257,8 +1260,7 @@ namespace EE::Animation
 
             case GraphOperationType::DeleteParameter:
             {
-                ImGui::OpenPopup( "Delete Parameter" );
-                if ( ImGui::BeginPopupModal( "Delete Parameter", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Delete Parameter", &isDialogOpen, ImVec2( 300, -1 ) ) )
                 {
                     DrawDeleteParameterDialogWindow();
                     EscCancelCheck();
@@ -1269,8 +1271,7 @@ namespace EE::Animation
 
             case GraphOperationType::CreateVariation:
             {
-                ImGui::OpenPopup( "Create Variation" );
-                if ( ImGui::BeginPopupModal( "Create Variation", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Create Variation", &isDialogOpen, ImVec2( 300, -1 ) ) )
                 {
                     DrawCreateVariationDialogWindow();
                     EscCancelCheck();
@@ -1281,8 +1282,7 @@ namespace EE::Animation
 
             case GraphOperationType::RenameVariation:
             {
-                ImGui::OpenPopup( "Rename Variation" );
-                if ( ImGui::BeginPopupModal( "Rename Variation", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Rename Variation", &isDialogOpen, ImVec2( 300, -1 ) ) )
                 {
                     DrawRenameVariationDialogWindow();
                     EscCancelCheck();
@@ -1293,8 +1293,7 @@ namespace EE::Animation
 
             case GraphOperationType::DeleteVariation:
             {
-                ImGui::OpenPopup( "Delete Variation" );
-                if ( ImGui::BeginPopupModal( "Delete Variation", &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Delete Variation", &isDialogOpen ) )
                 {
                     DrawDeleteVariationDialogWindow();
                     EscCancelCheck();
@@ -1375,16 +1374,11 @@ namespace EE::Animation
                 }
             }
 
-            GetMainGraphData()->m_graphDefinition.ClearDirty();
+            ClearDirty();
             return true;
         }
 
         return false;
-    }
-
-    bool AnimationGraphWorkspace::IsDirty() const
-    {
-        return GetMainGraphData()->m_graphDefinition.IsDirty();
     }
 
     void AnimationGraphWorkspace::PreUndoRedo( UndoStack::Operation operation )
@@ -1479,8 +1473,8 @@ namespace EE::Animation
 
             if ( m_isFirstPreviewFrame )
             {
+                // We need to set the graph instance here since it was not available when we started the debug session
                 EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
-
                 m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
                 if ( !GenerateGraphStackDebugData() )
                 {
@@ -1528,6 +1522,18 @@ namespace EE::Animation
             {
                 StopDebugging();
                 return;
+            }
+
+            if ( m_isFirstPreviewFrame )
+            {
+                EE_ASSERT( m_pDebugGraphInstance != nullptr );
+                if ( !GenerateGraphStackDebugData() )
+                {
+                    StopDebugging();
+                }
+
+                UpdateUserContext();
+                m_isFirstPreviewFrame = false;
             }
 
             // Check if the external graph instance is still connected
@@ -1734,20 +1740,23 @@ namespace EE::Animation
         // If previewing, create the component
         if ( target.m_type == DebugTargetType::None || target.m_type == DebugTargetType::Recording )
         {
-            // Save the graph if needed
-            if ( GetMainGraphData()->m_graphDefinition.IsDirty() )
-            {
-                // Ensure that we save the graph and re-generate the dataset on preview
-                Save();
-
-                // Trigger a wait to give the resource server some time to recompile the graph resources
-                Threading::Sleep( 500 );
-            }
-
-            // Create Preview Graph Component
+            // Create resource ID for the graph variation
             String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, GetMainGraphData()->m_selectedVariationID );
             ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
 
+            // Save the graph if needed
+            if ( IsDirty() )
+            {
+                // Ensure that we save the graph and re-generate the dataset on preview
+                Save();
+            }
+
+            if ( !RequestImmediateResourceCompilation( graphVariationResourceID ) )
+            {
+                return;
+            }
+
+            // Create Preview Graph Component
             EE_ASSERT( !m_previewGraphVariationPtr.IsSet() );
             m_previewGraphVariationPtr = TResourcePtr<GraphVariation>( graphVariationResourceID );
             LoadResource( &m_previewGraphVariationPtr );
@@ -1840,12 +1849,6 @@ namespace EE::Animation
 
         AddEntityToWorld( m_pPreviewEntity );
 
-        // Systems
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_pPhysicsSystem == nullptr );
-        m_pPhysicsSystem = context.GetSystem<Physics::PhysicsSystem>();
-
         // Set up preview data
         //-------------------------------------------------------------------------
 
@@ -1887,7 +1890,7 @@ namespace EE::Animation
 
         if ( m_debugMode == DebugMode::LiveDebug || m_debugMode == DebugMode::ReviewRecording )
         {
-            OBB const bounds = OBB( m_characterTransform.GetTranslation(), Vector::One );
+            AABB const bounds( m_characterTransform.GetTranslation(), Vector::One );
             m_pCamera->FocusOn( bounds );
         }
 
@@ -1916,16 +1919,6 @@ namespace EE::Animation
                 StopRecording();
             }
         }
-
-        // Clear physics system
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_pPhysicsSystem != nullptr );
-        if ( m_pPhysicsSystem->IsConnectedToPVD() )
-        {
-            m_pPhysicsSystem->DisconnectFromPVD();
-        }
-        m_pPhysicsSystem = nullptr;
 
         // Destroy entity and clear debug state
         //-------------------------------------------------------------------------
@@ -1982,6 +1975,12 @@ namespace EE::Animation
         for ( auto pControlParameter : controlParameters )
         {
             int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pControlParameter->GetParameterName() ) );
+
+            // Can occur if the preview starts before the compile completes since we currently dont have a mechanism to force compile and wait in the editor
+            if( parameterIdx == InvalidIndex )
+            {
+                continue;
+            }
 
             switch ( pControlParameter->GetValueType() )
             {
@@ -2858,6 +2857,80 @@ namespace EE::Animation
     // Navigation
     //-------------------------------------------------------------------------
 
+    void AnimationGraphWorkspace::NavigationTarget::CreateNavigationTargets( VisualGraph::BaseNode const* pNode, TVector<NavigationTarget>& outTargets )
+    {
+        // Skip control and virtual parameters
+        //-------------------------------------------------------------------------
+
+        if ( IsOfType<GraphNodes::ControlParameterToolsNode>( pNode ) || IsOfType<GraphNodes::VirtualParameterToolsNode>( pNode ) )
+        {
+            return;
+        }
+
+        // Get type of target
+        //-------------------------------------------------------------------------
+
+        TVector<StringID> foundIDs;
+        NavigationTarget::Type type = NavigationTarget::Type::Unknown;
+
+        if ( IsOfType<GraphNodes::ParameterReferenceToolsNode>( pNode ) )
+        {
+            type = NavigationTarget::Type::Parameter;
+        }
+        else if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+        {
+            type = NavigationTarget::Type::Pose;
+            pStateNode->GetLogicAndEventIDs( foundIDs );
+        }
+        else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+        {
+            GraphValueType const valueType = pFlowNode->GetValueType();
+            if ( valueType == GraphValueType::Pose )
+            {
+                type = NavigationTarget::Type::Pose;
+            }
+            else
+            {
+                type = NavigationTarget::Type::Value;
+            }
+
+            pFlowNode->GetLogicAndEventIDs( foundIDs );
+        }
+
+        // Create nav target for this node
+        //-------------------------------------------------------------------------
+
+        if ( type != Type::Unknown )
+        {
+            auto& addedNodeTarget = outTargets.emplace_back( NavigationTarget() );
+            addedNodeTarget.m_pNode = pNode;
+            addedNodeTarget.m_label = pNode->GetName();
+            addedNodeTarget.m_path = pNode->GetPathFromRoot();
+            addedNodeTarget.m_sortKey = addedNodeTarget.m_path;
+            addedNodeTarget.m_compKey = StringID( addedNodeTarget.m_path );
+            addedNodeTarget.m_type = type;
+        }
+
+        // Generate new targets for all IDs in the node
+        //-------------------------------------------------------------------------
+
+        if ( type != Type::Unknown )
+        {
+            for ( auto ID : foundIDs )
+            {
+                auto& addedIDTarget = outTargets.emplace_back( NavigationTarget() );
+                addedIDTarget.m_pNode = pNode;
+                addedIDTarget.m_label = ID.c_str();
+                addedIDTarget.m_path = pNode->GetPathFromRoot();
+                addedIDTarget.m_sortKey = addedIDTarget.m_path + addedIDTarget.m_label;
+                addedIDTarget.m_compKey = StringID( addedIDTarget.m_sortKey );
+                addedIDTarget.m_type = Type::ID;
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void AnimationGraphWorkspace::NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode )
     {
         EE_ASSERT( pNode != nullptr );
@@ -2934,11 +3007,10 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::StartNavigationOperation()
     {
-        m_activeOperation = GraphOperationType::Navigate;
-        m_navigationFilter.Clear();
         m_navigationTargetNodes.clear();
         m_navigationActiveTargetNodes.clear();
         GenerateNavigationTargetList();
+        m_activeOperation = GraphOperationType::Navigate;
     }
 
     void AnimationGraphWorkspace::GenerateNavigationTargetList()
@@ -2952,7 +3024,7 @@ namespace EE::Animation
 
         auto MatchFunction = [] ( VisualGraph::BaseNode const* pNode )
         {
-            if ( auto pGraphNode = TryCast< GraphNodes::FlowToolsNode>( pNode ) )
+            if ( auto pGraphNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
             {
                 if ( pGraphNode->GetValueType() == GraphValueType::Pose )
                 {
@@ -2963,15 +3035,10 @@ namespace EE::Animation
             return false;
         };
 
-        auto const foundNodes = pRootGraph->FindAllNodesOfTypeAdvanced<GraphNodes::FlowToolsNode>( MatchFunction, VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto const foundNodes = pRootGraph->FindAllNodesOfTypeAdvanced<VisualGraph::BaseNode>( MatchFunction, VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pNode : foundNodes )
         {
-            if ( IsOfType<GraphNodes::ParameterReferenceToolsNode>( pNode ) || IsOfType<GraphNodes::ControlParameterToolsNode>( pNode ) || IsOfType<GraphNodes::VirtualParameterToolsNode>( pNode ) )
-            {
-                continue;
-            }
-
-            m_navigationTargetNodes.emplace_back( NavigationTarget( pNode, pNode->GetPathFromRoot() ) );
+            NavigationTarget::CreateNavigationTargets( pNode, m_navigationTargetNodes );
         }
 
         // Sort
@@ -2979,7 +3046,7 @@ namespace EE::Animation
 
         auto Comparator = [] ( NavigationTarget const& a, NavigationTarget const& b )
         {
-            return a.m_path < b.m_path;
+            return a.m_sortKey < b.m_sortKey;
         };
 
         eastl::sort( m_navigationTargetNodes.begin(), m_navigationTargetNodes.end(), Comparator );
@@ -2987,7 +3054,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::GenerateActiveTargetList()
     {
-        EE_ASSERT( IsDebugging() );
+        EE_ASSERT( IsDebugging() && m_userContext.HasDebugData() );
 
         m_navigationActiveTargetNodes.clear();
 
@@ -2996,10 +3063,10 @@ namespace EE::Animation
             UUID const nodeID = m_userContext.GetGraphNodeUUID( activeNodeIdx );
             if ( nodeID.IsValid() )
             {
-                auto pFoundNode = TryCast<GraphNodes::FlowToolsNode>( GetMainGraphData()->m_graphDefinition.GetRootGraph()->FindNode( nodeID, true ) );
-                if ( pFoundNode != nullptr && pFoundNode->GetValueType() == GraphValueType::Pose )
+                auto pFoundNode = GetMainGraphData()->m_graphDefinition.GetRootGraph()->FindNode( nodeID, true );
+                if ( pFoundNode != nullptr )
                 {
-                    m_navigationActiveTargetNodes.emplace_back( NavigationTarget( pFoundNode, pFoundNode->GetPathFromRoot() ) );
+                    NavigationTarget::CreateNavigationTargets( pFoundNode, m_navigationActiveTargetNodes );
                 }
             }
         }
@@ -3007,18 +3074,18 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawNavigationDialogWindow( UpdateContext const& context )
     {
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 27 - ImGui::GetStyle().ItemSpacing.x );
-
-        m_navigationFilter.DrawAndUpdate( ImGuiX::FilterWidget::TakeInitialFocus );
-
+        // Filter
         //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 27 - ImGui::GetStyle().ItemSpacing.x );
+        m_navigationFilter.DrawAndUpdate( ImGuiX::FilterWidget::TakeInitialFocus );
 
         auto ApplyFilter = [this] ( NavigationTarget const& target )
         {
             if ( m_navigationFilter.HasFilterSet() )
             {
                 bool nameFailedFilter = false;
-                if ( !m_navigationFilter.MatchesFilter( target.m_pNode->GetName() ) )
+                if ( !m_navigationFilter.MatchesFilter( target.m_label ) )
                 {
                     nameFailedFilter = true;
                 }
@@ -3038,53 +3105,58 @@ namespace EE::Animation
             return true;
         };
 
+        // Active targets
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginTable( "Navigation Options", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
+        if ( IsDebugging() && m_userContext.HasDebugData() )
         {
-            ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
+            GenerateActiveTargetList();
+        }
+
+        // Table
+        //-------------------------------------------------------------------------
+
+        int32_t const numActiveTargets = (int32_t) m_navigationActiveTargetNodes.size();
+        int32_t const numTargets = (int32_t) m_navigationTargetNodes.size();
+        int32_t const numTotalTargets = numActiveTargets + numTargets;
+
+        if ( ImGui::BeginTable( "NavTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
+        {
+            ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
             ImGui::TableSetupColumn( "Node", ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupScrollFreeze( 0, 1 );
             ImGui::TableHeadersRow();
 
             //-------------------------------------------------------------------------
 
-            ImColor const activeColor = ImGuiX::ImColors::Lime;
-
-            if ( IsDebugging() )
+            for ( int32_t i = 0; i < numTotalTargets; i++ )
             {
-                GenerateActiveTargetList();
-
-                for ( auto const& navTarget : m_navigationActiveTargetNodes )
+                NavigationTarget* pTarget = nullptr;
+                bool isActiveTarget = false;
+                if ( i >= numActiveTargets )
                 {
-                    if ( !ApplyFilter( navTarget ) )
-                    {
-                        continue;
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextRow();
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text( navTarget.m_path.c_str() );
-
-                    ImGui::TableNextColumn();
-                    ImGui::PushStyleColor( ImGuiCol_Text, activeColor.Value );
-                    if ( ImGui::Selectable( navTarget.m_pNode->GetName(), false, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
-                    {
-                        NavigateTo( const_cast<GraphNodes::FlowToolsNode*>( navTarget.m_pNode ) );
-                        m_activeOperation = GraphOperationType::None;
-                    }
-                    ImGui::PopStyleColor();
+                    pTarget = &m_navigationTargetNodes[i - numActiveTargets];
                 }
-            }
+                else
+                {
+                    pTarget = &m_navigationActiveTargetNodes[i];
+                    isActiveTarget = true;
+                }
 
-            //-------------------------------------------------------------------------
+                EE_ASSERT( pTarget != nullptr );
+                EE_ASSERT( pTarget->m_pNode != nullptr && pTarget->m_type != NavigationTarget::Type::Unknown );
 
-            for ( auto const& navTarget : m_navigationTargetNodes )
-            {
-                if ( !ApplyFilter( navTarget ) )
+                //-------------------------------------------------------------------------
+
+                // Skip nodes that dont match the filter
+                if ( !ApplyFilter( *pTarget ) )
+                {
+                    continue;
+                }
+
+                // Skip nodes already shown in the active list
+                if ( !isActiveTarget && VectorContains( m_navigationActiveTargetNodes, *pTarget ) )
                 {
                     continue;
                 }
@@ -3093,15 +3165,39 @@ namespace EE::Animation
 
                 ImGui::TableNextRow();
 
-                ImGui::TableNextColumn();
-                ImGui::Text( navTarget.m_path.c_str() );
+                ImColor const colors[] = { ImGuiX::ImColors::Plum, ImGuiX::Style::s_colorText, ImGuiX::ImColors::LightSteelBlue, ImGuiX::ImColors::GoldenRod };
+                static char const* const icons[] = { EE_ICON_ARROW_RIGHT_BOLD, EE_ICON_WALK, EE_ICON_NUMERIC, EE_ICON_TAG_TEXT };
+                static char const* const tooltips[] = { "Parameter", "Pose", "Value", "ID" };
+                int32_t const typeIndex = ( int32_t ) pTarget->m_type;
+
+                //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                if ( ImGui::Selectable( navTarget.m_pNode->GetName(), false, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
+                ImGui::PushStyleColor( ImGuiCol_Text, isActiveTarget ? ImGuiX::ImColors::Lime.Value : ImGuiX::Style::s_colorText.Value );
+                ImGui::Text( icons[typeIndex] );
+                ImGuiX::TextTooltip( tooltips[typeIndex] );
+                ImGui::PopStyleColor();
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::PushStyleColor( ImGuiCol_Text, colors[typeIndex].Value );
+
+                if ( ImGui::Selectable( pTarget->m_label.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
                 {
-                    NavigateTo( const_cast<GraphNodes::FlowToolsNode*>( navTarget.m_pNode ) );
-                    m_activeOperation = GraphOperationType::None;
+                    if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                    {
+                        NavigateTo( const_cast<VisualGraph::BaseNode*>( pTarget->m_pNode ) );
+                        m_activeOperation = GraphOperationType::None;
+                    }
                 }
+
+                ImGui::PopStyleColor();
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::Text( pTarget->m_path.c_str() );
             }
 
             //-------------------------------------------------------------------------
@@ -5042,7 +5138,7 @@ namespace EE::Animation
                     Float3 const angles = frameWorldTransform.GetRotation().ToEulerAngles().GetAsDegrees();
                     Vector const translation = frameWorldTransform.GetTranslation();
                     ImGui::Text( EE_ICON_ROTATE_360" X: %.3f, Y: %.3f, Z: %.3f", angles.m_x, angles.m_y, angles.m_z );
-                    ImGui::Text( EE_ICON_AXIS_ARROW" X: %.3f, Y: %.3f, Z: %.3f", translation.m_x, translation.m_y, translation.m_z );
+                    ImGui::Text( EE_ICON_AXIS_ARROW" X: %.3f, Y: %.3f, Z: %.3f", translation.GetX(), translation.GetY(), translation.GetZ() );
                     ImGui::Text( EE_ICON_ARROW_EXPAND" %.3f", frameWorldTransform.GetScale() );
                     ImGui::Unindent();
                 }

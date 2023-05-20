@@ -79,6 +79,14 @@ namespace EE::Animation::GraphNodes
         ImGui::Text( infoText.c_str() );
     }
 
+    void IDComparisonToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        for ( auto ID : m_IDs )
+        {
+            outIDs.emplace_back( ID );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void IDToFloatToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
@@ -166,5 +174,13 @@ namespace EE::Animation::GraphNodes
         }
 
         return true;
+    }
+
+    void IDToFloatToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        for ( auto const& mapping : m_mappings )
+        {
+            outIDs.emplace_back( mapping.m_ID );
+        }
     }
 }

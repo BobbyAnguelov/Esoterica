@@ -414,11 +414,11 @@
     <ClInclude Include="TypeSystem\EnumInfo.h" />
     <ClInclude Include="TypeSystem\PropertyInfo.h" />
     <ClInclude Include="TypeSystem\PropertyPath.h" />
+    <ClInclude Include="TypeSystem\ReflectedType.h" />
     <ClInclude Include="TypeSystem\ResourceInfo.h" />
     <ClInclude Include="TypeSystem\TypeDescriptors.h" />
     <ClInclude Include="TypeSystem\TypeID.h" />
     <ClInclude Include="TypeSystem\TypeInfo.h" />
-    <ClInclude Include="TypeSystem\RegisteredType.h" />
     <ClInclude Include="TypeSystem\TypeRegistry.h" />
     <ClInclude Include="Serialization\TypeSerialization.h" />
     <ClInclude Include="Types\Event.h" />
@@ -605,7 +605,7 @@
     <ClCompile Include="TypeSystem\EnumInfo.cpp" />
     <ClCompile Include="TypeSystem\PropertyInfo.cpp" />
     <ClCompile Include="TypeSystem\PropertyPath.cpp" />
-    <ClCompile Include="TypeSystem\RegisteredType.cpp" />
+    <ClCompile Include="TypeSystem\ReflectedType.cpp" />
     <ClCompile Include="TypeSystem\TypeDescriptors.cpp" />
     <ClCompile Include="TypeSystem\TypeInfo.cpp" />
     <ClCompile Include="TypeSystem\TypeRegistry.cpp" />

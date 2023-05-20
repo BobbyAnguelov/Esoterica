@@ -80,7 +80,7 @@ namespace EE::Animation::GraphNodes
 
     void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& value )
     {
-        ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f, W: %.2f", value.m_x, value.m_y, value.m_z, value.m_w );
+        ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f, W: %.2f", value.GetX(), value.GetY(), value.GetZ(), value.GetW() );
     }
 
     void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& value )
@@ -105,7 +105,7 @@ namespace EE::Animation::GraphNodes
                 EulerAngles const angles = transform.GetRotation().ToEulerAngles();
 
                 ImGui::Text( "Rot: X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
-                ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.m_x, translation.m_y, translation.m_z );
+                ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.GetX(), translation.GetY(), translation.GetZ() );
                 ImGui::Text( "Scl: %.3f", transform.GetScale() );
             }
         }
@@ -164,9 +164,11 @@ namespace EE::Animation::GraphNodes
         {
             DrawInfoText( ctx );
 
-            if ( GetValueType() != GraphValueType::Unknown && GetValueType() != GraphValueType::BoneMask && GetValueType() != GraphValueType::Pose )
+            if ( GetValueType() != GraphValueType::Unknown && GetValueType() != GraphValueType::BoneMask && GetValueType() != GraphValueType::Pose && GetValueType() != GraphValueType::Special )
             {
-                BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4 );
+                DrawInternalSeparator( ctx, VisualGraph::VisualSettings::s_genericNodeSeparatorColor, 4.0f );
+
+                BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4, 2 );
 
                 if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
                 {
@@ -224,8 +226,6 @@ namespace EE::Animation::GraphNodes
                             }
                             break;
 
-                            case GraphValueType::BoneMask:
-                            case GraphValueType::Pose:
                             default:
                             break;
                         }

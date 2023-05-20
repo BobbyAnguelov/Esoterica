@@ -11,7 +11,7 @@
 namespace EE
 {
     class EntityComponent;
-    namespace Physics { class CharacterComponent; class Scene; }
+    namespace Physics { class CharacterComponent; class PhysicsWorld; }
     namespace Navmesh { class NavmeshWorldSystem; }
     namespace Drawing { class DrawContext; }
 }
@@ -65,7 +65,7 @@ namespace EE::AI
     public:
 
         EntityWorldUpdateContext const*             m_pEntityWorldUpdateContext = nullptr;
-        Physics::Scene*                             m_pPhysicsScene = nullptr;
+        Physics::PhysicsWorld*                      m_pPhysicsWorld = nullptr;
         Navmesh::NavmeshWorldSystem*                m_pNavmeshSystem = nullptr;
 
         AIComponent*                                m_pAIComponent = nullptr;

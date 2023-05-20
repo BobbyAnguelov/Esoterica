@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Transition.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_UserContext.h"
 #include "EngineTools/Core/Helpers/CategoryTree.h"
 #include "System/Types/HashMap.h"
@@ -73,12 +75,28 @@ namespace EE::Animation
 
         bool IsNodeActive( int16_t nodeIdx ) const;
 
+        // Get a pose node's debug information
         PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const;
 
+        // Get the value of a given runtime value node
         template<typename T>
         inline T GetRuntimeNodeDebugValue( int16_t runtimeNodeIdx ) const
         {
             return m_pGraphInstance->GetRuntimeNodeDebugValue<T>( runtimeNodeIdx );
+        }
+
+        // Get layer weight from a given runtime layer blend node
+        inline float GetLayerWeight( int16_t runtimeNodeIdx, int32_t layerIdx ) const
+        {
+            auto pLayerNode = static_cast<GraphNodes::LayerBlendNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
+            return pLayerNode->GetLayerWeight( layerIdx );
+        }
+
+        // Get transition progress
+        inline float GetTransitionProgress( int16_t runtimeNodeIdx ) const
+        {
+            auto pTransitionNode = static_cast<GraphNodes::TransitionNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
+            return pTransitionNode->GetProgressPercentage();
         }
 
     public:

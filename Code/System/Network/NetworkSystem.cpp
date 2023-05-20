@@ -1,6 +1,6 @@
 #include "NetworkSystem.h"
-#include "System/Threading/Threading.h"
 #include "System/Log.h"
+#include "System/Threading/Threading.h"
 
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -11,200 +11,40 @@ namespace EE::Network
 {
     struct NetworkState
     {
-        int64_t                                   m_logTimeZero = 0;
+        int64_t                                 m_logTimeZero = 0;
         TInlineVector<ServerConnection*, 2>     m_serverConnections;
         TInlineVector<ClientConnection*, 2>     m_clientConnections;
     };
 
     static NetworkState* g_pNetworkState = nullptr;
 
-    //-------------------------------------------------------------------------
-
-    struct NetworkCallbackHandler
+    static void NetworkDebugOutputFunction( ESteamNetworkingSocketsDebugOutputType type, char const* pMessage )
     {
-        static void NetworkDebugOutputFunction( ESteamNetworkingSocketsDebugOutputType type, char const* pMessage )
+        EE_ASSERT( g_pNetworkState != nullptr );
+        EE_TRACE_MSG( pMessage );
+
+        // TODO: initialize rpmalloc for the steam network thread
+        if ( type == k_ESteamNetworkingSocketsDebugOutputType_Bug )
         {
-            EE_ASSERT( g_pNetworkState != nullptr );
-            EE_TRACE_MSG( pMessage );
-
-            // TODO: initialize rpmalloc for the steam network thread
-            if ( type == k_ESteamNetworkingSocketsDebugOutputType_Bug )
-            {
-                //EE_LOG_FATAL_ERROR( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
-            }
-            else if ( type == k_ESteamNetworkingSocketsDebugOutputType_Error )
-            {
-                //EE_LOG_ERROR( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
-            }
-            else if ( type == k_ESteamNetworkingSocketsDebugOutputType_Warning )
-            {
-                //EE_LOG_WARNING( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
-            }
-            else if ( type == k_ESteamNetworkingSocketsDebugOutputType_Important )
-            {
-                //EE_LOG_MESSAGE( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
-            }
-            else // Verbose
-            {
-                //EE_LOG_MESSAGE( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
-            }
+            //EE_LOG_FATAL_ERROR( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
         }
-
-        static void ServerNetConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo )
+        else if ( type == k_ESteamNetworkingSocketsDebugOutputType_Error )
         {
-            auto pInterface = SteamNetworkingSockets();
-            EE_ASSERT( pInterface != nullptr );
-
-            // Find Server Connection
-            //-------------------------------------------------------------------------
-
-            auto FindServerConnection = [] ( ServerConnection const* pConnection, uint32_t socketHandle )
-            {
-                return pConnection->GetSocketHandle() == socketHandle;
-            };
-
-            auto serverConnectionIter = eastl::find( g_pNetworkState->m_serverConnections.begin(), g_pNetworkState->m_serverConnections.end(), pInfo->m_info.m_hListenSocket, FindServerConnection );
-            EE_ASSERT( serverConnectionIter != g_pNetworkState->m_serverConnections.end() );
-            ServerConnection* pServerConnection = *serverConnectionIter;
-
-            // Handle state change
-            //-------------------------------------------------------------------------
-
-            switch ( pInfo->m_info.m_eState )
-            {
-                case k_ESteamNetworkingConnectionState_ClosedByPeer:
-                case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-                {
-                    // Ignore if they were not previously connected.  (If they disconnected before we accepted the connection.)
-                    if ( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connected )
-                    {
-                        // Note that clients should have been found, because this is the only code path where we remove clients( except on shutdown ), and connection change callbacks are dispatched in queue order.
-                        EE_ASSERT( pServerConnection->HasConnectedClient( pInfo->m_hConn ) );
-                        pServerConnection->RemoveConnectedClient( pInfo->m_hConn );
-                    }
-                    else
-                    {
-                        EE_ASSERT( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
-                    }
-
-                    // Clean up the connection.  This is important!
-                    // The connection is "closed" in the network sense, but
-                    // it has not been destroyed.  We must close it on our end, too
-                    // to finish up.  The reason information do not matter in this case,
-                    // and we cannot linger because it's already closed on the other end,
-                    // so we just pass 0's.
-                    pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
-                    break;
-                }
-
-                case k_ESteamNetworkingConnectionState_Connecting:
-                {
-                    // This must be a new connection
-                    EE_ASSERT( !pServerConnection->HasConnectedClient( pInfo->m_hConn ) );
-
-                    // A client is attempting to connect
-                    // Try to accept the connection.
-                    if ( pInterface->AcceptConnection( pInfo->m_hConn ) != k_EResultOK )
-                    {
-                        // This could fail. If the remote host tried to connect, but then
-                        // disconnected, the connection may already be half closed.  Just
-                        // destroy whatever we have on our side.
-                        pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
-                        break;
-                    }
-
-                    // Assign the poll group
-                    if ( !pInterface->SetConnectionPollGroup( pInfo->m_hConn, pServerConnection->m_pollingGroupHandle ) )
-                    {
-                        pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
-                        break;
-                    }
-
-                    AddressString clientAddress( AddressString::CtorDoNotInitialize(), AddressString::kMaxSize );
-                    pInfo->m_info.m_addrRemote.ToString( clientAddress.data(), AddressString::kMaxSize, true );
-                    pServerConnection->AddConnectedClient( pInfo->m_hConn, clientAddress );
-                    break;
-                }
-
-                case k_ESteamNetworkingConnectionState_None:
-                // NOTE: We will get callbacks here when we destroy connections.  You can ignore these.
-                break;
-
-                case k_ESteamNetworkingConnectionState_Connected:
-                // We will get a callback immediately after accepting the connection.
-                // Since we are the server, we can ignore this, it's not news to us.
-                break;
-
-                default:
-                // Silences -Wswitch
-                break;
-            }
+            //EE_LOG_ERROR( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
         }
-
-        static void ClientNetConnectionStatusChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo )
+        else if ( type == k_ESteamNetworkingSocketsDebugOutputType_Warning )
         {
-            auto pInterface = SteamNetworkingSockets();
-            EE_ASSERT( pInterface != nullptr );
-
-            // Find Client Connection
-            //-------------------------------------------------------------------------
-
-            auto FindClientConnection = [] ( ClientConnection const* pConnection, uint32_t connectionHandle )
-            {
-                return pConnection->GetClientConnectionID() == connectionHandle;
-            };
-
-            auto clientConnectionIter = eastl::find( g_pNetworkState->m_clientConnections.begin(), g_pNetworkState->m_clientConnections.end(), pInfo->m_hConn, FindClientConnection );
-            
-            // Ignore status changes messages for already closed connections
-            if ( clientConnectionIter == g_pNetworkState->m_clientConnections.end() )
-            {
-                return;
-            }
-
-            ClientConnection* pClientConnection = *clientConnectionIter;
-
-            // Handle state change
-            //-------------------------------------------------------------------------
-
-            // What's the state of the connection?
-            switch ( pInfo->m_info.m_eState )
-            {
-                case k_ESteamNetworkingConnectionState_ClosedByPeer:
-                case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-                {
-                    // Clean up the connection.  This is important!
-                    // The connection is "closed" in the network sense, but
-                    // it has not been destroyed.  We must close it on our end, too
-                    // to finish up.  The reason information do not matter in this case,
-                    // and we cannot linger because it's already closed on the other end,
-                    // so we just pass 0's.
-                    pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
-                    pClientConnection->m_connectionHandle = k_HSteamNetConnection_Invalid;
-
-                    // Try restore connection
-                    pClientConnection->m_status = ClientConnection::Status::Reconnecting;
-                    break;
-                }
-
-                case k_ESteamNetworkingConnectionState_Connecting:
-                // We will get this callback when we start connecting.
-                // We can ignore this.
-                break;
-
-                case k_ESteamNetworkingConnectionState_Connected:
-                break;
-
-                case k_ESteamNetworkingConnectionState_None:
-                // NOTE: We will get callbacks here when we destroy connections.  You can ignore these.
-                break;
-
-                default:
-                // Silences -Wswitch
-                break;
-            }
+            //EE_LOG_WARNING( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
         }
-    };
+        else if ( type == k_ESteamNetworkingSocketsDebugOutputType_Important )
+        {
+            //EE_LOG_MESSAGE( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
+        }
+        else // Verbose
+        {
+            //EE_LOG_MESSAGE( "Network", "(%10.6f) %s", currentTime * 1e-6, pMessage );
+        }
+    }
 
     //-------------------------------------------------------------------------
 
@@ -239,7 +79,7 @@ namespace EE::Network
         serverLocalAddr.m_port = portNumber;
 
         SteamNetworkingConfigValue_t opt;
-        opt.SetPtr( k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*) NetworkCallbackHandler::ServerNetConnectionStatusChangedCallback );
+        opt.SetPtr( k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*) ConnectionChangedCallback );
         m_socketHandle = pInterface->CreateListenSocketIP( serverLocalAddr, 1, &opt );
         if ( m_socketHandle == k_HSteamListenSocket_Invalid )
         {
@@ -285,69 +125,136 @@ namespace EE::Network
         }
     }
 
+    void ServerConnection::Update()
+    {
+        auto pInterface = SteamNetworkingSockets();
+        EE_ASSERT( pInterface != nullptr );
+
+        // Receive
+        //-------------------------------------------------------------------------
+
+        ISteamNetworkingMessage *pIncomingMsg = nullptr;
+        int32_t const numMsgs = pInterface->ReceiveMessagesOnPollGroup( m_pollingGroupHandle, &pIncomingMsg, 1 );
+
+        if ( numMsgs < 0 )
+        {
+            EE_LOG_ERROR( "Network", "Server Connection", "Failed to check for messages!Something has gone wrong with the server connection!" );
+            return;
+        }
+
+        if ( numMsgs > 0 )
+        {
+            ProcessMessage( pIncomingMsg->m_conn, pIncomingMsg->m_pData, pIncomingMsg->m_cbSize );
+            pIncomingMsg->Release();
+        }
+
+        // Send
+        //-------------------------------------------------------------------------
+
+        auto ServerSendFunction = [pInterface]( uint32_t connectionHandle, void* pData, uint32_t size )
+        {
+            pInterface->SendMessageToConnection( connectionHandle, pData, size, k_nSteamNetworkingSend_Reliable, nullptr );
+        };
+
+        SendMessages( ServerSendFunction );
+    }
+
+    void ServerConnection::ConnectionChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo )
+    {
+        auto pInterface = SteamNetworkingSockets();
+        EE_ASSERT( pInterface != nullptr );
+
+        // Find Server Connection
+        //-------------------------------------------------------------------------
+
+        auto FindServerConnection = []( ServerConnection const* pConnection, uint32_t socketHandle )
+        {
+            return pConnection->GetSocketHandle() == socketHandle;
+        };
+
+        auto serverConnectionIter = eastl::find( g_pNetworkState->m_serverConnections.begin(), g_pNetworkState->m_serverConnections.end(), pInfo->m_info.m_hListenSocket, FindServerConnection );
+        EE_ASSERT( serverConnectionIter != g_pNetworkState->m_serverConnections.end() );
+        ServerConnection* pServerConnection = *serverConnectionIter;
+
+        // Handle state change
+        //-------------------------------------------------------------------------
+
+        switch ( pInfo->m_info.m_eState )
+        {
+            case k_ESteamNetworkingConnectionState_ClosedByPeer:
+            case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+            {
+                // Ignore if they were not previously connected.  (If they disconnected before we accepted the connection.)
+                if ( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connected )
+                {
+                    // Note that clients should have been found, because this is the only code path where we remove clients( except on shutdown ), and connection change callbacks are dispatched in queue order.
+                    EE_ASSERT( pServerConnection->HasConnectedClient( pInfo->m_hConn ) );
+                    pServerConnection->RemoveConnectedClient( pInfo->m_hConn );
+                }
+                else
+                {
+                    EE_ASSERT( pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting );
+                }
+
+                // Clean up the connection.  This is important!
+                // The connection is "closed" in the network sense, but
+                // it has not been destroyed.  We must close it on our end, too
+                // to finish up.  The reason information do not matter in this case,
+                // and we cannot linger because it's already closed on the other end,
+                // so we just pass 0's.
+                pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+                break;
+            }
+
+            case k_ESteamNetworkingConnectionState_Connecting:
+            {
+                // This must be a new connection
+                EE_ASSERT( !pServerConnection->HasConnectedClient( pInfo->m_hConn ) );
+
+                // A client is attempting to connect
+                // Try to accept the connection.
+                if ( pInterface->AcceptConnection( pInfo->m_hConn ) != k_EResultOK )
+                {
+                    // This could fail. If the remote host tried to connect, but then
+                    // disconnected, the connection may already be half closed.  Just
+                    // destroy whatever we have on our side.
+                    pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+                    break;
+                }
+
+                // Assign the poll group
+                if ( !pInterface->SetConnectionPollGroup( pInfo->m_hConn, pServerConnection->m_pollingGroupHandle ) )
+                {
+                    pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+                    break;
+                }
+
+                AddressString clientAddress( AddressString::CtorDoNotInitialize(), AddressString::kMaxSize );
+                pInfo->m_info.m_addrRemote.ToString( clientAddress.data(), AddressString::kMaxSize, true );
+                pServerConnection->AddConnectedClient( pInfo->m_hConn, clientAddress );
+                break;
+            }
+
+            case k_ESteamNetworkingConnectionState_None:
+            // NOTE: We will get callbacks here when we destroy connections.  You can ignore these.
+            break;
+
+            case k_ESteamNetworkingConnectionState_Connected:
+            // We will get a callback immediately after accepting the connection.
+            // Since we are the server, we can ignore this, it's not news to us.
+            break;
+
+            default:
+            // Silences -Wswitch
+            break;
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     ClientConnection::~ClientConnection()
     {
         EE_ASSERT( m_connectionHandle == k_HSteamNetConnection_Invalid );
-    }
-
-    void ClientConnection::Update()
-    {
-        ISteamNetworkingSockets* pInterface = SteamNetworkingSockets();
-        EE_ASSERT( pInterface != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        if ( m_status == Status::Reconnecting )
-        {
-            if ( m_reconnectionAttemptsRemaining > 0 )
-            {
-                m_reconnectionAttemptsRemaining--;
-                Threading::Sleep( 100 );
-                if ( !TryStartConnection() )
-                {
-                    m_status = Status::Reconnecting;
-                    return;
-                }
-            }
-            else
-            {
-                m_status = Status::ConnectionFailed;
-                return;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_connectionHandle != k_HSteamNetConnection_Invalid );
-        SteamNetConnectionInfo_t info;
-        pInterface->GetConnectionInfo( m_connectionHandle, &info );
-
-        switch ( info.m_eState )
-        {
-            case k_ESteamNetworkingConnectionState_Connecting:
-            case k_ESteamNetworkingConnectionState_FindingRoute:
-            {
-                m_status = Status::Connecting;
-            }
-            break;
-
-            case k_ESteamNetworkingConnectionState_Connected:
-            {
-                m_reconnectionAttemptsRemaining = 5;
-                m_status = Status::Connected;
-            }
-            break;
-
-            case k_ESteamNetworkingConnectionState_ClosedByPeer:
-            case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-            default:
-            {
-                EE_UNREACHABLE_CODE();
-            }
-            break;
-        }
     }
 
     bool ClientConnection::TryStartConnection()
@@ -371,7 +278,7 @@ namespace EE::Network
         EE_ASSERT( pInterface != nullptr );
 
         SteamNetworkingConfigValue_t opt;
-        opt.SetPtr( k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*) NetworkCallbackHandler::ClientNetConnectionStatusChangedCallback );
+        opt.SetPtr( k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*) ConnectionChangedCallback );
         m_connectionHandle = pInterface->ConnectByIPAddress( serverAddr, 1, &opt );
         if ( m_connectionHandle == k_HSteamNetConnection_Invalid )
         {
@@ -397,6 +304,140 @@ namespace EE::Network
         m_status = Status::Disconnected;
     }
 
+    void ClientConnection::Update()
+    {
+        ISteamNetworkingSockets* pInterface = SteamNetworkingSockets();
+        EE_ASSERT( pInterface != nullptr );
+
+        // Handle Reconnection Attempts
+        //-------------------------------------------------------------------------
+
+        if ( m_status == Status::Reconnecting )
+        {
+            if ( m_reconnectionAttemptsRemaining > 0 )
+            {
+                m_reconnectionAttemptsRemaining--;
+                Threading::Sleep( 100 );
+                if ( !TryStartConnection() )
+                {
+                    m_status = Status::Reconnecting;
+                    return;
+                }
+            }
+            else
+            {
+                m_status = Status::ConnectionFailed;
+                return;
+            }
+        }
+
+        // Run Client Update
+        //-------------------------------------------------------------------------
+
+        if ( IsConnected() )
+        {
+            // Receive
+            //-------------------------------------------------------------------------
+
+            ISteamNetworkingMessage* pIncomingMsg = nullptr;
+            int32_t const numMsgs = pInterface->ReceiveMessagesOnConnection( m_connectionHandle, &pIncomingMsg, 1 );
+
+            // Handle invalid connection handle
+            if ( numMsgs < 0 )
+            {
+                EE_LOG_FATAL_ERROR( "Network", "Client Connection", "Client connection handle is invalid, we've likely lost connection to the server" );
+                return;
+            }
+
+            // Process received messages
+            if ( numMsgs > 0 )
+            {
+                ProcessMessage( pIncomingMsg->m_pData, pIncomingMsg->m_cbSize );
+                pIncomingMsg->Release();
+            }
+
+            // Send
+            //-------------------------------------------------------------------------
+
+            auto ClientSendFunction = [pInterface, this]( void* pData, uint32_t size )
+            {
+                pInterface->SendMessageToConnection( m_connectionHandle, pData, size, k_nSteamNetworkingSend_Reliable, nullptr );
+            };
+
+            SendMessages( ClientSendFunction );
+        }
+    }
+
+    void ClientConnection::ConnectionChangedCallback( SteamNetConnectionStatusChangedCallback_t* pInfo )
+    {
+        auto pInterface = SteamNetworkingSockets();
+        EE_ASSERT( pInterface != nullptr );
+
+        // Find Client Connection
+        //-------------------------------------------------------------------------
+
+        auto FindClientConnection = []( ClientConnection const* pConnection, uint32_t connectionHandle )
+        {
+            return pConnection->GetClientConnectionID() == connectionHandle;
+        };
+
+        auto clientConnectionIter = eastl::find( g_pNetworkState->m_clientConnections.begin(), g_pNetworkState->m_clientConnections.end(), pInfo->m_hConn, FindClientConnection );
+
+        // Ignore status changes messages for already closed connections
+        if ( clientConnectionIter == g_pNetworkState->m_clientConnections.end() )
+        {
+            return;
+        }
+
+        ClientConnection* pClientConnection = *clientConnectionIter;
+
+        // Handle state change
+        //-------------------------------------------------------------------------
+
+        // What's the state of the connection?
+        switch ( pInfo->m_info.m_eState )
+        {
+            case k_ESteamNetworkingConnectionState_ClosedByPeer:
+            case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+            {
+                // Clean up the connection.  This is important!
+                // The connection is "closed" in the network sense, but
+                // it has not been destroyed.  We must close it on our end, too
+                // to finish up.  The reason information do not matter in this case,
+                // and we cannot linger because it's already closed on the other end,
+                // so we just pass 0's.
+                pInterface->CloseConnection( pInfo->m_hConn, 0, nullptr, false );
+                pClientConnection->m_connectionHandle = k_HSteamNetConnection_Invalid;
+
+                // Try restore connection
+                pClientConnection->m_status = ClientConnection::Status::Reconnecting;
+                break;
+            }
+
+            case k_ESteamNetworkingConnectionState_Connecting:
+            case k_ESteamNetworkingConnectionState_FindingRoute:
+            {
+                pClientConnection->m_status = Status::Connecting;
+            }
+            break;
+
+            case k_ESteamNetworkingConnectionState_Connected:
+            {
+                pClientConnection->m_reconnectionAttemptsRemaining = 5;
+                pClientConnection->m_status = Status::Connected;
+            }
+            break;
+
+            case k_ESteamNetworkingConnectionState_None:
+            // NOTE: We will get callbacks here when we destroy connections.  You can ignore these.
+            break;
+
+            default:
+            // Silences -Wswitch
+            break;
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     bool NetworkSystem::Initialize()
@@ -413,7 +454,7 @@ namespace EE::Network
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        SteamNetworkingUtils()->SetDebugOutputFunction( k_ESteamNetworkingSocketsDebugOutputType_Msg, NetworkCallbackHandler::NetworkDebugOutputFunction );
+        SteamNetworkingUtils()->SetDebugOutputFunction( k_ESteamNetworkingSocketsDebugOutputType_Msg, NetworkDebugOutputFunction );
         #endif
 
         g_pNetworkState = EE::New<NetworkState>();
@@ -425,7 +466,7 @@ namespace EE::Network
     {
         if ( g_pNetworkState != nullptr )
         {
-            // Give connections time to finish up.  This is an application layer protocol here, it's not TCP.  Note that if you have an application and you need to be
+            // Give connections time to finish up. This is an application layer protocol here, it's not TCP.  Note that if you have an application and you need to be
             // more sure about cleanup, you won't be able to do this.  You will need to send a message and then either wait for the peer to close the connection, or
             // you can pool the connection to see if any reliable data is pending.
             Threading::Sleep( 250 );
@@ -441,7 +482,7 @@ namespace EE::Network
         EE_ASSERT( pInterface != nullptr );
 
         //-------------------------------------------------------------------------
-        // Handle connection changes
+        // Call all connection state callbacks
         //-------------------------------------------------------------------------
 
         pInterface->RunCallbacks();
@@ -452,33 +493,7 @@ namespace EE::Network
 
         for ( auto pServerConnection : g_pNetworkState->m_serverConnections )
         {
-            // Receive
-            //-------------------------------------------------------------------------
-
-            ISteamNetworkingMessage *pIncomingMsg = nullptr;
-            int32_t const numMsgs = pInterface->ReceiveMessagesOnPollGroup( pServerConnection->m_pollingGroupHandle, &pIncomingMsg, 1 );
-
-            if ( numMsgs < 0 )
-            {
-                //EE_LOG_FATAL_ERROR( "Network", "Error checking for messages" );
-                break;
-            }
-
-            if ( numMsgs > 0 )
-            {
-                pServerConnection->ProcessMessage( pIncomingMsg->m_conn, pIncomingMsg->m_pData, pIncomingMsg->m_cbSize );
-                pIncomingMsg->Release();
-            }
-
-            // Send
-            //-------------------------------------------------------------------------
-
-            auto ServerSendFunction = [pInterface] ( uint32_t connectionHandle, void* pData, uint32_t size )
-            {
-                pInterface->SendMessageToConnection( connectionHandle, pData, size, k_nSteamNetworkingSend_Reliable, nullptr );
-            };
-
-            pServerConnection->SendMessages( ServerSendFunction );
+            pServerConnection->Update();
         }
 
         //-------------------------------------------------------------------------
@@ -488,39 +503,6 @@ namespace EE::Network
         for ( auto pClientConnection : g_pNetworkState->m_clientConnections )
         {
             pClientConnection->Update();
-
-            if ( pClientConnection->IsConnected() )
-            {
-                // Receive
-                //-------------------------------------------------------------------------
-
-                ISteamNetworkingMessage* pIncomingMsg = nullptr;
-                int32_t const numMsgs = pInterface->ReceiveMessagesOnConnection( pClientConnection->m_connectionHandle, &pIncomingMsg, 1 );
-
-                // Handle invalid connection handle
-                if ( numMsgs < 0 )
-                {
-                    //EE_LOG_FATAL_ERROR( "Network", "Client connection handle is invalid, we've likely lost connection to the server" );
-                    break;
-                }
-
-                // Process received messages
-                if ( numMsgs > 0 )
-                {
-                    pClientConnection->ProcessMessage( pIncomingMsg->m_pData, pIncomingMsg->m_cbSize );
-                    pIncomingMsg->Release();
-                }
-
-                // Send
-                //-------------------------------------------------------------------------
-
-                auto ClientSendFunction = [pInterface, pClientConnection] ( void* pData, uint32_t size )
-                {
-                    pInterface->SendMessageToConnection( pClientConnection->m_connectionHandle, pData, size, k_nSteamNetworkingSend_Reliable, nullptr );
-                };
-
-                pClientConnection->SendMessages( ClientSendFunction );
-            }
         }
     }
 

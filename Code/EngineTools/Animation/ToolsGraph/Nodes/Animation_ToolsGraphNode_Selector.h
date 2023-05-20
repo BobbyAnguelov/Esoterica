@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class SelectorConditionToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( SelectorConditionToolsNode );
+        EE_REFLECT_TYPE( SelectorConditionToolsNode );
 
         friend class SelectorToolsNode;
         friend class AnimationClipSelectorToolsNode;
@@ -28,7 +28,7 @@ namespace EE::Animation::GraphNodes
 
     class SelectorToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( SelectorToolsNode );
+        EE_REFLECT_TYPE( SelectorToolsNode );
 
     public:
 
@@ -53,7 +53,7 @@ namespace EE::Animation::GraphNodes
 
     class AnimationClipSelectorToolsNode final : public AnimationClipReferenceToolsNode
     {
-        EE_REGISTER_TYPE( AnimationClipSelectorToolsNode );
+        EE_REFLECT_TYPE( AnimationClipSelectorToolsNode );
 
     public:
 

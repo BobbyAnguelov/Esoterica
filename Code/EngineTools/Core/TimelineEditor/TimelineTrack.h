@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "System/Serialization/JsonSerialization.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Types/Arrays.h"
 #include "System/Math/NumericRange.h"
 #include "System/Types/Color.h"
@@ -16,9 +16,9 @@ struct ImDrawList;
 
 namespace EE::Timeline
 {
-    class EE_ENGINETOOLS_API TrackItem final : public IRegisteredType
+    class EE_ENGINETOOLS_API TrackItem final : public IReflectedType
     {
-        EE_REGISTER_TYPE( TrackItem );
+        EE_REFLECT_TYPE( TrackItem );
 
         friend class TrackContainer;
 
@@ -27,7 +27,7 @@ namespace EE::Timeline
     public:
 
         TrackItem() = default;
-        TrackItem( FloatRange const& inRange, IRegisteredType* pData );
+        TrackItem( FloatRange const& inRange, IReflectedType* pData );
         ~TrackItem();
 
         // Info
@@ -54,8 +54,8 @@ namespace EE::Timeline
         // Data
         //-------------------------------------------------------------------------
 
-        inline IRegisteredType* GetData() { return m_pData; }
-        inline IRegisteredType const* GetData() const { return m_pData; }
+        inline IReflectedType* GetData() { return m_pData; }
+        inline IReflectedType const* GetData() const { return m_pData; }
         TypeSystem::TypeInfo const* GetDataTypeInfo() const { return m_pData->GetTypeInfo(); }
 
         // Dirty state
@@ -63,7 +63,7 @@ namespace EE::Timeline
 
         inline bool IsDirty() const { return m_isDirty; }
         inline void MarkDirty() { m_isDirty = true; }
-        inline void ClearDirtyFlag() { m_isDirty = false; }
+        inline void ClearDirty() { m_isDirty = false; }
 
         // Serialization
         //-------------------------------------------------------------------------
@@ -86,17 +86,17 @@ namespace EE::Timeline
 
     private:
 
-        EE_EXPOSE float         m_startTime = 0.0f; // Timeline units
-        EE_EXPOSE float         m_duration = 0.0f; // Timeline units
-        IRegisteredType*        m_pData = nullptr;
+        EE_REFLECT() float         m_startTime = 0.0f; // Timeline units
+        EE_REFLECT() float         m_duration = 0.0f; // Timeline units
+        IReflectedType*        m_pData = nullptr;
         bool                    m_isDirty = false;
     };
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API Track : public IRegisteredType
+    class EE_ENGINETOOLS_API Track : public IReflectedType
     {
-        EE_REGISTER_TYPE( Track );
+        EE_REFLECT_TYPE( Track );
         friend class TrackContainer;
 
     public:
@@ -146,7 +146,7 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         bool IsDirty() const;
-        void ClearDirtyFlags();
+        void ClearDirty();
         inline void MarkDirty() { m_isDirty = true; }
 
         // Visuals

@@ -13,7 +13,7 @@ namespace EE::AI
 
     class AIDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( AIDebugView );
+        EE_REFLECT_TYPE( AIDebugView );
 
     public:
 

@@ -20,7 +20,7 @@ namespace EE::Animation::GraphNodes
 
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_physicsBlendWeightNodeIdx, m_inpulseOriginVectorNodeIdx, m_inpulseForceVectorNodeIdx, m_physicsBlendWeight, m_profileID, m_dataSlotIdx, m_isGravityEnabled );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;

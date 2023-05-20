@@ -241,8 +241,8 @@ namespace EE
         tangentOffset *= s_slopeHandleLength;
 
         Float2 tangentHandleCenter;
-        tangentHandleCenter.m_x = ( pointCenter.m_x + tangentOffset.m_x );
-        tangentHandleCenter.m_y = ( pointCenter.m_y - tangentOffset.m_y );
+        tangentHandleCenter.m_x = ( pointCenter.m_x + tangentOffset.GetX() );
+        tangentHandleCenter.m_y = ( pointCenter.m_y - tangentOffset.GetY() );
 
         // Draw visual handle
         pDrawList->AddLine( pointCenter, tangentHandleCenter, s_curveInTangentHandleColor );
@@ -266,14 +266,14 @@ namespace EE
 
             // Get visual tangent offset
             auto const& io = ImGui::GetIO();
-            Vector tangentCanvasOffset( io.MousePos.x - pointCenter.m_x, io.MousePos.y - pointCenter.m_y, 0.0f );
+            Float2 tangentCanvasOffset( io.MousePos.x - pointCenter.m_x, io.MousePos.y - pointCenter.m_y );
             tangentCanvasOffset.m_x = Math::Min( tangentCanvasOffset.m_x, 0.0f ); // Lock outgoing tangents to the left hemisphere
             tangentCanvasOffset.m_y = -tangentCanvasOffset.m_y; // Handle y flip here
 
             // Convert to curve units (invert direction here)
             tangentCanvasOffset.m_x = -tangentCanvasOffset.m_x / m_pixelsPerUnitHorizontal;
             tangentCanvasOffset.m_y = -tangentCanvasOffset.m_y / m_pixelsPerUnitVertical;
-            tangentCanvasOffset.Normalize2();
+            tangentCanvasOffset = Vector( tangentCanvasOffset ).Normalize2().ToFloat2();
 
             // Calculate and clamp tangent
             float newTangentSlope;
@@ -306,8 +306,8 @@ namespace EE
         tangentOffset *= s_slopeHandleLength;
         
         Float2 tangentHandleCenter;
-        tangentHandleCenter.m_x = ( pointCenter.m_x + tangentOffset.m_x );
-        tangentHandleCenter.m_y = ( pointCenter.m_y - tangentOffset.m_y );
+        tangentHandleCenter.m_x = ( pointCenter.m_x + tangentOffset.GetX() );
+        tangentHandleCenter.m_y = ( pointCenter.m_y - tangentOffset.GetY() );
 
         // Draw visual handle
         pDrawList->AddLine( pointCenter, tangentHandleCenter, s_curveOutTangentHandleColor );
@@ -331,14 +331,14 @@ namespace EE
 
             // Get visual tangent offset
             auto const& io = ImGui::GetIO();
-            Vector tangentCanvasOffset( io.MousePos.x - pointCenter.m_x, io.MousePos.y - pointCenter.m_y, 0.0f );
+            Float2 tangentCanvasOffset( io.MousePos.x - pointCenter.m_x, io.MousePos.y - pointCenter.m_y );
             tangentCanvasOffset.m_x = Math::Max( 0.0f, tangentCanvasOffset.m_x ); // Lock outgoing tangents to the right hemisphere
             tangentCanvasOffset.m_y = -tangentCanvasOffset.m_y; // Handle y flip here
 
             // Convert to curve units
             tangentCanvasOffset.m_x = tangentCanvasOffset.m_x / m_pixelsPerUnitHorizontal;
             tangentCanvasOffset.m_y = tangentCanvasOffset.m_y / m_pixelsPerUnitVertical;
-            tangentCanvasOffset.Normalize2();
+            tangentCanvasOffset = Vector( tangentCanvasOffset ).Normalize2().ToFloat2();
 
             // Calculate and clamp tangent
             float newTangentSlope;

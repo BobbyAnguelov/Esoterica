@@ -105,6 +105,12 @@ namespace EE
         EE_ASSERT( ( m_windowRect.right - m_windowRect.left ) > 0 );
         EE_ASSERT( ( m_windowRect.bottom - m_windowRect.top ) > 0 );
 
+        // Set DPI awareness
+        //-------------------------------------------------------------------------
+
+        SetThreadDpiAwarenessContext( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 );
+
+        // Get window icon
         //-------------------------------------------------------------------------
 
         m_windowIcon = LoadIcon( m_pInstance, MAKEINTRESOURCE( m_applicationIconResourceID ) );
@@ -323,9 +329,9 @@ namespace EE
             case WM_CLOSE:
             case WM_QUIT:
             {
-                if ( OnExitRequest() )
+                if ( OnUserExitRequest() )
                 {
-                    m_applicationRequestedExit = true;
+                    RequestApplicationExit();
                 }
                 else
                 {
@@ -340,7 +346,7 @@ namespace EE
             {
                 ProcessWindowDestructionMessage();
                 PostQuitMessage( 0 );
-                m_applicationRequestedExit = true;
+                RequestApplicationExit();
             }
             break;
         }

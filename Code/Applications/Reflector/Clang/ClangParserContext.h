@@ -3,6 +3,7 @@
 #include "ClangUtils.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "Applications/Reflector/Database/ReflectionProjectTypes.h"
+#include "System/Types/HashMap.h"
 #include "System/Types/StringID.h"
 
 //-------------------------------------------------------------------------
@@ -13,69 +14,41 @@ namespace EE::TypeSystem::Reflection
 
     //-------------------------------------------------------------------------
 
-    struct TypeRegistrationMacro
+    struct ReflectionMacro
     {
 
     public:
 
-        TypeRegistrationMacro()
-            : m_type( ReflectionMacro::Unknown )
-            , m_position( 0xFFFFFFFF )
-        {}
+        ReflectionMacro() = default;
+        ReflectionMacro( HeaderInfo const* pHeaderInfo, CXCursor cursor, CXSourceRange sourceRange, ReflectionMacroType type );
 
-        TypeRegistrationMacro( ReflectionMacro type, CXCursor cursor, CXSourceRange sourceRange );
-
-        inline bool IsValid() const { return m_type != ReflectionMacro::Unknown; }
-        inline bool IsModuleMacro() const { return m_type == ReflectionMacro::RegisterModule; }
-        inline bool IsEnumMacro() const { return m_type == ReflectionMacro::RegisterEnum; }
-        inline bool IsEntitySystemMacro() const { return m_type == ReflectionMacro::RegisterEntitySystem; }
-        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectionMacro::RegisterEntityWorldSystem; }
-        inline bool IsEntityComponentMacro() const { return m_type == ReflectionMacro::RegisterEntityComponent || m_type == ReflectionMacro::RegisterSingletonEntityComponent; }
+        inline bool IsValid() const { return m_type != ReflectionMacroType::Unknown; }
+        inline bool IsModuleMacro() const { return m_type == ReflectionMacroType::ReflectModule; }
+        inline bool IsEnumMacro() const { return m_type == ReflectionMacroType::ReflectEnum; }
+        inline bool IsEntitySystemMacro() const { return m_type == ReflectionMacroType::EntitySystem; }
+        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectionMacroType::EntityWorldSystem; }
+        inline bool IsEntityComponentMacro() const { return m_type == ReflectionMacroType::EntityComponent || m_type == ReflectionMacroType::SingletonEntityComponent; }
 
         // Should be registered as a type
-        inline bool IsRegisteredTypeMacro() const 
+        inline bool IsReflectedTypeMacro() const 
         { 
-            return m_type == ReflectionMacro::RegisterType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacro::RegisterTypeResource;
+            return m_type == ReflectionMacroType::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacroType::ReflectedResource;
         }
         
         // Should be registered as a resource
         inline bool IsRegisteredResourceMacro() const
         { 
-            return m_type == ReflectionMacro::RegisterResource || m_type == ReflectionMacro::RegisterTypeResource; 
-        }
-
-    public:
-
-        uint32_t              m_position;
-        ReflectionMacro     m_type;
-        String              m_macroContents;
-    };
-
-    //-------------------------------------------------------------------------
-
-    struct RegisteredPropertyMacro
-    {
-        RegisteredPropertyMacro( HeaderID ID, uint32_t line, bool isExposed = false )
-            : m_headerID( ID )
-            , m_lineNumber( line )
-            , m_isExposed( isExposed )
-        {}
-
-        bool operator==( RegisteredPropertyMacro const& rhs )
-        {
-            return m_headerID == rhs.m_headerID && m_lineNumber == rhs.m_lineNumber;
-        }
-
-        bool operator!=( RegisteredPropertyMacro const& rhs )
-        {
-            return m_headerID != rhs.m_headerID || m_lineNumber != rhs.m_lineNumber;
+            return m_type == ReflectionMacroType::Resource || m_type == ReflectionMacroType::ReflectedResource; 
         }
 
     public:
 
         HeaderID            m_headerID;
-        uint32_t              m_lineNumber;
-        bool                m_isExposed = false;
+        uint32_t            m_lineNumber = 0;
+        uint32_t            m_position = 0xFFFFFFFF;
+        ReflectionMacroType m_type = ReflectionMacroType::Unknown;
+        String              m_macroComment;
+        String              m_macroContents;
     };
 
     //-------------------------------------------------------------------------
@@ -85,10 +58,24 @@ namespace EE::TypeSystem::Reflection
 
     public:
 
+        struct HeaderToVisit
+        {
+            HeaderToVisit( HeaderID ID, HeaderInfo const* pHeaderInfo ) : m_ID( ID ), m_pHeaderInfo( pHeaderInfo ) {}
+
+            inline bool operator==( HeaderID const& ID ) const { return m_ID == ID; }
+
+        public:
+
+            HeaderID            m_ID;
+            HeaderInfo const*   m_pHeaderInfo;
+        };
+
+    public:
+
         ClangParserContext( SolutionInfo* pSolution, ReflectionDatabase* pDatabase )
             : m_pTU( nullptr )
             , m_pDatabase( pDatabase )
-            , m_pCurrentEntry( nullptr )
+            , m_pParentReflectedType( nullptr )
             , m_inEngineNamespace( false )
             , m_pSolution( pSolution )
         {
@@ -97,9 +84,9 @@ namespace EE::TypeSystem::Reflection
 
         void LogError( char const* pFormat, ... ) const;
         char const* GetErrorMessage() const { return m_errorMessage.c_str(); }
-        inline bool ErrorOccured() const { return !m_errorMessage.empty(); }
+        inline bool HasErrorOccured() const { return !m_errorMessage.empty(); }
 
-        bool ShouldVisitHeader( HeaderID headerID ) const;
+        HeaderInfo const* GetHeaderInfo( HeaderID headerID ) const;
 
         void Reset( CXTranslationUnit* pTU );
         void PushNamespace( String const& name );
@@ -112,34 +99,45 @@ namespace EE::TypeSystem::Reflection
         bool IsInEngineNamespace() const { return m_inEngineNamespace; }
         bool IsEngineNamespace( String const& namespaceString ) const;
 
-        // Type Registration
-        void AddFoundTypeRegistrationMacro( TypeRegistrationMacro const& foundMacro ) { m_typeRegistrationMacros.push_back( foundMacro ); }
-        void AddFoundRegisteredPropertyMacro( RegisteredPropertyMacro const& foundMacro ) { m_registeredPropertyMacros.push_back( foundMacro ); }
-        bool ShouldRegisterType( CXCursor const& cr, TypeRegistrationMacro* pMacro = nullptr );
+        void AddFoundReflectionMacro( ReflectionMacro const& foundMacro );
+
+        // Try to find a reflection macro for a property
+        // If we found a macro we will remove it from the list of macros to reduce the cost of future searches
+        // Returns true if a macro was found
+        bool GetReflectionMacroForType( HeaderID headerID, CXCursor const& cr, ReflectionMacro& macro );
+
+        // Try to find a reflection macro for a property
+        // If we found a macro we will remove it from the list of macros to reduce the cost of future searches
+        // Returns true if a macro was found
+        bool FindReflectionMacroForProperty( HeaderID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro );
+
+        // Check if we have any orphaned reflection macros
+        // If we have any then we will populate the error message with all the details
+        bool CheckForOrphanedReflectionMacros() const;
 
     public:
 
-        CXTranslationUnit*                  m_pTU;
+        CXTranslationUnit*                                      m_pTU;
 
         // Should we do a full pass or just update the flags?
-        bool                                m_detectDevOnlyTypesAndProperties = false;
+        bool                                                    m_detectDevOnlyTypesAndProperties = false;
 
-        // Per solution
-        SolutionInfo*                       m_pSolution;
-        ReflectionDatabase*                 m_pDatabase;
-        TVector<HeaderID>                   m_headersToVisit;
+        SolutionInfo*                                           m_pSolution;
+        ReflectionDatabase*                                     m_pDatabase;
+        TVector<HeaderToVisit>                                  m_headersToVisit;
 
-        // Per Translation unit
-        void*                               m_pCurrentEntry;
-        TVector<RegisteredPropertyMacro>    m_registeredPropertyMacros;
-        TVector<TypeRegistrationMacro>      m_typeRegistrationMacros;
+        // The current parent/enclosing reflected type
+        void*                                                   m_pParentReflectedType;
 
     private:
 
-        mutable String                      m_errorMessage;
-        TVector<String>                     m_namespaceStack;
-        TVector<String>                     m_structureStack;
-        String                              m_currentNamespace;
-        bool                                m_inEngineNamespace;
+        THashMap<HeaderID, TVector<ReflectionMacro>>            m_typeReflectionMacros;
+        THashMap<HeaderID, TVector<ReflectionMacro>>            m_propertyReflectionMacros;
+
+        mutable String                                          m_errorMessage;
+        TVector<String>                                         m_namespaceStack;
+        TVector<String>                                         m_structureStack;
+        String                                                  m_currentNamespace;
+        bool                                                    m_inEngineNamespace;
     };
 }

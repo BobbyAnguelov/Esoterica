@@ -51,9 +51,9 @@ namespace EE::Render
         Vector lightPosition = Vector::Lerp( cornersMin, cornersMax, 0.5f );
         lightPosition = Vector::Select( lightPosition, cornersMax, Vector::Select0100 ); //force lightPosition to the "back" of the box.
         lightPosition = lightTransform.TransformPoint( lightPosition );   //Light position now in world space.
-        lightTransform.SetTranslation( lightPosition );   //Assign to the lightTransform, now it's positioned above our view frustrum.
+        lightTransform.SetTranslation( lightPosition );   //Assign to the lightTransform, now it's positioned above our view frustum.
 
-        Vector delta = cornersMax - cornersMin;
+        Float3 const delta = ( cornersMax - cornersMin ).ToFloat3();
         float dim = Math::Max( delta.m_x, delta.m_z );
         Math::ViewVolume lightViewVolume( Float2( dim ), FloatRange( 1.0, delta.m_y ), lightTransform.ToMatrix() );
 
@@ -806,7 +806,7 @@ namespace EE::Render
             renderData.m_lightData.m_sunShadowMapMatrix = ComputeShadowMatrix( viewport, pDirectionalLightComponent->GetWorldTransform(), 50.0f/*TODO: configure*/ );
         }
 
-        renderData.m_lightData.m_SunColorRoughnessOneLevel.m_w = 0;
+        renderData.m_lightData.m_SunColorRoughnessOneLevel.SetW0();
         if ( !pWorldSystem->m_registeredGlobalEnvironmentMaps.empty() )
         {
             GlobalEnvironmentMapComponent* pGlobalEnvironmentMapComponent = pWorldSystem->m_registeredGlobalEnvironmentMaps[0];
@@ -815,8 +815,8 @@ namespace EE::Render
                 lightingFlags |= LIGHTING_ENABLE_SKYLIGHT;
                 renderData.m_pSkyboxRadianceTexture = pGlobalEnvironmentMapComponent->GetSkyboxRadianceTexture();
                 renderData.m_pSkyboxTexture = pGlobalEnvironmentMapComponent->GetSkyboxTexture();
-                renderData.m_lightData.m_SunColorRoughnessOneLevel.m_w = Math::Max( Math::Floor( Math::Log2f( (float) renderData.m_pSkyboxRadianceTexture->GetDimensions().m_x ) ) - 1.0f, 0.0f );
-                renderData.m_lightData.m_SunDirIndirectIntensity.m_w = pGlobalEnvironmentMapComponent->GetSkyboxIntensity();
+                renderData.m_lightData.m_SunColorRoughnessOneLevel.SetW( Math::Max( Math::Floor( Math::Log2f( (float) renderData.m_pSkyboxRadianceTexture->GetDimensions().m_x ) ) - 1.0f, 0.0f ) );
+                renderData.m_lightData.m_SunDirIndirectIntensity.SetW( pGlobalEnvironmentMapComponent->GetSkyboxIntensity() );
                 renderData.m_lightData.m_manualExposure = pGlobalEnvironmentMapComponent->GetExposure();
             }
         }
@@ -828,7 +828,7 @@ namespace EE::Render
             EE_ASSERT( lightIndex < s_maxPunctualLights );
             PointLightComponent* pPointLightComponent = pWorldSystem->m_registeredPointLightComponents[i];
             renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr = pPointLightComponent->GetLightPosition();
-            renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr.m_w = Math::Sqr( 1.0f / pPointLightComponent->GetLightRadius() );
+            renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr.SetW( Math::Sqr( 1.0f / pPointLightComponent->GetLightRadius() ) );
             renderData.m_lightData.m_punctualLights[lightIndex].m_dir = Vector::Zero;
             renderData.m_lightData.m_punctualLights[lightIndex].m_color = Vector( pPointLightComponent->GetLightColor() ) * pPointLightComponent->GetLightIntensity();
             renderData.m_lightData.m_punctualLights[lightIndex].m_spotAngles = Vector( -1.0f, 1.0f, 0.0f );
@@ -841,7 +841,7 @@ namespace EE::Render
             EE_ASSERT( lightIndex < s_maxPunctualLights );
             SpotLightComponent* pSpotLightComponent = pWorldSystem->m_registeredSpotLightComponents[i];
             renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr = pSpotLightComponent->GetLightPosition();
-            renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr.m_w = Math::Sqr( 1.0f / pSpotLightComponent->GetLightRadius() );
+            renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr.SetW( Math::Sqr( 1.0f / pSpotLightComponent->GetLightRadius() ) );
             renderData.m_lightData.m_punctualLights[lightIndex].m_dir = -pSpotLightComponent->GetLightDirection();
             renderData.m_lightData.m_punctualLights[lightIndex].m_color = Vector( pSpotLightComponent->GetLightColor() ) * pSpotLightComponent->GetLightIntensity();
             Radians innerAngle = pSpotLightComponent->GetLightInnerUmbraAngle().ToRadians();

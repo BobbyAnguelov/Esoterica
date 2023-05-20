@@ -30,6 +30,8 @@ namespace EE::Player
 
     private:
 
+        void SetCrouchState( ActionContext const& ctx, bool isCrouchEnabled );
+
         void RequestIdle( ActionContext const& ctx );
         void UpdateIdle( ActionContext const& ctx, Vector const& stickInputVector, float stickAmplitude );
 

@@ -1,11 +1,6 @@
 #include "ResourceLoader_PhysicsRagdoll.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
-#include "Engine/Physics/PhysicsSystem.h"
 #include "System/Serialization/BinarySerialization.h"
-
-//-------------------------------------------------------------------------
-
-using namespace physx;
 
 //-------------------------------------------------------------------------
 
@@ -14,12 +9,6 @@ namespace EE::Physics
     RagdollLoader::RagdollLoader()
     {
         m_loadableTypes.push_back( RagdollDefinition::GetStaticResourceTypeID() );
-    }
-
-    void RagdollLoader::SetPhysicsSystemPtr( PhysicsSystem* pPhysicsSystem )
-    {
-        EE_ASSERT( pPhysicsSystem != nullptr && m_pPhysicsSystem == nullptr );
-        m_pPhysicsSystem = pPhysicsSystem;
     }
 
     bool RagdollLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const

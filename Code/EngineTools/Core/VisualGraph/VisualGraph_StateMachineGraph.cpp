@@ -5,7 +5,7 @@
 
 namespace EE::VisualGraph
 {
-    ImColor SM::TransitionConduit::GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
+    ImColor SM::TransitionConduit::GetColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
     {
         if ( visualState == NodeVisualState::Hovered )
         {

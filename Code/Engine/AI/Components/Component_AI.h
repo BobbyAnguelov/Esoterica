@@ -11,7 +11,7 @@ namespace EE::AI
 {
     class EE_ENGINE_API AIComponent : public EntityComponent
     {
-        EE_REGISTER_SINGLETON_ENTITY_COMPONENT( AIComponent );
+        EE_SINGLETON_ENTITY_COMPONENT( AIComponent );
 
     public:
 

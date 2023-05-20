@@ -21,6 +21,10 @@ namespace EE::Animation::GraphNodes
         m_pClipReferenceNode->Initialize( context, initialTime );
         m_pTargetValueNode->Initialize( context );
 
+        m_duration = m_pClipReferenceNode->GetDuration();
+        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+
         //-------------------------------------------------------------------------
 
         m_shouldUpdateWarp = true;

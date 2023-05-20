@@ -32,7 +32,7 @@ namespace EE::AI
             {
                 Vector const boundsMin = navmeshBounds.GetMin();
                 Vector const boundsMax = navmeshBounds.GetMax();
-                Vector const moveGoalPosition( Math::GetRandomFloat( boundsMin.m_x, boundsMax.m_x ), Math::GetRandomFloat( boundsMin.m_y, boundsMax.m_y ), navmeshBounds.GetCenter().m_z );
+                Vector const moveGoalPosition( Math::GetRandomFloat( boundsMin.GetX(), boundsMax.GetX() ), Math::GetRandomFloat( boundsMin.GetY(), boundsMax.GetY() ), navmeshBounds.GetCenter().GetZ() );
 
                 m_moveToAction.Start( ctx, moveGoalPosition );
             }

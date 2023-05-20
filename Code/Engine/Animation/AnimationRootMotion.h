@@ -4,7 +4,7 @@
 #include "System/Math/Transform.h"
 #include "System/Types/Arrays.h"
 #include "System/Types/Color.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ namespace EE::Animation
 
         enum class SamplingMode : uint8_t
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             Delta = 0,  // Just returns the delta between the start and end time
             WorldSpace, // Will return a delta that attempts to move the character to the expected root motion position (assumes root motion transforms are in world space)

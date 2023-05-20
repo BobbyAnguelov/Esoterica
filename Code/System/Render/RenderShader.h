@@ -2,7 +2,7 @@
 
 #include "RenderBuffer.h"
 #include "System/Resource/IResource.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,7 +19,7 @@ namespace EE
             friend class ShaderLoader;
 
             EE_SERIALIZE( m_cbuffers, m_resourceBindings, m_byteCode );
-            EE_REGISTER_RESOURCE( 'shdr', "Render Shader" );
+            EE_RESOURCE( 'shdr', "Render Shader" );
 
         public:
 
@@ -65,7 +65,7 @@ namespace EE
 
         class EE_SYSTEM_API PixelShader : public Shader
         {
-            EE_REGISTER_RESOURCE( 'psdr', "Pixel Shader" );
+            EE_RESOURCE( 'psdr', "Pixel Shader" );
 
         public:
 
@@ -79,7 +79,7 @@ namespace EE
 
         class EE_SYSTEM_API GeometryShader : public Shader
         {
-            EE_REGISTER_RESOURCE( 'gsdr', "Geometry Shader");
+            EE_RESOURCE( 'gsdr', "Geometry Shader");
 
         public:
 
@@ -94,7 +94,7 @@ namespace EE
         class EE_SYSTEM_API VertexShader : public Shader
         {
             EE_SERIALIZE( EE_SERIALIZE_BASE( Shader ), m_vertexLayoutDesc );
-            EE_REGISTER_RESOURCE( 'vsdr', "Vertex Shader" );
+            EE_RESOURCE( 'vsdr', "Vertex Shader" );
 
             friend class RenderDevice;
             friend class ShaderCompiler;
@@ -115,7 +115,7 @@ namespace EE
 
         class EE_SYSTEM_API ComputeShader : public Shader
         {
-            EE_REGISTER_RESOURCE( 'csdr', "Compute Shader" );
+            EE_RESOURCE( 'csdr', "Compute Shader" );
 
             friend class RenderDevice;
             friend class ShaderCompiler;

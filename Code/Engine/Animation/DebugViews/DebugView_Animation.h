@@ -19,7 +19,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API AnimationDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( AnimationDebugView );
+        EE_REFLECT_TYPE( AnimationDebugView );
 
         struct ComponentDebugState
         {

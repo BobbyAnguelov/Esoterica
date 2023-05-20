@@ -119,7 +119,7 @@ namespace EE
         // Project a point in 2D onto a plane. Basically intersects a vertical ray originating from the point with the plane
         inline Vector ProjectPointVertically( Vector const& v )
         {
-            EE_ASSERT( !Math::IsNearZero( GetNormal().m_z ) );
+            EE_ASSERT( !Math::IsNearZero( GetNormal().GetZ() ) );
             Vector Intersection;
             IntersectRay( v, Vector::UnitZ, Intersection );
             return Intersection.GetWithW1();
@@ -129,7 +129,7 @@ namespace EE
         // Note: this operation will change the length of the vector!
         inline Vector ProjectVectorVertically( Vector const& v )
         {
-            EE_ASSERT( !Math::IsNearZero( GetNormal().m_z ) );
+            EE_ASSERT( !Math::IsNearZero( GetNormal().GetZ() ) );
 
             // Get a copy of the plane at a distance of 0, since this operation is done in the plane referential, and not in world space.
             Plane plane = *this;

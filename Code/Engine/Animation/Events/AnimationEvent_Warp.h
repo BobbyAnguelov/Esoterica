@@ -12,7 +12,7 @@ namespace EE::Animation
 {
     class EE_ENGINE_API OrientationWarpEvent final : public Event
     {
-        EE_REGISTER_TYPE( OrientationWarpEvent );
+        EE_REFLECT_TYPE( OrientationWarpEvent );
 
         #if EE_DEVELOPMENT_TOOLS
         virtual InlineString GetDebugText() const override { return "Warp"; }
@@ -23,7 +23,7 @@ namespace EE::Animation
 
     enum class TargetWarpRule : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         WarpXY = 0,
         WarpZ,
@@ -37,7 +37,7 @@ namespace EE::Animation
 
     enum class TargetWarpAlgorithm : uint8_t
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Lerp,
         Hermite,
@@ -49,7 +49,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API TargetWarpEvent final : public Event
     {
-        EE_REGISTER_TYPE( TargetWarpEvent );
+        EE_REFLECT_TYPE( TargetWarpEvent );
 
     public:
 
@@ -62,7 +62,7 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE TargetWarpRule        m_rule = TargetWarpRule::WarpXYZ;
-        EE_EXPOSE TargetWarpAlgorithm   m_algorithm = TargetWarpAlgorithm::Bezier;
+        EE_REFLECT() TargetWarpRule        m_rule = TargetWarpRule::WarpXYZ;
+        EE_REFLECT() TargetWarpAlgorithm   m_algorithm = TargetWarpAlgorithm::Bezier;
     };
 }

@@ -1,44 +1,38 @@
 #if EE_ENABLE_NAVPOWER
 #include "NavPower.h"
-#include "System/Drawing/DebugDrawingSystem.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Navmesh
+namespace EE::Navmesh::NavPower
 {
-    #if EE_DEVELOPMENT_TOOLS
-    void NavpowerRenderer::DrawLineList( bfx::LineSegment const* pLines, uint32_t numLines, bfx::Color const& color )
+    class Allocator final : public bfx::CustomAllocator
     {
-        auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
-        for ( auto i = 0u; i < numLines; i++ )
-        {
-            bfx::LineSegment const& line = pLines[i];
-            ctx.DrawLine( FromBfx( line.m_v0 ), FromBfx( line.m_v1 ), FromBfx( color ), 1.0f, m_depthTestEnabled ? Drawing::EnableDepthTest : Drawing::DisableDepthTest );
-        }
+        virtual void* CustomMalloc( size_t size ) override final { return EE::Alloc( size ); }
+        virtual void* CustomAlignedMalloc( uint32_t alignment, size_t size ) override final { return EE::Alloc( size, alignment ); }
+        virtual void CustomFree( void* ptr ) override final { EE::Free( ptr ); }
+        virtual bool IsThreadSafe() const override final { return true; }
+        virtual const char* GetName() const override { return "NavpowerCustomAllocator"; }
+    };
+
+    Allocator* g_pAllocator = nullptr;
+
+    //-------------------------------------------------------------------------
+
+    void Initialize()
+    {
+        EE_ASSERT( g_pAllocator == nullptr );
+        g_pAllocator = EE::New<Allocator>();
     }
 
-    void NavpowerRenderer::DrawTriList( bfx::Triangle const* pTris, uint32_t numTris, bfx::Color const& color )
+    void Shutdown()
     {
-        auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
-        for ( auto i = 0u; i < numTris; i++ )
-        {
-            bfx::Triangle const& tri = pTris[i];
-            ctx.DrawTriangle( FromBfx( tri.m_v0 ), FromBfx( tri.m_v1 ), FromBfx( tri.m_v2 ), FromBfx( color ), m_depthTestEnabled ? Drawing::EnableDepthTest : Drawing::DisableDepthTest );
-        }
+        EE::Delete( g_pAllocator );
     }
 
-    void NavpowerRenderer::DrawString( bfx::Color const& color, char const* str )
+    bfx::CustomAllocator* GetAllocator()
     {
-        auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
-        ctx.DrawText2D( m_statsPos, str, FromBfx( color ), Drawing::FontSmall );
-        m_statsPos += Float2( 0, 15 );
+        EE_ASSERT( g_pAllocator != nullptr );
+        return g_pAllocator;
     }
-
-    void NavpowerRenderer::DrawString( bfx::Color const& color, bfx::Vector3 const& pos, char const* str )
-    {
-        auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
-        ctx.DrawText3D( FromBfx( pos ), str, FromBfx( color ), Drawing::FontSmall );
-    }
-    #endif
 }
 #endif

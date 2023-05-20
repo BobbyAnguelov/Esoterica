@@ -9,7 +9,7 @@ namespace EE::Animation
 {
     class EE_ENGINE_API GraphDefinition final : public Resource::IResource
     {
-        EE_REGISTER_RESOURCE( 'ag', "Animation Graph" );
+        EE_RESOURCE( 'ag', "Animation Graph" );
         EE_SERIALIZE( m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_rootNodeIdx, m_controlParameterIDs, m_virtualParameterIDs, m_virtualParameterNodeIndices, m_childGraphSlots, m_externalGraphSlots );
 
         friend class GraphDefinitionCompiler;
@@ -75,7 +75,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API GraphVariation final : public Resource::IResource
     {
-        EE_REGISTER_RESOURCE( 'agv', "Animation Graph Variation" );
+        EE_RESOURCE( 'agv', "Animation Graph Variation" );
         EE_SERIALIZE( m_pGraphDefinition, m_dataSet );
 
         friend class AnimationGraphCompiler;

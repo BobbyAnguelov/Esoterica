@@ -338,9 +338,6 @@
     <ClCompile Include="TypeSystem\PropertyPath.cpp">
       <Filter>TypeSystem</Filter>
     </ClCompile>
-    <ClCompile Include="TypeSystem\RegisteredType.cpp">
-      <Filter>TypeSystem</Filter>
-    </ClCompile>
     <ClCompile Include="TypeSystem\TypeDescriptors.cpp">
       <Filter>TypeSystem</Filter>
     </ClCompile>
@@ -359,6 +356,7 @@
     <ClCompile Include="Serialization\TypeSerialization.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="TypeSystem\ReflectedType.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Imgui\ImguiGizmo.h">
@@ -1764,9 +1762,6 @@
     <ClInclude Include="TypeSystem\TypeInfo.h">
       <Filter>TypeSystem</Filter>
     </ClInclude>
-    <ClInclude Include="TypeSystem\RegisteredType.h">
-      <Filter>TypeSystem</Filter>
-    </ClInclude>
     <ClInclude Include="TypeSystem\TypeRegistry.h">
       <Filter>TypeSystem</Filter>
     </ClInclude>
@@ -1779,6 +1774,7 @@
     <ClInclude Include="Serialization\TypeSerialization.h">
       <Filter>Serialization</Filter>
     </ClInclude>
+    <ClInclude Include="TypeSystem\ReflectedType.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\cmdParser\LICENSE">

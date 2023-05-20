@@ -52,6 +52,7 @@ namespace EE::TypeSystem::Reflection
         FileSystem::Path                m_filePath;
         uint64_t                        m_timestamp = 0;
         uint64_t                        m_checksum = 0;
+        TVector<String>                 m_fileContents;
     };
 
     //-------------------------------------------------------------------------

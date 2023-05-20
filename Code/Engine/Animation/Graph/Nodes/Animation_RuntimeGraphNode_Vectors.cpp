@@ -39,19 +39,19 @@ namespace EE::Animation::GraphNodes
             switch ( pSettings->m_desiredInfo )
             {
                 case Info::X:
-                m_value = inputVector.m_x;
+                m_value = inputVector.GetX();
                 break;
 
                 case Info::Y:
-                m_value = inputVector.m_y;
+                m_value = inputVector.GetY();
                 break;
 
                 case Info::Z:
-                m_value = inputVector.m_z;
+                m_value = inputVector.GetZ();
                 break;
 
                 case Info::W:
-                m_value = inputVector.m_w;
+                m_value = inputVector.GetW();
                 break;
 
                 case Info::Length:
@@ -103,7 +103,7 @@ namespace EE::Animation::GraphNodes
     void VectorCreateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VectorCreateNode>( context, options );
-        context.SetOptionalNodePtrFromIndex( m_inputVectorValueNodeIdx, pNode->m_pInputXValueNode );
+        context.SetOptionalNodePtrFromIndex( m_inputVectorValueNodeIdx, pNode->m_pInputVectorValueNode );
         context.SetOptionalNodePtrFromIndex( m_inputValueXNodeIdx, pNode->m_pInputXValueNode );
         context.SetOptionalNodePtrFromIndex( m_inputValueYNodeIdx, pNode->m_pInputYValueNode );
         context.SetOptionalNodePtrFromIndex( m_inputValueZNodeIdx, pNode->m_pInputZValueNode );
@@ -180,17 +180,17 @@ namespace EE::Animation::GraphNodes
 
             if ( m_pInputXValueNode != nullptr )
             {
-                m_value.m_x = m_pInputXValueNode->GetValue<float>( context );
+                m_value.SetX( m_pInputXValueNode->GetValue<float>( context ) );
             }
 
             if ( m_pInputYValueNode != nullptr )
             {
-                m_value.m_y = m_pInputYValueNode->GetValue<float>( context );
+                m_value.SetY( m_pInputYValueNode->GetValue<float>( context ) );
             }
 
             if ( m_pInputZValueNode != nullptr )
             {
-                m_value.m_z = m_pInputZValueNode->GetValue<float>( context );
+                m_value.SetZ( m_pInputZValueNode->GetValue<float>( context ) );
             }
         }
 

@@ -45,7 +45,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             m_previousTime = m_currentTime = 0.0f;
-            m_duration = 0.0f;
+            m_duration = s_oneFrameDuration;
         }
 
         m_isFirstUpdate = true;
@@ -90,12 +90,12 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult result;
         if ( m_pGraphInstance == nullptr )
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
         else
         {
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene, m_isFirstUpdate );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, m_isFirstUpdate );
             m_isFirstUpdate = false;
             TransferGraphInstanceData( context, result );
         }
@@ -110,12 +110,12 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult result;
         if ( m_pGraphInstance == nullptr )
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
         else
         {
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsScene, updateRange, m_isFirstUpdate );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, updateRange, m_isFirstUpdate );
             m_isFirstUpdate = false;
             TransferGraphInstanceData( context, result );
         }

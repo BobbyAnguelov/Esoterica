@@ -45,9 +45,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API Entity : public IRegisteredType
+    class EE_ENGINE_API Entity : public IReflectedType
     {
-        EE_REGISTER_TYPE( Entity );
+        EE_REFLECT_TYPE( Entity );
 
         friend EntityModel::Serializer;
         friend EntityModel::EntityMap;
@@ -361,23 +361,23 @@ namespace EE
 
     protected:
 
-        EntityID                                        m_ID = EntityID::Generate();                                            // The unique ID of this entity ( globally unique and generated at runtime )
-        EntityMapID                                     m_mapID;                                                                // The ID of the map that owns this entity
-        EE_REGISTER StringID                            m_name;                                                                 // The name of the entity, only unique within the context of a map
-        Status                                          m_status = Status::Unloaded;
-        UpdateRegistrationStatus                        m_updateRegistrationStatus = UpdateRegistrationStatus::Unregistered;    // Is this entity registered for frame updates
+        EntityID                                            m_ID = EntityID::Generate();                                            // The unique ID of this entity ( globally unique and generated at runtime )
+        EntityMapID                                         m_mapID;                                                                // The ID of the map that owns this entity
+        EE_REFLECT( "IsToolsReadOnly" : true ) StringID     m_name;                                                                 // The name of the entity, only unique within the context of a map
+        Status                                              m_status = Status::Unloaded;
+        UpdateRegistrationStatus                            m_updateRegistrationStatus = UpdateRegistrationStatus::Unregistered;    // Is this entity registered for frame updates
 
-        TVector<EntitySystem*>                          m_systems;
-        TVector<EntityComponent*>                       m_components;
-        SystemUpdateList                                m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
+        TVector<EntitySystem*>                              m_systems;
+        TVector<EntityComponent*>                           m_components;
+        SystemUpdateList                                    m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
 
-        SpatialEntityComponent*                         m_pRootSpatialComponent = nullptr;                                      // This spatial component defines our world position
-        TVector<Entity*>                                m_attachedEntities;                                                     // The list of entities that are attached to this entity
-        Entity*                                         m_pParentSpatialEntity = nullptr;                                       // The parent entity we are attached to
-        EE_EXPOSE StringID                              m_parentAttachmentSocketID;                                             // The socket that we are attached to on the parent
-        bool                                            m_isSpatialAttachmentCreated = false;                                   // Has the actual component-to-component attachment been created
+        SpatialEntityComponent*                             m_pRootSpatialComponent = nullptr;                                      // This spatial component defines our world position
+        TVector<Entity*>                                    m_attachedEntities;                                                     // The list of entities that are attached to this entity
+        Entity*                                             m_pParentSpatialEntity = nullptr;                                       // The parent entity we are attached to
+        EE_REFLECT() StringID                               m_parentAttachmentSocketID;                                             // The socket that we are attached to on the parent
+        bool                                                m_isSpatialAttachmentCreated = false;                                   // Has the actual component-to-component attachment been created
 
-        TVector<EntityInternalStateAction>              m_deferredActions;                                                      // The set of internal entity state changes that need to be executed
-        Threading::RecursiveMutex                       m_internalStateMutex;                                                   // A mutex that needs to be lock due to internal state changes
+        TVector<EntityInternalStateAction>                  m_deferredActions;                                                      // The set of internal entity state changes that need to be executed
+        Threading::RecursiveMutex                           m_internalStateMutex;                                                   // A mutex that needs to be lock due to internal state changes
     };
  }

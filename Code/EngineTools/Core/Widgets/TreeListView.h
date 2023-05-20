@@ -39,22 +39,28 @@ namespace EE
         // Used by default for sorting
         virtual StringID GetNameID() const = 0;
 
-        // The friendly display name printed in the UI (generally the same as the nameID)
-        // This is separate from the name since we might want to add an icon or other decoration to the display name without changing the name
-        virtual String GetDisplayName() const 
-        {
-            StringID const nameID = GetNameID();
-            return nameID.IsValid() ? nameID.c_str() : "!!! Invalid Name !!!";
-        }
-        
-        // The color that the display name should be printed in
-        virtual ImVec4 GetDisplayColor( ItemState state ) const;
-
         // Does this item have a context menu?
         virtual bool HasContextMenu() const { return false; }
 
         // Can this item be set as the active item (note: this is different from the selected item)
         virtual bool IsActivatable() const { return false; }
+
+        // Visuals
+        //-------------------------------------------------------------------------
+
+        // The friendly display name printed in the UI (generally the same as the nameID)
+        // This is separate from the name since we might want to add an icon or other decoration to the display name without changing the name
+        virtual String GetDisplayName() const
+        {
+            StringID const nameID = GetNameID();
+            return nameID.IsValid() ? nameID.c_str() : "!!! Invalid Name !!!";
+        }
+
+        // The color that the display name should be printed in
+        virtual ImVec4 GetDisplayColor( ItemState state ) const;
+
+        // Is this a header item (i.e. should be framed)
+        virtual bool IsHeader() const { return false; }
 
         // Get the tooltip for this item if it has one
         virtual char const* GetTooltipText() const { return nullptr; }

@@ -126,7 +126,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         return result;
@@ -150,7 +150,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         return result;
@@ -293,7 +293,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         return result;
@@ -317,7 +317,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         return result;

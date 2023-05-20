@@ -23,7 +23,7 @@ namespace EE::Input
 
     public:
 
-        EE_SYSTEM_ID( InputSystem );
+        EE_SYSTEM( InputSystem );
 
         static MouseInputState const s_emptyMouseState;
         static KeyboardInputState const s_emptyKeyboardState;

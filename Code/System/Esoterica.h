@@ -57,16 +57,14 @@ using nullptr_t = decltype( nullptr );
     //-------------------------------------------------------------------------
 
     #define EE_STATIC_ASSERT( cond, error ) static_assert( cond, error )
-    #define EE_TRACE_ASSERT( msg ) { EE_TRACE_MSG( msg ); EE_HALT(); }
-    #define EE_UNIMPLEMENTED_FUNCTION() EE_TRACE_ASSERT("Function not implemented!\n")
-    #define EE_UNREACHABLE_CODE() EE_TRACE_ASSERT("Unreachable code encountered!\n")
+    #define EE_TRACE_ASSERT( msgFormat, ... ) { EE_TRACE_MSG( msgFormat, __VA_ARGS__ ); EE_HALT(); }
+    #define EE_UNIMPLEMENTED_FUNCTION() EE_TRACE_ASSERT( "Function not implemented!" )
+    #define EE_UNREACHABLE_CODE() EE_TRACE_ASSERT( "Unreachable code encountered!" )
 
 #else
 
     // Platform specific, need to be defined in Platform/Defines_XXX.h
-
     #define EE_ASSERT( cond ) do { (void)sizeof( cond );} while (0)
-    #define EE_TRACE_MSG_WIN32( msg )
     #define EE_BREAK()
     #define EE_HALT()
 
@@ -77,8 +75,7 @@ using nullptr_t = decltype( nullptr );
     //-------------------------------------------------------------------------
 
     #define EE_STATIC_ASSERT( cond, error )
-    #define EE_TRACE_MSG( msg ) 
-    #define EE_TRACE_ASSERT( msg )
+    #define EE_TRACE_MSG( ... )
     #define EE_UNIMPLEMENTED_FUNCTION()
     #define EE_UNREACHABLE_CODE()
 #endif

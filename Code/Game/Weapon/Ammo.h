@@ -8,7 +8,7 @@
 namespace EE
 {
     class EntityWorldUpdateContext;
-    namespace Physics { class Scene; }
+    namespace Physics { class PhysicsWorld; }
 }
 
 namespace EE::Weapon
@@ -31,7 +31,7 @@ namespace EE::Weapon
     public:
 
         EntityWorldUpdateContext const* m_pEntityWorldUpdateContext = nullptr;
-        Physics::Scene* m_pPhysicsScene = nullptr;
+        Physics::PhysicsWorld* m_pPhysicsWorld = nullptr;
     };
 
     //-------------------------------------------------------------------------

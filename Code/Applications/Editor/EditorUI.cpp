@@ -86,6 +86,9 @@ namespace EE
         m_pMapEditor->Initialize( context );
         m_workspaces.emplace_back( m_pMapEditor );
 
+        m_gamePreviewStartRequestEventBindingID = m_pMapEditor->OnGamePreviewStartRequested().Bind( [this] ( UpdateContext const& context ) { CreateGamePreviewWorkspace( context ); } );
+        m_gamePreviewStopRequestEventBindingID = m_pMapEditor->OnGamePreviewStopRequested().Bind( [this] ( UpdateContext const& context ) { DestroyGamePreviewWorkspace( context ); } );
+
         // Load startup map
         if ( m_startupMapResourceID.IsValid() )
         {
@@ -98,6 +101,9 @@ namespace EE
     {
         // Map Editor
         //-------------------------------------------------------------------------
+
+        m_pMapEditor->OnGamePreviewStartRequested().Unbind( m_gamePreviewStartRequestEventBindingID );
+        m_pMapEditor->OnGamePreviewStopRequested().Unbind( m_gamePreviewStopRequestEventBindingID );
 
         EE_ASSERT( m_pMapEditor != nullptr );
         m_pMapEditor = nullptr;
@@ -173,13 +179,6 @@ namespace EE
                     ImGui::MenuItem( "Resource Browser", nullptr, &m_isResourceBrowserWindowOpen );
                     ImGui::MenuItem( "Resource System Overview", nullptr, &m_isResourceOverviewWindowOpen );
                     ImGui::MenuItem( "Resource Log", nullptr, &m_isResourceLogWindowOpen );
-                    ImGui::EndMenu();
-                }
-
-                ImGui::SameLine();
-                if ( ImGui::BeginMenu( "Physics" ) )
-                {
-                    ImGui::MenuItem( "Physics Material DB", nullptr, &m_isPhysicsMaterialDatabaseWindowOpen );
                     ImGui::EndMenu();
                 }
 
@@ -284,7 +283,7 @@ namespace EE
 
         auto TitleBarMidContents = [this, &context] ()
         {
-            DrawTitleBarGamePreviewControls( context );
+            // Do Nothing
         };
 
         auto TitleBarRightContents = [this, &context] ()
@@ -363,12 +362,6 @@ namespace EE
         {
             ImGui::SetNextWindowClass( &m_editorWindowClass );
             m_isSystemLogWindowOpen = m_systemLogView.Draw( context );
-        }
-
-        if ( m_isPhysicsMaterialDatabaseWindowOpen )
-        {
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            m_isPhysicsMaterialDatabaseWindowOpen = Physics::PhysicsDebugView::DrawMaterialDatabaseView( context );
         }
 
         if ( m_isImguiDemoWindowOpen )
@@ -699,8 +692,6 @@ namespace EE
         ImGuiDockNodeFlags const dockFlags = shouldDrawWindowContents ? ImGuiDockNodeFlags_None : ImGuiDockNodeFlags_KeepAliveOnly;
         ImGui::DockSpace( dockspaceID, ImGui::GetContentRegionAvail(), dockFlags, &workspaceWindowClass );
 
-        ImGui::End();
-
         //-------------------------------------------------------------------------
         // Draw workspace contents
         //-------------------------------------------------------------------------
@@ -732,6 +723,13 @@ namespace EE
         }
 
         pWorkspace->SetCameraUpdateEnabled( enableCameraUpdate );
+
+        //-------------------------------------------------------------------------
+
+        // End the workspace window here so that it is still in the window stack so that popups can get the correct viewport
+        ImGui::End();
+
+        //-------------------------------------------------------------------------
 
         return isTabOpen;
     }
@@ -878,6 +876,29 @@ namespace EE
             ImGuiX::ColoredIconButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, ImGuiX::ImColors::Yellow, EE_ICON_KANGAROO, "Test", ImVec2( 100, 0 ) );
 
             ImGuiX::FlatIconButton( EE_ICON_HOME, "Home", ImGuiX::ImColors::RoyalBlue, ImVec2( 100, 0 ) );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::AlignTextToFramePadding();
+            ImGuiX::SameLineSeparator(20);
+
+            ImGui::SameLine(0,0);
+            ImGui::Text( "Test" );
+
+            ImGui::SameLine( 0, 0 );
+            ImGuiX::SameLineSeparator();
+
+            ImGui::SameLine( 0, 0 );
+            ImGui::Text( "Test" );
+
+            ImGui::SameLine( 0, 0 );
+            ImGuiX::SameLineSeparator( 40 );
+
+            ImGui::SameLine( 0, 0 );
+            ImGui::Text( "Test" );
+
+            ImGui::SameLine( 0, 0 );
+            ImGuiX::SameLineSeparator();
         }
         ImGui::End();
     }

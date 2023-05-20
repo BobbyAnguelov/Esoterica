@@ -11,7 +11,7 @@ namespace EE::Animation
 {
     struct EE_ENGINETOOLS_API BoneMaskResourceDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( BoneMaskResourceDescriptor );
+        EE_REFLECT_TYPE( BoneMaskResourceDescriptor );
 
         virtual bool IsValid() const override { return m_skeleton.IsSet(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
@@ -27,7 +27,10 @@ namespace EE::Animation
 
     public:
 
-        EE_EXPOSE TResourcePtr<Skeleton>                    m_skeleton = nullptr;
-        EE_REGISTER TVector<float>                          m_boneWeights;
+        EE_REFLECT()
+        TResourcePtr<Skeleton>                  m_skeleton = nullptr;
+
+        EE_REFLECT( "IsToolsReadOnly" : true )
+        TVector<float>                          m_boneWeights;
     };
 }

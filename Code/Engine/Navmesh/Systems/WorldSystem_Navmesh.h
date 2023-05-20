@@ -16,9 +16,11 @@ namespace EE { struct AABB; }
 
 //-------------------------------------------------------------------------
 
+
 namespace EE::Navmesh
 {
     class NavmeshComponent;
+    namespace Navpower { class Renderer; }
 
     //-------------------------------------------------------------------------
 
@@ -39,7 +41,7 @@ namespace EE::Navmesh
 
     public:
 
-        EE_REGISTER_ENTITY_WORLD_SYSTEM( NavmeshWorldSystem, RequiresUpdate( UpdateStage::Physics ) );
+        EE_ENTITY_WORLD_SYSTEM( NavmeshWorldSystem, RequiresUpdate( UpdateStage::Physics ) );
 
     public:
 
@@ -64,13 +66,18 @@ namespace EE::Navmesh
 
         void UpdateSystem( EntityWorldUpdateContext const& ctx ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        bool IsDebugRendererDepthTestEnabled() const;
+        void SetDebugRendererDepthTestState( bool isDepthTestingEnabled );
+        #endif
+
     private:
 
         #if EE_ENABLE_NAVPOWER
         bfx::Instance*                                  m_pInstance = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
-        NavpowerRenderer                                m_renderer;
+        Navpower::Renderer*                             m_pRenderer = nullptr;
         #endif
 
         #endif

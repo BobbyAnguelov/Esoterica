@@ -1,41 +1,45 @@
 #include "PhysicsQuery.h"
-#include "Engine/Entity/EntityComponent.h"
-#include <PxRigidActor.h>
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    physx::PxQueryHitType::Enum QueryFilter::preFilter( physx::PxFilterData const& filterData, physx::PxShape const* pShape, physx::PxRigidActor const* pActor, physx::PxHitFlags& queryFlags )
+    void QueryRules::Reset()
     {
-        for ( auto const& ignoredComponentID : m_ignoredComponents )
-        {
-            auto pOwnerComponent = reinterpret_cast<EntityComponent const*>( pActor->userData );
-            if ( pOwnerComponent->GetID() == ignoredComponentID )
-            {
-                return physx::PxQueryHitType::eNONE;
-            }
-        }
+        m_collidesWithMask = 0;
+        m_ignoredComponents.clear();
+        m_ignoredEntities.clear();
+        m_allowMultipleHits = false;
 
-        //-------------------------------------------------------------------------
-
-        for ( auto const& ignoredEntityID : m_ignoredEntities )
-        {
-            auto pOwnerComponent = reinterpret_cast<EntityComponent const*>( pActor->userData );
-            if ( pOwnerComponent->GetEntityID() == ignoredEntityID )
-            {
-                return physx::PxQueryHitType::eNONE;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        return physx::PxQueryHitType::eBLOCK;
+        UpdateInternals();
     }
 
-    physx::PxQueryHitType::Enum QueryFilter::postFilter( physx::PxFilterData const& filterData, physx::PxQueryHit const& hit )
+    void QueryRules::UpdateInternals()
     {
-        EE_UNREACHABLE_CODE(); // Not currently used
-        return physx::PxQueryHitType::eBLOCK;
+        // Hit Flags - Only relevant for casts/sweeps
+        //-------------------------------------------------------------------------
+
+        m_hitFlags = physx::PxHitFlag::eDEFAULT | physx::PxHitFlag::eMTD;
+
+        // Filter Data
+        //-------------------------------------------------------------------------
+
+        m_queryFilterData.data.word0 = m_collidesWithMask; // Word 0 is the collision mask for queries
+        m_queryFilterData.flags = physx::PxQueryFlag::ePREFILTER;
+
+        switch ( m_mobilityFilter )
+        {
+            case StaticAndDynamic:
+            m_queryFilterData.flags |= ( physx::PxQueryFlag::eSTATIC | physx::PxQueryFlag::eDYNAMIC );
+            break;
+
+            case OnlyStatic:
+            m_queryFilterData.flags |= physx::PxQueryFlag::eSTATIC;
+            break;
+
+            case OnlyDynamic:
+            m_queryFilterData.flags |= physx::PxQueryFlag::eDYNAMIC;
+            break;
+        }
     }
 }

@@ -297,7 +297,7 @@ namespace EE::Serialization
 
         //-------------------------------------------------------------------------
 
-        static bool ReadType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& currentJsonValue, TypeID typeID, IRegisteredType* pTypeData )
+        static bool ReadType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& currentJsonValue, TypeID typeID, IReflectedType* pTypeData )
         {
             EE_ASSERT( !IsCoreType( typeID ) );
 
@@ -408,12 +408,12 @@ namespace EE::Serialization
             }
             else // Complex Type
             {
-                return ReadType( typeRegistry, currentJsonValue, propertyInfo.m_typeID, (IRegisteredType*) pPropertyInstance );
+                return ReadType( typeRegistry, currentJsonValue, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
             }
         }
     };
 
-    bool ReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, IRegisteredType* pTypeInstance )
+    bool ReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, IReflectedType* pTypeInstance )
     {
         if ( !typeObjectValue.IsObject() )
         {
@@ -430,7 +430,7 @@ namespace EE::Serialization
         return NativeTypeReader::ReadType( typeRegistry, typeObjectValue, pTypeInstance->GetTypeID(), pTypeInstance );
     }
 
-    bool ReadNativeTypeFromString( TypeRegistry const& typeRegistry, String const& jsonString, IRegisteredType* pTypeInstance )
+    bool ReadNativeTypeFromString( TypeRegistry const& typeRegistry, String const& jsonString, IReflectedType* pTypeInstance )
     {
         EE_ASSERT( !jsonString.empty() && pTypeInstance != nullptr );
 
@@ -443,7 +443,7 @@ namespace EE::Serialization
 
     struct NativeTypeWriter
     {
-        static void WriteType( TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer, String& scratchBuffer, TypeID typeID, IRegisteredType const* pTypeInstance, bool createJsonObject = true )
+        static void WriteType( TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer, String& scratchBuffer, TypeID typeID, IReflectedType const* pTypeInstance, bool createJsonObject = true )
         {
             EE_ASSERT( !IsCoreType( typeID ) );
             auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
@@ -523,33 +523,33 @@ namespace EE::Serialization
             }
             else
             {
-                WriteType( typeRegistry, writer, scratchBuffer, propertyInfo.m_typeID, (IRegisteredType*) pPropertyInstance );
+                WriteType( typeRegistry, writer, scratchBuffer, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
             }
         }
     };
 
-    void WriteNativeType( TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, Serialization::JsonWriter& writer )
+    void WriteNativeType( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer )
     {
         String scratchBuffer;
         scratchBuffer.reserve( 255 );
         NativeTypeWriter::WriteType( typeRegistry, writer, scratchBuffer, pTypeInstance->GetTypeID(), pTypeInstance );
     }
 
-    void WriteNativeTypeContents( TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, Serialization::JsonWriter& writer )
+    void WriteNativeTypeContents( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer )
     {
         String scratchBuffer;
         scratchBuffer.reserve( 255 );
         NativeTypeWriter::WriteType( typeRegistry, writer, scratchBuffer, pTypeInstance->GetTypeID(), pTypeInstance, false );
     }
 
-    void WriteNativeTypeToString( TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, String& outString )
+    void WriteNativeTypeToString( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString )
     {
         JsonArchiveWriter writer;
         WriteNativeType( typeRegistry, pTypeInstance, *writer.GetWriter() );
         outString = writer.GetStringBuffer().GetString();
     }
 
-    IRegisteredType* TryCreateAndReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
+    IReflectedType* TryCreateAndReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
     {
         auto const typeIDIter = typeObjectValue.FindMember( s_typeIDKey );
         if ( typeIDIter == typeObjectValue.MemberEnd() )
@@ -566,7 +566,7 @@ namespace EE::Serialization
             return nullptr;
         }
 
-        IRegisteredType* pTypeInstance = pTypeInfo->CreateType();
+        IReflectedType* pTypeInstance = pTypeInfo->CreateType();
 
         if ( !ReadNativeType( typeRegistry, typeObjectValue, pTypeInstance ) )
         {

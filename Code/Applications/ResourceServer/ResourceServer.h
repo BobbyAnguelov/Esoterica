@@ -139,7 +139,6 @@ namespace EE::Resource
         ResourceSettings                                            m_settings;
 
         // Compilation Requests
-        CompiledResourceDatabase                                    m_compiledResourceDatabase;
         TVector<CompilationRequest*>                                m_requests;
         Threading::LockFreeQueue<CompilationTask*>                  m_completedTasks;
         std::atomic<int64_t>                                        m_numScheduledTasks = 0;

@@ -11,7 +11,7 @@
 namespace EE
 {
     class EntityComponent;
-    namespace Physics { class CharacterComponent; class Scene; }
+    namespace Physics { class CharacterComponent; class PhysicsWorld; }
     namespace Input { class InputState; }
     namespace Animation { class GraphController; }
 }
@@ -22,7 +22,6 @@ namespace EE::Player
 {
     class MainPlayerComponent;
     class AnimationController;
-    class CharacterPhysicsController;
     class CameraController;
 
     //-------------------------------------------------------------------------
@@ -67,11 +66,10 @@ namespace EE::Player
 
         EntityWorldUpdateContext const*             m_pEntityWorldUpdateContext = nullptr;
         Input::InputState const*                    m_pInputState = nullptr;
-        Physics::Scene*                             m_pPhysicsScene = nullptr;
+        Physics::PhysicsWorld*                      m_pPhysicsWorld = nullptr;
 
         MainPlayerComponent*                        m_pPlayerComponent = nullptr;
         Physics::CharacterComponent*                m_pCharacterComponent = nullptr;
-        CharacterPhysicsController*                 m_pCharacterController = nullptr;
         CameraController*                           m_pCameraController = nullptr;
         AnimationController*                        m_pAnimationController = nullptr;
         TInlineVector<EntityComponent*, 10>         m_components;

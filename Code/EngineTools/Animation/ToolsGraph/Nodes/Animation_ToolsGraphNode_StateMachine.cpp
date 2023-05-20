@@ -151,6 +151,7 @@ namespace EE::Animation::GraphNodes
                     //-------------------------------------------------------------------------
 
                     transitionSettings.m_transitionNodeIdx = CompileTransition( context, pTransitionNode, IDToCompiledNodeIdxMap[endStateID] );
+                    transitionSettings.m_canBeForced = pTransitionNode->m_canBeForced;
                     if ( transitionSettings.m_transitionNodeIdx == InvalidIndex )
                     {
                         return false;
@@ -353,10 +354,9 @@ namespace EE::Animation::GraphNodes
         pSettings->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
 
         //-------------------------------------------------------------------------
-        
+
         pSettings->m_transitionOptions.ClearAllFlags();
         pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ClampDuration, pTransitionNode->m_clampDurationToSource );
-        pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ForcedTransitionAllowed, pTransitionNode->m_canBeForced );
 
         switch ( pTransitionNode->m_timeMatchMode )
         {

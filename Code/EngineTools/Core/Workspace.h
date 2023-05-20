@@ -76,14 +76,8 @@ namespace EE
         // Does this workspace have a toolbar?
         virtual bool HasWorkspaceToolbar() const { return true; }
 
-        // Does this workspace's viewport have the default items (save/undo/redo)?
-        virtual bool HasWorkspaceToolbarDefaultItems() const { return true; }
-
-        // Draw any toolbar buttons that this workspace needs
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) {}
-
-        // Draws the workspace toolbar menu (not user overridable as this draws the shared default items)
-        void DrawWorkspaceToolbar( UpdateContext const& context );
+        // Draws the workspace toolbar menu - by default will draw the default items and descriptor items
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context );
 
         // Does this workspace operate on a resource descriptor?
         inline bool IsADescriptorWorkspace() const { return m_descriptorID.IsValid(); }
@@ -103,9 +97,6 @@ namespace EE
         // Get the viewport window name/ID - Needs to be unique per workspace instance!
         inline char const* GetViewportWindowID() const { EE_ASSERT( !m_viewportWindowID.empty() ); return m_viewportWindowID.c_str(); }
 
-        // Does this workspace's viewport have a toolbar?
-        virtual bool HasViewportToolbar() const { return false; }
-
         // Should we draw the time control widget in the viewport toolbar
         virtual bool HasViewportToolbarTimeControls() const { return false; }
 
@@ -114,9 +105,6 @@ namespace EE
 
         // Called within the context of a large overlay window allowing you to draw helpers and widgets over a viewport
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) {}
-
-        // Draw the viewport toolbar
-        virtual void DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport ) {}
 
         // Draw the viewport for this workspace - returns true if this viewport is currently focused
         bool DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass );
@@ -215,7 +203,7 @@ namespace EE
         void ClearDirty() { m_isDirty = false; }
 
         // Has any modifications been made to this file?
-        virtual bool IsDirty() const { return m_isDirty; }
+        bool IsDirty() const { return m_isDirty; }
 
         // Should we always allow saving?
         virtual bool AlwaysAllowSaving() const { return false; }
@@ -243,6 +231,15 @@ namespace EE
         // Set the workspace tab-title
         void SetDisplayName( String const& name );
 
+        // Menu
+        //-------------------------------------------------------------------------
+
+        // Draw the common toolbar items (save, undo, redo)
+        void DrawWorkspaceToolBar_Default();
+
+        // Draw toolbar items for descriptor workspaces
+        void DrawWorkspaceToolBar_Descriptor();
+
         // Viewport
         //-------------------------------------------------------------------------
 
@@ -253,13 +250,25 @@ namespace EE
         virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) {}
 
         // Draws the viewport toolbar
-        void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport );
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport );
 
-        // Begin a toolbar group
+        // Begin a toolbar group - You need to call end whether or not this returns true (match imgui child window pattern)
         bool BeginViewportToolbarGroup( char const* pGroupID, ImVec2 groupSize, ImVec2 const& padding = ImVec2( 4.0f, 4.0f ) );
 
-        // End a toolbar group
+        // End a toolbar group, always call this if you called "BeginViewportToolbarGroup"
         void EndViewportToolbarGroup();
+
+        // Creates a viewport drop down 
+        void DrawViewportToolbarCombo( char const* pID, char const* pLabel, char const* pTooltip, TFunction<void()> const& function, float width = -1 );
+
+        // Creates a fixed width viewport drop down with an icon as a label
+        void DrawViewportToolbarComboIcon( char const* pID, char const* pIcon, char const* pTooltip, TFunction<void()> const& function ) { DrawViewportToolbarCombo( pID, pIcon, pTooltip, function, 48 ); }
+
+        // Draw the common viewport toolbar items (rendering/camera/etc...)
+        void DrawViewportToolBar_Common();
+
+        // Draw the viewport time controls toolbar
+        void DrawViewportToolBar_TimeControls();
 
         // Resource Helpers
         //-------------------------------------------------------------------------
@@ -300,6 +309,10 @@ namespace EE
         // If the descriptor fails to reload, this is considered a fatal error and this function will not be called and the workspace will be closed instead
         virtual void OnHotReloadComplete() {}
 
+        // Blocking call to force a recompile of a resource outside of the regular resource server flow, this is needed when you need to ensure a resource has been recompiled in advance of loading
+        // Will also flag the resource for hot-reload if there are any current users
+        bool RequestImmediateResourceCompilation( ResourceID const& resourceID );
+
         // Entity Helpers
         //-------------------------------------------------------------------------
 
@@ -339,7 +352,7 @@ namespace EE
 
         // Draws a separate descriptor property grid editor window - return true if focused
         bool DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow = true );
-    
+
 private:
 
         Workspace& operator=( Workspace const& ) = delete;
@@ -399,7 +412,7 @@ private:
 
     class ResourceDescriptorUndoableAction final : public IUndoableAction
     {
-        EE_REGISTER_TYPE( IUndoableAction );
+        EE_REFLECT_TYPE( IUndoableAction );
 
     public:
 
@@ -484,7 +497,6 @@ private:
         }
 
         virtual bool HasViewportWindow() const override { return true; }
-        virtual bool HasViewportToolbar() const override { return true; }
 
         // Resource Status
         inline bool IsLoading() const { return m_workspaceResource.IsLoading(); }
@@ -502,7 +514,7 @@ private:
     //-------------------------------------------------------------------------
     // Resource Workspace Factory
     //-------------------------------------------------------------------------
-    // Used to spawn the appropriate factory
+    // Used to spawn the appropriate workspace
 
     class EE_ENGINETOOLS_API ResourceWorkspaceFactory : public TGlobalRegistryBase<ResourceWorkspaceFactory>
     {

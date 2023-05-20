@@ -379,8 +379,9 @@ namespace EE::RawAssets
                     TVector<Transform> bindPose;
                     for ( auto i = 0; i < skins[0].m_pSkin->joints_count; i++ )
                     {
-                        Matrix m;
-                        cgltf_accessor_read_float( skins[0].m_pSkin->inverse_bind_matrices, i, &m[0][0], 16 );
+                        float matrixValues[16];
+                        cgltf_accessor_read_float( skins[0].m_pSkin->inverse_bind_matrices, i, matrixValues, 16 );
+                        Matrix m( matrixValues );
 
                         Transform t( m.GetInverse() );
                         bindPose.emplace_back( t );

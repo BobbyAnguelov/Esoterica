@@ -16,23 +16,85 @@ namespace EE::TypeSystem::Reflection
         }
     }
 
+    // TODO: Support block comments
+    static String TryToParseMacro( TVector<String> const& fileContents, int32_t parsedMacroLineNumber )
+    {
+        // Clang seems to have one less line of code in its parsed data
+        int32_t const lineNumber = parsedMacroLineNumber - 1;
+
+        //-------------------------------------------------------------------------
+
+        String macroComment;
+
+        auto SanitizeCommentString = [] ( String& comment )
+        {
+            StringUtils::RemoveAllOccurrencesInPlace( comment, "\r" );
+            comment.ltrim();
+            comment.rtrim();
+        };
+
+        // Check same line as the macro
+        //-------------------------------------------------------------------------
+        // This takes precedence over comments placed above
+
+        size_t const sameLineFoundPos = fileContents[lineNumber].find_first_of( "//" );
+        if ( sameLineFoundPos != String::npos )
+        {
+            if ( !macroComment.empty() )
+            {
+                macroComment += "\\n";
+            }
+
+            macroComment = fileContents[lineNumber].substr( sameLineFoundPos + 2, fileContents[lineNumber].length() - sameLineFoundPos - 2 );
+            SanitizeCommentString( macroComment );
+            return macroComment;
+        }
+
+        // Check lines directly above the macro
+        //-------------------------------------------------------------------------
+        // TODO: check for other macros, etc....
+
+        if ( lineNumber > 0 )
+        {
+            size_t const foundCommentPos = fileContents[lineNumber - 1].find_first_of( "//" );
+            if ( foundCommentPos != String::npos )
+            {
+                macroComment = fileContents[lineNumber - 1].substr( foundCommentPos + 2, fileContents[lineNumber - 1].length() - foundCommentPos - 2 );
+                SanitizeCommentString( macroComment );
+                return macroComment;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        return macroComment;
+    }
+
     //-------------------------------------------------------------------------
 
-    TypeRegistrationMacro::TypeRegistrationMacro( ReflectionMacro type, CXCursor cursor, CXSourceRange sourceRange )
-        : m_type( type )
+    ReflectionMacro::ReflectionMacro( HeaderInfo const* pHeaderInfo, CXCursor cursor, CXSourceRange sourceRange, ReflectionMacroType type )
+        : m_headerID( pHeaderInfo->m_ID )
+        , m_type( type )
         , m_position( sourceRange.begin_int_data )
     {
-        EE_ASSERT( m_type < ReflectionMacro::NumMacros );
+        EE_ASSERT( m_type < ReflectionMacroType::NumMacros );
 
-        if ( type == ReflectionMacro::RegisterTypeResource || type == ReflectionMacro::RegisterResource )
+        clang_getExpansionLocation( clang_getRangeStart( sourceRange ), nullptr, &m_lineNumber, nullptr, nullptr );
+
+        //-------------------------------------------------------------------------
+
+        m_macroComment = TryToParseMacro( pHeaderInfo->m_fileContents, m_lineNumber );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_type == ReflectionMacroType::ReflectProperty || type == ReflectionMacroType::Resource || type == ReflectionMacroType::ReflectedResource )
         {
-            CXTranslationUnit translationUnit = clang_Cursor_getTranslationUnit( cursor );
-
-            // Read the entire source macro text
+            // Read the contents of the macro
             //-------------------------------------------------------------------------
 
             CXToken* tokens = nullptr;
             uint32_t numTokens = 0;
+            CXTranslationUnit translationUnit = clang_Cursor_getTranslationUnit( cursor );
             clang_tokenize( translationUnit, sourceRange, &tokens, &numTokens );
             for ( uint32_t n = 0; n < numTokens; n++ )
             {
@@ -40,14 +102,24 @@ namespace EE::TypeSystem::Reflection
             }
             clang_disposeTokens( translationUnit, tokens, numTokens );
 
-            // Only keep text between '(' && ')'
+            // Check if we have a metadata macro
             //-------------------------------------------------------------------------
 
-            auto const startIdx = m_macroContents.find_first_of( '(' );
-            auto const endIdx = m_macroContents.find_last_of( ')' );
+            size_t const startIdx = m_macroContents.find_first_of( "(" );
+            size_t const endIdx = m_macroContents.find_last_of( ')' );
             if ( startIdx != String::npos && endIdx != String::npos && endIdx > startIdx )
             {
-                m_macroContents = m_macroContents.substr( startIdx + 1, endIdx - startIdx - 1 );
+                // Property macro contents are JSON, so apply some enclosing formatting
+                if ( type == ReflectionMacroType::ReflectProperty )
+                {
+                    m_macroContents = m_macroContents.substr( startIdx, endIdx - startIdx + 1 );
+                    m_macroContents.front() = '{';
+                    m_macroContents.back() = '}';
+                }
+                else // Just keep the contents without the braces
+                {
+                    m_macroContents = m_macroContents.substr( startIdx + 1, endIdx - startIdx - 1 );
+                }
             }
             else
             {
@@ -70,9 +142,15 @@ namespace EE::TypeSystem::Reflection
         m_errorMessage = buffer;
     }
 
-    bool ClangParserContext::ShouldVisitHeader( HeaderID headerID ) const
+    HeaderInfo const* ClangParserContext::GetHeaderInfo( HeaderID headerID ) const
     {
-        return eastl::find( m_headersToVisit.begin(), m_headersToVisit.end(), headerID ) != m_headersToVisit.end();
+        auto foundIter = eastl::find( m_headersToVisit.begin(), m_headersToVisit.end(), headerID );
+        if ( foundIter != m_headersToVisit.end() )
+        {
+            return foundIter->m_pHeaderInfo;
+        }
+
+        return nullptr;
     }
 
     void ClangParserContext::Reset( CXTranslationUnit* pTU )
@@ -81,8 +159,8 @@ namespace EE::TypeSystem::Reflection
         EE_ASSERT( m_structureStack.empty() );
 
         m_pTU = pTU;
-        m_registeredPropertyMacros.clear();
-        m_typeRegistrationMacros.clear();
+        m_propertyReflectionMacros.clear();
+        m_typeReflectionMacros.clear();
         m_inEngineNamespace = false;
         m_errorMessage.clear();
     }
@@ -133,26 +211,140 @@ namespace EE::TypeSystem::Reflection
 
     //-------------------------------------------------------------------------
 
-    bool ClangParserContext::ShouldRegisterType( CXCursor const& cr, TypeRegistrationMacro* pMacro )
+    void ClangParserContext::AddFoundReflectionMacro( ReflectionMacro const& foundMacro )
     {
+        EE_ASSERT( foundMacro.m_headerID.IsValid() );
+        EE_ASSERT( foundMacro.m_type != ReflectionMacroType::Unknown );
+
+        if ( foundMacro.m_type == ReflectionMacroType::ReflectProperty )
+        {
+            TVector<ReflectionMacro>& macrosForHeader = m_propertyReflectionMacros[foundMacro.m_headerID];
+            macrosForHeader.push_back( foundMacro );
+        }
+        else // All other types
+        {
+            TVector<ReflectionMacro>& macrosForHeader = m_typeReflectionMacros[foundMacro.m_headerID];
+            macrosForHeader.push_back( foundMacro );
+        }
+    }
+
+    bool ClangParserContext::GetReflectionMacroForType( HeaderID headerID, CXCursor const& cr, ReflectionMacro& macro )
+    {
+        // Try get macros for this header
+        //-------------------------------------------------------------------------
+
+        auto headerIter = m_typeReflectionMacros.find( headerID );
+        if ( headerIter == m_typeReflectionMacros.end() )
+        {
+            return false;
+        }
+
+        TVector<ReflectionMacro>& macrosForHeader = headerIter->second;
+
+        // Check the header macros
+        //-------------------------------------------------------------------------
+
         CXSourceRange const typeRange = clang_getCursorExtent( cr );
 
-        // Check the registration map for this type
-        for ( auto iter = m_typeRegistrationMacros.begin(); iter != m_typeRegistrationMacros.end(); ++iter )
+        for ( auto iter = macrosForHeader.begin(); iter != macrosForHeader.end(); ++iter )
         {
             bool const macroWithinCursorExtents = iter->m_position > typeRange.begin_int_data && iter->m_position < typeRange.end_int_data;
             if ( macroWithinCursorExtents )
             {
-                if ( pMacro != nullptr )
-                {
-                    *pMacro = *iter;
-                }
-
-                m_typeRegistrationMacros.erase( iter );
+                macro = *iter;
+                macrosForHeader.erase( iter );
                 return true;
             }
         }
 
         return false;
+    }
+
+    bool ClangParserContext::FindReflectionMacroForProperty( HeaderID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro )
+    {
+        // Try get macros for this header
+        //-------------------------------------------------------------------------
+
+        auto headerIter = m_propertyReflectionMacros.find( headerID );
+        if ( headerIter == m_propertyReflectionMacros.end() )
+        {
+            return false;
+        }
+
+        TVector<ReflectionMacro>& macrosForHeader = headerIter->second;
+
+        // Try to find the macro
+        //-------------------------------------------------------------------------
+
+        TVector<ReflectionMacro>::iterator foundMacros[2] = { macrosForHeader.end(), macrosForHeader.end() };
+
+        bool hasMacroOnLineAbove = false;
+        bool hasMacroOnSameLine = false;
+
+        for ( auto iter = macrosForHeader.begin(); iter != macrosForHeader.end(); ++iter )
+        {
+            if ( iter->m_lineNumber == lineNumber - 1 )
+            {
+                foundMacros[0] = iter;
+                hasMacroOnLineAbove = true;
+            }
+            else if ( iter->m_lineNumber == lineNumber )
+            {
+                foundMacros[1] = iter;
+                hasMacroOnSameLine = true;
+                break; // Macros on the same line take priority!
+            }
+        }
+
+        // If we have a macro on the same line as well as the line above this is a mistake in the source file
+        if ( hasMacroOnLineAbove && hasMacroOnSameLine )
+        {
+            LogError( "Multiple reflection macros detected for the same property on line %d in file: %s", lineNumber, headerID.c_str() );
+            return false;
+        }
+
+        // We didnt find a macro
+        if ( !hasMacroOnLineAbove && !hasMacroOnSameLine )
+        {
+            return false;
+        }
+
+        TVector<ReflectionMacro>::iterator foundMacroIter = hasMacroOnLineAbove ? foundMacros[0] : foundMacros[1];
+        reflectionMacro = *foundMacroIter;
+        macrosForHeader.erase( foundMacroIter );
+        return true;
+    }
+
+    bool ClangParserContext::CheckForOrphanedReflectionMacros() const
+    {
+        EE_ASSERT( !HasErrorOccured() );
+
+        bool hasOrphans = false;
+
+        //-------------------------------------------------------------------------
+
+        for ( auto& macroHeaderPair : m_typeReflectionMacros )
+        {
+            for ( auto& macro : macroHeaderPair.second )
+            {
+                m_errorMessage += String( String::CtorSprintf(), "    Orphaned Macro Detected: %s:%d\n", macro.m_headerID.c_str(), macro.m_lineNumber );
+                hasOrphans = true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        for ( auto& macroHeaderPair : m_propertyReflectionMacros )
+        {
+            for ( auto& macro : macroHeaderPair.second )
+            {
+                m_errorMessage += String( String::CtorSprintf(), "    Orphaned Macro Detected: %s:%d\n", macro.m_headerID.c_str(), macro.m_lineNumber );
+                hasOrphans = true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        return hasOrphans;
     }
 }

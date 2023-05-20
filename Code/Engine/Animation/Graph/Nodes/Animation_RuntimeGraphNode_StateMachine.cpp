@@ -18,23 +18,13 @@ namespace EE::Animation::GraphNodes
             {
                 TransitionInfo& transition = state.m_transitions.emplace_back();
                 transition.m_targetStateIdx = transitionSettings.m_targetStateIdx;
+                transition.m_canBeForced = transitionSettings.m_canBeForced;
+                state.m_hasForceableTransitions |= transition.m_canBeForced;
+
                 context.SetNodePtrFromIndex( transitionSettings.m_transitionNodeIdx, transition.m_pTransitionNode );
                 context.SetNodePtrFromIndex( transitionSettings.m_conditionNodeIdx, transition.m_pConditionNode );
             }
         }
-    }
-
-    bool StateMachineNode::StateInfo::HasForceableTransitions() const
-    {
-        for ( auto const& transition : m_transitions )
-        {
-            if ( transition.m_pTransitionNode->IsForcedTransitionAllowed() )
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     //-------------------------------------------------------------------------
@@ -108,13 +98,13 @@ namespace EE::Animation::GraphNodes
         // Determine default state and initialize it
         m_activeStateIndex = SelectDefaultState( context );
         EE_ASSERT( m_activeStateIndex != InvalidIndex );
-        StateNode* ActiveState = m_states[m_activeStateIndex].m_pStateNode;
-        ActiveState->Initialize( context, initialTime );
+        StateNode* pActiveState = m_states[m_activeStateIndex].m_pStateNode;
+        pActiveState->Initialize( context, initialTime );
 
         // Initialize the base animation graph node
-        m_duration = ActiveState->GetDuration();
-        m_previousTime = ActiveState->GetPreviousTime();
-        m_currentTime = ActiveState->GetCurrentTime();
+        m_duration = pActiveState->GetDuration();
+        m_previousTime = pActiveState->GetPreviousTime();
+        m_currentTime = pActiveState->GetCurrentTime();
 
         InitializeTransitionConditions( context );
     }
@@ -162,23 +152,21 @@ namespace EE::Animation::GraphNodes
 
     void StateMachineNode::EvaluateTransitions( GraphContext& context, GraphPoseNodeResult& sourceNodeResult )
     {
-        auto const& currentlyActiveState = m_states[m_activeStateIndex];
+        auto const& currentlyActiveStateInfo = m_states[m_activeStateIndex];
 
         //-------------------------------------------------------------------------
         // Check for a valid transition
         //-------------------------------------------------------------------------
 
         int32_t transitionIdx = InvalidIndex;
-        bool shouldForceTransition = false;
-
-        int32_t const numTransitions = (int32_t) currentlyActiveState.m_transitions.size();
+        int32_t const numTransitions = (int32_t) currentlyActiveStateInfo.m_transitions.size();
         for ( int32_t i = 0; i < numTransitions; i++ )
         {
-            auto const& transition = currentlyActiveState.m_transitions[i];
+            auto const& transition = currentlyActiveStateInfo.m_transitions[i];
             EE_ASSERT( transition.m_targetStateIdx != InvalidIndex );
 
             // Disallow any transitions to already transitioning states unless this is a forced transition, this will prevent infinite transition loops
-            if ( !transition.m_pTransitionNode->IsForcedTransitionAllowed() && m_states[transition.m_targetStateIdx].m_pStateNode->IsTransitioning() )
+            if ( !transition.m_canBeForced && m_states[transition.m_targetStateIdx].m_pStateNode->IsTransitioning() )
             {
                 continue;
             }
@@ -186,11 +174,6 @@ namespace EE::Animation::GraphNodes
             // Check if the conditions for this transition are satisfied, if they are start a new transition
             if ( transition.m_pConditionNode != nullptr && transition.m_pConditionNode->GetValue<bool>( context ) )
             {
-                if ( m_states[transition.m_targetStateIdx].m_pStateNode->IsTransitioning() )
-                {
-                    shouldForceTransition = true;
-                }
-
                 transitionIdx = i;
                 break;
             }
@@ -202,23 +185,49 @@ namespace EE::Animation::GraphNodes
 
         if ( transitionIdx != InvalidIndex )
         {
-            EE_ASSERT( transitionIdx >= 0 && transitionIdx < currentlyActiveState.m_transitions.size() );
+            EE_ASSERT( transitionIdx >= 0 && transitionIdx < currentlyActiveStateInfo.m_transitions.size() );
 
-            auto const& transition = currentlyActiveState.m_transitions[transitionIdx];
+            auto const& transition = currentlyActiveStateInfo.m_transitions[transitionIdx];
 
-            TransitionNode::InitializationOptions initOptions;
-            initOptions.m_sourceNodeResult = sourceNodeResult;
-            initOptions.m_shouldCachePose = m_states[transition.m_targetStateIdx].HasForceableTransitions();
+            // Handle forced transitions
+            //-------------------------------------------------------------------------
 
-            // If we are fully in a state, so use this state as the source else use the currently active transition
-            // Note: the initialization of the transition will update the target state
+            TInlineVector<StateNode const*, 20> forceableTargetStates;
+            StateInfo const& targetStateInfo = m_states[transition.m_targetStateIdx];
+            if ( targetStateInfo.m_hasForceableTransitions )
+            {
+                for ( auto const& transitionInfo : targetStateInfo.m_transitions )
+                {
+                    if ( transitionInfo.m_canBeForced )
+                    {
+                        forceableTargetStates.emplace_back( m_states[transitionInfo.m_targetStateIdx].m_pStateNode );
+                    }
+                }
+            }
+
+            // Check if we have forceable transition back to our current state, if so we need to immediately start caching the source pose
+            bool const startCachingSourcePose = VectorContains( forceableTargetStates, currentlyActiveStateInfo.m_pStateNode );
+
+            // Notify current transition of the new transition about to start
             if ( m_pActiveTransition != nullptr )
             {
-                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromTransition( context, initOptions, m_pActiveTransition, shouldForceTransition );
+                m_pActiveTransition->NotifyNewTransitionStarting( context, targetStateInfo.m_pStateNode, forceableTargetStates );
             }
-            else // Basic transition
+
+            // Start the new transition
+            //-------------------------------------------------------------------------
+            // Note: the transition will initialize the target state
+
+            transition.m_pTransitionNode->Initialize( context, SyncTrackTime() );
+
+            // Initialize target state based on transition settings and what the source is (state or transition)
+            if ( m_pActiveTransition != nullptr )
             {
-                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromState( context, initOptions, m_states[m_activeStateIndex].m_pStateNode );
+                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromTransition( context, sourceNodeResult, m_pActiveTransition, startCachingSourcePose );
+            }
+            else
+            {
+                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromState( context, sourceNodeResult, m_states[m_activeStateIndex].m_pStateNode, startCachingSourcePose );
             }
 
             m_pActiveTransition = transition.m_pTransitionNode;
@@ -234,27 +243,20 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void StateMachineNode::UpdateTransitionStack( GraphContext& context )
-    {
-        if ( m_pActiveTransition == nullptr )
-        {
-            return;
-        }
-
-        if ( m_pActiveTransition->IsComplete( context ) )
-        {
-            m_pActiveTransition->Shutdown( context );
-            m_pActiveTransition = nullptr;
-        }
-    }
-
     GraphPoseNodeResult StateMachineNode::Update( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
 
-        // Update transitions
-        UpdateTransitionStack( context );
+        // Check active transition
+        if ( m_pActiveTransition != nullptr )
+        {
+            if ( m_pActiveTransition->IsComplete( context ) )
+            {
+                m_pActiveTransition->Shutdown( context );
+                m_pActiveTransition = nullptr;
+            }
+        }
 
         // If we are fully in a state, update the state directly
         GraphPoseNodeResult result;
@@ -294,8 +296,15 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
 
-        // Update transitions
-        UpdateTransitionStack( context );
+        // Check active transition
+        if ( m_pActiveTransition != nullptr )
+        {
+            if ( m_pActiveTransition->IsComplete( context ) )
+            {
+                m_pActiveTransition->Shutdown( context );
+                m_pActiveTransition = nullptr;
+            }
+        }
 
         // If we are fully in a state, update the state directly
         GraphPoseNodeResult result;

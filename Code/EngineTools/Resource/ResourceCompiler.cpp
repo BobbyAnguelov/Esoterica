@@ -6,7 +6,8 @@
 namespace EE::Resource
 {
     CompileContext::CompileContext( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForShippingBuild )
-        : m_compiledResourceDirectoryPath( compiledResourceDirectoryPath )
+        : m_rawResourceDirectoryPath( rawResourceDirectoryPath )
+        , m_compiledResourceDirectoryPath( compiledResourceDirectoryPath )
         , m_isCompilingForPackagedBuild( isCompilingForShippingBuild )
         , m_resourceID( resourceToCompile )
     {

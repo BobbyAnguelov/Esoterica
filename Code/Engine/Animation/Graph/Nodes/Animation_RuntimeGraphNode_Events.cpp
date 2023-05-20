@@ -56,7 +56,7 @@ namespace EE::Animation::GraphNodes
         bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
 
         SampledEventRange searchRange( 0, 0 );
-        if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+        if ( shouldSearchAllEvents || context.IsInLayer() )
         {
             // If we dont have a child node set, search all sampled events for the event
             searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
@@ -181,7 +181,7 @@ namespace EE::Animation::GraphNodes
             bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
 
             SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+            if ( shouldSearchAllEvents || context.IsInLayer() )
             {
                 // If we dont have a child node set, search all sampled events for the event
                 searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
@@ -307,7 +307,7 @@ namespace EE::Animation::GraphNodes
             bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
 
             SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+            if ( shouldSearchAllEvents || context.IsInLayer() )
             {
                 // If we dont have a child node set, search all sampled events for the event
                 searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
@@ -434,7 +434,7 @@ namespace EE::Animation::GraphNodes
             bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
 
             SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+            if ( shouldSearchAllEvents || context.IsInLayer() )
             {
                 // If we dont have a child node set, search all sampled events for the event
                 searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
@@ -705,7 +705,7 @@ namespace EE::Animation::GraphNodes
             bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
 
             SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.m_layerContext.m_isCurrentlyInLayer )
+            if ( shouldSearchAllEvents || context.IsInLayer() )
             {
                 // If we dont have a child node set, search all sampled events for the event
                 searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();

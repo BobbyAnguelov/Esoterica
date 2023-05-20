@@ -281,28 +281,26 @@ namespace EE::TypeSystem::Reflection
 
                 FileSystem::Path const headerFileFullPath = prj.m_path + headerFilePathStr;
 
-                std::filesystem::path s( headerFileFullPath.c_str() );
-
-                auto const result = ProcessHeaderFile( headerFileFullPath, prj.m_exportMacro );
+                TVector<String> headerFileContents;
+                auto const result = ProcessHeaderFile( headerFileFullPath, prj.m_exportMacro, headerFileContents );
                 switch ( result )
                 {
                     case HeaderProcessResult::ParseHeader:
                     {
-                        HeaderInfo headerRecord;
-                        headerRecord.m_ID = HeaderInfo::GetHeaderID( headerFileFullPath );
-                        headerRecord.m_projectID = prj.m_ID;
-                        headerRecord.m_filePath = headerFileFullPath;
-                        headerRecord.m_timestamp = FileSystem::GetFileModifiedTime( headerFileFullPath );
+                        HeaderInfo& headerInfo = prj.m_headerFiles.emplace_back();
+                        headerInfo.m_ID = HeaderInfo::GetHeaderID( headerFileFullPath );
+                        headerInfo.m_projectID = prj.m_ID;
+                        headerInfo.m_filePath = headerFileFullPath;
+                        headerInfo.m_timestamp = FileSystem::GetFileModifiedTime( headerFileFullPath );
+                        headerInfo.m_fileContents.swap( headerFileContents );
 
                         // Add to registered timestamp cache, use in up to date checks
-                        m_registeredHeaderTimestamps.push_back( HeaderTimestamp( headerRecord.m_ID, headerRecord.m_timestamp ) );
+                        m_registeredHeaderTimestamps.push_back( HeaderTimestamp( headerInfo.m_ID, headerInfo.m_timestamp ) );
 
                         if ( isModuleHeader )
                         {
-                            prj.m_moduleHeaderID = headerRecord.m_ID;
+                            prj.m_moduleHeaderID = headerInfo.m_ID;
                         }
-
-                        prj.m_headerFiles.push_back( headerRecord );
                     }
                     break;
 
@@ -365,7 +363,7 @@ namespace EE::TypeSystem::Reflection
         return true;
     }
 
-    Reflector::HeaderProcessResult Reflector::ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacroName )
+    Reflector::HeaderProcessResult Reflector::ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacroName, TVector<String>& headerFileContents )
     {
         // Open header file
         bool const isModuleAPIHeader = filePath.IsFilenameEqual( "API.h" );
@@ -385,15 +383,23 @@ namespace EE::TypeSystem::Reflection
         }
         hdrFile.seekg( 0, std::ios::beg );
 
+        // Read file contents
+        headerFileContents.clear();
+        std::string stdLine;
+        while ( std::getline( hdrFile, stdLine ) )
+        {
+            headerFileContents.emplace_back( stdLine.c_str() );
+        }
+        hdrFile.close();
+
+        //-------------------------------------------------------------------------
+
         // Check for the EE registration macros
         bool exportMacroFound = false;
         uint32_t openCommentBlock = 0;
 
-        std::string stdLine;
-        while ( std::getline( hdrFile, stdLine ) )
+        for( auto const& line : headerFileContents )
         {
-            String line( stdLine.c_str() );
-
             // Check for comment blocks
             if ( line.find( "/*" ) != String::npos ) openCommentBlock++;
             if ( line.find( "*/" ) != String::npos ) openCommentBlock--;
@@ -404,31 +410,20 @@ namespace EE::TypeSystem::Reflection
                 auto const foundCommentIdx = line.find( "//" );
 
                 // Check for registration macros
-                for ( auto i = 0u; i < (uint32_t) ReflectionMacro::NumMacros; i++ )
+                for ( auto i = 0u; i < (uint32_t) ReflectionMacroType::NumMacros; i++ )
                 {
-                    ReflectionMacro const macro = (ReflectionMacro) i;
+                    ReflectionMacroType const macro = (ReflectionMacroType) i;
                     auto const foundMacroIdx = line.find( GetReflectionMacroText( macro ) );
                     bool const macroExists = foundMacroIdx != String::npos;
                     bool const uncommentedMacro = foundCommentIdx == String::npos || foundCommentIdx > foundMacroIdx;
 
                     if ( macroExists && uncommentedMacro )
                     {
-                        if ( macro == ReflectionMacro::RegisterTypeResource )
-                        {
-                            EE_HALT();
-                        }
-
-                        hdrFile.close();
-
                         // We should never have registration macros and the export definition in the same file
                         if ( exportMacroFound )
                         {
                             LogError( "EE registration macro found in the module export API header(%)!", filePath.c_str() );
                             return HeaderProcessResult::ErrorOccured;
-                        }
-                        else if ( macro == ReflectionMacro::IgnoreHeader )
-                        {
-                            return HeaderProcessResult::IgnoreHeader;
                         }
                         else
                         {
@@ -444,8 +439,6 @@ namespace EE::TypeSystem::Reflection
                     auto const foundExportIdx1 = line.find( "dllexport" );
                     if ( foundExportIdx0 != String::npos && foundExportIdx1 != String::npos )
                     {
-                        hdrFile.close();
-
                         if ( !exportMacroName.empty() )
                         {
                             LogError( "Duplicate export macro definitions found!", filePath.c_str() );
@@ -467,7 +460,6 @@ namespace EE::TypeSystem::Reflection
             }
         }
 
-        hdrFile.close();
         return HeaderProcessResult::IgnoreHeader;
     }
 

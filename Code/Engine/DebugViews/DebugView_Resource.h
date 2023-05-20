@@ -13,7 +13,7 @@ namespace EE::Resource
 
     class EE_ENGINE_API ResourceDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( ResourceDebugView );
+        EE_REFLECT_TYPE( ResourceDebugView );
 
     public:
 

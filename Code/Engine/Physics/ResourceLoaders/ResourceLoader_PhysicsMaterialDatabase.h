@@ -7,7 +7,7 @@
 
 namespace EE::Physics
 {
-    class PhysicsSystem;
+    class MaterialRegistry;
 
     //-------------------------------------------------------------------------
 
@@ -16,10 +16,14 @@ namespace EE::Physics
     public:
 
         PhysicsMaterialDatabaseLoader();
-        ~PhysicsMaterialDatabaseLoader() { EE_ASSERT( m_pPhysicsSystem == nullptr ); }
 
-        void SetPhysicsSystemPtr( PhysicsSystem* pPhysicsSystem );
-        void ClearPhysicsSystemPtr() { m_pPhysicsSystem = nullptr; }
+        void SetMaterialRegistryPtr( MaterialRegistry* pRegistry )
+        {
+            EE_ASSERT( pRegistry != nullptr );
+            m_pRegistry = pRegistry; 
+        }
+
+        void ClearMaterialRegistryPtr() { m_pRegistry = nullptr; }
 
     private:
 
@@ -28,6 +32,6 @@ namespace EE::Physics
 
     private:
 
-        PhysicsSystem* m_pPhysicsSystem = nullptr;
+        MaterialRegistry* m_pRegistry = nullptr;
     };
 }

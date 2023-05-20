@@ -17,12 +17,12 @@ namespace EE::TypeSystem::Reflection
 
         TInlineString<100> str;
 
-        str.sprintf( "%s::%s", Settings::g_engineNamespace, Settings::g_registeredTypeInterfaceClassName );
-        m_registeredTypeBase = ReflectedType( TypeID( str.c_str() ), Settings::g_registeredTypeInterfaceClassName );
-        m_registeredTypeBase.m_flags.SetFlag( ReflectedType::Flags::IsAbstract );
+        str.sprintf( "%s::%s", Settings::g_engineNamespace, Settings::g_reflectedTypeInterfaceClassName );
+        m_reflectedTypeBase = ReflectedType( TypeID( str.c_str() ), Settings::g_reflectedTypeInterfaceClassName );
+        m_reflectedTypeBase.m_flags.SetFlag( ReflectedType::Flags::IsAbstract );
 
         str.sprintf( "%s::", Settings::g_engineNamespace );
-        m_registeredTypeBase.m_namespace = str.c_str();
+        m_reflectedTypeBase.m_namespace = str.c_str();
     }
 
     ReflectionDatabase::~ReflectionDatabase()
@@ -232,9 +232,9 @@ namespace EE::TypeSystem::Reflection
 
     ReflectedType const* ReflectionDatabase::GetType( TypeID typeID ) const
     {
-        if ( m_registeredTypeBase.m_ID == typeID )
+        if ( m_reflectedTypeBase.m_ID == typeID )
         {
-            return &m_registeredTypeBase;
+            return &m_reflectedTypeBase;
         }
 
         for ( auto const& type : m_reflectedTypes )
@@ -320,14 +320,14 @@ namespace EE::TypeSystem::Reflection
     {
         if ( onlyUpdateDevFlag )
         {
-            auto pRegisteredType = GetType( pType->m_ID );
-            EE_ASSERT( pRegisteredType != nullptr );
-            pRegisteredType->m_isDevOnly = false;
+            auto pReflectedType = GetType( pType->m_ID );
+            EE_ASSERT( pReflectedType != nullptr );
+            pReflectedType->m_isDevOnly = false;
 
             for ( auto const& property : pType->m_properties )
             {
-                auto foundIter = VectorFind( pRegisteredType->m_properties, property );
-                if ( foundIter != pRegisteredType->m_properties.end() )
+                auto foundIter = VectorFind( pReflectedType->m_properties, property );
+                if ( foundIter != pReflectedType->m_properties.end() )
                 {
                     foundIter->m_isDevOnly = false;
                 }
@@ -336,7 +336,7 @@ namespace EE::TypeSystem::Reflection
         else
         {
             EE_ASSERT( pType != nullptr && !IsTypeRegistered( pType->m_ID ) );
-            m_reflectedTypes.push_back( *pType );
+            m_reflectedTypes.emplace_back( *pType );
         }
     }
 
@@ -729,7 +729,7 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `Properties` ( `PropertyID` INTEGER, `LineNumber` INTEGER, `OwnerTypeID` INTEGER, `TypeID` INTEGER, `Name` TEXT, `Description` TEXT, `TypeName` TEXT, `TemplateTypeName` TEXT, `PropertyFlags` INTEGER, `ArraySize` INTEGER DEFAULT -1, PRIMARY KEY( PropertyID, OwnerTypeID ) );" ) )
+        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `Properties` ( `PropertyID` INTEGER, `LineNumber` INTEGER, `OwnerTypeID` INTEGER, `TypeID` INTEGER, `Name` TEXT, `Description` TEXT, `TypeName` TEXT, `TemplateTypeName` TEXT, `PropertyFlags` INTEGER, `ArraySize` INTEGER DEFAULT -1, `MetaData` TEXT, PRIMARY KEY( PropertyID, OwnerTypeID ) );" ) )
         {
             return false;
         }
@@ -864,9 +864,11 @@ namespace EE::TypeSystem::Reflection
                 propDesc.m_templateArgTypeName = (char const*) sqlite3_column_text( pStatement, 7 );
                 propDesc.m_flags.Set( (uint32_t) sqlite3_column_int( pStatement, 8 ) );
                 propDesc.m_arraySize = sqlite3_column_int( pStatement, 9 );
+                propDesc.m_metaData = (char const*) sqlite3_column_text( pStatement, 10 );
                 propDesc.m_propertyID = StringID( propDesc.m_name );
                 EE_ASSERT( propDesc.m_propertyID == (uint32_t) sqlite3_column_int( pStatement, 0 ) ); // Ensure the property ID matches the recorded one
-                type.m_properties.push_back( propDesc );
+
+                type.m_properties.emplace_back( propDesc );
             }
 
             if ( !IsValidSQLiteResult( sqlite3_finalize( pStatement ) ) )
@@ -973,7 +975,14 @@ namespace EE::TypeSystem::Reflection
             String escapedDescription = propertyDesc.m_description;
             StringUtils::ReplaceAllOccurrencesInPlace( escapedDescription, "\"", "\"\"" );
 
-            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `Properties`(`PropertyID`, `LineNumber`, `OwnerTypeID`,`TypeID`,`Name`,`Description`,`TypeName`,`TemplateTypeName`,`PropertyFlags`,`ArraySize`) VALUES ( %u, %d, %u, %u, \"%s\", \"%s\", \"%s\", \"%s\", %u, %d );", (uint32_t) propertyDesc.m_propertyID, propertyDesc.m_lineNumber, (uint32_t) type.m_ID, (uint32_t) propertyDesc.m_typeID, propertyDesc.m_name.c_str(), escapedDescription.c_str(), propertyDesc.m_typeName.c_str(), propertyDesc.m_templateArgTypeName.c_str(), (uint32_t) propertyDesc.m_flags, propertyDesc.m_arraySize ) )
+            String escapedMetaData;
+            if ( propertyDesc.HasMetaData() )
+            {
+                escapedMetaData = propertyDesc.m_metaData;
+                StringUtils::ReplaceAllOccurrencesInPlace( escapedMetaData, "\"", "\"\"" );
+            }
+
+            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `Properties`(`PropertyID`, `LineNumber`, `OwnerTypeID`,`TypeID`,`Name`,`Description`,`TypeName`,`TemplateTypeName`,`PropertyFlags`,`ArraySize`,`MetaData`) VALUES ( %u, %d, %u, %u, \"%s\", \"%s\", \"%s\", \"%s\", %u, %d, \"%s\" );", (uint32_t) propertyDesc.m_propertyID, propertyDesc.m_lineNumber, (uint32_t) type.m_ID, (uint32_t) propertyDesc.m_typeID, propertyDesc.m_name.c_str(), escapedDescription.c_str(), propertyDesc.m_typeName.c_str(), propertyDesc.m_templateArgTypeName.c_str(), (uint32_t) propertyDesc.m_flags, propertyDesc.m_arraySize, escapedMetaData.c_str() ) )
             {
                 return false;
             }

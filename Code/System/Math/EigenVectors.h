@@ -60,8 +60,7 @@ namespace EE::Math
         fTmp[1] = m13 * m12 - m23 * ( m11 - e );
         fTmp[2] = ( m11 - e ) * ( m22 - e ) - m12 * m12;
 
-        Vector vTmp( fTmp );
-        if ( vTmp.IsZero3() ) // planar or linear
+        if ( fTmp.IsZero() ) // planar or linear
         {
             float f1, f2, f3;
 
@@ -86,47 +85,49 @@ namespace EE::Math
 
             if ( f1 == 0 )
             {
-                vTmp.m_x = 0.0f;
+                fTmp.m_x = 0.0f;
             }
             else
             {
-                vTmp.m_x = 1.0f;
+                fTmp.m_x = 1.0f;
             }
 
             if ( f2 == 0 )
             {
-                vTmp.m_y = 0.0f;
+                fTmp.m_y = 0.0f;
             }
             else
             {
-                vTmp.m_y = 1.0f;
+                fTmp.m_y = 1.0f;
             }
 
             if ( f3 == 0 )
             {
-                vTmp.m_z = 0.0f;
+                fTmp.m_z = 0.0f;
 
                 // recalculate y to make equation work
                 if ( m12 != 0 )
                 {
-                    vTmp.m_y = -f1 / f2;
+                    fTmp.m_y = -f1 / f2;
                 }
             }
             else
             {
-                vTmp.m_z = ( f2 - f1 ) / f3;
+                fTmp.m_z = ( f2 - f1 ) / f3;
             }
         }
 
-        if ( vTmp.LengthSquared3().GetX() > 1e-5f )
-        {
-            return vTmp.GetNormalized3();
-        }
-        else // Multiply by a value large enough to make the vector non-zero.
+        //-------------------------------------------------------------------------
+
+        Vector vTmp( fTmp );
+
+        // Multiply by a value large enough to make the vector non-zero.
+        if ( vTmp.LengthSquared3().GetX() <= 1e-5f )
         {
             vTmp = vTmp * 1e5f;
-            return vTmp.GetNormalized3();
         }
+
+        return vTmp.GetNormalized3();
     }
 
     //-----------------------------------------------------------------------------

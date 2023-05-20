@@ -108,7 +108,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    EE_DEFINE_GLOBAL_REGISTRY( RawFileInspectorFactory );
+    EE_GLOBAL_REGISTRY( RawFileInspectorFactory );
 
     //-------------------------------------------------------------------------
 

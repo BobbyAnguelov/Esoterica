@@ -4,20 +4,16 @@
     <ClCompile Include="ResourceServer.cpp" />
     <ClCompile Include="ResourceServerApplication.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
-    <ClCompile Include="CompiledResourceDatabase.cpp" />
-    <ClCompile Include="ResourceCompileDependencyTree.cpp" />
     <ClCompile Include="ResourceServerContext.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ResourceServerApplication.h" />
     <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="ResourceCompilationRequest.h" />
-    <ClInclude Include="CompiledResourceDatabase.h" />
     <ClInclude Include="ResourceServer.h" />
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceCompileDependencyTree.h" />
     <ClInclude Include="ResourceServerContext.h" />
   </ItemGroup>
   <ItemGroup>
@@ -25,6 +21,18 @@
       <Filter>Resources</Filter>
     </Image>
     <Image Include="Resources\ResourceServer.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="Resources\TrayIconBusy.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="Resources\TrayIconBusy.png">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="Resources\TrayIconIdle.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="Resources\TrayIconIdle.png">
       <Filter>Resources</Filter>
     </Image>
   </ItemGroup>

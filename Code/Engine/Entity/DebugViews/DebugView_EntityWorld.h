@@ -16,7 +16,7 @@ namespace EE
 
     class EntityDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( EntityDebugView );
+        EE_REFLECT_TYPE( EntityDebugView );
 
     public:
 

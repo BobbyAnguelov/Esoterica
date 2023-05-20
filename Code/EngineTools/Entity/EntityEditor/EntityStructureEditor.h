@@ -41,7 +41,8 @@ namespace EE::EntityModel
         enum class Operation
         {
             None = -1,
-            AddSystem = 0,
+            AddAny = 0,
+            AddSystem,
             AddSpatialComponent,
             AddComponent,
             RenameComponent
@@ -50,7 +51,6 @@ namespace EE::EntityModel
     public:
 
         EntityStructureEditor( ToolsContext const* pToolsContext, UndoStack* pUndoStack, EntityWorld* pWorld );
-        ~EntityStructureEditor();
 
         void Initialize( UpdateContext const& context, uint32_t widgetUniqueID );
         void Shutdown( UpdateContext const& context );
@@ -73,7 +73,7 @@ namespace EE::EntityModel
         TVector<SpatialEntityComponent*> const& GetSelectedSpatialComponents() const { return m_selectedSpatialComponents; }
 
         // Fired whenever we change the selection manually or through a user action
-        TEventHandle<IRegisteredType*> OnSelectionManuallyChanged() { return m_onRequestedTypeToEditChanged; }
+        TEventHandle<IReflectedType*> OnSelectionManuallyChanged() { return m_onRequestedTypeToEditChanged; }
 
     private:
 
@@ -88,6 +88,7 @@ namespace EE::EntityModel
         virtual void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) override;
         virtual void HandleSelectionChanged( TreeListView::ChangeReason reason ) override;
         virtual void HandleDragAndDropOnItem( TreeListViewItem* pDragAndDropTargetItem ) override;
+        virtual bool ShouldSortTree() const override { return false; }
 
         // Entity Operations
         //-------------------------------------------------------------------------
@@ -126,7 +127,8 @@ namespace EE::EntityModel
         StringID                                        m_initiallySelectedComponentNameID;
         TVector<SpatialEntityComponent*>                m_selectedSpatialComponents;
         TVector<EntityComponent*>                       m_selectedComponents;
-        TEvent<IRegisteredType*>                        m_onRequestedTypeToEditChanged;
+        TVector<EntitySystem*>                          m_selectedSystems;
+        TEvent<IReflectedType*>                         m_onRequestedTypeToEditChanged;
 
         // Operations
         Operation                                       m_activeOperation = Operation::None;
@@ -136,7 +138,5 @@ namespace EE::EntityModel
         TVector<TypeSystem::TypeInfo const*>            m_filteredOptions;
         TypeSystem::TypeInfo const*                     m_pOperationSelectedOption = nullptr;
         bool                                            m_initializeFocus = false;
-        EntityUndoableAction*                           m_pActiveUndoAction = nullptr;
-        Entity*                                         m_pActiveUndoActionEntity = nullptr; // We need to cache the entity ptr, since the structure editor can have it edited entity changed before the active operation can complete
     };
 }

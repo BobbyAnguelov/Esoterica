@@ -1,6 +1,6 @@
 #pragma once
 #include "System/_Module/API.h"
-#include "RegisteredType.h"
+#include "ReflectedType.h"
 #include "PropertyPath.h"
 #include "CoreTypeIDs.h"
 #include "CoreTypeConversions.h"
@@ -104,14 +104,14 @@ namespace EE::TypeSystem
 
         TypeDescriptor() = default;
         TypeDescriptor( TypeID typeID ) : m_typeID( typeID ) { EE_ASSERT( m_typeID.IsValid() ); }
-        TypeDescriptor( TypeRegistry const& typeRegistry, IRegisteredType* pTypeInstance, bool shouldSetPropertyStringValues = false );
+        TypeDescriptor( TypeRegistry const& typeRegistry, IReflectedType* pTypeInstance, bool shouldSetPropertyStringValues = false );
 
         inline bool IsValid() const { return m_typeID.IsValid(); }
 
         // Descriptor Creation
         //-------------------------------------------------------------------------
 
-        void DescribeTypeInstance( TypeRegistry const& typeRegistry, IRegisteredType const* pTypeInstance, bool shouldSetPropertyStringValues );
+        void DescribeTypeInstance( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, bool shouldSetPropertyStringValues );
 
         // Type Creation
         //-------------------------------------------------------------------------
@@ -143,7 +143,7 @@ namespace EE::TypeSystem
         // This will create a new instance of the described type in the memory block provided
         // WARNING! Do not use this function on an existing type instance of type T since it will not call the destructor and so will leak, only use on uninitialized memory
         template<typename T>
-        [[nodiscard]] inline T* CreateTypeInstanceInPlace( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo, IRegisteredType* pAllocatedMemoryForInstance ) const
+        [[nodiscard]] inline T* CreateTypeInstanceInPlace( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo, IReflectedType* pAllocatedMemoryForInstance ) const
         {
             EE_ASSERT( pTypeInfo != nullptr && pTypeInfo->m_ID == m_typeID );
             EE_ASSERT( pTypeInfo->IsDerivedFrom<T>() );
@@ -219,7 +219,7 @@ namespace EE::TypeSystem
             for ( int32_t i = 0; i < numDescs; i++ )
             {
                 pTypeMemory += collection.m_typePaddings[i];
-                outTypes.emplace_back( collection.m_descriptors[i].CreateTypeInstanceInPlace<T>( typeRegistry, collection.m_typeInfos[i], (IRegisteredType*) pTypeMemory ) );
+                outTypes.emplace_back( collection.m_descriptors[i].CreateTypeInstanceInPlace<T>( typeRegistry, collection.m_typeInfos[i], (IReflectedType*) pTypeMemory ) );
                 pTypeMemory += collection.m_typeSizes[i];
             }
 

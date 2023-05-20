@@ -25,16 +25,15 @@ namespace EE
     private:
 
         virtual bool HasViewportWindow() const override { return true; }
-        virtual bool HasWorkspaceToolbar() const override;
-        virtual bool HasViewportToolbar() const override { return false; }
         virtual bool HasViewportOrientationGuide() const override { return false; }
         virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
 
         virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override {}
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual bool HasWorkspaceToolbarDefaultItems() const override { return false; }
+
+        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
     private:
 

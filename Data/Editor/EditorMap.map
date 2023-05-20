@@ -7,9 +7,9 @@
                 {
                     "Name": "FloorCollision",
                     "TypeData": {
-                        "TypeID": "EE::Physics::PhysicsMeshComponent",
+                        "TypeID": "EE::Physics::CollisionMeshComponent",
                         "m_name": "FloorCollision",
-                        "m_physicsMesh": "data://editor/floor/floor.pmsh"
+                        "m_collisionMesh": "data://editor/floor/floor.pmsh"
                     }
                 },
                 {

@@ -1,5 +1,6 @@
 #include "PhysicsDebugRenderer.h"
-#include "Engine/Physics/PhysX.h"
+#include "Engine/Physics/Physics.h"
+#include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "System/Profiling.h"
@@ -226,8 +227,9 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        auto pPhysicsSystem = pWorld->GetWorldSystem<PhysicsWorldSystem>();
-        if ( !pPhysicsSystem->IsDebugDrawingEnabled() )
+        auto pPhysicsWorldSystem = pWorld->GetWorldSystem<PhysicsWorldSystem>();
+        auto pPhysicsWorld = pPhysicsWorldSystem->GetWorld();
+        if ( !pPhysicsWorld->IsDebugDrawingEnabled() )
         {
             return;
         }
@@ -246,18 +248,18 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         // Offset the culling bounds in front of the camera, no point in visualizing lines off-screen
-        float const debugHalfDistance = ( pPhysicsSystem->GetDebugDrawDistance() );
+        float const debugHalfDistance = ( pPhysicsWorld->GetDebugDrawDistance() );
 
         Vector const viewForward = viewport.GetViewForwardDirection();
         Vector cullingBoundsPosition = viewport.GetViewPosition();
         cullingBoundsPosition += viewForward * debugHalfDistance;
 
         AABB const debugBounds = AABB( cullingBoundsPosition, debugHalfDistance );
-        pPhysicsSystem->SetDebugCullingBox( debugBounds );
+        pPhysicsWorld->SetDebugCullingBox( debugBounds );
 
         //-------------------------------------------------------------------------
 
-        auto const& renderBuffer = pPhysicsSystem->GetPxScene()->getRenderBuffer();
+        physx::PxRenderBuffer const& renderBuffer = pPhysicsWorld->GetRenderBuffer();
 
         uint32_t const numPoints = renderBuffer.getNbPoints();
         DrawPoints( renderContext, viewport, renderBuffer.getPoints(), numPoints );
@@ -267,9 +269,6 @@ namespace EE::Physics
 
         uint32_t const numTriangles = renderBuffer.getNbTriangles();
         DrawTriangles( renderContext, viewport, renderBuffer.getTriangles(), numTriangles );
-
-        uint32_t const numStrings = renderBuffer.getNbTexts();
-        DrawPoints( renderContext, viewport, renderBuffer.getPoints(), numStrings );
     }
 }
 #endif

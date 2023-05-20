@@ -12,7 +12,7 @@ namespace EE::Math
 
     inline InlineString ToString( Vector const& vector )
     {
-        return InlineString( InlineString::CtorSprintf(), "x=%.3f, y=%.3f, z=%.3f", vector.m_x, vector.m_y, vector.m_z );
+        return InlineString( InlineString::CtorSprintf(), "x=%.3f, y=%.3f, z=%.3f", vector.GetX(), vector.GetY(), vector.GetZ() );
     }
 
     inline InlineString ToString( Quaternion const& q )
@@ -26,6 +26,7 @@ namespace EE::Math
     {
         EulerAngles const angles = t.GetRotation().ToEulerAngles();
         Float3 const anglesInDegrees = angles.GetAsDegrees();
-        return InlineString( InlineString::CtorSprintf(), "Rx=%.3f, Ry=%.3f, Rz=%.3f\nTx=%.3f, Ty=%.3f, Tz=%.3f\nS=%.3f", anglesInDegrees.m_x, anglesInDegrees.m_y, anglesInDegrees.m_z, t.GetTranslation().m_x, t.GetTranslation().m_y, t.GetTranslation().m_z, t.GetScale() );
+        Float3 const translation = t.GetTranslation().ToFloat3();
+        return InlineString( InlineString::CtorSprintf(), "Rx=%.3f, Ry=%.3f, Rz=%.3f\nTx=%.3f, Ty=%.3f, Tz=%.3f\nS=%.3f", anglesInDegrees.m_x, anglesInDegrees.m_y, anglesInDegrees.m_z, translation.m_x, translation.m_y, translation.m_z, t.GetScale() );
     }
 }

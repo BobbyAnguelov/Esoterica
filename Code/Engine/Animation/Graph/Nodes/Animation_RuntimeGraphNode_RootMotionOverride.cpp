@@ -228,13 +228,15 @@ namespace EE::Animation::GraphNodes
         bool isHeadingModificationAllowed = m_pDesiredHeadingVelocityNode != nullptr && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowHeadingX, OverrideFlags::AllowHeadingX, OverrideFlags::AllowHeadingX );
         if ( isHeadingModificationAllowed )
         {
-            Vector const desiredHeadingVelocity = m_pDesiredHeadingVelocityNode->GetValue<Vector>( context );
+            Float3 const desiredHeadingVelocity = m_pDesiredHeadingVelocityNode->GetValue<Vector>( context ).ToFloat3();
 
             // Override the request axes with the desired heading
-            Vector translation = nodeResult.m_rootMotionDelta.GetTranslation();
+            Float3 translation = nodeResult.m_rootMotionDelta.GetTranslation();
             translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingX ) ? desiredHeadingVelocity.m_x * context.m_deltaTime : translation.m_x;
             translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingY ) ? desiredHeadingVelocity.m_y * context.m_deltaTime : translation.m_y;
             translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingZ ) ? desiredHeadingVelocity.m_z * context.m_deltaTime : translation.m_z;
+
+            Vector vTranslation( translation );
 
             // Apply max linear velocity limit
             float maxLinearVelocity = pSettings->m_maxLinearVelocity;
@@ -246,14 +248,14 @@ namespace EE::Animation::GraphNodes
             if ( maxLinearVelocity >= 0 )
             {
                 float const maxLinearValue = context.m_deltaTime * maxLinearVelocity;
-                if ( translation.GetLengthSquared3() > ( maxLinearValue * maxLinearValue ) )
+                if ( vTranslation.GetLengthSquared3() > ( maxLinearValue * maxLinearValue ) )
                 {
-                    translation.Normalize3();
-                    translation *= maxLinearValue;
+                    vTranslation.Normalize3();
+                    vTranslation *= maxLinearValue;
                 }
             }
 
-            adjustedDisplacementDelta.SetTranslation( translation );
+            adjustedDisplacementDelta.SetTranslation( vTranslation );
         }
 
         // Facing

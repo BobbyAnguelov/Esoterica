@@ -14,7 +14,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API SkeletalMeshComponent : public MeshComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( SkeletalMeshComponent );
+        EE_ENTITY_COMPONENT( SkeletalMeshComponent );
 
     public:
 
@@ -93,8 +93,8 @@ namespace EE::Render
 
     protected:
 
-        EE_EXPOSE TResourcePtr<SkeletalMesh>            m_mesh;
-        EE_EXPOSE TResourcePtr<Animation::Skeleton>     m_skeleton = nullptr;
+        EE_REFLECT() TResourcePtr<SkeletalMesh>            m_mesh;
+        EE_REFLECT() TResourcePtr<Animation::Skeleton>     m_skeleton = nullptr;
         TVector<int32_t>                                m_animToMeshBoneMap;
         TVector<Transform>                              m_boneTransforms;
         TVector<Matrix>                                 m_skinningTransforms;
@@ -106,7 +106,7 @@ namespace EE::Render
     // This class makes it explicit, no need for name or tag matching!
     class EE_ENGINE_API CharacterMeshComponent final : public SkeletalMeshComponent
     {
-        EE_REGISTER_SINGLETON_ENTITY_COMPONENT( CharacterMeshComponent );
+        EE_SINGLETON_ENTITY_COMPONENT( CharacterMeshComponent );
 
         using SkeletalMeshComponent::SkeletalMeshComponent;
     };

@@ -8,7 +8,7 @@ namespace EE
 {
     class EE_ENGINE_API OrbitCameraComponent : public CameraComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( OrbitCameraComponent );
+        EE_ENTITY_COMPONENT( OrbitCameraComponent );
 
         friend class CameraDebugView;
 
@@ -37,8 +37,8 @@ namespace EE
 
     protected:
 
-        EE_EXPOSE Float3                m_defaultOrbitTargetOffset = Float3::Zero;
-        EE_EXPOSE float                 m_defaultOrbitDistance = 2.f;
+        EE_REFLECT() Float3                m_defaultOrbitTargetOffset = Float3::Zero;
+        EE_REFLECT() float                 m_defaultOrbitDistance = 2.f;
 
         Radians                         m_yaw = 0;
         Radians                         m_pitch = 0;

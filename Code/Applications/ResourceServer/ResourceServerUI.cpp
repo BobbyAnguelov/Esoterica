@@ -132,7 +132,7 @@ namespace EE::Resource
 
             ImGuiX::ScopedFont const BigScopedFont( ImGuiX::Font::Small );
 
-            if ( ImGui::BeginTable( "Requests", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
+            if ( ImGui::BeginTable( "Requests", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
             {
                 auto const& requests = m_resourceServer.GetRequests();
 
@@ -143,7 +143,6 @@ namespace EE::Resource
                 ImGui::TableSetupColumn( "Origin", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Destination", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
-                ImGui::TableSetupColumn( "Up To Date", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 60 );
                 ImGui::TableSetupColumn( "Compile", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 60 );
                 ImGui::TableSetupScrollFreeze( 0, 1 );
 
@@ -277,9 +276,6 @@ namespace EE::Resource
                         //-------------------------------------------------------------------------
 
                         ImGui::TableSetColumnIndex( 5 );
-                        ImGui::Text( "%.3fms", pRequest->GetUptoDateCheckElapsedTime().ToFloat() );
-
-                        ImGui::TableSetColumnIndex( 6 );
                         ImGui::Text( "%.3fms", pRequest->GetCompilationElapsedTime().ToFloat() );
 
                         ImGui::PopID();

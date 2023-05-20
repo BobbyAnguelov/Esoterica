@@ -10,7 +10,7 @@ namespace EE::EntityModel
 {
     struct EE_ENGINETOOLS_API EntityCollectionDescriptor final : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( EntityCollectionDescriptor );
+        EE_REFLECT_TYPE( EntityCollectionDescriptor );
 
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return false; }

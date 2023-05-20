@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class ExternalGraphToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ExternalGraphToolsNode );
+        EE_REFLECT_TYPE( ExternalGraphToolsNode );
 
     public:
 
@@ -38,6 +38,6 @@ namespace EE::Animation::GraphNodes
         String GetUniqueSlotName( String const& desiredName );
     private:
 
-        EE_EXPOSE String                       m_name;
+        EE_REFLECT() String                       m_name;
     };
 }

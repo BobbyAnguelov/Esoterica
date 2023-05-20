@@ -10,7 +10,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API LocalEnvironmentMapComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( LocalEnvironmentMapComponent );
+        EE_ENTITY_COMPONENT( LocalEnvironmentMapComponent );
 
     public:
 
@@ -18,14 +18,14 @@ namespace EE::Render
 
     private:
 
-        EE_EXPOSE TResourcePtr<CubemapTexture> m_environmentMapTexture;
+        EE_REFLECT() TResourcePtr<CubemapTexture> m_environmentMapTexture;
     };
 
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API GlobalEnvironmentMapComponent : public EntityComponent
     {
-        EE_REGISTER_SINGLETON_ENTITY_COMPONENT( GlobalEnvironmentMapComponent );
+        EE_SINGLETON_ENTITY_COMPONENT( GlobalEnvironmentMapComponent );
 
     public:
 
@@ -42,9 +42,9 @@ namespace EE::Render
 
     private:
 
-        EE_EXPOSE TResourcePtr<CubemapTexture> m_skyboxTexture;
-        EE_EXPOSE TResourcePtr<CubemapTexture> m_skyboxRadianceTexture;
-        EE_EXPOSE float m_skyboxIntensity = 1.0;
-        EE_EXPOSE float m_exposure = -1.0;
+        EE_REFLECT() TResourcePtr<CubemapTexture> m_skyboxTexture;
+        EE_REFLECT() TResourcePtr<CubemapTexture> m_skyboxRadianceTexture;
+        EE_REFLECT() float m_skyboxIntensity = 1.0;
+        EE_REFLECT() float m_exposure = -1.0;
     };
 }

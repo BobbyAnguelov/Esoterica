@@ -17,7 +17,7 @@ namespace EE
 {
     class EE_GAME_API GameModule final
     {
-        EE_REGISTER_MODULE;
+        EE_REFLECT_MODULE;
 
     public:
 

@@ -39,6 +39,7 @@ namespace EE
         {
             m_cameras.emplace_back( pCameraComponent );
             m_registeredCamerasStateChanged = true;
+            m_newlyAddedCamerasStartIdx = ( m_newlyAddedCamerasStartIdx == InvalidIndex ) ? (int32_t) m_cameras.size() - 1 : m_newlyAddedCamerasStartIdx;
 
             // Handle Debug Cameras
             #if EE_DEVELOPMENT_TOOLS
@@ -76,8 +77,20 @@ namespace EE
             }
             #endif
 
+            // Remove camera record
             m_cameras.erase_first( pCameraComponent );
             m_registeredCamerasStateChanged = true;
+
+            // Check if we still have non-debug cameras added
+            m_hasAddedNonDebugCamera = false;
+            for ( auto pCamera : m_cameras )
+            {
+                if ( !IsOfType<DebugCameraComponent>( pCamera ) )
+                {
+                    m_hasAddedNonDebugCamera = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -86,7 +99,7 @@ namespace EE
         // Maintain valid active camera ptr
         //-------------------------------------------------------------------------
 
-        if ( m_registeredCamerasStateChanged && m_pActiveCamera == nullptr )
+        if ( m_registeredCamerasStateChanged )
         {
             #if EE_DEVELOPMENT_TOOLS
             if ( m_useDebugCamera && m_pDebugCamera != m_pActiveCamera )
@@ -100,21 +113,37 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            if ( m_pActiveCamera == nullptr )
+            if ( m_pActiveCamera == nullptr || !m_hasAddedNonDebugCamera )
             {
-                for ( auto pCamera : m_cameras )
+                // Try to set the active camera to the first non-debug camera
+                if ( ctx.IsGameWorld() )
                 {
-                    if ( IsOfType<DebugCameraComponent>( pCamera ) )
+                    EE_ASSERT( m_newlyAddedCamerasStartIdx != InvalidIndex );
+                    for ( int32_t i = m_newlyAddedCamerasStartIdx; i < m_cameras.size(); i++ )
                     {
-                        continue;
-                    }
+                        if ( IsOfType<DebugCameraComponent>( m_cameras[i] ) )
+                        {
+                            continue;
+                        }
 
-                    m_pActiveCamera = pCamera;
-                    break;
+                        m_pActiveCamera = m_cameras[i];
+                        m_hasAddedNonDebugCamera = true;
+                        break;
+                    }
+                }
+
+                // If we still couldn't set a camera, use the first one (likely the debug one)
+                if ( m_pActiveCamera == nullptr )
+                {
+                    if ( !m_cameras.empty() )
+                    {
+                        m_pActiveCamera = m_cameras[0];
+                    }
                 }
             }
 
             m_registeredCamerasStateChanged = false;
+            m_newlyAddedCamerasStartIdx = InvalidIndex;
         }
 
         // Debug camera management

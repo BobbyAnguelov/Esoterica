@@ -31,7 +31,7 @@ namespace EE
         Vector positionDelta = Vector::Zero;
         positionDelta = deltaRight * rightDirection;
         positionDelta += deltaForward * forwardDirection;
-        positionDelta.m_w = 0.0f;
+        positionDelta.SetW0();
 
         // Update camera transform
         cameraTransform.AddTranslation( positionDelta );
@@ -41,10 +41,10 @@ namespace EE
     void DebugCameraComponent::OrientCamera( Seconds deltaTime, Radians horizontalDelta, Radians verticalDelta )
     {
         // Update accumulator
-        m_directionChangeAccumulator += Vector( horizontalDelta.ToFloat(), verticalDelta.ToFloat(), 0 );
+        m_directionChangeAccumulator += Vector( horizontalDelta.ToFloat(), verticalDelta.ToFloat(), 0 ).ToFloat3();
 
         // Update view direction
-        if ( !m_directionChangeAccumulator.IsNearZero2() )
+        if ( !m_directionChangeAccumulator.IsZero() )
         {
             float const maxAdjustmentPerFrame = s_maxAngularVelocity * deltaTime;
 

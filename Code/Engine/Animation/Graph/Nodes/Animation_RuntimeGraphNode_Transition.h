@@ -13,6 +13,11 @@ namespace EE::Animation { struct GraphLayerContext; }
 
 namespace EE::Animation::GraphNodes
 {
+    //-------------------------------------------------------------------------
+    // State Machine Transition Node
+    //-------------------------------------------------------------------------
+    // Note: The duration of this node is always set to the target state's duration to ensure that any subsequent queries on this transition return the correct duration
+
     class EE_ENGINE_API TransitionNode final : public PoseNode
     {
         enum class SourceType
@@ -29,7 +34,6 @@ namespace EE::Animation::GraphNodes
         enum class TransitionOptions : uint8_t
         {
             ClampDuration,
-            ForcedTransitionAllowed,
 
             Synchronized, // The time control mode: either sync, match or none
             MatchSourceTime, // The time control mode: either sync, match or none
@@ -39,23 +43,16 @@ namespace EE::Animation::GraphNodes
             MatchSyncEventPercentage, // Only checked if MatchSourceTime is set
         };
 
-        struct InitializationOptions
-        {
-            GraphPoseNodeResult                 m_sourceNodeResult;
-            bool                                m_shouldCachePose = false;
-        };
-
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
-            EE_REGISTER_TYPE( Settings );
+            EE_REFLECT_TYPE( Settings );
             EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions );
 
         public:
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            inline bool ShouldClampDuration() const { return m_transitionOptions.IsFlagSet( TransitionOptions::ClampDuration ); }
-            inline bool IsForcedTransitionAllowed() const { return m_transitionOptions.IsFlagSet( TransitionOptions::ForcedTransitionAllowed ); }
+            inline bool ShouldClampTransitionLength() const { return m_transitionOptions.IsFlagSet( TransitionOptions::ClampDuration ); }
             inline bool IsSynchronized() const { return m_transitionOptions.IsFlagSet( TransitionOptions::Synchronized ); }
 
             inline bool ShouldMatchSourceTime() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSourceTime ); }
@@ -83,13 +80,27 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        // Transition Info
-        GraphPoseNodeResult StartTransitionFromState( GraphContext& context, InitializationOptions const& options, StateNode* SourceState );
-        GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, InitializationOptions const& options, TransitionNode* SourceTransition, bool bForceTransition );
-        inline bool IsComplete( GraphContext& context ) const;
-        inline SourceType GetSourceType() const { return m_sourceType; }
+        // Secondary initialization
+        //-------------------------------------------------------------------------
 
-        inline bool IsForcedTransitionAllowed() const { return GetSettings<TransitionNode>()->IsForcedTransitionAllowed(); }
+        // Start a transition from a state source node - will initialize the target state. Pass by value of the source node result is intentional
+        GraphPoseNodeResult StartTransitionFromState( GraphContext& context, GraphPoseNodeResult sourceNodeResult, StateNode* SourceState, bool startCachingSourcePose );
+
+        // Start a transition from a transition source node - will initialize the target state. Pass by value of the source node result is intentional
+        GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, GraphPoseNodeResult sourceNodeResult, TransitionNode* SourceTransition, bool startCachingSourcePose );
+
+        // Forceable transitions
+        //-------------------------------------------------------------------------
+
+        // Called before we start a new transition to allow us to start caching poses and switch to a "cached pose" source if needed
+        void NotifyNewTransitionStarting( GraphContext& context, StateNode* pTargetStateNode, TInlineVector<StateNode const *, 20> const& forceableFutureTargetStates );
+
+        // Transition Info
+        //-------------------------------------------------------------------------
+
+        inline bool IsComplete( GraphContext& context ) const;
+        inline float GetProgressPercentage() const { return m_transitionProgress; }
+        inline SourceType GetSourceType() const { return m_sourceType; }
         inline bool IsSourceATransition() const { return m_sourceType == SourceType::Transition; }
         inline bool IsSourceAState() const { return m_sourceType == SourceType::State; }
         inline bool IsSourceACachedPose() const { return m_sourceType == SourceType::CachedPose; }
@@ -99,17 +110,18 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
 
-        GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, InitializationOptions const& options );
+        // Initialize and update the target state. Note: the source node result pass-by-value is intentional
+        GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, GraphPoseNodeResult sourceNodeResult );
 
         void UpdateProgress( GraphContext& context, bool isInitializing = false );
         void UpdateProgressClampedSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange, bool isInitializing = false );
-        void UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext, GraphLayerContext const& targetLayerContext );
+        void UpdateLayerWeights( GraphContext& context, GraphLayerContext const& sourceLayerContext, GraphLayerContext const& targetLayerContext );
 
         GraphPoseNodeResult UpdateUnsynchronized( GraphContext& context );
         GraphPoseNodeResult UpdateSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange );
 
-        void UpdateCachedPoseBufferIDState( GraphContext& context );
-        void TransferAdditionalPoseBufferIDs( TInlineVector<UUID, 2>& outInheritedCachedPoseBufferIDs );
+        void StartCachingSourcePose( GraphContext& context );
+        void RegisterSourceCachePoseTask( GraphContext& context, GraphPoseNodeResult& sourceNodeResult );
         void RegisterPoseTasksAndUpdateRootMotion( GraphContext& context, GraphPoseNodeResult const& sourceResult, GraphPoseNodeResult const& targetResult, GraphPoseNodeResult& outResult );
 
         inline void CalculateBlendWeight()
@@ -132,7 +144,6 @@ namespace EE::Animation::GraphNodes
         EE_FORCE_INLINE StateNode* GetSourceStateNode() { EE_ASSERT( IsSourceAState() ); return reinterpret_cast<StateNode*>( m_pSourceNode ); }
 
         void EndSourceTransition( GraphContext& context );
-
     private:
 
         PoseNode*                               m_pSourceNode = nullptr;
@@ -142,15 +153,11 @@ namespace EE::Animation::GraphNodes
         BoneMask                                m_boneMask;
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
-        float                                   m_transitionDuration = 0; // This is either time in seconds, or percentage of the sync track
+        float                                   m_transitionLength = 0; // This is either time in seconds, or percentage of the sync track
         float                                   m_syncEventOffset = 0;
         float                                   m_blendWeight = 0;
 
-        UUID                                    m_cachedPoseBufferID;                   // The buffer we are currently caching to
-        UUID                                    m_sourceCachedPoseBufferID;             // The buffer we are reading from (in the case of an interrupted transition)
-        TInlineVector<UUID, 2>                  m_inheritedCachedPoseBufferIDs;         // All cached buffers we have inherited when canceling a transition (need to be kept alive for one frame)
-        float                                   m_sourceCachedPoseBlendWeight = 0.0f;
-
+        UUID                                    m_cachedPoseBufferID;
         SourceType                              m_sourceType = SourceType::State;
 
         #if EE_DEVELOPMENT_TOOLS

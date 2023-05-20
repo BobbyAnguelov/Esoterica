@@ -5,9 +5,8 @@
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Navmesh/DebugViews/DebugView_Navmesh.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
-#include "Engine/Physics/PhysicsScene.h"
-#include "Engine/Physics/PhysicsLayers.h"
-#include "Engine/Physics/PhysicsMesh.h"
+#include "Engine/Physics/PhysicsWorld.h"
+#include "Engine/Physics/PhysicsCollisionMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/FileSystem/FileSystem.h"
@@ -16,7 +15,7 @@
 #include "System/Log.h"
 
 #include "Engine/AI/Components/Component_AISpawn.h"
-#include "Engine/Physics/Components/Component_PhysicsMesh.h"
+#include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Volumes/Components/Component_Volumes.h"
@@ -51,7 +50,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         m_entityStructureEditor.Initialize( context, GetID() );
-        m_structureEditorSelectionUpdateEventBindingID = m_entityStructureEditor.OnSelectionManuallyChanged().Bind( [this] ( IRegisteredType* pTypeToEdit ) { OnStructureEditorSelectionChanged( pTypeToEdit ); } );
+        m_structureEditorSelectionUpdateEventBindingID = m_entityStructureEditor.OnSelectionManuallyChanged().Bind( [this] ( IReflectedType* pTypeToEdit ) { OnStructureEditorSelectionChanged( pTypeToEdit ); } );
 
         //-------------------------------------------------------------------------
 
@@ -132,12 +131,12 @@ namespace EE::EntityModel
 
                 // Try create optional physics collision component
                 ResourcePath physicsResourcePath = resourceID.GetResourcePath();
-                physicsResourcePath.ReplaceExtension( Physics::PhysicsMesh::GetStaticResourceTypeID().ToString() );
+                physicsResourcePath.ReplaceExtension( Physics::CollisionMesh::GetStaticResourceTypeID().ToString() );
                 ResourceID const physicsResourceID( physicsResourcePath );
                 if ( m_pToolsContext->m_pResourceDatabase->DoesResourceExist( physicsResourceID ) )
                 {
-                    auto pPhysicsMeshComponent = EE::New<Physics::PhysicsMeshComponent>( StringID( "Physics Component" ) );
-                    pPhysicsMeshComponent->SetMesh( physicsResourceID );
+                    auto pPhysicsMeshComponent = EE::New<Physics::CollisionMeshComponent>( StringID( "Physics Component" ) );
+                    pPhysicsMeshComponent->SetCollision( physicsResourceID );
                     pMeshEntity->AddComponent( pPhysicsMeshComponent );
                 }
 
@@ -223,7 +222,7 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityEditorWorkspace::OnStructureEditorSelectionChanged( IRegisteredType* pTypeToEdit )
+    void EntityEditorWorkspace::OnStructureEditorSelectionChanged( IReflectedType* pTypeToEdit )
     {
         m_propertyGrid.SetTypeInstanceToEdit( pTypeToEdit );
     }
@@ -341,9 +340,17 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    void EntityEditorWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
+    void EntityEditorWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        constexpr float const buttonWidth = 18;
+        Workspace::DrawViewportToolbar( context, pViewport );
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine();
+
+        //-------------------------------------------------------------------------
+
+        constexpr float const buttonWidth = 18.0f;
 
         if ( BeginViewportToolbarGroup( "SpatialControls", ImVec2( 100, 0 ) ) )
         {
@@ -356,7 +363,7 @@ namespace EE::EntityModel
             ImGui::EndDisabled();
             ImGuiX::ItemTooltip( "Current Mode: %s", m_gizmo.IsInWorldSpace() ? "World Space" : "Local Space" );
 
-            ImGuiX::VerticalSeparator( ImVec2( 11, -1 ) );
+            ImGuiX::SameLineSeparator( 11 );
 
             //-------------------------------------------------------------------------
 
@@ -397,155 +404,6 @@ namespace EE::EntityModel
             ImGui::PopStyleColor();
         }
         EndViewportToolbarGroup();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextItemWidth( 48 );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4.0f, 4.0f ) );
-        if ( ImGui::BeginCombo( "##MapEditorOptions", EE_ICON_MONITOR_EYE, ImGuiComboFlags_HeightLarge ) )
-        {
-            ImGuiX::TextSeparator( "Physics" );
-
-            auto pPhysicsWorldSystem = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>();
-            bool isDebugEnabled = pPhysicsWorldSystem->IsDebugDrawingEnabled();
-            if ( ImGui::MenuItem( "Show Physics Collision", nullptr, &isDebugEnabled ) )
-            {
-                pPhysicsWorldSystem->SetDebugDrawingEnabled( isDebugEnabled );
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGuiX::TextSeparator( "Navmesh" );
-
-            auto pNavmeshWorldSystem = m_pWorld->GetWorldSystem<Navmesh::NavmeshWorldSystem>();
-            Navmesh::NavmeshDebugView::DrawNavmeshRuntimeSettings( pNavmeshWorldSystem );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::EndCombo();
-        }
-        ImGuiX::ItemTooltip( "Map Visualizations" );
-        ImGui::PopStyleVar();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth( 48 );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4.0f, 4.0f ) );
-        if ( ImGui::BeginCombo( "##Volumes", EE_ICON_CUBE_OUTLINE, ImGuiComboFlags_HeightLarge ) )
-        {
-            for ( auto pVolumeTypeInfo : m_volumeTypes )
-            {
-                bool isVisualized = VectorContains( m_visualizedVolumeTypes, pVolumeTypeInfo );
-                if ( ImGui::MenuItem( pVolumeTypeInfo->GetFriendlyTypeName(), nullptr, isVisualized ) )
-                {
-                    if ( isVisualized )
-                    {
-                        m_visualizedVolumeTypes.erase_first( pVolumeTypeInfo );
-                    }
-                    else
-                    {
-                        m_visualizedVolumeTypes.emplace_back( pVolumeTypeInfo );
-                    }
-                }
-            }
-
-            ImGui::EndCombo();
-        }
-        ImGuiX::ItemTooltip( "Volume Visualizations" );
-        ImGui::PopStyleVar();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth( 48 );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4.0f, 4.0f ) );
-        if ( ImGui::BeginCombo( "##Help", EE_ICON_HELP_CIRCLE_OUTLINE, ImGuiComboFlags_HeightLarge ) )
-        {
-            auto DrawHelpRow = [] ( char const* pLabel, char const* pHotkey )
-            {
-                ImGui::TableNextRow();
-                
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
-                    ImGui::Text( pLabel );
-                }
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                    ImGui::Text( pHotkey );
-                }
-            };
-
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::BeginTable( "HelpTable", 2 ) )
-            {
-                DrawHelpRow( "Switch Gizmo Mode","Spacebar" );
-                DrawHelpRow( "Multi Select", "Ctrl/Shift + Left Click" );
-                DrawHelpRow( "Directly Select Component", "Alt + Left Click" );
-                DrawHelpRow( "Duplicate Selected Entities","Alt + translate" );
-
-                ImGui::EndTable();
-            }
-
-            ImGui::EndCombo();
-        }
-        ImGuiX::ItemTooltip( "Help" );
-        ImGui::PopStyleVar();
-
-        //-------------------------------------------------------------------------
-
-        if ( m_hasSpatialSelection )
-        {
-            ImGui::SameLine();
-            float const infoGroupWidth = ImGui::GetCursorPosX() - 8;
-            ImGui::NewLine();
-            ImGui::NewLine();
-
-            //-------------------------------------------------------------------------
-
-            if ( BeginViewportToolbarGroup( "SpatialSelectionInfo", ImVec2( infoGroupWidth, 0 ) ) )
-            {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-                ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 2 );
-
-                auto const& selectedSpatialComponents = m_entityStructureEditor.GetSelectedSpatialComponents();
-                if ( selectedSpatialComponents.size() > 0 )
-                {
-                    auto pEditedEntity = m_entityStructureEditor.GetEditedEntity();
-                    if ( pEditedEntity != nullptr )
-                    {
-                        if ( selectedSpatialComponents.size() > 1 )
-                        {
-                            ImGui::Text( "Multiple Components Selected (%s)", pEditedEntity->GetNameID().c_str() );
-                        }
-                        else
-                        {
-                            ImGui::Text( "%s (%s)", selectedSpatialComponents[0]->GetNameID().c_str(), pEditedEntity->GetNameID().c_str() );
-                        }
-                    }
-                }
-                else // Update all selected entities
-                {
-                    auto const selectedEntities = m_outliner.GetSelectedEntities();
-                    if ( !selectedEntities.empty() )
-                    {
-                        if ( selectedEntities.size() > 1 )
-                        {
-                            ImGui::Text( "Multiple Entities Selected" );
-                        }
-                        else
-                        {
-                            ImGui::Text( selectedEntities[0]->GetNameID().c_str() );
-                        }
-                    }
-                }
-            }
-            EndViewportToolbarGroup();
-        }
     }
 
     void EntityEditorWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -679,11 +537,11 @@ namespace EE::EntityModel
                     {
                         if ( auto pSpatialComponent = TryCast<SpatialEntityComponent>( pComponent ) )
                         {
-                            drawingCtx.DrawWireBox( pSpatialComponent->GetWorldBounds(), Colors::Cyan, 3.0f, Drawing::EnableDepthTest );
+                            //drawingCtx.DrawWireBox( pSpatialComponent->GetWorldBounds(), Colors::Cyan, 3.0f, Drawing::EnableDepthTest );
                         }
                     }
 
-                    drawingCtx.DrawWireBox( pEntity->GetCombinedWorldBounds(), Colors::Orange, 3.0f, Drawing::EnableDepthTest );
+                    //drawingCtx.DrawWireBox( pEntity->GetCombinedWorldBounds(), Colors::Orange, 3.0f, Drawing::EnableDepthTest );
                 }
             }
 

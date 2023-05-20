@@ -15,7 +15,7 @@ namespace EE::Animation::GraphNodes
     {
         friend GlobalTransitionConduitToolsNode;
         friend StateMachineGraph;
-        EE_REGISTER_TYPE( GlobalTransitionToolsNode );
+        EE_REFLECT_TYPE( GlobalTransitionToolsNode );
 
     public:
 
@@ -30,7 +30,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER UUID m_stateID;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        UUID m_stateID;
     };
 
     // The global transition node present in state machine graphs
@@ -38,7 +39,7 @@ namespace EE::Animation::GraphNodes
 
     class GlobalTransitionConduitToolsNode final : public VisualGraph::SM::Node
     {
-        EE_REGISTER_TYPE( GlobalTransitionConduitToolsNode );
+        EE_REFLECT_TYPE( GlobalTransitionConduitToolsNode );
 
     public:
 

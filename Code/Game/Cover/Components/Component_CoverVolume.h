@@ -13,7 +13,7 @@ namespace EE
 
     enum class CoverType
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Low = 0,
         HighShootLeft,
@@ -25,7 +25,7 @@ namespace EE
 
     class EE_GAME_API CoverVolumeComponent : public BoxVolumeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( CoverVolumeComponent );
+        EE_ENTITY_COMPONENT( CoverVolumeComponent );
 
     public:
 
@@ -39,6 +39,6 @@ namespace EE
 
     private:
 
-        EE_EXPOSE CoverType    m_coverType = CoverType::HighHidden;
+        EE_REFLECT() CoverType    m_coverType = CoverType::HighHidden;
     };
 }

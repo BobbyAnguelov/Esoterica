@@ -39,16 +39,34 @@ namespace EE
             return ( m_flags & GetFlagMask( flag ) ) > 0;
         }
 
+        template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+        EE_FORCE_INLINE bool IsFlagSet( T enumValue )
+        {
+            return IsFlagSet( (uint8_t) enumValue );
+        }
+
         EE_FORCE_INLINE void SetFlag( uint8_t flag )
         {
             EE_ASSERT( flag >= 0 && flag < MaxFlags );
             m_flags |= GetFlagMask( flag );
         }
 
+        template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+        EE_FORCE_INLINE void SetFlag( T enumValue )
+        {
+            SetFlag( (uint8_t)enumValue );
+        }
+
         EE_FORCE_INLINE void SetFlag( uint8_t flag, bool value )
         {
             EE_ASSERT( flag < MaxFlags );
             value ? SetFlag( flag ) : ClearFlag( flag );
+        }
+
+        template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+        EE_FORCE_INLINE void SetFlag( T enumValue, bool value )
+        {
+            SetFlag( (uint8_t)enumValue, value );
         }
 
         EE_FORCE_INLINE void SetAllFlags()
@@ -64,10 +82,22 @@ namespace EE
             return ( m_flags & GetFlagMask( flag ) ) == 0;
         }
 
+        template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+        EE_FORCE_INLINE bool IsFlagCleared( T enumValue )
+        {
+            return IsFlagCleared( (uint8_t)enumValue );
+        }
+
         EE_FORCE_INLINE void ClearFlag( uint8_t flag )
         {
             EE_ASSERT( flag < MaxFlags );
             m_flags &= ~GetFlagMask( flag );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void ClearFlag( T enumValue )
+        {
+            ClearFlag( (uint8_t)enumValue );
         }
 
         EE_FORCE_INLINE void ClearAllFlags()
@@ -82,6 +112,13 @@ namespace EE
             EE_ASSERT( flag >= 0 && flag < MaxFlags );
             m_flags ^= GetFlagMask( flag );
         }
+
+        template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+        EE_FORCE_INLINE void FlipFlag( T enumValue )
+        {
+            FlipFlag( (uint8_t)enumValue );
+        }
+
 
         EE_FORCE_INLINE void FlipAllFlags()
         {
@@ -125,6 +162,7 @@ namespace EE
     public:
 
         using BitFlags::BitFlags;
+
         inline explicit TBitFlags( T value ) 
             : BitFlags( GetFlagMask( (uint8_t) value ) )
         {

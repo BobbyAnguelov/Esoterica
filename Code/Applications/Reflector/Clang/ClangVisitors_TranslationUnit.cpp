@@ -11,7 +11,7 @@ namespace EE::TypeSystem::Reflection
     CXChildVisitResult VisitTranslationUnit( CXCursor cr, CXCursor parent, CXClientData pClientData )
     {
         auto pContext = reinterpret_cast<ClangParserContext*>( pClientData );
-        if ( pContext->ErrorOccured() )
+        if ( pContext->HasErrorOccured() )
         {
             return CXChildVisit_Break;
         }
@@ -30,7 +30,8 @@ namespace EE::TypeSystem::Reflection
 
         // Ensure that the header file is part of the list of headers to visit
         HeaderID const headerID = HeaderInfo::GetHeaderID( headerFilePath );
-        if ( !pContext->ShouldVisitHeader( headerID ) )
+        HeaderInfo const* pHeaderInfo = pContext->GetHeaderInfo( headerID );
+        if ( pHeaderInfo == nullptr )
         {
             return CXChildVisit_Continue;
         }
@@ -45,7 +46,8 @@ namespace EE::TypeSystem::Reflection
             // Classes / Structs
             case CXCursor_ClassTemplate:
             {
-                if ( pContext->ShouldRegisterType( cr ) )
+                ReflectionMacro macro;
+                if ( pContext->GetReflectionMacroForType( headerID, cr, macro ) )
                 {
                     pContext->LogError( "Cannot register template class (%s)", cursorName.c_str() );
                     return CXChildVisit_Break;
@@ -65,7 +67,7 @@ namespace EE::TypeSystem::Reflection
                 clang_visitChildren( cr, VisitTranslationUnit, pClientData );
                 pContext->PopNamespace();
 
-                if ( pContext->ErrorOccured() )
+                if ( pContext->HasErrorOccured() )
                 {
                     return CXChildVisit_Break;
                 }
@@ -98,7 +100,7 @@ namespace EE::TypeSystem::Reflection
             // Macros
             case CXCursor_MacroExpansion:
             {
-                return VisitMacro( pContext, headerID, cr, cursorName );
+                return VisitMacro( pContext, pHeaderInfo, cr, cursorName );
             }
             break;
 

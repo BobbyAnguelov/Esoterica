@@ -81,6 +81,7 @@ namespace EE::Animation
 
         UUID CreateCachedPoseBuffer();
         void DestroyCachedPoseBuffer( UUID const& cachedPoseID );
+        void ResetCachedPoseBuffer( UUID const& cachedPoseID );
         PoseBuffer* GetCachedPoseBuffer( UUID const& cachedPoseID );
 
         // Debug

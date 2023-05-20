@@ -163,8 +163,8 @@ namespace EE::Animation
 
         if ( ( numEventsSource0 + numEventsSource1 ) > 0 )
         {
-            UpdateWeights( eventRange0, blendWeight );
-            UpdateWeights( eventRange1, 1.0f - blendWeight );
+            UpdateWeights( eventRange0, 1.0f - blendWeight );
+            UpdateWeights( eventRange1, blendWeight );
 
             // Combine sampled event range - source0's range must always be before source1's range
             if ( numEventsSource0 > 0 && numEventsSource1 > 0 )

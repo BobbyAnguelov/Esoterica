@@ -1,6 +1,5 @@
 #include "PlayerAction_Slide.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Physics/PlayerPhysicsController.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Game/Player/Animation/PlayerGraphController_Ability.h"
@@ -25,8 +24,8 @@ namespace EE::Player
             Vector const movementInputs = ctx.m_pInputState->GetControllerState()->GetLeftAnalogStickValue();
             Vector const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
             Vector const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
-            Vector const forward = camFwd * movementInputs.m_y;
-            Vector const right = camRight * movementInputs.m_x;
+            Vector const forward = camFwd * movementInputs.GetY();
+            Vector const right = camRight * movementInputs.GetX();
             m_slideDirection = ( forward + right ).GetNormalized2();
 
             ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Ability );

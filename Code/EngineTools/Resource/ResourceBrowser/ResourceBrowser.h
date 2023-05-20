@@ -23,7 +23,7 @@ namespace EE
         ResourceBrowser( ToolsContext& toolsContext );
         ~ResourceBrowser();
 
-        char const* const GetWindowName() { return "Resource Browser"; }
+        char const* GetWindowName() { return "Resource Browser"; }
 
         // Returns true if the browser is still open
         bool UpdateAndDraw( UpdateContext const& context );

@@ -45,8 +45,10 @@ namespace EE::Render
         ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
     }
 
-    void StaticMeshWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
+    void StaticMeshWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
     {
+        TWorkspace<StaticMesh>::DrawWorkspaceToolbar( context );
+
         ImGui::Separator();
 
         if ( ImGui::BeginMenu( EE_ICON_TUNE_VERTICAL"Options" ) )

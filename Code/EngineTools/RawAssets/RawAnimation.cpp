@@ -125,7 +125,7 @@ namespace EE::RawAssets
 
             for ( auto const& transform : track.m_localTransforms )
             {
-                Vector const& translation = transform.GetTranslation();
+                Float3 const& translation = transform.GetTranslation().ToFloat3();
                 track.m_translationValueRangeX.GrowRange( translation.m_x );
                 track.m_translationValueRangeY.GrowRange( translation.m_y );
                 track.m_translationValueRangeZ.GrowRange( translation.m_z );

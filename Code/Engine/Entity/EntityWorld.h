@@ -19,14 +19,6 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    enum class EntityWorldType : uint8_t
-    {
-        Game,
-        Tools
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API EntityWorld
     {
         friend class EntityDebugView;
@@ -188,7 +180,14 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+        // This function will immediately shutdown and unload all components so that component properties can be edited.
+        void BeginComponentEdit( Entity* pEntity );
+
+        // End a bulk component edit operation, will request all components to be reloaded
+        void EndComponentEdit( Entity* pEntity );
+
         // This function will immediately shutdown and unload the specified component so that its properties can be edited
+        // Note:  do not call this multiple times in a row, if you need to modify multiple components on the same entity use the functions above
         void BeginComponentEdit( EntityComponent* pComponent );
 
         // End a component edit operation, will request the unloaded component to be reloaded

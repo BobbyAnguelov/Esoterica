@@ -56,13 +56,13 @@ namespace EE::Render
 
         // Vertices
         inline Blob const& GetVertexData() const { return m_vertices; }
-        inline int32_t const GetNumVertices() const { return m_vertexBuffer.m_byteSize / m_vertexBuffer.m_byteStride; }
+        inline int32_t GetNumVertices() const { return m_vertexBuffer.m_byteSize / m_vertexBuffer.m_byteStride; }
         inline VertexFormat const& GetVertexFormat() const { return m_vertexBuffer.m_vertexFormat; }
         inline RenderBuffer const& GetVertexBuffer() const { return m_vertexBuffer; }
 
         // Indices
         inline TVector<uint32_t> const& GetIndices() const { return m_indices; }
-        inline int32_t const GetNumIndices() const { return (int32_t) m_indices.size(); }
+        inline int32_t GetNumIndices() const { return (int32_t) m_indices.size(); }
         inline RenderBuffer const& GetIndexBuffer() const { return m_indexBuffer; }
 
         // Mesh Sections

@@ -1,30 +1,120 @@
 #include "WorldSystem_Navmesh.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
-#include "Engine/Navmesh/NavmeshSystem.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "System/Render/RenderViewport.h"
 #include "System/Profiling.h"
 #include "System/Math/BoundingVolumes.h"
+#include "System/Drawing/DebugDrawingSystem.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Navmesh
 {
+    #if EE_ENABLE_NAVPOWER
+    #if EE_DEVELOPMENT_TOOLS
+    namespace Navpower
+    {
+        class Renderer final : public bfx::Renderer
+        {
+
+        public:
+
+            void SetDebugDrawingSystem( Drawing::DrawingSystem* pDebugDrawingSystem )
+            {
+                m_pDebugDrawingSystem = pDebugDrawingSystem;
+            }
+
+            void Reset()
+            {
+                m_statsPos = Float2( 5, 20 );
+            }
+
+            inline bool IsDepthTestEnabled() const { return m_depthTestEnabled; }
+            inline void SetDepthTestState( bool isEnabled ) { m_depthTestEnabled = isEnabled; }
+
+        private:
+
+            virtual void DrawLineList( bfx::LineSegment const* pLines, uint32_t numLines, bfx::Color const& color ) override
+            {
+                auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
+                for ( auto i = 0u; i < numLines; i++ )
+                {
+                    bfx::LineSegment const& line = pLines[i];
+                    ctx.DrawLine( FromBfx( line.m_v0 ), FromBfx( line.m_v1 ), FromBfx( color ), 1.0f, m_depthTestEnabled ? Drawing::EnableDepthTest : Drawing::DisableDepthTest );
+                }
+            }
+
+            virtual void DrawTriList( bfx::Triangle const* pTris, uint32_t numTris, bfx::Color const& color ) override
+            {
+                auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
+                for ( auto i = 0u; i < numTris; i++ )
+                {
+                    bfx::Triangle const& tri = pTris[i];
+                    ctx.DrawTriangle( FromBfx( tri.m_v0 ), FromBfx( tri.m_v1 ), FromBfx( tri.m_v2 ), FromBfx( color ), m_depthTestEnabled ? Drawing::EnableDepthTest : Drawing::DisableDepthTest );
+                }
+            }
+
+            virtual void DrawString( bfx::Color const& color, char const* str ) override
+            {
+                auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
+                ctx.DrawText2D( m_statsPos, str, FromBfx( color ), Drawing::FontSmall );
+                m_statsPos += Float2( 0, 15 );
+            }
+
+            virtual void DrawString( bfx::Color const& color, bfx::Vector3 const& pos, char const* str ) override
+            {
+                auto ctx = m_pDebugDrawingSystem->GetDrawingContext();
+                ctx.DrawText3D( FromBfx( pos ), str, FromBfx( color ), Drawing::FontSmall );
+            }
+
+        private:
+
+            Drawing::DrawingSystem*                     m_pDebugDrawingSystem = nullptr;
+            Float2                                      m_statsPos = Float2::Zero;
+            bool                                        m_depthTestEnabled = true;
+        };
+    }
+    #endif
+    #endif
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    bool NavmeshWorldSystem::IsDebugRendererDepthTestEnabled() const
+    {
+        #if EE_ENABLE_NAVPOWER
+        EE_ASSERT( m_pRenderer != nullptr );
+        return m_pRenderer->IsDepthTestEnabled();
+        #else
+        return false;
+        #endif
+    }
+
+    void NavmeshWorldSystem::SetDebugRendererDepthTestState( bool isDepthTestingEnabled )
+    {
+        #if EE_ENABLE_NAVPOWER
+        EE_ASSERT( m_pRenderer != nullptr );
+        m_pRenderer->SetDepthTestState( isDepthTestingEnabled );
+        #endif
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
     void NavmeshWorldSystem::InitializeSystem( SystemRegistry const& systemRegistry )
     {
         #if EE_ENABLE_NAVPOWER
-        auto pNavmeshSystem = systemRegistry.GetSystem<NavmeshSystem>();
-
-        m_pInstance = bfx::SystemCreate( bfx::SystemParams( 2.0f, bfx::Z_UP ), pNavmeshSystem->m_pAllocator );
+        m_pInstance = bfx::SystemCreate( bfx::SystemParams( 2.0f, bfx::Z_UP ), NavPower::GetAllocator() );
         bfx::SetCurrentInstance( nullptr );
 
         bfx::RegisterPlannerSystem( m_pInstance );
         bfx::SystemStart( m_pInstance );
 
         #if EE_DEVELOPMENT_TOOLS
-        bfx::SetRenderer( m_pInstance, &m_renderer );
+        m_pRenderer = EE::New<Navpower::Renderer>();
+        bfx::SetRenderer( m_pInstance, m_pRenderer );
         #endif
         #endif
     }
@@ -36,6 +126,7 @@ namespace EE::Navmesh
 
         #if EE_DEVELOPMENT_TOOLS
         bfx::SetRenderer( m_pInstance, nullptr );
+        EE::Delete( m_pRenderer );
         #endif
 
         bfx::SystemStop( m_pInstance );
@@ -147,8 +238,8 @@ namespace EE::Navmesh
         #if EE_DEVELOPMENT_TOOLS
         {
             EE_PROFILE_SCOPE_NAVIGATION( "Navmesh Debug Drawing" );
-            m_renderer.SetDebugDrawingSystem( ctx.GetDebugDrawingSystem() );
-            m_renderer.Reset();
+            m_pRenderer->SetDebugDrawingSystem( ctx.GetDebugDrawingSystem() );
+            m_pRenderer->Reset();
 
             Render::Viewport const* pViewport = ctx.GetViewport();
         
@@ -175,7 +266,7 @@ namespace EE::Navmesh
         if ( bfx::GetNavGraphBounds( spaceHandle, 1 << layerIdx, center, extents ) )
         {
             bounds.m_center = FromBfx( center );
-            bounds.m_extents = FromBfx( extents );
+            bounds.m_halfExtents = FromBfx( extents );
         }
         #endif
 

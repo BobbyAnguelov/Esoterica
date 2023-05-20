@@ -9,7 +9,7 @@ namespace EE::AI
 {
     BehaviorContext::~BehaviorContext()
     {
-        EE_ASSERT( m_pEntityWorldUpdateContext == nullptr && m_pNavmeshSystem == nullptr && m_pPhysicsScene == nullptr );
+        EE_ASSERT( m_pEntityWorldUpdateContext == nullptr && m_pNavmeshSystem == nullptr && m_pPhysicsWorld == nullptr );
         EE_ASSERT( m_pCharacter == nullptr && m_pCharacterController == nullptr );
         EE_ASSERT( m_pAIComponent == nullptr && m_pAnimationController == nullptr );
     }
@@ -31,7 +31,7 @@ namespace EE::AI
             return false;
         }
 
-        return m_pEntityWorldUpdateContext != nullptr && m_pNavmeshSystem != nullptr && m_pPhysicsScene != nullptr;
+        return m_pEntityWorldUpdateContext != nullptr && m_pNavmeshSystem != nullptr && m_pPhysicsWorld != nullptr;
     }
 
     #if EE_DEVELOPMENT_TOOLS

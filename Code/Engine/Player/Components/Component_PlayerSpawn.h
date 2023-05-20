@@ -14,7 +14,7 @@ namespace EE::Player
 {
     class EE_ENGINE_API PlayerSpawnComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( PlayerSpawnComponent );
+        EE_ENTITY_COMPONENT( PlayerSpawnComponent );
 
     public:
 
@@ -24,6 +24,6 @@ namespace EE::Player
 
     private:
 
-        EE_EXPOSE TResourcePtr<EntityModel::SerializedEntityCollection>    m_pPlayerEntityDesc = nullptr;
+        EE_REFLECT() TResourcePtr<EntityModel::SerializedEntityCollection>    m_pPlayerEntityDesc = nullptr;
     };
 }

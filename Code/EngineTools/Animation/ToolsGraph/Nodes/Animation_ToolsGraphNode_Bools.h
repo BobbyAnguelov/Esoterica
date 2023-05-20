@@ -7,7 +7,7 @@ namespace EE::Animation::GraphNodes
 {
     class AndToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( AndToolsNode );
+        EE_REFLECT_TYPE( AndToolsNode );
 
     public:
 
@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
 
     class OrToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( OrToolsNode );
+        EE_REFLECT_TYPE( OrToolsNode );
 
     public:
 
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
 
     class NotToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( NotToolsNode );
+        EE_REFLECT_TYPE( NotToolsNode );
 
     public:
 

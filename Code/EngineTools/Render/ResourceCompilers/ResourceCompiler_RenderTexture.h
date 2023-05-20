@@ -8,7 +8,7 @@ namespace EE::Render
 {
     class TextureCompiler : public Resource::Compiler
     {
-        EE_REGISTER_TYPE( TextureCompiler );
+        EE_REFLECT_TYPE( TextureCompiler );
         static const int32_t s_version = 4;
 
     public:

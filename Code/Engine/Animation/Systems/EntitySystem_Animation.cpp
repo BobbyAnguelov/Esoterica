@@ -184,7 +184,7 @@ namespace EE::Animation
                 if ( !pAnimComponent->RequiresManualUpdate() )
                 {
                     // Evaluate the graph nodes and calculate the root motion delta
-                    pAnimComponent->EvaluateGraph( ctx.GetDeltaTime(), characterWorldTransform, pPhysicsWorldSystem->GetScene() );
+                    pAnimComponent->EvaluateGraph( ctx.GetDeltaTime(), characterWorldTransform, pPhysicsWorldSystem->GetWorld() );
 
                     // Apply the root motion if desired
                     Transform adjustedCharacterTransform = characterWorldTransform;

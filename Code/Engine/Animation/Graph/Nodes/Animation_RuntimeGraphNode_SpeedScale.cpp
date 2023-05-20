@@ -55,12 +55,13 @@ namespace EE::Animation::GraphNodes
                     speedScale = Math::Lerp( 1.0f, speedScale, m_blendWeight );
                 }
 
+                // Zero scale is equivalent to a single pose animation
                 if ( Math::IsNearZero( speedScale ) )
                 {
                     context.m_deltaTime = 0.0f;
-                    m_duration = 0.0f;
+                    m_duration = s_oneFrameDuration;
                 }
-                else
+                else // Apply scale
                 {
                     context.m_deltaTime *= speedScale;
                     m_duration = m_pChildNode->GetDuration() / speedScale;
@@ -125,7 +126,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         m_previousTime = m_currentTime = 0.0f;
-        m_duration = 1.0f;
+        m_duration = s_oneFrameDuration;
 
         //-------------------------------------------------------------------------
 
@@ -224,7 +225,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         // Reset the time delta
@@ -252,7 +253,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         return result;

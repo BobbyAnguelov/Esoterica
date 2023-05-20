@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Types/UUID.h"
 #include "System/Types/Function.h"
 
@@ -25,9 +25,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API EntityWorldDebugView : public IRegisteredType
+    class EE_ENGINE_API EntityWorldDebugView : public IReflectedType
     {
-        EE_REGISTER_TYPE( EntityWorldDebugView );
+        EE_REFLECT_TYPE( EntityWorldDebugView );
 
         friend class EntityWorldDebugger;
 

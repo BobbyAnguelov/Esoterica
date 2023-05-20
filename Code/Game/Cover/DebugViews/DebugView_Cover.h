@@ -13,7 +13,7 @@ namespace EE
 
     class CoverDebugView : public EntityWorldDebugView
     {
-        EE_REGISTER_TYPE( CoverDebugView );
+        EE_REFLECT_TYPE( CoverDebugView );
 
     public:
 

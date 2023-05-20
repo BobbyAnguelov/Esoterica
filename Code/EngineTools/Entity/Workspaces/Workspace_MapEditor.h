@@ -33,6 +33,9 @@ namespace EE::EntityModel
         // Game Preview
         //-------------------------------------------------------------------------
 
+        TEventHandle<UpdateContext const&> OnGamePreviewStartRequested() { return m_requestStartGamePreview; }
+        TEventHandle<UpdateContext const&> OnGamePreviewStopRequested() { return m_requestStopGamePreview; }
+
         void NotifyGamePreviewStarted();
         void NotifyGamePreviewEnded();
 
@@ -43,7 +46,8 @@ namespace EE::EntityModel
         virtual bool Save() override;
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_EARTH; }
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
         // Navmesh
@@ -59,6 +63,9 @@ namespace EE::EntityModel
         ResourceID                                      m_loadedMap;
         EntityMapID                                     m_editedMapID;
         bool                                            m_isGamePreviewRunning = false;
+
+        TEvent<UpdateContext const&>                    m_requestStartGamePreview;
+        TEvent<UpdateContext const&>                    m_requestStopGamePreview;
 
         Navmesh::NavmeshGeneratorDialog*                m_pNavmeshGeneratorDialog = nullptr;
     };

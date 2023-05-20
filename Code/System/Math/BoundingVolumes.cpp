@@ -5,119 +5,6 @@
 
 namespace EE
 {
-    Sphere::Sphere( Vector* points, uint32_t numPoints )
-    {
-        EE_ASSERT( points != nullptr && numPoints > 0 );
-
-        // Find the points with minimum and maximum m_x, m_y, and m_z
-        Vector minX, maxX, minY, maxY, minZ, maxZ;
-        minX = maxX = minY = maxY = minZ = maxZ = points[0];
-
-        for ( uint32_t i = 1u; i < numPoints; ++i )
-        {
-            float px = points[i].m_x;
-            float py = points[i].m_y;
-            float pz = points[i].m_z;
-
-            if ( px < minX.m_x )
-            {
-                minX = points[i];
-            }
-
-            if ( px > maxX.m_x )
-            {
-                maxX = points[i];
-            }
-
-            if ( py < minY.m_y )
-            {
-                minY = points[i];
-            }
-
-            if ( py > maxY.m_y )
-            {
-                maxY = points[i];
-            }
-
-            if ( pz < minZ.m_z )
-            {
-                minZ = points[i];
-            }
-
-            if ( pz >  maxZ.m_z )
-            {
-                maxZ = points[i];
-            }
-        }
-
-        // Use the min/max pair that are farthest apart to form the initial sphere.
-        Vector DeltaX = maxX - minX;
-        Vector DistX = DeltaX.Length3();
-
-        Vector DeltaY = maxY - minY;
-        Vector DistY =  DeltaY.Length3();
-
-        Vector DeltaZ = maxZ - minZ;
-        Vector DistZ = DeltaZ.Length3();
-
-        if ( DistX.IsGreaterThan3( DistY ) )
-        {
-            if ( DistX.IsGreaterThan3( DistZ ) )
-            {
-                // Use min/max m_x.
-                m_center = Vector::Lerp( maxX, minX, 0.5f );
-                m_radius = DistX * 0.5f;
-            }
-            else
-            {
-                // Use min/max m_z.
-                m_center = Vector::Lerp( maxZ, minZ, 0.5f );
-                m_radius = DistZ * 0.5f;
-            }
-        }
-        else // Y >= X
-        {
-            if ( DistY.IsGreaterThan3( DistZ ) )
-            {
-                // Use min/max m_y.
-                m_center = Vector::Lerp( maxY, minY, 0.5f );
-                m_radius = DistY * 0.5f;
-            }
-            else
-            {
-                // Use min/max m_z.
-                m_center = Vector::Lerp( maxZ, minZ, 0.5f );
-                m_radius = DistZ, 0.5f;
-            }
-        }
-
-        // Add any points not inside the sphere.
-        for ( uint32_t i = 0u; i < numPoints; ++i )
-        {
-            Vector Delta = points[i] - m_center;
-            Vector Dist =  Delta.Length3();
-
-            if ( Dist.IsGreaterThan3( m_radius ) )
-            {
-                // Adjust sphere to include the new point.
-                m_radius = ( m_radius + Dist ) * 0.5f;
-                m_center = m_center + ( ( Vector::One - ( m_radius / Dist ) ) * Delta );
-            }
-        }
-    }
-
-    Sphere::Sphere( AABB const& box )
-        : m_center( box.m_center )
-        , m_radius( box.m_extents.Length3() )
-    {}
-
-    Sphere::Sphere( OBB const& box )
-        : m_center( box.m_center )
-        , m_radius( box.m_extents.Length3() )
-    {}
-
-    //-------------------------------------------------------------------------
-
     AABB::AABB( OBB const& box )
     {
         //TODO
@@ -140,40 +27,6 @@ namespace EE
         SetFromMinMax( min, max );
     }
 
-    EE::OverlapResult AABB::OverlapTest( Sphere const& sphere ) const
-    {
-        Vector const boxMin = m_center - m_extents;
-        Vector const boxMax = m_center + m_extents;
-
-        // Find the distance to the nearest point on the box.
-        // for each i in (m_x, m_y, m_z)
-        // if (sphere.m_center(i) < BoxMin(i)) d2 += (sphere.m_center(i) - BoxMin(i)) ^ 2
-        // else if (sphere.m_center(i) > BoxMax(i)) d2 += (sphere.m_center(i) - BoxMax(i)) ^ 2
-
-        // Compute d for each dimension.
-        Vector const lessThanMin = sphere.m_center.LessThan( boxMin );
-        Vector const greaterThanMax = sphere.m_center.GreaterThan( boxMax );
-        Vector const minDelta = sphere.m_center - boxMin;
-        Vector const maxDelta = sphere.m_center - boxMax;
-
-        // Choose value for each dimension based on the comparison.
-        Vector d = Vector::Zero;
-        d = Vector::Select( d, minDelta, lessThanMin );
-        d = Vector::Select( d, maxDelta, greaterThanMax );
-
-        // Use a dot-product to square them and sum them together.
-        Vector const d2 = d.Dot3( d );
-        if ( d2.IsGreaterThan3( sphere.m_radius * sphere.m_radius ) )
-        {
-            return OverlapResult::NoOverlap;
-        }
-
-        Vector insideAll = ( boxMin + sphere.m_radius ).LessThanEqual( sphere.m_center );
-        insideAll = SIMD::Int::And( insideAll, sphere.m_center.LessThanEqual( boxMax - sphere.m_radius ) );
-        insideAll = SIMD::Int::And( insideAll, ( boxMax - boxMin ).GreaterThan( sphere.m_radius ) );
-        return SIMD::Int::Equal( insideAll, SIMD::g_trueMask ) ? OverlapResult::FullyEnclosed : OverlapResult::Overlap;
-    }
-
     OverlapResult AABB::OverlapTest( OBB const& box ) const
     {
         EE_ASSERT( box.m_orientation.IsNormalized() );
@@ -190,7 +43,7 @@ namespace EE
         {
             Vector const c = box.m_center + box.m_orientation.RotateVector( box.m_extents * Vector::BoxCorners[i] );
             Vector const d = c.GetAbs();
-            insideAll = SIMD::Int::And( insideAll, d.LessThanEqual( m_extents ) );
+            insideAll = SIMD::Int::And( insideAll, d.LessThanEqual( m_halfExtents ) );
         }
 
         return ( SIMD::Int::Equal( insideAll, SIMD::g_trueMask ) ) ? OverlapResult::FullyEnclosed : OverlapResult::Overlap;
@@ -202,14 +55,14 @@ namespace EE
         Vector max( -FLT_MAX );
 
         // First corner
-        Vector corner = Vector::MultiplyAdd( m_extents, Vector::BoxCorners[0], m_center );
+        Vector corner = Vector::MultiplyAdd( m_halfExtents, Vector::BoxCorners[0], m_center );
         corner = transform.TransformPoint( corner );
         min = max = corner;
 
         // Remaining 7 corners
         for ( auto i = 1; i < 8; i++ )
         {
-            corner = Vector::MultiplyAdd( m_extents, Vector::BoxCorners[i], m_center );
+            corner = Vector::MultiplyAdd( m_halfExtents, Vector::BoxCorners[i], m_center );
             corner = transform.TransformPoint( corner );
             min = Vector::Min( min, corner );
             max = Vector::Max( max, corner );
@@ -537,79 +390,5 @@ namespace EE
 
         // No separating axis found, boxes must intersect.
         return SIMD::Int::NotEqual( NoIntersection, SIMD::g_trueMask ) ? true : false;
-    }
-
-    bool OBB::Overlaps( Sphere const& sphere ) const
-    {
-        EE_ASSERT( m_orientation.IsNormalized() );
-
-        // Transform the center of the sphere to be local to the box.
-        // BoxMin = -m_extents
-        // BoxMax = +m_extents
-        Vector const transformedSphereCenter = m_orientation.RotateVectorInverse( sphere.m_center - m_center );
-
-        // Find the distance to the nearest point on the box.
-        // for each i in (m_x, m_y, m_z)
-        // if (transformedSphereCenter(i) < BoxMin(i)) d2 += (transformedSphereCenter(i) - BoxMin(i)) ^ 2
-        // else if (transformedSphereCenter(i) > BoxMax(i)) d2 += (transformedSphereCenter(i) - BoxMax(i)) ^ 2
-
-        // Compute d for each dimension.
-        Vector const lessThanMin = transformedSphereCenter.LessThan( m_extents.GetNegated() );
-        Vector const greaterThanMax = transformedSphereCenter.GreaterThan( m_extents );
-        Vector const minDelta = transformedSphereCenter + m_extents;
-        Vector const maxDelta = transformedSphereCenter - m_extents;
-
-        // Choose value for each dimension based on the comparison.
-        Vector d = Vector::Zero;
-        d = Vector::Select( d, minDelta, lessThanMin );
-        d = Vector::Select( d, maxDelta, greaterThanMax );
-
-        // Use a dot-product to square them and sum them together.
-        Vector const d2 = d.Dot3( d );
-        return d2.IsLessThanEqual4( sphere.m_radius * sphere.m_radius );
-    }
-
-    OverlapResult OBB::OverlapTest( Sphere const& sphere ) const
-    {
-        EE_ASSERT( m_orientation.IsNormalized() );
-
-        // Transform the center of the sphere to be local to the box.
-        // BoxMin = -m_extents
-        // BoxMax = +m_extents
-        Vector const transformedSphereCenter = m_orientation.RotateVectorInverse( sphere.m_center - m_center );
-
-        // Find the distance to the nearest point on the box.
-        // for each i in (m_x, m_y, m_z)
-        // if (transformedSphereCenter(i) < BoxMin(i)) d2 += (transformedSphereCenter(i) - BoxMin(i)) ^ 2
-        // else if (transformedSphereCenter(i) > BoxMax(i)) d2 += (transformedSphereCenter(i) - BoxMax(i)) ^ 2
-
-        // Compute d for each dimension.
-        Vector const lessThanMin = transformedSphereCenter.LessThan( m_extents.GetNegated() );
-        Vector const greaterThanMax = transformedSphereCenter.GreaterThan( m_extents );
-        Vector const minDelta = transformedSphereCenter + m_extents;
-        Vector const maxDelta = transformedSphereCenter - m_extents;
-
-        // Choose value for each dimension based on the comparison.
-        Vector d = Vector::Zero;
-        d = Vector::Select( d, minDelta, lessThanMin );
-        d = Vector::Select( d, maxDelta, greaterThanMax );
-
-        // Use a dot-product to square them and sum them together.
-        Vector const d2 = d.Dot3( d );
-        Vector const sphereRadiusSq = sphere.m_radius * sphere.m_radius;
-        if ( d2.IsGreaterThan4( sphereRadiusSq ) )
-        {
-            return OverlapResult::NoOverlap;
-        }
-
-        // See if we are completely inside the box
-        Vector SMin = sphere.m_center - sphere.m_radius;
-        Vector SMax = sphere.m_center + sphere.m_radius;
-        if ( SMin.IsInBounds3( m_extents ) && SMax.IsInBounds3( m_extents ) )
-        {
-            return OverlapResult::FullyEnclosed;
-        }
-
-        return OverlapResult::Overlap;
     }
 }

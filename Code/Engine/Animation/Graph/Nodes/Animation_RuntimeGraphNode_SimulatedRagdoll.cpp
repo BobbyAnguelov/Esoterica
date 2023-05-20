@@ -6,7 +6,7 @@
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
-#include "Engine/Physics/PhysicsScene.h"
+#include "Engine/Physics/PhysicsWorld.h"
 #include "System/Log.h"
 
 //-------------------------------------------------------------------------
@@ -74,8 +74,7 @@ namespace EE::Animation::GraphNodes
         // Destroy the ragdoll
         if ( m_pRagdoll != nullptr )
         {
-            m_pRagdoll->RemoveFromScene();
-            EE::Delete( m_pRagdoll );
+            context.m_pPhysicsWorld->DestroyRagdoll( m_pRagdoll );
         }
 
         // Shutdown exit options
@@ -92,7 +91,7 @@ namespace EE::Animation::GraphNodes
 
     void SimulatedRagdollNode::CreateRagdoll( GraphContext& context )
     {
-        if ( m_pEntryNode->IsValid() && m_pRagdollDefinition != nullptr && context.m_pPhysicsScene != nullptr )
+        if ( m_pEntryNode->IsValid() && m_pRagdollDefinition != nullptr && context.m_pPhysicsWorld != nullptr )
         {
             auto pNodeSettings = GetSettings<SimulatedRagdollNode>();
 
@@ -107,7 +106,7 @@ namespace EE::Animation::GraphNodes
             // Create ragdoll and set initial stage
             if ( isValidSetup )
             {
-                m_pRagdoll = context.m_pPhysicsScene->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_entryProfileID, context.m_graphUserID );
+                m_pRagdoll = context.m_pPhysicsWorld->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_entryProfileID, context.m_graphUserID );
                 m_pRagdoll->SetPoseFollowingEnabled( true );
                 m_pRagdoll->SetGravityEnabled( true );
 
@@ -176,7 +175,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
             result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
         }
 
@@ -251,7 +250,7 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult SimulatedRagdollNode::UpdateSimulated( GraphContext& context )
     {
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex() );
         return result;
     }

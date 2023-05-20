@@ -1,6 +1,5 @@
 #include "EntitySystem_PlayerController.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Physics/PlayerPhysicsController.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Controller.h"
@@ -11,6 +10,7 @@
 #include "System/Input/InputSystem.h"
 #include "System/Types/ScopedValue.h"
 #include "System/Profiling.h"
+#include "System/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,11 +18,6 @@ namespace EE::Player
 {
     void PlayerController::PostComponentRegister()
     {
-        if ( m_actionContext.m_pCharacterComponent != nullptr )
-        {
-            m_actionContext.m_pCharacterController = EE::New<CharacterPhysicsController>( m_actionContext.m_pCharacterComponent );
-        }
-
         if ( m_pAnimGraphComponent != nullptr && m_pCharacterMeshComponent != nullptr )
         {
             m_actionContext.m_pAnimationController = EE::New<AnimationController>( m_pAnimGraphComponent, m_pCharacterMeshComponent );
@@ -38,7 +33,6 @@ namespace EE::Player
     {
         EE_ASSERT( m_actionContext.m_pCameraController == nullptr );
         EE_ASSERT( m_actionContext.m_pAnimationController == nullptr );
-        EE_ASSERT( m_actionContext.m_pCharacterController == nullptr );
     }
 
     //-------------------------------------------------------------------------
@@ -90,45 +84,40 @@ namespace EE::Player
         if ( auto pCharacterPhysicsComponent = TryCast<Physics::CharacterComponent>( pComponent ) )
         {
             EE_ASSERT( m_actionContext.m_pCharacterComponent == pCharacterPhysicsComponent );
-            m_actionContext.m_pCharacterComponent = nullptr;
-
             m_actionStateMachine.ForceStopAllRunningActions();
-            EE::Delete( m_actionContext.m_pCharacterController );
+            m_actionContext.m_pCharacterComponent = nullptr;
         }
 
         else if ( auto pCameraComponent = TryCast<OrbitCameraComponent>( pComponent ) )
         {
             EE_ASSERT( m_pCameraComponent == pCameraComponent );
-            m_pCameraComponent = nullptr;
-
             m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pCameraController );
+            m_pCameraComponent = nullptr;
         }
 
         else if ( auto pPlayerComponent = TryCast<MainPlayerComponent>( pComponent ) )
         {
             EE_ASSERT( m_actionContext.m_pPlayerComponent == pPlayerComponent );
-            m_actionContext.m_pPlayerComponent = nullptr;
             m_actionStateMachine.ForceStopAllRunningActions();
+            m_actionContext.m_pPlayerComponent = nullptr;
         }
 
         else if ( auto pCharacterMeshComponent = TryCast<Render::CharacterMeshComponent>( pComponent ) )
         {
             EE_ASSERT( m_pCharacterMeshComponent != nullptr );
-            m_pCharacterMeshComponent = nullptr;
-
             m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pAnimationController );
+            m_pCharacterMeshComponent = nullptr;
         }
 
         else if ( auto pGraphComponent = TryCast<Animation::AnimationGraphComponent>( pComponent ) )
         {
             // We only support one component atm - animgraph comps are not singletons
             EE_ASSERT( m_pAnimGraphComponent != nullptr );
-            m_pAnimGraphComponent = nullptr;
-
             m_actionStateMachine.ForceStopAllRunningActions();
             EE::Delete( m_actionContext.m_pAnimationController );
+            m_pAnimGraphComponent = nullptr;
         }
     }
 
@@ -141,12 +130,14 @@ namespace EE::Player
             return;
         }
 
+        //-------------------------------------------------------------------------
+
         EE_PROFILE_FUNCTION_GAMEPLAY();
 
         //-------------------------------------------------------------------------
 
         TScopedGuardValue const contextGuardValue( m_actionContext.m_pEntityWorldUpdateContext, &ctx );
-        TScopedGuardValue const physicsSystemGuard( m_actionContext.m_pPhysicsScene, ctx.GetWorldSystem<Physics::PhysicsWorldSystem>()->GetScene() );
+        TScopedGuardValue const physicsSystemGuard( m_actionContext.m_pPhysicsWorld, ctx.GetWorldSystem<Physics::PhysicsWorldSystem>()->GetWorld() );
         TScopedGuardValue const inputStateGuardValue( m_actionContext.m_pInputState, ctx.GetInputState() );
 
         if ( !m_actionContext.IsValid() )
@@ -179,7 +170,7 @@ namespace EE::Player
 
                 // Update animation and get root motion delta (remember that root motion is in character space, so we need to convert the displacement to world space)
                 m_actionContext.m_pAnimationController->PreGraphUpdate( ctx.GetDeltaTime() );
-                m_pAnimGraphComponent->EvaluateGraph( ctx.GetDeltaTime(), m_pCharacterMeshComponent->GetWorldTransform(), m_actionContext.m_pPhysicsScene );
+                m_pAnimGraphComponent->EvaluateGraph( ctx.GetDeltaTime(), m_pCharacterMeshComponent->GetWorldTransform(), m_actionContext.m_pPhysicsWorld );
                 m_actionContext.m_pAnimationController->PostGraphUpdate( ctx.GetDeltaTime() );
             }
 
@@ -190,7 +181,7 @@ namespace EE::Player
 
                 Vector const& deltaTranslation = m_pCharacterMeshComponent->GetWorldTransform().RotateVector( m_pAnimGraphComponent->GetRootMotionDelta().GetTranslation() );
                 Quaternion const& deltaRotation = m_pAnimGraphComponent->GetRootMotionDelta().GetRotation();
-                m_actionContext.m_pCharacterController->TryMoveCapsule( ctx, m_actionContext.m_pPhysicsScene, deltaTranslation, deltaRotation );
+                m_actionContext.m_pCharacterComponent->MoveCharacter( ctx.GetDeltaTime(), deltaRotation, deltaTranslation );
             }
 
             //-------------------------------------------------------------------------
@@ -200,10 +191,24 @@ namespace EE::Player
 
             // Update camera position relative to new character position
             m_actionContext.m_pCameraController->FinalizeCamera();
+
+            //-------------------------------------------------------------------------
+
+            #if EE_DEVELOPMENT_TOOLS
+            auto drawContext = ctx.GetDrawingContext();
+            m_actionContext.m_pCharacterComponent->DrawDebug( drawContext );
+            #endif
         }
         else if ( updateStage == UpdateStage::PostPhysics )
         {
             m_pAnimGraphComponent->ExecutePostPhysicsTasks();
+        }
+        else if ( updateStage == UpdateStage::Paused )
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            auto drawContext = ctx.GetDrawingContext();
+            m_actionContext.m_pCharacterComponent->DrawDebug( drawContext );
+            #endif
         }
         else
         {

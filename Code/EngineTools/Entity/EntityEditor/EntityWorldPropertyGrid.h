@@ -51,7 +51,7 @@ namespace EE::EntityModel
         inline void RequestRefresh() { m_requestRefresh = true; }
 
         // Set the type instance to edit (only entities and components are supported!)
-        void SetTypeInstanceToEdit( IRegisteredType* pTypeInstance );
+        void SetTypeInstanceToEdit( IReflectedType* pTypeInstance );
 
     private:
 

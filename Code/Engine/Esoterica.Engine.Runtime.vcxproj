@@ -43,14 +43,17 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
+    <Import Project="..\PropertySheets\PhysX.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
+    <Import Project="..\PropertySheets\PhysX.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
+    <Import Project="..\PropertySheets\PhysX.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
@@ -132,6 +135,11 @@
     <ClCompile Include="Entity\EntityLog.cpp" />
     <ClCompile Include="Entity\EntitySerialization.cpp" />
     <ClCompile Include="Entity\EntityIDs.cpp" />
+    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp" />
+    <ClCompile Include="Physics\Physics.cpp" />
+    <ClCompile Include="Physics\PhysicsMaterial.cpp" />
+    <ClCompile Include="Physics\PhysicsQuery.cpp" />
+    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp" />
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp" />
     <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp" />
     <ClCompile Include="Entity\DebugViews\DebugView_EntityWorld.cpp" />
@@ -151,28 +159,20 @@
     <ClCompile Include="Math\Easing.cpp" />
     <ClCompile Include="Navmesh\DebugViews\DebugView_Navmesh.cpp" />
     <ClCompile Include="Navmesh\NavmeshData.cpp" />
-    <ClCompile Include="Navmesh\Navpower.cpp" />
+    <ClCompile Include="Navmesh\NavPower.cpp" />
     <ClCompile Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.cpp" />
-    <ClCompile Include="Navmesh\NavmeshSystem.cpp" />
     <ClCompile Include="Navmesh\Systems\WorldSystem_Navmesh.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsBox.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsCapsule.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsCharacter.cpp" />
-    <ClCompile Include="Physics\Components\Component_PhysicsMesh.cpp" />
+    <ClCompile Include="Physics\Components\Component_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsShape.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsSphere.cpp" />
     <ClCompile Include="Physics\Debug\DebugView_Physics.cpp" />
-    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp" />
-    <ClCompile Include="Physics\PhysicsMaterial.cpp" />
-    <ClCompile Include="Physics\PhysicsMesh.cpp" />
-    <ClCompile Include="Physics\PhysicsQuery.cpp" />
+    <ClCompile Include="Physics\PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\PhysicsRagdoll.cpp" />
-    <ClCompile Include="Physics\PhysicsScene.cpp" />
-    <ClCompile Include="Physics\PhysicsSimulationFilter.cpp" />
-    <ClCompile Include="Physics\PhysicsSystem.cpp" />
-    <ClCompile Include="Physics\PhysX.cpp" />
-    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp" />
-    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMesh.cpp" />
+    <ClCompile Include="Physics\PhysicsWorld.cpp" />
+    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.cpp" />
     <ClCompile Include="Physics\Systems\WorldSystem_Physics.cpp" />
     <ClCompile Include="Player\Systems\WorldSystem_PlayerManager.cpp" />
@@ -223,6 +223,7 @@
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
@@ -282,7 +283,15 @@
     <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
     <ClInclude Include="Entity\EntityLog.h" />
     <ClInclude Include="Entity\EntitySerialization.h" />
+    <ClInclude Include="Entity\EntityWorldType.h" />
     <ClInclude Include="ModuleContext.h" />
+    <ClInclude Include="Physics\Components\Component_PhysicsTest.h" />
+    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h" />
+    <ClInclude Include="Physics\Physics.h" />
+    <ClInclude Include="Physics\PhysicsMaterial.h" />
+    <ClInclude Include="Physics\PhysicsSettings.h" />
+    <ClInclude Include="Physics\PhysicsQuery.h" />
+    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h" />
     <ClInclude Include="Volumes\Components\Component_Volumes.h" />
     <ClInclude Include="Camera\DebugViews\DebugView_Camera.h" />
     <ClInclude Include="Entity\DebugViews\DebugView_EntityWorld.h" />
@@ -310,27 +319,18 @@
     <ClInclude Include="Navmesh\NavmeshData.h" />
     <ClInclude Include="Navmesh\NavPower.h" />
     <ClInclude Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.h" />
-    <ClInclude Include="Navmesh\NavmeshSystem.h" />
     <ClInclude Include="Navmesh\Systems\WorldSystem_Navmesh.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsBox.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsCapsule.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsCharacter.h" />
-    <ClInclude Include="Physics\Components\Component_PhysicsMesh.h" />
+    <ClInclude Include="Physics\Components\Component_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsShape.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsSphere.h" />
     <ClInclude Include="Physics\Debug\DebugView_Physics.h" />
-    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h" />
-    <ClInclude Include="Physics\PhysicsLayers.h" />
-    <ClInclude Include="Physics\PhysicsMaterial.h" />
-    <ClInclude Include="Physics\PhysicsMesh.h" />
-    <ClInclude Include="Physics\PhysicsQuery.h" />
+    <ClInclude Include="Physics\PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\PhysicsRagdoll.h" />
-    <ClInclude Include="Physics\PhysicsScene.h" />
-    <ClInclude Include="Physics\PhysicsSimulationFilter.h" />
-    <ClInclude Include="Physics\PhysicsSystem.h" />
-    <ClInclude Include="Physics\PhysX.h" />
-    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h" />
-    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMesh.h" />
+    <ClInclude Include="Physics\PhysicsWorld.h" />
+    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.h" />
     <ClInclude Include="Physics\Systems\WorldSystem_Physics.h" />
     <ClInclude Include="Player\Components\Component_Player.h" />

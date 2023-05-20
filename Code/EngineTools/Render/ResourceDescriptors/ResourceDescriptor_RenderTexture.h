@@ -10,7 +10,7 @@ namespace EE::Render
 {
     enum class TextureType
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         Default,
         AmbientOcclusion,
@@ -21,7 +21,7 @@ namespace EE::Render
 
     struct EE_ENGINETOOLS_API TextureResourceDescriptor : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( TextureResourceDescriptor );
+        EE_REFLECT_TYPE( TextureResourceDescriptor );
 
         virtual bool IsValid() const override { return m_path.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
@@ -37,16 +37,16 @@ namespace EE::Render
 
     public:
 
-        EE_EXPOSE ResourcePath     m_path;
-        EE_EXPOSE TextureType      m_type = TextureType::Default;
-        EE_EXPOSE String           m_name; // Optional: needed for extracting textures out of container files (e.g. glb, fbx)
+        EE_REFLECT() ResourcePath     m_path;
+        EE_REFLECT() TextureType      m_type = TextureType::Default;
+        EE_REFLECT() String           m_name; // Optional: needed for extracting textures out of container files (e.g. glb, fbx)
     };
 
     //-------------------------------------------------------------------------
 
     struct EE_ENGINETOOLS_API CubemapTextureResourceDescriptor : public Resource::ResourceDescriptor
     {
-        EE_REGISTER_TYPE( CubemapTextureResourceDescriptor );
+        EE_REFLECT_TYPE( CubemapTextureResourceDescriptor );
 
         virtual bool IsValid() const override { return m_path.IsValid(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
@@ -62,6 +62,6 @@ namespace EE::Render
 
     public:
 
-        EE_EXPOSE ResourcePath     m_path;
+        EE_REFLECT() ResourcePath     m_path;
     };
 }

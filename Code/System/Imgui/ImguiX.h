@@ -76,6 +76,7 @@ namespace EE::ImGuiX
         return isalnum( c ) || c == '_';
     }
 
+    // Filter a text callback restricting it to valid name ID characters
     inline int FilterNameIDChars( ImGuiInputTextCallbackData* data )
     {
         if ( IsValidNameIDChar( data->EventChar ) )
@@ -85,21 +86,24 @@ namespace EE::ImGuiX
         return 1;
     }
 
+    // Display a modal popup that is restricted to the current window's viewport
+    inline bool BeginViewportPopupModal( char const* pPopupName, bool* pIsPopupOpen, ImVec2 const& size = ImVec2( -1, -1 ), ImGuiCond windowSizeCond = ImGuiCond_Always, ImGuiWindowFlags windowFlags = ( ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+    {
+        ImGui::OpenPopup( pPopupName );
+        ImGui::SetNextWindowSize( size, windowSizeCond );
+        ImGui::SetNextWindowViewport( ImGui::GetWindowViewport()->ID );
+        return ImGui::BeginPopupModal( pPopupName, pIsPopupOpen, windowFlags );
+    }
+
     //-------------------------------------------------------------------------
     // Separators
     //-------------------------------------------------------------------------
 
-    // Create a centered separator which can be immediately followed by a item
-    EE_SYSTEM_API void PreSeparator( float width = 0 );
-
-    // Create a centered separator which can be immediately followed by a item
-    EE_SYSTEM_API void PostSeparator( float width = 0 );
-
     // Create a labeled separator: --- TEXT ---------------
-    EE_SYSTEM_API void TextSeparator( char const* text, float preWidth = 10.0f, float totalWidth = 0 );
+    EE_SYSTEM_API void TextSeparator( char const* text, float preWidth = 10.0f, float desiredWidth = 0 );
 
-    // Draws a vertical separator on the current line and forces the next item to be on the same line. The size is the offset between the previous item and the next
-    EE_SYSTEM_API void VerticalSeparator( ImVec2 const& size = ImVec2( -1, -1 ), ImColor const& color = 0 );
+    // Same as the Imgui::SameLine except it also draws a vertical separator.
+    EE_SYSTEM_API void SameLineSeparator( float width = 0, ImColor const& color = 0 );
 
     //-------------------------------------------------------------------------
     // Basic Widgets
@@ -140,11 +144,11 @@ namespace EE::ImGuiX
     // Draw a colored icon button
     EE_SYSTEM_API bool FlatIconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
 
-    // Combo button - button with extra drop down options - returns true if the primary button was pressed
-    EE_SYSTEM_API bool ComboButton( char const* pButtonLabel, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
+    // Button with extra drop down options - returns true if the primary button was pressed
+    EE_SYSTEM_API bool ButtonWithDropDown( char const* widgetID, char const* pButtonLabel, float buttonWidth, TFunction<void()> const& comboCallback );
 
-    // Combo button - button with extra drop down options - returns true if the primary button was pressed
-    EE_SYSTEM_API bool IconComboButton( char const* pIcon, char const* pButtonLabel, ImColor const& iconColor, char const* comboID, float buttonWidth, TFunction<void()>&& comboCallback );
+    // Button with extra drop down options - returns true if the primary button was pressed
+    EE_SYSTEM_API bool IconButtonWithDropDown( char const* widgetID, char const* pIcon, char const* pButtonLabel, ImColor const& iconColor, float buttonWidth, TFunction<void()> const& comboCallback );
 
     // Toggle button
     EE_SYSTEM_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), ImColor const& onColor = ImGuiX::Style::s_colorAccent0, ImColor const& offColor = ImGui::GetStyle().Colors[ImGuiCol_Text] );
@@ -163,7 +167,6 @@ namespace EE::ImGuiX
     EE_SYSTEM_API bool InputFloat2( char const* pID, Float2& value, float width = -1, bool readOnly = false );
     EE_SYSTEM_API bool InputFloat3( char const* pID, Float3& value, float width = -1, bool readOnly = false );
     EE_SYSTEM_API bool InputFloat4( char const* pID, Float4& value, float width = -1, bool readOnly = false );
-    EE_SYSTEM_API bool InputFloat4( char const* pID, Vector& value, float width = -1, bool readOnly = false );
 
     EE_SYSTEM_API bool InputTransform( char const* pID, Transform& value, float width = -1, bool readOnly = false );
 
@@ -215,12 +218,18 @@ namespace EE::ImGuiX
     public:
 
         // Draws the filter. Returns true if the filter has been updated
-        bool DrawAndUpdate( TBitFlags<Options> options = TBitFlags<Options>() );
+        bool DrawAndUpdate( float width = -1, TBitFlags<Options> options = TBitFlags<Options>() );
 
+        // Set the help text shown when we dont have focus and the filter is empty
+        void SetFilterHelpText( String const& helpText ) { m_filterHelpText = helpText; }
+
+        // Clear the filter
         inline void Clear();
 
+        // Do we have a filter set?
         inline bool HasFilterSet() const { return !m_tokens.empty(); }
 
+        // Get the split filter text token
         inline TVector<String> const& GetFilterTokens() const { return m_tokens; }
 
         // Does a provided string match the current filter - the string copy is intentional!
@@ -230,6 +239,7 @@ namespace EE::ImGuiX
 
         char                m_buffer[s_bufferSize] = { 0 };
         TVector<String>     m_tokens;
+        String              m_filterHelpText = "Filter...";
     };
 
     // A simple 3D gizmo to show the orientation of a camera in a scene

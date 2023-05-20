@@ -15,7 +15,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API AnimationGraphComponent final : public EntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( AnimationGraphComponent );
+        EE_ENTITY_COMPONENT( AnimationGraphComponent );
 
         friend class AnimationDebugView;
         friend class GraphController;
@@ -58,9 +58,9 @@ namespace EE::Animation
         void ResetGraphState() { m_graphStateResetRequested = true; }
 
         // This function will evaluate the graph and produce the desired root motion delta for the character
-        void EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::Scene* pPhysicsScene );
+        void EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::PhysicsWorld* pPhysicsWorld );
 
-        // This function will execute all pre-physics tasks - it assumes that the character has already been moved in the scene, so expects the final transform for this frame
+        // This function will execute all pre-physics tasks - it assumes that the character has already been moved in the physics world, so expects the final transform for this frame
         void ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform );
 
         // The function will execute the post-physics tasks (if any)
@@ -132,13 +132,13 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE TResourcePtr<GraphVariation>                  m_pGraphVariation = nullptr;
+        EE_REFLECT() TResourcePtr<GraphVariation>                  m_pGraphVariation = nullptr;
 
         GraphInstance*                                          m_pGraphInstance = nullptr;
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
-        EE_EXPOSE bool                                          m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?
-        EE_EXPOSE bool                                          m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+        EE_REFLECT() bool                                          m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?
+        EE_REFLECT() bool                                          m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
         bool                                                    m_graphStateResetRequested = false;
     };
 }

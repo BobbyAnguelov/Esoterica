@@ -27,7 +27,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API AnimationSystem : public EntitySystem
     {
-        EE_REGISTER_ENTITY_SYSTEM( AnimationSystem, RequiresUpdate( UpdateStage::PrePhysics ), RequiresUpdate( UpdateStage::PostPhysics, UpdatePriority::Low ) );
+        EE_ENTITY_SYSTEM( AnimationSystem, RequiresUpdate( UpdateStage::PrePhysics ), RequiresUpdate( UpdateStage::PostPhysics, UpdatePriority::Low ) );
 
     public:
 

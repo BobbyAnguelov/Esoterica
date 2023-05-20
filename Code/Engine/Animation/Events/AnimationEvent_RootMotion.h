@@ -11,7 +11,7 @@ namespace EE::Animation
 {
     class EE_ENGINE_API RootMotionEvent final : public Event
     {
-        EE_REGISTER_TYPE( RootMotionEvent );
+        EE_REFLECT_TYPE( RootMotionEvent );
 
     public:
 
@@ -23,6 +23,6 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE Seconds   m_blendTime = 0.1f;
+        EE_REFLECT() Seconds   m_blendTime = 0.1f;
     };
 }

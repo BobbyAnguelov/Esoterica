@@ -1,56 +1,99 @@
 #include "Component_PhysicsShape.h"
-#include "Engine/Physics/PhysX.h"
+#include "Engine/Physics/Physics.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    TEvent<PhysicsShapeComponent*> PhysicsShapeComponent::s_staticActorTransformChanged;
+    TEvent<PhysicsShapeComponent*> PhysicsShapeComponent::s_rebuildBodyRequest;
 
     //-------------------------------------------------------------------------
 
     void PhysicsShapeComponent::OnWorldTransformUpdated()
     {
-        if ( m_pPhysicsActor != nullptr && IsKinematic() )
+        Transform const& worldTransform = GetWorldTransform();
+
+        if ( IsActorCreated() )
         {
-            // Request the kinematic body be moved by the physics simulation
-            auto physicsScene = m_pPhysicsActor->getScene();
-            physicsScene->lockWrite();
-            auto pKinematicActor = m_pPhysicsActor->is<physx::PxRigidDynamic>();
-            EE_ASSERT( pKinematicActor->getRigidBodyFlags().isSet( physx::PxRigidBodyFlag::eKINEMATIC ) );
-            pKinematicActor->setKinematicTarget( ToPx( GetWorldTransform() ) );
-            physicsScene->unlockWrite();
+            MoveTo( worldTransform );
         }
-        // Notify listeners that our transform has changed!
-        else if ( m_actorType == ActorType::Static )
+    }
+
+    void PhysicsShapeComponent::SetCollisionSettings( CollisionSettings const& newSettings )
+    {
+        m_collisionSettings = newSettings;
+
+        if ( IsActorCreated() )
         {
-            s_staticActorTransformChanged.Execute( this );
+            s_rebuildBodyRequest.Execute( this );
         }
     }
 
     void PhysicsShapeComponent::TeleportTo( Transform const& newWorldTransform )
     {
-        EE_ASSERT( m_pPhysicsActor != nullptr && IsKinematic() );
-        SetWorldTransformDirectly( newWorldTransform, false ); // Do not fire callback as we dont want to lock the scene twice
+        EE_ASSERT( IsActorCreated() );
+        SetWorldTransformDirectly( newWorldTransform, false ); // Do not fire callback
+        Transform const physicsActorTransform = ConvertTransformToPhysics( GetWorldTransform() );
 
-        // Teleport kinematic body
-        auto physicsScene = m_pPhysicsActor->getScene();
-        physicsScene->lockWrite();
-        auto pKinematicActor = m_pPhysicsActor->is<physx::PxRigidDynamic>();
-        EE_ASSERT( pKinematicActor->getRigidBodyFlags().isSet( physx::PxRigidBodyFlag::eKINEMATIC ) );
-        pKinematicActor->setGlobalPose( ToPx( GetWorldTransform() ) );
-        physicsScene->unlockWrite();
+        //-------------------------------------------------------------------------
+
+        auto pPhysicsScene = m_pPhysicsActor->getScene();
+
+        if ( IsStatic() && IsGameScene( pPhysicsScene ) )
+        {
+            EE_LOG_WARNING( "Physics", "Shape Component", "Teleporting a static shape, this is not recommended!" );
+        }
+
+        pPhysicsScene->lockWrite();
+        m_pPhysicsActor->setGlobalPose( ToPx( physicsActorTransform ) );
+        pPhysicsScene->unlockWrite();
     }
 
     void PhysicsShapeComponent::MoveTo( Transform const& newWorldTransform )
     {
-        EE_ASSERT( m_pPhysicsActor != nullptr && IsKinematic() );
-        SetWorldTransform( newWorldTransform ); // The callback will update the kinematic target
+        EE_ASSERT( IsActorCreated() );
+        SetWorldTransformDirectly( newWorldTransform, false ); // Do not fire callback
+        Transform const physicsActorTransform = ConvertTransformToPhysics( GetWorldTransform() );
+
+        //-------------------------------------------------------------------------
+
+        auto pPhysicsScene = m_pPhysicsActor->getScene();
+
+        if ( IsKinematic() )
+        {
+            auto pKinematicActor = m_pPhysicsActor->is<physx::PxRigidDynamic>();
+            EE_ASSERT( pKinematicActor->getRigidBodyFlags().isSet( physx::PxRigidBodyFlag::eKINEMATIC ) );
+
+            pPhysicsScene->lockWrite();
+            pKinematicActor->setKinematicTarget( ToPx( physicsActorTransform ) );
+            pPhysicsScene->unlockWrite();
+        }
+        else
+        {
+            if ( IsStatic() && IsGameScene( pPhysicsScene ) )
+            {
+                EE_LOG_WARNING( "Physics", "Shape Component", "Moving a static shape, this is not recommended!" );
+            }
+
+            pPhysicsScene->lockWrite();
+            m_pPhysicsActor->setGlobalPose( ToPx( physicsActorTransform ) );
+            pPhysicsScene->unlockWrite();
+        }
     }
 
     void PhysicsShapeComponent::SetVelocity( Float3 newVelocity )
     {
-        EE_ASSERT( m_pPhysicsActor != nullptr && IsDynamic() );
+        EE_ASSERT( IsActorCreated() && IsDynamic() );
         EE_UNIMPLEMENTED_FUNCTION();
     }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void PhysicsShapeComponent::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
+    {
+        SpatialEntityComponent::PostPropertyEdit( pPropertyEdited );
+        s_rebuildBodyRequest.Execute( this );
+    }
+    #endif
 }

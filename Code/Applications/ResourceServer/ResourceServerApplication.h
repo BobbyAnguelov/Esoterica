@@ -37,15 +37,29 @@ namespace EE
         virtual bool Initialize() override;
         virtual bool Shutdown() override;
         virtual bool ApplicationLoop() override;
-        virtual bool OnExitRequest() override;
-
+        virtual bool OnUserExitRequest() override;
         virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
         virtual void ProcessWindowDestructionMessage() override;
         virtual void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const override { m_resourceServerUI.GetBorderlessTitleBarInfo( outTitlebarRect, isInteractibleWidgetHovered ); }
+        virtual LRESULT WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam ) override;
+
+        // System Tray
+        //-------------------------------------------------------------------------
+
+        void ShowApplicationWindow();
+        void HideApplicationWindow();
+
+        bool CreateSystemTrayIcon( int32_t iconID );
+        void DestroySystemTrayIcon();
+        void RefreshSystemTrayIcon( int32_t iconID );
+        bool ShowSystemTrayMenu();
 
     private:
 
+        // System Tray Icon
         NOTIFYICONDATA                          m_systemTrayIconData;
+        bool                                    m_applicationWindowHidden = false;
+        int32_t                                 m_currentIconID = 0;
 
         // Taskbar Icon
         ITaskbarList3*                          m_pTaskbarInterface = nullptr;

@@ -12,7 +12,20 @@ namespace EE
 {
     class EE_SYSTEM_API alignas( 16 ) Quaternion
     {
-        EE_SERIALIZE( m_x, m_y, m_z, m_w );
+        EE_CUSTOM_SERIALIZE_READ_FUNCTION( archive )
+        {
+            Float4 f4;
+            archive << f4;
+            *this = Quaternion( f4 );
+            return archive;
+        }
+
+        EE_CUSTOM_SERIALIZE_WRITE_FUNCTION( archive )
+        {
+            Float4 const f4 = ToFloat4();
+            archive << f4;
+            return archive;
+        }
 
     public:
 
@@ -35,7 +48,7 @@ namespace EE
         EE_FORCE_INLINE static Quaternion Delta( Quaternion const& from, Quaternion const& to ) { return to * from.GetInverse(); }
 
         // Simple vector dot product between two quaternions
-        inline static Vector Dot( Quaternion const& q0, Quaternion const& q1 ) { return Vector::Dot4( q0.AsVector(), q1.AsVector() ); }
+        inline static Vector Dot( Quaternion const& q0, Quaternion const& q1 ) { return Vector::Dot4( q0.ToVector(), q1.ToVector() ); }
 
         // Calculate the angular distance between two quaternions
         inline static Radians Distance( Quaternion const& q0, Quaternion const& q1 );
@@ -63,10 +76,10 @@ namespace EE
         inline float GetLength() const { return ToVector().GetLength4(); }
 
         // Get the angle this rotation represents around the specified axis
-        inline Radians GetAngle() const { return Radians( 2.0f * Math::ACos( m_w ) ); }
+        inline Radians GetAngle() const { return Radians( 2.0f * Math::ACos( GetW() ) ); }
 
-        inline Float4 ToFloat4() const { return Float4( m_x, m_y, m_z, m_w ); }
-        inline Vector const& ToVector() const { return reinterpret_cast<Vector const&>( *this ); }
+        inline Float4 ToFloat4() const { Float4 v; _mm_storeu_ps( &v.m_x, m_data ); return v; }
+        inline Vector ToVector() const { return Vector( m_data ); }
         inline AxisAngle ToAxisAngle() const;
         EulerAngles ToEulerAngles() const;
 
@@ -98,31 +111,27 @@ namespace EE
         // This function will return the estimated normalized quaternion, this is not super accurate but a lot faster (use with care)
         inline Quaternion GetNormalizedInaccurate() const;
 
-        inline bool IsNormalized() const { return AsVector().IsNormalized4(); }
-        inline bool IsIdentity() const { return AsVector().IsEqual3( Vector::UnitW ); }
+        inline bool IsNormalized() const { return ToVector().IsNormalized4(); }
+        inline bool IsIdentity() const { return ToVector().IsEqual3( Vector::UnitW ); }
 
         // Concatenate the rotation of this onto rhs and return the result i.e. first rotate by rhs then by this
         // This means order of rotation is right-to-left: child-rotation * parent-rotation
         inline Quaternion operator*( Quaternion const& rhs ) const;
         inline Quaternion& operator*=( Quaternion const& rhs ) { *this = *this * rhs; return *this; }
 
-        inline bool operator==( Quaternion const& rhs ) const { return m_x == rhs.m_x && m_y == rhs.m_y && m_z == rhs.m_z && m_w == rhs.m_w; }
-        inline bool operator!=( Quaternion const& rhs ) const { return m_x != rhs.m_x || m_y != rhs.m_y || m_z != rhs.m_z || m_w != rhs.m_w; }
+        inline bool operator==( Quaternion const& rhs ) const { return ToVector() == rhs.ToVector(); }
+        inline bool operator!=( Quaternion const& rhs ) const { return ToVector() != rhs.ToVector(); }
 
     private:
 
-        inline Vector& AsVector() { return reinterpret_cast<Vector&>( *this ); }
-        inline Vector const& AsVector() const { return reinterpret_cast<Vector const&>( *this ); }
+        EE_FORCE_INLINE Vector GetSplatW() const { return _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 3, 3, 3, 3 ) ); }
+        EE_FORCE_INLINE float GetW() const { auto vTemp = GetSplatW(); return _mm_cvtss_f32( vTemp ); }
 
         Quaternion& operator=( Vector const& v ) = delete;
 
     public:
 
-        union
-        {
-            struct { float m_x, m_y, m_z, m_w; };
-            __m128 m_data;
-        };
+        __m128 m_data;
     };
 
     static_assert( sizeof( Vector ) == 16, "Quaternion size must be 16 bytes!" );
@@ -164,11 +173,11 @@ namespace EE
 
     inline Quaternion& Quaternion::Invert()
     {
-        Vector const conjugate = GetConjugate().AsVector();
-        Vector const length = AsVector().Length4();
+        Vector const conjugate( GetConjugate().m_data );
+        Vector const length = ToVector().Length4();
         Vector const mask = length.LessThanEqual( Vector::Epsilon );
         Vector const result = conjugate / length;
-        AsVector() = result.Select( result, Vector::Zero, mask );
+        m_data = result.Select( result, Vector::Zero, mask );
         return *this;
     }
 
@@ -181,7 +190,7 @@ namespace EE
 
     inline Quaternion& Quaternion::Normalize()
     {
-        AsVector().Normalize4();
+        m_data = ToVector().GetNormalized4().m_data;
         return *this;
     }
 
@@ -219,7 +228,7 @@ namespace EE
     {
         // If we have a > 180 angle, negate
         // w < 0.0f is the same as dot( identity, q ) < 0
-        if ( m_w < 0.0f )
+        if ( GetW() < 0.0f )
         {
             Negate();
         }
@@ -280,7 +289,8 @@ namespace EE
         // Opposite vectors - return 180 rotation around any orthogonal axis
         else if ( dot.IsLessThanEqual4( Vector::EpsilonMinusOne ) )
         {
-            result = Quaternion( -from.m_z, from.m_y, from.m_x, 0 );
+            Float4 const fromValues = from.ToFloat4();
+            result = Quaternion( -fromValues.m_z, fromValues.m_y, fromValues.m_x, 0 );
             result.Normalize();
         }
         else // Calculate quaternion rotation
@@ -325,21 +335,21 @@ namespace EE
 
     inline AxisAngle Quaternion::ToAxisAngle() const
     {
-        return AxisAngle( AsVector(), Radians( 2.0f * Math::ACos( m_w ) ) );
+        return AxisAngle( ToVector(), Radians( 2.0f * Math::ACos( GetW() ) ) );
     }
 
     inline Vector Quaternion::RotateVector( Vector const& vector ) const
     {
         Quaternion const A( Vector::Select( Vector::Select1110, vector, Vector::Select1110 ) );
         Quaternion const result = GetConjugate() * A;
-        return ( result * *this ).AsVector();
+        return ( result * *this ).ToVector();
     }
 
     inline Vector Quaternion::RotateVectorInverse( Vector const& vector ) const
     {
         Quaternion const A( Vector::Select( Vector::Select1110, vector, Vector::Select1110 ) );
         Quaternion const result = *this * A;
-        return ( result * GetConjugate() ).AsVector();
+        return ( result * GetConjugate() ).ToVector();
     }
 
     inline Quaternion Quaternion::operator*( Quaternion const& rhs ) const

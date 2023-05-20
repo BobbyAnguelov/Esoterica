@@ -79,16 +79,6 @@ namespace EE::Resource
             return Milliseconds( m_compilationTimeFinished - m_compilationTimeStarted );
         }
 
-        inline Milliseconds GetUptoDateCheckElapsedTime() const
-        {
-            if ( m_status == Status::Pending )
-            {
-                return 0;
-            }
-
-            return Milliseconds( m_upToDateCheckTimeFinished - m_upToDateCheckTimeStarted );
-        }
-
     public:
 
         uint32_t                            m_clientID = 0;
@@ -103,8 +93,6 @@ namespace EE::Resource
         TimeStamp                           m_timeRequested;
         Nanoseconds                         m_compilationTimeStarted = 0;
         Nanoseconds                         m_compilationTimeFinished = 0;
-        Nanoseconds                         m_upToDateCheckTimeStarted = 0;
-        Nanoseconds                         m_upToDateCheckTimeFinished = 0;
 
         String                              m_log;
         Status                              m_status = Status::Pending;

@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class ParameterizedBlendToolsNode : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ParameterizedBlendToolsNode );
+        EE_REFLECT_TYPE( ParameterizedBlendToolsNode );
 
     public:
 
@@ -27,14 +27,15 @@ namespace EE::Animation::GraphNodes
 
     protected:
 
-        EE_EXPOSE bool                 m_isSynchronized = false;
+        EE_REFLECT()
+        bool                 m_isSynchronized = false;
     };
 
     //-------------------------------------------------------------------------
 
     class RangedBlendToolsNode final : public ParameterizedBlendToolsNode
     {
-        EE_REGISTER_TYPE( RangedBlendToolsNode );
+        EE_REFLECT_TYPE( RangedBlendToolsNode );
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
@@ -46,14 +47,15 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER TVector<float>     m_parameterValues;
+        EE_REFLECT( "IsToolsReadOnly" : true )
+        TVector<float>     m_parameterValues;
     };
 
     //-------------------------------------------------------------------------
 
     class VelocityBlendToolsNode final : public ParameterizedBlendToolsNode
     {
-        EE_REGISTER_TYPE( VelocityBlendToolsNode );
+        EE_REFLECT_TYPE( VelocityBlendToolsNode );
 
         virtual char const* GetTypeName() const override { return "Animation/Velocity Blend"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

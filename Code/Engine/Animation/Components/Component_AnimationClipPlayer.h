@@ -10,13 +10,13 @@ namespace EE::Animation
 {
     class EE_ENGINE_API AnimationClipPlayerComponent final : public EntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( AnimationClipPlayerComponent );
+        EE_ENTITY_COMPONENT( AnimationClipPlayerComponent );
 
     public:
 
         enum class PlayMode
         {
-            EE_REGISTER_ENUM
+            EE_REFLECT_ENUM
 
             PlayOnce,
             Loop,
@@ -75,14 +75,14 @@ namespace EE::Animation
 
     private:
 
-        EE_EXPOSE TResourcePtr<AnimationClip>          m_pAnimation = nullptr;
-        EE_EXPOSE PlayMode                             m_playMode = PlayMode::Loop;
+        EE_REFLECT() TResourcePtr<AnimationClip>          m_pAnimation = nullptr;
+        EE_REFLECT() PlayMode                             m_playMode = PlayMode::Loop;
 
         Transform                                       m_rootMotionDelta = Transform::Identity;
         Pose*                                           m_pPose = nullptr;
         Percentage                                      m_previousAnimTime = Percentage( 0.0f );
         Percentage                                      m_animTime = Percentage( 0.0f );
-        EE_EXPOSE bool                                 m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
-        EE_EXPOSE bool                                 m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+        EE_REFLECT() bool                                 m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
+        EE_REFLECT() bool                                 m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
     };
 }

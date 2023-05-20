@@ -11,7 +11,7 @@ namespace EE::Player
 {
     class EE_GAME_API PlayerInteractibleComponent : public SpatialEntityComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( PlayerInteractibleComponent );
+        EE_ENTITY_COMPONENT( PlayerInteractibleComponent );
 
     public:
 
@@ -19,6 +19,6 @@ namespace EE::Player
 
     private:
 
-        EE_EXPOSE TResourcePtr<Animation::GraphVariation> m_pGraph;
+        EE_REFLECT() TResourcePtr<Animation::GraphVariation> m_pGraph;
     };
 }

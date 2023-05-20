@@ -1,7 +1,7 @@
 #pragma once
 
 #include "API.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "Engine/ModuleContext.h"
 
 //-------------------------------------------------------------------------
@@ -14,7 +14,7 @@ namespace EE
 
     class EE_GAMETOOLS_API GameToolsModule
     {
-        EE_REGISTER_MODULE;
+        EE_REFLECT_MODULE;
 
     public:
 

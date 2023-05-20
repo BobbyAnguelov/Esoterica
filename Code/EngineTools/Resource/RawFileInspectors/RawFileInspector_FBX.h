@@ -15,7 +15,7 @@ namespace EE::Resource
             None,
             SkeletalMesh,
             StaticMesh,
-            PhysicsMesh,
+            PhysicsCollision,
             Skeleton,
             Animation
         };

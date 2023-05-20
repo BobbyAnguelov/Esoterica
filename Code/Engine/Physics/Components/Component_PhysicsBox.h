@@ -9,25 +9,25 @@ namespace EE::Physics
 {
     class EE_ENGINE_API BoxComponent : public PhysicsShapeComponent
     {
-        EE_REGISTER_ENTITY_COMPONENT( BoxComponent );
+        EE_ENTITY_COMPONENT( BoxComponent );
 
-        friend class PhysicsWorldSystem;
+        friend class PhysicsWorld;
 
     public:
 
-        BoxComponent();
-
-        EE_FORCE_INLINE Float3 const& GetExtents() const { return m_boxExtents; }
+        EE_FORCE_INLINE Float3 const& GetExtents() const { return m_boxHalfExtents; }
 
     private:
 
         virtual OBB CalculateLocalBounds() const override final;
         virtual bool HasValidPhysicsSetup() const override final;
-        virtual TInlineVector<StringID, 4> GetPhysicsMaterialIDs() const override final { return { m_materialID }; }
 
     protected:
 
-        EE_EXPOSE StringID                                 m_materialID;
-        EE_EXPOSE Float3                                   m_boxExtents = Float3( 1.0f );
+        EE_REFLECT( "Category" : "Shape" );
+        Float3                              m_boxHalfExtents = Float3( 1.0f );
+
+        EE_REFLECT( "Category" : "Physics" );
+        MaterialID                          m_materialID;
     };
 }

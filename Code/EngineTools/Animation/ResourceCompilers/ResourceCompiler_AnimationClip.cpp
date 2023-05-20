@@ -225,8 +225,8 @@ namespace EE::Animation
 
         // Get the Z value for the root on the first frame, use this as the starting point for the root motion track
         auto& rootMotion = pRawAnimation->GetRootMotion();
-        float const flatZ = rootMotion.front().GetTranslation().m_z;
-        float const offsetZ = ( rootMotion.front().GetTranslation() - sourceBoneTrackData.m_globalTransforms[0].GetTranslation() ).m_z;
+        float const flatZ = rootMotion.front().GetTranslation().GetZ();
+        float const offsetZ = ( rootMotion.front().GetTranslation() - sourceBoneTrackData.m_globalTransforms[0].GetTranslation() ).GetZ();
 
         int32_t const numFrames = pRawAnimation->GetNumFrames();
         for ( auto i = 0; i < numFrames; i++ )
@@ -244,11 +244,11 @@ namespace EE::Animation
             Vector translation = rootMotionTransform.GetTranslation();
             if ( resourceDescriptor.m_rootMotionGenerationRestrictToHorizontalPlane )
             {
-                translation.m_z = flatZ;
+                translation.SetZ( flatZ );
             }
             else
             {
-                translation.m_z += offsetZ;
+                translation += Vector( 0, 0, offsetZ, 0 );
             }
 
             // Set root position
@@ -379,9 +379,9 @@ namespace EE::Animation
                 Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[0];
                 Vector const& translation = rawBoneTransform.GetTranslation();
 
-                trackSettings.m_translationRangeX = { translation.m_x, defaultQuantizationRangeLength };
-                trackSettings.m_translationRangeY = { translation.m_y, defaultQuantizationRangeLength };
-                trackSettings.m_translationRangeZ = { translation.m_z, defaultQuantizationRangeLength };
+                trackSettings.m_translationRangeX = { translation.GetX(), defaultQuantizationRangeLength };
+                trackSettings.m_translationRangeY = { translation.GetY(), defaultQuantizationRangeLength };
+                trackSettings.m_translationRangeZ = { translation.GetZ(), defaultQuantizationRangeLength };
                 trackSettings.m_isTranslationStatic = true;
             }
             else
@@ -398,9 +398,9 @@ namespace EE::Animation
                 Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[0];
                 Vector const& translation = rawBoneTransform.GetTranslation();
 
-                uint16_t const m_x = Quantization::EncodeFloat( translation.m_x, trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
-                uint16_t const m_y = Quantization::EncodeFloat( translation.m_y, trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
-                uint16_t const m_z = Quantization::EncodeFloat( translation.m_z, trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
+                uint16_t const m_x = Quantization::EncodeFloat( translation.GetX(), trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
+                uint16_t const m_y = Quantization::EncodeFloat( translation.GetY(), trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
+                uint16_t const m_z = Quantization::EncodeFloat( translation.GetZ(), trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
 
                 animClip.m_compressedPoseData.push_back( m_x );
                 animClip.m_compressedPoseData.push_back( m_y );
@@ -413,9 +413,9 @@ namespace EE::Animation
                     Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
                     Vector const& translation = rawBoneTransform.GetTranslation();
 
-                    uint16_t const m_x = Quantization::EncodeFloat( translation.m_x, trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
-                    uint16_t const m_y = Quantization::EncodeFloat( translation.m_y, trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
-                    uint16_t const m_z = Quantization::EncodeFloat( translation.m_z, trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
+                    uint16_t const m_x = Quantization::EncodeFloat( translation.GetX(), trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
+                    uint16_t const m_y = Quantization::EncodeFloat( translation.GetY(), trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
+                    uint16_t const m_z = Quantization::EncodeFloat( translation.GetZ(), trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
 
                     animClip.m_compressedPoseData.push_back( m_x );
                     animClip.m_compressedPoseData.push_back( m_y );
@@ -667,7 +667,7 @@ namespace EE::Animation
         {
             for ( auto const pItem : pTrack->GetItems() )
             {
-                IRegisteredType* pEventInstance = pItem->GetData();
+                IReflectedType* pEventInstance = pItem->GetData();
                 pEventInstance->GetTypeInfo()->GetReferencedResources( pEventInstance, outReferencedResources );
             }
         }

@@ -10,11 +10,9 @@ namespace EE
 
     void Transform::SanitizeScaleValue()
     {
-        float s = m_scale.GetX();
-        if ( Math::IsNearEqual( s, 1.0f, Math::LargeEpsilon ) )
+        if ( Math::IsNearEqual( GetScale(), 1.0f, Math::LargeEpsilon ) )
         {
-            s = 1.0f;
+            SetScale( 1.0f );
         }
-        m_scale = Vector( s, s, s, 0.0f );
     }
 }

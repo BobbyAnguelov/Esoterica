@@ -27,7 +27,7 @@ namespace EE::Player
         Vector cameraInputs = pControllerState->GetRightAnalogStickValue();
         Radians const maxAngularVelocityForThisFrame = Math::Pi * ctx.GetDeltaTime();
         cameraInputs *= (float) maxAngularVelocityForThisFrame;
-        m_pCamera->AdjustOrbitAngle( cameraInputs.m_x, cameraInputs.m_y );
+        m_pCamera->AdjustOrbitAngle( cameraInputs.GetX(), cameraInputs.GetY() );
 
         //-------------------------------------------------------------------------
 

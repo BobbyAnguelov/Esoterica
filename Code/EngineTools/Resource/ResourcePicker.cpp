@@ -4,6 +4,7 @@
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "System/TypeSystem/TypeRegistry.h"
+#include "System/Platform/PlatformHelpers_Win32.h"
 
 //-------------------------------------------------------------------------
 
@@ -284,10 +285,33 @@ namespace EE::Resource
 
             if ( ImGui::BeginPopup( "##ResourcePickerOptions" ) )
             {
-                if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY " Copy Resource Path" ) )
+                if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE " Copy Resource Path" ) )
                 {
-                    ImGui::SetClipboardText( resourcePath.ToFileSystemPath( m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryPath() ).c_str() );
+                    ImGui::SetClipboardText( resourcePath.c_str() );
                 }
+
+                ImGui::BeginDisabled( true );
+                if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE " Show In Resource Browser" ) )
+                {
+                    // TODO
+                }
+                ImGui::EndDisabled();
+
+                ImGui::Separator();
+
+                if ( ImGui::MenuItem( EE_ICON_FILE " Copy File Path" ) )
+                {
+                    FileSystem::Path const fileSystemPath = resourcePath.ToFileSystemPath( m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryPath() );
+                    ImGui::SetClipboardText( fileSystemPath.c_str() );
+                }
+
+                if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN " Open In Explorer" ) )
+                {
+                    FileSystem::Path const fileSystemPath = resourcePath.ToFileSystemPath( m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryPath() );
+                    Platform::Win32::OpenInExplorer( fileSystemPath );
+                }
+
+                ImGui::Separator();
 
                 if ( ImGui::MenuItem( EE_ICON_ERASER " Clear" ) )
                 {

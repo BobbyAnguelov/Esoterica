@@ -46,9 +46,6 @@
     <ClCompile Include="Core\PropertyGrid\PropertyGrid.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
-    <ClCompile Include="Core\PropertyGrid\PropertyGridCoreEditors.cpp">
-      <Filter>Core\PropertyGrid</Filter>
-    </ClCompile>
     <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp">
       <Filter>Core\TimelineEditor</Filter>
     </ClCompile>
@@ -136,10 +133,7 @@
     <ClCompile Include="Physics\Workspaces\Workspace_Ragdoll.cpp">
       <Filter>Physics\Workspaces</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp">
-      <Filter>Physics\ResourceCompilers</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMesh.cpp">
+    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.cpp">
       <Filter>Physics\ResourceCompilers</Filter>
     </ClCompile>
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.cpp">
@@ -361,9 +355,11 @@
     <ClCompile Include="RawAssets\gltf\gltfSkeleton.cpp">
       <Filter>RawAssets\gltf</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\sqlite\SqliteHelpers.cpp">
-      <Filter>ThirdParty\sqlite</Filter>
-    </ClCompile>
+    <ClCompile Include="Physics\Workspaces\Workspace_CollisionMesh.cpp" />
+    <ClCompile Include="Physics\PropertyGrid\PropertyGrid_PhysicsBodySettings.cpp" />
+    <ClCompile Include="Core\PropertyGrid\PropertyGridHelper.cpp" />
+    <ClCompile Include="Physics\PropertyGrid\PropertyGrid_Component_PhysicsCollision.cpp" />
+    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\ToolsContext.h">
@@ -418,9 +414,6 @@
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
     <ClInclude Include="Core\PropertyGrid\PropertyGrid.h">
-      <Filter>Core\PropertyGrid</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\PropertyGrid\PropertyGridCoreEditors.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h">
@@ -522,19 +515,13 @@
     <ClInclude Include="Physics\Workspaces\Workspace_Ragdoll.h">
       <Filter>Physics\Workspaces</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h">
-      <Filter>Physics\ResourceCompilers</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMesh.h">
+    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.h">
       <Filter>Physics\ResourceCompilers</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.h">
       <Filter>Physics\ResourceCompilers</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h">
-      <Filter>Physics\ResourceDescriptors</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMesh.h">
+    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsCollisionMesh.h">
       <Filter>Physics\ResourceDescriptors</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsRagdoll.h">
@@ -783,12 +770,13 @@
     <ClInclude Include="ThirdParty\cgltf\cgltf_write.h">
       <Filter>ThirdParty\cgltf</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\sqlite\SqliteHelpers.h">
-      <Filter>ThirdParty\sqlite</Filter>
-    </ClInclude>
     <ClInclude Include="ThirdParty\subprocess\subprocess.h">
       <Filter>ThirdParty\subprocess</Filter>
     </ClInclude>
+    <ClInclude Include="Physics\Workspaces\Workspace_CollisionMesh.h" />
+    <ClInclude Include="Core\PropertyGrid\PropertyGridHelper.h" />
+    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h" />
+    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">
@@ -919,9 +907,6 @@
     </Filter>
     <Filter Include="ThirdParty\cgltf">
       <UniqueIdentifier>{ee18db6f-8a1d-4264-b16e-92708bee84b8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\sqlite">
-      <UniqueIdentifier>{e41fff27-e69d-46a1-8776-d6a1b04f71b0}</UniqueIdentifier>
     </Filter>
     <Filter Include="ThirdParty\subprocess">
       <UniqueIdentifier>{b4aa67a2-703d-41e3-a0b8-ca1754a6999e}</UniqueIdentifier>

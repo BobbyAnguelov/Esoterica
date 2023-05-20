@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             m_previousTime = m_currentTime = 0.0f;
-            m_duration = 1.0f;
+            m_duration = s_oneFrameDuration;
         }
 
         //-------------------------------------------------------------------------
@@ -75,6 +75,12 @@ namespace EE::Animation::GraphNodes
                 m_layers[i].m_pBoneMaskValueNode->Initialize( context );
             }
         }
+
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_debugLayerWeights.resize( 1000 /*numLayers */);
+        #endif
     }
 
     void LayerBlendNode::ShutdownInternal( GraphContext& context )
@@ -200,7 +206,7 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             // If we are currently in a higher-level layer then cache it so that we can safely overwrite it
-            if ( context.m_layerContext.IsSet() )
+            if ( context.IsInLayer() )
             {
                 m_previousContext = context.m_layerContext;
             }
@@ -321,6 +327,11 @@ namespace EE::Animation::GraphNodes
 
             // End Layer
             //-------------------------------------------------------------------------
+
+            #if EE_DEVELOPMENT_TOOLS
+            EE_ASSERT( i < m_debugLayerWeights.size() );
+            m_debugLayerWeights[0] = context.m_layerContext.m_layerWeight;
+            #endif
 
             context.m_layerContext.EndLayer();
 

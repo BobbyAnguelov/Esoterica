@@ -26,6 +26,12 @@ extern "C" {
 #include <mach/mach.h>
 #elif defined(__unix__)
 #include <semaphore.h>
+
+#if defined(__GLIBC_PREREQ) && defined(_GNU_SOURCE)
+#if __GLIBC_PREREQ(2,30)
+#define MOODYCAMEL_LIGHTWEIGHTSEMAPHORE_MONOTONIC
+#endif
+#endif
 #endif
 
 namespace moodycamel
@@ -139,7 +145,7 @@ public:
 	{
 		mach_timespec_t ts;
 		ts.tv_sec = static_cast<unsigned int>(timeout_usecs / 1000000);
-		ts.tv_nsec = (timeout_usecs % 1000000) * 1000;
+		ts.tv_nsec = static_cast<int>((timeout_usecs % 1000000) * 1000);
 
 		// added in OSX 10.10: https://developer.apple.com/library/prerelease/mac/documentation/General/Reference/APIDiffsMacOSX10_10SeedDiff/modules/Darwin.html
 		kern_return_t rc = semaphore_timedwait(m_sema, ts);
@@ -175,7 +181,7 @@ public:
 	Semaphore(int initialCount = 0)
 	{
 		assert(initialCount >= 0);
-		int rc = sem_init(&m_sema, 0, initialCount);
+		int rc = sem_init(&m_sema, 0, static_cast<unsigned int>(initialCount));
 		assert(rc == 0);
 		(void)rc;
 	}
@@ -209,7 +215,11 @@ public:
 		struct timespec ts;
 		const int usecs_in_1_sec = 1000000;
 		const int nsecs_in_1_sec = 1000000000;
+#ifdef MOODYCAMEL_LIGHTWEIGHTSEMAPHORE_MONOTONIC
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+#else
 		clock_gettime(CLOCK_REALTIME, &ts);
+#endif
 		ts.tv_sec += (time_t)(usecs / usecs_in_1_sec);
 		ts.tv_nsec += (long)(usecs % usecs_in_1_sec) * 1000;
 		// sem_timedwait bombs if you have more than 1e9 in tv_nsec
@@ -221,7 +231,11 @@ public:
 
 		int rc;
 		do {
+#ifdef MOODYCAMEL_LIGHTWEIGHTSEMAPHORE_MONOTONIC
+			rc = sem_clockwait(&m_sema, CLOCK_MONOTONIC, &ts);
+#else
 			rc = sem_timedwait(&m_sema, &ts);
+#endif
 		} while (rc == -1 && errno == EINTR);
 		return rc == 0;
 	}

@@ -78,6 +78,14 @@ namespace EE::Animation::GraphNodes
         ImGui::Text( infoText.c_str() );
     }
 
+    void IDEventConditionToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        for ( auto ID : m_eventIDs )
+        {
+            outIDs.emplace_back( ID );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void GenericEventPercentageThroughToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
@@ -197,7 +205,7 @@ namespace EE::Animation::GraphNodes
     void SyncEventIndexConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
-        CreateOutputPin( "Result", GraphValueType::Float, true );
+        CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 
     int16_t SyncEventIndexConditionToolsNode::Compile( GraphCompilationContext& context ) const

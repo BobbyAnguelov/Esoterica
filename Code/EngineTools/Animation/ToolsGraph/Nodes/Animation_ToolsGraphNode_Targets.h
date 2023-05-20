@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class IsTargetSetToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( IsTargetSetToolsNode );
+        EE_REFLECT_TYPE( IsTargetSetToolsNode );
 
     public:
 
@@ -25,7 +25,7 @@ namespace EE::Animation::GraphNodes
 
     class TargetInfoToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( TargetInfoToolsNode );
+        EE_REFLECT_TYPE( TargetInfoToolsNode );
 
     public:
 
@@ -40,15 +40,15 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE TargetInfoNode::Info     m_infoType = TargetInfoNode::Info::Distance;
-        EE_EXPOSE bool                     m_isWorldSpaceTarget = true;
+        EE_REFLECT() TargetInfoNode::Info     m_infoType = TargetInfoNode::Info::Distance;
+        EE_REFLECT() bool                     m_isWorldSpaceTarget = true;
     };
 
     //-------------------------------------------------------------------------
 
     class TargetOffsetToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( TargetOffsetToolsNode );
+        EE_REFLECT_TYPE( TargetOffsetToolsNode );
 
     public:
 
@@ -62,8 +62,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE bool                 m_isBoneSpaceOffset  = true;
-        EE_EXPOSE Quaternion           m_rotationOffset = Quaternion::Identity;
-        EE_EXPOSE Vector               m_translationOffset = Vector::Zero;
+        EE_REFLECT() bool                 m_isBoneSpaceOffset  = true;
+        EE_REFLECT() Quaternion           m_rotationOffset = Quaternion::Identity;
+        EE_REFLECT() Vector               m_translationOffset = Vector::Zero;
     };
 }

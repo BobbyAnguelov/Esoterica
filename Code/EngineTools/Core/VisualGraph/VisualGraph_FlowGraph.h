@@ -70,7 +70,7 @@ namespace EE::VisualGraph
             friend FlowGraph;
             friend GraphView;
 
-            EE_REGISTER_TYPE( Node );
+            EE_REFLECT_TYPE( Node );
 
             constexpr static char const* const s_inputPinsKey = "InputPins";
             constexpr static char const* const s_outputPinsKey = "OutputPins";
@@ -251,7 +251,7 @@ namespace EE::VisualGraph
 
     class EE_ENGINETOOLS_API FlowGraph : public BaseGraph
     {
-        EE_REGISTER_TYPE( FlowGraph );
+        EE_REFLECT_TYPE( FlowGraph );
 
         friend GraphView;
 

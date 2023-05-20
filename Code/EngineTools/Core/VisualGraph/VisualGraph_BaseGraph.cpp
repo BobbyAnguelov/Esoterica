@@ -325,7 +325,7 @@ namespace EE::VisualGraph
         ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ToIm( m_internalRegionColor ), 3.0f );
         ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + VisualSettings::s_internalRegionPadding + m_internalRegionMargins[1] );
+        ImGui::Dummy( ImVec2( GetWidth(), VisualSettings::s_internalRegionPadding + m_internalRegionMargins[1] ) );
 
         m_internalRegionStartY = -1.0f;
         m_internalRegionMargins[0] = m_internalRegionMargins[1] = 0.0f;

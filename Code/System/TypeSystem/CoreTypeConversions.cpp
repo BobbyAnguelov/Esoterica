@@ -433,13 +433,17 @@ namespace EE::TypeSystem::Conversion
 
                 case CoreTypeID::Vector:
                 {
-                    StringToFloatArray( str, 4, &reinterpret_cast<Vector*>( pValue )->m_x );
+                    Float4 f4;
+                    StringToFloatArray( str, 4, &f4.m_x );
+                    *reinterpret_cast<Vector*>( pValue ) = Vector( f4 );
                 }
                 break;
 
                 case CoreTypeID::Quaternion:
                 {
-                    StringToFloatArray( str, 4, &reinterpret_cast<Quaternion*>( pValue )->m_x );
+                    Float4 f4;
+                    StringToFloatArray( str, 4, &f4.m_x );
+                    *reinterpret_cast<Quaternion*>( pValue ) = Quaternion( f4 );
                 }
                 break;
 
@@ -839,13 +843,15 @@ namespace EE::TypeSystem::Conversion
 
                 case CoreTypeID::Vector:
                 {
-                    FloatArrayToString( &reinterpret_cast<Vector const*>( pValue )->m_x, 4, strValue );
+                    Float4 const v = reinterpret_cast<Vector const*>( pValue )->ToFloat4();
+                    FloatArrayToString( &v.m_x, 4, strValue );
                 }
                 break;
 
                 case CoreTypeID::Quaternion:
                 {
-                    FloatArrayToString( &reinterpret_cast<Quaternion const*>( pValue )->m_x, 4, strValue );
+                    Float4 const v = reinterpret_cast<Quaternion const*>( pValue )->ToFloat4();
+                    FloatArrayToString( &v.m_x, 4, strValue );
                 }
                 break;
 
@@ -861,7 +867,7 @@ namespace EE::TypeSystem::Conversion
                         float floatData[7];
                         (Float3&) floatData = Float3( (float) eulerAngles.m_x.ToDegrees(), (float) eulerAngles.m_y.ToDegrees(), (float) eulerAngles.m_z.ToDegrees() );
                         (Float3&) floatData[3] = value.GetTranslation().ToFloat3();
-                        floatData[6] = value.GetScale().m_x;
+                        floatData[6] = value.GetScale().GetX();
 
                         FloatArrayToString( floatData, 7, strValue );
                     }
@@ -883,9 +889,10 @@ namespace EE::TypeSystem::Conversion
                     floatData[1] = (float) eulerAngles.m_y.ToDegrees();
                     floatData[2] = (float) eulerAngles.m_z.ToDegrees();
 
-                    floatData[3] = transform.GetTranslation().m_x;
-                    floatData[4] = transform.GetTranslation().m_y;
-                    floatData[5] = transform.GetTranslation().m_z;
+                    Float3 const translation = transform.GetTranslation().ToFloat3();
+                    floatData[3] = translation.m_x;
+                    floatData[4] = translation.m_y;
+                    floatData[5] = translation.m_z;
 
                     floatData[6] = transform.GetScale();
 

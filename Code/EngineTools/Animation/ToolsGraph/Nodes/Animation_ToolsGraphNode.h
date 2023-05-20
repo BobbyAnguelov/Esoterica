@@ -15,7 +15,7 @@ namespace EE::Animation
 
     enum class GraphType
     {
-        EE_REGISTER_ENUM
+        EE_REFLECT_ENUM
 
         BlendTree,
         ValueTree,
@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
 
     class FlowToolsNode : public VisualGraph::Flow::Node
     {
-        EE_REGISTER_TYPE( FlowToolsNode );
+        EE_REFLECT_TYPE( FlowToolsNode );
 
     public:
 
@@ -54,6 +54,9 @@ namespace EE::Animation::GraphNodes
 
         // Compile this node into its runtime representation. Returns the node index of the compiled node.
         virtual int16_t Compile( GraphCompilationContext& context ) const { return int16_t(); }
+
+        // Return any logic or event IDs entered into this node (things like event IDs, parameter ID values, etc...)
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const {}
 
     protected:
 

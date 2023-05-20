@@ -57,6 +57,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline UUID CreateCachedPose() { return m_posePool.CreateCachedPoseBuffer(); }
+        inline void ResetCachedPose( UUID const& cachedPoseID ) { return m_posePool.ResetCachedPoseBuffer( cachedPoseID ); }
         inline void DestroyCachedPose( UUID const& cachedPoseID ) { m_posePool.DestroyCachedPoseBuffer( cachedPoseID ); }
 
         // Task Registration

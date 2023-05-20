@@ -2,7 +2,6 @@
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
-#include "Engine/Physics/PhysicsSystem.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/AnimationBlender.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
@@ -11,7 +10,7 @@
 #include "Engine/Animation/AnimationPose.h"
 #include "System/Math/MathStringHelpers.h"
 #include "System/Math/MathHelpers.h"
-#include "Engine/Physics/PhysicsScene.h"
+#include "Engine/Physics/PhysicsWorld.h"
 
 //-------------------------------------------------------------------------
 
@@ -295,9 +294,9 @@ namespace EE::Physics
         ImGui::DockBuilderDockWindow( m_previewControlsWindowName.c_str(), rightDockID );
     }
 
-    void RagdollWorkspace::DrawWorkspaceToolbarItems( UpdateContext const& context )
+    void RagdollWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
     {
-        ImGuiX::VerticalSeparator( ImVec2( 15, -1 ) );
+        ImGuiX::SameLineSeparator( 15 );
 
         auto pRagdollDefinition = GetRagdollDefinition();
 
@@ -363,7 +362,7 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::DrawViewportToolbarItems( UpdateContext const& context, Render::Viewport const* pViewport )
+    void RagdollWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
     {
         ImGui::SameLine();
         ImGui::SetNextItemWidth( 48 );
@@ -491,7 +490,7 @@ namespace EE::Physics
                     //-------------------------------------------------------------------------
 
                     Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneGlobalTransform( boneIdx );
-                    drawingCtx.DrawCapsuleHeightX( bodyTransform, body.m_radius, body.m_halfHeight, Colors::Orange, 3.0f );
+                    drawingCtx.DrawCapsule( bodyTransform, body.m_radius, body.m_halfHeight, Colors::Orange, 3.0f );
 
                     // Draw body axes
                     if ( m_drawBodyAxes )
@@ -2530,8 +2529,8 @@ namespace EE::Physics
                 if( ImGui::Combo( "##FrictionCombine", &fc, comboOptions, 4 ) )
                 {
                     ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_frictionCombineMode = (PhysicsCombineMode) fc;
-                    bodySettings.m_frictionCombineMode = (PhysicsCombineMode) fc;
+                    realBodySettings.m_frictionCombineMode = (CombineMode) fc;
+                    bodySettings.m_frictionCombineMode = (CombineMode) fc;
                 }
                 ImGuiX::ItemTooltip( "Friction combine mode to set for this material" );
 
@@ -2543,8 +2542,8 @@ namespace EE::Physics
                 if( ImGui::Combo( "##RestitutionCombine", &rc, comboOptions, 4 ) )
                 {
                     ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_restitutionCombineMode = (PhysicsCombineMode) rc;
-                    bodySettings.m_restitutionCombineMode = (PhysicsCombineMode) rc;
+                    realBodySettings.m_restitutionCombineMode = (CombineMode) rc;
+                    bodySettings.m_restitutionCombineMode = (CombineMode) rc;
                 }
                 ImGuiX::ItemTooltip( "Restitution combine mode for this material" );
 
@@ -2784,7 +2783,7 @@ namespace EE::Physics
             // PVD
             //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+            /*ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
             if ( ImGui::CollapsingHeader( "PhysX Visual Debugger" ) )
             {
                 ImGui::Indent();
@@ -2811,7 +2810,7 @@ namespace EE::Physics
                 ImGui::EndDisabled();
 
                 ImGui::Unindent();
-            }
+            }*/
         }
         ImGui::End();
     }
@@ -2828,14 +2827,13 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        m_pPhysicsSystem = context.GetSystem<PhysicsSystem>();
-        if ( m_autoConnectToPVD )
-        {
-            m_pPhysicsSystem->ConnectToPVD();
-        }
+        //if ( m_autoConnectToPVD )
+        //{
+        //    m_pPhysicsSystem->ConnectToPVD();
+        //}
 
-        auto pPhysicsWorldSystem = m_pWorld->GetWorldSystem<PhysicsWorldSystem>();
-        m_pRagdoll = pPhysicsWorldSystem->GetScene()->CreateRagdoll( pRagdollDefinition, m_activeProfileID, 0 );
+        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
+        m_pRagdoll = pPhysicsWorld->CreateRagdoll( pRagdollDefinition, m_activeProfileID, 0 );
         m_pRagdoll->SetGravityEnabled( m_enableGravity );
         m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
 
@@ -2861,12 +2859,12 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( m_pPhysicsSystem != nullptr );
-        if ( m_pPhysicsSystem->IsConnectedToPVD() )
-        {
-            m_pPhysicsSystem->DisconnectFromPVD();
-        }
-        m_pPhysicsSystem = nullptr;
+        //EE_ASSERT( m_pPhysicsSystem != nullptr );
+        //if ( m_pPhysicsSystem->IsConnectedToPVD() )
+        //{
+        //    m_pPhysicsSystem->DisconnectFromPVD();
+        //}
+        //m_pPhysicsSystem = nullptr;
 
         //-------------------------------------------------------------------------
 
@@ -2878,8 +2876,8 @@ namespace EE::Physics
         m_pMeshComponent->FinalizePose();
         m_pMeshComponent->SetWorldTransform( Transform::Identity );
 
-        m_pRagdoll->RemoveFromScene();
-        EE::Delete( m_pRagdoll );
+        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
+        pPhysicsWorld->DestroyRagdoll( m_pRagdoll );
 
         auto pRagdollDefinition = GetRagdollDefinition();
         if ( pRagdollDefinition->m_skeleton.WasRequested() )
@@ -2895,77 +2893,77 @@ namespace EE::Physics
 
     void RagdollWorkspace::SpawnCollisionActor( Vector const& startPos, Vector const& initialVelocity )
     {
-        physx::PxScene* pPhysicsScene = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
-        physx::PxPhysics* pPhysics = &pPhysicsScene->getPhysics();
+        //auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
+        //physx::PxPhysics* pPhysics = Core::GetPxPhysics();
 
-        physx::PxMaterial* materials[] =
-        {
-            pPhysics->createMaterial( 0.5f, 0.5f, 0.5f )
-        };
+        //physx::PxMaterial* materials[] =
+        //{
+        //    pPhysics->createMaterial( 0.5f, 0.5f, 0.5f )
+        //};
 
-        auto pPhysicsShape = pPhysics->createShape( physx::PxSphereGeometry( m_collisionActorRadius ), materials, 1, true, physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSIMULATION_SHAPE );
-        pPhysicsShape->setSimulationFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
-        pPhysicsShape->setQueryFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
+        //auto pPhysicsShape = pPhysics->createShape( physx::PxSphereGeometry( m_collisionActorRadius ), materials, 1, true, physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSIMULATION_SHAPE );
+        //pPhysicsShape->setSimulationFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
+        //pPhysicsShape->setQueryFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        auto pPhysicsActor = pPhysics->createRigidDynamic( ToPx( Transform( Quaternion::Identity, startPos ) ) );
-        pPhysicsActor->attachShape( *pPhysicsShape );
-        pPhysicsShape->release();
+        //auto pPhysicsActor = pPhysics->createRigidDynamic( ToPx( Transform( Quaternion::Identity, startPos ) ) );
+        //pPhysicsActor->attachShape( *pPhysicsShape );
+        //pPhysicsShape->release();
 
-        pPhysicsActor->setActorFlag( physx::PxActorFlag::eDISABLE_GRAVITY, !m_collisionActorGravity );
-        physx::PxRigidBodyExt::setMassAndUpdateInertia( *pPhysicsActor, m_collisionActorMass );
+        //pPhysicsActor->setActorFlag( physx::PxActorFlag::eDISABLE_GRAVITY, !m_collisionActorGravity );
+        //physx::PxRigidBodyExt::setMassAndUpdateInertia( *pPhysicsActor, m_collisionActorMass );
 
-        pPhysicsScene->lockWrite();
-        pPhysicsScene->addActor( *pPhysicsActor );
-        pPhysicsActor->setLinearVelocity( ToPx( initialVelocity ) );
-        pPhysicsScene->unlockWrite();
+        //pPhysicsWorld->lockWrite();
+        //pPhysicsWorld->addActor( *pPhysicsActor );
+        //pPhysicsActor->setLinearVelocity( ToPx( initialVelocity ) );
+        //pPhysicsWorld->unlockWrite();
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        CollisionActor CA;
-        CA.m_pActor = pPhysicsActor;
-        CA.m_radius = m_collisionActorRadius;
-        CA.m_TTL = m_collisionActorLifetime;
+        //CollisionActor CA;
+        //CA.m_pActor = pPhysicsActor;
+        //CA.m_radius = m_collisionActorRadius;
+        //CA.m_TTL = m_collisionActorLifetime;
 
-        m_spawnedCollisionActors.emplace_back( CA );
+        //m_spawnedCollisionActors.emplace_back( CA );
     }
 
     void RagdollWorkspace::UpdateSpawnedCollisionActors( Drawing::DrawContext& drawingContext, Seconds deltaTime )
     {
-        physx::PxScene* pPhysicsScene = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
-        pPhysicsScene->lockWrite();
-        for ( int32_t i = int32_t( m_spawnedCollisionActors.size() ) - 1; i >= 0; i-- )
-        {
-            m_spawnedCollisionActors[i].m_TTL -= deltaTime.ToFloat();
+        //auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
+        //pPhysicsWorld->lockWrite();
+        //for ( int32_t i = int32_t( m_spawnedCollisionActors.size() ) - 1; i >= 0; i-- )
+        //{
+        //    m_spawnedCollisionActors[i].m_TTL -= deltaTime.ToFloat();
 
-            // Remove actor once lifetime exceeded
-            if ( m_spawnedCollisionActors[i].m_TTL <= 0.0f )
-            {
-                pPhysicsScene->removeActor( *m_spawnedCollisionActors[i].m_pActor );
-                m_spawnedCollisionActors[i].m_pActor->release();
-                m_spawnedCollisionActors.erase( m_spawnedCollisionActors.begin() + i );
-            }
-            else // Draw actor
-            {
-                Transform actorTransform = FromPx( m_spawnedCollisionActors[i].m_pActor->getGlobalPose());
-                drawingContext.DrawSphere( actorTransform, m_spawnedCollisionActors[i].m_radius, Colors::Red, 3.0f );
-            }
-        }
-        pPhysicsScene->unlockWrite();
+        //    // Remove actor once lifetime exceeded
+        //    if ( m_spawnedCollisionActors[i].m_TTL <= 0.0f )
+        //    {
+        //        pPhysicsWorld->removeActor( *m_spawnedCollisionActors[i].m_pActor );
+        //        m_spawnedCollisionActors[i].m_pActor->release();
+        //        m_spawnedCollisionActors.erase( m_spawnedCollisionActors.begin() + i );
+        //    }
+        //    else // Draw actor
+        //    {
+        //        Transform actorTransform = FromPx( m_spawnedCollisionActors[i].m_pActor->getGlobalPose());
+        //        drawingContext.DrawSphere( actorTransform, m_spawnedCollisionActors[i].m_radius, Colors::Red, 3.0f );
+        //    }
+        //}
+        //pPhysicsWorld->unlockWrite();
     }
 
     void RagdollWorkspace::DestroySpawnedCollisionActors()
     {
-        physx::PxScene* pPhysicsScene = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
-        pPhysicsScene->lockWrite();
+        /*physx::PxScene* pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
+        pPhysicsWorld->lockWrite();
         for ( auto& CA : m_spawnedCollisionActors )
         {
-            pPhysicsScene->removeActor( *CA.m_pActor );
+            pPhysicsWorld->removeActor( *CA.m_pActor );
             CA.m_pActor->release();
         }
-        pPhysicsScene->unlockWrite();
+        pPhysicsWorld->unlockWrite();
 
-        m_spawnedCollisionActors.clear();
+        m_spawnedCollisionActors.clear();*/
     }
 }

@@ -62,7 +62,7 @@ namespace EE::Resource
 
     public:
 
-        EE_SYSTEM_ID( ResourceSystem );
+        EE_SYSTEM( ResourceSystem );
 
     public:
 

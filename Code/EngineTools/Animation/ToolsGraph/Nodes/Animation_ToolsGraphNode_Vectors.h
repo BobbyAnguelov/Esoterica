@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
 {
     class VectorInfoToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( VectorInfoToolsNode );
+        EE_REFLECT_TYPE( VectorInfoToolsNode );
 
     public:
 
@@ -22,14 +22,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_EXPOSE VectorInfoNode::Info            m_desiredInfo = VectorInfoNode::Info::X;
+        EE_REFLECT() VectorInfoNode::Info            m_desiredInfo = VectorInfoNode::Info::X;
     };
 
     //-------------------------------------------------------------------------
 
     class VectorCreateToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( VectorCreateToolsNode );
+        EE_REFLECT_TYPE( VectorCreateToolsNode );
 
     public:
 
@@ -46,7 +46,7 @@ namespace EE::Animation::GraphNodes
 
     class VectorNegateToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( VectorNegateToolsNode );
+        EE_REFLECT_TYPE( VectorNegateToolsNode );
 
     public:
 

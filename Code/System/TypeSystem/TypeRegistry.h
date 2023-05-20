@@ -4,6 +4,7 @@
 #include "TypeInfo.h"
 #include "CoreTypeIDs.h"
 #include "System/Systems.h"
+#include <typeinfo>
 
 //-------------------------------------------------------------------------
 
@@ -19,7 +20,7 @@ namespace EE::TypeSystem
     {
     public:
 
-        EE_SYSTEM_ID( TypeRegistry );
+        EE_SYSTEM( TypeRegistry );
 
     public:
 
@@ -27,18 +28,21 @@ namespace EE::TypeSystem
         ~TypeRegistry();
 
         //-------------------------------------------------------------------------
-        // Type Registration
+        // Type Info
         //-------------------------------------------------------------------------
 
         TypeInfo const* RegisterType( TypeInfo const* pType );
         void UnregisterType( TypeInfo const* pType );
 
-        //-------------------------------------------------------------------------
-        // Type Info
-        //-------------------------------------------------------------------------
-
         // Returns the type information for a given type ID
         TypeInfo const* GetTypeInfo( TypeID typeID ) const;
+
+        // Returns the type information for a given type
+        template<typename T, typename = std::enable_if_t<std::is_base_of<EE::IReflectedType, T>::value>>
+        TypeInfo const* GetTypeInfo() const
+        {
+            return T::s_pTypeInfo;
+        }
 
         // Returns the size of a given type
         size_t GetTypeByteSize( TypeID typeID ) const;
@@ -49,9 +53,6 @@ namespace EE::TypeSystem
         // Does a given type derive from a given parent type
         bool IsTypeDerivedFrom( TypeID typeID, TypeID parentTypeID ) const;
 
-        // Return all types matching specified type metadata
-        TVector<TypeInfo const*> GetAllTypesWithMatchingMetadata( TBitFlags<TypeInfoMetaData> metadataFlags ) const;
-
         // Return all known types
         TVector<TypeInfo const*> GetAllTypes( bool includeAbstractTypes = true, bool sortAlphabetically = false ) const;
 
@@ -59,7 +60,7 @@ namespace EE::TypeSystem
         TVector<TypeInfo const*> GetAllDerivedTypes( TypeID parentTypeID, bool includeParentTypeInResults = false, bool includeAbstractTypes = true, bool sortAlphabetically = false ) const;
 
         // Get all the types that this type is allowed to be cast to
-        TInlineVector<TypeID, 5> GetAllCastableTypes( IRegisteredType const* pType ) const;
+        TInlineVector<TypeID, 5> GetAllCastableTypes( IReflectedType const* pType ) const;
 
         // Are these two types in the same derivation chain (i.e. does either derive from the other )
         bool AreTypesInTheSameHierarchy( TypeID typeA, TypeID typeB ) const;
@@ -68,20 +69,32 @@ namespace EE::TypeSystem
         bool AreTypesInTheSameHierarchy( TypeInfo const* pTypeInfoA, TypeInfo const* pTypeInfoB ) const;
 
         //-------------------------------------------------------------------------
-        // Enums
+        // Enum Info
         //-------------------------------------------------------------------------
 
         EnumInfo const* RegisterEnum( EnumInfo const& type );
         void UnregisterEnum( TypeID typeID );
+
+        // Returns the enum type information for a given type ID
         EnumInfo const* GetEnumInfo( TypeID enumID ) const;
 
+        // Returns the enum type information for a given type
+        template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+        EnumInfo const* GetEnumInfo() const
+        {
+            char const* pEnumName = typeid( T ).name();
+            TypeID const enumTypeID( pEnumName + 5 );
+            return GetEnumInfo( enumTypeID );
+        }
+
         //-------------------------------------------------------------------------
-        // Resources
+        // Resource Info
         //-------------------------------------------------------------------------
 
-        inline THashMap<TypeID, ResourceInfo> const& GetRegisteredResourceTypes() const { return m_registeredResourceTypes; }
         void RegisterResourceTypeID( ResourceInfo const& resourceInfo );
         void UnregisterResourceTypeID( TypeID typeID );
+
+        inline THashMap<TypeID, ResourceInfo> const& GetRegisteredResourceTypes() const { return m_registeredResourceTypes; }
         bool IsRegisteredResourceType( TypeID typeID ) const;
         bool IsRegisteredResourceType( ResourceTypeID resourceTypeID ) const;
         bool IsResourceTypeDerivedFrom( ResourceTypeID resourceTypeID, ResourceTypeID parentResourceTypeID ) const;

@@ -677,7 +677,7 @@ namespace EE::Animation::GraphNodes
         if ( m_translationXYSectionIdx == InvalidIndex )
         {
             Vector adjustedTranslation = originalRM.m_transforms.back().GetTranslation();
-            adjustedTranslation.m_z = m_requestedWarpTarget.GetTranslation().m_z;
+            adjustedTranslation.SetZ( m_requestedWarpTarget.GetTranslation().GetZ() );
             m_warpTarget.SetTranslation( adjustedTranslation );
         }
 
@@ -685,7 +685,7 @@ namespace EE::Animation::GraphNodes
         if ( !m_isTranslationAllowedZ )
         {
             Vector adjustedTranslation = m_requestedWarpTarget.GetTranslation();
-            adjustedTranslation.m_z = originalRM.m_transforms.back().GetTranslation().m_z;
+            adjustedTranslation.SetZ( originalRM.m_transforms.back().GetTranslation().GetZ() );
             m_warpTarget.SetTranslation( adjustedTranslation );
         }
 
@@ -765,7 +765,7 @@ namespace EE::Animation::GraphNodes
             if ( warpSection.m_warpRule == TargetWarpRule::WarpZ )
             {
                 // Calculate how much Z correction to apply
-                float correctionZ = warpDelta.GetTranslation().m_z;
+                float correctionZ = warpDelta.GetTranslation().GetZ();
                 if ( m_numSectionZ > 1 )
                 {
                     float const percentageCorrectionToApply = float( warpSection.GetNumWarpableFrames() ) / m_totalNumWarpableZFrames;
@@ -797,7 +797,7 @@ namespace EE::Animation::GraphNodes
             if ( warpSection.m_warpRule == TargetWarpRule::WarpZ )
             {
                 // Calculate how much Z correction to apply
-                float correctionZ = warpDelta.GetTranslation().m_z;
+                float correctionZ = warpDelta.GetTranslation().GetZ();
                 if ( m_numSectionZ > 1 )
                 {
                     float const percentageCorrectionToApply = float( warpSection.GetNumWarpableFrames() ) / m_totalNumWarpableZFrames;
@@ -946,7 +946,7 @@ namespace EE::Animation::GraphNodes
             else if ( warpSection.m_warpRule == TargetWarpRule::WarpZ )
             {
                 // Calculate how much Z correction to apply
-                float correctionZ = warpDelta.GetTranslation().m_z;
+                float correctionZ = warpDelta.GetTranslation().GetZ();
                 if ( m_numSectionZ > 1 )
                 {
                     float const percentageCorrectionToApply = float( warpSection.GetNumWarpableFrames() ) / m_totalNumWarpableZFrames;
@@ -1026,7 +1026,7 @@ namespace EE::Animation::GraphNodes
 
             if ( !shouldUpdate && m_isTranslationAllowedZ )
             {
-                float const deltaDistanceZ = m_requestedWarpTarget.GetTranslation().m_z - previousRequestedTarget.GetTranslation().m_z;
+                float const deltaDistanceZ = ( m_requestedWarpTarget.GetTranslation().GetSplatZ() - previousRequestedTarget.GetTranslation().GetSplatZ() ).ToFloat();
                 shouldUpdate = deltaDistanceZ > pSettings->m_targetUpdateDistanceThreshold;
             }
 

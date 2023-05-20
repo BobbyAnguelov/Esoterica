@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
         // Initialize state data
         if ( m_pAnimation != nullptr )
         {
-            m_duration = m_pAnimation->GetDuration();
+            m_duration = m_pAnimation->IsSingleFrameAnimation() ? s_oneFrameDuration : m_pAnimation->GetDuration();
             m_currentTime = m_previousTime = m_pAnimation->GetSyncTrack().GetPercentageThrough( initialTime );
             EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
         }
@@ -106,7 +106,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        return CalculateResult( context, true );
+        return CalculateResult( context );
     }
 
     GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
@@ -131,7 +131,7 @@ namespace EE::Animation::GraphNodes
         #endif
 
         // Handle single frame animations
-        if ( m_duration == 0.0f )
+        if ( m_pAnimation->IsSingleFrameAnimation() )
         {
             m_previousTime = 0.0f;
             m_currentTime = 0.0f;
@@ -145,15 +145,15 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        return CalculateResult( context, true );
+        return CalculateResult( context );
     }
 
-    GraphPoseNodeResult AnimationClipNode::CalculateResult( GraphContext& context, bool isSynchronizedUpdate ) const
+    GraphPoseNodeResult AnimationClipNode::CalculateResult( GraphContext& context ) const
     {
         EE_ASSERT( m_pAnimation != nullptr );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = SampledEventRange( context.m_sampledEventsBuffer.GetNumSampledEvents() );
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
 
         // Events
         //-------------------------------------------------------------------------

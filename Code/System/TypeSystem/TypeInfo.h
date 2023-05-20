@@ -9,7 +9,7 @@
 
 namespace EE
 {
-    class IRegisteredType;
+    class IReflectedType;
     class ResourceTypeID;
     class ResourceID;
 }
@@ -28,13 +28,6 @@ namespace EE::TypeSystem
 
     //-------------------------------------------------------------------------
 
-    enum class TypeInfoMetaData
-    {
-        Abstract
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_SYSTEM_API TypeInfo
     {
 
@@ -43,7 +36,7 @@ namespace EE::TypeSystem
         TypeInfo() = default;
         virtual ~TypeInfo() = default;
 
-        inline IRegisteredType const* GetDefaultInstance() const { return m_pDefaultInstance; }
+        inline IReflectedType const* GetDefaultInstance() const { return m_pDefaultInstance; }
 
         // Basic Type Info
         //-------------------------------------------------------------------------
@@ -56,7 +49,7 @@ namespace EE::TypeSystem
         inline bool HasCategoryName() const { return !m_category.empty(); }
         #endif
 
-        bool IsAbstractType() const { return m_metadata.IsFlagSet( TypeInfoMetaData::Abstract ); }
+        bool IsAbstractType() const { return m_isAbstract; }
 
         bool IsDerivedFrom( TypeID const parentTypeID ) const;
 
@@ -66,13 +59,11 @@ namespace EE::TypeSystem
         // Property Info
         //-------------------------------------------------------------------------
 
-        bool HasExposedProperties() const;
-
         PropertyInfo const* GetPropertyInfo( StringID propertyID ) const;
 
         // Function declaration for generated property registration functions
         template<typename T>
-        void RegisterProperties( IRegisteredType const* pDefaultTypeInstance )
+        void RegisterProperties( IReflectedType const* pDefaultTypeInstance )
         {
             EE_HALT(); // Default implementation should never be called
         }
@@ -80,42 +71,44 @@ namespace EE::TypeSystem
         // Type Factories
         //-------------------------------------------------------------------------
 
-        virtual IRegisteredType* CreateType() const = 0;
-        virtual void CreateTypeInPlace( IRegisteredType* pAllocatedMemory ) const = 0;
+        virtual IReflectedType* CreateType() const = 0;
+        virtual void CreateTypeInPlace( IReflectedType* pAllocatedMemory ) const = 0;
 
         // Resource Helpers
         //-------------------------------------------------------------------------
 
-        virtual void LoadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IRegisteredType* pType ) const = 0;
-        virtual void UnloadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IRegisteredType* pType ) const = 0;
-        virtual LoadingStatus GetResourceLoadingStatus( IRegisteredType* pType ) const = 0;
-        virtual LoadingStatus GetResourceUnloadingStatus( IRegisteredType* pType ) const = 0;
-        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IRegisteredType* pType, uint32_t propertyID ) const = 0;
-        virtual void GetReferencedResources( IRegisteredType* pType, TVector<ResourceID>& outReferencedResources ) const = 0;
+        virtual void LoadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType* pType ) const = 0;
+        virtual void UnloadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType* pType ) const = 0;
+        virtual LoadingStatus GetResourceLoadingStatus( IReflectedType* pType ) const = 0;
+        virtual LoadingStatus GetResourceUnloadingStatus( IReflectedType* pType ) const = 0;
+        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IReflectedType* pType, uint32_t propertyID ) const = 0;
+        virtual void GetReferencedResources( IReflectedType* pType, TVector<ResourceID>& outReferencedResources ) const = 0;
 
         // Array helpers
         //-------------------------------------------------------------------------
 
-        virtual uint8_t* GetArrayElementDataPtr( IRegisteredType* pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const = 0;
-        virtual size_t GetArraySize( IRegisteredType const* pTypeInstance, uint32_t arrayID ) const = 0;
+        virtual uint8_t* GetArrayElementDataPtr( IReflectedType* pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const = 0;
+        virtual size_t GetArraySize( IReflectedType const* pTypeInstance, uint32_t arrayID ) const = 0;
         virtual size_t GetArrayElementSize( uint32_t arrayID ) const = 0;
-        virtual void ClearArray( IRegisteredType* pTypeInstance, uint32_t arrayID ) const = 0;
-        virtual void AddArrayElement( IRegisteredType* pTypeInstance, uint32_t arrayID ) const = 0;
-        virtual void RemoveArrayElement( IRegisteredType* pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const = 0;
+        virtual void ClearArray( IReflectedType* pTypeInstance, uint32_t arrayID ) const = 0;
+        virtual void AddArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID ) const = 0;
+        virtual void InsertArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t insertIdx ) const = 0;
+        virtual void MoveArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t originalElementIdx, size_t newElementIdx ) const = 0;
+        virtual void RemoveArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t elementIdx ) const = 0;
 
         // Default value helpers
         //-------------------------------------------------------------------------
 
-        virtual bool AreAllPropertyValuesEqual( IRegisteredType const* pTypeInstance, IRegisteredType const* pOtherTypeInstance ) const = 0;
-        virtual bool IsPropertyValueEqual( IRegisteredType const* pTypeInstance, IRegisteredType const* pOtherTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const = 0;
-        virtual void ResetToDefault( IRegisteredType* pTypeInstance, uint32_t propertyID ) const = 0;
+        virtual bool AreAllPropertyValuesEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance ) const = 0;
+        virtual bool IsPropertyValueEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const = 0;
+        virtual void ResetToDefault( IReflectedType* pTypeInstance, uint32_t propertyID ) const = 0;
 
-        inline bool AreAllPropertiesSetToDefault( IRegisteredType const* pTypeInstance ) const
+        inline bool AreAllPropertiesSetToDefault( IReflectedType const* pTypeInstance ) const
         {
             return AreAllPropertyValuesEqual( pTypeInstance, m_pDefaultInstance );
         }
 
-        inline bool IsPropertyValueSetToDefault( IRegisteredType const* pTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const
+        inline bool IsPropertyValueSetToDefault( IReflectedType const* pTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const
         {
             return IsPropertyValueEqual( pTypeInstance, m_pDefaultInstance, propertyID, arrayIdx );
         }
@@ -123,17 +116,18 @@ namespace EE::TypeSystem
     public:
 
         TypeID                                  m_ID;
-        int32_t                                 m_size = -1;
-        int32_t                                 m_alignment = -1;
-        TBitFlags<TypeInfoMetaData>             m_metadata;
         ITypeDataManager*                       m_pTypeManager = nullptr;
-        IRegisteredType const*                  m_pDefaultInstance;
+        IReflectedType const*                   m_pDefaultInstance;
         TVector<TypeInfo const*>                m_parentTypes;
         TVector<PropertyInfo>                   m_properties;
         THashMap<StringID, int32_t>             m_propertyMap;
+        int32_t                                 m_size = -1;
+        int32_t                                 m_alignment = -1;
+        bool                                    m_isAbstract = false;
 
         #if EE_DEVELOPMENT_TOOLS
         bool                                    m_isForDevelopmentUseOnly = false;      // Whether this property only exists in development builds
+        bool                                    m_isToolsReadOnly = false; // Whether this property can be modified by any tools or if it's just a serializable value
         String                                  m_friendlyName;
         String                                  m_category;
         #endif

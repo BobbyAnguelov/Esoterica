@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "System/Time/Time.h"
-#include "System/TypeSystem/RegisteredType.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Math/NumericRange.h"
 
 //-------------------------------------------------------------------------
@@ -19,9 +19,9 @@ namespace EE
 
 namespace EE::Animation
 {
-    class EE_ENGINE_API Event : public IRegisteredType
+    class EE_ENGINE_API Event : public IReflectedType
     {
-        EE_REGISTER_TYPE( Event );
+        EE_REFLECT_TYPE( Event );
 
         friend class AnimationClipCompiler;
 
@@ -51,7 +51,7 @@ namespace EE::Animation
 
     protected:
 
-        EE_REGISTER Seconds         m_startTime = 0.0f;
-        EE_REGISTER Seconds         m_duration = 0.0f;
+        EE_REFLECT( "IsToolsReadOnly" : true ) Seconds         m_startTime = 0.0f;
+        EE_REFLECT( "IsToolsReadOnly" : true ) Seconds         m_duration = 0.0f;
     };
 }

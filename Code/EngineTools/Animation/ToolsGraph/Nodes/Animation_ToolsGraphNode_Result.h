@@ -7,7 +7,7 @@ namespace EE::Animation::GraphNodes
 {
     class ResultToolsNode final : public FlowToolsNode
     {
-        EE_REGISTER_TYPE( ResultToolsNode );
+        EE_REFLECT_TYPE( ResultToolsNode );
 
     public:
 
@@ -25,6 +25,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REGISTER GraphValueType m_valueType = GraphValueType::Pose;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        GraphValueType m_valueType = GraphValueType::Pose;
     };
 }

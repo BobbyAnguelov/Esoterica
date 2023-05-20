@@ -21,7 +21,8 @@
                     "TypeData": {
                         "TypeID": "EE::Render::StaticMeshComponent",
                         "m_materialOverrides/0": "data://Demo/RenderDemo/materials/bronze.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,-0.000000,0.000000,2.000000,2.000000,2.000000,2.000000",
+                        "m_transform": "0.000000,-0.000000,0.000100,-0.000000,0.000000,2.000000,1.0",
+"m_localScale" : "2.000000, 2.000000, 2.000000",
                         "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
                     }
                 }
@@ -35,7 +36,8 @@
                     "TypeData": {
                         "TypeID": "EE::Render::StaticMeshComponent",
                         "m_materialOverrides/0": "data://Demo/RenderDemo/materials/copper.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,5.000000,0.000000,2.000000,2.000000,2.000000,2.000000",
+                        "m_transform": "0.000000,-0.000000,0.000100,5.000000,0.000000,2.000000,1.0",
+"m_localScale" : "2.000000, 2.000000, 2.000000",
                         "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
                     }
                 }
@@ -49,7 +51,8 @@
                     "TypeData": {
                         "TypeID": "EE::Render::StaticMeshComponent",
                         "m_materialOverrides/0": "data://Demo/RenderDemo/materials/old_iron.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,10.000000,0.000000,2.000000,2.000000,2.000000,2.000000",
+                        "m_transform": "0.000000,-0.000000,0.000100,10.000000,0.000000,2.000000,1.0",
+"m_localScale" : "2.000000, 2.000000, 2.000000",
                         "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
                     }
                 }
@@ -63,7 +66,8 @@
                     "TypeData": {
                         "TypeID": "EE::Render::StaticMeshComponent",
                         "m_materialOverrides/0": "data://Demo/RenderDemo/materials/scratched_gold.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,15.000000,0.000000,2.000000,2.000000,2.000000,2.000000",
+                        "m_transform": "0.000000,-0.000000,0.000100,15.000000,0.000000,2.000000,1.0",
+"m_localScale" : "2.000000, 2.000000, 2.000000",
                         "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
                     }
                 }

@@ -16,7 +16,7 @@ namespace EE::Animation
     class FlowGraph : public VisualGraph::FlowGraph
     {
         friend class ToolsGraphDefinition;
-        EE_REGISTER_TYPE( FlowGraph );
+        EE_REFLECT_TYPE( FlowGraph );
 
     public:
 
@@ -76,6 +76,7 @@ namespace EE::Animation
 
     private:
 
-        EE_REGISTER GraphType       m_type;
+        EE_REFLECT( "IsToolsReadOnly" : true )
+        GraphType       m_type;
     };
 }

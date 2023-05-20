@@ -1,6 +1,5 @@
 #include "PlayerAction_Jump.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Physics/PlayerPhysicsController.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Game/Player/Animation/PlayerGraphController_Ability.h"
@@ -56,9 +55,7 @@ namespace EE::Player
             auto pAbilityAnimController = ctx.GetAnimSubGraphController<AbilityGraphController>();
             pAbilityAnimController->StartJump();
 
-            ctx.m_pCharacterController->DisableGravity();
-            ctx.m_pCharacterController->DisableProjectionOntoFloor();
-            ctx.m_pCharacterController->EnableStepHeight();
+            ctx.m_pCharacterComponent->SetGravityEnabled( false );
             m_jumpTimer.Start();
 
             if( m_isChargedJumpReady )
@@ -121,8 +118,8 @@ namespace EE::Player
             Vector const currentVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
             Vector const currentVelocity2D = currentVelocity * Vector( 1.0f, 1.0f, 0.0f );
 
-            Vector const forward = camFwd * movementInputs.m_y;
-            Vector const right = camRight * movementInputs.m_x;
+            Vector const forward = camFwd * movementInputs.GetSplatY();
+            Vector const right = camRight * movementInputs.GetSplatX();
             Vector const desiredHeadingVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
 
             Vector resultingVelocity = currentVelocity2D + desiredHeadingVelocity2D;
@@ -131,7 +128,7 @@ namespace EE::Player
             {
                 resultingVelocity = resultingVelocity.GetNormalized2() * g_maxAirControlSpeed;
             }
-            resultingVelocity.m_z = verticalVelocity;
+            resultingVelocity.SetZ( verticalVelocity );
 
             Vector const facing = desiredHeadingVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredHeadingVelocity2D.GetNormalized2();
 

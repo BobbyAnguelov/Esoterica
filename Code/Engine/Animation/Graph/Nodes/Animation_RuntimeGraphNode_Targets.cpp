@@ -148,7 +148,7 @@ namespace EE::Animation::GraphNodes
 
                     case Info::DistanceVerticalOnly:
                     {
-                        m_value = Math::Abs( inputTargetTransform.GetTranslation().m_z );
+                        m_value = Math::Abs( inputTargetTransform.GetTranslation().GetZ() );
                     }
                     break;
 

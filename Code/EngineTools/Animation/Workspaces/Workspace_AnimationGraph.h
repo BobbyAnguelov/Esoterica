@@ -12,7 +12,6 @@
 //-------------------------------------------------------------------------
 
 namespace EE::Render { class SkeletalMeshComponent; }
-namespace EE::Physics { class PhysicsSystem; }
 
 //-------------------------------------------------------------------------
 
@@ -81,15 +80,39 @@ namespace EE::Animation
             StringID                            m_externalSlotID;
         };
 
+        // Defines a navigation target for the navigation dialog
         struct NavigationTarget
         {
-            NavigationTarget( GraphNodes::FlowToolsNode const* pNode, String&& path )
-                : m_pNode( pNode )
-                , m_path( eastl::move( path ) )
-            {}
+            enum class Type
+            {
+                Unknown = -1,
+                Parameter = 0,
+                Pose,
+                Value,
+                ID
+            };
 
-            GraphNodes::FlowToolsNode const*    m_pNode;
+            static void CreateNavigationTargets( VisualGraph::BaseNode const* pNode, TVector<NavigationTarget>& outTargets );
+
+        public:
+
+            inline bool operator==( NavigationTarget const& rhs ) const
+            {
+                return m_compKey == rhs.m_compKey;
+            }
+
+        private:
+
+            NavigationTarget() = default;
+
+        public:
+
+            VisualGraph::BaseNode const*        m_pNode = nullptr;
+            String                              m_label;
             String                              m_path;
+            String                              m_sortKey;
+            StringID                            m_compKey;
+            Type                                m_type = Type::Unknown;
         };
 
         enum class GraphOperationType
@@ -120,13 +143,13 @@ namespace EE::Animation
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_STATE_MACHINE; }
+        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void DrawWorkspaceToolbarItems( UpdateContext const& context ) override;
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
         virtual void PreUndoRedo( UndoStack::Operation operation ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
-        virtual bool IsDirty() const override;
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual bool Save() override;
 
@@ -169,7 +192,6 @@ namespace EE::Animation
         void InitializeUserContext();
         void UpdateUserContext();
         void ShutdownUserContext();
-
 
         // Graph View
         //-------------------------------------------------------------------------
@@ -425,7 +447,6 @@ namespace EE::Animation
         float                                                           m_previewCapsuleHalfHeight = 0.65f;
         float                                                           m_previewCapsuleRadius = 0.35f;
         TResourcePtr<GraphVariation>                                    m_previewGraphVariationPtr;
-        Physics::PhysicsSystem*                                         m_pPhysicsSystem = nullptr;
         Entity*                                                         m_pPreviewEntity = nullptr;
         Transform                                                       m_previewStartTransform = Transform::Identity;
         Transform                                                       m_characterTransform = Transform::Identity;
@@ -448,7 +469,7 @@ namespace EE::Animation
 
     class GraphUndoableAction final : public IUndoableAction
     {
-        EE_REGISTER_TYPE( IUndoableAction );
+        EE_REFLECT_TYPE( IUndoableAction );
 
     public:
 

@@ -29,7 +29,7 @@ namespace EE::Player
     {
         friend class PlayerDebugView;
 
-        EE_REGISTER_ENTITY_SYSTEM( PlayerController, RequiresUpdate( UpdateStage::PrePhysics, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::PostPhysics, UpdatePriority::Highest ) );
+        EE_ENTITY_SYSTEM( PlayerController, RequiresUpdate( UpdateStage::PrePhysics, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::PostPhysics, UpdatePriority::Highest ), RequiresUpdate( UpdateStage::Paused ) );
 
     private:
 
