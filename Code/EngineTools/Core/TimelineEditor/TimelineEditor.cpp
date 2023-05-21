@@ -755,7 +755,7 @@ namespace EE::Timeline
                 //-------------------------------------------------------------------------
 
                 pDrawList->AddLine( ImVec2( fullTrackAreaRect.GetTL().x, trackEndY ), ImVec2( fullTrackAreaRect.GetBR().x, trackEndY ), g_trackSeparatorColor );
-                ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 1 );
+                ImGui::Dummy( ImVec2( fullTrackAreaRect.GetWidth(), 1 ) );
                 trackStartY = trackEndY + 1;
             }
             ImGui::PopID();

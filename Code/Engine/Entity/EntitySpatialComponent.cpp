@@ -94,6 +94,16 @@ namespace EE
         return socketTransform;
     }
 
+    void SpatialEntityComponent::ApplyOffsetToAllChildren( Vector const& offset )
+    {
+        for ( auto pChildSpatialComponent : m_spatialChildren )
+        {
+            Transform adjustedLocalTransform = pChildSpatialComponent->GetLocalTransform();
+            adjustedLocalTransform.AddTranslation( offset );
+            pChildSpatialComponent->SetLocalTransform( adjustedLocalTransform );
+        }
+    }
+
     bool SpatialEntityComponent::TryGetAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const
     {
         // Try to find the attachment socket transform and if it succeeds return it

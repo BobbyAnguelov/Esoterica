@@ -2,11 +2,8 @@
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Game/Player/Animation/PlayerGraphController_Ability.h"
-#include "System/Input/InputSystem.h"
-
-// hack for now
-#include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
+#include "System/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -68,9 +65,9 @@ namespace EE::Player
         
         // Update animation controller
         //-------------------------------------------------------------------------
-        ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::DebugMode );
-        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pLocomotionGraphController->SetLocomotionDesires(ctx.GetDeltaTime(), desiredVelocity, camFwd.GetNormalized2() );
+        ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::GhostMode );
+        auto pGraphController = ctx.GetAnimSubGraphController<AbilityGraphController>();
+        pGraphController->SetDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, camFwd.GetNormalized2() );
         
         bool isThumbstickLeftDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickLeft ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickLeft );
         bool isThumbstickRightDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickRight ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickRight );

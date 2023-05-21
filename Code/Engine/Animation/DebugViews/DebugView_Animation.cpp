@@ -620,6 +620,7 @@ namespace EE::Animation
                 {
                     bool keepOpen = true;
                     title.sprintf( "Control Parameters: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
+                    if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings) )
                     {
@@ -639,6 +640,7 @@ namespace EE::Animation
                 {
                     bool keepOpen = true;
                     title.sprintf( "Active Tasks: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
+                    if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {
@@ -658,6 +660,7 @@ namespace EE::Animation
                 {
                     bool keepOpen = true;
                     title.sprintf( "Sampled Events: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
+                    if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
                     ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
                     if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
                     {

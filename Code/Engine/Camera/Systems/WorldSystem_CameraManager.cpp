@@ -118,17 +118,19 @@ namespace EE
                 // Try to set the active camera to the first non-debug camera
                 if ( ctx.IsGameWorld() )
                 {
-                    EE_ASSERT( m_newlyAddedCamerasStartIdx != InvalidIndex );
-                    for ( int32_t i = m_newlyAddedCamerasStartIdx; i < m_cameras.size(); i++ )
+                    if ( m_newlyAddedCamerasStartIdx != InvalidIndex )
                     {
-                        if ( IsOfType<DebugCameraComponent>( m_cameras[i] ) )
+                        for ( int32_t i = m_newlyAddedCamerasStartIdx; i < m_cameras.size(); i++ )
                         {
-                            continue;
-                        }
+                            if ( IsOfType<DebugCameraComponent>( m_cameras[i] ) )
+                            {
+                                continue;
+                            }
 
-                        m_pActiveCamera = m_cameras[i];
-                        m_hasAddedNonDebugCamera = true;
-                        break;
+                            m_pActiveCamera = m_cameras[i];
+                            m_hasAddedNonDebugCamera = true;
+                            break;
+                        }
                     }
                 }
 

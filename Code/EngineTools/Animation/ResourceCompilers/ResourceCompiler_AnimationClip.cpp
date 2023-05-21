@@ -278,9 +278,13 @@ namespace EE::Animation
 
         if ( limitRange.IsSetAndValid() )
         {
-            frameIdxStart = limitRange.m_begin;
-            frameIdxEnd = limitRange.m_end;
-            EE_ASSERT( frameIdxEnd < numOriginalFrames );
+            if( limitRange.m_end >= numOriginalFrames )
+            {
+                Warning( "Frame range limit exceed available frames, clamping to end of animation!" );
+            }
+
+            frameIdxStart = Math::Max( limitRange.m_begin, 0 );
+            frameIdxEnd = Math::Min( limitRange.m_end, numOriginalFrames );
         }
 
         animClip.m_numFrames = frameIdxEnd - frameIdxStart;
@@ -311,21 +315,18 @@ namespace EE::Animation
         float totalDistance = 0.0f;
         float totalRotation = 0.0f;
 
-        for ( int32_t i = frameIdxStart; i < frameIdxEnd; i++ )
+        for ( uint32_t i = 1u; i < animClip.m_numFrames; i++ )
         {
             // Track deltas
-            if ( i > 0 )
-            {
-                Transform const deltaRoot = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms[i - 1], animClip.m_rootMotion.m_transforms[i] );
-                totalDistance += deltaRoot.GetTranslation().GetLength3();
+            Transform const deltaRoot = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms[i - 1], animClip.m_rootMotion.m_transforms[i] );
+            totalDistance += deltaRoot.GetTranslation().GetLength3();
 
-                // If we have a rotation delta, accumulate the yaw value
-                if ( !deltaRoot.GetRotation().IsIdentity() )
-                {
-                    Vector const deltaForward2D = deltaRoot.GetForwardVector().GetNormalized2();
-                    Radians const deltaAngle = Math::GetYawAngleBetweenVectors( deltaForward2D, Vector::WorldBackward ).GetClamped360();
-                    totalRotation += Math::Abs( (float) deltaAngle );
-                }
+            // If we have a rotation delta, accumulate the yaw value
+            if ( !deltaRoot.GetRotation().IsIdentity() )
+            {
+                Vector const deltaForward2D = deltaRoot.GetForwardVector().GetNormalized2();
+                Radians const deltaAngle = Math::GetYawAngleBetweenVectors( deltaForward2D, Vector::WorldBackward ).GetClamped360();
+                totalRotation += Math::Abs( (float) deltaAngle );
             }
         }
 

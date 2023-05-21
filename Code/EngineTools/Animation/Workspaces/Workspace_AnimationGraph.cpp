@@ -3826,6 +3826,11 @@ namespace EE::Animation
             // Context menu
             if ( ImGui::BeginPopupContextItem( "ParamOptions" ) )
             {
+                if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy ID" ) )
+                {
+                    ImGui::SetClipboardText( pControlParameter->GetParameterID().c_str() );
+                }
+
                 if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename" ) )
                 {
                     StartParameterRename( pControlParameter->GetID() );

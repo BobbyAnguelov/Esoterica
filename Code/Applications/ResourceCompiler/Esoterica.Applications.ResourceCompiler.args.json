@@ -7,6 +7,10 @@
       "Command": "-force"
     },
     {
+      "Id": "9cdd494d-afc5-4448-b08f-6ad46e0e6ae5",
+      "Command": "-compile data://packs/amplify/jump_in_place_exit.anim"
+    },
+    {
       "Id": "8fa6ce46-0929-434c-8033-35c9dd65a2bf",
       "Command": "-compile data://physics/physicsmaterials.pmdb"
     },

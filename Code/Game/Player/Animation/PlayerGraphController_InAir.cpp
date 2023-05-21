@@ -1,37 +1,20 @@
-#include "PlayerGraphController_Ability.h"
+#include "PlayerGraphController_InAir.h"
+#include "Engine/Animation/Events/AnimationEvent_Transition.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Player
 {
-    AbilityGraphController::AbilityGraphController( Animation::GraphInstance* pGraphInstance, Render::SkeletalMeshComponent* pMeshComponent )
+    InAirGraphController::InAirGraphController( Animation::GraphInstance* pGraphInstance, Render::SkeletalMeshComponent* pMeshComponent )
         : Animation::SubGraphController( pGraphInstance, pMeshComponent )
     {
-        m_abilityID.TryBind( this );
-        m_facingParam.TryBind( this );
-        m_headingParam.TryBind( this );
+        m_stateParam.TryBind( this );
         m_speedParam.TryBind( this );
+        m_headingParam.TryBind( this );
+        m_facingParam.TryBind( this );
     }
 
-    void AbilityGraphController::StartJump()
-    {
-        static StringID const jumpID( "Jump" );
-        m_abilityID.Set( this, jumpID );
-    }
-
-    void AbilityGraphController::StartDash()
-    {
-        static StringID const dashID( "Dash" );
-        m_abilityID.Set( this, dashID );
-    }
-
-    void AbilityGraphController::StartSlide()
-    {
-        static StringID const dashID( "Slide" );
-        m_abilityID.Set( this, dashID );
-    }
-
-    void AbilityGraphController::SetDesiredMovement( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
+    void InAirGraphController::SetDesiredMovement( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
     {
         Vector const characterSpaceHeading = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
         float const speed = characterSpaceHeading.GetLength3();

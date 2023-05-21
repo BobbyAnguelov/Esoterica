@@ -7,9 +7,6 @@
 #include "System/Input/InputSystem.h"
 #include "System/Drawing/DebugDrawing.h"
 
-// hack for now
-#include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
-
 //-------------------------------------------------------------------------
 
 namespace EE::Player
@@ -66,8 +63,9 @@ namespace EE::Player
         // Update animation controller
         //-------------------------------------------------------------------------
 
-        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pLocomotionGraphController->SetLocomotionDesires(ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
+        auto pGraphController = ctx.m_pAnimationController;
+        auto pAbilityGraphController = ctx.GetAnimSubGraphController<AbilityGraphController>();
+        pAbilityGraphController->SetDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
 
         //-------------------------------------------------------------------------
 
@@ -82,12 +80,12 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        if ( pLocomotionGraphController->IsTransitionFullyAllowed() )
+        if ( pGraphController->IsTransitionFullyAllowed() )
         {
             return Status::Completed;
         }
 
-        return pLocomotionGraphController->IsTransitionConditionallyAllowed() ? Status::Interruptible : Status::Uninterruptible;
+        return pGraphController->IsTransitionConditionallyAllowed() ? Status::Interruptible : Status::Uninterruptible;
     }
 
     void SlideAction::StopInternal( ActionContext const& ctx, StopReason reason )

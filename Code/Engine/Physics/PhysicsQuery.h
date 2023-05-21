@@ -74,6 +74,8 @@ namespace EE::Physics
             return *this;
         }
 
+        EE_FORCE_INLINE physx::PxQueryFilterData const& GetPxFilterData() const { return m_queryFilterData; }
+
         // Query Settings
         //-------------------------------------------------------------------------
 

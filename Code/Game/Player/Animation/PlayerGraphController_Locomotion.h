@@ -1,6 +1,5 @@
 #pragma once
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Controller.h"
-#include "Engine/Animation/Events/AnimationEvent_Transition.h"
 
 //-------------------------------------------------------------------------
 
@@ -39,8 +38,6 @@ namespace EE::Player
         void RequestPlantedTurn( Vector const& directionWS );
         void RequestStop( Transform const& target );
 
-        // Set movement parameters - facing direction will be converted to 2D
-        void SetLocomotionDesires( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS );
         void SetCrouch( bool isCrouch );
         void SetSliding( bool isSliding );
 
@@ -51,10 +48,7 @@ namespace EE::Player
         inline bool IsMoving() const { return m_graphState == States::Move; }
         inline bool IsPlantingAndTurning() const { return m_graphState == States::PlantedTurn; }
         inline bool IsStopping() const { return m_graphState == States::Stop; }
-        inline bool IsAnyTransitionAllowed() const { return IsTransitionFullyAllowed() || IsTransitionConditionallyAllowed(); }
-        inline bool IsTransitionFullyAllowed() const { return m_isTransitionMarker == Animation::TransitionMarker::AllowTransition; }
-        inline bool IsTransitionConditionallyAllowed() const { return m_isTransitionMarker == Animation::TransitionMarker::ConditionallyAllowTransition; }
-
+        
     private:
 
         virtual void PostGraphUpdate( Seconds deltaTime ) override;
@@ -69,6 +63,5 @@ namespace EE::Player
         ControlParameter<Vector>                            m_facingParam = ControlParameter<Vector>( "Locomotion_Facing" );
 
         States                                              m_graphState = States::Unknown;
-        Animation::TransitionMarker                         m_isTransitionMarker = Animation::TransitionMarker::BlockTransition;
     };
 }

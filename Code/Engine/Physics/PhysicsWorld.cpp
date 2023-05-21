@@ -780,8 +780,11 @@ namespace EE::Physics
         controllerDesc.slopeLimit = Radians( pComponent->m_defaultSlopeLimit ).ToFloat();
         controllerDesc.stepOffset = pComponent->m_defaultStepHeight;
         controllerDesc.material = m_pMaterialRegistry->GetDefaultMaterial();
-        controllerDesc.reportCallback = pComponent->m_pCallbackHandler;
-        
+        controllerDesc.reportCallback = &pComponent->m_callbackHandler;
+        controllerDesc.contactOffset = 0.01f; // 1cm
+        controllerDesc.scaleCoeff = 0.95f;
+        //controllerDesc.behaviorCallback = &pComponent->m_callbackHandler;
+
         m_pScene->lockWrite();
         PxCapsuleController* pController = static_cast<PxCapsuleController*> ( m_pControllerManager->createController( controllerDesc ) );
         if ( pController != nullptr )
@@ -800,23 +803,6 @@ namespace EE::Physics
             EE_LOG_ENTITY_ERROR( pComponent, "Physics", "failed to create physics character controller: %s!", pComponent->GetNameID().c_str() );
             return false;
         }
-
-        // Create Capsule Shape
-        //-------------------------------------------------------------------------
-
-        PxMaterial* const defaultMaterial[1] = { m_pMaterialRegistry->GetDefaultMaterial() };
-        PxShapeFlags shapeFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
-        PxCapsuleGeometry const capsuleGeo( pComponent->m_defaultRadius, pComponent->m_defaultHalfHeight );
-        PxShape* pPhysicsShape = pPhysics->createShape( capsuleGeo, defaultMaterial, 1, true, shapeFlags );
-
-        // Simulation flags - Word 0 is the category and Word1 is the collision mask
-        pPhysicsShape->setSimulationFilterData( PxFilterData( 1 << (uint32_t) pComponent->m_collisionSettings.m_category, pComponent->m_collisionSettings.m_collidesWithMask, 0, 0 ) );
-
-        // Query flags - Word 0 is the collision mask
-        pPhysicsShape->setQueryFilterData( PxFilterData( pComponent->m_collisionSettings.m_collidesWithMask, 0, 0, 0 ) );
-
-        // User data
-        pPhysicsShape->userData = pComponent;
 
         // Component
         //-------------------------------------------------------------------------

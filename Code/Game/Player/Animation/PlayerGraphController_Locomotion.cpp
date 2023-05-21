@@ -104,29 +104,6 @@ namespace EE::Player
 
     //-------------------------------------------------------------------------
 
-    void LocomotionGraphController::SetLocomotionDesires( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
-    {
-        Vector const characterSpaceHeading = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
-        float const speed = characterSpaceHeading.GetLength3();
-
-        m_stateParam.Set( this, s_locomotionStateIDs[States::Move] );
-        m_headingParam.Set( this, characterSpaceHeading );
-        m_speedParam.Set( this, speed );
-
-        //-------------------------------------------------------------------------
-
-        if ( facingDirectionWS.IsZero3() )
-        {
-            m_facingParam.Set( this, Vector::WorldForward );
-        }
-        else
-        {
-            EE_ASSERT( facingDirectionWS.IsNormalized3() );
-            Vector const characterSpaceFacing = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
-            m_facingParam.Set( this, characterSpaceFacing );
-        }
-    }
-
     void LocomotionGraphController::SetCrouch( bool isCrouch )
     {
         m_isCrouchParam.Set( this, isCrouch );
@@ -141,7 +118,6 @@ namespace EE::Player
 
     void LocomotionGraphController::PostGraphUpdate( Seconds deltaTime )
     {
-        m_isTransitionMarker = Animation::TransitionMarker::BlockTransition;
         m_graphState = States::Unknown;
 
         //-------------------------------------------------------------------------
@@ -155,21 +131,7 @@ namespace EE::Player
 
             //-------------------------------------------------------------------------
 
-            // Check for transition events
-            if ( sampledEvent.IsAnimationEvent() )
-            {
-                if ( sampledEvent.IsFromActiveBranch() )
-                {
-                    if ( auto pTransitionEvent = sampledEvent.TryGetEvent<Animation::TransitionEvent>() )
-                    {
-                        if ( pTransitionEvent->GetMarker() < m_isTransitionMarker )
-                        {
-                            m_isTransitionMarker = pTransitionEvent->GetMarker();
-                        }
-                    }
-                }
-            }
-            else // Check graph state
+            if ( sampledEvent.IsStateEvent() )
             {
                 if ( sampledEvent.IsEntryEvent() || sampledEvent.IsFullyInStateEvent() )
                 {

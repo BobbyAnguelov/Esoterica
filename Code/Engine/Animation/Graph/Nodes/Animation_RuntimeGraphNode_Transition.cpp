@@ -18,12 +18,10 @@ namespace EE::Animation::GraphNodes
         context.SetOptionalNodePtrFromIndex( m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
     }
 
-    GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, GraphPoseNodeResult sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
+    GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, GraphPoseNodeResult const& sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
     {
         EE_ASSERT( pSourceState != nullptr && m_pSourceNode == nullptr && IsInitialized() );
 
-        // Starting a transition out may generate additional state events so we need to update the sampled event range
-        sourceNodeResult.m_sampledEventRange = pSourceState->StartTransitionOut( context );
         m_pSourceNode = pSourceState;
         m_sourceType = SourceType::State;
 
@@ -35,13 +33,10 @@ namespace EE::Animation::GraphNodes
         return InitializeTargetStateAndUpdateTransition( context, sourceNodeResult );
     }
 
-    GraphPoseNodeResult TransitionNode::StartTransitionFromTransition( GraphContext& context, GraphPoseNodeResult sourceNodeResult, TransitionNode* pSourceTransition, bool startCachingSourcePose )
+    GraphPoseNodeResult TransitionNode::StartTransitionFromTransition( GraphContext& context, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* pSourceTransition, bool startCachingSourcePose )
     {
         EE_ASSERT( pSourceTransition != nullptr && m_pSourceNode == nullptr && IsInitialized() );
 
-        // Starting a transition out may generate additional state events so we need to update the sampled event range
-        SampledEventRange const newTargetEventRange = pSourceTransition->m_pTargetNode->StartTransitionOut( context );
-        sourceNodeResult.m_sampledEventRange.m_endIdx = newTargetEventRange.m_endIdx;
         m_pSourceNode = pSourceTransition;
         m_sourceType = SourceType::Transition;
 
@@ -63,6 +58,20 @@ namespace EE::Animation::GraphNodes
         #if EE_DEVELOPMENT_TOOLS
         m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
+
+        // Starting a transition out may generate additional state events so we need to update the sampled event range
+        auto StartTransitionOutForSource = [&] ()
+        {
+            if ( m_sourceType == SourceType::State )
+            {
+                sourceNodeResult.m_sampledEventRange = GetSourceStateNode()->StartTransitionOut( context );
+            }
+            else
+            {
+                SampledEventRange const newTargetEventRange = GetSourceTransitionNode()->m_pTargetNode->StartTransitionOut( context );
+                sourceNodeResult.m_sampledEventRange.m_endIdx = newTargetEventRange.m_endIdx;
+            }
+        };
 
         // Layer context update
         //-------------------------------------------------------------------------
@@ -140,11 +149,15 @@ namespace EE::Animation::GraphNodes
                 targetStartEventSyncTime.m_percentageThrough = Math::ModF( targetStartEventSyncTime.m_percentageThrough + percentageThroughOffset, &eventIdxOffset );
                 targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
 
-                // Initialize and update the target node
+                // Initialize the target node
                 m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-                m_pTargetNode->StartTransitionIn( context );
 
+                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
+                StartTransitionOutForSource();
+
+                // Start transition in and update target node
                 // Use a zero time-step as we dont want to update the target on this update but we do want the target pose to be created!
+                m_pTargetNode->StartTransitionIn( context );
                 float const oldDeltaTime = context.m_deltaTime;
                 context.m_deltaTime = 0.0f;
                 targetNodeResult = m_pTargetNode->Update( context );
@@ -153,6 +166,11 @@ namespace EE::Animation::GraphNodes
             else // Regular time update (not matched or has sync offset)
             {
                 m_pTargetNode->Initialize( context, SyncTrackTime() );
+
+                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
+                StartTransitionOutForSource();
+
+                // Start transition in and update target
                 m_pTargetNode->StartTransitionIn( context );
                 targetNodeResult = m_pTargetNode->Update( context );
             }
@@ -205,7 +223,13 @@ namespace EE::Animation::GraphNodes
             targetUpdateRange.m_startTime.m_eventIdx += int32_t( m_syncEventOffset );
             targetUpdateRange.m_endTime.m_eventIdx += int32_t( m_syncEventOffset );
 
+            // Initialize the target node
             m_pTargetNode->Initialize( context, targetUpdateRange.m_startTime );
+
+            // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
+            StartTransitionOutForSource();
+
+            // Start transition in and update target
             m_pTargetNode->StartTransitionIn( context );
             targetNodeResult = m_pTargetNode->Update( context, targetUpdateRange );
 

@@ -120,6 +120,9 @@ namespace EE
         // The search children parameter controls, whether to only search this component or to also search it's children
         Transform GetAttachmentSocketTransform( StringID socketID ) const;
 
+        // Apply an translation offset to all children, needed in many cases to maintain relative offset when a spatial component's bound change
+        void ApplyOffsetToAllChildren( Vector const& offset );
+
         // Local Scale
         //-------------------------------------------------------------------------
 

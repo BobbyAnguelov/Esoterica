@@ -1,13 +1,11 @@
 #include "PlayerAction_Falling.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
+#include "Game/Player/Animation/PlayerGraphController_InAir.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/PhysicsWorld.h"
 #include "System/Input/InputSystem.h"
-
-// hack for now
-#include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,34 +19,33 @@ namespace EE::Player
 
     bool FallingAction::TryStartInternal( ActionContext const& ctx )
     {
-        //if( ctx.m_pCharacterController->GetInAirTime() > 0.0f )
-        //{
-        //    Physics::QueryFilter filter;
-        //    filter.SetLayerMask( Physics::CreateLayerMask( Physics::Layers::Environment ) );
-        //    filter.AddIgnoredEntity( ctx.m_pCharacterComponent->GetEntityID() );
+        if( ctx.m_pCharacterComponent->GetInAirTime() > 0.2f )
+        {
+            Physics::QueryRules const& filter = ctx.m_pCharacterComponent->GetQueryRules();
 
-        //    float const capsuleHalfHeight = ctx.m_pCharacterComponent->GetCapsuleHalfHeight();
-        //    float const capsuleRadius = ctx.m_pCharacterComponent->GetCapsuleRadius();
-        //    Quaternion const capsuleOrientation = ctx.m_pCharacterComponent->GetCapsuleOrientation();
-        //    Vector const capsulePosition = ctx.m_pCharacterComponent->GetCapsulePosition();
+            float const capsuleHalfHeight = ctx.m_pCharacterComponent->GetCapsuleHalfHeight();
+            float const capsuleRadius = ctx.m_pCharacterComponent->GetCapsuleRadius();
+            Quaternion const capsuleOrientation = ctx.m_pCharacterComponent->GetOrientation();
+            EE_ASSERT( capsuleOrientation.IsNormalized() );
+            Vector const capsulePosition = ctx.m_pCharacterComponent->GetPosition();
 
-        //    // Test for environment collision right below the player
-        //    ctx.m_pPhysicsWorld->AcquireReadLock();
-        //    Physics::SweepResults sweepResults;
-        //    bool collided = ctx.m_pPhysicsWorld->CapsuleSweep( capsuleHalfHeight, capsuleRadius, capsuleOrientation, capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
-        //    ctx.m_pPhysicsWorld->ReleaseReadLock();
+            // Test for environment collision right below the player
+            ctx.m_pPhysicsWorld->AcquireReadLock();
+            Physics::SweepResults sweepResults;
+            bool collided = ctx.m_pPhysicsWorld->CapsuleSweep( capsuleHalfHeight, capsuleRadius, capsuleOrientation, capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
+            ctx.m_pPhysicsWorld->ReleaseReadLock();
 
-        //    if( collided )
-        //    {
-        //        return false;
-        //    }
+            if( collided )
+            {
+                return false;
+            }
 
-        //    ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Falling );
-        //    ctx.m_pCharacterController->EnableGravity( ctx.m_pCharacterComponent->GetCharacterVelocity().GetZ() );
-        //    ctx.m_pCharacterController->DisableStepHeight();
-        //    ctx.m_pCharacterController->DisableProjectionOntoFloor();
-        //    return true;
-        //}
+            ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::InAir );
+            ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::Acceleration );
+
+            return true;
+        }
+
         return false;
     }
 
@@ -85,13 +82,14 @@ namespace EE::Player
 
         // Update animation controller
         //-------------------------------------------------------------------------
-        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pLocomotionGraphController->SetLocomotionDesires( ctx.GetDeltaTime(), resultingVelocity, facing );
+
+        auto pGraphController = ctx.GetAnimSubGraphController<InAirGraphController>();
+        pGraphController->SetDesiredMovement( ctx.GetDeltaTime(), resultingVelocity, facing );
         
-        /*if( ctx.m_pCharacterController->HasFloor() )
+        if( ctx.m_pCharacterComponent->HasFloor() )
         {
             return Status::Completed;
-        }*/
+        }
 
         return Status::Interruptible;
     }

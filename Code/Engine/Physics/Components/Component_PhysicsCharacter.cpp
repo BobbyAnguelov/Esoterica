@@ -5,6 +5,7 @@
 #include "System/Drawing/DebugDrawing.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Math/MathStringHelpers.h"
+#include "System/Math/MathHelpers.h"
 
 //-------------------------------------------------------------------------
 
@@ -20,9 +21,14 @@ namespace EE::Physics::PX
         EE_ASSERT( m_pComponent != nullptr );
     }
 
+    void ControllerCallbackHandler::Reset()
+    {
+        m_floorCollisions.clear();
+    }
+
     PxQueryHitType::Enum ControllerCallbackHandler::preFilter( PxFilterData const& queryFilterData, PxShape const* pShape, PxRigidActor const* pActor, PxHitFlags& queryFlags )
     {
-        for ( auto const& ignoredComponentID : m_pComponent->m_ignoredComponents )
+        for ( auto const& ignoredComponentID : m_pComponent->m_queryRules.GetIgnoredComponents() )
         {
             auto pOwnerComponent = reinterpret_cast<EntityComponent const*>( pActor->userData );
             if ( pOwnerComponent->GetID() == ignoredComponentID )
@@ -33,7 +39,7 @@ namespace EE::Physics::PX
 
         //-------------------------------------------------------------------------
 
-        for ( auto const& ignoredEntityID : m_pComponent->m_ignoredEntities )
+        for ( auto const& ignoredEntityID : m_pComponent->m_queryRules.GetIgnoredEntities() )
         {
             auto pOwnerComponent = reinterpret_cast<EntityComponent const*>( pActor->userData );
             if ( pOwnerComponent->GetEntityID() == ignoredEntityID )
@@ -55,7 +61,10 @@ namespace EE::Physics::PX
 
     void ControllerCallbackHandler::onShapeHit( const PxControllerShapeHit& hit )
     {
-
+        if ( hit.worldNormal.dot( ToPx( Float3::WorldUp ) ) > 0.0f )
+        {
+            m_floorCollisions.emplace_back( hit.shape, hit.worldNormal, hit.worldPos );
+        }
     }
 
     void ControllerCallbackHandler::onControllerHit( const PxControllersHit& hit )
@@ -70,16 +79,19 @@ namespace EE::Physics::PX
 
     PxControllerBehaviorFlags ControllerCallbackHandler::getBehaviorFlags( const PxShape& shape, const PxActor& actor )
     {
+        EE_UNREACHABLE_CODE(); // Not currently used - if you need this, enable it in physicsWorld.cpp
         return PxControllerBehaviorFlag::eCCT_CAN_RIDE_ON_OBJECT;
     }
 
     PxControllerBehaviorFlags ControllerCallbackHandler::getBehaviorFlags( const PxController& controller )
     {
+        EE_UNREACHABLE_CODE(); // Not currently used - if you need this, enable it in physicsWorld.cpp
         return PxControllerBehaviorFlag::eCCT_CAN_RIDE_ON_OBJECT;
     }
 
     PxControllerBehaviorFlags ControllerCallbackHandler::getBehaviorFlags( const PxObstacle& obstacle )
     {
+        EE_UNREACHABLE_CODE(); // Not currently used - if you need this, enable it in physicsWorld.cpp
         return PxControllerBehaviorFlag::eCCT_CAN_RIDE_ON_OBJECT;
     }
 }
@@ -104,16 +116,17 @@ namespace EE::Physics
         m_halfHeight = m_defaultHalfHeight;
         m_stepHeight = m_defaultStepHeight;
         m_slopeLimit = m_defaultSlopeLimit;
-        m_gravitationalAcceleration = m_defaultGravitationalAcceleration;
+        m_gravityMode = ControllerGravityMode::Acceleration;
+        m_gravityValue = m_defaultGravity;
 
         //-------------------------------------------------------------------------
 
-        m_pCallbackHandler = EE::New<PX::ControllerCallbackHandler>( this );
+        m_queryRules = QueryRules( m_collisionSettings.m_collidesWithMask );
+        m_queryRules.AddIgnoredComponent( GetID() );
     }
 
     void CharacterComponent::Shutdown()
     {
-        EE::Delete( m_pCallbackHandler );
         SpatialEntityComponent::Shutdown();
     }
 
@@ -121,9 +134,15 @@ namespace EE::Physics
 
     bool CharacterComponent::HasValidCharacterSetup() const
     {
-        if ( m_defaultRadius <= 0 || m_defaultHalfHeight <= 0 )
+        if ( m_defaultRadius <= 0 )
         {
-            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius or half height on Physics Capsule Component: %s (%u). Negative or zero values are not allowed!", GetNameID().c_str(), GetID() );
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid radius on character component: %s (%u). Negative or zero values are not allowed!", GetNameID().c_str(), GetID() );
+            return false;
+        }
+
+        if( m_defaultHalfHeight <= 0 )
+        {
+            EE_LOG_ENTITY_ERROR( this, "Physics", "Invalid half height on character component: %s (%u). Negative or zero values are not allowed!", GetNameID().c_str(), GetID() );
             return false;
         }
 
@@ -168,61 +187,121 @@ namespace EE::Physics
         {
             endWorldTransform.SetTranslation( startWorldTransform.GetTranslation() + deltaTranslation );
             TeleportCharacter( endWorldTransform );
+            return deltaTranslation;
+        }
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        Vector desiredDeltaTranslation = deltaTranslation;
+
+        // Gravity
+        //-------------------------------------------------------------------------
+
+        if ( m_gravityMode == ControllerGravityMode::NoGravity )
+        {
+            m_gravitationalSpeed = 0.0f;
         }
         else
-        #endif
         {
-            Vector desiredDeltaTranslation = deltaTranslation;
-
-            // Gravity
-            //-------------------------------------------------------------------------
-
-            if ( m_isGravityEnabled )
+            if ( m_gravityMode == ControllerGravityMode::Acceleration )
             {
-                m_verticalSpeed += ( m_gravitationalAcceleration * deltaTime );
-                Vector const verticalDelta = Physics::Constants::s_gravity * ( m_verticalSpeed * deltaTime );
-                desiredDeltaTranslation += verticalDelta;
+                m_gravitationalSpeed += ( m_gravityValue * deltaTime );
             }
-            else
+            else // Fixed gravity
             {
-                m_verticalSpeed = 0.0f;
+                m_gravitationalSpeed = m_gravityValue;
             }
 
-            // Move Controller
-            //-------------------------------------------------------------------------
-
-            physx::PxFilterData filterData( m_collisionSettings.m_collidesWithMask, 0, 0, 0 );
-            physx::PxControllerFilters filters( &filterData );
-
-            auto physicsScene = m_pController->getScene();
-            physicsScene->lockWrite();
-            physx::PxControllerCollisionFlags const collisionResultFlags = m_pController->move( ToPx( desiredDeltaTranslation ), 0.01f, deltaTime, filters, nullptr );
-            physicsScene->unlockWrite();
-
-            // Results of move
-            //-------------------------------------------------------------------------
-
-            physx::PxControllerState state;
-            m_pController->getState( state );
-
-            if ( collisionResultFlags.isSet( physx::PxControllerCollisionFlag::eCOLLISION_UP ) )
-            {
-
-            }
-
-            if ( collisionResultFlags.isSet( physx::PxControllerCollisionFlag::eCOLLISION_DOWN ) )
-            {
-
-            }
-
-            if ( collisionResultFlags.isSet( physx::PxControllerCollisionFlag::eCOLLISION_SIDES ) )
-            {
-
-            }
-
-            endWorldTransform.SetTranslation( FromPx( m_pController->getPosition() ) );
-            SetWorldTransformDirectly( endWorldTransform, false ); // Do not fire callback as we dont want to teleport the character
+            m_gravitationalSpeed = Math::Clamp( m_gravitationalSpeed, -s_maxGravitationalSpeed, s_maxGravitationalSpeed );
+            Vector const verticalDelta = Physics::Constants::s_gravity * ( m_gravitationalSpeed * deltaTime );
+            desiredDeltaTranslation += verticalDelta;
         }
+
+        // Move Controller
+        //-------------------------------------------------------------------------
+
+        m_callbackHandler.Reset();
+        physx::PxControllerFilters filters( &m_queryRules.GetPxFilterData().data );
+
+        // Note: do not set a minimum distance or we will early out of the move and not get back a floor
+        auto physicsScene = m_pController->getScene();
+        physicsScene->lockWrite();
+        physx::PxControllerCollisionFlags const collisionResultFlags = m_pController->move( ToPx( desiredDeltaTranslation ), 0.0f, deltaTime, filters, nullptr );
+        physicsScene->unlockWrite();
+
+        // Process the results of the move
+        //-------------------------------------------------------------------------
+
+        physx::PxControllerState controllerState;
+        m_pController->getState( controllerState );
+
+        // Collision with a roof
+        if ( collisionResultFlags.isSet( physx::PxControllerCollisionFlag::eCOLLISION_UP ) )
+        {
+            // If we have a upwards adjustment speed, clear it
+            if ( m_gravitationalSpeed < 0 )
+            {
+                m_gravitationalSpeed = 0.0f;
+            }
+        }
+
+        // Collision with the ground
+        if ( collisionResultFlags.isSet( physx::PxControllerCollisionFlag::eCOLLISION_DOWN ) )
+        {
+            m_timeWithoutFloor.Reset();
+            m_gravitationalSpeed = 0.0f;
+
+            //-------------------------------------------------------------------------
+
+            if ( controllerState.touchedShape == nullptr )
+            {
+                m_floorType = ControllerFloorType::Slope;
+
+                Radians steepestAngle = FLT_MAX;
+                for ( auto const& floorCollision : m_callbackHandler.m_floorCollisions )
+                {
+                    Radians const slopeAngle = Math::GetAngleBetweenNormalizedVectors( Vector::WorldUp, FromPx( floorCollision.m_normal ) );
+                    if ( slopeAngle < steepestAngle )
+                    {
+                        steepestAngle = slopeAngle;
+                        m_floorNormal = FromPx( floorCollision.m_normal );
+                        m_floorContactPoint = FromPx( floorCollision.m_point );
+                    }
+                }
+            }
+            else // We're on a valid floor
+            {
+                m_floorType = ControllerFloorType::Floor;
+
+                for ( auto const& floorCollision : m_callbackHandler.m_floorCollisions )
+                {
+                    if ( floorCollision.m_pShape == controllerState.touchedShape )
+                    {
+                        m_floorNormal = FromPx( floorCollision.m_normal );
+                        m_floorContactPoint = FromPx( floorCollision.m_point );
+                        break;
+                    }
+                }
+            }
+
+            EE_ASSERT( m_floorType != ControllerFloorType::NoFloor );
+        }
+        else // Not ground hit so we dont have a floor
+        {
+            m_floorType = ControllerFloorType::NoFloor;
+            m_floorNormal = Vector::Zero;
+            m_floorContactPoint = Vector::Zero;
+            m_timeWithoutFloor.Update( deltaTime );
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Set the world transform to the result of the controller move
+        endWorldTransform.SetTranslation( FromPx( m_pController->getPosition() ) );
+        SetWorldTransformDirectly( endWorldTransform, false ); // Do not fire callback as we dont want to teleport the character
+        Vector const actualDeltaTranslation = endWorldTransform.GetTranslation() - startWorldTransform.GetTranslation();
+        m_linearVelocity = actualDeltaTranslation / deltaTime;
 
         //-------------------------------------------------------------------------
 
@@ -235,21 +314,21 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        Vector const actualDeltaTranslation = endWorldTransform.GetTranslation() - startWorldTransform.GetTranslation();
-        m_linearVelocity = actualDeltaTranslation / deltaTime;
-
-        //-------------------------------------------------------------------------
-
         return actualDeltaTranslation;
     }
 
     void CharacterComponent::ResizeCapsule( float newRadius, float newHalfHeight, bool keepFloorPosition )
     {
         EE_ASSERT( newRadius > 0.0f );
-        EE_ASSERT( newHalfHeight > 0.0f );
+        EE_ASSERT( newHalfHeight >= 0.0f );
 
+        float const heightDelta = newHalfHeight - m_halfHeight;
         m_radius = newRadius;
         m_halfHeight = newHalfHeight;
+
+        //-------------------------------------------------------------------------
+
+        ApplyOffsetToAllChildren( Vector( 0, 0, -heightDelta ) );
 
         //-------------------------------------------------------------------------
 
@@ -261,7 +340,7 @@ namespace EE::Physics
             // If we are keeping the floor position, then call the provided function
             if ( keepFloorPosition )
             {
-                m_pController->resize( newHalfHeight );
+                m_pController->resize( newHalfHeight * 2.0f );
             }
             else // Just change size
             {
@@ -297,15 +376,38 @@ namespace EE::Physics
         physicsScene->unlockWrite();
     }
 
-    void CharacterComponent::SetGravityEnabled( bool isGravityEnabled, float initialGravitationalSpeed /*= 0 */ )
+    void CharacterComponent::SetGravityMode( ControllerGravityMode mode, float gravityValue )
     {
-        m_isGravityEnabled = isGravityEnabled;
-        m_verticalSpeed = m_isGravityEnabled ? initialGravitationalSpeed : 0.0f;
+        m_gravityMode = mode;
+        m_gravitationalSpeed = ( m_gravityMode == ControllerGravityMode::NoGravity ) ? 0.0f : gravityValue;
+    }
+
+    void CharacterComponent::SetGravityMode( ControllerGravityMode mode )
+    {
+        EE_ASSERT( m_gravityMode != ControllerGravityMode::FixedVelocity );
+        m_gravityMode = mode;
+        m_gravityValue = ( m_gravityMode == ControllerGravityMode::NoGravity ) ? 0.0f : m_defaultGravity;
+    }
+
+    void CharacterComponent::ResetGravityMode()
+    {
+        m_gravityMode = ControllerGravityMode::Acceleration;
+        m_gravityValue = m_defaultGravity;
     }
 
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void CharacterComponent::EnableGhostMode( bool isEnabled )
+    {
+        m_gravitationalSpeed = 0.0f;
+        m_linearVelocity = Vector::Zero;
+        m_floorType = ControllerFloorType::NoFloor;
+        m_floorNormal = Vector::Zero;
+        m_floorContactPoint = Vector::Zero;
+        m_isGhostModeEnabled = isEnabled;
+    }
+
     void CharacterComponent::DrawDebugUI()
     {
         ImGuiX::TextSeparator( "Capsule" );
@@ -322,34 +424,54 @@ namespace EE::Physics
 
         ImGuiX::TextSeparator( "Gravity" );
 
-        ImGui::Text( "Is Enabled: %s", m_isGravityEnabled ? "True" : "False" );
-        ImGui::Text( "Acceleration: %.3f", m_gravitationalAcceleration );
-        ImGui::Text( "Current Vertical Speed: %.2f", m_verticalSpeed );
+        switch ( m_gravityMode )
+        {
+            case ControllerGravityMode::NoGravity:
+            {
+                ImGui::Text( "Mode: No Gravity" );
+            }
+            break;
+
+            case ControllerGravityMode::Acceleration:
+            {
+                ImGui::Text( "Mode: Acceleration" );
+                ImGui::Text( "Acceleration: %.3f", m_gravityValue );
+            }
+            break;
+
+            case ControllerGravityMode::FixedVelocity:
+            {
+                ImGui::Text( "Mode: Fixed Velocity" );
+            }
+            break;
+        }
+
+        ImGui::Text( "Current Gravitational Speed: %.2f", m_gravitationalSpeed );
 
         //-------------------------------------------------------------------------
 
         ImGuiX::TextSeparator( "Floor" );
 
         ImGui::Checkbox( "Draw floor info", &m_debugFloor );
-        ImGui::Text( "Time without floor: %.2f", m_timeWithoutFloor );
+        ImGui::Text( "Time without floor: %.2fs", m_timeWithoutFloor.GetElapsedTimeSeconds().ToFloat() );
 
         switch ( m_floorType )
         {
-            case FloorType::Navigable:
+            case ControllerFloorType::Floor:
             {
                 ImGuiX::ScopedFont sf( ImGuiX::ImColors::Lime );
                 ImGui::Text( "Floor Type: Navigable" );
             }
             break;
 
-            case FloorType::Unnavigable:
+            case ControllerFloorType::Slope:
             {
                 ImGuiX::ScopedFont sf( ImGuiX::ImColors::Red );
                 ImGui::Text( "Floor Type: Unnavigable" );
             }
             break;
 
-            case FloorType::NoFloor:
+            case ControllerFloorType::NoFloor:
             {
                 ImGui::Text( "Floor Type: None" );
             }

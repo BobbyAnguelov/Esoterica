@@ -290,7 +290,7 @@ namespace EE::Physics
         }
         else
         {
-            EE_UNREACHABLE_CODE();
+           // Do nothing for now
         }
     }
 

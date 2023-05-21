@@ -16,8 +16,6 @@ namespace EE::Player
     constexpr static float      g_maxSprintSpeed = 7.5f;                      // meters/second
     constexpr static float      g_maxRunSpeed = 5.0f;                         // meters/second
     constexpr static float      g_maxCrouchSpeed = 3.0f;                      // meters/second
-    constexpr static float      g_timeToTriggerSprint = 1.5f;                 // seconds
-    constexpr static float      g_timeToTriggerCrouch = 0.5f;                 // seconds
     constexpr static float      g_sprintStickAmplitude = 0.8f;                // [0,1]
 
     constexpr static float      g_idle_immediateStartThresholdAngle = Math::DegreesToRadians * 45.0f;
@@ -42,14 +40,15 @@ namespace EE::Player
     bool LocomotionAction::TryStartInternal( ActionContext const& ctx )
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
-        Vector const& characterVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
-        float const horizontalSpeed = characterVelocity.GetLength2();
 
         ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Locomotion );
-        ctx.m_pCharacterComponent->SetGravityEnabled( true, characterVelocity.GetZ() );
+        ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::Acceleration );
+        ctx.m_pCharacterComponent->TryMaintainVerticalMomentum();
         SetCrouchState( ctx, ctx.m_pPlayerComponent->m_crouchFlag );
 
         // Set initial state
+        Vector const& characterVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
+        float const horizontalSpeed = characterVelocity.GetLength2();
         if ( horizontalSpeed > 0.1f )
         {
             RequestMoving( ctx, characterVelocity.Get2D() );
@@ -301,8 +300,9 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pAnimController->IsTurningOnSpot() && pAnimController->IsAnyTransitionAllowed() )
+        auto pGraphController = ctx.m_pAnimationController;
+        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
+        if ( pLocomotionGraphController->IsTurningOnSpot() && pGraphController->IsAnyTransitionAllowed() )
         {
             RequestIdle( ctx );
         }
@@ -480,12 +480,13 @@ namespace EE::Player
 
     void LocomotionAction::UpdateStopping( ActionContext const& ctx, Vector const& stickInputVectorWS, float stickAmplitude )
     {
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pAnimController->IsIdle() )
+        auto pGraphController = ctx.m_pAnimationController;
+        auto pLocomotionController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
+        if ( pLocomotionController->IsIdle() )
         {
             RequestIdle( ctx );
         }
-        else if ( stickAmplitude > 0.1f && pAnimController->IsAnyTransitionAllowed() )
+        else if ( stickAmplitude > 0.1f && pGraphController->IsAnyTransitionAllowed() )
         {
             // TODO: handle starting directly from here
             RequestIdle( ctx );

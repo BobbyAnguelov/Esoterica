@@ -27,51 +27,51 @@ namespace EE::Player
 
     bool DashAction::TryStartInternal( ActionContext const& ctx )
     {
-        //// Update cooldown timer
-        //if ( m_cooldownTimer.IsRunning() )
-        //{
-        //    m_cooldownTimer.Update( ctx.GetDeltaTime() );
-        //}
+        // Update cooldown timer
+        if ( m_cooldownTimer.IsRunning() )
+        {
+            m_cooldownTimer.Update( ctx.GetDeltaTime() );
+        }
 
-        //bool const isDashAllowed = m_cooldownTimer.IsComplete() && ctx.m_pPlayerComponent->HasEnoughEnergy( g_dashEnergyCost );
-        //if( isDashAllowed && ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::FaceButtonRight ) )
-        //{
-        //    ctx.m_pPlayerComponent->ConsumeEnergy( g_dashEnergyCost );
-        //    ctx.m_pCharacterController->DisableGravity();
+        bool const isDashAllowed = m_cooldownTimer.IsComplete() && ctx.m_pPlayerComponent->HasEnoughEnergy( g_dashEnergyCost );
+        if( isDashAllowed && ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::FaceButtonRight ) )
+        {
+            ctx.m_pPlayerComponent->ConsumeEnergy( g_dashEnergyCost );
+            ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::NoGravity );
 
-        //    auto const pControllerState = ctx.m_pInputState->GetControllerState();
-        //    EE_ASSERT( pControllerState != nullptr );
+            auto const pControllerState = ctx.m_pInputState->GetControllerState();
+            EE_ASSERT( pControllerState != nullptr );
 
-        //    // Use last frame camera orientation
-        //    Vector movementInputs = pControllerState->GetLeftAnalogStickValue();
+            // Use last frame camera orientation
+            Vector movementInputs = pControllerState->GetLeftAnalogStickValue();
 
-        //    if ( movementInputs.GetLength2() > 0 )
-        //    {
-        //        auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
-        //        auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
-        //        auto const forward = camFwd * movementInputs.GetY();
-        //        auto const right = camRight * movementInputs.GetX();
-        //        m_dashDirection = ( forward + right ).GetNormalized2();
-        //    }
-        //    else
-        //    {
-        //        m_dashDirection = ctx.m_pCharacterComponent->GetForwardVector();
-        //    }
-        //    m_initialVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity() * Vector( 1.f, 1.f, 0.f );
+            if ( movementInputs.GetLength2() > 0 )
+            {
+                auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
+                auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
+                auto const forward = camFwd * movementInputs.GetY();
+                auto const right = camRight * movementInputs.GetX();
+                m_dashDirection = ( forward + right ).GetNormalized2();
+            }
+            else
+            {
+                m_dashDirection = ctx.m_pCharacterComponent->GetForwardVector();
+            }
+            m_initialVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity() * Vector( 1.f, 1.f, 0.f );
 
-        //    m_dashDurationTimer.Start();
-        //    m_isInSettle = false;
+            m_dashDurationTimer.Start();
+            m_isInSettle = false;
 
-        //    ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Ability );
-        //    auto pAbilityAnimController = ctx.GetAnimSubGraphController<AbilityGraphController>();
-        //    pAbilityAnimController->StartDash();
+            ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Ability );
+            auto pAbilityAnimController = ctx.GetAnimSubGraphController<AbilityGraphController>();
+            pAbilityAnimController->StartDash();
 
-        //    #if EE_DEVELOPMENT_TOOLS
-        //    m_debugStartPosition = ctx.m_pCharacterComponent->GetPosition();
-        //    #endif
+            #if EE_DEVELOPMENT_TOOLS
+            m_debugStartPosition = ctx.m_pCharacterComponent->GetPosition();
+            #endif
 
-        //    return true;
-        //}
+            return true;
+        }
 
         return false;
     }
@@ -92,8 +92,8 @@ namespace EE::Player
         
         // Update animation controller
         //-------------------------------------------------------------------------
-        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pLocomotionGraphController->SetLocomotionDesires(ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
+        auto pGraphController = ctx.GetAnimSubGraphController<AbilityGraphController>();
+        pGraphController->SetDesiredMovement(ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
 
         if( m_dashDurationTimer.Update( ctx.GetDeltaTime() ) > g_dashDuration && !m_isInSettle )
         {
@@ -103,7 +103,7 @@ namespace EE::Player
 
         if( m_isInSettle )
         {
-            pLocomotionGraphController->SetLocomotionDesires( ctx.GetDeltaTime(), m_initialVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
+            pGraphController->SetDesiredMovement( ctx.GetDeltaTime(), m_initialVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
 
             if( m_hackSettleTimer.Update( ctx.GetDeltaTime() ) > 0.1f )
             {
