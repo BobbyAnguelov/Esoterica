@@ -13,17 +13,17 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API AnimationGraphComponent final : public EntityComponent
+    class EE_ENGINE_API GraphComponent final : public EntityComponent
     {
-        EE_ENTITY_COMPONENT( AnimationGraphComponent );
+        EE_ENTITY_COMPONENT( GraphComponent );
 
         friend class AnimationDebugView;
         friend class GraphController;
 
     public:
 
-        inline AnimationGraphComponent() = default;
-        inline AnimationGraphComponent( StringID name ) : EntityComponent( name ) {}
+        inline GraphComponent() = default;
+        inline GraphComponent( StringID name ) : EntityComponent( name ) {}
 
         //-------------------------------------------------------------------------
 

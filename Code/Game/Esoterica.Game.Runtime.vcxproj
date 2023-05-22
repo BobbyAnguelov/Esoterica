@@ -76,6 +76,7 @@
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Slide.h" />
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Interact.h" />
     <ClInclude Include="Player\Components\Component_PlayerInteractible.h" />
+    <ClInclude Include="Player\DebugViews\DebugView_NetworkProto.h" />
     <ClInclude Include="Player\Systems\WorldSystem_PlayerInteractions.h" />
     <ClInclude Include="Player\Camera\PlayerCameraController.h" />
     <ClInclude Include="Player\StateMachine\PlayerActionStateMachine.h" />
@@ -113,6 +114,7 @@
     <ClCompile Include="Cover\DebugViews\DebugView_Cover.cpp" />
     <ClCompile Include="Cover\Systems\WorldSystem_CoverManager.cpp" />
     <ClCompile Include="Player\Animation\PlayerGraphController_InAir.cpp" />
+    <ClCompile Include="Player\DebugViews\DebugView_NetworkProto.cpp" />
     <ClCompile Include="Player\StateMachine\PlayerAction.cpp" />
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Dash.cpp" />
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Ghost.cpp" />

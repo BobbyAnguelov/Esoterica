@@ -284,12 +284,12 @@ namespace EE::Render
 
         if ( pShader->GetPipelineStage() == PipelineStage::Pixel )
         {
-            Resource::ResourceHeader hdr( s_version, PixelShader::GetStaticResourceTypeID() );
+            Resource::ResourceHeader hdr( s_version, PixelShader::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
             archive << hdr << *static_cast<PixelShader*>( pShader );
         }
         if ( pShader->GetPipelineStage() == PipelineStage::Vertex )
         {
-            Resource::ResourceHeader hdr( s_version, PixelShader::GetStaticResourceTypeID() );
+            Resource::ResourceHeader hdr( s_version, PixelShader::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
             archive << hdr << *static_cast<VertexShader*>( pShader );
         }
 

@@ -54,7 +54,7 @@ namespace EE::AI
             m_pCharacterMeshComponent = pCharacterMeshComponent;
         }
 
-        else if ( auto pGraphComponent = TryCast<Animation::AnimationGraphComponent>( pComponent ) )
+        else if ( auto pGraphComponent = TryCast<Animation::GraphComponent>( pComponent ) )
         {
             // We only support one component ATM - animation graph comps are not singletons
             EE_ASSERT( m_pAnimGraphComponent == nullptr );
@@ -94,7 +94,7 @@ namespace EE::AI
             EE::Delete( m_behaviorContext.m_pAnimationController );
         }
 
-        else if ( auto pGraphComponent = TryCast<Animation::AnimationGraphComponent>( pComponent ) )
+        else if ( auto pGraphComponent = TryCast<Animation::GraphComponent>( pComponent ) )
         {
             EE_ASSERT( m_pAnimGraphComponent != nullptr );
             m_pAnimGraphComponent = nullptr;

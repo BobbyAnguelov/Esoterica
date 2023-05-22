@@ -40,7 +40,8 @@ namespace EE::Resource
 
         ImGuiX::ApplicationTitleBar                     m_titleBar;
         ResourceServer&                                 m_resourceServer;
-        CompilationRequest const*                       m_pSelectedCompletedRequest = nullptr;
+        CompilationRequest const*                       m_pSelectedRequest = nullptr;
+        CompilationRequest const*                       m_pContextMenuRequest = nullptr;
 
         char                                            m_resourcePathbuffer[255] = { 0 };
         bool                                            m_forceRecompilation = false;

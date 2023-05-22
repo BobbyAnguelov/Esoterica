@@ -68,9 +68,10 @@ namespace EE::Animation
         inline GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID ) : GraphInstance( pGraphVariation, ownerID, nullptr ) {}
         ~GraphInstance();
 
-        // Info 
+        // Info
         //-------------------------------------------------------------------------
 
+        inline GraphVariation const* GetGraphVariation() const { return m_pGraphVariation; }
         inline StringID const& GetVariationID() const { return m_pGraphVariation->m_dataSet.m_variationID; }
         inline ResourceID const& GetResourceID() const { return m_pGraphVariation->GetResourceID(); }
         inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
@@ -89,6 +90,9 @@ namespace EE::Animation
 
         // Is this a valid instance that has been correctly initialized
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
+
+        // Reset the graph state with an initial time
+        void ResetGraphState( SyncTrackTime initTime = SyncTrackTime() );
 
         // Run the graph logic - returns the root motion delta for the update
         GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, bool resetGraphState = false );
@@ -273,11 +277,23 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        inline bool IsRecording() const { return m_pUpdateRecorder != nullptr; }
-        void StartRecording( RecordedGraphState& outState, GraphUpdateRecorder* pUpdateRecorder = nullptr );
+        // Are we currently recording this graph
+        inline bool IsRecording() const { return m_pRecorder != nullptr; }
+
+        // Start a graph recording
+        void StartRecording( GraphRecorder* pRecorder );
+
+        // Stop a graph recording
         void StopRecording();
+
+        // Set the "per-frame update" data needed to evaluate a recorded graph execution
+        void SetRecordedFrameUpdateData( RecordedGraphFrameData const& recordedUpdateData );
+
+        // Record the current state of this graph
+        void RecordGraphState( RecordedGraphState& recordedState );
+
+        // Set to a previously recorded state
         void SetToRecordedState( RecordedGraphState const& recordedState );
-        void SetRecordedUpdateData( RecordedGraphFrameData const& recordedUpdateData );
         #endif
 
     private:
@@ -298,7 +314,13 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void RecordGraphUpdateData( Seconds const deltaTime, Transform const& startWorldTransform );
+        void RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform );
+
+        // Calculate the sync update range for this update
+        void RecordPostGraphEvaluateState();
+
+        // Directly set the update range for this update
+        void RecordPostGraphEvaluateState( SyncTrackTimeRange const& range );
         #endif
 
     private:
@@ -320,7 +342,7 @@ namespace EE::Animation
         RootMotionDebugger                      m_rootMotionDebugger; // Allows nodes to record root motion operations
         TVector<int16_t>                        m_debugFilterNodes; // The list of nodes that are allowed to debug draw (if this is empty all nodes will draw)
         TVector<GraphLogEntry>                  m_log;
-        GraphUpdateRecorder*                    m_pUpdateRecorder = nullptr;
+        GraphRecorder*                          m_pRecorder = nullptr;
         #endif
     };
 }

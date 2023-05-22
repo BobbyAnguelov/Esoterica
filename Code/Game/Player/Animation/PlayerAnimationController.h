@@ -24,7 +24,7 @@ namespace EE::Player
 
     public:
 
-        AnimationController( Animation::AnimationGraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
+        AnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
 
         virtual void PostGraphUpdate( Seconds deltaTime ) override;
 

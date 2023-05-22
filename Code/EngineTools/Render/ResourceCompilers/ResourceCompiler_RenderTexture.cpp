@@ -58,7 +58,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, Texture::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, Texture::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         
         Serialization::BinaryOutputArchive archive;
         archive << hdr << texture;
@@ -100,7 +100,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, Texture::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, Texture::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << texture;

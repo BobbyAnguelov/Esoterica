@@ -159,9 +159,11 @@ namespace EE
                 m_registeredPlayerStateChanged = false;
             }
         }
-        else
+        // HACK
+        else if ( ctx.GetUpdateStage() == UpdateStage::FrameEnd )
         {
-            EE_UNREACHABLE_CODE();
+
         }
+        // HACK
     }
 }

@@ -118,7 +118,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink ) const;
+        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink, float lineThickness = 2.0f ) const;
         #endif
 
     private:

@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "Engine/Animation/AnimationTarget.h"
+#include "Engine/Animation/AnimationSyncTrack.h"
 #include "System/Time/Time.h"
 #include "System/Serialization/BinarySerialization.h"
 #include "System/Types/Containers_ForwardDecl.h"
@@ -111,25 +112,32 @@ namespace EE::Animation
 
     public:
 
-        Seconds                                             m_deltaTime;
         Transform                                           m_characterWorldTransform;
+        SyncTrackTimeRange                                  m_updateRange;
         TVector<ParameterData>                              m_parameterData;
+        Seconds                                             m_deltaTime;
     };
 
     // Records information about each update for the recorded graph instance
-    struct GraphUpdateRecorder
+    struct GraphRecorder
     {
     public:
 
         inline bool HasRecordedData() const { return !m_recordedData.empty(); }
         inline int32_t GetNumRecordedFrames() const { return int32_t( m_recordedData.size() ); }
         inline bool IsValidRecordedFrameIndex( int32_t frameIdx ) const { return frameIdx >= 0 && frameIdx < m_recordedData.size(); }
-        inline void Reset() { m_recordedData.clear(); }
+
+        inline void Reset()
+        {
+            m_recordedData.clear();
+            m_initialState.Reset();
+        }
 
     public:
 
         ResourceID                                          m_graphID;
         StringID                                            m_variationID;
+        RecordedGraphState                                  m_initialState;
         TVector<RecordedGraphFrameData>                     m_recordedData;
     };
 }

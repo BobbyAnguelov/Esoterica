@@ -63,7 +63,7 @@ namespace EE::Player
             m_pCharacterMeshComponent = pCharacterMeshComponent;
         }
 
-        else if ( auto pGraphComponent = TryCast<Animation::AnimationGraphComponent>( pComponent ) )
+        else if ( auto pGraphComponent = TryCast<Animation::GraphComponent>( pComponent ) )
         {
             // We only support one component ATM - animation graph comps are not singletons
             EE_ASSERT( m_pAnimGraphComponent == nullptr );
@@ -111,7 +111,7 @@ namespace EE::Player
             m_pCharacterMeshComponent = nullptr;
         }
 
-        else if ( auto pGraphComponent = TryCast<Animation::AnimationGraphComponent>( pComponent ) )
+        else if ( auto pGraphComponent = TryCast<Animation::GraphComponent>( pComponent ) )
         {
             // We only support one component atm - animgraph comps are not singletons
             EE_ASSERT( m_pAnimGraphComponent != nullptr );

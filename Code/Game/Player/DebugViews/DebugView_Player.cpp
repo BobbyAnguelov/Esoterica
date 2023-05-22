@@ -13,6 +13,7 @@
 #include "Game/Player/StateMachine/Actions/PlayerAction_Interact.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
+#include "Engine/Animation/Components/Component_AnimationGraph.h"
 
 //-------------------------------------------------------------------------
 

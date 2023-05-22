@@ -16,6 +16,10 @@ namespace EE::Resource
         Resource::ResourceHeader header;
         archive << header;
 
+        #if EE_DEVELOPMENT_TOOLS
+        pResourceRecord->m_sourceResourceHash = header.m_sourceResourceHash;
+        #endif
+
         // Set all install dependencies
         pResourceRecord->m_installDependencyResourceIDs.reserve( header.m_installDependencies.size() );
         for ( auto const& depResourceID : header.m_installDependencies )
@@ -41,6 +45,11 @@ namespace EE::Resource
     {
         EE_ASSERT( pResourceRecord != nullptr );
         pResourceRecord->m_pResource->m_resourceID = resourceID;
+
+        #if EE_DEVELOPMENT_TOOLS
+        pResourceRecord->m_pResource->m_sourceResourceHash = pResourceRecord->m_sourceResourceHash;
+        #endif 
+
         return InstallResult::Succeeded;
     }
 

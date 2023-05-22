@@ -43,8 +43,8 @@ namespace EE
         void DrawOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport );
         void DrawWindows( UpdateContext const& context, EntityWorld* pGameWorld, ImGuiWindowClass* pWindowClass = nullptr );
 
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override {}
-        virtual void EndHotReload() {}
+        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override;
+        virtual void EndHotReload() override;
 
         void HandleUserInput( UpdateContext const& context, EntityWorld* pGameWorld );
 

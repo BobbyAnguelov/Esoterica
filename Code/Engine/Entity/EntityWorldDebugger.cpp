@@ -248,5 +248,21 @@ namespace EE
             pDebugView->DrawOverlayElements( EntityWorldUpdateContext );
         }
     }
+
+    void EntityWorldDebugger::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
+    {
+        for ( auto pDebugView : m_pWorld->GetDebugViews() )
+        {
+            pDebugView->BeginHotReload( usersToReload, resourcesToBeReloaded );
+        }
+    }
+
+    void EntityWorldDebugger::EndHotReload()
+    {
+        for ( auto pDebugView : m_pWorld->GetDebugViews() )
+        {
+            pDebugView->EndHotReload();
+        }
+    }
 }
 #endif

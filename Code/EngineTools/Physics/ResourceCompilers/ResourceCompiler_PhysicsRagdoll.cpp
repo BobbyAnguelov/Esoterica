@@ -31,7 +31,7 @@ namespace EE::Physics
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, RagdollDefinition::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, RagdollDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.AddInstallDependency( resourceDescriptor.m_definition.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;

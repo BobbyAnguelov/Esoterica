@@ -35,7 +35,7 @@ namespace EE::Player
 
             // Cancel sprint and enable crouch
             ctx.m_pPlayerComponent->m_sprintFlag = false;
-            ctx.m_pPlayerComponent->m_crouchFlag = true;
+            //ctx.m_pPlayerComponent->m_crouchFlag = true;
 
             return true;
         }

@@ -40,7 +40,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, SerializedEntityCollection::GetStaticResourceTypeID() ) << serializedCollection;
+        archive << Resource::ResourceHeader( s_version, SerializedEntityCollection::GetStaticResourceTypeID(), ctx.m_sourceResourceHash ) << serializedCollection;
         
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {

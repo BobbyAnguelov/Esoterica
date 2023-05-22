@@ -19,6 +19,6 @@ namespace EE::Navmesh
 
     private:
 
-        Resource::CompilationResult GenerateNavmesh( Resource::CompileContext const& ctx ) const;
+        Resource::CompilationResult GenerateNavmesh( Resource::CompileContext const& ctx, bool updatePregeneratedNavmesh ) const;
     };
 }

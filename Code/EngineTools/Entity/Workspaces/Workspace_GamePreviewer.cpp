@@ -88,4 +88,16 @@ namespace EE
         m_pEngineToolsUI->HandleUserInput( context, m_pWorld );
         m_pEngineToolsUI->DrawWindows( context, m_pWorld, pWindowClass );
     }
+
+    void GamePreviewer::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    {
+        Workspace::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        m_pEngineToolsUI->BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+    }
+
+    void GamePreviewer::EndHotReload()
+    {
+        m_pEngineToolsUI->EndHotReload();
+        Workspace::EndHotReload();
+    }
 }

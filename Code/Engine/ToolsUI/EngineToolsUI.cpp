@@ -323,6 +323,16 @@ namespace EE
         }
     }
 
+    void EngineToolsUI::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
+    {
+        m_pWorldDebugger->BeginHotReload( usersToReload, resourcesToBeReloaded );
+    }
+
+    void EngineToolsUI::EndHotReload()
+    {
+        m_pWorldDebugger->EndHotReload();
+    }
+
     void EngineToolsUI::DrawPlayerDebugOptionsMenu( UpdateContext const& context, EntityWorld* pGameWorld )
     {
         auto pPlayerManager = pGameWorld->GetWorldSystem<PlayerManager>();

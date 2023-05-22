@@ -1040,6 +1040,26 @@ namespace EE::Animation
             {
                 m_previewStartTransform = Transform::Identity;
             }
+
+            ImGuiX::TextSeparator( "Start Sync Time" );
+            
+            ImGui::Checkbox( "Init Graph", &m_initializeGraphToSpecifiedSyncTime );
+
+            if ( m_initializeGraphToSpecifiedSyncTime )
+            {
+                ImGui::InputInt( "Event Idx", &m_previewStartSyncTime.m_eventIdx );
+
+                float percentageThrough = m_previewStartSyncTime.m_percentageThrough.ToFloat();
+                if ( ImGui::InputFloat( "%", &percentageThrough ) )
+                {
+                    m_previewStartSyncTime.m_percentageThrough = percentageThrough;
+                }
+
+                if ( ImGui::Button( "Reset Sync Time", ImVec2( -1, 0 ) ) )
+                {
+                    m_previewStartSyncTime = SyncTrackTime();
+                }
+            }
         };
 
         //-------------------------------------------------------------------------
@@ -1491,6 +1511,11 @@ namespace EE::Animation
                 else if ( IsPreviewing() )
                 {
                     ReflectInitialPreviewParameterValues( updateContext );
+
+                    if ( m_initializeGraphToSpecifiedSyncTime )
+                    {
+                        m_pDebugGraphInstance->ResetGraphState( m_previewStartSyncTime );
+                    }
                 }
 
                 m_isFirstPreviewFrame = false;
@@ -1761,7 +1786,7 @@ namespace EE::Animation
             m_previewGraphVariationPtr = TResourcePtr<GraphVariation>( graphVariationResourceID );
             LoadResource( &m_previewGraphVariationPtr );
 
-            m_pDebugGraphComponent = EE::New<AnimationGraphComponent>( StringID( "Animation Component" ) );
+            m_pDebugGraphComponent = EE::New<GraphComponent>( StringID( "Animation Component" ) );
             m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
             m_pDebugGraphComponent->SetGraphVariation( graphVariationResourceID );
 
@@ -1865,7 +1890,7 @@ namespace EE::Animation
         else if ( target.m_type == DebugTargetType::Recording )
         {
             SetWorldPaused( false );
-            m_characterTransform = m_updateRecorder.m_recordedData.front().m_characterWorldTransform;
+            m_characterTransform = m_graphRecorder.m_recordedData.front().m_characterWorldTransform;
             m_debugMode = DebugMode::ReviewRecording;
             m_currentReviewFrameIdx = InvalidIndex;
             m_reviewStarted = false;
@@ -2045,7 +2070,7 @@ namespace EE::Animation
             auto pWorldSystem = pWorld->GetWorldSystem<AnimationWorldSystem>();
             auto const& graphComponents = pWorldSystem->GetRegisteredGraphComponents();
 
-            for ( AnimationGraphComponent* pGraphComponent : graphComponents )
+            for ( GraphComponent* pGraphComponent : graphComponents )
             {
                 // Check main instance
                 GraphInstance const* pGraphInstance = pGraphComponent->GetDebugGraphInstance();
@@ -5053,7 +5078,7 @@ namespace EE::Animation
             }
             else // Show the start/join button
             {
-                ImGui::BeginDisabled( !m_updateRecorder.HasRecordedData() );
+                ImGui::BeginDisabled( !m_graphRecorder.HasRecordedData() );
                 if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartReview", ImGuiX::ImColors::Lime, buttonSize ) )
                 {
                     if ( IsDebugging() )
@@ -5108,7 +5133,7 @@ namespace EE::Animation
             ImGui::SameLine();
 
             ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( buttonSize.x + ImGui::GetStyle().ItemSpacing.x ) * 2 );
-            int32_t const numFramesRecorded = IsReviewingRecording() ? m_updateRecorder.GetNumRecordedFrames() : 1;
+            int32_t const numFramesRecorded = IsReviewingRecording() ? m_graphRecorder.GetNumRecordedFrames() : 1;
             int32_t frameIdx = IsReviewingRecording() ? m_currentReviewFrameIdx : 0;
             if ( ImGui::SliderInt( "##timeline", &frameIdx, 0, numFramesRecorded - 1 ) )
             {
@@ -5137,9 +5162,9 @@ namespace EE::Animation
                 if ( IsReviewingRecording() && m_currentReviewFrameIdx >= 0 )
                 {
                     ImGui::Indent();
-                    ImGui::Text( "Delta Time: %.2fms", m_updateRecorder.m_recordedData[m_currentReviewFrameIdx].m_deltaTime.ToMilliseconds().ToFloat() );
+                    ImGui::Text( "Delta Time: %.2fms", m_graphRecorder.m_recordedData[m_currentReviewFrameIdx].m_deltaTime.ToMilliseconds().ToFloat() );
 
-                    Transform const& frameWorldTransform = m_updateRecorder.m_recordedData[m_currentReviewFrameIdx].m_characterWorldTransform;
+                    Transform const& frameWorldTransform = m_graphRecorder.m_recordedData[m_currentReviewFrameIdx].m_characterWorldTransform;
                     Float3 const angles = frameWorldTransform.GetRotation().ToEulerAngles().GetAsDegrees();
                     Vector const translation = frameWorldTransform.GetTranslation();
                     ImGui::Text( EE_ICON_ROTATE_360" X: %.3f, Y: %.3f, Z: %.3f", angles.m_x, angles.m_y, angles.m_z );
@@ -5158,7 +5183,7 @@ namespace EE::Animation
 
         ClearRecordedData();
 
-        m_pDebugGraphInstance->StartRecording( m_recordedGraphState, &m_updateRecorder );
+        m_pDebugGraphInstance->StartRecording( &m_graphRecorder );
 
         m_isRecording = true;
     }
@@ -5176,14 +5201,13 @@ namespace EE::Animation
     void AnimationGraphWorkspace::ClearRecordedData()
     {
         EE_ASSERT( !m_isRecording && !IsReviewingRecording() );
-        m_recordedGraphState.Reset();
-        m_updateRecorder.Reset();
+        m_graphRecorder.Reset();
     }
 
     void AnimationGraphWorkspace::SetFrameToReview( int32_t newFrameIdx )
     {
         EE_ASSERT( IsReviewingRecording() && m_reviewStarted );
-        EE_ASSERT( m_updateRecorder.IsValidRecordedFrameIndex( newFrameIdx ) );
+        EE_ASSERT( m_graphRecorder.IsValidRecordedFrameIndex( newFrameIdx ) );
         EE_ASSERT( m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->IsInitialized() );
         EE_ASSERT( m_pDebugMeshComponent != nullptr );
 
@@ -5196,10 +5220,10 @@ namespace EE::Animation
 
         if ( newFrameIdx == ( m_currentReviewFrameIdx + 1 ) )
         {
-            auto const& frameData = m_updateRecorder.m_recordedData[newFrameIdx];
+            auto const& frameData = m_graphRecorder.m_recordedData[newFrameIdx];
 
             // Set parameters
-            m_pDebugGraphInstance->SetRecordedUpdateData( frameData );
+            m_pDebugGraphInstance->SetRecordedFrameUpdateData( frameData );
 
             // Evaluate graph
             m_pDebugGraphComponent->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
@@ -5207,16 +5231,16 @@ namespace EE::Animation
         else // Re-evaluate the entire graph to the new index point
         {
             // Set initial state
-            m_recordedGraphState.PrepareForReading();
-            m_pDebugGraphInstance->SetToRecordedState( m_recordedGraphState );
+            m_graphRecorder.m_initialState.PrepareForReading();
+            m_pDebugGraphInstance->SetToRecordedState( m_graphRecorder.m_initialState );
 
             // Update graph instance till we get to the specified frame
             for ( auto i = 0; i <= newFrameIdx; i++ )
             {
-                auto const& frameData = m_updateRecorder.m_recordedData[i];
+                auto const& frameData = m_graphRecorder.m_recordedData[i];
 
                 // Set parameters
-                m_pDebugGraphInstance->SetRecordedUpdateData( frameData );
+                m_pDebugGraphInstance->SetRecordedFrameUpdateData( frameData );
 
                 // Evaluate graph
                 m_pDebugGraphComponent->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
@@ -5224,7 +5248,7 @@ namespace EE::Animation
                 // Explicitly end root motion debug update for intermediate steps
                 if ( i < ( newFrameIdx - 1 ) )
                 {
-                    auto const& nextFrameData = m_updateRecorder.m_recordedData[i + 1];
+                    auto const& nextFrameData = m_graphRecorder.m_recordedData[i + 1];
                     m_pDebugGraphInstance->EndRootMotionDebuggerUpdate( nextFrameData.m_characterWorldTransform );
                 }
             }
@@ -5233,8 +5257,8 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Use the transform from the next frame as the end transform of the character used to evaluate the pose tasks
-        int32_t const nextFrameIdx = ( newFrameIdx < m_updateRecorder.GetNumRecordedFrames() - 1 ) ? newFrameIdx + 1 : newFrameIdx;
-        auto const& nextRecordedFrameData = m_updateRecorder.m_recordedData[nextFrameIdx];
+        int32_t const nextFrameIdx = ( newFrameIdx < m_graphRecorder.GetNumRecordedFrames() - 1 ) ? newFrameIdx + 1 : newFrameIdx;
+        auto const& nextRecordedFrameData = m_graphRecorder.m_recordedData[nextFrameIdx];
 
         // Do we need to evaluate the the pose tasks for this client
         if ( m_pDebugGraphInstance->DoesTaskSystemNeedUpdate() )
@@ -5251,7 +5275,7 @@ namespace EE::Animation
     void AnimationGraphWorkspace::StepReviewForward()
     {
         EE_ASSERT( IsReviewingRecording() );
-        int32_t const newFrameIdx = Math::Min( m_updateRecorder.GetNumRecordedFrames() - 1, m_currentReviewFrameIdx + 1 );
+        int32_t const newFrameIdx = Math::Min( m_graphRecorder.GetNumRecordedFrames() - 1, m_currentReviewFrameIdx + 1 );
         SetFrameToReview( newFrameIdx );
     }
 

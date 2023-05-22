@@ -262,7 +262,7 @@ namespace EE::Render
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, StaticMesh::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, StaticMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         SetMeshInstallDependencies( staticMesh, hdr );
 
         Serialization::BinaryOutputArchive archive;
@@ -332,7 +332,7 @@ namespace EE::Render
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, SkeletalMesh::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, SkeletalMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         SetMeshInstallDependencies( skeletalMesh, hdr );
 
         Serialization::BinaryOutputArchive archive;

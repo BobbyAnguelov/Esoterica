@@ -50,6 +50,5 @@ namespace EE::Animation::GraphNodes
 
         GraphInstance*                          m_pGraphInstance = nullptr;
         TInlineVector<ValueNode*, 10>           m_parameterMapping;
-        bool                                    m_isFirstUpdate = false;
     };
 }

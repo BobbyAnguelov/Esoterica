@@ -32,6 +32,7 @@ namespace EE::Resource
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetFriendlyName() const = 0;
+        uint64_t GetSourceResourceHash() const { return m_sourceResourceHash; }
         #endif
 
     protected:
@@ -41,6 +42,10 @@ namespace EE::Resource
     private:
 
         ResourceID      m_resourceID;
+
+        #if EE_DEVELOPMENT_TOOLS
+        uint64_t        m_sourceResourceHash = 0;
+        #endif
     };
 }
 

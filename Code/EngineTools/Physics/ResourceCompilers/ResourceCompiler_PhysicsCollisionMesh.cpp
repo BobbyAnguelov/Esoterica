@@ -126,7 +126,7 @@ namespace EE::Physics
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, CollisionMesh::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, CollisionMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         Serialization::BinaryOutputArchive archive;
         archive << hdr << physicsMesh << cookedMeshData;
 

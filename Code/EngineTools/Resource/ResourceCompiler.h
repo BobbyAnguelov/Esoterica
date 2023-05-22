@@ -39,6 +39,8 @@ namespace EE::Resource
         ResourceID const                                m_resourceID;
         FileSystem::Path const                          m_inputFilePath;
         FileSystem::Path const                          m_outputFilePath;
+
+        uint64_t                                        m_sourceResourceHash = 0; // The combined hash of the source resource and its dependencies
     };
 
     //-------------------------------------------------------------------------

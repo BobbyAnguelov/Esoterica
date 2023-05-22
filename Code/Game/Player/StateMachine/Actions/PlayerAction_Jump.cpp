@@ -84,11 +84,11 @@ namespace EE::Player
         // check if we had a collision
         //-------------------------------------------------------------------------
         float const jumpTime = ( m_isChargedJumpReady ? g_bigJumpTimeToApex : g_smallJumpTimeToApex );
-       /* if( m_jumpTimer.GetElapsedTimeSeconds() >= jumpTime )
+        if( m_jumpTimer.GetElapsedTimeSeconds() >= jumpTime )
         {
             return Status::Completed;
         }
-        else*/
+        else
         {
             m_jumpTimer.Update( ctx.GetDeltaTime() );
 
@@ -136,7 +136,7 @@ namespace EE::Player
         // Wait for the jump anim to complete
         if ( ctx.m_pAnimationController->IsAnyTransitionAllowed() )
         {
-            return Status::Completed;
+            return Status::Interruptible;
         }
 
         return Status::Uninterruptible;

@@ -69,6 +69,12 @@ namespace EE
 
     protected:
 
+        // Called before we hot-reload anything to allow you to clean your data
+        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) {}
+
+        // Called after hot-reload has completed
+        virtual void EndHotReload() {}
+
         // Called to draw all imgui windows
         virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) = 0;
 

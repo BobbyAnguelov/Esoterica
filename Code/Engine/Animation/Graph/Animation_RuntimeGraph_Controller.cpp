@@ -27,7 +27,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    GraphController::GraphController( AnimationGraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
+    GraphController::GraphController( GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
         : GraphControllerBase( pGraphComponent->m_pGraphInstance, pMeshComponent)
         , m_pGraphComponent( pGraphComponent )
     {}

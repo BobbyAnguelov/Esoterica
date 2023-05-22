@@ -124,7 +124,7 @@ namespace EE::Animation
 
         Serialization::BinaryOutputArchive archive;
 
-        archive << Resource::ResourceHeader( s_version, GraphDefinition::GetStaticResourceTypeID() );
+        archive << Resource::ResourceHeader( s_version, GraphDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         archive << *pRuntimeGraph;
 
         // Serialize node paths only in dev builds
@@ -213,7 +213,7 @@ namespace EE::Animation
         // Create header
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, GraphVariation::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, GraphVariation::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.AddInstallDependency( variation.m_pGraphDefinition.GetResourceID() );
 
         // Add data set install dependencies

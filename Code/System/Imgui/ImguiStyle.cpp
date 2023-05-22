@@ -64,7 +64,7 @@ namespace EE::ImGuiX
 
         colors[ImGuiCol_FrameBg] = s_colorGray8;
         colors[ImGuiCol_FrameBgHovered] = s_colorGray7;
-        colors[ImGuiCol_FrameBgActive] = s_colorGray6;
+        colors[ImGuiCol_FrameBgActive] = s_colorGray5;
 
         colors[ImGuiCol_Tab] = s_colorGray6;
         colors[ImGuiCol_TabActive] = s_colorGray4;

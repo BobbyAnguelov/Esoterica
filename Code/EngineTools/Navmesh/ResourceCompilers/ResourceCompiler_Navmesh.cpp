@@ -28,6 +28,29 @@ namespace EE::Navmesh
     {
         if ( ctx.m_inputFilePath.Exists() )
         {
+            Serialization::BinaryInputArchive archive;
+            if ( archive.ReadFromFile( ctx.m_inputFilePath ) )
+            {
+                Resource::ResourceHeader header;
+                archive << header;
+
+                // Is we have a mismatched version, rebuild the source file
+                if ( header.m_version != NavmeshGenerator::s_version )
+                {
+                    if ( GenerateNavmesh( ctx, true ) == Resource::CompilationResult::Failure )
+                    {
+                        return Resource::CompilationResult::Failure;
+                    }
+                }
+            }
+            else // Corrupted source file
+            {
+                Error( "Failed to read pre-generated navmesh file (%s)!", ctx.m_inputFilePath.c_str() );
+                return Resource::CompilationResult::Failure;
+            }
+
+            //-------------------------------------------------------------------------
+
             std::error_code ec;
             std::filesystem::copy_options opts = std::filesystem::copy_options::overwrite_existing;
             std::filesystem::copy( ctx.m_inputFilePath.c_str(), ctx.m_outputFilePath.c_str(), opts, ec );
@@ -35,13 +58,20 @@ namespace EE::Navmesh
         }
         else
         {
-            return GenerateNavmesh( ctx );
+            return GenerateNavmesh( ctx, false );
         }
     }
 
-    Resource::CompilationResult NavmeshCompiler::GenerateNavmesh( Resource::CompileContext const& ctx ) const
+    Resource::CompilationResult NavmeshCompiler::GenerateNavmesh( Resource::CompileContext const& ctx, bool updatePregeneratedNavmesh ) const
     {
-        Message( "No pre-generated navmesh found, generating navmesh!" );
+        if ( updatePregeneratedNavmesh )
+        {
+            Warning( "Pre-generated navmesh file has an old version - rebuilding (%s)!", ctx.m_inputFilePath.c_str() );
+        }
+        else
+        {
+            Message( "No pre-generated navmesh found, generating navmesh!" );
+        }
 
         // Get map data
         //-------------------------------------------------------------------------
@@ -94,7 +124,7 @@ namespace EE::Navmesh
         //-------------------------------------------------------------------------
 
         #if EE_ENABLE_NAVPOWER
-        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_rawResourceDirectoryPath, ctx.m_outputFilePath, serializedMap, buildSettings );
+        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_rawResourceDirectoryPath, updatePregeneratedNavmesh ? ctx.m_inputFilePath : ctx.m_outputFilePath, serializedMap, buildSettings );
 
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );

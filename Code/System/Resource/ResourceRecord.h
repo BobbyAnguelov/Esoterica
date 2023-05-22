@@ -86,6 +86,7 @@ namespace EE::Resource
         TInlineVector<ResourceID, 4>            m_installDependencyResourceIDs;                 // The list of resources that need to be loaded and installed before we can install this resource
 
         #if EE_DEVELOPMENT_TOOLS
+        uint64_t                                m_sourceResourceHash = 0;
         Milliseconds                            m_fileReadTime = 0;
         Milliseconds                            m_loadTime = 0;
         Milliseconds                            m_waitForDependenciesTime = 0;

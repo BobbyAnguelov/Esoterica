@@ -62,11 +62,11 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pGraphInstance != nullptr )
         {
+            ReflectControlParameters( context );
+
             auto pRootNode = const_cast<PoseNode*>( m_pGraphInstance->GetRootNode() );
             EE_ASSERT( !pRootNode->IsInitialized() );
             pRootNode->Initialize( context, initialTime );
-
-            ReflectControlParameters( context );
 
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
@@ -77,8 +77,6 @@ namespace EE::Animation::GraphNodes
             m_previousTime = m_currentTime = 0.0f;
             m_duration = s_oneFrameDuration;
         }
-
-        m_isFirstUpdate = true;
     }
 
     void ChildGraphNode::ShutdownInternal( GraphContext& context )
@@ -203,8 +201,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             ReflectControlParameters( context );
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, m_isFirstUpdate );
-            m_isFirstUpdate = false;
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld );
             TransferGraphInstanceData( context, result );
         }
         return result;
@@ -224,8 +221,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             ReflectControlParameters( context );
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, updateRange, m_isFirstUpdate );
-            m_isFirstUpdate = false;
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, updateRange );
             TransferGraphInstanceData( context, result );
         }
         return result;
@@ -239,8 +235,8 @@ namespace EE::Animation::GraphNodes
         PoseNode::RecordGraphState( outState );
 
         // Record the child graph initial state
-        RecordedGraphState* pChildRecorder = outState.CreateChildGraphStateRecording( GetNodeIndex() );
-        m_pGraphInstance->StartRecording( *pChildRecorder );
+        RecordedGraphState* pChildGraphState = outState.CreateChildGraphStateRecording( GetNodeIndex() );
+        m_pGraphInstance->RecordGraphState( *pChildGraphState );
     }
 
     void ChildGraphNode::RestoreGraphState( RecordedGraphState const& inState )
@@ -248,8 +244,8 @@ namespace EE::Animation::GraphNodes
         PoseNode::RestoreGraphState( inState );
 
         // Restore child graph state
-        RecordedGraphState* pChildRecording = inState.GetChildGraphRecording( GetNodeIndex() );
-        m_pGraphInstance->SetToRecordedState( *pChildRecording );
+        RecordedGraphState* pChildGraphState = inState.GetChildGraphRecording( GetNodeIndex() );
+        m_pGraphInstance->SetToRecordedState( *pChildGraphState );
     }
     #endif
 }

@@ -35,7 +35,7 @@ namespace EE::Physics
         {
             // Ideally this would be part of the character controller but they are not DLL exposed classes so this causes a warning
             // Hence we have the bidirectional friendship
-            friend class CharacterComponent;
+            friend CharacterComponent;
 
             struct FloorCollision
             {

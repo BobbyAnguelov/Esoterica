@@ -495,7 +495,7 @@ namespace EE::Animation
     void AnimationDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
         InlineString componentName;
-        for ( AnimationGraphComponent* pGraphComponent : m_pAnimationWorldSystem->m_graphComponents )
+        for ( GraphComponent* pGraphComponent : m_pAnimationWorldSystem->m_graphComponents )
         {
             EntityID const entityID = pGraphComponent->GetEntityID();
             auto pEntity = m_pWorld->FindEntity( entityID );

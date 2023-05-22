@@ -7,6 +7,10 @@
       "Command": "-force"
     },
     {
+      "Id": "2d24a72f-5e7d-481e-a173-17869e5e8b73",
+      "Command": "-compile data://maps/test.nav"
+    },
+    {
       "Id": "9cdd494d-afc5-4448-b08f-6ad46e0e6ae5",
       "Command": "-compile data://packs/amplify/jump_in_place_exit.anim"
     },

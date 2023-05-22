@@ -5,7 +5,7 @@
 
 namespace EE::AI
 {
-    AnimationController::AnimationController( Animation::AnimationGraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
+    AnimationController::AnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
         : Animation::GraphController( pGraphComponent, pMeshComponent )
     {
         CreateSubGraphController<LocomotionGraphController>();

@@ -17,10 +17,10 @@ namespace EE::Render { class SkeletalMeshComponent; }
 
 namespace EE::Animation
 {
-    class AnimationGraphComponent;
+    class GraphComponent;
     class ControlParameterPreviewState;
     class VariationHierarchy;
-    class GraphRecorder;
+    struct GraphRecorder;
 
     namespace GraphNodes { class VirtualParameterToolsNode; class ControlParameterToolsNode; }
 
@@ -75,7 +75,7 @@ namespace EE::Animation
             bool IsValid() const;
 
             DebugTargetType                     m_type = DebugTargetType::None;
-            AnimationGraphComponent*            m_pComponentToDebug = nullptr;
+            GraphComponent*                     m_pComponentToDebug = nullptr;
             PointerID                           m_childGraphID;
             StringID                            m_externalSlotID;
         };
@@ -436,7 +436,7 @@ namespace EE::Animation
         DebugMode                                                       m_debugMode = DebugMode::None;
         EntityID                                                        m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
         ComponentID                                                     m_debuggedComponentID;
-        AnimationGraphComponent*                                        m_pDebugGraphComponent = nullptr;
+        GraphComponent*                                                 m_pDebugGraphComponent = nullptr;
         Render::SkeletalMeshComponent*                                  m_pDebugMeshComponent = nullptr;
         GraphInstance*                                                  m_pDebugGraphInstance = nullptr;
         StringID                                                        m_debugExternalGraphSlotID = StringID();
@@ -452,13 +452,14 @@ namespace EE::Animation
         Transform                                                       m_characterTransform = Transform::Identity;
         Transform                                                       m_cameraOffsetTransform = Transform::Identity;
         Transform                                                       m_previousCameraTransform = Transform::Identity;
+        SyncTrackTime                                                   m_previewStartSyncTime;
         bool                                                            m_startPaused = false;
         bool                                                            m_isFirstPreviewFrame = false;
         bool                                                            m_isCameraTrackingEnabled = false;
+        bool                                                            m_initializeGraphToSpecifiedSyncTime = false;
 
         // Recording
-        RecordedGraphState                                              m_recordedGraphState;
-        GraphUpdateRecorder                                             m_updateRecorder;
+        GraphRecorder                                                   m_graphRecorder;
         int32_t                                                         m_currentReviewFrameIdx = InvalidIndex;
         bool                                                            m_isRecording = false;
         bool                                                            m_reviewStarted = false;

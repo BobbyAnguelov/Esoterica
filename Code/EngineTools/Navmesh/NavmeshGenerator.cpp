@@ -396,7 +396,7 @@ namespace EE::Navmesh
         m_progress = 1.0f;
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, Navmesh::NavmeshData::GetStaticResourceTypeID() ) << navmeshData;
+        archive << Resource::ResourceHeader( s_version, Navmesh::NavmeshData::GetStaticResourceTypeID(), 0 ) << navmeshData;
 
         if ( archive.WriteToFile( m_outputPath ) )
         {

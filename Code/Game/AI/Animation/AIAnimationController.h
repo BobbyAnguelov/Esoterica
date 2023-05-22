@@ -22,7 +22,7 @@ namespace EE::AI
     {
     public:
 
-        AnimationController( Animation::AnimationGraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
+        AnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
 
         void SetCharacterState( CharacterAnimationState state );
 

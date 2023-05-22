@@ -160,7 +160,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color ) const
+    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color, float lineThickness ) const
     {
         auto const& parentIndices = m_pSkeleton->GetParentBoneIndices();
 
@@ -192,7 +192,7 @@ namespace EE::Animation
                 auto const& parentTransform = worldTransforms[parentIdx];
                 auto const& boneTransform = worldTransforms[boneIdx];
 
-                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), color, 2.0f );
+                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), color, lineThickness );
                 ctx.DrawAxis( boneTransform, 0.03f, 3.0f );
             }
 

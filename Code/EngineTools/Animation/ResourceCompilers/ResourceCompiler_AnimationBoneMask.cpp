@@ -109,7 +109,7 @@ namespace EE::Animation
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, BoneMaskDefinition::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, BoneMaskDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.AddInstallDependency( resourceDescriptor.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;

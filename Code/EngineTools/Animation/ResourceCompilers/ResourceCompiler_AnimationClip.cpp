@@ -163,7 +163,7 @@ namespace EE::Animation
         // Serialize animation data
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, AnimationClip::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, AnimationClip::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.AddInstallDependency( resourceDescriptor.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;

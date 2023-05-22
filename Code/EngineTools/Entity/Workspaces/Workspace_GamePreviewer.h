@@ -35,6 +35,9 @@ namespace EE
 
         virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
 
+        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
+        virtual void EndHotReload() override;
+
     private:
 
         ResourceID                      m_loadedMap;

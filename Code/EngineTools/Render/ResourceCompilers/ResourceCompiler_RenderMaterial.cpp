@@ -44,7 +44,7 @@ namespace EE::Render
         // Install dependencies
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, Material::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, Material::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.m_installDependencies.push_back( material.m_pAlbedoTexture.GetResourceID() );
         
         if ( material.HasMetalnessTexture() )

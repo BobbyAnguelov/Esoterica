@@ -14,7 +14,7 @@ namespace EE::Animation
 
     void AnimationWorldSystem::RegisterComponent( Entity const* pEntity, EntityComponent* pComponent )
     {
-        if ( auto pGraphComponent = TryCast<AnimationGraphComponent>( pComponent ) )
+        if ( auto pGraphComponent = TryCast<GraphComponent>( pComponent ) )
         {
             m_graphComponents.Add( pGraphComponent );
         }
@@ -22,7 +22,7 @@ namespace EE::Animation
 
     void AnimationWorldSystem::UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent )
     {
-        if ( auto pGraphComponent = TryCast<AnimationGraphComponent>( pComponent ) )
+        if ( auto pGraphComponent = TryCast<GraphComponent>( pComponent ) )
         {
             m_graphComponents.Remove( pGraphComponent->GetID() );
         }

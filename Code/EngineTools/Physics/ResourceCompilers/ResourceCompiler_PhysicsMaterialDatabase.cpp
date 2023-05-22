@@ -84,7 +84,7 @@ namespace EE::Physics
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, MaterialDatabase::GetStaticResourceTypeID() );
+        Resource::ResourceHeader hdr( s_version, MaterialDatabase::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << db;

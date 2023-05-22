@@ -6,15 +6,8 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation
-{
-    class AnimationGraphComponent;
-}
-
-namespace EE::Render
-{
-    class CharacterMeshComponent;
-}
+namespace EE::Animation { class GraphComponent; }
+namespace EE::Render { class CharacterMeshComponent; }
 
 //-------------------------------------------------------------------------
 
@@ -40,7 +33,7 @@ namespace EE::AI
         BehaviorContext                                         m_behaviorContext;
         BehaviorSelector                                        m_behaviorSelector = BehaviorSelector( m_behaviorContext );
 
-        Animation::AnimationGraphComponent*                     m_pAnimGraphComponent = nullptr;
+        Animation::GraphComponent*                              m_pAnimGraphComponent = nullptr;
         Render::CharacterMeshComponent*                         m_pCharacterMeshComponent = nullptr;
     };
 }

@@ -9,16 +9,8 @@
 namespace EE
 {
     class OrbitCameraComponent;
-
-    namespace Render
-    {
-        class CharacterMeshComponent;
-    }
-
-    namespace Animation
-    {
-        class AnimationGraphComponent;
-    }
+    namespace Render { class CharacterMeshComponent; }
+    namespace Animation { class GraphComponent; }
 }
 
 //-------------------------------------------------------------------------
@@ -45,7 +37,7 @@ namespace EE::Player
         ActionContext                                           m_actionContext;
         ActionStateMachine                                      m_actionStateMachine = ActionStateMachine( m_actionContext );
 
-        Animation::AnimationGraphComponent*                     m_pAnimGraphComponent = nullptr;
+        Animation::GraphComponent*                              m_pAnimGraphComponent = nullptr;
         Render::CharacterMeshComponent*                         m_pCharacterMeshComponent = nullptr;
         OrbitCameraComponent*                                   m_pCameraComponent = nullptr;
     };

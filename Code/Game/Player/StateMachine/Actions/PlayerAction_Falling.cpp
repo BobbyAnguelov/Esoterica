@@ -26,13 +26,12 @@ namespace EE::Player
             float const capsuleHalfHeight = ctx.m_pCharacterComponent->GetCapsuleHalfHeight();
             float const capsuleRadius = ctx.m_pCharacterComponent->GetCapsuleRadius();
             Quaternion const capsuleOrientation = ctx.m_pCharacterComponent->GetOrientation();
-            EE_ASSERT( capsuleOrientation.IsNormalized() );
             Vector const capsulePosition = ctx.m_pCharacterComponent->GetPosition();
 
             // Test for environment collision right below the player
             ctx.m_pPhysicsWorld->AcquireReadLock();
             Physics::SweepResults sweepResults;
-            bool collided = ctx.m_pPhysicsWorld->CapsuleSweep( capsuleHalfHeight, capsuleRadius, capsuleOrientation, capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
+            bool collided = ctx.m_pPhysicsWorld->CapsuleSweep( capsuleHalfHeight, capsuleRadius, capsuleOrientation.GetNormalized(), capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
             ctx.m_pPhysicsWorld->ReleaseReadLock();
 
             if( collided )

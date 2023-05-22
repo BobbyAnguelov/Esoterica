@@ -8,7 +8,7 @@
 
 namespace EE::Animation
 {
-    class AnimationGraphComponent;
+    class GraphComponent;
 
     //-------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ namespace EE::Animation
         EE_ENTITY_WORLD_SYSTEM( AnimationWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ) );
 
         #if EE_DEVELOPMENT_TOOLS
-        inline TVector<AnimationGraphComponent*> const& GetRegisteredGraphComponents() const { return m_graphComponents.GetVector(); }
+        inline TVector<GraphComponent*> const& GetRegisteredGraphComponents() const { return m_graphComponents.GetVector(); }
         #endif
 
     private:
@@ -33,6 +33,6 @@ namespace EE::Animation
 
     private:
 
-        TIDVector<ComponentID, AnimationGraphComponent*>          m_graphComponents;
+        TIDVector<ComponentID, GraphComponent*>          m_graphComponents;
     };
 } 

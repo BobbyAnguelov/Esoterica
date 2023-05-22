@@ -55,6 +55,9 @@ namespace EE
         void DrawWindows( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         void DrawOverlayElements( UpdateContext const& context );
 
+        void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded );
+        void EndHotReload();
+
     private:
 
         EntityWorld const*          m_pWorld = nullptr;

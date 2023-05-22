@@ -9,7 +9,7 @@
 
 namespace EE::Animation
 {
-    void AnimationGraphComponent::Initialize()
+    void GraphComponent::Initialize()
     {
         EntityComponent::Initialize();
 
@@ -24,7 +24,7 @@ namespace EE::Animation
         m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_value );
     }
 
-    void AnimationGraphComponent::Shutdown()
+    void GraphComponent::Shutdown()
     {
         EE::Delete( m_pGraphInstance );
         EntityComponent::Shutdown();
@@ -32,7 +32,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationGraphComponent::SetGraphVariation( ResourceID graphResourceID )
+    void GraphComponent::SetGraphVariation( ResourceID graphResourceID )
     {
         EE_ASSERT( IsUnloaded() );
         EE_ASSERT( graphResourceID.IsValid() );
@@ -41,17 +41,17 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    Skeleton const* AnimationGraphComponent::GetSkeleton() const
+    Skeleton const* GraphComponent::GetSkeleton() const
     {
         return ( m_pGraphVariation != nullptr ) ? m_pGraphVariation->GetSkeleton() : nullptr;
     }
 
-    Pose const* AnimationGraphComponent::GetPose() const
+    Pose const* GraphComponent::GetPose() const
     {
         return m_pGraphInstance->GetPose();
     }
 
-    void AnimationGraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::PhysicsWorld* pPhysicsWorld )
+    void GraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::PhysicsWorld* pPhysicsWorld )
     {
         EE_ASSERT( HasGraph() );
 
@@ -60,13 +60,13 @@ namespace EE::Animation
         m_rootMotionDelta = result.m_rootMotionDelta;
     }
 
-    void AnimationGraphComponent::ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform )
+    void GraphComponent::ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform )
     {
         EE_ASSERT( HasGraph() );
         m_pGraphInstance->ExecutePrePhysicsPoseTasks( characterWorldTransform );
     }
 
-    void AnimationGraphComponent::ExecutePostPhysicsTasks()
+    void GraphComponent::ExecutePostPhysicsTasks()
     {
         EE_ASSERT( HasGraph() );
         m_pGraphInstance->ExecutePostPhysicsPoseTasks();
@@ -75,12 +75,12 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    Transform AnimationGraphComponent::GetDebugWorldTransform() const
+    Transform GraphComponent::GetDebugWorldTransform() const
     {
         return m_pGraphInstance->GetTaskSystemDebugWorldTransform();
     }
 
-    void AnimationGraphComponent::SetGraphDebugMode( GraphDebugMode mode )
+    void GraphComponent::SetGraphDebugMode( GraphDebugMode mode )
     {
         if ( m_pGraphInstance != nullptr )
         {
@@ -92,13 +92,13 @@ namespace EE::Animation
         }
     }
 
-    GraphDebugMode AnimationGraphComponent::GetGraphDebugMode() const
+    GraphDebugMode GraphComponent::GetGraphDebugMode() const
     {
         EE_ASSERT( HasGraphInstance() );
         return m_pGraphInstance->GetGraphDebugMode();
     }
 
-    void AnimationGraphComponent::SetGraphNodeDebugFilterList( TVector<int16_t> const& filterList )
+    void GraphComponent::SetGraphNodeDebugFilterList( TVector<int16_t> const& filterList )
     {
         if ( m_pGraphInstance != nullptr )
         {
@@ -110,7 +110,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphComponent::SetTaskSystemDebugMode( TaskSystemDebugMode mode )
+    void GraphComponent::SetTaskSystemDebugMode( TaskSystemDebugMode mode )
     {
         if ( m_pGraphInstance != nullptr )
         {
@@ -122,13 +122,13 @@ namespace EE::Animation
         }
     }
 
-    TaskSystemDebugMode AnimationGraphComponent::GetTaskSystemDebugMode() const
+    TaskSystemDebugMode GraphComponent::GetTaskSystemDebugMode() const
     {
         EE_ASSERT( HasGraphInstance() );
         return m_pGraphInstance->GetTaskSystemDebugMode();
     }
 
-    void AnimationGraphComponent::SetRootMotionDebugMode( RootMotionDebugMode mode )
+    void GraphComponent::SetRootMotionDebugMode( RootMotionDebugMode mode )
     {
         if ( m_pGraphInstance != nullptr )
         {
@@ -140,13 +140,13 @@ namespace EE::Animation
         }
     }
 
-    RootMotionDebugMode AnimationGraphComponent::GetRootMotionDebugMode() const
+    RootMotionDebugMode GraphComponent::GetRootMotionDebugMode() const
     {
         EE_ASSERT( HasGraphInstance() );
         return m_pGraphInstance->GetRootMotionDebugMode();
     }
 
-    void AnimationGraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
+    void GraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
     {
         if ( !HasGraph() || !IsInitialized() || m_pGraphInstance == nullptr )
         {

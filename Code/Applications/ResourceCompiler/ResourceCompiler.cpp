@@ -260,6 +260,8 @@ namespace EE::Resource
             return Resource::CompilationResult::SuccessUpToDate;
         }
 
+        m_compileContext.m_sourceResourceHash = m_compileDependencyTreeRoot.m_combinedHash;
+
         // Compile
         //-------------------------------------------------------------------------
 

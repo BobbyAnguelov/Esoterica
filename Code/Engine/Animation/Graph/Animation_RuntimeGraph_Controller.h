@@ -183,7 +183,7 @@ namespace EE::Animation
 
     public:
 
-        GraphController( AnimationGraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
+        GraphController( GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
         virtual ~GraphController();
 
         // Sub-graph Controllers
@@ -277,7 +277,7 @@ namespace EE::Animation
 
     private:
 
-        AnimationGraphComponent*                        m_pGraphComponent = nullptr;
+        GraphComponent*                        m_pGraphComponent = nullptr;
         TInlineVector<SubGraphController*, 6>           m_subGraphControllers;
         TInlineVector<ExternalGraphController*, 6>      m_externalGraphControllers;
     };

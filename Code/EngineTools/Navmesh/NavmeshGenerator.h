@@ -27,7 +27,7 @@ namespace EE::Navmesh
     {
     public:
 
-        constexpr static uint32_t const s_version = 1;
+        constexpr static uint32_t const s_version = 4;
 
         enum class State
         {
