@@ -17,11 +17,12 @@ namespace EE::Animation::GraphNodes
 
         struct LayerSettings
         {
-            EE_SERIALIZE( m_inputNodeIdx, m_weightValueNodeIdx, m_boneMaskValueNodeIdx, m_isSynchronized, m_ignoreEvents, m_isStateMachineLayer, m_blendMode );
+            EE_SERIALIZE( m_inputNodeIdx, m_weightValueNodeIdx, m_boneMaskValueNodeIdx, m_rootMotionWeightValueNodeIdx, m_isSynchronized, m_ignoreEvents, m_isStateMachineLayer, m_blendMode );
 
             int16_t                                         m_inputNodeIdx = InvalidIndex;
             int16_t                                         m_weightValueNodeIdx = InvalidIndex;
             int16_t                                         m_boneMaskValueNodeIdx = InvalidIndex;
+            int16_t                                         m_rootMotionWeightValueNodeIdx = InvalidIndex;
             bool                                            m_isSynchronized = false;
             bool                                            m_ignoreEvents = false;
             bool                                            m_isStateMachineLayer = false;
@@ -46,6 +47,7 @@ namespace EE::Animation::GraphNodes
         {
             PoseNode*                                       m_pInputNode = nullptr;
             FloatValueNode*                                 m_pWeightValueNode = nullptr;
+            FloatValueNode*                                 m_pRootMotionWeightValueNode = nullptr;
             BoneMaskValueNode*                              m_pBoneMaskValueNode = nullptr;
         };
 
@@ -66,9 +68,14 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
 
-        GraphPoseNodeResult UpdateLocalLayer( GraphContext& context, LayerSettings const& layerSettings, Layer const& layer );
-        GraphPoseNodeResult UpdateStateMachineLayer( GraphContext& context, LayerSettings const& layerSettings, Layer const& layer );
         void UpdateLayers( GraphContext& context, GraphPoseNodeResult& NodeResult );
+
+        // Debugging
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        #endif
 
     private:
 

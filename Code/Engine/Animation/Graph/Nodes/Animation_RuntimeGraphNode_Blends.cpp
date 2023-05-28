@@ -126,21 +126,21 @@ namespace EE::Animation::GraphNodes
             InitializeParameterization( context );
             SelectBlendRange( context );
             auto const& blendRange = GetParameterization().m_blendRanges[m_selectedRangeIdx];
-            auto Source0 = m_sourceNodes[blendRange.m_inputIdx0];
-            auto Source1 = m_sourceNodes[blendRange.m_inputIdx1];
-            EE_ASSERT( Source0 != nullptr && Source1 != nullptr );
+            auto source0 = m_sourceNodes[blendRange.m_inputIdx0];
+            auto source1 = m_sourceNodes[blendRange.m_inputIdx1];
+            EE_ASSERT( source0 != nullptr && source1 != nullptr );
 
             auto pSettings = GetSettings<RangedBlendNode>();
             if ( pSettings->m_isSynchronized )
             {
-                SyncTrack const& SyncTrackSource0 = Source0->GetSyncTrack();
-                SyncTrack const& SyncTrackSource1 = Source1->GetSyncTrack();
-                m_blendedSyncTrack = SyncTrack( SyncTrackSource0, SyncTrackSource1, m_blendWeight );
-                m_duration = SyncTrack::CalculateDurationSynchronized( Source0->GetDuration(), Source1->GetDuration(), SyncTrackSource0.GetNumEvents(), SyncTrackSource1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_blendWeight );
+                SyncTrack const& syncTrackSource0 = source0->GetSyncTrack();
+                SyncTrack const& syncTrackSource1 = source1->GetSyncTrack();
+                m_blendedSyncTrack = SyncTrack( syncTrackSource0, syncTrackSource1, m_blendWeight );
+                m_duration = SyncTrack::CalculateDurationSynchronized( source0->GetDuration(), source1->GetDuration(), syncTrackSource0.GetNumEvents(), syncTrackSource1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_blendWeight );
             }
             else
             {
-                m_duration = Math::Lerp( Source0->GetDuration(), Source1->GetDuration(), m_blendWeight );
+                m_duration = Math::Lerp( source0->GetDuration(), source1->GetDuration(), m_blendWeight );
             }
 
             m_previousTime = GetSyncTrack().GetPercentageThrough( initialTime );
@@ -396,6 +396,24 @@ namespace EE::Animation::GraphNodes
         return result;
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void ParameterizedBlendNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedRangeIdx );
+        outState.WriteValue( m_blendWeight );
+        outState.WriteValue( m_blendedSyncTrack );
+    }
+
+    void ParameterizedBlendNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        PoseNode::RestoreGraphState( inState );
+        inState.ReadValue( m_selectedRangeIdx );
+        inState.ReadValue( m_blendWeight );
+        inState.ReadValue( m_blendedSyncTrack );
+    }
+    #endif
+
     //-------------------------------------------------------------------------
 
     void RangedBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
@@ -442,4 +460,20 @@ namespace EE::Animation::GraphNodes
     {
         m_parameterization.Reset();
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void VelocityBlendNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        ParameterizedBlendNode::RecordGraphState( outState );
+        outState.WriteValue( m_parameterization );
+        outState.WriteValue( m_parameterizationInitialized );
+    }
+
+    void VelocityBlendNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        ParameterizedBlendNode::RestoreGraphState( inState );
+        inState.ReadValue( m_parameterization );
+        inState.ReadValue( m_parameterizationInitialized );
+    }
+    #endif
 }

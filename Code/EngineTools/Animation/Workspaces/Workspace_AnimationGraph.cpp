@@ -886,6 +886,7 @@ namespace EE::Animation
         }
         ImGuiX::ItemTooltip( "Find/Navigate" );
 
+        //-------------------------------------------------------------------------
 
         if ( IsLiveDebugging() )
         {
@@ -904,6 +905,11 @@ namespace EE::Animation
             }
             ImGui::EndDisabled();
         }
+
+        //-------------------------------------------------------------------------
+
+        ImGuiX::FlatToggleButton( EE_ICON_NUMERIC, EE_ICON_NUMERIC_OFF, m_userContext.m_showRuntimeIndices);
+        ImGuiX::ItemTooltip( "Show Runtime Node Indices" );
 
         //-------------------------------------------------------------------------
 
@@ -3517,7 +3523,7 @@ namespace EE::Animation
 
         auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
         m_controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        m_virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        m_virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
 
         RefreshParameterCategoryTree();
     }
@@ -4183,8 +4189,46 @@ namespace EE::Animation
         }
         else
         {
-            auto pParameter = pRootGraph->CreateNode<GraphNodes::VirtualParameterToolsNode>( valueType, finalParameterName, finalCategoryName );
-            m_virtualParameters.emplace_back( pParameter );
+            GraphNodes::VirtualParameterToolsNode* pVirtualParameter = nullptr;
+            switch ( valueType )
+            {
+                case GraphValueType::Bool:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::BoolVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                case GraphValueType::ID:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::IDVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                case GraphValueType::Int:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::IntVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                case GraphValueType::Float:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::FloatVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                case GraphValueType::Vector:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::VectorVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                case GraphValueType::Target:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::TargetVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                case GraphValueType::BoneMask:
+                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::TargetVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
+                break;
+
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+
+            EE_ASSERT( pVirtualParameter != nullptr );
+            m_virtualParameters.emplace_back( pVirtualParameter );
         }
 
         RefreshParameterCategoryTree();
@@ -4270,7 +4314,7 @@ namespace EE::Animation
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
         // Find and remove all reference nodes
-        auto const parameterReferences = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
+        auto const parameterReferences = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto const& pFoundParameterNode : parameterReferences )
         {
             if ( pFoundParameterNode->GetReferencedParameterID() == parameterID )

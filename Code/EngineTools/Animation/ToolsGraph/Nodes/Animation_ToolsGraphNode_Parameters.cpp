@@ -83,10 +83,120 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    VirtualParameterToolsNode::VirtualParameterToolsNode( GraphValueType type, String const& name, String const& categoryName )
+    BoolControlParameterToolsNode::BoolControlParameterToolsNode()
+        : ControlParameterToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Bool, true );
+    }
+
+    BoolControlParameterToolsNode::BoolControlParameterToolsNode( String const& name, String const& categoryName )
+        : ControlParameterToolsNode( name, categoryName )
+    {
+        CreateOutputPin( "Value", GraphValueType::Bool, true );
+    }
+
+    //-------------------------------------------------------------------------
+
+    FloatControlParameterToolsNode::FloatControlParameterToolsNode()
+        : ControlParameterToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Float, true );
+    }
+
+    FloatControlParameterToolsNode::FloatControlParameterToolsNode( String const& name, String const& categoryName )
+        : ControlParameterToolsNode( name, categoryName )
+    {
+        CreateOutputPin( "Value", GraphValueType::Float, true );
+    }
+
+    //-------------------------------------------------------------------------
+
+    IntControlParameterToolsNode::IntControlParameterToolsNode()
+        : ControlParameterToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Int, true );
+    }
+
+    IntControlParameterToolsNode::IntControlParameterToolsNode( String const& name, String const& categoryName )
+        : ControlParameterToolsNode( name, categoryName )
+    {
+        CreateOutputPin( "Value", GraphValueType::Int, true );
+    }
+
+    //-------------------------------------------------------------------------
+
+    IDControlParameterToolsNode::IDControlParameterToolsNode()
+        : ControlParameterToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::ID, true );
+    }
+
+    IDControlParameterToolsNode::IDControlParameterToolsNode( String const& name, String const& categoryName )
+        : ControlParameterToolsNode( name, categoryName )
+    {
+        CreateOutputPin( "Value", GraphValueType::ID, true );
+    }
+
+    //-------------------------------------------------------------------------
+
+    VectorControlParameterToolsNode::VectorControlParameterToolsNode()
+        : ControlParameterToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Vector, true );
+    }
+
+    VectorControlParameterToolsNode::VectorControlParameterToolsNode( String const& name, String const& categoryName )
+        : ControlParameterToolsNode( name, categoryName )
+    {
+        CreateOutputPin( "Value", GraphValueType::Vector, true );
+    }
+
+    //-------------------------------------------------------------------------
+
+    TargetControlParameterToolsNode::TargetControlParameterToolsNode()
+        : ControlParameterToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Target, true );
+    }
+
+    TargetControlParameterToolsNode::TargetControlParameterToolsNode( String const& name, String const& categoryName )
+        : ControlParameterToolsNode( name, categoryName )
+    {
+        CreateOutputPin( "Value", GraphValueType::Target, true );
+    }
+
+    void TargetControlParameterToolsNode::SetPreviewTargetTransform( Transform const& transform )
+    {
+        VisualGraph::ScopedNodeModification snm( this );
+        m_previewStartTransform = transform;
+    }
+
+    Target TargetControlParameterToolsNode::GetPreviewStartValue() const
+    {
+        Target target;
+
+        if ( m_isSet )
+        {
+            if ( m_isBoneID )
+            {
+                target = Target( m_previewStartBoneID );
+            }
+            else
+            {
+                target = Target( m_previewStartTransform );
+            }
+        }
+
+        return target;
+    }
+
+    //-------------------------------------------------------------------------
+    // Virtual Parameter
+    //-------------------------------------------------------------------------
+
+    VirtualParameterToolsNode::VirtualParameterToolsNode( String const& name, String const& categoryName )
         : m_name( name )
         , m_parameterCategory( categoryName )
-        , m_type( type )
     {
         EE_ASSERT( !m_name.empty() );
     }
@@ -95,16 +205,55 @@ namespace EE::Animation::GraphNodes
     {
         FlowToolsNode::Initialize( pParentGraph );
 
-        CreateOutputPin( "Value", m_type, true );
-
         auto pParameterGraph = EE::New<FlowGraph>( GraphType::ValueTree );
-        pParameterGraph->CreateNode<ResultToolsNode>( m_type );
+
+        switch ( GetValueType() )
+        {
+            case GraphValueType::Bool:
+            pParameterGraph->CreateNode<BoolResultToolsNode>();
+            break;
+
+            case GraphValueType::ID:
+            pParameterGraph->CreateNode<IDResultToolsNode>();
+            break;
+
+            case GraphValueType::Int:
+            pParameterGraph->CreateNode<IntResultToolsNode>();
+            break;
+
+            case GraphValueType::Float:
+            pParameterGraph->CreateNode<FloatResultToolsNode>();
+            break;
+
+            case GraphValueType::Vector:
+            pParameterGraph->CreateNode<VectorResultToolsNode>();
+            break;
+
+            case GraphValueType::Target:
+            pParameterGraph->CreateNode<TargetResultToolsNode>();
+            break;
+
+            case GraphValueType::BoneMask:
+            pParameterGraph->CreateNode<BoneMaskResultToolsNode>();
+            break;
+
+            case GraphValueType::Pose:
+            pParameterGraph->CreateNode<PoseResultToolsNode>();
+            break;
+
+            default:
+            {
+                EE_UNREACHABLE_CODE();
+            }
+            break;
+        }
+
         SetChildGraph( pParameterGraph );
     }
 
     int16_t VirtualParameterToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        auto const resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+        auto const resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         EE_ASSERT( resultNodes.size() == 1 );
 
         auto pConnectedNode = resultNodes[0]->GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -125,6 +274,8 @@ namespace EE::Animation::GraphNodes
     }
 
     //-------------------------------------------------------------------------
+    // Parameter Reference
+    //-------------------------------------------------------------------------
 
     ParameterReferenceToolsNode::ParameterReferenceToolsNode( VirtualParameterToolsNode* pParameter )
         : m_pParameter( pParameter )
@@ -138,12 +289,6 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( pParameter != nullptr );
         UpdateCachedParameterData();
-    }
-
-    void ParameterReferenceToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", m_pParameter->GetValueType(), true );
     }
 
     int16_t ParameterReferenceToolsNode::Compile( GraphCompilationContext& context ) const
@@ -241,6 +386,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( pParameter != nullptr );
         EE_ASSERT( IsOfType<ControlParameterToolsNode>( pParameter ) || IsOfType<VirtualParameterToolsNode>( pParameter ) );
+        EE_ASSERT( pParameter->GetValueType() == GetValueType() );
         m_pParameter = pParameter;
         UpdateCachedParameterData();
     }
@@ -286,47 +432,5 @@ namespace EE::Animation::GraphNodes
         return m_parameterCategory;
     }
 
-    //-------------------------------------------------------------------------
-
-    void BoolControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", GraphValueType::Bool, true );
-    }
-
-    void FloatControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", GraphValueType::Float, true );
-    }
-
-    void IntControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", GraphValueType::Int, true );
-    }
-
-    void IDControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", GraphValueType::ID, true );
-    }
-
-    void VectorControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", GraphValueType::Vector, true );
-    }
-
-    void TargetControlParameterToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-        CreateOutputPin( "Value", GraphValueType::Target, true );
-    }
-
-    void TargetControlParameterToolsNode::SetPreviewTargetTransform( Transform const& transform )
-    {
-        VisualGraph::ScopedNodeModification snm( this );
-        m_previewStartTransform = transform;
-    }
+    
 }

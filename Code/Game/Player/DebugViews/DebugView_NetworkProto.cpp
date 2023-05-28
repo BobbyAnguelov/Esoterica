@@ -1,5 +1,7 @@
 #include "DebugView_NetworkProto.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
+#include "Engine/Animation/DebugViews/DebugView_Animation.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -8,6 +10,7 @@
 #include "System/Imgui/ImguiX.h"
 #include "System/Math/MathStringHelpers.h"
 #include "System/Resource/ResourceSystem.h"
+#include "System/ThirdParty/implot/implot.h"
 
 //-------------------------------------------------------------------------
 
@@ -29,7 +32,7 @@ namespace EE::Player
 
     void NetworkProtoDebugView::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
     {
-        if ( VectorContains( usersToReload, Resource::ResourceRequesterID( m_playerGraphComponent->GetEntityID().m_value ) ) )
+        if ( VectorContains( usersToReload, Resource::ResourceRequesterID( m_pPlayerGraphComponent->GetEntityID().m_value ) ) )
         {
             ResetRecordingData();
         }
@@ -52,8 +55,8 @@ namespace EE::Player
                 auto pPlayerEntity = m_pWorld->GetPersistentMap()->FindEntity( m_pPlayerManager->GetPlayerEntityID() );
                 for ( auto pComponent : pPlayerEntity->GetComponents() )
                 {
-                    m_playerGraphComponent = TryCast<Animation::GraphComponent>( pComponent );
-                    if ( m_playerGraphComponent != nullptr )
+                    m_pPlayerGraphComponent = TryCast<Animation::GraphComponent>( pComponent );
+                    if ( m_pPlayerGraphComponent != nullptr )
                     {
                         break;
                     }
@@ -61,7 +64,7 @@ namespace EE::Player
             }
         }
 
-        if ( m_playerGraphComponent == nullptr )
+        if ( m_pPlayerGraphComponent == nullptr )
         {
             ResetRecordingData();
             return;
@@ -76,16 +79,20 @@ namespace EE::Player
             {
                 if ( ImGuiX::IconButton( EE_ICON_STOP, " Stop Recording", ImGuiX::ImColors::White ) )
                 {
-                    m_playerGraphComponent->GetDebugGraphInstance()->StopRecording();
+                    m_pPlayerGraphComponent->GetDebugGraphInstance()->StopRecording();
 
                     //-------------------------------------------------------------------------
 
-                    m_pActualInstance = EE::New<Animation::GraphInstance>( m_playerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 1 );
-                    m_pReplicatedInstance = EE::New<Animation::GraphInstance>( m_playerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 2 );
+                    m_pActualInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 1 );
+                    m_pReplicatedInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 2 );
+                    m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetSkeleton() );
+                    m_pGeneratedPose = EE::New<Animation::Pose>( m_pPlayerGraphComponent->GetSkeleton() );
 
                     ProcessRecording();
                     m_updateFrameIdx = 0;
                     m_isRecording = false;
+
+                    GenerateTaskSystemPose();
                 }
             }
             else
@@ -93,7 +100,7 @@ namespace EE::Player
                 if ( ImGuiX::IconButton( EE_ICON_RECORD, " Start Recording", ImGuiX::ImColors::Red ) )
                 {
                     ResetRecordingData();
-                    m_playerGraphComponent->GetDebugGraphInstance()->StartRecording( &m_graphRecorder );
+                    m_pPlayerGraphComponent->GetDebugGraphInstance()->StartRecording( &m_graphRecorder );
                     m_isRecording = true;
                 }
             }
@@ -109,7 +116,7 @@ namespace EE::Player
                 ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x - 200 );
                 if ( ImGui::SliderInt( "##timeline", &m_updateFrameIdx, 0, m_graphRecorder.GetNumRecordedFrames() - 1 ) )
                 {
-                    // Do Nothing
+                    GenerateTaskSystemPose();
                 }
 
                 // Join in progress
@@ -121,22 +128,54 @@ namespace EE::Player
                 }
                 ImGui::EndDisabled();
 
+                // Size graph
+                //-------------------------------------------------------------------------
+
+                if ( !m_isRecording )
+                {
+                    if ( ImPlot::BeginPlot( "Recorded Task Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                    {
+                        ImPlot::SetupAxes( "Time", "Size", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel );
+                        ImPlot::PlotBars( "Vertical", m_serializedTaskSizes.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            m_updateFrameIdx = Math::Clamp( (int32_t) x, 0, m_graphRecorder.GetNumRecordedFrames() - 1 );
+                            GenerateTaskSystemPose();
+                        }
+                        ImPlot::EndPlot();
+                    }
+                }
+
+                // Draw frame data info
                 //-------------------------------------------------------------------------
 
                 if ( m_updateFrameIdx != InvalidIndex )
                 {
-                    // Draw sync range
+                    auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
+
+                    InlineString str( InlineString::CtorSprintf(), "Frame: %d", m_updateFrameIdx );
+                    ImGuiX::TextSeparator( str.c_str() );
+
                     //-------------------------------------------------------------------------
 
-                    auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
                     ImGui::Text( "Sync Range: ( %d, %.2f%% ) -> (%d, %.2f%%)", frameData.m_updateRange.m_startTime.m_eventIdx, frameData.m_updateRange.m_startTime.m_percentageThrough.ToFloat(), frameData.m_updateRange.m_endTime.m_eventIdx, frameData.m_updateRange.m_endTime.m_percentageThrough.ToFloat() );
 
-                    // Draw Control Parameters
-                    //-------------------------------------------------------------------------
+                    ImGui::Text( "Serialized Task Size: %d bytes", frameData.m_serializedTaskData.size() );
 
-                    if ( ImGui::CollapsingHeader( "Parameters" ) )
+                    if ( ImGui::BeginTable( "RecData", 2, ImGuiTableFlags_BordersInner ) )
                     {
-                        if ( ImGui::BeginTable( "Params", 2, ImGuiTableFlags_BordersInner | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable ) )
+                        ImGui::TableSetupColumn( "Parameters", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+                        ImGui::TableSetupColumn( "Tasks", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+                        ImGui::TableHeadersRow();
+
+                        // Draw Control Parameters
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+
+                        if ( ImGui::BeginTable( "Params", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable ) )
                         {
                             ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 300.0f );
                             ImGui::TableSetupColumn( "Value", ImGuiTableColumnFlags_WidthStretch );
@@ -216,6 +255,14 @@ namespace EE::Player
 
                             ImGui::EndTable();
                         }
+
+                        // Draw task list
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextColumn();
+                        Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pTaskSystem );
+
+                        ImGui::EndTable();
                     }
                 }
             }
@@ -230,6 +277,11 @@ namespace EE::Player
                 auto drawContext = context.GetDrawingContext();
                 m_actualPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::LimeGreen, 4.0f );
                 m_replicatedPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::HotPink, 4.0f );
+
+                if ( m_pGeneratedPose != nullptr )
+                {
+                    m_pGeneratedPose->DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::Orange, 4.0f );
+                }
             }
         }
         ImGui::End();
@@ -242,14 +294,31 @@ namespace EE::Player
         m_updateFrameIdx = InvalidIndex;
         EE::Delete( m_pActualInstance );
         EE::Delete( m_pReplicatedInstance );
+        EE::Delete( m_pTaskSystem );
+        EE::Delete( m_pGeneratedPose );
         m_actualPoses.clear();
         m_replicatedPoses.clear();
+        m_serializedTaskSizes.clear();
     }
 
     void NetworkProtoDebugView::ProcessRecording( int32_t simulatedJoinInProgressFrame )
     {
         m_actualPoses.clear();
         m_replicatedPoses.clear();
+
+        // Serialized tasks
+        //-------------------------------------------------------------------------
+
+        m_minSerializedTaskDataSize = FLT_MAX;
+        m_maxSerializedTaskDataSize = -FLT_MAX;
+
+        for ( auto const& frameData : m_graphRecorder.m_recordedData )
+        {
+            float const size = (float) frameData.m_serializedTaskData.size();
+            m_minSerializedTaskDataSize = Math::Min( m_minSerializedTaskDataSize, size );
+            m_maxSerializedTaskDataSize = Math::Max( m_maxSerializedTaskDataSize, size );
+            m_serializedTaskSizes.emplace_back( size );
+        }
 
         // Actual recording
         //-------------------------------------------------------------------------
@@ -311,6 +380,24 @@ namespace EE::Player
             auto& pose = m_replicatedPoses.emplace_back( Animation::Pose( m_pReplicatedInstance->GetPose()->GetSkeleton() ) );
             pose.CopyFrom( *m_pReplicatedInstance->GetPose() );
         }
+    }
+
+    void NetworkProtoDebugView::GenerateTaskSystemPose()
+    {
+        EE_ASSERT( m_pTaskSystem != nullptr && m_pGeneratedPose != nullptr );
+        EE_ASSERT( m_graphRecorder.HasRecordedData() && !m_isRecording );
+        EE_ASSERT( m_updateFrameIdx != InvalidIndex );
+
+        auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
+
+        TInlineVector<Animation::ResourceLUT const*, 10> LUTs;
+        m_pPlayerGraphComponent->GetDebugGraphInstance()->GetResourceLookupTables( LUTs );
+
+        m_pTaskSystem->Reset();
+        m_pTaskSystem->DeserializeTasks( LUTs, frameData.m_serializedTaskData );
+        m_pTaskSystem->UpdatePrePhysics( frameData.m_deltaTime, frameData.m_characterWorldTransform, frameData.m_characterWorldTransform.GetInverse() );
+        m_pTaskSystem->UpdatePostPhysics();
+        m_pGeneratedPose->CopyFrom( m_pTaskSystem->GetPose() );
     }
 }
 #endif

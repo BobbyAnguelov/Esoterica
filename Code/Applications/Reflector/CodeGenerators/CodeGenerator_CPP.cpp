@@ -4,7 +4,7 @@
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "System/TypeSystem/TypeID.h"
 #include "System/FileSystem/FileSystemUtils.h"
-#include "System/Algorithm/TopologicalSort.h"
+#include "System/Utils/TopologicalSort.h"
 
 #include <eastl/sort.h>
 #include <fstream>

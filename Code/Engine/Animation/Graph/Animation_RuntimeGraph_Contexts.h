@@ -14,12 +14,14 @@ namespace EE::Physics { class PhysicsWorld; }
 
 namespace EE::Animation
 {
+    class Skeleton;
     class RootMotionDebugger;
     class TaskSystem;
     class Pose;
     class GraphNode;
     class GraphDataSet;
     class GraphInstance;
+    struct BoneMaskTaskList;
 
     //-------------------------------------------------------------------------
 
@@ -127,27 +129,31 @@ namespace EE::Animation
         {
             m_isCurrentlyInLayer = true;
             m_layerWeight = 1.0f;
-            m_pLayerMask = nullptr;
+            m_rootMotionLayerWeight = 1.0f;
+            m_layerMaskTaskList.Reset();
         }
 
         EE_FORCE_INLINE void ResetLayer()
         {
             EE_ASSERT( m_isCurrentlyInLayer );
             m_layerWeight = 1.0f;
-            m_pLayerMask = nullptr;
+            m_rootMotionLayerWeight = 1.0f;
+            m_layerMaskTaskList.Reset();
         }
 
         EE_FORCE_INLINE void EndLayer()
         {
             m_isCurrentlyInLayer = false;
             m_layerWeight = 0.0f;
-            m_pLayerMask = nullptr;
+            m_rootMotionLayerWeight = 0.0f;
+            m_layerMaskTaskList.Reset();
         }
 
     public:
 
-        BoneMask*                               m_pLayerMask = nullptr;
+        BoneMaskTaskList                        m_layerMaskTaskList;
         float                                   m_layerWeight = 0.0f;
+        float                                   m_rootMotionLayerWeight = 0.0f;
         bool                                    m_isCurrentlyInLayer = false;
     };
 
@@ -214,7 +220,6 @@ namespace EE::Animation
         uint64_t                                m_graphUserID = 0; // The entity ID that owns this graph.
         Skeleton const*                         m_pSkeleton = nullptr;
         SampledEventsBuffer                     m_sampledEventsBuffer;
-        BoneMaskPool                            m_boneMaskPool;
 
         // Set at initialization time
         TaskSystem*                             m_pTaskSystem = nullptr;

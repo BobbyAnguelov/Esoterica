@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatRemapToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Remap"; }
@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatClampToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Clamp"; }
@@ -57,7 +57,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatAbsToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Abs"; }
@@ -74,7 +74,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatEaseToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Ease"; }
@@ -99,7 +99,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatCurveToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Curve"; }
@@ -120,7 +120,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatMathToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Math"; }
@@ -144,7 +144,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatComparisonToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Float Comparison"; }
@@ -168,7 +168,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatRangeComparisonToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Float Range Check"; }
@@ -191,7 +191,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatSwitchToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Float Switch"; }
@@ -208,7 +208,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        FloatAngleMathToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Angle Math"; }

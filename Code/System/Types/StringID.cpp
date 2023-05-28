@@ -1,6 +1,6 @@
 #include "StringID.h"
 #include "System/Memory/Memory.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 #include "System/Threading/Threading.h"
 #include "String.h"
 #include "EASTL/hash_map.h"

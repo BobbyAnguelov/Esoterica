@@ -206,14 +206,20 @@ namespace EE::VisualGraph
 
     void BaseNode::BeginModification()
     {
-        // Gets forwarded to the parent graph since all nodes have parent graph
-        m_pParentGraph->BeginModification();
+        // Parent graphs should only be null during construction
+        if ( m_pParentGraph )
+        {
+            m_pParentGraph->BeginModification();
+        }
     }
 
     void BaseNode::EndModification()
     {
-        // Gets forwarded to the parent graph since all nodes have parent graph
-        m_pParentGraph->EndModification();
+        // Parent graphs should only be null during construction
+        if ( m_pParentGraph )
+        {
+            m_pParentGraph->EndModification();
+        }
     }
 
     void BaseNode::SetCanvasPosition( Float2 const& newPosition )

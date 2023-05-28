@@ -58,7 +58,9 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash ) << skeleton;
+        archive << Resource::ResourceHeader( s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        archive << skeleton;
+        archive << resourceDescriptor.m_boneMaskDefinitions;
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {

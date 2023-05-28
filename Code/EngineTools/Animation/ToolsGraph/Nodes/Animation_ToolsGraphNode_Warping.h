@@ -21,7 +21,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        OrientationWarpToolsNode();
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        TargetWarpToolsNode();
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }

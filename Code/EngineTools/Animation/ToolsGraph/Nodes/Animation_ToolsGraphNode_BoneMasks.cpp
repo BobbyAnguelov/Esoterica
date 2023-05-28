@@ -1,14 +1,15 @@
 #include "Animation_ToolsGraphNode_BoneMasks.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_BoneMasks.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    void BoneMaskToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    BoneMaskToolsNode::BoneMaskToolsNode()
+        : FlowToolsNode()
     {
-        DataSlotToolsNode::Initialize( pParent );
         CreateOutputPin( "Bone Mask", GraphValueType::BoneMask, true );
     }
 
@@ -18,23 +19,41 @@ namespace EE::Animation::GraphNodes
         NodeCompilationState const state = context.GetSettings<BoneMaskNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_rootMotionWeight = m_rootMotionWeight;
-            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            if ( !m_maskID.IsValid() )
+            {
+                context.LogError( this, "Invalid Bone Mask ID" );
+                return InvalidIndex;
+            }
+
+            pSettings->m_boneMaskID = m_maskID;
         }
 
         return pSettings->m_nodeIdx;
     }
 
-    ResourceTypeID BoneMaskToolsNode::GetSlotResourceTypeID() const
+    void BoneMaskToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        return BoneMaskDefinition::GetStaticResourceTypeID();
+        DrawInternalSeparator( ctx );
+
+        ImGui::Text( "Mask ID: %s", m_maskID.IsValid() ? m_maskID.c_str() : "NONE");
+    }
+
+    void BoneMaskToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        Variation const* pSelectedVariation = pGraphNodeContext->m_pVariationHierarchy->GetVariation( pGraphNodeContext->m_selectedVariationID );
+
+        if ( pSelectedVariation->m_skeleton.GetResourceID().IsValid() )
+        {
+            pUserContext->RequestOpenResource( pSelectedVariation->m_skeleton.GetResourceID() );
+        }
     }
 
     //-------------------------------------------------------------------------
 
-    void BoneMaskBlendToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    BoneMaskBlendToolsNode::BoneMaskBlendToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::BoneMask, true );
         CreateInputPin( "Blend Weight", GraphValueType::Float );
         CreateInputPin( "Source", GraphValueType::BoneMask );
@@ -114,9 +133,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void BoneMaskSelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    BoneMaskSelectorToolsNode::BoneMaskSelectorToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::BoneMask, true );
         CreateInputPin( "Parameter", GraphValueType::ID );
         CreateInputPin( "Default Mask", GraphValueType::BoneMask );
@@ -177,6 +196,7 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             int32_t const numInputs = GetNumInputPins();
+            int32_t const numDynamicOptions = numInputs - 2;
 
             for ( auto i = 2; i < numInputs; i++ )
             {
@@ -200,15 +220,30 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
+            // Set parameter values
+            //-------------------------------------------------------------------------
+
+            if ( m_parameterValues.size() > numDynamicOptions )
+            {
+                context.LogWarning( "More parameters set than we have options, extra parameters will be ignored!" );
+            }
+            pSettings->m_parameterValues.clear();
+            pSettings->m_parameterValues.insert( pSettings->m_parameterValues.begin(), m_parameterValues.begin(), m_parameterValues.begin() + numDynamicOptions );
+
             //-------------------------------------------------------------------------
 
             pSettings->m_switchDynamically = m_switchDynamically;
             pSettings->m_blendTime = m_blendTime;
-
-            pSettings->m_parameterValues.clear();
-            pSettings->m_parameterValues.insert( pSettings->m_parameterValues.begin(), m_parameterValues.begin(), m_parameterValues.end() );
         }
 
         return pSettings->m_nodeIdx;
+    }
+
+    TInlineString<100> BoneMaskSelectorToolsNode::GetNewDynamicInputPinName() const
+    {
+        int32_t const numOptions = GetNumInputPins();
+        TInlineString<100> pinName;
+        pinName.sprintf( "Mask %d", numOptions - 3 );
+        return pinName;
     }
 }

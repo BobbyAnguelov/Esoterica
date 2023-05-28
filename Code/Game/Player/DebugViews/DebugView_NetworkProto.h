@@ -12,6 +12,7 @@ namespace EE::Animation
 {
     class GraphComponent;
     class GraphInstance;
+    class TaskSystem;
 }
 
 //-------------------------------------------------------------------------
@@ -35,9 +36,9 @@ namespace EE::Player
 
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override;
 
-        // HACK
         void ProcessRecording( int32_t simulatedJoinInProgressFrame = -1 );
         void ResetRecordingData();
+        void GenerateTaskSystemPose();
 
     private:
 
@@ -47,12 +48,17 @@ namespace EE::Player
         bool                                        m_isCharacterControllerDebugWindowOpen = true;
 
         // HACK
-        Animation::GraphComponent*                  m_playerGraphComponent = nullptr;
+        Animation::GraphComponent*                  m_pPlayerGraphComponent = nullptr;
         Animation::GraphRecorder                    m_graphRecorder;
         int32_t                                     m_updateFrameIdx = InvalidIndex;
         bool                                        m_isRecording = false;
+        TVector<float>                              m_serializedTaskSizes;
+        float                                       m_minSerializedTaskDataSize;
+        float                                       m_maxSerializedTaskDataSize;
         Animation::GraphInstance*                   m_pActualInstance = nullptr;
         Animation::GraphInstance*                   m_pReplicatedInstance = nullptr;
+        Animation::TaskSystem*                      m_pTaskSystem = nullptr;
+        Animation::Pose*                            m_pGeneratedPose = nullptr;
         TVector<Animation::Pose>                    m_actualPoses;
         TVector<Animation::Pose>                    m_replicatedPoses;
         // END HACK

@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void VectorInfoToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    VectorInfoToolsNode::VectorInfoToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Vector", GraphValueType::Vector );
     }
@@ -46,9 +46,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VectorCreateToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    VectorCreateToolsNode::VectorCreateToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Vector, true );
         CreateInputPin( "Vector", GraphValueType::Vector );
         CreateInputPin( "X", GraphValueType::Float );
@@ -123,9 +123,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VectorNegateToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    VectorNegateToolsNode::VectorNegateToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Vector, true );
         CreateInputPin( "Vector", GraphValueType::Vector );
     }

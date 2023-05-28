@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        TransitionToolsNode();
 
         virtual bool IsRenameable() const override { return true; }
         virtual void SetName( String const& newName ) override;

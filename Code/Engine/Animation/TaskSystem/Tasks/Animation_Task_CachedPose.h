@@ -8,10 +8,13 @@ namespace EE::Animation::Tasks
 {
     class CachedPoseWriteTask : public Task
     {
+        EE_ANIMATION_TASK( CachedPoseWriteTask );
+
     public:
 
         CachedPoseWriteTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, UUID cachedPoseID );
         virtual void Execute( TaskContext const& context ) override;
+        virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return String( "Write Cached Pose" ); }
@@ -27,11 +30,13 @@ namespace EE::Animation::Tasks
 
     class CachedPoseReadTask : public Task
     {
+        EE_ANIMATION_TASK( CachedPoseReadTask );
 
     public:
 
         CachedPoseReadTask( TaskSourceID sourceID, UUID cachedPoseID );
         virtual void Execute( TaskContext const& context ) override;
+        virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return String( "Read Cached Pose" ); }

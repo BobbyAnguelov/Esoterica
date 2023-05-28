@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 
 #if !EE_DEVELOPMENT_TOOLS
 #define USE_OPTICK 0

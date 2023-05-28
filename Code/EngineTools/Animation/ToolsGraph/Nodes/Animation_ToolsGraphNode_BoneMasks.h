@@ -6,35 +6,25 @@
 
 namespace EE::Animation::GraphNodes
 {
-    class BoneMaskToolsNode final : public DataSlotToolsNode
+    class BoneMaskToolsNode final : public FlowToolsNode
     {
         EE_REFLECT_TYPE( BoneMaskToolsNode );
 
-        // TEMP: until we have a better editor
-        struct ToolsBoneWeight : public IReflectedType
-        {
-            EE_REFLECT_TYPE( ToolsBoneWeight )
-
-            StringID        m_boneID;
-            float           m_weight;
-        };
-
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        BoneMaskToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-
-        virtual char const* GetDefaultSlotName() const override { return "Bone Mask"; }
-        virtual ResourceTypeID GetSlotResourceTypeID() const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
 
     private:
 
-        EE_REFLECT() float                                m_rootMotionWeight = 1.0f;
+        EE_REFLECT() StringID                               m_maskID;
     };
 
     //-------------------------------------------------------------------------
@@ -45,7 +35,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        BoneMaskBlendToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask Blend"; }
@@ -62,15 +52,15 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        BoneMaskSelectorToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask Selector"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::BlendTree ); }
 
-        virtual bool SupportsDynamicInputPins() const override { return true; }
-        virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Mask"; }
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::BoneMask; }
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

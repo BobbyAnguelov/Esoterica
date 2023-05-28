@@ -27,12 +27,18 @@ namespace EE::Animation
 
     public:
 
-        EE_REFLECT() ResourcePath                             m_skeletonPath;
+        EE_REFLECT();
+        ResourcePath                                m_skeletonPath;
 
         // Optional value that specifies the name of the skeleton hierarchy to use, if it is unset, we use the first skeleton we find
-        EE_REFLECT() String                                   m_skeletonRootBoneName;
+        EE_REFLECT();
+        String                                      m_skeletonRootBoneName;
 
         // Editor-only preview mesh
-        EE_REFLECT() TResourcePtr<Render::SkeletalMesh>       m_previewMesh;
+        EE_REFLECT();
+        TResourcePtr<Render::SkeletalMesh>          m_previewMesh;
+
+        EE_REFLECT();
+        TVector<BoneMaskDefinition>                 m_boneMaskDefinitions;
     };
 }

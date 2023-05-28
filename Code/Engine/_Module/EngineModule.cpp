@@ -325,7 +325,6 @@ namespace EE
         m_graphLoader.SetTypeRegistryPtr( &m_typeRegistry );
 
         m_resourceSystem.RegisterResourceLoader( &m_skeletonLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_boneMaskLoader );
         m_resourceSystem.RegisterResourceLoader( &m_animationClipLoader );
         m_resourceSystem.RegisterResourceLoader( &m_graphLoader );
 
@@ -370,7 +369,6 @@ namespace EE
 
         m_resourceSystem.UnregisterResourceLoader( &m_animationClipLoader );
         m_resourceSystem.UnregisterResourceLoader( &m_graphLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_boneMaskLoader );
         m_resourceSystem.UnregisterResourceLoader( &m_skeletonLoader );
 
         m_animationClipLoader.ClearTypeRegistryPtr();

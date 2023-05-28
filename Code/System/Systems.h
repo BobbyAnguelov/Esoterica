@@ -1,7 +1,7 @@
 #pragma once
 
 #include "System/_Module/API.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 #include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------

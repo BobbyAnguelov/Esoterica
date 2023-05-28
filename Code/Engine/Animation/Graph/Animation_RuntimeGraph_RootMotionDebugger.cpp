@@ -69,11 +69,21 @@ namespace EE::Animation
         }
     }
 
+    void RootMotionDebugger::RollbackToActionIndexMarker( int32_t const marker )
+    {
+        EE_ASSERT( marker >= 0 && marker <= m_recordedActions.size() );
+
+        for ( int16_t t = (int16_t) m_recordedActions.size() - 1; t >= marker; t-- )
+        {
+            m_recordedActions.erase( m_recordedActions.begin() + t );
+        }
+    }
+
     void RootMotionDebugger::DrawDebug( Drawing::DrawContext& drawingContext )
     {
         if ( m_debugMode == RootMotionDebugMode::DrawRoot )
         {
-            DrawRootBone( drawingContext, m_endWorldTransform );
+            Skeleton::DrawRootBone( drawingContext, m_endWorldTransform );
         }
         else if ( m_debugMode == RootMotionDebugMode::DrawRecordedRootMotion || m_debugMode == RootMotionDebugMode::DrawRecordedRootMotionAdvanced )
         {

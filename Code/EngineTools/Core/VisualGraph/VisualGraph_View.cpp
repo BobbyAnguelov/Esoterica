@@ -1836,7 +1836,7 @@ namespace EE::VisualGraph
             if ( !m_isReadOnly )
             {
                 // Dynamic Pins
-                if ( pFlowNode->SupportsDynamicInputPins() )
+                if ( pFlowNode->SupportsUserEditableDynamicInputPins() )
                 {
                     if ( ImGui::MenuItem( EE_ICON_PLUS_CIRCLE_OUTLINE" Add Input" ) )
                     {

@@ -76,14 +76,20 @@ namespace EE::Animation
         inline ResourceID const& GetResourceID() const { return m_pGraphVariation->GetResourceID(); }
         inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
 
+        // Returns the list of all resource LUTs used by this instance: the graph def + all connected external graphs
+        void GetResourceLookupTables( TInlineVector<ResourceLUT const*, 10>& outLUTs ) const;
+
         // Pose
         //-------------------------------------------------------------------------
 
         // Get the final pose from the task system
         Pose const* GetPose();
 
-        // Does the task system has unexecuted pose tasks
+        // Does the task system have any pending pose tasks
         bool DoesTaskSystemNeedUpdate() const;
+
+        // Serialize the currently registered pose tasks. Note: This can only be done after the task system has executed!
+        void SerializeTaskList( Blob& outBlob ) const;
 
         // Graph State
         //-------------------------------------------------------------------------
@@ -269,6 +275,9 @@ namespace EE::Animation
         // Get the runtime log for this graph instance
         TVector<GraphLogEntry> const& GetLog() const { return m_log; }
 
+        // Log any errors/warnings occurring from the graph update!
+        void OutputLog();
+
         // Draw graph debug visualizations
         void DrawDebug( Drawing::DrawContext& drawContext );
         #endif
@@ -321,6 +330,9 @@ namespace EE::Animation
 
         // Directly set the update range for this update
         void RecordPostGraphEvaluateState( SyncTrackTimeRange const& range );
+
+        // Record all the registered tasks for this update
+        void RecordTasks();
         #endif
 
     private:
@@ -342,6 +354,7 @@ namespace EE::Animation
         RootMotionDebugger                      m_rootMotionDebugger; // Allows nodes to record root motion operations
         TVector<int16_t>                        m_debugFilterNodes; // The list of nodes that are allowed to debug draw (if this is empty all nodes will draw)
         TVector<GraphLogEntry>                  m_log;
+        int32_t                                 m_lastOutputtedLogItemIdx = 0;
         GraphRecorder*                          m_pRecorder = nullptr;
         #endif
     };

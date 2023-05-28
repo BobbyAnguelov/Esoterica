@@ -12,7 +12,6 @@
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationSkeleton.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationClip.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationGraph.h"
-#include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationBoneMask.h"
 #include "Engine/Navmesh/ResourceLoaders/ResourceLoader_Navmesh.h"
 #include "Engine/Render/RendererRegistry.h"
 #include "Engine/Render/Renderers/WorldRenderer.h"
@@ -114,7 +113,6 @@ namespace EE
 
         // Animation
         Animation::SkeletonLoader                       m_skeletonLoader;
-        Animation::BoneMaskLoader                       m_boneMaskLoader;
         Animation::AnimationClipLoader                  m_animationClipLoader;
         Animation::GraphLoader                          m_graphLoader;
 

@@ -9,9 +9,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void PoweredRagdollToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    PoweredRagdollToolsNode::PoweredRagdollToolsNode()
+        : DataSlotToolsNode()
     {
-        DataSlotToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Physics Blend Weight", GraphValueType::Float );
@@ -120,10 +120,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void SimulatedRagdollToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    SimulatedRagdollToolsNode::SimulatedRagdollToolsNode()
+        : DataSlotToolsNode()
     {
-        DataSlotToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Exit Option", GraphValueType::Pose );

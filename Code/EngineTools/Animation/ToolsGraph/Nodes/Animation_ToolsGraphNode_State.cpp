@@ -9,10 +9,11 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void StateLayerDataToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    StateLayerDataToolsNode::StateLayerDataToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateInputPin( "Layer Weight", GraphValueType::Float );
+        CreateInputPin( "Root Motion Weight", GraphValueType::Float );
         CreateInputPin( "Layer Mask", GraphValueType::BoneMask );
     }
 
@@ -23,7 +24,7 @@ namespace EE::Animation::GraphNodes
         VisualGraph::SM::State::Initialize( pParent );
 
         auto pBlendTree = EE::New<FlowGraph>( GraphType::BlendTree );
-        pBlendTree->CreateNode<ResultToolsNode>( GraphValueType::Pose );
+        pBlendTree->CreateNode<PoseResultToolsNode>();
         SetChildGraph( pBlendTree );
 
         auto pValueTree = EE::New<FlowGraph>( GraphType::ValueTree );
@@ -35,7 +36,7 @@ namespace EE::Animation::GraphNodes
         {
             auto pStateMachineNode = pBlendTree->CreateNode<StateMachineToolsNode>();
             
-            auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+            auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
             EE_ASSERT( resultNodes.size() == 1 );
             auto pBlendTreeResultNode = resultNodes[0];
 
@@ -312,6 +313,30 @@ namespace EE::Animation::GraphNodes
                 DrawPoseNodeDebugInfo( ctx, GetWidth(), debugInfo );
                 shouldDrawEmptyDebugInfoBlock = false;
             }
+
+            //-------------------------------------------------------------------------
+
+            if ( pGraphNodeContext->m_showRuntimeIndices && runtimeNodeIdx != InvalidIndex )
+            {
+                InlineString const idxStr( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
+                ImVec2 const textSize = ImGui::CalcTextSize( idxStr.c_str() );
+
+                //-------------------------------------------------------------------------
+
+                ImGuiStyle const& style = ImGui::GetStyle();
+                constexpr static float const verticalOffset = 10;
+                float const bubbleHeight = ImGui::GetFrameHeightWithSpacing();
+                float const bubbleWidth = textSize.x + 12;
+
+                ImVec2 const startRect( GetCanvasPosition().m_x, GetCanvasPosition().m_y - bubbleHeight - verticalOffset );
+                ImVec2 const endRect( startRect.x + bubbleWidth, startRect.y + bubbleHeight );
+                ImVec2 const canvasStartRect = ctx.CanvasPositionToScreenPosition( startRect );
+
+                ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), ImGuiX::ImColors::MediumRed, 3 );
+
+                auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+                ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), ImGuiX::ImColors::White, idxStr.c_str() );
+            }
         }
 
         if ( shouldDrawEmptyDebugInfoBlock )
@@ -365,7 +390,7 @@ namespace EE::Animation::GraphNodes
             return false;
         }
 
-        auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+        auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         if ( resultNodes.size() != 1 )
         {
             return false;

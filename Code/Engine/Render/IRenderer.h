@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "System/Esoterica.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 #include "System/Time/Time.h"
 #include "System/Types/UUID.h"
 

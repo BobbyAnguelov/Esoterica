@@ -21,7 +21,7 @@ namespace EE::Animation
     class AnimationClip;
     class GraphDataSet;
     class GraphContext;
-    class BoneMask;
+    struct BoneMaskTaskList;
 
     //-------------------------------------------------------------------------
 
@@ -244,7 +244,7 @@ namespace EE::Animation
     template<> struct ValueTypeValidation<float> { static GraphValueType const Type = GraphValueType::Float; };
     template<> struct ValueTypeValidation<Vector> { static GraphValueType const Type = GraphValueType::Vector; };
     template<> struct ValueTypeValidation<Target> { static GraphValueType const Type = GraphValueType::Target; };
-    template<> struct ValueTypeValidation<BoneMask const*> { static GraphValueType const Type = GraphValueType::BoneMask; };
+    template<> struct ValueTypeValidation<BoneMaskTaskList const*> { static GraphValueType const Type = GraphValueType::BoneMask; };
 
     //-------------------------------------------------------------------------
 

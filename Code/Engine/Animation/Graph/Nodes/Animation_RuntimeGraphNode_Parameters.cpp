@@ -450,9 +450,9 @@ namespace EE::Animation::GraphNodes
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
-            m_value = *m_pChildNode->GetValue<BoneMask const*>( context );
+            m_value = *m_pChildNode->GetValue<BoneMaskTaskList const*>( context );
         }
 
-        *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_value;
+        *reinterpret_cast<BoneMaskTaskList const**>( pOutValue ) = &m_value;
     }
 }

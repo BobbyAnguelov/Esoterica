@@ -296,13 +296,13 @@
     <ClCompile Include="Threading\Platform\Threading_Win32.cpp">
       <Filter>Threading\Platform</Filter>
     </ClCompile>
-    <ClCompile Include="Algorithm\Hash.cpp">
+    <ClCompile Include="Encoding\Hash.cpp">
       <Filter>Algorithm</Filter>
     </ClCompile>
-    <ClCompile Include="Algorithm\TopologicalSort.cpp">
+    <ClCompile Include="Utils\TopologicalSort.cpp">
       <Filter>Algorithm</Filter>
     </ClCompile>
-    <ClCompile Include="Algorithm\Encoding.cpp">
+    <ClCompile Include="Encoding\Encoding.cpp">
       <Filter>Algorithm</Filter>
     </ClCompile>
     <ClCompile Include="FileSystem\FileSystemPath.cpp">
@@ -357,6 +357,10 @@
       <Filter>Serialization</Filter>
     </ClCompile>
     <ClCompile Include="TypeSystem\ReflectedType.cpp" />
+    <ClCompile Include="Math\Platform\Math_Win32.h" />
+    <ClCompile Include="ThirdParty\implot\implot.cpp" />
+    <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
+    <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Imgui\ImguiGizmo.h">
@@ -1708,16 +1712,16 @@
     <ClInclude Include="Threading\Threading.h">
       <Filter>Threading</Filter>
     </ClInclude>
-    <ClInclude Include="Algorithm\Hash.h">
+    <ClInclude Include="Encoding\Hash.h">
       <Filter>Algorithm</Filter>
     </ClInclude>
-    <ClInclude Include="Algorithm\Quantization.h">
+    <ClInclude Include="Encoding\Quantization.h">
       <Filter>Algorithm</Filter>
     </ClInclude>
-    <ClInclude Include="Algorithm\TopologicalSort.h">
+    <ClInclude Include="Utils\TopologicalSort.h">
       <Filter>Algorithm</Filter>
     </ClInclude>
-    <ClInclude Include="Algorithm\Encoding.h">
+    <ClInclude Include="Encoding\Encoding.h">
       <Filter>Algorithm</Filter>
     </ClInclude>
     <ClInclude Include="FileSystem\FileSystemUtils.h">
@@ -1775,6 +1779,10 @@
       <Filter>Serialization</Filter>
     </ClInclude>
     <ClInclude Include="TypeSystem\ReflectedType.h" />
+    <ClInclude Include="Utils\GlobalRegistryBase.h" />
+    <ClInclude Include="ThirdParty\implot\implot.h" />
+    <ClInclude Include="ThirdParty\implot\implot_internal.h" />
+    <ClInclude Include="Serialization\BitSerialization.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\cmdParser\LICENSE">

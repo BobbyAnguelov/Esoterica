@@ -132,13 +132,13 @@ namespace EE::Animation
 
     private:
 
-        EE_REFLECT() TResourcePtr<GraphVariation>                  m_pGraphVariation = nullptr;
+        EE_REFLECT() TResourcePtr<GraphVariation>               m_pGraphVariation = nullptr;
 
         GraphInstance*                                          m_pGraphInstance = nullptr;
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
-        EE_REFLECT() bool                                          m_requiresManualUpdate = false;  // Does this component require a manual update via a custom entity system?
-        EE_REFLECT() bool                                          m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+        EE_REFLECT() bool                                       m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
+        EE_REFLECT() bool                                       m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
         bool                                                    m_graphStateResetRequested = false;
     };
 }

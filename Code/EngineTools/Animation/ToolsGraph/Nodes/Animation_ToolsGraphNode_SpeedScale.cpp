@@ -6,9 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void SpeedScaleToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    SpeedScaleToolsNode::SpeedScaleToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Scale", GraphValueType::Float );
@@ -70,9 +70,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VelocityBasedSpeedScaleToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    VelocityBasedSpeedScaleToolsNode::VelocityBasedSpeedScaleToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Desired Velocity", GraphValueType::Float );

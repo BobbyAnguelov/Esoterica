@@ -27,7 +27,6 @@ namespace EE::Animation
     GraphContext::GraphContext( uint64_t userID, Skeleton const* pSkeleton )
         : m_graphUserID( userID )
         , m_pSkeleton( pSkeleton )
-        , m_boneMaskPool( pSkeleton )
     {
         EE_ASSERT( m_graphUserID != 0 );
         EE_ASSERT( m_pSkeleton != nullptr );
@@ -67,7 +66,6 @@ namespace EE::Animation
         m_worldTransformInverse = m_worldTransform.GetInverse();
         m_pPhysicsWorld = pPhysicsWorld;
         m_branchState = BranchState::Active;
-        m_boneMaskPool.Reset();
         m_sampledEventsBuffer.Clear();
     }
 

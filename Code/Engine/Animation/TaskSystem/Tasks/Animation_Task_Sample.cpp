@@ -1,4 +1,5 @@
 #include "Animation_Task_Sample.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,6 +20,18 @@ namespace EE::Animation::Tasks
         auto pResultBuffer = GetNewPoseBuffer( context );
         m_pAnimation->GetPose( m_time, &pResultBuffer->m_pose );
         MarkTaskComplete( context );
+    }
+
+    void SampleTask::Serialize( TaskSerializer& serializer ) const
+    {
+        serializer.WriteResourcePtr( m_pAnimation );
+        serializer.WriteNormalizedFloat( m_time );
+    }
+
+    void SampleTask::Deserialize( TaskSerializer& serializer )
+    {
+        m_pAnimation = serializer.ReadResourcePtr<AnimationClip>();
+        m_time = serializer.ReadNormalizedFloat();
     }
 
     #if EE_DEVELOPMENT_TOOLS

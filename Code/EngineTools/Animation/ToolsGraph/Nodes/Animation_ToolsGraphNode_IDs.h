@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        IDComparisonToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "ID Comparison"; }
@@ -45,7 +45,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        IDToFloatToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "ID to Float"; }

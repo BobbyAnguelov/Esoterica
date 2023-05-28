@@ -52,7 +52,7 @@ namespace EE::Animation::GraphNodes
             if ( pinID.IsValid() )
             {
                 int32_t const pinIdx = GetInputPinIndex( pinID );
-                DestroyInputPin( pinIdx );
+                DestroyDynamicInputPin( pinID );
                 m_pinToStateMapping.erase( m_pinToStateMapping.begin() + pinIdx );
             }
         }
@@ -62,7 +62,7 @@ namespace EE::Animation::GraphNodes
 
         for ( auto pState : pinsToCreate )
         {
-            CreateInputPin( pState->GetName(), GraphValueType::Bool );
+            CreateDynamicInputPin( pState->GetName(), (uint32_t) GraphValueType::Bool );
             m_pinToStateMapping.emplace_back( pState->GetID() );
         }
     }

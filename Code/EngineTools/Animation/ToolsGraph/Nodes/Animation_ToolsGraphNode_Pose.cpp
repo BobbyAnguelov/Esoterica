@@ -6,9 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ZeroPoseToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ZeroPoseToolsNode::ZeroPoseToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Pose", GraphValueType::Pose );
     }
 
@@ -21,9 +21,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ReferencePoseToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ReferencePoseToolsNode::ReferencePoseToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Pose", GraphValueType::Pose );
     }
 
@@ -36,9 +36,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void AnimationPoseToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    AnimationPoseToolsNode::AnimationPoseToolsNode()
+        : DataSlotToolsNode()
     {
-        DataSlotToolsNode::Initialize( pParent );
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Time", GraphValueType::Float );
     }

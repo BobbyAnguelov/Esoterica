@@ -1,7 +1,7 @@
 #pragma once
 
 #include "FileSystem.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 
 //-------------------------------------------------------------------------
 // File System Path

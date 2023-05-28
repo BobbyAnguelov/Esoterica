@@ -145,13 +145,13 @@ namespace EE::ImGuiX
     EE_SYSTEM_API bool FlatIconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
 
     // Button with extra drop down options - returns true if the primary button was pressed
-    EE_SYSTEM_API bool ButtonWithDropDown( char const* widgetID, char const* pButtonLabel, float buttonWidth, TFunction<void()> const& comboCallback );
-
-    // Button with extra drop down options - returns true if the primary button was pressed
     EE_SYSTEM_API bool IconButtonWithDropDown( char const* widgetID, char const* pIcon, char const* pButtonLabel, ImColor const& iconColor, float buttonWidth, TFunction<void()> const& comboCallback );
 
     // Toggle button
     EE_SYSTEM_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), ImColor const& onColor = ImGuiX::Style::s_colorAccent0, ImColor const& offColor = ImGui::GetStyle().Colors[ImGuiCol_Text] );
+
+    // Toggle button
+    EE_SYSTEM_API bool FlatToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), ImColor const& onColor = ImGuiX::Style::s_colorAccent0, ImColor const& offColor = ImGui::GetStyle().Colors[ImGuiCol_Text] );
 
     // Draw an arrow between two points
     EE_SYSTEM_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, ImColor const& color, float arrowWidth, float arrowHeadWidth = 5.0f );

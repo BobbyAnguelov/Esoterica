@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void IDComparisonToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    IDComparisonToolsNode::IDComparisonToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "ID", GraphValueType::ID );
     }
@@ -89,9 +89,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void IDToFloatToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    IDToFloatToolsNode::IDToFloatToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "ID", GraphValueType::ID );
     }

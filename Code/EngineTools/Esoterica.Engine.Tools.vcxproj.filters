@@ -187,9 +187,6 @@
     <ClCompile Include="Animation\Events\AnimationEventEditor.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Workspaces\Workspace_BoneMask.cpp">
-      <Filter>Animation\Workspaces</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationClip.cpp">
       <Filter>Animation\Workspaces</Filter>
     </ClCompile>
@@ -307,9 +304,6 @@
     <ClCompile Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_StateMachineGraph.cpp">
       <Filter>Animation\ToolsGraph\Graphs</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.cpp">
-      <Filter>Animation\ResourceCompilers</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.cpp">
       <Filter>Animation\ResourceCompilers</Filter>
     </ClCompile>
@@ -378,9 +372,6 @@
       <Filter>Core\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="Core\Helpers\CommonDialogs.h">
-      <Filter>Core\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Helpers\GlobalRegistryBase.h">
       <Filter>Core\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="Core\Widgets\CurveEditor.h">
@@ -575,9 +566,6 @@
     <ClInclude Include="Animation\Events\AnimationEventEditor.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Workspaces\Workspace_BoneMask.h">
-      <Filter>Animation\Workspaces</Filter>
-    </ClInclude>
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationClip.h">
       <Filter>Animation\Workspaces</Filter>
     </ClInclude>
@@ -695,9 +683,6 @@
     <ClInclude Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_StateMachineGraph.h">
       <Filter>Animation\ToolsGraph\Graphs</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.h">
-      <Filter>Animation\ResourceCompilers</Filter>
-    </ClInclude>
     <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.h">
       <Filter>Animation\ResourceCompilers</Filter>
     </ClInclude>
@@ -714,9 +699,6 @@
       <Filter>Animation\ResourceDescriptors</Filter>
     </ClInclude>
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationSkeleton.h">
-      <Filter>Animation\ResourceDescriptors</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationBoneMask.h">
       <Filter>Animation\ResourceDescriptors</Filter>
     </ClInclude>
     <ClInclude Include="RawAssets\RawAnimation.h">

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
+#include "AnimationBoneMask.h"
 #include "System/Resource/IResource.h"
-#include "System/Types/StringID.h"
 #include "System/Math/Transform.h"
 #include "System/Types/BitFlags.h"
 
@@ -21,6 +21,8 @@ namespace EE::Animation
     };
 
     //-------------------------------------------------------------------------
+    // Animation Skeleton
+    //-------------------------------------------------------------------------
 
     class EE_ENGINE_API Skeleton : public Resource::IResource
     {
@@ -29,6 +31,12 @@ namespace EE::Animation
 
         friend class SkeletonCompiler;
         friend class SkeletonLoader;
+
+    public:
+
+        #if EE_DEVELOPMENT_TOOLS
+        static void DrawRootBone( Drawing::DrawContext& ctx, Transform const& transform );
+        #endif
 
     public:
 
@@ -86,6 +94,14 @@ namespace EE::Animation
 
         Transform GetBoneGlobalTransform( int32_t idx ) const;
 
+        // Bone Masks
+        //-------------------------------------------------------------------------
+
+        uint32_t GetNumBoneMasks() const { return (uint32_t) m_boneMasks.size(); }
+        int32_t GetBoneMaskIndex( StringID maskID ) const;
+        BoneMask const* GetBoneMask( int32_t maskIdx ) const { return &m_boneMasks[maskIdx]; }
+        BoneMask const* GetBoneMask( StringID maskID ) const;
+
         // Debug
         //-------------------------------------------------------------------------
 
@@ -100,11 +116,6 @@ namespace EE::Animation
         TVector<Transform>                  m_localReferencePose;
         TVector<Transform>                  m_globalReferencePose;
         TVector<TBitFlags<BoneFlags>>       m_boneFlags;
+        TVector<BoneMask>                   m_boneMasks;
     };
-
-    //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    EE_ENGINE_API void DrawRootBone( Drawing::DrawContext& ctx, Transform const& transform );
-    #endif
 }

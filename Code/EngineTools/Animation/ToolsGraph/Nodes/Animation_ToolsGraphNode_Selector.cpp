@@ -7,24 +7,26 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void SelectorConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    SelectorConditionToolsNode::SelectorConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateInputPin( "Option 0", GraphValueType::Bool );
         CreateInputPin( "Option 1", GraphValueType::Bool );
     }
 
     //-------------------------------------------------------------------------
 
-    void SelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    SelectorToolsNode::SelectorToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Option 0", GraphValueType::Pose );
         CreateInputPin( "Option 1", GraphValueType::Pose );
+    }
 
+    void SelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    {
+        FlowToolsNode::Initialize( pParent );
         auto pConditionGraph = EE::New<FlowGraph>( GraphType::ValueTree );
         pConditionGraph->CreateNode<SelectorConditionToolsNode>();
 
@@ -117,7 +119,7 @@ namespace EE::Animation::GraphNodes
 
         TInlineString<100> pinName;
         pinName.sprintf( "Option %d", numOptions - 1 );
-        pConditionsNode->CreateInputPin( pinName.c_str(), GraphValueType::Bool );
+        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), (uint32_t) GraphValueType::Bool );
     }
 
     void SelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
@@ -154,19 +156,22 @@ namespace EE::Animation::GraphNodes
         // Destroy condition node pin
         //-------------------------------------------------------------------------
 
-        pConditionsNode->DestroyInputPin( pintoBeRemovedIdx );
+        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pintoBeRemovedIdx )->m_ID );
     }
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipSelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    AnimationClipSelectorToolsNode::AnimationClipSelectorToolsNode()
+        : AnimationClipReferenceToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Option 0", GraphValueType::Pose );
         CreateInputPin( "Option 1", GraphValueType::Pose );
+    }
 
+    void AnimationClipSelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    {
+        FlowToolsNode::Initialize( pParent );
         auto pConditionGraph = EE::New<FlowGraph>( GraphType::ValueTree );
         pConditionGraph->CreateNode<SelectorConditionToolsNode>();
 

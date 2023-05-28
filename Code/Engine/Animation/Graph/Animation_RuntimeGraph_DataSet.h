@@ -3,11 +3,16 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "System/Resource/ResourcePtr.h"
+#include "System/Types/HashMap.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
+    using ResourceLUT = THashMap<uint32_t, Resource::ResourcePtr>;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API GraphDataSet
     {
         EE_SERIALIZE( m_variationID, m_skeleton, m_resources );
@@ -34,10 +39,18 @@ namespace EE::Animation
             return nullptr;
         }
 
+        // Get the flattened resource lookup table
+        ResourceLUT const& GetResourceLookupTable() const { return m_resourceLUT; }
+
     private:
 
-        StringID                                    m_variationID;
-        TResourcePtr<Skeleton>                      m_skeleton = nullptr;
-        TVector<Resource::ResourcePtr>              m_resources;
+        StringID                                        m_variationID;
+        TResourcePtr<Skeleton>                          m_skeleton = nullptr;
+        TVector<Resource::ResourcePtr>                  m_resources;
+
+        // Used to lookup all resource in this dataset as well any child datasets.
+        // This is basically a flattened list of all resources references by this dataset.
+        // Note: This is generated at install time
+        ResourceLUT                                     m_resourceLUT;
     };
 }

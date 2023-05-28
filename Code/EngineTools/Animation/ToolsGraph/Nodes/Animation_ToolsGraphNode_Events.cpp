@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void IDEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    IDEventConditionToolsNode::IDEventConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 
@@ -88,9 +88,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void GenericEventPercentageThroughToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    GenericEventPercentageThroughToolsNode::GenericEventPercentageThroughToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
     }
 
@@ -131,9 +131,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FootEventConditionToolsNode::FootEventConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 
@@ -166,9 +166,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootstepEventPercentageThroughToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FootstepEventPercentageThroughToolsNode::FootstepEventPercentageThroughToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
     }
 
@@ -202,9 +202,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void SyncEventIndexConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    SyncEventIndexConditionToolsNode::SyncEventIndexConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 
@@ -241,9 +241,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CurrentSyncEventToolsNode::CurrentSyncEventToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
     }
 
@@ -260,9 +260,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TransitionEventConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    TransitionEventConditionToolsNode::TransitionEventConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 

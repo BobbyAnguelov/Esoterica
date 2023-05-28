@@ -42,15 +42,14 @@ namespace EE::Animation
     {
         EE_ASSERT( pFlowGraph != nullptr );
 
-        // TODO: move all pins to node constructors and not in the initialize function, this will allow us to have the info required to filter based on pin here too!
-        bool const hasAdvancedFilter = !filterTokens.empty() /*|| pFilterPin != nullptr*/;
+        bool const hasAdvancedFilter = !filterTokens.empty() || pFilterPin != nullptr;
 
         //-------------------------------------------------------------------------
 
-        auto NodeFilter = [pFlowGraph, &filterTokens] ( CategoryItem<TypeSystem::TypeInfo const*> const& item )
+        auto NodeFilter = [pFlowGraph, pFilterPin, &filterTokens] ( CategoryItem<TypeSystem::TypeInfo const*> const& item )
         {
             // Parameter references are already handled
-            if ( item.m_data->m_ID == GraphNodes::ParameterReferenceToolsNode::GetStaticTypeID() )
+            if ( item.m_data->IsDerivedFrom( GraphNodes::ParameterReferenceToolsNode::GetStaticTypeID() ) )
             {
                 return false;
             }
@@ -66,6 +65,35 @@ namespace EE::Animation
             if ( !pDefaultNode->GetAllowedParentGraphTypes().AreAnyFlagsSet( pFlowGraph->GetType() ) )
             {
                 return false;
+            }
+
+            // Filter based on pin
+            if ( pFilterPin != nullptr )
+            {
+                if ( pFilterPin->IsInputPin() )
+                {
+                    if ( pDefaultNode->GetOutputPin( 0 )->m_type != pFilterPin->m_type )
+                    {
+                        return false;
+                    }
+                }
+                else // Check all inputs for matching types
+                {
+                    bool foundValidPin = false;
+                    for ( auto const& inputPin : pDefaultNode->GetInputPins() )
+                    {
+                        if ( inputPin.m_type == pFilterPin->m_type )
+                        {
+                            foundValidPin = true;
+                            break;
+                        }
+                    }
+
+                    if ( !foundValidPin )
+                    {
+                        return false;
+                    }
+                }
             }
 
             // User text filter
@@ -156,6 +184,45 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         return pNodeTypeToCreate;
+    }
+
+    template<typename T>
+    static GraphNodes::ParameterReferenceToolsNode* CreateParameterReference( FlowGraph* pGraph, T* pParameter )
+    {
+        switch ( pParameter->GetValueType() )
+        {
+            case GraphValueType::Bool:
+            return pGraph->CreateNode<GraphNodes::BoolParameterReferenceToolsNode>( pParameter );
+            break;
+
+            case GraphValueType::ID:
+            return pGraph->CreateNode<GraphNodes::IDParameterReferenceToolsNode>( pParameter );
+            break;
+
+            case GraphValueType::Int:
+            return pGraph->CreateNode<GraphNodes::IntParameterReferenceToolsNode>( pParameter );
+            break;
+
+            case GraphValueType::Float:
+            return pGraph->CreateNode<GraphNodes::FloatParameterReferenceToolsNode>( pParameter );
+            break;
+
+            case GraphValueType::Vector:
+            return pGraph->CreateNode<GraphNodes::VectorParameterReferenceToolsNode>( pParameter );
+            break;
+
+            case GraphValueType::Target:
+            return pGraph->CreateNode<GraphNodes::TargetParameterReferenceToolsNode>( pParameter );
+            break;
+
+            case GraphValueType::BoneMask:
+            return pGraph->CreateNode<GraphNodes::BoneMaskParameterReferenceToolsNode>( pParameter );
+            break;
+
+            default:
+            return nullptr;
+            break;
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -328,11 +395,11 @@ namespace EE::Animation
             GraphNodes::FlowToolsNode* pTargetNode = nullptr;
             if ( pParameterToReference )
             {
-                pTargetNode = CreateNode<GraphNodes::ParameterReferenceToolsNode>( pParameterToReference );
+                pTargetNode = CreateParameterReference( this, pParameterToReference );
             }
             else if ( pVirtualParameterToReference )
             {
-                pTargetNode = CreateNode<GraphNodes::ParameterReferenceToolsNode>( pVirtualParameterToReference );
+                pTargetNode = CreateParameterReference( this, pVirtualParameterToReference );
             }
             else
             {
@@ -457,7 +524,7 @@ namespace EE::Animation
                 if ( pControlParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
                 {
                     VisualGraph::ScopedGraphModification sgm( this );
-                    auto pNode = CreateNode<GraphNodes::ParameterReferenceToolsNode>( pControlParameter );
+                    auto pNode = CreateParameterReference( this, pControlParameter );
                     pNode->SetCanvasPosition( mouseCanvasPos );
                     return;
                 }
@@ -468,7 +535,7 @@ namespace EE::Animation
                 if ( pVirtualParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
                 {
                     VisualGraph::ScopedGraphModification sgm( this );
-                    auto pNode = CreateNode<GraphNodes::ParameterReferenceToolsNode>( pVirtualParameter );
+                    auto pNode = CreateParameterReference( this, pVirtualParameter );
                     pNode->SetCanvasPosition( mouseCanvasPos );
                     return;
                 }

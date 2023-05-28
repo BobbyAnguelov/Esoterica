@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        LocalLayerToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Special; }
         virtual char const* GetTypeName() const override { return "Local Layer"; }
@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        StateMachineLayerToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Special; }
         virtual char const* GetTypeName() const override { return "State Machine Layer"; }
@@ -60,7 +60,7 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT() bool                              m_ignoreEvents = false;
         EE_REFLECT() PoseBlendMode                     m_blendMode;
 
-        float                                       m_runtimeDebugLayerWeight = 0.0f;
+        float                                          m_runtimeDebugLayerWeight = 0.0f;
     };
 
     //-------------------------------------------------------------------------
@@ -71,7 +71,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        LayerBlendToolsNode();
 
     private:
 
@@ -83,7 +83,7 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
 
-        virtual bool SupportsDynamicInputPins() const override { return true; }
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Special; }
         virtual void OnDynamicPinDestruction( UUID pinID ) override;

@@ -26,6 +26,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        StateMachineToolsNode();
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
         virtual char const* GetName() const override { return m_name.c_str(); }

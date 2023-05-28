@@ -4,6 +4,7 @@
 #include "System/Log.h"
 #include "System/Profiling.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
 
 //-------------------------------------------------------------------------
 
@@ -168,6 +169,16 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    void GraphInstance::GetResourceLookupTables( TInlineVector<ResourceLUT const*, 10>& LUTs ) const
+    {
+        LUTs.emplace_back( &m_pGraphVariation->GetDataSet().m_resourceLUT );
+
+        for ( auto const& externalGraph : m_externalGraphs )
+        {
+            externalGraph.m_pInstance->GetResourceLookupTables( LUTs );
+        }
+    }
+
     Pose const* GraphInstance::GetPose()
     {
         EE_ASSERT( m_pTaskSystem != nullptr );
@@ -177,6 +188,18 @@ namespace EE::Animation
     bool GraphInstance::DoesTaskSystemNeedUpdate() const
     {
         return m_pTaskSystem->RequiresUpdate();
+    }
+
+    void GraphInstance::SerializeTaskList( Blob& outBlob ) const
+    {
+        EE_ASSERT( !DoesTaskSystemNeedUpdate() );
+
+        // All the resources in use by this graph instance
+        TInlineVector<ResourceLUT const*, 10> LUTs;
+        GetResourceLookupTables( LUTs );
+
+        // Serialize tasks
+        m_pTaskSystem->SerializeTasks( LUTs, outBlob );
     }
 
     //-------------------------------------------------------------------------
@@ -411,6 +434,10 @@ namespace EE::Animation
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Post-Physics Tasks" );
         m_pTaskSystem->UpdatePostPhysics();
+
+        #if EE_DEVELOPMENT_TOOLS
+        RecordTasks();
+        #endif
     }
 
     //-------------------------------------------------------------------------
@@ -523,6 +550,16 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_pTaskSystem->DrawDebug( drawContext );
+    }
+
+    void GraphInstance::OutputLog()
+    {
+        for ( m_lastOutputtedLogItemIdx; m_lastOutputtedLogItemIdx < m_log.size(); m_lastOutputtedLogItemIdx++ )
+        {
+            auto const& item = m_log[m_lastOutputtedLogItemIdx];
+            InlineString const source( InlineString::CtorSprintf(), "%s (%d)", m_pGraphVariation->GetDefinition()->GetNodePath( item.m_nodeIdx ).c_str(), item.m_nodeIdx );
+            Log::AddEntry( item.m_severity, "Animation", source.c_str(), "", 0, item.m_message.c_str() );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -740,6 +777,22 @@ namespace EE::Animation
                 break;
             }
         }
+    }
+
+    void GraphInstance::RecordTasks()
+    {
+        if ( m_pRecorder == nullptr )
+        {
+            return;
+        }
+
+        // All the resources in use by this graph instance
+        TInlineVector<ResourceLUT const*, 10> LUTs;
+        GetResourceLookupTables( LUTs );
+
+        // Record task
+        auto& frameData = m_pRecorder->m_recordedData.back();
+        m_pTaskSystem->SerializeTasks( LUTs, frameData.m_serializedTaskData );
     }
     #endif
 }

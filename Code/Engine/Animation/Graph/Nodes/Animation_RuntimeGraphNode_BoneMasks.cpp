@@ -8,15 +8,19 @@ namespace EE::Animation::GraphNodes
     void BoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskNode>( context, options );
-
-        auto const pBoneWeights = context.GetResource<BoneMaskDefinition>( m_dataSlotIdx );
-        if ( pBoneWeights != nullptr )
+        int32_t const maskIdx = context.m_pDataSet->GetSkeleton()->GetBoneMaskIndex( m_boneMaskID );
+        if ( maskIdx != InvalidIndex )
         {
-            pNode->m_boneMask = BoneMask( context.m_pDataSet->GetSkeleton(), *pBoneWeights, m_rootMotionWeight );
+            EE_ASSERT( maskIdx >= 0 && maskIdx < 255 );
+            pNode->m_taskList.EmplaceTask( (uint8_t) maskIdx );
         }
-        else // No bone mask set
+        else
         {
-            pNode->m_boneMask = BoneMask( context.m_pDataSet->GetSkeleton(), 1.0f, m_rootMotionWeight );
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( "Couldn't find bone mask with ID: %s", m_boneMaskID.c_str() );
+            #endif
+
+            pNode->m_taskList.EmplaceTask( 0.0f );
         }
     }
 
@@ -31,7 +35,8 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
         }
-        *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_boneMask;
+
+        *reinterpret_cast<BoneMaskTaskList const**>( pOutValue ) = &m_taskList;
     }
 
     //-------------------------------------------------------------------------
@@ -53,23 +58,10 @@ namespace EE::Animation::GraphNodes
         m_pSourceBoneMask->Initialize( context );
         m_pTargetBoneMask->Initialize( context );
         m_pBlendWeightValueNode->Initialize( context );
-
-        //-------------------------------------------------------------------------
-
-        if ( m_blendedBoneMask.GetSkeleton() != context.m_pSkeleton )
-        {
-            m_blendedBoneMask = BoneMask( context.m_pSkeleton );
-        }
-        else
-        {
-            m_blendedBoneMask.ResetWeights();
-        }
     }
 
     void BoneMaskBlendNode::ShutdownInternal( GraphContext& context )
     {
-        m_pResultMask = nullptr;
-
         m_pBlendWeightValueNode->Shutdown( context );
         m_pTargetBoneMask->Shutdown( context );
         m_pSourceBoneMask->Shutdown( context );
@@ -90,20 +82,19 @@ namespace EE::Animation::GraphNodes
             // If we dont need to perform the blend, set the ptr to the required source
             if ( blendWeight <= 0.0f )
             {
-                m_pResultMask = m_pSourceBoneMask->GetValue<BoneMask const*>( context );
+                m_taskList = *m_pSourceBoneMask->GetValue<BoneMaskTaskList const*>( context );
             }
             else if ( blendWeight >= 1.0f )
             {
-                m_pResultMask = m_pTargetBoneMask->GetValue<BoneMask const*>( context );
+                m_taskList = *m_pTargetBoneMask->GetValue<BoneMaskTaskList const*>( context );
             }
             else // Actually perform the blend
             {
-                m_blendedBoneMask.SetFromBlend( *m_pSourceBoneMask->GetValue<BoneMask const*>( context ), *m_pTargetBoneMask->GetValue<BoneMask const*>( context ), blendWeight );
-                m_pResultMask = &m_blendedBoneMask;
+                m_taskList.CreateBlend( *m_pSourceBoneMask->GetValue<BoneMaskTaskList const*>( context ), *m_pTargetBoneMask->GetValue<BoneMaskTaskList const*>( context ), blendWeight );
             }
         }
 
-        *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_blendedBoneMask;
+        *reinterpret_cast<BoneMaskTaskList const**>( pOutValue ) = &m_taskList;
     }
 
     //-------------------------------------------------------------------------
@@ -127,6 +118,8 @@ namespace EE::Animation::GraphNodes
         BoneMaskValueNode::InitializeInternal( context );
         m_pParameterValueNode->Initialize( context );
 
+        m_pDefaultMaskValueNode->Initialize( context );
+
         size_t const numMasks = m_boneMaskOptionNodes.size();
         for ( auto i = 0u; i < numMasks; i++ )
         {
@@ -136,6 +129,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         m_selectedMaskIndex = TrySelectMask( context );
+        m_taskList.CopyFrom( *GetBoneMaskForIndex( context, m_selectedMaskIndex ) );
         m_newMaskIndex = InvalidIndex;
         m_isBlending = false;
     }
@@ -148,32 +142,29 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        if ( m_pDefaultMaskValueNode != nullptr ) // TEMP UPGRADE HACK, REMOVE ONCE GRAPH RESAVED
-        {
-            m_pDefaultMaskValueNode->Shutdown( context );
-        }
-
         size_t const numOptions =  m_boneMaskOptionNodes.size();
         for ( auto i = 0; i < numOptions; i++ )
         {
             m_boneMaskOptionNodes[i]->Shutdown( context );
         }
 
+        m_pDefaultMaskValueNode->Shutdown( context );
+
         m_pParameterValueNode->Shutdown( context );
         BoneMaskValueNode::ShutdownInternal( context );
     }
 
-    BoneMask const* BoneMaskSelectorNode::GetBoneMaskForIndex( GraphContext& context, int32_t optionIndex ) const
+    BoneMaskTaskList const* BoneMaskSelectorNode::GetBoneMaskForIndex( GraphContext& context, int32_t optionIndex ) const
     {
-        EE_ASSERT( optionIndex >= -1 && optionIndex < m_boneMaskOptionNodes.size() );
+        EE_ASSERT( optionIndex >= -1 && optionIndex < (int32_t) m_boneMaskOptionNodes.size() );
 
         if ( optionIndex != InvalidIndex )
         {
-            return m_boneMaskOptionNodes[optionIndex]->GetValue<BoneMask const*>( context );
+            return m_boneMaskOptionNodes[optionIndex]->GetValue<BoneMaskTaskList const*>( context );
         }
         else
         {
-            return m_pDefaultMaskValueNode->GetValue<BoneMask const*>( context );
+            return m_pDefaultMaskValueNode->GetValue<BoneMaskTaskList const*>( context );
         }
     }
 
@@ -181,76 +172,58 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
 
-        if ( WasUpdated( context ) )
+        if ( !WasUpdated( context ) )
         {
+            MarkNodeActive( context );
+
+            // Perform selection
+            //-------------------------------------------------------------------------
+
+            auto pSettings = GetSettings<BoneMaskSelectorNode>();
+            if ( pSettings->m_switchDynamically )
+            {
+                // Only try to select a new mask if we are not blending
+                if ( !m_isBlending )
+                {
+                    m_newMaskIndex = TrySelectMask( context );
+
+                    // If the new mask is the same as the current one, do nothing
+                    if ( m_newMaskIndex == m_selectedMaskIndex )
+                    {
+                        m_newMaskIndex = InvalidIndex;
+                    }
+                    else // Start a blend to the new mask
+                    {
+                        m_currentTimeInBlend = 0.0f;
+                        m_isBlending = true;
+                    }
+                }
+            }
+
+            // Generate task list
+            //-------------------------------------------------------------------------
+
             if ( m_isBlending )
             {
-                *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_blendedBoneMask;
-            }
-            else
-            {
-                *reinterpret_cast<BoneMask const**>( pOutValue ) = GetBoneMaskForIndex( context, m_selectedMaskIndex );
-            }
-            return;
-        }
+                m_currentTimeInBlend += context.m_deltaTime;
+                float const blendWeight = m_currentTimeInBlend / pSettings->m_blendTime;
 
-        //-------------------------------------------------------------------------
-
-        MarkNodeActive( context );
-
-        auto pSettings = GetSettings<BoneMaskSelectorNode>();
-        if ( pSettings->m_switchDynamically )
-        {
-            // Only try to select a new mask if we are not blending
-            if ( !m_isBlending )
-            {
-                m_newMaskIndex = TrySelectMask( context );
-
-                // If the new mask is the same as the current one, do nothing
-                if ( m_newMaskIndex == m_selectedMaskIndex )
+                // If the blend is complete, then update the selected mask index
+                if ( blendWeight >= 1.0f )
                 {
+                    m_taskList.CopyFrom( *GetBoneMaskForIndex( context, m_newMaskIndex ) );
+                    m_selectedMaskIndex = m_newMaskIndex;
                     m_newMaskIndex = InvalidIndex;
+                    m_isBlending = false;
                 }
-                else // Start a blend to the new mask
+                else // Perform blend and return the result
                 {
-                    m_currentTimeInBlend = 0.0f;
-                    m_isBlending = true;
+                    m_taskList.CreateBlend( *GetBoneMaskForIndex( context, m_selectedMaskIndex ), *GetBoneMaskForIndex( context, m_newMaskIndex ), blendWeight );
                 }
             }
         }
 
-        //-------------------------------------------------------------------------
-
-        if ( m_isBlending )
-        {
-            m_currentTimeInBlend += context.m_deltaTime;
-            float const blendWeight = m_currentTimeInBlend / pSettings->m_blendTime;
-
-            // If the blend is complete, then update the selected mask index
-            if ( blendWeight >= 1.0f )
-            {
-                m_selectedMaskIndex = m_newMaskIndex;
-                m_newMaskIndex = InvalidIndex;
-                m_isBlending = false;
-            }
-            else // Perform blend and return the result
-            {
-                m_blendedBoneMask = *GetBoneMaskForIndex( context, m_selectedMaskIndex );
-                m_blendedBoneMask.BlendTo( *GetBoneMaskForIndex( context, m_newMaskIndex ), blendWeight );
-                *reinterpret_cast<BoneMask const**>( pOutValue ) = &m_blendedBoneMask;
-                return;
-            }
-        }
-
-        // No blend or blend completed this frame
-        if ( m_selectedMaskIndex != InvalidIndex )
-        {
-            *reinterpret_cast<BoneMask const**>( pOutValue ) = m_boneMaskOptionNodes[m_selectedMaskIndex]->GetValue<BoneMask const*>( context );
-        }
-        else
-        {
-            *reinterpret_cast<BoneMask const**>( pOutValue ) = nullptr;
-        }
+        *reinterpret_cast<BoneMaskTaskList const**>( pOutValue ) = &m_taskList;
     }
 
     #if EE_DEVELOPMENT_TOOLS

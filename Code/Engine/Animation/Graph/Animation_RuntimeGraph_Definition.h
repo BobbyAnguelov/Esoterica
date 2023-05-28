@@ -101,6 +101,12 @@ namespace EE::Animation
             return m_pGraphDefinition.GetPtr();
         }
 
+        inline GraphDataSet const& GetDataSet() const
+        {
+            EE_ASSERT( IsValid() );
+            return m_dataSet;
+        }
+
     protected:
 
         TResourcePtr<GraphDefinition>               m_pGraphDefinition = nullptr;

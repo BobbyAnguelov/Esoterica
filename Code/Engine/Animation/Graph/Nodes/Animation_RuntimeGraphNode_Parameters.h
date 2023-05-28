@@ -366,6 +366,6 @@ namespace EE::Animation::GraphNodes
     private:
 
         BoneMaskValueNode*  m_pChildNode = nullptr;
-        BoneMask            m_value;
+        BoneMaskTaskList    m_value;
     };
 }

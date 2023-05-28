@@ -15,6 +15,7 @@ namespace EE::Animation::Tasks
 {
     class RagdollSetPoseTask : public Task
     {
+        EE_ANIMATION_TASK( RagdollSetPoseTask );
 
     public:
 
@@ -28,6 +29,7 @@ namespace EE::Animation::Tasks
 
         RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID, TaskIndex sourceTaskIdx, InitOption initOption = InitOption::DoNothing );
         virtual void Execute( TaskContext const& context ) override;
+        virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return "Set Ragdoll Pose"; }
@@ -50,6 +52,7 @@ namespace EE::Animation::Tasks
         RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID, TaskIndex sourceTaskIdx, float const physicsBlendWeight = 1.0f );
         RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID );
         virtual void Execute( TaskContext const& context ) override;
+        virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override;

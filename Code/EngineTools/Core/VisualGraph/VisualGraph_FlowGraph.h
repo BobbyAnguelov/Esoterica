@@ -35,7 +35,7 @@ namespace EE::VisualGraph
             constexpr static char const* const s_IDKey = "ID";
             constexpr static char const* const s_nameKey = "Name";
             constexpr static char const* const s_typeKey = "Type";
-            constexpr static char const* const s_dynamicKey = "Type";
+            constexpr static char const* const s_dynamicKey = "IsDynamic";
             constexpr static char const* const s_allowMultipleConnectionsKey = "AllowMultipleConnections";
 
         public:
@@ -88,8 +88,8 @@ namespace EE::VisualGraph
             // Pins
             //-------------------------------------------------------------------------
 
-            // Does this node support dynamic inputs
-            virtual bool SupportsDynamicInputPins() const { return false; }
+            // Does this node support user editing of dynamic input pins
+            virtual bool SupportsUserEditableDynamicInputPins() const { return false; }
 
             // Whats the name of the dynamic inputs
             virtual TInlineString<100> GetNewDynamicInputPinName() const { return "Pin"; }
@@ -189,6 +189,9 @@ namespace EE::VisualGraph
             // Create a new dynamic pin
             void CreateDynamicInputPin();
 
+            // Create a new dynamic pin
+            void CreateDynamicInputPin( char const* pPinName, uint32_t valueType );
+
             // Called just after creating a dynamic pin
             virtual void OnDynamicPinCreation( UUID pinID ) {}
 
@@ -202,6 +205,7 @@ namespace EE::VisualGraph
             void CreateOutputPin( char const* pPinName, uint32_t valueType, bool allowMultipleOutputConnections = false );
             void DestroyInputPin( int32_t pinIdx );
             void DestroyOutputPin( int32_t pinIdx );
+            
             void DestroyPin( UUID const& pinID );
 
             // Serialization

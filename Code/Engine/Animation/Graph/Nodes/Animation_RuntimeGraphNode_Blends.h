@@ -18,8 +18,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            TInlineVector<int16_t, 5>        m_sourceNodeIndices;
-            int16_t                          m_inputParameterValueNodeIdx = InvalidIndex;
+            TInlineVector<int16_t, 5>               m_sourceNodeIndices;
+            int16_t                                 m_inputParameterValueNodeIdx = InvalidIndex;
             bool                                    m_isSynchronized = false;
         };
 
@@ -34,8 +34,8 @@ namespace EE::Animation::GraphNodes
                 return m_parameterValueRange.m_begin < rhs.m_parameterValueRange.m_begin;
             }
 
-            int16_t                                   m_inputIdx0 = InvalidIndex;
-            int16_t                                   m_inputIdx1 = InvalidIndex;
+            int16_t                                 m_inputIdx0 = InvalidIndex;
+            int16_t                                 m_inputIdx1 = InvalidIndex;
             FloatRange                              m_parameterValueRange = FloatRange( 0 );
         };
 
@@ -78,11 +78,19 @@ namespace EE::Animation::GraphNodes
         virtual Parameterization const& GetParameterization() const = 0;
         void SelectBlendRange( GraphContext& context );
 
+        // Debugging
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        #endif
+
     protected:
 
         TInlineVector<PoseNode*, 5>                 m_sourceNodes;
         FloatValueNode*                             m_pInputParameterValueNode = nullptr;
-        int32_t                                       m_selectedRangeIdx = InvalidIndex;
+        int32_t                                     m_selectedRangeIdx = InvalidIndex;
         float                                       m_blendWeight = 0.0f;
         SyncTrack                                   m_blendedSyncTrack;
     };
@@ -125,6 +133,14 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeParameterization( GraphContext& context ) override;
         virtual void ShutdownParameterization( GraphContext& context ) override;
         virtual Parameterization const& GetParameterization() const override { return m_parameterization; }
+
+        // Debugging
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        #endif
 
     protected:
 

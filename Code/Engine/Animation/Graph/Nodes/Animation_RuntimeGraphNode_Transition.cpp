@@ -291,7 +291,7 @@ namespace EE::Animation::GraphNodes
 
         CalculateBlendWeight();
         RegisterPoseTasksAndUpdateRootMotion( context, sourceNodeResult, targetNodeResult, result );
-        UpdateLayerWeights( context, sourceLayerCtx, context.m_layerContext );
+        UpdateLayerContext( context, sourceLayerCtx );
 
         // Update internal time and events
         //-------------------------------------------------------------------------
@@ -546,7 +546,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TransitionNode::UpdateLayerWeights( GraphContext& context, GraphLayerContext const& sourceLayerContext, GraphLayerContext const& targetLayerContext )
+    void TransitionNode::UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -556,47 +556,46 @@ namespace EE::Animation::GraphNodes
             return;
         }
 
-        // Update layer weight
+        // Update layer weights
         //-------------------------------------------------------------------------
 
-        context.m_layerContext.m_layerWeight = Math::Lerp( sourceLayerContext.m_layerWeight, targetLayerContext.m_layerWeight, m_blendWeight );
+        context.m_layerContext.m_layerWeight = Math::Lerp( sourceLayerContext.m_layerWeight, context.m_layerContext.m_layerWeight, m_blendWeight );
+        context.m_layerContext.m_rootMotionLayerWeight = Math::Lerp( sourceLayerContext.m_rootMotionLayerWeight, context.m_layerContext.m_rootMotionLayerWeight, m_blendWeight );
 
         // Update final bone mask
         //-------------------------------------------------------------------------
 
-        if ( sourceLayerContext.m_pLayerMask != nullptr && targetLayerContext.m_pLayerMask != nullptr )
+        auto const& targetLayerContext = context.m_layerContext;
+
+        if ( sourceLayerContext.m_layerMaskTaskList.HasTasks() && targetLayerContext.m_layerMaskTaskList.HasTasks() )
         {
-            context.m_layerContext.m_pLayerMask = targetLayerContext.m_pLayerMask;
-            context.m_layerContext.m_pLayerMask->BlendFrom( *sourceLayerContext.m_pLayerMask, m_blendWeight );
+            BoneMaskTaskList const targetTaskList = targetLayerContext.m_layerMaskTaskList; // Make a copy since the target is the same as the output
+            context.m_layerContext.m_layerMaskTaskList.CreateBlend( sourceLayerContext.m_layerMaskTaskList, targetTaskList, m_blendWeight );
         }
         else // Only one bone mask is set
         {
-            if ( sourceLayerContext.m_pLayerMask != nullptr )
+            if ( sourceLayerContext.m_layerMaskTaskList.HasTasks() )
             {
-                // Keep the source bone mask
+                // Keep the source mask unchanged till we are fully off
                 if ( m_pTargetNode->IsOffState() )
                 {
-                    context.m_layerContext.m_pLayerMask = sourceLayerContext.m_pLayerMask;
+                    context.m_layerContext.m_layerMaskTaskList = sourceLayerContext.m_layerMaskTaskList;
                 }
-                else // Blend to no bone mask
+                else // Blend to no bone mask (all weights = 1.0f)
                 {
-                    context.m_layerContext.m_pLayerMask = context.m_boneMaskPool.GetBoneMask();
-                    context.m_layerContext.m_pLayerMask->ResetWeights( 1.0f );
-                    context.m_layerContext.m_pLayerMask->BlendFrom( *sourceLayerContext.m_pLayerMask, m_blendWeight );
+                    context.m_layerContext.m_layerMaskTaskList.CreateBlendToGeneratedMask( sourceLayerContext.m_layerMaskTaskList, 1.0f, m_blendWeight );
                 }
             }
-            else if ( targetLayerContext.m_pLayerMask != nullptr )
+            else if ( targetLayerContext.m_layerMaskTaskList.HasTasks() )
             {
                 // Keep the target bone mask if the source is an off state
                 if ( IsSourceAState() && GetSourceStateNode()->IsOffState() )
                 {
-                    context.m_layerContext.m_pLayerMask = targetLayerContext.m_pLayerMask;
+                    context.m_layerContext.m_layerMaskTaskList = targetLayerContext.m_layerMaskTaskList;
                 }
-                else
+                else // Blend from no mask (From all weights = 1.0f)
                 {
-                    context.m_layerContext.m_pLayerMask = context.m_boneMaskPool.GetBoneMask();
-                    context.m_layerContext.m_pLayerMask->ResetWeights( 1.0f );
-                    context.m_layerContext.m_pLayerMask->BlendTo( *targetLayerContext.m_pLayerMask, m_blendWeight );
+                    context.m_layerContext.m_layerMaskTaskList.CreateBlendFromGeneratedMask( targetLayerContext.m_layerMaskTaskList, 1.0f, m_blendWeight );
                 }
             }
         }
@@ -714,7 +713,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult const targetNodeResult = m_pTargetNode->Update( context );
 
         // Calculate the new layer weights based on the transition progress
-        UpdateLayerWeights( context, sourceLayerCtx, context.m_layerContext );
+        UpdateLayerContext( context, sourceLayerCtx );
 
         #if EE_DEVELOPMENT_TOOLS
         m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
@@ -846,7 +845,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult const targetNodeResult = m_pTargetNode->Update( context, updateRange );
 
         // Calculate the new layer weights based on the transition progress
-        UpdateLayerWeights( context, sourceLayerCtx, context.m_layerContext );
+        UpdateLayerContext( context, sourceLayerCtx );
 
         #if EE_DEVELOPMENT_TOOLS
         m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
@@ -880,7 +879,6 @@ namespace EE::Animation::GraphNodes
         outState.WriteValue( m_cachedPoseBufferID );
         outState.WriteValue( m_sourceType );
         outState.WriteValue( m_pSourceNode->GetNodeIndex() );
-
     }
 
     void TransitionNode::RestoreGraphState( RecordedGraphState const& inState )

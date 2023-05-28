@@ -95,7 +95,7 @@ namespace EE::Animation
         // Then compile virtual parameters
         //-------------------------------------------------------------------------
 
-        auto const virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        auto const virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pParameter : virtualParameters )
         {
             int16_t const parameterIdx = pParameter->Compile( m_context );
@@ -111,7 +111,7 @@ namespace EE::Animation
         // Finally compile the actual graph
         //-------------------------------------------------------------------------
 
-        auto const resultNodes = pRootGraph->FindAllNodesOfType<ResultToolsNode>();
+        auto const resultNodes = pRootGraph->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         EE_ASSERT( resultNodes.size() == 1 );
         int16_t const rootNodeIdx = resultNodes[0]->Compile( m_context );
 

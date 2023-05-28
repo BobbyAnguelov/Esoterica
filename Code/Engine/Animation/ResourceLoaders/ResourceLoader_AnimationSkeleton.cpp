@@ -18,6 +18,19 @@ namespace EE::Animation
         EE_ASSERT( pSkeleton->IsValid() );
         pResourceRecord->SetResourceData( pSkeleton );
 
+        TVector<BoneMaskDefinition> boneMaskDefinitions;
+        archive << boneMaskDefinitions;
+
+        // Create bone masks
+        //-------------------------------------------------------------------------
+
+        pSkeleton->m_boneMasks.reserve( boneMaskDefinitions.size() );
+        for ( auto const& def : boneMaskDefinitions )
+        {
+            EE_ASSERT( pSkeleton->GetBoneMaskIndex( def.m_ID ) == InvalidIndex ); // Ensure unique IDs
+            pSkeleton->m_boneMasks.emplace_back( pSkeleton, def );
+        }
+
         // Calculate global reference pose
         //-------------------------------------------------------------------------
 

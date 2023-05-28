@@ -19,16 +19,16 @@ namespace EE::Animation
 
     public:
 
-        enum class Type
+        enum class Type : uint8_t
         {
-            None,
+            None = 0,
             ReferencePose,
             ZeroPose
         };
 
-        enum class State
+        enum class State : uint8_t
         {
-            Unset,
+            Unset = 0,
             Pose,
             ReferencePose,
             ZeroPose,

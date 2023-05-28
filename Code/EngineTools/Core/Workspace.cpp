@@ -1037,6 +1037,7 @@ namespace EE
 
         bool hasFocus = false;
         ImGui::SetNextWindowClass( pWindowClass );
+        ImGui::SetNextWindowSize( ImVec2( 800, 600 ), ImGuiCond_FirstUseEver );
         if ( ImGui::Begin( m_descriptorWindowName.c_str(), isSeparateWindow ? &m_showDescriptorEditor : nullptr ) )
         {
             if ( !isSeparateWindow )

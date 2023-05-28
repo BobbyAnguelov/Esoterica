@@ -11,10 +11,15 @@
 
 namespace EE::Animation::GraphNodes
 {
+    StateMachineToolsNode::StateMachineToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Pose", GraphValueType::Pose );
+    }
+
     void StateMachineToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
-        CreateOutputPin( "Pose", GraphValueType::Pose );
 
         // Create graph
         auto pStateMachineGraph = EE::New<StateMachineGraph>();
@@ -258,7 +263,7 @@ namespace EE::Animation::GraphNodes
             // Compile Blend Tree
             //-------------------------------------------------------------------------
 
-            auto resultNodes = pStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>();
+            auto resultNodes = pStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
             EE_ASSERT( resultNodes.size() == 1 );
             ResultToolsNode const* pBlendTreeRoot = resultNodes[0];
             EE_ASSERT( pBlendTreeRoot != nullptr );
@@ -291,7 +296,17 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            auto pLayerMaskNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 1 );
+            auto pLayerRootMotionWeightNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 1 );
+            if ( pLayerRootMotionWeightNode != nullptr )
+            {
+                pSettings->m_layerRootMotionWeightNodeIdx = pLayerRootMotionWeightNode->Compile( context );
+                if ( pSettings->m_layerRootMotionWeightNodeIdx == InvalidIndex )
+                {
+                    return InvalidIndex;
+                }
+            }
+
+            auto pLayerMaskNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 2 );
             if ( pLayerMaskNode != nullptr )
             {
                 pSettings->m_layerBoneMaskNodeIdx = pLayerMaskNode->Compile( context );

@@ -7,9 +7,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ChildGraphToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ChildGraphToolsNode::ChildGraphToolsNode()
+        :DataSlotToolsNode()
     {
-        DataSlotToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, true );
     }
 

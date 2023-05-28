@@ -36,20 +36,20 @@ namespace EE::Animation
     {
         ResetInternalState();
         m_pRootGraph = EE::New<FlowGraph>( GraphType::BlendTree );
-        m_pRootGraph->CreateNode<ResultToolsNode>( GraphValueType::Pose );
+        m_pRootGraph->CreateNode<PoseResultToolsNode>();
     }
 
     void ToolsGraphDefinition::RefreshParameterReferences()
     {
         EE_ASSERT( m_pRootGraph != nullptr );
         auto controlParameters = m_pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        auto const virtualParameters = m_pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        auto const virtualParameters = m_pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
 
         //-------------------------------------------------------------------------
 
         TInlineVector<ParameterReferenceToolsNode*, 10> invalidReferenceNodes; // These nodes are invalid and need to be removed
 
-        auto parameterReferenceNodes = m_pRootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
+        auto parameterReferenceNodes = m_pRootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pReferenceNode : parameterReferenceNodes )
         {
             FlowToolsNode* pFoundParameterNode = nullptr;

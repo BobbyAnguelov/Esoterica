@@ -15,7 +15,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        SelectorConditionToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Conditions"; }
@@ -32,6 +32,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        SelectorToolsNode();
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
     private:
@@ -42,7 +43,7 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
-        virtual bool SupportsDynamicInputPins() const override { return true; }
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Pose; }
         virtual void OnDynamicPinCreation( UUID pinID ) override;
@@ -57,6 +58,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        AnimationClipSelectorToolsNode();
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
     private:
@@ -68,7 +70,7 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
-        virtual bool SupportsDynamicInputPins() const override { return true; }
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Pose; }
         virtual void OnDynamicPinCreation( UUID pinID ) override;

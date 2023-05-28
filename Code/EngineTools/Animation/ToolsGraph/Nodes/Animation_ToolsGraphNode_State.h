@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_REFLECT_TYPE( StateLayerDataToolsNode );
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        StateLayerDataToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Unknown; }
         virtual char const* GetTypeName() const override { return "State Layer Data"; }

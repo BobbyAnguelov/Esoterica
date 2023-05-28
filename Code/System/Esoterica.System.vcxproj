@@ -15,16 +15,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Algorithm\Hash.h" />
-    <ClInclude Include="Algorithm\Quantization.h" />
-    <ClInclude Include="Algorithm\TopologicalSort.h" />
-    <ClInclude Include="Algorithm\Encoding.h" />
+    <ClInclude Include="Encoding\Hash.h" />
+    <ClInclude Include="Encoding\Quantization.h" />
+    <ClInclude Include="Serialization\BitSerialization.h" />
+    <ClInclude Include="ThirdParty\implot\implot.h" />
+    <ClInclude Include="ThirdParty\implot\implot_internal.h" />
+    <ClInclude Include="Utils\TopologicalSort.h" />
+    <ClInclude Include="Encoding\Encoding.h" />
     <ClInclude Include="Application\ApplicationGlobalState.h" />
     <ClInclude Include="Application\Platform\Application_Win32.h" />
     <ClInclude Include="Fonts\FontData_Lexend.h" />
     <ClInclude Include="Fonts\FontData_MaterialDesign.h" />
     <ClInclude Include="Fonts\FontData_Proggy.h" />
     <ClInclude Include="Fonts\FontDecompressor.h" />
+    <ClInclude Include="Utils\GlobalRegistryBase.h" />
     <ClInclude Include="Imgui\ImguiGizmo.h" />
     <ClInclude Include="Imgui\ImguiFont.h" />
     <ClInclude Include="Imgui\ImguiImageCache.h" />
@@ -493,9 +497,13 @@
     <ClInclude Include="_Module\API.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Algorithm\Hash.cpp" />
-    <ClCompile Include="Algorithm\TopologicalSort.cpp" />
-    <ClCompile Include="Algorithm\Encoding.cpp" />
+    <ClCompile Include="Encoding\Hash.cpp" />
+    <ClCompile Include="Math\Platform\Math_Win32.h" />
+    <ClCompile Include="ThirdParty\implot\implot.cpp" />
+    <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
+    <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
+    <ClCompile Include="Utils\TopologicalSort.cpp" />
+    <ClCompile Include="Encoding\Encoding.cpp" />
     <ClCompile Include="Application\ApplicationGlobalState.cpp" />
     <ClCompile Include="Application\Platform\Application_Win32.cpp" />
     <ClCompile Include="Drawing\DebugDrawingSystem.cpp" />

@@ -196,7 +196,7 @@ namespace EE::Animation
                 ctx.DrawAxis( boneTransform, 0.03f, 3.0f );
             }
 
-            DrawRootBone( ctx, worldTransforms[0] );
+            Skeleton::DrawRootBone( ctx, worldTransforms[0] );
         }
     }
     #endif

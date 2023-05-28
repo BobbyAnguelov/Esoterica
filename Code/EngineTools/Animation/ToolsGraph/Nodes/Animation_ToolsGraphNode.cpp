@@ -136,6 +136,32 @@ namespace EE::Animation::GraphNodes
         bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
 
         //-------------------------------------------------------------------------
+        // Runtime Index Info
+        //-------------------------------------------------------------------------
+
+        if ( pGraphNodeContext->m_showRuntimeIndices && isPreviewingAndValidRuntimeNodeIdx )
+        {
+            InlineString const idxStr( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
+            ImVec2 const textSize = ImGui::CalcTextSize( idxStr.c_str() );
+
+            //-------------------------------------------------------------------------
+
+            ImGuiStyle const& style = ImGui::GetStyle();
+            constexpr static float const verticalOffset = 10;
+            float const bubbleHeight = ImGui::GetFrameHeightWithSpacing();
+            float const bubbleWidth = textSize.x + 12;
+
+            ImVec2 const startRect( GetCanvasPosition().m_x, GetCanvasPosition().m_y - bubbleHeight - verticalOffset );
+            ImVec2 const endRect( startRect.x + bubbleWidth, startRect.y + bubbleHeight );
+            ImVec2 const canvasStartRect = ctx.CanvasPositionToScreenPosition( startRect );
+
+            ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), ImGuiX::ImColors::MediumRed, 3 );
+
+            auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+            ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), ImGuiX::ImColors::White, idxStr.c_str());
+        }
+
+        //-------------------------------------------------------------------------
         // Draw Pose Node
         //-------------------------------------------------------------------------
 

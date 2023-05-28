@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        CachedBoolToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Cached Bool"; }
@@ -34,7 +34,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        CachedIDToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
         virtual char const* GetTypeName() const override { return "Cached ID"; }
@@ -56,7 +56,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        CachedIntToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
         virtual char const* GetTypeName() const override { return "Cached Int"; }
@@ -78,7 +78,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        CachedFloatToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Cached Float"; }
@@ -100,7 +100,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        CachedVectorToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Vector; }
         virtual char const* GetTypeName() const override { return "Cached Vector"; }
@@ -122,7 +122,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        CachedTargetToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Target; }
         virtual char const* GetTypeName() const override { return "Cached Target"; }

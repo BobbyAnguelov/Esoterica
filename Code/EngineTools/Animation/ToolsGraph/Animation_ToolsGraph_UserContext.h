@@ -89,14 +89,24 @@ namespace EE::Animation
         inline float GetLayerWeight( int16_t runtimeNodeIdx, int32_t layerIdx ) const
         {
             auto pLayerNode = static_cast<GraphNodes::LayerBlendNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
-            return pLayerNode->GetLayerWeight( layerIdx );
+            if( pLayerNode->IsInitialized() )
+            {
+                return pLayerNode->GetLayerWeight( layerIdx );
+            }
+
+            return 0.0f;
         }
 
         // Get transition progress
         inline float GetTransitionProgress( int16_t runtimeNodeIdx ) const
         {
             auto pTransitionNode = static_cast<GraphNodes::TransitionNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
-            return pTransitionNode->GetProgressPercentage();
+            if ( pTransitionNode->IsInitialized() )
+            {
+                return pTransitionNode->GetProgressPercentage();
+            }
+
+            return 0.0f;
         }
 
     public:
@@ -111,5 +121,6 @@ namespace EE::Animation
         Category<TypeSystem::TypeInfo const*> const*                        m_pCategorizedNodeTypes = nullptr;
         TypeSystem::TypeRegistry const*                                     m_pTypeRegistry = nullptr;
         TEvent<VisualGraph::BaseNode*, ResourceID const&, bool>             m_navigateToChildGraphEvent;
+        bool                                                                m_showRuntimeIndices = false;
     };
 }

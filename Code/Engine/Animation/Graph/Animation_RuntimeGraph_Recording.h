@@ -116,6 +116,7 @@ namespace EE::Animation
         SyncTrackTimeRange                                  m_updateRange;
         TVector<ParameterData>                              m_parameterData;
         Seconds                                             m_deltaTime;
+        Blob                                                m_serializedTaskData;
     };
 
     // Records information about each update for the recorded graph instance

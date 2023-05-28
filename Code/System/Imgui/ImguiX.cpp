@@ -251,9 +251,11 @@ namespace EE::ImGuiX
         ImGuiID const id = pWindow->GetID( pLabel );
         ImVec2 const icon_size = ImGui::CalcTextSize( pIcon, nullptr, true );
         ImVec2 const label_size = ImGui::CalcTextSize( pLabel, nullptr, true );
+        float const totalButtonContentsWidth = icon_size.x + label_size.x + style.ItemSpacing.x;
 
         ImVec2 pos = pWindow->DC.CursorPos;
         ImVec2 size = ImGui::CalcItemSize( buttonSize, icon_size.x + label_size.x + ( style.FramePadding.x * 2.0f ) + ( style.ItemSpacing.x * 2.0f ), Math::Max( icon_size.y, label_size.y ) + style.FramePadding.y * 2.0f );
+        ImVec2 const offsetX( Math::Max( 0.0f, size.x - totalButtonContentsWidth - style.FramePadding.x ) / 2, 0.f );
 
         ImRect const bb( pos, pos + size );
         ImGui::ItemSize( size, style.FramePadding.y );
@@ -269,9 +271,9 @@ namespace EE::ImGuiX
         ImU32 const col = ImGui::GetColorU32( ( held && hovered ) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button );
         ImGui::RenderNavHighlight( bb, id );
         ImGui::RenderFrame( bb.Min, bb.Max, col, true, style.FrameRounding );
-        ImGui::RenderTextClipped( bb.Min + style.FramePadding + ImVec2( icon_size.x + style.ItemSpacing.x, 0 ), bb.Max - style.FramePadding, pLabel, NULL, &label_size, ImVec2( 0, 0.5f ), &bb );
+        ImGui::RenderTextClipped( bb.Min + style.FramePadding + ImVec2( offsetX.x + icon_size.x + style.ItemSpacing.x, 0 ), bb.Max - style.FramePadding, pLabel, NULL, &label_size, ImVec2( 0, 0.5f ), &bb );
 
-        pWindow->DrawList->AddText( pos + style.FramePadding, iconColor, pIcon );
+        pWindow->DrawList->AddText( pos + style.FramePadding + offsetX, iconColor, pIcon );
 
         return pressed;
     }
@@ -416,6 +418,15 @@ namespace EE::ImGuiX
         {
             value = !value;
         }
+
+        return result;
+    }
+
+    bool FlatToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size, ImColor const& onColor, ImColor const& offColor )
+    {
+        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
+        bool result = ToggleButton( pOnLabel, pOffLabel, value, size, onColor, offColor );
+        ImGui::PopStyleColor( 1 );
 
         return result;
     }

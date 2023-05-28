@@ -6,9 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void AndToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+     AndToolsNode::AndToolsNode()
+         : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "And", GraphValueType::Bool );
         CreateInputPin( "And", GraphValueType::Bool );
@@ -52,9 +52,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void OrToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    OrToolsNode::OrToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Or", GraphValueType::Bool );
         CreateInputPin( "Or", GraphValueType::Bool );
@@ -98,9 +98,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void NotToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    NotToolsNode::NotToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Not", GraphValueType::Bool );
     }

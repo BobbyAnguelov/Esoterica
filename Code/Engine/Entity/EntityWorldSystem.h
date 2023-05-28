@@ -6,7 +6,7 @@
 #include "Engine/Entity/EntityIDs.h"
 #include "System/TypeSystem/ReflectedType.h"
 #include "System/Types/Arrays.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 
 //-------------------------------------------------------------------------
 // World Entity System

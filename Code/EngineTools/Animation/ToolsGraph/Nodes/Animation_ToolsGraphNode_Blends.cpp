@@ -6,10 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ParameterizedBlendToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ParameterizedBlendToolsNode::ParameterizedBlendToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Parameter", GraphValueType::Float );
         CreateInputPin( "Input", GraphValueType::Pose );
@@ -75,10 +74,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void RangedBlendToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    RangedBlendToolsNode::RangedBlendToolsNode()
+        : ParameterizedBlendToolsNode()
     {
-        ParameterizedBlendToolsNode::Initialize( pParent );
-
         m_parameterValues.emplace_back( 0.0f );
         m_parameterValues.emplace_back( 1.0f );
     }

@@ -66,9 +66,54 @@ namespace EE::Animation
         return isChild;
     }
 
+    int32_t Skeleton::GetBoneMaskIndex( StringID maskID ) const
+    {
+        int32_t const numMasks = (int32_t) m_boneMasks.size();
+        for ( int32_t i = 0; i < numMasks; i++ )
+        {
+            if ( m_boneMasks[i].GetID() == maskID )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
+    }
+
+    BoneMask const* Skeleton::GetBoneMask( StringID maskID ) const
+    {
+        BoneMask const* pMask = nullptr;
+        int32_t const maskIdx = GetBoneMaskIndex( maskID );
+        if ( maskIdx != InvalidIndex ) 
+        {
+            pMask = &m_boneMasks[maskIdx];
+        }
+
+        return pMask;
+    }
+
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void Skeleton::DrawRootBone( Drawing::DrawContext& ctx, Transform const& worldTransform )
+    {
+        Vector const fwdDir = worldTransform.GetForwardVector();
+        Vector const upDir = worldTransform.GetUpVector();
+        Vector const rightDir = worldTransform.GetRightVector();
+        
+        Vector const charPos = worldTransform.GetTranslation();
+        Vector const offsetCharPos = charPos + Vector( 0, 0, 0.05f );
+
+        static constexpr float const forwardAxisLength = 0.1f;
+        static constexpr float const axisLength = 0.05f;
+
+        ctx.DrawLine( offsetCharPos, charPos, Colors::Yellow, 2 );
+        ctx.DrawArrow( offsetCharPos, offsetCharPos + fwdDir * forwardAxisLength, Colors::Lime, 4 );
+        ctx.DrawLine( offsetCharPos, offsetCharPos + upDir * axisLength, Colors::Blue, 3 );
+        ctx.DrawLine( offsetCharPos, offsetCharPos + rightDir * axisLength, Colors::Red, 3 );
+        ctx.DrawPoint( charPos, Colors::HotPink, 10 );
+    }
+
     void Skeleton::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform ) const
     {
         auto const numBones = m_localReferencePose.size();
@@ -93,31 +138,12 @@ namespace EE::Animation
                 auto const& parentTransform = globalTransforms[parentIdx];
                 auto const& boneTransform = globalTransforms[boneIdx];
 
-                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), Colors::HotPink, 2.0f );
+                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), Colors::HotPink, 3.0f );
                 ctx.DrawAxis( boneTransform, 0.03f, 2.0f );
             }
 
             DrawRootBone( ctx, globalTransforms[0] );
         }
-    }
-
-    void DrawRootBone( Drawing::DrawContext& ctx, Transform const& worldTransform )
-    {
-        Vector const fwdDir = worldTransform.GetForwardVector();
-        Vector const upDir = worldTransform.GetUpVector();
-        Vector const rightDir = worldTransform.GetRightVector();
-        
-        Vector const charPos = worldTransform.GetTranslation();
-        Vector const offsetCharPos = charPos + Vector( 0, 0, 0.05f );
-
-        static constexpr float const forwardAxisLength = 0.1f;
-        static constexpr float const axisLength = 0.05f;
-
-        ctx.DrawLine( offsetCharPos, charPos, Colors::Yellow, 2 );
-        ctx.DrawArrow( offsetCharPos, offsetCharPos + fwdDir * forwardAxisLength, Colors::Lime, 4 );
-        ctx.DrawLine( offsetCharPos, offsetCharPos + upDir * axisLength, Colors::Blue, 3 );
-        ctx.DrawLine( offsetCharPos, offsetCharPos + rightDir * axisLength, Colors::Red, 3 );
-        ctx.DrawPoint( charPos, Colors::HotPink, 10 );
     }
     #endif
 }

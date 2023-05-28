@@ -6,10 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void TransitionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    TransitionToolsNode::TransitionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateInputPin( "Condition", GraphValueType::Bool );
         CreateInputPin( "Duration Override", GraphValueType::Float );
         CreateInputPin( "Sync Event Override", GraphValueType::Float );

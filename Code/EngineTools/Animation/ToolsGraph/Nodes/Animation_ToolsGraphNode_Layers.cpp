@@ -7,13 +7,13 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void LocalLayerToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    LocalLayerToolsNode::LocalLayerToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Layer", GraphValueType::Special );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Weight", GraphValueType::Float );
+        CreateInputPin( "Root Motion Weight", GraphValueType::Float );
         CreateInputPin( "BoneMask", GraphValueType::BoneMask );
     }
 
@@ -69,10 +69,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void StateMachineLayerToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    StateMachineLayerToolsNode::StateMachineLayerToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Layer", GraphValueType::Special );
         CreateInputPin( "State Machine", GraphValueType::Pose );
     }
@@ -143,10 +142,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void LayerBlendToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    LayerBlendToolsNode::LayerBlendToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
-
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Base Node", GraphValueType::Pose );
         CreateInputPin( "Layer 0", GraphValueType::Special );
@@ -260,7 +258,8 @@ namespace EE::Animation::GraphNodes
                     }
                     else
                     {
-                        context.LogError( this, "Disconnected base node pin on layer node!" );
+                        InlineString errorMsg( InlineString::CtorSprintf(), "Disconnected layer node pin (%d) on layer node!", i - 1 );
+                        context.LogError( this, errorMsg.c_str() );
                         return InvalidIndex;
                     }
 
@@ -278,8 +277,22 @@ namespace EE::Animation::GraphNodes
                         }
                     }
 
+                    // Compile optional root motion weight node
+                    if ( auto pRootMotionWeightValueNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 2 ) )
+                    {
+                        auto compiledRootMotionWeightNodeIdx = pRootMotionWeightValueNode->Compile( context );
+                        if ( compiledRootMotionWeightNodeIdx != InvalidIndex )
+                        {
+                            layerSettings.m_rootMotionWeightValueNodeIdx = compiledRootMotionWeightNodeIdx;
+                        }
+                        else
+                        {
+                            return InvalidIndex;
+                        }
+                    }
+
                     // Compile optional mask node
-                    if ( auto pMaskValueNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 2 ) )
+                    if ( auto pMaskValueNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 3 ) )
                     {
                         auto compiledBoneMaskValueNodeIdx = pMaskValueNode->Compile( context );
                         if ( compiledBoneMaskValueNodeIdx != InvalidIndex )

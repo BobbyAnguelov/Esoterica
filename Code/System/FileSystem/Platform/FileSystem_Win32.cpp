@@ -1,7 +1,7 @@
 #ifdef _WIN32
 #include "../FileSystem.h"
 #include "System/Platform/PlatformHelpers_Win32.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 #include "System/Math/Math.h"
 #include <windows.h>
 #include <shlwapi.h>

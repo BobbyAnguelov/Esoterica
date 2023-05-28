@@ -40,7 +40,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_entryEvents, m_executeEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerWeightNodeIdx, m_isOffState );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_entryEvents, m_executeEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerRootMotionWeightNodeIdx,  m_layerWeightNodeIdx, m_isOffState );
 
         public:
 
@@ -54,8 +54,9 @@ namespace EE::Animation::GraphNodes
             TInlineVector<StringID, 3>                  m_exitEvents;
             TInlineVector<TimedEvent, 1>                m_timedRemainingEvents;
             TInlineVector<TimedEvent, 1>                m_timedElapsedEvents;
-            int16_t                                     m_layerBoneMaskNodeIdx = InvalidIndex;
             int16_t                                     m_layerWeightNodeIdx = InvalidIndex;
+            int16_t                                     m_layerRootMotionWeightNodeIdx = InvalidIndex;
+            int16_t                                     m_layerBoneMaskNodeIdx = InvalidIndex;
             bool                                        m_isOffState = false;
         };
 
@@ -93,7 +94,7 @@ namespace EE::Animation::GraphNodes
         void SampleStateEvents( GraphContext& context );
 
         // Update the layer weights for this state
-        void UpdateLayerWeights( GraphContext& context );
+        void UpdateLayerContext( GraphContext& context );
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -106,6 +107,7 @@ namespace EE::Animation::GraphNodes
         SampledEventRange                               m_sampledEventRange;
         BoneMaskValueNode*                              m_pBoneMaskNode = nullptr;
         FloatValueNode*                                 m_pLayerWeightNode = nullptr;
+        FloatValueNode*                                 m_pLayerRootMotionWeightNode = nullptr;
         Seconds                                         m_elapsedTimeInState = 0.0f;
         TransitionState                                 m_transitionState = TransitionState::None;
         bool                                            m_isFirstStateUpdate = false;

@@ -82,7 +82,6 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_DataSlot.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ChildGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.cpp" />
-    <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_FlowGraph.cpp" />
@@ -110,7 +109,6 @@
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationGraph.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationSkeleton.cpp" />
-    <ClCompile Include="Animation\Workspaces\Workspace_BoneMask.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationClip.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationGraph.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_Skeleton.cpp" />
@@ -207,7 +205,6 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_DataSlot.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ChildGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.h" />
-    <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationBoneMask.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.h" />
     <ClInclude Include="Animation\ToolsGraph\Graphs\Animation_ToolsGraph_FlowGraph.h" />
@@ -238,8 +235,6 @@
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationClip.h" />
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationGraph.h" />
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationSkeleton.h" />
-    <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationBoneMask.h" />
-    <ClInclude Include="Animation\Workspaces\Workspace_BoneMask.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationClip.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationGraph.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_Skeleton.h" />
@@ -264,7 +259,6 @@
     <ClInclude Include="Core\FileSystem\FileSystemWatcher.h" />
     <ClInclude Include="Core\Helpers\CategoryTree.h" />
     <ClInclude Include="Core\Helpers\CommonDialogs.h" />
-    <ClInclude Include="Core\Helpers\GlobalRegistryBase.h" />
     <ClInclude Include="Navmesh\NavmeshGenerator.h" />
     <ClInclude Include="Navmesh\NavmeshGeneratorDialog.h" />
     <ClInclude Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.h" />

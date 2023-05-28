@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void CachedBoolToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CachedBoolToolsNode::CachedBoolToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Value", GraphValueType::Bool );
     }
@@ -52,9 +52,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedIDToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CachedIDToolsNode::CachedIDToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::ID, true );
         CreateInputPin( "Value", GraphValueType::ID );
     }
@@ -97,9 +97,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedIntToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CachedIntToolsNode::CachedIntToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Int, true );
         CreateInputPin( "Value", GraphValueType::Int );
     }
@@ -142,9 +142,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedFloatToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CachedFloatToolsNode::CachedFloatToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Value", GraphValueType::Float );
     }
@@ -187,9 +187,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedVectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CachedVectorToolsNode::CachedVectorToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Vector, true );
         CreateInputPin( "Value", GraphValueType::Vector );
     }
@@ -232,9 +232,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedTargetToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    CachedTargetToolsNode::CachedTargetToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Target, true );
         CreateInputPin( "Value", GraphValueType::Target );
     }

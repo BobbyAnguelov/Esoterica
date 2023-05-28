@@ -1,7 +1,7 @@
 #include "FileSystemPath.h"
 #include "FileSystem.h"
 #include "System/Math/Math.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 
 //-------------------------------------------------------------------------
 

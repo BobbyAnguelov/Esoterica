@@ -1,5 +1,5 @@
 #include "AnimationEvent_Foot.h"
-#include "System/Algorithm/Hash.h"
+#include "System/Encoding/Hash.h"
 #include "System/Types/Color.h"
 
 //-------------------------------------------------------------------------

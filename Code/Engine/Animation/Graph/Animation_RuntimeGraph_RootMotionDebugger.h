@@ -75,6 +75,10 @@ namespace EE::Animation
 
         inline bool HasRecordedActions() const { return !m_recordedActions.empty(); }
 
+        int32_t GetCurrentActionIndexMarker() const { return (int32_t) m_recordedActions.size(); }
+
+        void RollbackToActionIndexMarker( int32_t const marker );
+
         EE_FORCE_INLINE int16_t GetLastActionIndex() const { return (int16_t) m_recordedActions.size() - 1; }
 
         EE_FORCE_INLINE int16_t RecordSampling( int16_t nodeIdx, Transform const& rootMotionDelta )

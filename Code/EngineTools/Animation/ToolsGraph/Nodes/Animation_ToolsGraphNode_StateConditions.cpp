@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void StateCompletedConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    StateCompletedConditionToolsNode::StateCompletedConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
     }
 
@@ -32,9 +32,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TimeConditionToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    TimeConditionToolsNode::TimeConditionToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Time Value (optional)", GraphValueType::Float );
     }

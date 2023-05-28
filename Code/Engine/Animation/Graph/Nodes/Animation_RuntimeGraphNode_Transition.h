@@ -115,7 +115,7 @@ namespace EE::Animation::GraphNodes
 
         void UpdateProgress( GraphContext& context, bool isInitializing = false );
         void UpdateProgressClampedSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange, bool isInitializing = false );
-        void UpdateLayerWeights( GraphContext& context, GraphLayerContext const& sourceLayerContext, GraphLayerContext const& targetLayerContext );
+        void UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext );
 
         GraphPoseNodeResult UpdateUnsynchronized( GraphContext& context );
         GraphPoseNodeResult UpdateSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange );

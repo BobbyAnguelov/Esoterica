@@ -1,7 +1,7 @@
 #include "RenderUtils.h"
 #include "RenderDevice.h"
 #include "System/Types/Arrays.h"
-#include "System/Algorithm/Encoding.h"
+#include "System/Encoding/Encoding.h"
 #include "System/ThirdParty/stb/stb_image.h"
 
 //-------------------------------------------------------------------------

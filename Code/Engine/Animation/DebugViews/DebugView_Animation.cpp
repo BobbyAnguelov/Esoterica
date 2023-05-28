@@ -149,6 +149,16 @@ namespace EE::Animation
 
         // Always use the task system from the context as this is guaranteed to be set
         auto pTaskSystem = pGraphInstance->m_graphContext.m_pTaskSystem;
+        DrawGraphActiveTasksDebugView( pTaskSystem );
+    }
+
+    void AnimationDebugView::DrawGraphActiveTasksDebugView( TaskSystem* pTaskSystem )
+    {
+        if ( pTaskSystem == nullptr )
+        {
+            return;
+        }
+
         if ( !pTaskSystem->HasTasks() )
         {
             ImGui::Text( "No Active Tasks" );

@@ -2,134 +2,14 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Component_SerializationTest.cpp" />
-    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp">
-      <Filter>AI\Systems</Filter>
+    <ClCompile Include="Physics\PhysicsQuery.cpp">
+      <Filter>Physics</Filter>
     </ClCompile>
-    <ClCompile Include="Math\Easing.cpp">
-      <Filter>Math</Filter>
+    <ClCompile Include="Physics\PhysicsMaterial.cpp">
+      <Filter>Physics</Filter>
     </ClCompile>
-    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp">
-      <Filter>Camera\Systems</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp">
-      <Filter>Camera\Systems</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp">
-      <Filter>Camera\DebugViews</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\Components\Component_Camera.cpp">
-      <Filter>Camera\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp">
-      <Filter>Camera\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\Components\Component_FreeLookCamera.cpp">
-      <Filter>Camera\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera\Components\Component_OrbitCamera.cpp">
-      <Filter>Camera\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityLog.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntitySerialization.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityIDs.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\Entity.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityComponent.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityDescriptors.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityMap.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntitySpatialComponent.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityWorld.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityWorldDebugger.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityWorldManager.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityWorldSystem.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\EntityWorldUpdateContext.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\DebugViews\DebugView_EntityWorld.cpp">
-      <Filter>Entity\DebugViews</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.cpp">
-      <Filter>Entity\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\RendererRegistry.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Mesh\RenderMesh.cpp">
-      <Filter>Render\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Mesh\SkeletalMesh.cpp">
-      <Filter>Render\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Mesh\StaticMesh.cpp">
-      <Filter>Render\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Systems\WorldSystem_Renderer.cpp">
-      <Filter>Render\Systems</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Material\RenderMaterial.cpp">
-      <Filter>Render\Material</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Renderers\DebugRenderer.cpp">
-      <Filter>Render\Renderers</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Renderers\DebugRenderStates.cpp">
-      <Filter>Render\Renderers</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Renderers\ImguiRenderer.cpp">
-      <Filter>Render\Renderers</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Renderers\WorldRenderer.cpp">
-      <Filter>Render\Renderers</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Components\Component_RenderMesh.cpp">
-      <Filter>Render\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Components\Component_SkeletalMesh.cpp">
-      <Filter>Render\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Components\Component_StaticMesh.cpp">
-      <Filter>Render\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\DebugViews\DebugView_Render.cpp">
-      <Filter>Render\DebugViews</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderMaterial.cpp">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderMesh.cpp">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderShader.cpp">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.cpp">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Player\Systems\WorldSystem_PlayerManager.cpp">
-      <Filter>Player\Systems</Filter>
+    <ClCompile Include="Physics\Physics.cpp">
+      <Filter>Physics</Filter>
     </ClCompile>
     <ClCompile Include="Physics\PhysicsCollisionMesh.cpp">
       <Filter>Physics</Filter>
@@ -140,11 +20,11 @@
     <ClCompile Include="Physics\PhysicsWorld.cpp">
       <Filter>Physics</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\Debug\DebugView_Physics.cpp">
+    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp">
       <Filter>Physics\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\Systems\WorldSystem_Physics.cpp">
-      <Filter>Physics\Systems</Filter>
+    <ClCompile Include="Physics\Debug\DebugView_Physics.cpp">
+      <Filter>Physics\Debug</Filter>
     </ClCompile>
     <ClCompile Include="Physics\Components\Component_PhysicsBox.cpp">
       <Filter>Physics\Components</Filter>
@@ -164,38 +44,17 @@
     <ClCompile Include="Physics\Components\Component_PhysicsSphere.cpp">
       <Filter>Physics\Components</Filter>
     </ClCompile>
+    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp">
+      <Filter>Physics\ResourceLoaders</Filter>
+    </ClCompile>
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.cpp">
       <Filter>Physics\ResourceLoaders</Filter>
     </ClCompile>
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.cpp">
       <Filter>Physics\ResourceLoaders</Filter>
     </ClCompile>
-    <ClCompile Include="Navmesh\NavmeshData.cpp">
-      <Filter>Navmesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Navmesh\NavPower.cpp">
-      <Filter>Navmesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Navmesh\Systems\WorldSystem_Navmesh.cpp">
-      <Filter>Navmesh\Systems</Filter>
-    </ClCompile>
-    <ClCompile Include="Navmesh\DebugViews\DebugView_Navmesh.cpp">
-      <Filter>Navmesh\DebugViews</Filter>
-    </ClCompile>
-    <ClCompile Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.cpp">
-      <Filter>Navmesh\ResourceLoaders</Filter>
-    </ClCompile>
-    <ClCompile Include="_Module\EngineModule.cpp">
-      <Filter>_Module</Filter>
-    </ClCompile>
-    <ClCompile Include="_Module\_AutoGenerated\_module.cpp">
-      <Filter>_Module\_AutoGenerated</Filter>
-    </ClCompile>
-    <ClCompile Include="ToolsUI\EngineToolsUI.cpp">
-      <Filter>ToolsUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Volumes\Components\Component_Volumes.cpp">
-      <Filter>Volumes\Components</Filter>
+    <ClCompile Include="Physics\Systems\WorldSystem_Physics.cpp">
+      <Filter>Physics\Systems</Filter>
     </ClCompile>
     <ClCompile Include="Animation\AnimationBlender.cpp">
       <Filter>Animation</Filter>
@@ -249,9 +108,6 @@
       <Filter>Animation\Graph</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.cpp">
-      <Filter>Animation\Graph</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp">
       <Filter>Animation\Graph</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp">
@@ -347,20 +203,8 @@
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Systems\EntitySystem_Animation.cpp">
-      <Filter>Animation\Systems</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\Systems\WorldSystem_Animation.cpp">
-      <Filter>Animation\Systems</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp">
-      <Filter>Animation\DebugViews</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\Components\Component_AnimationClipPlayer.cpp">
-      <Filter>Animation\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Animation\Components\Component_AnimationGraph.cpp">
-      <Filter>Animation\Components</Filter>
+    <ClCompile Include="Animation\TaskSystem\Animation_TaskSerializer.cpp">
+      <Filter>Animation\TaskSystem</Filter>
     </ClCompile>
     <ClCompile Include="Animation\TaskSystem\Animation_Task.cpp">
       <Filter>Animation\TaskSystem</Filter>
@@ -386,8 +230,20 @@
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.cpp">
       <Filter>Animation\TaskSystem\Tasks</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.cpp">
-      <Filter>Animation\ResourceLoaders</Filter>
+    <ClCompile Include="Animation\Systems\EntitySystem_Animation.cpp">
+      <Filter>Animation\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Systems\WorldSystem_Animation.cpp">
+      <Filter>Animation\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp">
+      <Filter>Animation\DebugViews</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Components\Component_AnimationClipPlayer.cpp">
+      <Filter>Animation\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\Components\Component_AnimationGraph.cpp">
+      <Filter>Animation\Components</Filter>
     </ClCompile>
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.cpp">
       <Filter>Animation\ResourceLoaders</Filter>
@@ -398,6 +254,162 @@
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.cpp">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClCompile>
+    <ClCompile Include="Entity\EntityLog.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntitySerialization.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityIDs.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\Entity.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityComponent.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityDescriptors.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityMap.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntitySpatialComponent.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityWorld.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityWorldDebugger.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityWorldManager.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityWorldSystem.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\EntityWorldUpdateContext.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\DebugViews\DebugView_EntityWorld.cpp">
+      <Filter>Entity\DebugViews</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.cpp">
+      <Filter>Entity\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp">
+      <Filter>AI\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Easing.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Player\Systems\WorldSystem_PlayerManager.cpp">
+      <Filter>Player\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp">
+      <Filter>Camera\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp">
+      <Filter>Camera\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Components\Component_Camera.cpp">
+      <Filter>Camera\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp">
+      <Filter>Camera\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Components\Component_FreeLookCamera.cpp">
+      <Filter>Camera\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Components\Component_OrbitCamera.cpp">
+      <Filter>Camera\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp">
+      <Filter>Camera\DebugViews</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\RendererRegistry.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Mesh\RenderMesh.cpp">
+      <Filter>Render\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Mesh\SkeletalMesh.cpp">
+      <Filter>Render\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Mesh\StaticMesh.cpp">
+      <Filter>Render\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Systems\WorldSystem_Renderer.cpp">
+      <Filter>Render\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Material\RenderMaterial.cpp">
+      <Filter>Render\Material</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Renderers\DebugRenderer.cpp">
+      <Filter>Render\Renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Renderers\DebugRenderStates.cpp">
+      <Filter>Render\Renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Renderers\ImguiRenderer.cpp">
+      <Filter>Render\Renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Renderers\WorldRenderer.cpp">
+      <Filter>Render\Renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Components\Component_RenderMesh.cpp">
+      <Filter>Render\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Components\Component_SkeletalMesh.cpp">
+      <Filter>Render\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\Components\Component_StaticMesh.cpp">
+      <Filter>Render\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\DebugViews\DebugView_Render.cpp">
+      <Filter>Render\DebugViews</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderMaterial.cpp">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderMesh.cpp">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderShader.cpp">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.cpp">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Navmesh\NavmeshData.cpp">
+      <Filter>Navmesh</Filter>
+    </ClCompile>
+    <ClCompile Include="Navmesh\NavPower.cpp">
+      <Filter>Navmesh</Filter>
+    </ClCompile>
+    <ClCompile Include="Navmesh\Systems\WorldSystem_Navmesh.cpp">
+      <Filter>Navmesh\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Navmesh\DebugViews\DebugView_Navmesh.cpp">
+      <Filter>Navmesh\DebugViews</Filter>
+    </ClCompile>
+    <ClCompile Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.cpp">
+      <Filter>Navmesh\ResourceLoaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Volumes\Components\Component_Volumes.cpp">
+      <Filter>Volumes\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolsUI\EngineToolsUI.cpp">
+      <Filter>ToolsUI</Filter>
+    </ClCompile>
+    <ClCompile Include="_Module\EngineModule.cpp">
+      <Filter>_Module</Filter>
+    </ClCompile>
+    <ClCompile Include="_Module\_AutoGenerated\_module.cpp">
+      <Filter>_Module\_AutoGenerated</Filter>
+    </ClCompile>
     <ClCompile Include="DebugViews\DebugView_Input.cpp">
       <Filter>DebugViews</Filter>
     </ClCompile>
@@ -407,186 +419,23 @@
     <ClCompile Include="DebugViews\DebugView_System.cpp">
       <Filter>DebugViews</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\Physics.cpp">
-      <Filter>Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp" />
-    <ClCompile Include="Physics\PhysicsQuery.cpp" />
-    <ClCompile Include="Physics\PhysicsMaterial.cpp" />
-    <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
-    <ClInclude Include="UpdateStage.h" />
     <ClInclude Include="ModuleContext.h" />
     <ClInclude Include="UpdateContext.h" />
-    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h">
-      <Filter>AI\Systems</Filter>
+    <ClInclude Include="UpdateStage.h" />
+    <ClInclude Include="Physics\PhysicsQuery.h">
+      <Filter>Physics</Filter>
     </ClInclude>
-    <ClInclude Include="AI\Components\Component_AI.h">
-      <Filter>AI\Components</Filter>
+    <ClInclude Include="Physics\PhysicsMaterial.h">
+      <Filter>Physics</Filter>
     </ClInclude>
-    <ClInclude Include="AI\Components\Component_AISpawn.h">
-      <Filter>AI\Components</Filter>
+    <ClInclude Include="Physics\PhysicsSettings.h">
+      <Filter>Physics</Filter>
     </ClInclude>
-    <ClInclude Include="Math\Easing.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h">
-      <Filter>Camera\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h">
-      <Filter>Camera\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\DebugViews\DebugView_Camera.h">
-      <Filter>Camera\DebugViews</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Components\Component_Camera.h">
-      <Filter>Camera\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Components\Component_DebugCamera.h">
-      <Filter>Camera\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Components\Component_FreeLookCamera.h">
-      <Filter>Camera\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera\Components\Component_OrbitCamera.h">
-      <Filter>Camera\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityLog.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntitySerialization.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\Entity.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityContexts.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityComponent.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityDescriptors.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityIDs.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityMap.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntitySpatialComponent.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntitySystem.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorld.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorldDebugger.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorldDebugView.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorldManager.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorldSystem.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorldUpdateContext.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\DebugViews\DebugView_EntityWorld.h">
-      <Filter>Entity\DebugViews</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.h">
-      <Filter>Entity\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\IRenderer.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RendererRegistry.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Mesh\RenderMesh.h">
-      <Filter>Render\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Mesh\SkeletalMesh.h">
-      <Filter>Render\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Mesh\StaticMesh.h">
-      <Filter>Render\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Shaders\DebugShaders.h">
-      <Filter>Render\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Shaders\EngineShaders.h">
-      <Filter>Render\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Shaders\ImguiShaders.h">
-      <Filter>Render\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Systems\WorldSystem_Renderer.h">
-      <Filter>Render\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Material\RenderMaterial.h">
-      <Filter>Render\Material</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Renderers\DebugRenderer.h">
-      <Filter>Render\Renderers</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Renderers\DebugRenderStates.h">
-      <Filter>Render\Renderers</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Renderers\ImguiRenderer.h">
-      <Filter>Render\Renderers</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Renderers\WorldRenderer.h">
-      <Filter>Render\Renderers</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Components\Component_EnvironmentMaps.h">
-      <Filter>Render\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Components\Component_Lights.h">
-      <Filter>Render\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Components\Component_RenderMesh.h">
-      <Filter>Render\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Components\Component_SkeletalMesh.h">
-      <Filter>Render\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Components\Component_StaticMesh.h">
-      <Filter>Render\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\DebugViews\DebugView_Render.h">
-      <Filter>Render\DebugViews</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderMaterial.h">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderMesh.h">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderShader.h">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.h">
-      <Filter>Render\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Player\Systems\WorldSystem_PlayerManager.h">
-      <Filter>Player\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Player\Components\Component_Player.h">
-      <Filter>Player\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Player\Components\Component_PlayerSpawn.h">
-      <Filter>Player\Components</Filter>
+    <ClInclude Include="Physics\Physics.h">
+      <Filter>Physics</Filter>
     </ClInclude>
     <ClInclude Include="Physics\PhysicsCollisionMesh.h">
       <Filter>Physics</Filter>
@@ -597,11 +446,14 @@
     <ClInclude Include="Physics\PhysicsWorld.h">
       <Filter>Physics</Filter>
     </ClInclude>
+    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h">
+      <Filter>Physics\Debug</Filter>
+    </ClInclude>
     <ClInclude Include="Physics\Debug\DebugView_Physics.h">
       <Filter>Physics\Debug</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\Systems\WorldSystem_Physics.h">
-      <Filter>Physics\Systems</Filter>
+    <ClInclude Include="Physics\Components\Component_PhysicsTest.h">
+      <Filter>Physics\Components</Filter>
     </ClInclude>
     <ClInclude Include="Physics\Components\Component_PhysicsBox.h">
       <Filter>Physics\Components</Filter>
@@ -621,47 +473,17 @@
     <ClInclude Include="Physics\Components\Component_PhysicsSphere.h">
       <Filter>Physics\Components</Filter>
     </ClInclude>
+    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h">
+      <Filter>Physics\ResourceLoaders</Filter>
+    </ClInclude>
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.h">
       <Filter>Physics\ResourceLoaders</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.h">
       <Filter>Physics\ResourceLoaders</Filter>
     </ClInclude>
-    <ClInclude Include="Navmesh\NavmeshData.h">
-      <Filter>Navmesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\NavPower.h">
-      <Filter>Navmesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\Systems\WorldSystem_Navmesh.h">
-      <Filter>Navmesh\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\Components\Component_Navmesh.h">
-      <Filter>Navmesh\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\Components\Component_NavmeshVolumes.h">
-      <Filter>Navmesh\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\DebugViews\DebugView_Navmesh.h">
-      <Filter>Navmesh\DebugViews</Filter>
-    </ClInclude>
-    <ClInclude Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.h">
-      <Filter>Navmesh\ResourceLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="_Module\API.h">
-      <Filter>_Module</Filter>
-    </ClInclude>
-    <ClInclude Include="_Module\EngineModule.h">
-      <Filter>_Module</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolsUI\EngineToolsUI.h">
-      <Filter>ToolsUI</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolsUI\IDevelopmentToolsUI.h">
-      <Filter>ToolsUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Volumes\Components\Component_Volumes.h">
-      <Filter>Volumes\Components</Filter>
+    <ClInclude Include="Physics\Systems\WorldSystem_Physics.h">
+      <Filter>Physics\Systems</Filter>
     </ClInclude>
     <ClInclude Include="Animation\AnimationBlender.h">
       <Filter>Animation</Filter>
@@ -692,6 +514,9 @@
     </ClInclude>
     <ClInclude Include="Animation\AnimationTarget.h">
       <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h">
+      <Filter>Animation\Graph</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h">
       <Filter>Animation\Graph</Filter>
@@ -804,6 +629,9 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
+    <ClInclude Include="Animation\Events\AnimationEvent_RootMotion.h">
+      <Filter>Animation\Events</Filter>
+    </ClInclude>
     <ClInclude Include="Animation\Events\AnimationEvent_Transition.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
@@ -819,20 +647,8 @@
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Systems\EntitySystem_Animation.h">
-      <Filter>Animation\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\Systems\WorldSystem_Animation.h">
-      <Filter>Animation\Systems</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\DebugViews\DebugView_Animation.h">
-      <Filter>Animation\DebugViews</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\Components\Component_AnimationClipPlayer.h">
-      <Filter>Animation\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Animation\Components\Component_AnimationGraph.h">
-      <Filter>Animation\Components</Filter>
+    <ClInclude Include="Animation\TaskSystem\Animation_TaskSerializer.h">
+      <Filter>Animation\TaskSystem</Filter>
     </ClInclude>
     <ClInclude Include="Animation\TaskSystem\Animation_Task.h">
       <Filter>Animation\TaskSystem</Filter>
@@ -858,8 +674,20 @@
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.h">
       <Filter>Animation\TaskSystem\Tasks</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.h">
-      <Filter>Animation\ResourceLoaders</Filter>
+    <ClInclude Include="Animation\Systems\EntitySystem_Animation.h">
+      <Filter>Animation\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Systems\WorldSystem_Animation.h">
+      <Filter>Animation\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\DebugViews\DebugView_Animation.h">
+      <Filter>Animation\DebugViews</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Components\Component_AnimationClipPlayer.h">
+      <Filter>Animation\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\Components\Component_AnimationGraph.h">
+      <Filter>Animation\Components</Filter>
     </ClInclude>
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.h">
       <Filter>Animation\ResourceLoaders</Filter>
@@ -870,6 +698,213 @@
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.h">
       <Filter>Animation\ResourceLoaders</Filter>
     </ClInclude>
+    <ClInclude Include="Entity\EntityWorldType.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityLog.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntitySerialization.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\Entity.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityContexts.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityComponent.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityDescriptors.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityIDs.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityMap.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntitySpatialComponent.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntitySystem.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityWorld.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityWorldDebugger.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityWorldDebugView.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityWorldManager.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityWorldSystem.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\EntityWorldUpdateContext.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\DebugViews\DebugView_EntityWorld.h">
+      <Filter>Entity\DebugViews</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.h">
+      <Filter>Entity\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h">
+      <Filter>AI\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Components\Component_AI.h">
+      <Filter>AI\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Components\Component_AISpawn.h">
+      <Filter>AI\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Easing.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\Systems\WorldSystem_PlayerManager.h">
+      <Filter>Player\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\Components\Component_Player.h">
+      <Filter>Player\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\Components\Component_PlayerSpawn.h">
+      <Filter>Player\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h">
+      <Filter>Camera\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h">
+      <Filter>Camera\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Components\Component_Camera.h">
+      <Filter>Camera\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Components\Component_DebugCamera.h">
+      <Filter>Camera\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Components\Component_FreeLookCamera.h">
+      <Filter>Camera\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Components\Component_OrbitCamera.h">
+      <Filter>Camera\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\DebugViews\DebugView_Camera.h">
+      <Filter>Camera\DebugViews</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\IRenderer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\RendererRegistry.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Mesh\RenderMesh.h">
+      <Filter>Render\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Mesh\SkeletalMesh.h">
+      <Filter>Render\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Mesh\StaticMesh.h">
+      <Filter>Render\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Systems\WorldSystem_Renderer.h">
+      <Filter>Render\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Shaders\DebugShaders.h">
+      <Filter>Render\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Shaders\EngineShaders.h">
+      <Filter>Render\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Shaders\ImguiShaders.h">
+      <Filter>Render\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Material\RenderMaterial.h">
+      <Filter>Render\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Renderers\DebugRenderer.h">
+      <Filter>Render\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Renderers\DebugRenderStates.h">
+      <Filter>Render\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Renderers\ImguiRenderer.h">
+      <Filter>Render\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Renderers\WorldRenderer.h">
+      <Filter>Render\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Components\Component_EnvironmentMaps.h">
+      <Filter>Render\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Components\Component_Lights.h">
+      <Filter>Render\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Components\Component_RenderMesh.h">
+      <Filter>Render\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Components\Component_SkeletalMesh.h">
+      <Filter>Render\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Components\Component_StaticMesh.h">
+      <Filter>Render\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\DebugViews\DebugView_Render.h">
+      <Filter>Render\DebugViews</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderMaterial.h">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderMesh.h">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderShader.h">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.h">
+      <Filter>Render\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\NavmeshData.h">
+      <Filter>Navmesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\NavPower.h">
+      <Filter>Navmesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\Systems\WorldSystem_Navmesh.h">
+      <Filter>Navmesh\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\DebugViews\DebugView_Navmesh.h">
+      <Filter>Navmesh\DebugViews</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\Components\Component_Navmesh.h">
+      <Filter>Navmesh\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\Components\Component_NavmeshVolumes.h">
+      <Filter>Navmesh\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.h">
+      <Filter>Navmesh\ResourceLoaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Volumes\Components\Component_Volumes.h">
+      <Filter>Volumes\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolsUI\EngineToolsUI.h">
+      <Filter>ToolsUI</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolsUI\IDevelopmentToolsUI.h">
+      <Filter>ToolsUI</Filter>
+    </ClInclude>
+    <ClInclude Include="_Module\API.h">
+      <Filter>_Module</Filter>
+    </ClInclude>
+    <ClInclude Include="_Module\EngineModule.h">
+      <Filter>_Module</Filter>
+    </ClInclude>
     <ClInclude Include="DebugViews\DebugView_Input.h">
       <Filter>DebugViews</Filter>
     </ClInclude>
@@ -879,16 +914,6 @@
     <ClInclude Include="DebugViews\DebugView_System.h">
       <Filter>DebugViews</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Events\AnimationEvent_RootMotion.h" />
-    <ClInclude Include="Physics\Physics.h" />
-    <ClInclude Include="Physics\Components\Component_PhysicsTest.h" />
-    <ClInclude Include="Entity\EntityWorldType.h" />
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h" />
-    <ClInclude Include="Physics\PhysicsSettings.h" />
-    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h" />
-    <ClInclude Include="Physics\PhysicsQuery.h" />
-    <ClInclude Include="Physics\PhysicsMaterial.h" />
-    <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">
@@ -961,170 +986,170 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="AI">
-      <UniqueIdentifier>{6bd830cf-fc9a-4c18-8272-3b7f700ff079}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\Systems">
-      <UniqueIdentifier>{b2da1dc3-d0e2-4494-834c-66b0fd3c145d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AI\Components">
-      <UniqueIdentifier>{3f26d491-d51c-4cb1-8db0-b9a1dc3d3171}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Math">
-      <UniqueIdentifier>{57ae0212-ba5c-4c85-a87c-634bc3b95937}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera">
-      <UniqueIdentifier>{81f3fd4c-365b-4283-90d8-4a9793cdc37e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera\Systems">
-      <UniqueIdentifier>{2950c4b4-f8e0-4525-b008-168b230a6e23}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera\DebugViews">
-      <UniqueIdentifier>{3e101902-776d-48f7-84c8-ae60dcddecdc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Camera\Components">
-      <UniqueIdentifier>{9d72dad3-a795-4cf1-b9f1-f7352b1955c1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity">
-      <UniqueIdentifier>{351e789c-a4e3-4d2f-acbb-cc9308a5b47e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\DebugViews">
-      <UniqueIdentifier>{af42dad6-322e-4699-9e51-755f1bd538e5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\ResourceLoaders">
-      <UniqueIdentifier>{6b7fe65d-febb-4af1-9bc4-2664b49b34d4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render">
-      <UniqueIdentifier>{a29a6068-fb91-4bf8-a2d5-c6f442d1fbcb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Mesh">
-      <UniqueIdentifier>{59200132-5238-4a0a-b574-ef75903d068d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders">
-      <UniqueIdentifier>{866da41e-2e46-4d08-ad19-f4d53d91aa60}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders\Imgui">
-      <UniqueIdentifier>{1c98d908-0fa1-49da-a2f0-f74742abaf6d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders\Engine">
-      <UniqueIdentifier>{5f449e75-be6c-43fb-b68e-9458cb866784}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Shaders\DebugRenderer">
-      <UniqueIdentifier>{28786688-7157-49d6-bdba-08e92bc5339e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Systems">
-      <UniqueIdentifier>{a09dd536-284f-4e84-a681-55e0f0297f06}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Material">
-      <UniqueIdentifier>{f010cad9-cb65-48d3-ac55-39448cc93f6c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Renderers">
-      <UniqueIdentifier>{1f760817-28b5-4369-8b93-d4604b005a49}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Components">
-      <UniqueIdentifier>{566b8915-7c95-40b7-8ce9-6a8c2f1281ec}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\DebugViews">
-      <UniqueIdentifier>{b5b4fade-1c8a-4946-85c9-13a6b6b6ba6b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\ResourceLoaders">
-      <UniqueIdentifier>{b073b8ed-6395-42a8-9ea2-c43e26da854b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player">
-      <UniqueIdentifier>{ad36dd76-f4e5-41a5-87b3-6db4f939c7f0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player\Systems">
-      <UniqueIdentifier>{a6ae18a7-0365-494b-8acb-f1436cfed8cc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Player\Components">
-      <UniqueIdentifier>{46ff0328-86e2-42d0-b903-63dcf158e16d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{91e66964-414e-45ee-bbaa-4c3fae4d80a8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders\Engine">
-      <UniqueIdentifier>{1ecc696e-733d-40cb-8e10-c98c980e9cd7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders\DebugRenderer">
-      <UniqueIdentifier>{c997510f-3972-4d86-a894-e04f8d18552d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Physics">
-      <UniqueIdentifier>{15507e87-feb5-4adc-ba3f-ac27bcc2ccd7}</UniqueIdentifier>
+      <UniqueIdentifier>{d68f17e7-df4d-437c-b120-aa228eeba41b}</UniqueIdentifier>
     </Filter>
     <Filter Include="Physics\Debug">
-      <UniqueIdentifier>{c6788aa5-cefd-4e0e-b183-d7758a4376e9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\Systems">
-      <UniqueIdentifier>{73d7534e-a209-483c-b055-a4c19c874cd6}</UniqueIdentifier>
+      <UniqueIdentifier>{ec2006c4-9736-48e2-910e-ee90bb011900}</UniqueIdentifier>
     </Filter>
     <Filter Include="Physics\Components">
-      <UniqueIdentifier>{312b6b54-dcf0-4faf-8b2a-0be52a0059dd}</UniqueIdentifier>
+      <UniqueIdentifier>{4766a17a-bdcb-42f2-a1af-7c9db961802d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Physics\ResourceLoaders">
-      <UniqueIdentifier>{9fdeeb4d-d893-4d89-9f30-f0af30e20f2f}</UniqueIdentifier>
+      <UniqueIdentifier>{1163d221-bf08-4416-b3c2-1dc7a1089e72}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Navmesh">
-      <UniqueIdentifier>{99c760fa-5028-4851-9359-b37c47b2a31b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\Systems">
-      <UniqueIdentifier>{fa7f89a1-8e0c-4d1b-9044-1a359a53a561}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\Components">
-      <UniqueIdentifier>{9d270dd6-27be-491c-bf6e-a717b259aa7a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\DebugViews">
-      <UniqueIdentifier>{e007cfdc-4e0b-45d4-be7f-0d44a599021c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\ResourceLoaders">
-      <UniqueIdentifier>{2bec6adb-895b-47c3-af89-9368cda7c6b3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module">
-      <UniqueIdentifier>{957e746b-28dc-4865-8b6a-9f64cf84892e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module\_AutoGenerated">
-      <UniqueIdentifier>{da0944bb-3e85-4ffe-94df-f24f76b32f9a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ToolsUI">
-      <UniqueIdentifier>{113df64a-92a5-45fa-a9c0-d12642615612}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Volumes">
-      <UniqueIdentifier>{4d7785c1-b4a9-45f2-aa8a-4b1453677f0f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Volumes\Components">
-      <UniqueIdentifier>{e3bbd7c8-3a9f-40e2-9d0d-3c44cbaec6cf}</UniqueIdentifier>
+    <Filter Include="Physics\Systems">
+      <UniqueIdentifier>{e746e227-94c5-4dc9-9702-7cfa65884c10}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation">
-      <UniqueIdentifier>{9846bfa7-f590-4a6e-8818-0ce01315840d}</UniqueIdentifier>
+      <UniqueIdentifier>{886b4116-97f2-4f27-8d29-dd0650329d18}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\Graph">
-      <UniqueIdentifier>{1ff336a5-f909-4cd2-b24a-25c46e4bdaa4}</UniqueIdentifier>
+      <UniqueIdentifier>{26cce045-f53f-45ae-8926-7342b0da39b5}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\Graph\Nodes">
-      <UniqueIdentifier>{269f8fbf-5cc5-4bd7-b962-0c7abb2be4f9}</UniqueIdentifier>
+      <UniqueIdentifier>{3aaa86dc-3e4c-4f79-83ce-c96242e0a806}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\Events">
-      <UniqueIdentifier>{d14e78ef-5fe7-4975-85c3-e6dbf9f8ce61}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\Systems">
-      <UniqueIdentifier>{676ecf08-2086-4670-a132-9a478e4b34a0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\DebugViews">
-      <UniqueIdentifier>{48e816b5-9e43-48dd-9050-5f3810e53661}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\Components">
-      <UniqueIdentifier>{c3deb551-1e09-403c-b085-f71f0123afd3}</UniqueIdentifier>
+      <UniqueIdentifier>{2d163553-b5f8-4721-a4e1-6e6bf8b41c49}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\TaskSystem">
-      <UniqueIdentifier>{49f5e025-e17f-4038-b2a4-381858a9327c}</UniqueIdentifier>
+      <UniqueIdentifier>{ea902861-29a8-47d8-a3e2-a2133a464a22}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\TaskSystem\Tasks">
-      <UniqueIdentifier>{4e88e40d-52aa-4122-9e18-becd576642cb}</UniqueIdentifier>
+      <UniqueIdentifier>{6acf64f4-2590-46a8-892f-7c45655ea787}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\Systems">
+      <UniqueIdentifier>{863205b3-3380-4ecf-88af-f3e196220d93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\DebugViews">
+      <UniqueIdentifier>{1acb1b91-d271-4aa2-8f4f-add62f8791eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\Components">
+      <UniqueIdentifier>{8703003a-ce5d-45d5-85c9-0145d2eaa223}</UniqueIdentifier>
     </Filter>
     <Filter Include="Animation\ResourceLoaders">
-      <UniqueIdentifier>{cbad6210-e09b-4fad-bf1d-3a26b0045738}</UniqueIdentifier>
+      <UniqueIdentifier>{2e170e64-b32e-4b3f-8b36-a8d53abc885f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity">
+      <UniqueIdentifier>{2bc4e007-0bb1-4c7e-a9c0-92e3d17b590f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity\DebugViews">
+      <UniqueIdentifier>{17fd11c8-4e61-487c-af98-7673f53f1dd5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity\ResourceLoaders">
+      <UniqueIdentifier>{df8fd656-a987-470d-9573-177026e0c6ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI">
+      <UniqueIdentifier>{3e286023-27c0-41e3-b2f0-5eb52a0e9c43}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Systems">
+      <UniqueIdentifier>{f76ac352-0459-403b-9505-af1d5324c5ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI\Components">
+      <UniqueIdentifier>{355a17c3-c205-4457-9a52-8cf7ac88a246}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Math">
+      <UniqueIdentifier>{c9432ca3-5c68-4341-bbd4-24ec207cdc9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player">
+      <UniqueIdentifier>{1dfa29b6-004e-4450-b39a-cb9a1964e673}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Systems">
+      <UniqueIdentifier>{1aa3f817-bb70-475c-9ed2-f327ede9d8b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Player\Components">
+      <UniqueIdentifier>{f7d00c96-860c-4dff-9aec-fef19def1d17}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera">
+      <UniqueIdentifier>{7c55ca1c-8185-4e98-8ef6-58bd806aae26}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera\Systems">
+      <UniqueIdentifier>{00473708-8425-4076-bb00-5b84a5ff0ff6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera\Components">
+      <UniqueIdentifier>{a68c20bb-51bc-496b-954d-6a81ce6e8b3a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera\DebugViews">
+      <UniqueIdentifier>{070931ca-a232-484f-b64f-81d56769f4e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{9da0b777-9167-4cc1-952d-cdd008d2f11e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Mesh">
+      <UniqueIdentifier>{339e05f5-b5a4-4f67-93a2-3182ab88c45c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Systems">
+      <UniqueIdentifier>{fa09d20b-a753-4fe3-adb6-7b9809256f14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders">
+      <UniqueIdentifier>{f583145d-c41a-44e6-adde-f1b17296f4b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Imgui">
+      <UniqueIdentifier>{6ac0456f-79f5-4c2a-9856-4aac119a0e3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Engine">
+      <UniqueIdentifier>{5edb4e5e-86cc-4ead-92e7-40c9e9e13ef5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\DebugRenderer">
+      <UniqueIdentifier>{75dcd6b9-c8d5-4075-aa40-5294eec0bab0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Material">
+      <UniqueIdentifier>{65618b69-a87f-48a4-9661-7d30d0921b9c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Renderers">
+      <UniqueIdentifier>{f729758a-6678-41f4-8750-5af744f0aef1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Components">
+      <UniqueIdentifier>{c9295358-4beb-498e-86ad-70ff08fac085}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\DebugViews">
+      <UniqueIdentifier>{16e33f9d-6d98-426e-bcf8-2b755fb6aa1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\ResourceLoaders">
+      <UniqueIdentifier>{0556c061-ddbb-44e7-ad94-a3b8e0da5f1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh">
+      <UniqueIdentifier>{a23ff3f0-0531-473b-ad52-43ce0ccd7594}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\Systems">
+      <UniqueIdentifier>{78dd177c-31e7-404d-aa53-3803a0230f9c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\DebugViews">
+      <UniqueIdentifier>{d14781b0-a805-4524-8afa-10f13d34750e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\Components">
+      <UniqueIdentifier>{4c022cdb-a5c0-4f7a-9b8c-25413c56ebb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\ResourceLoaders">
+      <UniqueIdentifier>{c25be2cc-a37e-4ba0-bd6c-6538fb423182}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{61f092e3-ae21-4a5d-a641-8870cfa546f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Engine">
+      <UniqueIdentifier>{5a355f1f-fa97-4cdc-9706-e9c83fa3fa27}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\DebugRenderer">
+      <UniqueIdentifier>{60f4d339-ca13-4b3c-b83b-cdf66da117f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Volumes">
+      <UniqueIdentifier>{92e7ebc3-db76-4185-a90c-e0dc7f9bcce0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Volumes\Components">
+      <UniqueIdentifier>{a4523505-14a1-4002-98e3-d5d17f00714c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ToolsUI">
+      <UniqueIdentifier>{16097bbe-8924-4105-972a-0e0a57114de4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module">
+      <UniqueIdentifier>{d76b4440-891e-4e1f-a66a-141d285b8646}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module\_AutoGenerated">
+      <UniqueIdentifier>{7e3a2f2d-98eb-4595-af04-fef7bcca6ef0}</UniqueIdentifier>
     </Filter>
     <Filter Include="DebugViews">
-      <UniqueIdentifier>{f0123fe9-de44-44a7-8cb5-e579961f28e3}</UniqueIdentifier>
+      <UniqueIdentifier>{10469199-72b4-4a38-a5fe-08b379920c72}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

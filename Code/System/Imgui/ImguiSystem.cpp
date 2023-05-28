@@ -6,6 +6,7 @@
 #include "System/Fonts/FontData_Lexend.h"
 #include "System/Fonts/FontData_MaterialDesign.h"
 #include "System/FileSystem/FileSystemUtils.h"
+#include "System/ThirdParty/implot/implot.h"
 
 //-------------------------------------------------------------------------
 
@@ -24,6 +25,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImGui::CreateContext();
+        ImPlot::CreateContext();
 
         //-------------------------------------------------------------------------
 
@@ -76,6 +78,8 @@ namespace EE::ImGuiX
 
         ShutdownFonts();
         ShutdownPlatform();
+
+        ImPlot::DestroyContext();
         ImGui::DestroyContext();
     }
 

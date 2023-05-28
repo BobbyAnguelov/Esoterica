@@ -6,9 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void RootMotionOverrideToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    RootMotionOverrideToolsNode::RootMotionOverrideToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Desired Heading Velocity (Character)", GraphValueType::Vector );

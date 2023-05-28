@@ -1,17 +1,19 @@
 #include "Animation_ToolsGraphNode_Result.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
+#include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    ResultToolsNode::ResultToolsNode( GraphValueType valueType )
-        : m_valueType( valueType )
+    ResultToolsNode::ResultToolsNode()
+        : FlowToolsNode()
     {}
 
-    void ResultToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ResultToolsNode::ResultToolsNode( GraphValueType valueType )
+        : FlowToolsNode()
+        , m_valueType( valueType )
     {
-        FlowToolsNode::Initialize( pParent );
         CreateInputPin( "Out", m_valueType );
     }
 

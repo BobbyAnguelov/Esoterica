@@ -25,7 +25,7 @@ namespace EE::Animation
     {
         EE_REFLECT_ENUM
 
-        Interpolative, // Regular blend
+        Interpolative = 0, // Regular blend
         Additive,
         InterpolativeGlobalSpace,
     };

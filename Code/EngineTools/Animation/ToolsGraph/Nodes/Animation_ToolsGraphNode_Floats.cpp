@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void FloatRemapToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatRemapToolsNode::FloatRemapToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Float", GraphValueType::Float );
     }
@@ -53,9 +53,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatClampToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatClampToolsNode::FloatClampToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Value", GraphValueType::Float );
     }
@@ -106,9 +106,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatAbsToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatAbsToolsNode::FloatAbsToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Float", GraphValueType::Float );
     }
@@ -143,9 +143,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatEaseToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatEaseToolsNode::FloatEaseToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Value", GraphValueType::Float );
     }
@@ -198,9 +198,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatCurveToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatCurveToolsNode::FloatCurveToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Float", GraphValueType::Float );
     }
@@ -239,9 +239,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatMathToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatMathToolsNode::FloatMathToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "A", GraphValueType::Float );
         CreateInputPin( "B (Optional)", GraphValueType::Float );
@@ -339,9 +339,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatComparisonToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatComparisonToolsNode::FloatComparisonToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Float", GraphValueType::Float );
     }
@@ -396,9 +396,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatRangeComparisonToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatRangeComparisonToolsNode::FloatRangeComparisonToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
+        
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Float", GraphValueType::Float );
     }
@@ -450,9 +451,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatSwitchToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatSwitchToolsNode::FloatSwitchToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Bool", GraphValueType::Bool );
         CreateInputPin( "If True", GraphValueType::Float );
@@ -531,9 +532,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatAngleMathToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    FloatAngleMathToolsNode::FloatAngleMathToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Angle (deg)", GraphValueType::Float );
     }

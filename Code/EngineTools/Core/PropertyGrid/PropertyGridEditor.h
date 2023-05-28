@@ -1,8 +1,8 @@
 #pragma once
 
-#include "EngineTools/Core/Helpers/GlobalRegistryBase.h"
 #include "EngineTools/_Module/API.h"
 #include "System/TypeSystem/CoreTypeIDs.h"
+#include "System/Utils/GlobalRegistryBase.h"
 
 //-------------------------------------------------------------------------
 

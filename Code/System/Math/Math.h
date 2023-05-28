@@ -6,6 +6,14 @@
 #include "System/Esoterica.h"
 #include <math.h>
 
+// Compiler Specific Math Functions
+//-------------------------------------------------------------------------
+
+#if _WIN32
+#include "Platform/Math_Win32.h"
+#endif
+
+// General Math Functions
 //-------------------------------------------------------------------------
 
 namespace EE

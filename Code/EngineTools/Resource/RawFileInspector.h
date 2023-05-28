@@ -1,9 +1,9 @@
 #pragma once
 
-#include "EngineTools/Core/Helpers/GlobalRegistryBase.h"
 #include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
 #include "System/FileSystem/FileSystemPath.h"
 #include "System/Resource/ResourceTypeID.h"
+#include "System/Utils/GlobalRegistryBase.h"
 
 //-------------------------------------------------------------------------
 

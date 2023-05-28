@@ -11,7 +11,8 @@ namespace EE::Animation
 {
     TaskSystem::TaskSystem( Skeleton const* pSkeleton )
         : m_posePool( pSkeleton )
-        , m_taskContext( m_posePool )
+        , m_boneMaskPool( pSkeleton )
+        , m_taskContext( m_posePool, m_boneMaskPool )
         , m_finalPose( pSkeleton )
     {
         EE_ASSERT( pSkeleton != nullptr );
@@ -85,6 +86,10 @@ namespace EE::Animation
     void TaskSystem::UpdatePrePhysics( float deltaTime, Transform const& worldTransform, Transform const& worldTransformInverse )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Anim Pre-Physics Tasks" );
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_boneMaskPool.PerformValidation();
+        #endif
 
         m_taskContext.m_currentTaskIdx = InvalidIndex;
         m_taskContext.m_deltaTime = deltaTime;
@@ -224,6 +229,62 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    bool TaskSystem::SerializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob& outSerializedData ) const
+    {
+        EE_ASSERT( !m_needsUpdate );
+
+        uint8_t const numTasks = (uint8_t) m_tasks.size();
+
+        TaskSerializer serializer( GetSkeleton(), LUTs, numTasks );
+
+        // Serialize task types
+        for ( auto pTask : m_tasks )
+        {
+            EE_ASSERT( pTask->IsComplete() );
+            uint8_t serializedTypeID = TaskSerializer::GetSerializedTaskTypeID( pTask );
+            serializer.WriteTaskTypeID( serializedTypeID );
+        }
+
+        // Serialize task data
+        for ( auto pTask : m_tasks )
+        {
+            if ( !pTask->AllowsSerialization() )
+            {
+                return false;
+            }
+
+            pTask->Serialize( serializer );
+        }
+
+        serializer.GetWrittenData( outSerializedData );
+
+        return true;
+    }
+
+    void TaskSystem::DeserializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob const& inSerializedData )
+    {
+        EE_ASSERT( m_tasks.empty() );
+        EE_ASSERT( !m_needsUpdate );
+
+        TaskSerializer serializer( GetSkeleton(), LUTs, inSerializedData );
+        uint8_t const numTasks = serializer.GetNumSerializedTasks();
+
+        // Create tasks
+        for ( uint8_t i = 0; i < numTasks; i++ )
+        {
+            uint8_t const taskTypeID = serializer.ReadTaskTypeID();
+            m_tasks.emplace_back( TaskSerializer::CreateTask( taskTypeID ) );
+        }
+
+        // Deserialize Tasks
+        for ( auto pTask : m_tasks )
+        {
+            pTask->Deserialize( serializer );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
     void TaskSystem::SetDebugMode( TaskSystemDebugMode mode )
     {
@@ -236,7 +297,7 @@ namespace EE::Animation
         EE_ASSERT( taskIdx >= 0 && taskIdx < m_tasks.size() );
         auto pTask = m_tasks[taskIdx];
         offsets[taskIdx] = currentOffset;
-        
+
         int32_t const numDependencies = pTask->GetNumDependencies();
         if ( numDependencies == 0 )
         {

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Animation_Task.h"
+#include "Animation_TaskSerializer.h"
+#include "Engine/Animation/AnimationBoneMask.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,7 +20,11 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class TaskSystem
+    class TaskSerializer;
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API TaskSystem
     {
         friend class AnimationDebugView;
 
@@ -79,6 +85,17 @@ namespace EE::Animation
         TaskIndex GetCurrentTaskIndexMarker() const { return (TaskIndex) m_tasks.size(); }
         void RollbackToTaskIndexMarker( TaskIndex const marker );
 
+        // Task Serialization
+        //-------------------------------------------------------------------------
+
+        // Serialized the current executed tasks - NOTE: this can fail since some tasks (i.e. physics) cannot be serialized!
+        // Only do this if there are no currently pending tasks!
+        bool SerializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob& outSerializedData ) const;
+
+        // Create a new set of tasks from a serialized set of data
+        // Only do this if there are no registered tasks!
+        void DeserializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob const& inSerializedData );
+
         // Debug
         //-------------------------------------------------------------------------
 
@@ -101,6 +118,7 @@ namespace EE::Animation
 
         TVector<Task*>                  m_tasks;
         PoseBufferPool                  m_posePool;
+        BoneMaskPool                    m_boneMaskPool;
         TaskContext                     m_taskContext;
         TInlineVector<TaskIndex, 16>    m_prePhysicsTaskIndices;
         Pose                            m_finalPose;

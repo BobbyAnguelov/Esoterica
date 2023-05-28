@@ -14,6 +14,7 @@
 #include "System/Resource/ResourceSystem.h"
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
+#include "System/ThirdParty/implot/implot.h"
 
 //-------------------------------------------------------------------------
 
@@ -367,6 +368,7 @@ namespace EE
         if ( m_isImguiDemoWindowOpen )
         {
             ImGui::ShowDemoWindow( &m_isImguiDemoWindowOpen );
+            ImPlot::ShowDemoWindow( &m_isImguiDemoWindowOpen );
         }
 
         if ( m_isUITestWindowOpen )

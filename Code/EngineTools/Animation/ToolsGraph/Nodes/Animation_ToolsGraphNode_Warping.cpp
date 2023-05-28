@@ -7,9 +7,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void OrientationWarpToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    OrientationWarpToolsNode::OrientationWarpToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, false );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Direction (Character)", GraphValueType::Vector );
@@ -109,9 +109,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetWarpToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    TargetWarpToolsNode::TargetWarpToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Pose, false );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "World Target", GraphValueType::Target );

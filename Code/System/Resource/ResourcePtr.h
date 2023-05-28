@@ -43,7 +43,7 @@ namespace EE
             }
 
             template<typename T>
-            inline T* GetPtr() { return (T*) m_pResourceRecord; }
+            inline T* GetPtr() { return (T*) m_pResourceRecord->GetResourceData(); }
 
             inline bool operator==( nullptr_t ) { return m_pResourceRecord == nullptr; }
             inline bool operator!=( nullptr_t ) { return m_pResourceRecord != nullptr; }

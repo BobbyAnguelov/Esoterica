@@ -6,9 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void AnimationClipToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    AnimationClipToolsNode::AnimationClipToolsNode()
+        :DataSlotToolsNode()
     {
-        DataSlotToolsNode::Initialize( pParent );
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Play In Reverse", GraphValueType::Bool );
     }
@@ -41,5 +41,4 @@ namespace EE::Animation::GraphNodes
         }
         return pSettings->m_nodeIdx;
     }
-
 }

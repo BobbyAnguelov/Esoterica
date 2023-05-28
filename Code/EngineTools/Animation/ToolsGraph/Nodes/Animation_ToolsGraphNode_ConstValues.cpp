@@ -6,9 +6,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ConstBoolToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ConstBoolToolsNode::ConstBoolToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Value", GraphValueType::Bool, true );
     }
 
@@ -32,9 +32,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstIDToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ConstIDToolsNode::ConstIDToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Value", GraphValueType::ID, true );
     }
 
@@ -57,9 +57,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstIntToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ConstIntToolsNode::ConstIntToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Value", GraphValueType::Int, true );
     }
 
@@ -82,9 +82,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstFloatToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ConstFloatToolsNode::ConstFloatToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Value", GraphValueType::Float, true );
     }
 
@@ -107,9 +107,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstVectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ConstVectorToolsNode::ConstVectorToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Value", GraphValueType::Vector, true );
     }
 
@@ -132,9 +132,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstTargetToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ConstTargetToolsNode::ConstTargetToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Value", GraphValueType::Target, true );
     }
 

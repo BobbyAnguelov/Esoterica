@@ -5,9 +5,9 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void IsTargetSetToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    IsTargetSetToolsNode::IsTargetSetToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Target", GraphValueType::Target );
     }
@@ -42,9 +42,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetInfoToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    TargetInfoToolsNode::TargetInfoToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Float, true );
         CreateInputPin( "Target", GraphValueType::Target );
     }
@@ -153,9 +153,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetOffsetToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+     TargetOffsetToolsNode::TargetOffsetToolsNode()
+        : FlowToolsNode()
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Result", GraphValueType::Target, true );
         CreateInputPin( "Target", GraphValueType::Target );
     }

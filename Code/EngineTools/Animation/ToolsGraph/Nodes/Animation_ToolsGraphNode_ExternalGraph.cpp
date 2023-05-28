@@ -6,10 +6,15 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ExternalGraphToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    ExternalGraphToolsNode::ExternalGraphToolsNode()
+        : FlowToolsNode()
+        , m_name( "External Graph" )
     {
-        FlowToolsNode::Initialize( pParent );
         CreateOutputPin( "Pose", GraphValueType::Pose );
+    }
+
+    void ExternalGraphToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
+    {
         m_name = GetUniqueSlotName( "External Graph" );
     }
 

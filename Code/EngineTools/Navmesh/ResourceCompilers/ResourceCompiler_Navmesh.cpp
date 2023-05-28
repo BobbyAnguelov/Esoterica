@@ -35,6 +35,7 @@ namespace EE::Navmesh
                 archive << header;
 
                 // Is we have a mismatched version, rebuild the source file
+                #if EE_ENABLE_NAVPOWER
                 if ( header.m_version != NavmeshGenerator::s_version )
                 {
                     if ( GenerateNavmesh( ctx, true ) == Resource::CompilationResult::Failure )
@@ -42,6 +43,7 @@ namespace EE::Navmesh
                         return Resource::CompilationResult::Failure;
                     }
                 }
+                #endif
             }
             else // Corrupted source file
             {

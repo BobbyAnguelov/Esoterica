@@ -8,7 +8,7 @@
 #include "System/Resource/ResourcePtr.h"
 #include "System/Math/NumericRange.h"
 #include "System/Time/Time.h"
-#include "System/Algorithm/Quantization.h"
+#include "System/Encoding/Quantization.h"
 
 //-------------------------------------------------------------------------
 

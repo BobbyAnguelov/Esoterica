@@ -58,6 +58,10 @@ namespace EE::Animation
         auto const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsWorld, m_graphStateResetRequested );
         m_graphStateResetRequested = false;
         m_rootMotionDelta = result.m_rootMotionDelta;
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_pGraphInstance->OutputLog();
+        #endif
     }
 
     void GraphComponent::ExecutePrePhysicsTasks( Seconds deltaTime, Transform const& characterWorldTransform )

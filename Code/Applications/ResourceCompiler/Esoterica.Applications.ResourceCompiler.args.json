@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "a90673f2-7918-4771-8bca-1ea6425e6d13",
+      "Command": "-compile data://demo/animation/minigraph@default.agv"
+    },
+    {
       "Id": "165a2ead-bf6d-4989-ba0b-92fbd4213031",
       "Command": "-force"
     },

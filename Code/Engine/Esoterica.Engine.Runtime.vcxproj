@@ -79,7 +79,6 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
-    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Contexts.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Controller.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Events.cpp" />
@@ -116,10 +115,10 @@
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.cpp" />
     <ClCompile Include="Animation\Systems\EntitySystem_Animation.cpp" />
     <ClCompile Include="Animation\Systems\WorldSystem_Animation.cpp" />
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_DataSet.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_Task.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskPosePool.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskSystem.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Animation_TaskSerializer.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Blend.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_CachedPose.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_DefaultPose.cpp" />
@@ -228,7 +227,6 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
-    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationBoneMask.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Contexts.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Controller.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Events.h" />
@@ -269,6 +267,7 @@
     <ClInclude Include="Animation\TaskSystem\Animation_Task.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskPosePool.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskSystem.h" />
+    <ClInclude Include="Animation\TaskSystem\Animation_TaskSerializer.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Blend.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_CachedPose.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_DefaultPose.h" />
