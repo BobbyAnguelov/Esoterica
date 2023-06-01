@@ -79,18 +79,15 @@ namespace EE::TypeSystem::Reflection
         }
     }
 
-    static void GetAllDerivedProperties( ReflectionDatabase const* pDatabase, TVector<TypeSystem::TypeID> const& parentTypes, TVector<ReflectedProperty>& results )
+    static void GetAllDerivedProperties( ReflectionDatabase const* pDatabase, TypeSystem::TypeID parentTypeID, TVector<ReflectedProperty>& results )
     {
-        for ( auto const& parentID : parentTypes )
+        ReflectedType const* pParentDesc = pDatabase->GetType( parentTypeID );
+        if ( pParentDesc != nullptr )
         {
-            ReflectedType const* pParentDesc = pDatabase->GetType( parentID );
-            if ( pParentDesc != nullptr )
+            GetAllDerivedProperties( pDatabase, pParentDesc->m_parentID, results );
+            for ( auto& parentProperty : pParentDesc->m_properties )
             {
-                GetAllDerivedProperties( pDatabase, pParentDesc->m_parents, results );
-                for ( auto& parentProperty : pParentDesc->m_properties )
-                {
-                    results.push_back( parentProperty );
-                }
+                results.push_back( parentProperty );
             }
         }
     }
@@ -109,6 +106,12 @@ namespace EE::TypeSystem::Reflection
             // Add base class
             case CXCursor_CXXBaseSpecifier:
             {
+                if ( pClass->m_parentID.IsValid() )
+                {
+                    pContext->LogError( "Multiple inheritance detected for class: %s", pClass->m_name.c_str() );
+                    return CXChildVisit_Break;
+                }
+
                 // Get qualified base type
                 clang::CXXBaseSpecifier* pBaseSpecifier = (clang::CXXBaseSpecifier*) cr.data[0];
                 String fullyQualifiedName;
@@ -118,9 +121,8 @@ namespace EE::TypeSystem::Reflection
                     return CXChildVisit_Break;
                 }
 
-                auto const parentID = TypeSystem::TypeID( fullyQualifiedName );
-                TVector<TypeSystem::TypeID> parentIDs = { parentID };
-                GetAllDerivedProperties( pContext->m_pDatabase, parentIDs, pClass->m_properties );
+                pClass->m_parentID = TypeSystem::TypeID( fullyQualifiedName );
+                GetAllDerivedProperties( pContext->m_pDatabase, pClass->m_parentID, pClass->m_properties );
 
                 // Remove duplicate properties added via the parent property traversal - do not change the order of the array
                 for ( int32_t i = 0; i < (int32_t) pClass->m_properties.size(); i++ )
@@ -134,10 +136,8 @@ namespace EE::TypeSystem::Reflection
                         }
                     }
                 }
-
-                pClass->m_parents.push_back( parentID );
-                break;
             }
+            break;
 
             // Extract property info
             case CXCursor_FieldDecl:
@@ -315,7 +315,6 @@ namespace EE::TypeSystem::Reflection
                         }
                     }
                 }
-
                 break;
             }
 

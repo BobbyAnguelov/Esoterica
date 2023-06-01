@@ -8,7 +8,7 @@ namespace EE::Animation::Tasks
 {
     class CachedPoseWriteTask : public Task
     {
-        EE_ANIMATION_TASK( CachedPoseWriteTask );
+        EE_REFLECT_TYPE( CachedPoseWriteTask );
 
     public:
 
@@ -18,8 +18,12 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return String( "Write Cached Pose" ); }
-        virtual Color GetDebugColor() const { return Colors::Red; }
+        virtual Color GetDebugColor() const override { return Colors::Red; }
         #endif
+
+    private:
+
+        CachedPoseWriteTask() : Task(0xFF) {}
 
     private:
 
@@ -30,7 +34,7 @@ namespace EE::Animation::Tasks
 
     class CachedPoseReadTask : public Task
     {
-        EE_ANIMATION_TASK( CachedPoseReadTask );
+        EE_REFLECT_TYPE( CachedPoseReadTask );
 
     public:
 
@@ -40,8 +44,12 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return String( "Read Cached Pose" ); }
-        virtual Color GetDebugColor() const { return Colors::Red; }
+        virtual Color GetDebugColor() const override { return Colors::Red; }
         #endif
+
+    private:
+
+        CachedPoseReadTask() : Task( 0xFF ) {}
 
     private:
 

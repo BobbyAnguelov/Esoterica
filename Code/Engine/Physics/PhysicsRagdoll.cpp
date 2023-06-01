@@ -785,6 +785,7 @@ namespace EE::Physics
 
     void Ragdoll::AddToScene( physx::PxScene* pScene )
     {
+        EE_ASSERT( m_pArticulation != nullptr );
         EE_ASSERT( pScene != nullptr && m_pArticulation->getScene() == nullptr );
 
         pScene->lockWrite();
@@ -794,6 +795,7 @@ namespace EE::Physics
 
     void Ragdoll::RemoveFromScene()
     {
+        EE_ASSERT( m_pArticulation != nullptr );
         auto pScene = m_pArticulation->getScene();
         EE_ASSERT( pScene != nullptr );
 
@@ -1305,49 +1307,49 @@ namespace EE::Physics
 
     void Ragdoll::ResetState()
     {
-        /*ScopedWriteLock const sl( this );
+        ScopedWriteLock const sl( this );
         int32_t const numBodies = (int32_t) m_links.size();
         for ( int32_t i = 0; i < numBodies; i++ )
         {
-            m_links[i]->setLinearVelocity( PxZero );
-            m_links[i]->setAngularVelocity( PxZero );
+            //m_links[i]->setLinearVelocity( PxZero );
+            //m_links[i]->setAngularVelocity( PxZero );
 
-            if ( i > 0 )
+           /* if ( i > 0 )
             {
                 auto pJoint = static_cast<PxArticulationJoint*>( m_links[i]->getInboundJoint() );
                 pJoint->setTargetVelocity( PxZero );
                 pJoint->setTargetOrientation( PxIdentity );
-            }
-        }*/
+            }*/
+        }
     }
 
     void Ragdoll::DrawDebug( Drawing::DrawContext& ctx ) const
     {
-        //RagdollPose pose;
+        RagdollPose pose;
 
-        //// Get transforms
-        ////-------------------------------------------------------------------------
+        // Get transforms
+        //-------------------------------------------------------------------------
 
-        //{
-        //    ScopedReadLock const sl( this );
-        //    GetRagdollPose( pose );
-        //}
+        {
+            ScopedReadLock const sl( this );
+            GetRagdollPose( pose );
+        }
 
-        //// Draw Ragdoll Bodies
-        ////-------------------------------------------------------------------------
+        // Draw Ragdoll Bodies
+        //-------------------------------------------------------------------------
 
-        //int32_t const numBodies = m_pDefinition->GetNumBodies();
-        //for ( int32_t i = 0; i < numBodies; i++ )
-        //{
-        //    auto const& bodySettings = m_pDefinition->m_bodies[i];
-        //    ctx.DrawCapsuleHeightX( pose[i], bodySettings.m_radius, bodySettings.m_halfHeight, Colors::Yellow, 2.0f );
+        int32_t const numBodies = m_pDefinition->GetNumBodies();
+        for ( int32_t i = 0; i < numBodies; i++ )
+        {
+            auto const& bodySettings = m_pDefinition->m_bodies[i];
+            ctx.DrawCapsule( pose[i], bodySettings.m_radius, bodySettings.m_halfHeight, Colors::Yellow, 2.0f );
 
-        //    if ( i > 0 )
-        //    {
-        //        Transform const jointTransformC = bodySettings.m_bodyRelativeJointTransform * pose[i];
-        //        ctx.DrawArrow( jointTransformC.GetTranslation(), jointTransformC.GetTranslation() + ( jointTransformC.GetAxisX() * 0.2f ), Colors::Pink, 2.0f );
-        //    }
-        //}
+            if ( i > 0 )
+            {
+                Transform const jointTransformC = bodySettings.m_bodyRelativeJointTransform * pose[i];
+                ctx.DrawArrow( jointTransformC.GetTranslation(), jointTransformC.GetTranslation() + ( jointTransformC.GetAxisX() * 0.2f ), Colors::Pink, 2.0f );
+            }
+        }
     }
     #endif
 }

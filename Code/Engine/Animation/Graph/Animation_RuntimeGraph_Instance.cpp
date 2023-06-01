@@ -190,9 +190,20 @@ namespace EE::Animation
         return m_pTaskSystem->RequiresUpdate();
     }
 
+    void GraphInstance::EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry )
+    {
+        m_pTaskSystem->EnableSerialization( typeRegistry );
+    }
+
+    void GraphInstance::DisableTaskSystemSerialization()
+    {
+        m_pTaskSystem->DisableSerialization();
+    }
+
     void GraphInstance::SerializeTaskList( Blob& outBlob ) const
     {
         EE_ASSERT( !DoesTaskSystemNeedUpdate() );
+        EE_ASSERT( m_pTaskSystem->IsSerializationEnabled() );
 
         // All the resources in use by this graph instance
         TInlineVector<ResourceLUT const*, 10> LUTs;
@@ -724,6 +735,10 @@ namespace EE::Animation
 
         // Revert node array back to previous value
         const_cast<TVector<GraphNode*>*&>( recordedState.m_pNodes ) = pPreviousNodeArray;
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_rootMotionDebugger.ResetRecordedPositions();
+        #endif
     }
 
     void GraphInstance::SetRecordedFrameUpdateData( RecordedGraphFrameData const& recordedUpdateData )
@@ -781,7 +796,7 @@ namespace EE::Animation
 
     void GraphInstance::RecordTasks()
     {
-        if ( m_pRecorder == nullptr )
+        if ( m_pRecorder == nullptr || !m_pTaskSystem->IsSerializationEnabled() )
         {
             return;
         }

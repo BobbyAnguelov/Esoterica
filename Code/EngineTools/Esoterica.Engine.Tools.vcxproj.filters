@@ -28,9 +28,6 @@
     <ClCompile Include="Core\VisualGraph\VisualGraph_BaseGraph.cpp">
       <Filter>Core\VisualGraph</Filter>
     </ClCompile>
-    <ClCompile Include="Core\VisualGraph\VisualGraph_DrawingContext.cpp">
-      <Filter>Core\VisualGraph</Filter>
-    </ClCompile>
     <ClCompile Include="Core\VisualGraph\VisualGraph_FlowGraph.cpp">
       <Filter>Core\VisualGraph</Filter>
     </ClCompile>

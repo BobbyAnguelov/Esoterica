@@ -304,11 +304,50 @@ namespace EE::Animation::GraphNodes
         }
     }
 
+    FlowToolsNode* ParameterReferenceToolsNode::GetDisplayValueNode()
+    {
+        if ( IsReferencingControlParameter() )
+        {
+            return m_pParameter;
+        }
+        else // Find the input into the virtual parameter result node and display that
+        {
+            auto const resultNodes = m_pParameter->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+            EE_ASSERT( resultNodes.size() == 1 );
+
+            auto pConnectedNode = resultNodes[0]->GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pConnectedNode != nullptr )
+            {
+                if ( auto pConnectedParameterReference = TryCast<ParameterReferenceToolsNode>( pConnectedNode ) )
+                {
+                    return pConnectedParameterReference->GetDisplayValueNode();
+                }
+                else
+                {
+                    return pConnectedNode;
+                }
+            }
+        }
+
+        return nullptr;
+    }
+
     void ParameterReferenceToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+
+        //-------------------------------------------------------------------------
+
+        int16_t runtimeNodeIdx = InvalidIndex;
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
-        int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( m_pParameter->GetID() ) : InvalidIndex;
+        if ( isPreviewing )
+        {
+            auto pValueNodeSource = GetDisplayValueNode();
+            if ( pValueNodeSource != nullptr )
+            {
+                runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( pValueNodeSource->GetID() );
+            }
+        }
 
         //-------------------------------------------------------------------------
 
@@ -317,62 +356,7 @@ namespace EE::Animation::GraphNodes
         if ( isPreviewing && ( runtimeNodeIdx != InvalidIndex ) && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
         {
             GraphValueType const valueType = m_pParameter->GetValueType();
-            switch ( valueType )
-            {
-                case GraphValueType::Bool:
-                {
-                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
-                    ImGui::Text( value ? "Value: True" : "Value: False" );
-                }
-                break;
-
-                case GraphValueType::ID:
-                {
-                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
-                    if ( value.IsValid() )
-                    {
-                        ImGui::Text( "Value: %s", value.c_str() );
-                    }
-                    else
-                    {
-                        ImGui::Text( "Value: Invalid" );
-                    }
-                }
-                break;
-
-                case GraphValueType::Int:
-                {
-                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
-                    ImGui::Text( "Value: %d", value );
-                }
-                break;
-
-                case GraphValueType::Float:
-                {
-                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
-                    ImGui::Text( "Value: %.3f", value );
-                }
-                break;
-
-                case GraphValueType::Vector:
-                {
-                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
-                    DrawVectorInfoText( ctx, value );
-                }
-                break;
-
-                case GraphValueType::Target:
-                {
-                    auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
-                    DrawTargetInfoText( ctx, value );
-                }
-                break;
-
-                case GraphValueType::BoneMask:
-                case GraphValueType::Pose:
-                default:
-                break;
-            }
+            DrawValueDisplayText( ctx, pGraphNodeContext, runtimeNodeIdx, valueType );
         }
         else
         {
@@ -431,6 +415,4 @@ namespace EE::Animation::GraphNodes
 
         return m_parameterCategory;
     }
-
-    
 }

@@ -398,7 +398,7 @@ namespace EE::Animation
         EventBindingID                                                  m_resourceOpenRequestEventBindingID;
 
         // Graph view
-        float                                                           m_primaryGraphViewHeight = 300;
+        float                                                           m_primaryGraphViewProportionalHeight = 0.6f;
         VisualGraph::GraphView                                          m_primaryGraphView;
         VisualGraph::GraphView                                          m_secondaryGraphView;
         VisualGraph::GraphView*                                         m_pFocusedGraphView = nullptr;

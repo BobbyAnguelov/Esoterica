@@ -1070,7 +1070,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        constexpr float const buttonWidth = 160;
+        constexpr float const buttonWidth = 180;
 
         if ( IsDebugging() )
         {
@@ -1222,8 +1222,8 @@ namespace EE::Animation
             if ( m_pDebugGraphComponent->HasGraphInstance() )
             {
                 auto drawContext = GetDrawingContext();
-                Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform() * Transform( Quaternion( EulerAngles( 90, 0, 0 ) ) );
-                capsuleTransform.AddTranslation( capsuleTransform.GetAxisY() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
+                Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
+                capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
                 drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
             }
         }
@@ -2621,7 +2621,8 @@ namespace EE::Animation
             // Primary View
             //-------------------------------------------------------------------------
 
-            m_primaryGraphView.UpdateAndDraw( *pTypeRegistry, m_primaryGraphViewHeight );
+            ImVec2 const availableRegion = ImGui::GetContentRegionAvail();
+            m_primaryGraphView.UpdateAndDraw( *pTypeRegistry, availableRegion.y * m_primaryGraphViewProportionalHeight );
 
             if ( m_primaryGraphView.HasSelectionChangedThisFrame() )
             {
@@ -2642,8 +2643,8 @@ namespace EE::Animation
 
             if ( ImGui::IsItemActive() )
             {
-                m_primaryGraphViewHeight += ImGui::GetIO().MouseDelta.y;
-                m_primaryGraphViewHeight = Math::Max( 25.0f, m_primaryGraphViewHeight );
+                m_primaryGraphViewProportionalHeight += ( ImGui::GetIO().MouseDelta.y / availableRegion.y );
+                m_primaryGraphViewProportionalHeight = Math::Max( 0.1f, m_primaryGraphViewProportionalHeight );
             }
 
             // SecondaryView

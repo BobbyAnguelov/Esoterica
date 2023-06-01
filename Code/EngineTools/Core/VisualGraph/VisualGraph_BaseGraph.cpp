@@ -20,6 +20,11 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
+    Color const BaseNode::s_genericNodeSeparatorColor = Color( 100, 100, 100 );
+    Color const BaseNode::s_genericNodeInternalRegionDefaultColor = Color( 60, 60, 60 );
+
+    //-------------------------------------------------------------------------
+
     BaseNode::~BaseNode()
     {
         EE_ASSERT( m_pParentGraph == nullptr );
@@ -254,15 +259,15 @@ namespace EE::VisualGraph
     {
         if ( visualState == NodeVisualState::Active )
         {
-            return VisualSettings::s_genericActiveColor;
+            return s_defaultActiveColor;
         }
         else if ( visualState == NodeVisualState::Hovered )
         {
-            return VisualSettings::s_genericHoverColor;
+            return s_defaultHoveredColor;
         }
         else if ( visualState == NodeVisualState::Selected )
         {
-            return VisualSettings::s_genericSelectionColor;
+            return s_defaultSelectedColor;
         }
         else
         {
@@ -299,11 +304,12 @@ namespace EE::VisualGraph
 
     void BaseNode::DrawInternalSeparator( DrawContext const& ctx, Color color, float preMarginY, float postMarginY ) const
     {
-        float const separatorWidth = GetWidth() == 0 ? VisualSettings::s_minimumNodeWidth : GetWidth();
+        constexpr static float const minimumNodeWidth = 30;
+        float const separatorWidth = GetWidth() == 0 ? minimumNodeWidth : GetWidth();
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
         ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
         ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::ToIm( color ) );
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + postMarginY );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + postMarginY + 1 );
     }
 
     void BaseNode::BeginDrawInternalRegion( DrawContext const& ctx, Color color, float preMarginY, float postMarginY ) const
@@ -316,22 +322,23 @@ namespace EE::VisualGraph
         m_internalRegionMargins[1] = postMarginY;
         m_regionStarted = true;
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY + ImGui::GetStyle().ItemSpacing.y );
     }
 
     void BaseNode::EndDrawInternalRegion( DrawContext const& ctx ) const
     {
         EE_ASSERT( m_regionStarted );
 
-        ImVec2 const rectMin = ctx.WindowToScreenPosition( ImVec2( ImGui::GetCursorPosX() - VisualSettings::s_internalRegionPadding, m_internalRegionStartY + m_internalRegionMargins[0] ));
-        ImVec2 const rectMax = rectMin + ImVec2( GetWidth() + ( VisualSettings::s_internalRegionPadding * 2 ), ImGui::GetCursorPosY() - m_internalRegionStartY + VisualSettings::s_internalRegionPadding - m_internalRegionMargins[0] - 1 );
+        ImVec2 const& framePadding = ImGui::GetStyle().FramePadding;
+        ImVec2 const rectMin = ctx.WindowToScreenPosition( ImVec2( ImGui::GetCursorPosX() - framePadding.x, m_internalRegionStartY + m_internalRegionMargins[0] ));
+        ImVec2 const rectMax = rectMin + ImVec2( GetWidth() + ( framePadding.x * 2 ), ImGui::GetCursorPosY() - m_internalRegionStartY + framePadding.y - m_internalRegionMargins[0] - 1 );
         
         int32_t const previousChannel = ctx.m_pDrawList->_Splitter._Current;
         ctx.SetDrawChannel( (uint8_t) DrawChannel::ContentBackground );
         ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ToIm( m_internalRegionColor ), 3.0f );
         ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
 
-        ImGui::Dummy( ImVec2( GetWidth(), VisualSettings::s_internalRegionPadding + m_internalRegionMargins[1] ) );
+        ImGui::Dummy( ImVec2( GetWidth(), framePadding.y + m_internalRegionMargins[1] ) );
 
         m_internalRegionStartY = -1.0f;
         m_internalRegionMargins[0] = m_internalRegionMargins[1] = 0.0f;

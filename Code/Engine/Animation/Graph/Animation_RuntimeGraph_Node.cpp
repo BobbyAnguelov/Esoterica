@@ -18,7 +18,7 @@ namespace EE::Animation
             Colors::Aqua,
             Colors::YellowGreen,
             Colors::GreenYellow,
-            Colors::HotPink,
+            Colors::White,
         };
 
         return colors[(uint8_t) type];

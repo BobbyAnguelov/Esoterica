@@ -9,15 +9,15 @@ namespace EE::VisualGraph
     {
         if ( visualState == NodeVisualState::Hovered )
         {
-            return VisualSettings::s_connectionColorHovered;
+            return s_connectionColorHovered;
         }
         else if ( visualState == NodeVisualState::Selected )
         {
-            return VisualSettings::s_genericSelectionColor;
+            return s_defaultSelectedColor;
         }
         else
         {
-            return VisualSettings::s_connectionColor;
+            return s_connectionColor;
         }
     }
 

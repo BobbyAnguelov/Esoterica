@@ -339,6 +339,8 @@ namespace EE::Animation::GraphNodes
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
         virtual void PrepareForCopy() override { UpdateCachedParameterData(); }
 
+        FlowToolsNode* GetDisplayValueNode();
+
     private:
 
         FlowToolsNode*                                                    m_pParameter = nullptr;

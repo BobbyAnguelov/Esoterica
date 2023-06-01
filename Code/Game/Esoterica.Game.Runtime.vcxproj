@@ -68,6 +68,8 @@
     <ClInclude Include="AI\Animation\AIAnimationController.h" />
     <ClInclude Include="AI\Behaviors\AIBehaviorSelector.h" />
     <ClInclude Include="AI\Systems\EntitySystem_AIController.h" />
+    <ClInclude Include="Animation\GraphNodes\Animation_RuntimeGraphNode_LookAtIK.h" />
+    <ClInclude Include="Animation\Tasks\Animation_Task_LookAtIK.h" />
     <ClInclude Include="Cover\Components\Component_CoverVolume.h" />
     <ClInclude Include="Cover\DebugViews\DebugView_Cover.h" />
     <ClInclude Include="Cover\Systems\WorldSystem_CoverManager.h" />
@@ -110,6 +112,8 @@
     <ClCompile Include="AI\Behaviors\AIBehaviorSelector.cpp" />
     <ClCompile Include="AI\Physics\AIPhysicsController.cpp" />
     <ClCompile Include="AI\Systems\EntitySystem_AIController.cpp" />
+    <ClCompile Include="Animation\GraphNodes\Animation_RuntimeGraphNode_LookAtIK.cpp" />
+    <ClCompile Include="Animation\Tasks\Animation_Task_LookAtIK.cpp" />
     <ClCompile Include="Cover\Components\Component_CoverVolume.cpp" />
     <ClCompile Include="Cover\DebugViews\DebugView_Cover.cpp" />
     <ClCompile Include="Cover\Systems\WorldSystem_CoverManager.cpp" />

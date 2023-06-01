@@ -130,10 +130,10 @@ namespace EE::Physics
     // Note: The root body control concept is an additional copy of the root body of the articulation 
     //       which is used to help drive the articulation relative to input pose.
 
-    struct EE_ENGINE_API RagdollDefinition : public Resource::IResource, public IReflectedType
+    struct EE_ENGINE_API RagdollDefinition : public Resource::IResource
     {
+        EE_RESOURCE( 'rgdl', "Physics Ragdoll" );
         EE_SERIALIZE( m_skeleton, m_bodies, m_profiles );
-        EE_REFLECTED_RESOURCE( 'rgdl', "Physics Ragdoll", RagdollDefinition );
 
     public:
 
@@ -253,9 +253,9 @@ namespace EE::Physics
 
     public:
 
-        EE_REFLECT() TResourcePtr<Animation::Skeleton>          m_skeleton;
-        EE_REFLECT() TVector<BodyDefinition>                    m_bodies;
-        EE_REFLECT() TVector<Profile>                           m_profiles;
+        TResourcePtr<Animation::Skeleton>                       m_skeleton;
+        TVector<BodyDefinition>                                 m_bodies;
+        TVector<Profile>                                        m_profiles;
 
         // Runtime Data
         TVector<int32_t>                                        m_boneToBodyMap;

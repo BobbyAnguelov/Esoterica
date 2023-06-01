@@ -77,16 +77,19 @@ namespace EE::Player
         {
             if ( m_isRecording )
             {
-                if ( ImGuiX::IconButton( EE_ICON_STOP, " Stop Recording", ImGuiX::ImColors::White ) )
+                if ( ImGuiX::IconButton( EE_ICON_STOP, " Stop Recording", ImGuiX::ImColors::White, ImVec2( 200, 0 ) ) )
                 {
                     m_pPlayerGraphComponent->GetDebugGraphInstance()->StopRecording();
+                    m_pPlayerGraphComponent->GetDebugGraphInstance()->DisableTaskSystemSerialization();
 
                     //-------------------------------------------------------------------------
 
                     m_pActualInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 1 );
                     m_pReplicatedInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 2 );
-                    m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetSkeleton() );
                     m_pGeneratedPose = EE::New<Animation::Pose>( m_pPlayerGraphComponent->GetSkeleton() );
+
+                    m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetSkeleton() );
+                    m_pTaskSystem->EnableSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
 
                     ProcessRecording();
                     m_updateFrameIdx = 0;
@@ -97,9 +100,10 @@ namespace EE::Player
             }
             else
             {
-                if ( ImGuiX::IconButton( EE_ICON_RECORD, " Start Recording", ImGuiX::ImColors::Red ) )
+                if ( ImGuiX::IconButton( EE_ICON_RECORD, " Start Recording", ImGuiX::ImColors::Red, ImVec2( 200, 0 ) ) )
                 {
                     ResetRecordingData();
+                    m_pPlayerGraphComponent->GetDebugGraphInstance()->EnableTaskSystemSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
                     m_pPlayerGraphComponent->GetDebugGraphInstance()->StartRecording( &m_graphRecorder );
                     m_isRecording = true;
                 }
@@ -109,14 +113,37 @@ namespace EE::Player
 
             if ( m_graphRecorder.HasRecordedData() )
             {
+                auto UpdateFrameIndex = [this] ( int32_t newFrameIdx )
+                {
+                    if ( newFrameIdx != m_updateFrameIdx )
+                    {
+                        m_updateFrameIdx = Math::Clamp( newFrameIdx, 0, m_graphRecorder.GetNumRecordedFrames() - 1 );
+                        GenerateTaskSystemPose();
+                    }
+                };
+
+                ImGuiX::TextSeparator( "Recorded Data" );
+
                 // Timeline
                 ImGui::AlignTextToFramePadding();
                 ImGui::Text( "Recorded Frame: " );
                 ImGui::SameLine();
-                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x - 200 );
+                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( ImGui::GetStyle().ItemSpacing.x * 4 ) - 200 - 60 );
                 if ( ImGui::SliderInt( "##timeline", &m_updateFrameIdx, 0, m_graphRecorder.GetNumRecordedFrames() - 1 ) )
                 {
                     GenerateTaskSystemPose();
+                }
+
+                ImGui::SameLine();
+                if ( ImGui::Button( EE_ICON_STEP_BACKWARD"##Frame--", ImVec2( 30, 0 ) ) )
+                {
+                    UpdateFrameIndex( m_updateFrameIdx - 1 );
+                }
+
+                ImGui::SameLine();
+                if ( ImGui::Button( EE_ICON_STEP_FORWARD"##Frame++", ImVec2( 30, 0 ) ) )
+                {
+                    UpdateFrameIndex( m_updateFrameIdx + 1 );
                 }
 
                 // Join in progress
@@ -128,20 +155,31 @@ namespace EE::Player
                 }
                 ImGui::EndDisabled();
 
-                // Size graph
+                // Serialized Task Plots
                 //-------------------------------------------------------------------------
 
                 if ( !m_isRecording )
                 {
                     if ( ImPlot::BeginPlot( "Recorded Task Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
                     {
-                        ImPlot::SetupAxes( "Time", "Size", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel );
+                        ImPlot::SetupAxes( "Time", "Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
                         ImPlot::PlotBars( "Vertical", m_serializedTaskSizes.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
                         double x = (double) m_updateFrameIdx;
                         if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
                         {
-                            m_updateFrameIdx = Math::Clamp( (int32_t) x, 0, m_graphRecorder.GetNumRecordedFrames() - 1 );
-                            GenerateTaskSystemPose();
+                            UpdateFrameIndex( (int32_t) x );
+                        }
+                        ImPlot::EndPlot();
+                    }
+
+                    if ( ImPlot::BeginPlot( "Recorded Task Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                    {
+                        ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                        ImPlot::PlotBars( "Vertical", m_serializedTaskDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            UpdateFrameIndex( (int32_t) x );
                         }
                         ImPlot::EndPlot();
                     }
@@ -154,17 +192,24 @@ namespace EE::Player
                 {
                     auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
 
-                    InlineString str( InlineString::CtorSprintf(), "Frame: %d", m_updateFrameIdx );
+                    InlineString str( InlineString::CtorSprintf(), "Frame Data: %d", m_updateFrameIdx );
                     ImGuiX::TextSeparator( str.c_str() );
 
                     //-------------------------------------------------------------------------
 
-                    ImGui::Text( "Sync Range: ( %d, %.2f%% ) -> (%d, %.2f%%)", frameData.m_updateRange.m_startTime.m_eventIdx, frameData.m_updateRange.m_startTime.m_percentageThrough.ToFloat(), frameData.m_updateRange.m_endTime.m_eventIdx, frameData.m_updateRange.m_endTime.m_percentageThrough.ToFloat() );
+                    ImGui::Text( "Sync Range: ( %d, %.2f%% ) -> (%d, %.2f%%)", frameData.m_updateRange.m_startTime.m_eventIdx, frameData.m_updateRange.m_startTime.m_percentageThrough.ToFloat() * 100, frameData.m_updateRange.m_endTime.m_eventIdx, frameData.m_updateRange.m_endTime.m_percentageThrough.ToFloat() * 100 );
 
                     ImGui::Text( "Serialized Task Size: %d bytes", frameData.m_serializedTaskData.size() );
 
-                    if ( ImGui::BeginTable( "RecData", 2, ImGuiTableFlags_BordersInner ) )
+                    ImGui::Text( "Delta from previous frame : % d bytes",  (int32_t) m_serializedTaskDeltas[m_updateFrameIdx] );
+
+                    ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
+                    bool const drawMainTable = ImGui::BeginTable( "RecData", 2, ImGuiTableFlags_Borders );
+                    ImGui::PopStyleVar();
+
+                    if ( drawMainTable )
                     {
+                   
                         ImGui::TableSetupColumn( "Parameters", ImGuiTableColumnFlags_WidthStretch, 0.5f );
                         ImGui::TableSetupColumn( "Tasks", ImGuiTableColumnFlags_WidthStretch, 0.5f );
                         ImGui::TableHeadersRow();
@@ -299,12 +344,15 @@ namespace EE::Player
         m_actualPoses.clear();
         m_replicatedPoses.clear();
         m_serializedTaskSizes.clear();
+        m_serializedTaskDeltas.clear();
     }
 
     void NetworkProtoDebugView::ProcessRecording( int32_t simulatedJoinInProgressFrame )
     {
         m_actualPoses.clear();
         m_replicatedPoses.clear();
+        m_serializedTaskSizes.clear();
+        m_serializedTaskDeltas.clear();
 
         // Serialized tasks
         //-------------------------------------------------------------------------
@@ -312,12 +360,35 @@ namespace EE::Player
         m_minSerializedTaskDataSize = FLT_MAX;
         m_maxSerializedTaskDataSize = -FLT_MAX;
 
-        for ( auto const& frameData : m_graphRecorder.m_recordedData )
+        for ( auto i = 0u; i < m_graphRecorder.m_recordedData.size(); i++ )
         {
-            float const size = (float) frameData.m_serializedTaskData.size();
+            float const size = (float) m_graphRecorder.m_recordedData[i].m_serializedTaskData.size();
             m_minSerializedTaskDataSize = Math::Min( m_minSerializedTaskDataSize, size );
             m_maxSerializedTaskDataSize = Math::Max( m_maxSerializedTaskDataSize, size );
             m_serializedTaskSizes.emplace_back( size );
+
+            if ( i == 0 )
+            {
+                m_serializedTaskDeltas.emplace_back( m_serializedTaskSizes[0] );
+            }
+            else // Calculate delta
+            {
+                auto const& from = m_graphRecorder.m_recordedData[i-1].m_serializedTaskData;
+                auto const& to = m_graphRecorder.m_recordedData[i].m_serializedTaskData;
+
+                size_t const numSharedBytes = Math::Min( from.size(), to.size() );
+                float delta = (float) to.size() - (float) from.size();
+
+                for ( auto b = 0u; b < numSharedBytes; b++ )
+                {
+                    if ( from[b] != to[b] )
+                    {
+                        delta++;
+                    }
+                }
+
+                m_serializedTaskDeltas.emplace_back( delta );
+            }
         }
 
         // Actual recording

@@ -344,6 +344,7 @@ namespace EE::Animation::GraphNodes
     {
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "Float", GraphValueType::Float );
+        CreateInputPin( "Comparand (Optional)", GraphValueType::Float );
     }
 
     int16_t FloatComparisonToolsNode::Compile( GraphCompilationContext& context ) const
@@ -373,6 +374,22 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
+            auto pValueNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            if ( pValueNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pValueNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pSettings->m_comparandValueNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
             pSettings->m_comparison = m_comparison;
             pSettings->m_epsilon = m_epsilon;
             pSettings->m_comparisonValue = m_comparisonValue;
@@ -382,6 +399,8 @@ namespace EE::Animation::GraphNodes
 
     void FloatComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
+        DrawInternalSeparator( ctx );
+
         static char const* comparisionStr[] =
         {
             ">=",
@@ -391,7 +410,14 @@ namespace EE::Animation::GraphNodes
             "<",
         };
 
-        ImGui::Text( "%s %.2f", comparisionStr[(int32_t)m_comparison], m_comparisonValue );
+        if ( GetConnectedInputNode<FlowToolsNode>( 1 ) != nullptr )
+        {
+            ImGui::Text( "%s Comparand", comparisionStr[(int32_t) m_comparison] );
+        }
+        else
+        {
+            ImGui::Text( "%s %.2f", comparisionStr[(int32_t)m_comparison], m_comparisonValue );
+        }
     }
 
     //-------------------------------------------------------------------------

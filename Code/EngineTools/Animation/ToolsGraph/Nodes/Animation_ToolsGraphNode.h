@@ -31,10 +31,11 @@ namespace EE::Animation::GraphNodes
     void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width );
     void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& vector );
     void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& target );
+    void DrawValueDisplayText( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType );
 
     //-------------------------------------------------------------------------
 
-    class FlowToolsNode : public VisualGraph::Flow::Node
+    class EE_ENGINETOOLS_API FlowToolsNode : public VisualGraph::Flow::Node
     {
         EE_REFLECT_TYPE( FlowToolsNode );
 

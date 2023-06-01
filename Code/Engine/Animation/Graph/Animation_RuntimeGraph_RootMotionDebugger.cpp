@@ -17,8 +17,7 @@ namespace EE::Animation
         // If we started recording, reset the transform buffers
         if ( m_debugMode < RootMotionDebugMode::DrawRecordedRootMotion && mode >= RootMotionDebugMode::DrawRecordedRootMotion )
         {
-            m_freeBufferIdx = 0;
-            m_recordedRootTransforms.clear();
+            ResetRecordedPositions();
         }
 
         m_debugMode = mode;
@@ -143,6 +142,12 @@ namespace EE::Animation
                 }
             }
         }
+    }
+
+    void RootMotionDebugger::ResetRecordedPositions()
+    {
+        m_freeBufferIdx = 0;
+        m_recordedRootTransforms.clear();
     }
 }
 #endif

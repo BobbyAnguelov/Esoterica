@@ -73,6 +73,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        void ResetRecordedPositions();
+
+        //-------------------------------------------------------------------------
+
         inline bool HasRecordedActions() const { return !m_recordedActions.empty(); }
 
         int32_t GetCurrentActionIndexMarker() const { return (int32_t) m_recordedActions.size(); }

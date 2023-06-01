@@ -3,6 +3,7 @@
 #include "Animation_TaskPosePool.h"
 #include "System/Types/Color.h"
 #include "System/Utils/GlobalRegistryBase.h"
+#include "System/TypeSystem/ReflectedType.h"
 #include "System/Types/Function.h"
 
 //-------------------------------------------------------------------------
@@ -49,8 +50,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class Task
+    class EE_ENGINE_API Task : public IReflectedType
     {
+        EE_REFLECT_TYPE( Task );
 
     public:
 
@@ -179,12 +181,3 @@ namespace EE::Animation
         TaskDependencies                m_dependencies;
     };
 }
-
-//-------------------------------------------------------------------------
-// Macro to provide task type info
-//-------------------------------------------------------------------------
-
-#define EE_ANIMATION_TASK( TaskTypeName ) \
-    friend class TaskSerializer;\
-    constexpr static uint32_t const s_taskTypeID = Hash::FNV1a::GetHash32( #TaskTypeName ); \
-    virtual uint32_t GetTaskTypeID() const override final { return TaskTypeName::s_taskTypeID; }

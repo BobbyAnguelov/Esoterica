@@ -537,13 +537,26 @@ namespace EE::VisualGraph
 
             connection.m_pStartNode = GetNode( startNodeID );
             connection.m_pEndNode = GetNode( endNodeID );
+
+            // Skip invalid connections
+            if ( connection.m_pStartNode == nullptr || connection.m_pEndNode == nullptr )
+            {
+                continue;
+            }
+
             connection.m_startPinID = UUID( connectionObjectValue[Connection::s_startPinKey].GetString() );
             connection.m_endPinID = UUID( connectionObjectValue[Connection::s_endPinKey].GetString() );
 
-            if ( connection.m_pStartNode != nullptr && connection.m_pEndNode != nullptr )
+            auto pStartPin = connection.m_pStartNode->GetOutputPin( connection.m_startPinID );
+            auto pEndPin = connection.m_pEndNode->GetInputPin( connection.m_endPinID );
+
+            // Skip invalid connections
+            if ( pStartPin == nullptr || pEndPin == nullptr )
             {
-                m_connections.emplace_back( connection );
+                continue;
             }
+
+            m_connections.emplace_back( connection );
         }
     }
 

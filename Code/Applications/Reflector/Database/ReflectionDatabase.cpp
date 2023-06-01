@@ -274,21 +274,15 @@ namespace EE::TypeSystem::Reflection
         }
 
         // Check for immediate parents
-        for ( auto parentTypeIDToCheck : pTypeDesc->m_parents )
+        if ( pTypeDesc->m_parentID == parentTypeID )
         {
-            if ( parentTypeIDToCheck == parentTypeID )
-            {
-                return true;
-            }
+            return true;
         }
 
         // Recursively check parents
-        for ( auto parentTypeIDToCheck : pTypeDesc->m_parents )
+        if ( IsTypeDerivedFrom( pTypeDesc->m_parentID, parentTypeID ) )
         {
-            if ( IsTypeDerivedFrom( parentTypeIDToCheck, parentTypeID ) )
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -529,10 +523,11 @@ namespace EE::TypeSystem::Reflection
             {
                 ReflectedType type;
                 type.m_ID = sqlite3_column_int( pStatement, 0 );
-                type.m_headerID = StringID( sqlite3_column_int( pStatement, 1 ) );
-                type.m_name = (char const*) sqlite3_column_text( pStatement, 2 );
-                type.m_namespace = (char const*) sqlite3_column_text( pStatement, 3 );
-                type.m_flags.Set( (uint32_t) sqlite3_column_int( pStatement, 4 ) );
+                type.m_parentID = sqlite3_column_int( pStatement, 1 );
+                type.m_headerID = StringID( sqlite3_column_int( pStatement, 2 ) );
+                type.m_name = (char const*) sqlite3_column_text( pStatement, 3 );
+                type.m_namespace = (char const*) sqlite3_column_text( pStatement, 4 );
+                type.m_flags.Set( (uint32_t) sqlite3_column_int( pStatement, 5 ) );
 
                 // Read additional type data
                 if ( type.IsEnum() )
@@ -652,7 +647,7 @@ namespace EE::TypeSystem::Reflection
 
         for ( auto const& type : m_reflectedTypes )
         {
-            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `Types`(`TypeID`, `HeaderID`,`Name`,`Namespace`,`TypeFlags`) VALUES ( %u, %u, \"%s\", \"%s\", %u );", (uint32_t) type.m_ID, (uint32_t) type.m_headerID, type.m_name.c_str(), type.m_namespace.c_str(), (uint32_t) type.m_flags ) )
+            if ( !ExecuteSimpleQuery( "INSERT OR REPLACE INTO `Types`(`TypeID`, `ParentID`, `HeaderID`,`Name`,`Namespace`,`TypeFlags`) VALUES ( %u, %u, %u, \"%s\", \"%s\", %u );", (uint32_t) type.m_ID, (uint32_t) type.m_parentID, (uint32_t) type.m_headerID, type.m_name.c_str(), type.m_namespace.c_str(), (uint32_t) type.m_flags ) )
             {
                 return false;
             }
@@ -724,17 +719,12 @@ namespace EE::TypeSystem::Reflection
         // Type registration tables
         //-------------------------------------------------------------------------
 
-        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `Types` ( `TypeID` INTEGER UNIQUE, `HeaderID` INTEGER, `Name` TEXT, `Namespace` TEXT, `TypeFlags` INTEGER, PRIMARY KEY( `TypeID` ) );" ) )
+        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `Types` ( `TypeID` INTEGER UNIQUE, `ParentID` INTEGER, `HeaderID` INTEGER, `Name` TEXT, `Namespace` TEXT, `TypeFlags` INTEGER, PRIMARY KEY( `TypeID` ) );" ) )
         {
             return false;
         }
 
         if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `Properties` ( `PropertyID` INTEGER, `LineNumber` INTEGER, `OwnerTypeID` INTEGER, `TypeID` INTEGER, `Name` TEXT, `Description` TEXT, `TypeName` TEXT, `TemplateTypeName` TEXT, `PropertyFlags` INTEGER, `ArraySize` INTEGER DEFAULT -1, `MetaData` TEXT, PRIMARY KEY( PropertyID, OwnerTypeID ) );" ) )
-        {
-            return false;
-        }
-
-        if ( !ExecuteSimpleQuery( "CREATE TABLE IF NOT EXISTS `TypeParents` ( `TypeID` INTEGER, `ParentTypeID` INTEGER, PRIMARY KEY( TypeID, ParentTypeID ) );" ) )
         {
             return false;
         }
@@ -789,11 +779,6 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        if ( !ExecuteSimpleQuery( "DROP TABLE IF EXISTS `TypeParents`;" ) )
-        {
-            return false;
-        }
-
         if ( !ExecuteSimpleQuery( "DROP TABLE IF EXISTS `EnumConstants`;" ) )
         {
             return false;
@@ -824,28 +809,6 @@ namespace EE::TypeSystem::Reflection
         EE_ASSERT( type.m_ID.IsValid() && !type.IsEnum() );
 
         sqlite3_stmt* pStatement = nullptr;
-
-        // Get all parent types
-        //-------------------------------------------------------------------------
-
-        FillStatementBuffer( "SELECT `TypeParents`.ParentTypeID FROM `TypeParents` INNER JOIN `Types` ON `Types`.TypeID = `TypeParents`.ParentTypeID WHERE `TypeParents`.TypeID = %u;", (uint32_t) type.m_ID );
-        if ( IsValidSQLiteResult( sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr ) ) )
-        {
-            while ( sqlite3_step( pStatement ) == SQLITE_ROW )
-            {
-                type.m_parents.push_back( sqlite3_column_int( pStatement, 0 ) );
-            }
-
-            if ( !IsValidSQLiteResult( sqlite3_finalize( pStatement ) ) )
-            {
-                return false;
-            }
-            pStatement = nullptr;
-        }
-        else
-        {
-            return false;
-        }
 
         // Get all properties
         //-------------------------------------------------------------------------
@@ -948,21 +911,6 @@ namespace EE::TypeSystem::Reflection
 
     bool ReflectionDatabase::WriteAdditionalTypeData( ReflectedType const& type )
     {
-        // Delete old parents
-        if ( !ExecuteSimpleQuery( "DELETE FROM `TypeParents` WHERE `TypeID` = %u;", (uint32_t) type.m_ID ) )
-        {
-            return false;
-        }
-
-        // Update Type Parents
-        for ( auto& parent : type.m_parents )
-        {
-            if ( !ExecuteSimpleQuery( "INSERT INTO `TypeParents`(`TypeID`, `ParentTypeID`) VALUES ( %u, %u );", (uint32_t) type.m_ID, (uint32_t) parent ) )
-            {
-                return false;
-            }
-        }
-
         // Delete old properties
         if ( !ExecuteSimpleQuery( "DELETE FROM `Properties` WHERE `OwnerTypeID` = %u;", (uint32_t) type.m_ID ) )
         {

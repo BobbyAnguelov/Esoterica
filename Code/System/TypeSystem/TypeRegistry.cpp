@@ -179,24 +179,14 @@ namespace EE::TypeSystem
 
     TInlineVector<EE::TypeSystem::TypeID, 5> TypeRegistry::GetAllCastableTypes( IReflectedType const* pType ) const
     {
-        struct Helper
-        {
-            static void RecursivelyFindAllParents( TypeInfo const* pTypeInfo, TInlineVector<EE::TypeSystem::TypeID, 5>& outParentTypeIDs )
-            {
-                outParentTypeIDs.emplace_back( pTypeInfo->m_ID );
-
-                for ( auto pParentTypeInfo : pTypeInfo->m_parentTypes )
-                {
-                    RecursivelyFindAllParents( pParentTypeInfo, outParentTypeIDs );
-                }
-            }
-        };
-
-        //-------------------------------------------------------------------------
-
         EE_ASSERT( pType != nullptr );
         TInlineVector<EE::TypeSystem::TypeID, 5> parentTypeIDs;
-        Helper::RecursivelyFindAllParents( pType->GetTypeInfo(), parentTypeIDs );
+        auto pParentTypeInfo = pType->GetTypeInfo()->m_pParentTypeInfo;
+        while ( pParentTypeInfo != nullptr )
+        {
+            parentTypeIDs.emplace_back( pParentTypeInfo->m_ID );
+            pParentTypeInfo = pParentTypeInfo->m_pParentTypeInfo;
+        }
         return parentTypeIDs;
     }
 

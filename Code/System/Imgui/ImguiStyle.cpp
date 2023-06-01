@@ -29,13 +29,6 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
-    ImColor const Style::s_gridBackgroundColor( 40, 40, 40, 200 );
-    ImColor const Style::s_gridLineColor( 200, 200, 200, 40 );
-    ImColor const Style::s_selectionBoxFillColor( 61, 133, 224, 150 );
-    ImColor const Style::s_selectionBoxOutlineColor( 61, 133, 224, 30 );
-
-    //-------------------------------------------------------------------------
-
     void Style::Apply()
     {
         ImGuiStyle& style = ImGui::GetStyle();

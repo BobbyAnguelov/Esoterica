@@ -37,6 +37,7 @@ namespace EE::ImGuiX
         if ( enableViewports )
         {
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            io.ConfigViewportsNoDefaultParent = true;
         }
 
         // Set render device in the user data

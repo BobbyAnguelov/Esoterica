@@ -1,19 +1,17 @@
 #pragma once
 
 #include "Engine/Animation/TaskSystem/Animation_Task.h"
-#include "Engine/Animation/AnimationClip.h"
-
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::Tasks
 {
-    class SampleTask : public Task
+    class LookAtIKTask : public Task
     {
-        EE_REFLECT_TYPE( SampleTask );
+        EE_REFLECT_TYPE( LookAtIKTask );
 
     public:
 
-        SampleTask( TaskSourceID sourceID, AnimationClip const* pAnimation, Percentage time );
+        LookAtIKTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, Vector const& worldSpaceTarget );
         virtual void Execute( TaskContext const& context ) override;
 
         virtual bool AllowsSerialization() const override { return true; }
@@ -21,17 +19,18 @@ namespace EE::Animation::Tasks
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual Color GetDebugColor() const override { return Colors::SpringGreen; }
-        virtual String GetDebugText() const override;
+        virtual String GetDebugText() const override { return "Look At IK"; }
+        virtual Color GetDebugColor() const override { return Colors::Cyan; }
         #endif
 
     private:
 
-        SampleTask() : Task( 0xFF ) {}
+        LookAtIKTask() : Task( 0xFF ) {}
 
     private:
 
-        AnimationClip const*    m_pAnimation;
-        Percentage              m_time;
+        Vector  m_worldSpaceTarget;
+        Vector  m_characterSpaceTarget;
+        bool    m_generateEffectorData = true; // Whether we should calculate effector data or assume it was deserialized
     };
 }

@@ -24,10 +24,6 @@ namespace EE::Resource
 
 namespace EE::TypeSystem
 {
-    class ITypeDataManager;
-
-    //-------------------------------------------------------------------------
-
     class EE_SYSTEM_API TypeInfo
     {
 
@@ -116,9 +112,8 @@ namespace EE::TypeSystem
     public:
 
         TypeID                                  m_ID;
-        ITypeDataManager*                       m_pTypeManager = nullptr;
         IReflectedType const*                   m_pDefaultInstance;
-        TVector<TypeInfo const*>                m_parentTypes;
+        TypeInfo const*                         m_pParentTypeInfo = nullptr;
         TVector<PropertyInfo>                   m_properties;
         THashMap<StringID, int32_t>             m_propertyMap;
         int32_t                                 m_size = -1;

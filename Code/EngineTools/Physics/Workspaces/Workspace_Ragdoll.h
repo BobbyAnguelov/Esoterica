@@ -48,6 +48,7 @@ namespace EE::Physics
 
     private:
 
+        virtual bool Save() override;
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
@@ -81,20 +82,15 @@ namespace EE::Physics
             return GetDescriptor<RagdollResourceDescriptor>();
         }
 
-        EE_FORCE_INLINE RagdollDefinition* GetRagdollDefinition()
+        EE_FORCE_INLINE RagdollResourceDescriptor const* GetRagdollDescriptor() const
         {
-            EE_ASSERT( m_pDescriptor != nullptr );
-            return &GetDescriptor<RagdollResourceDescriptor>()->m_definition;
+            return GetDescriptor<RagdollResourceDescriptor>();
         }
 
-        EE_FORCE_INLINE RagdollDefinition const* GetRagdollDefinition() const
-        {
-            EE_ASSERT( m_pDescriptor != nullptr );
-            return &GetDescriptor<RagdollResourceDescriptor>()->m_definition;
-        }
+        bool IsValidDefinition() const { return GetRagdollDescriptor()->IsValid(); }
 
         // This will check the ragdoll definition and ensure that it is valid!
-        void ValidateDefinition();
+        void PerformAdvancedDefinitionValidation();
 
         // Body Editing
         //-------------------------------------------------------------------------
@@ -151,6 +147,7 @@ namespace EE::Physics
         String                                          m_previewControlsWindowName;
 
         TResourcePtr<Animation::Skeleton>               m_skeleton;
+        RagdollDefinition                               m_ragdollDefinition;
         bool                                            m_needToCreateEditorState = false;
         Operation                                       m_activeOperation = Operation::None;
 

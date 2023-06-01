@@ -110,7 +110,6 @@ namespace EE::TypeSystem::Reflection
         inline bool IsEntityWorldSystem() const { return m_flags.IsFlagSet( Flags::IsEntityWorldSystem ); }
 
         // Structure functions
-        inline bool IsDerivedType() const { return !m_parents.empty(); }
         ReflectedProperty const* GetPropertyDescriptor( StringID propertyID ) const;
 
         // Enum functions
@@ -138,7 +137,7 @@ namespace EE::TypeSystem::Reflection
         TBitFlags<Flags>                                m_flags;
 
         // Structures
-        TVector<TypeID>                                 m_parents;
+        TypeID                                          m_parentID;
         TVector<ReflectedProperty>                      m_properties;
 
         // Enums

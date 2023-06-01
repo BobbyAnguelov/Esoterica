@@ -37,7 +37,6 @@ namespace EE::Animation
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
 
         virtual bool Save() override;
 
@@ -79,5 +78,8 @@ namespace EE::Animation
         bool                            m_isRootMotionEnabled = true;
         bool                            m_isPoseDrawingEnabled = true;
         bool                            m_characterPoseUpdateRequested = false;
+        bool                            m_isPreviewCapsuleDrawingEnabled = false;
+        float                           m_previewCapsuleHalfHeight = 0.65f;
+        float                           m_previewCapsuleRadius = 0.35f;
     };
 }

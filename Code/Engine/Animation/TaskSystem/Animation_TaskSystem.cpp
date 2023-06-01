@@ -4,6 +4,7 @@
 #include "System/Log.h"
 #include "System/Drawing/DebugDrawing.h"
 #include "System/Profiling.h"
+#include "System/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -229,20 +230,53 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    void TaskSystem::EnableSerialization( TypeSystem::TypeRegistry const& typeRegistry )
+    {
+        m_taskTypeRemapTable = typeRegistry.GetAllDerivedTypes( Task::GetStaticTypeID(), false, false, true );
+        m_maxBitsForTaskTypeID = Math::GetMostSignificantBit( (uint32_t) m_taskTypeRemapTable.size() ) + 1;
+        EE_ASSERT( m_maxBitsForTaskTypeID <= 8 );
+
+        m_serializationEnabled = true;
+    }
+
+    void TaskSystem::DisableSerialization()
+    {
+        m_taskTypeRemapTable.clear();
+        m_maxBitsForTaskTypeID = 0;
+        m_serializationEnabled = false;
+    }
+
     bool TaskSystem::SerializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob& outSerializedData ) const
     {
+        auto FindTaskTypeID = [this] ( TypeSystem::TypeID typeID )
+        {
+            uint8_t const numTaskTypes = (uint8_t) m_taskTypeRemapTable.size();
+            for ( uint8_t i = 0; i < numTaskTypes; i++ )
+            {
+                if ( m_taskTypeRemapTable[i]->m_ID == typeID )
+                {
+                    return i;
+                }
+            }
+
+            return uint8_t( 0xFF );
+        };
+
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_serializationEnabled );
         EE_ASSERT( !m_needsUpdate );
 
         uint8_t const numTasks = (uint8_t) m_tasks.size();
-
         TaskSerializer serializer( GetSkeleton(), LUTs, numTasks );
 
         // Serialize task types
         for ( auto pTask : m_tasks )
         {
             EE_ASSERT( pTask->IsComplete() );
-            uint8_t serializedTypeID = TaskSerializer::GetSerializedTaskTypeID( pTask );
-            serializer.WriteTaskTypeID( serializedTypeID );
+            uint8_t serializedTypeID = FindTaskTypeID( pTask->GetTypeID() );
+            EE_ASSERT( serializedTypeID != 0xFF );
+            serializer.WriteUInt( serializedTypeID, m_maxBitsForTaskTypeID );
         }
 
         // Serialize task data
@@ -263,6 +297,7 @@ namespace EE::Animation
 
     void TaskSystem::DeserializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob const& inSerializedData )
     {
+        EE_ASSERT( m_serializationEnabled );
         EE_ASSERT( m_tasks.empty() );
         EE_ASSERT( !m_needsUpdate );
 
@@ -272,8 +307,10 @@ namespace EE::Animation
         // Create tasks
         for ( uint8_t i = 0; i < numTasks; i++ )
         {
-            uint8_t const taskTypeID = serializer.ReadTaskTypeID();
-            m_tasks.emplace_back( TaskSerializer::CreateTask( taskTypeID ) );
+            uint8_t const taskTypeID = (uint8_t) serializer.ReadUInt( m_maxBitsForTaskTypeID );
+            Task* pTask = Cast<Task>( m_taskTypeRemapTable[taskTypeID]->CreateType() );
+            EE_ASSERT( pTask->AllowsSerialization() );
+            m_tasks.emplace_back( pTask );
         }
 
         // Deserialize Tasks

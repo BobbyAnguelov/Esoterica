@@ -61,8 +61,3 @@ namespace EE::Resource
         EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( constexpr static char const* const s_friendlyName = #friendlyName; )\
         EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( virtual char const* GetFriendlyName() const override { return friendlyName; } )\
     private:
-
-// Define a resource that is also a reflected type
-#define EE_REFLECTED_RESOURCE( ResourceTypeFourCC, ResourceFriendlyName, TypeName ) \
-        EE_RESOURCE( ResourceTypeFourCC, ResourceFriendlyName )\
-        EE_REFLECT_TYPE( TypeName )

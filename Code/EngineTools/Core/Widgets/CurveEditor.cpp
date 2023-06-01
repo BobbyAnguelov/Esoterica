@@ -172,14 +172,14 @@ namespace EE
     void CurveEditor::DrawGridAndLegend( ImDrawList* pDrawList )
     {
         TInlineString<10> legendString;
-        pDrawList->AddRectFilled( m_canvasStart, m_canvasEnd, ImGuiX::Style::s_gridBackgroundColor );
+        pDrawList->AddRectFilled( m_canvasStart, m_canvasEnd, ImGuiX::Style::s_colorGray7 );
 
         int32_t const numVerticalLines = Math::FloorToInt( m_curveCanvasWidth / s_pixelsPerGridBlock );
         for ( auto i = 0; i <= numVerticalLines; i++ )
         {
             Float2 const lineStart( m_canvasStart.m_x + ( i * s_pixelsPerGridBlock ), m_canvasStart.m_y );
             Float2 const lineEnd( lineStart.m_x, m_canvasEnd.m_y - s_gridLegendHeight );
-            pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_gridLineColor );
+            pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_colorGray5 );
 
             float const legendValue = m_horizontalViewRange.GetValueForPercentageThrough( ( lineStart.m_x - m_canvasStart.m_x ) / m_curveCanvasWidth );
             legendString.sprintf( "%.2f", legendValue );
@@ -196,7 +196,7 @@ namespace EE
         {
             Float2 const lineStart( m_canvasStart.m_x, m_canvasStart.m_y + ( i * s_pixelsPerGridBlock ) );
             Float2 const lineEnd( m_canvasEnd.m_x - s_gridLegendWidth, lineStart.m_y );
-            pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_gridLineColor );
+            pDrawList->AddLine( lineStart, lineEnd, ImGuiX::Style::s_colorGray5 );
 
             float const legendValue = m_verticalViewRange.GetValueForPercentageThrough( 1.0f - ( ( lineEnd.m_y - m_canvasStart.m_y ) / m_curveCanvasHeight ) );
             legendString.sprintf( "%.2f", legendValue );

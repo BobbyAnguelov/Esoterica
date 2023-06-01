@@ -132,14 +132,14 @@ namespace EE::Animation::GraphNodes
         // Is this an blocked transition
         if ( visualState == VisualGraph::NodeVisualState::None && !HasTransitions() )
         {
-            return VisualGraph::VisualSettings::s_connectionColorInvalid;
+            return s_connectionColorInvalid;
         }
 
         // Is this transition active?
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() && isAnyChildActive )
         {
-            return VisualGraph::VisualSettings::s_connectionColorValid;
+            return s_connectionColorValid;
         }
 
         //-------------------------------------------------------------------------

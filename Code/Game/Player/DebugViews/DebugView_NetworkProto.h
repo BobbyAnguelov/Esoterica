@@ -47,12 +47,14 @@ namespace EE::Player
         bool                                        m_isActionDebugWindowOpen = false;
         bool                                        m_isCharacterControllerDebugWindowOpen = true;
 
-        // HACK
+        //-------------------------------------------------------------------------
+
         Animation::GraphComponent*                  m_pPlayerGraphComponent = nullptr;
         Animation::GraphRecorder                    m_graphRecorder;
         int32_t                                     m_updateFrameIdx = InvalidIndex;
         bool                                        m_isRecording = false;
         TVector<float>                              m_serializedTaskSizes;
+        TVector<float>                              m_serializedTaskDeltas;
         float                                       m_minSerializedTaskDataSize;
         float                                       m_maxSerializedTaskDataSize;
         Animation::GraphInstance*                   m_pActualInstance = nullptr;
@@ -61,7 +63,6 @@ namespace EE::Player
         Animation::Pose*                            m_pGeneratedPose = nullptr;
         TVector<Animation::Pose>                    m_actualPoses;
         TVector<Animation::Pose>                    m_replicatedPoses;
-        // END HACK
     };
 }
 #endif

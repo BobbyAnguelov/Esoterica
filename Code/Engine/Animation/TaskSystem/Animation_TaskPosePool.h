@@ -6,13 +6,14 @@
 
 namespace EE::Animation
 {
-    struct PoseBuffer
+    struct EE_ENGINE_API PoseBuffer
     {
         friend class PoseBufferPool;
 
     public:
 
         PoseBuffer( Skeleton const* pSkeleton );
+
         void Reset();
 
         void CopyFrom( PoseBuffer const& RHS );
@@ -29,7 +30,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    struct CachedPoseBuffer : PoseBuffer
+    struct EE_ENGINE_API CachedPoseBuffer : public PoseBuffer
     {
         friend class PoseBufferPool;
 
@@ -52,7 +53,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class PoseBufferPool
+    class EE_ENGINE_API PoseBufferPool
     {
         constexpr static int8_t const s_numInitialBuffers = 6;
         constexpr static int8_t const s_bufferGrowAmount = 3;

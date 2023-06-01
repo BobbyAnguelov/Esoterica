@@ -12,15 +12,15 @@ namespace EE::TypeSystem
             return true;
         }
 
-        for ( auto& actualParentTypeInfo : m_parentTypes )
+        if ( m_pParentTypeInfo != nullptr )
         {
-            if ( actualParentTypeInfo->m_ID == potentialParentTypeID )
+            if ( m_pParentTypeInfo->m_ID == potentialParentTypeID )
             {
                 return true;
             }
 
             // Check inheritance hierarchy
-            if ( actualParentTypeInfo->IsDerivedFrom( potentialParentTypeID ) )
+            if ( m_pParentTypeInfo->IsDerivedFrom( potentialParentTypeID ) )
             {
                 return true;
             }

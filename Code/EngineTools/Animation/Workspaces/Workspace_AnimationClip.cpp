@@ -296,6 +296,16 @@ namespace EE::Animation
                     drawingCtx.Draw( *pPose, m_characterTransform );
                 }
             }
+
+            // Draw capsule
+            //-------------------------------------------------------------------------
+
+            if ( m_isPreviewCapsuleDrawingEnabled )
+            {
+                Transform capsuleTransform = m_characterTransform;
+                capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
+                drawingCtx.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
+            }
         }
     }
 
@@ -310,9 +320,64 @@ namespace EE::Animation
             return;
         }
 
+        // Debug Options
         //-------------------------------------------------------------------------
 
-        ImGui::NewLine();
+        auto DrawDebugOptions = [this] ()
+        {
+            ImGuiX::TextSeparator( "Visualization" );
+
+            ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
+
+            ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
+
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "Capsule Debug" );
+
+            ImGui::Checkbox( "Show Preview Capsule", &m_isPreviewCapsuleDrawingEnabled );
+
+            ImGui::Text( "Half-Height" );
+            ImGui::SameLine( 90 );
+            if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
+            {
+                m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
+            }
+
+            ImGui::Text( "Radius" );
+            ImGui::SameLine( 90 );
+            if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
+            {
+                m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
+            }
+        };
+
+        ImGui::SameLine();
+        DrawViewportToolbarComboIcon( "##DebugOptions", EE_ICON_BUG_CHECK, "Debug Options", DrawDebugOptions );
+
+        // Play Button
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine();
+
+        if ( m_eventEditor.IsPlaying() )
+        {
+            if ( ImGuiX::IconButton( EE_ICON_PAUSE, "Pause", ImGuiX::ImColors::Yellow, ImVec2( 70, 0 ) ) )
+            {
+                m_eventEditor.Pause();
+            }
+        }
+        else
+        {
+            if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play", ImGuiX::ImColors::Lime, ImVec2( 70, 0 ) ) )
+            {
+                m_eventEditor.Play();
+            }
+        }
+
+        // Clip Info
+        //-------------------------------------------------------------------------
+
         ImGui::Indent();
 
         auto PrintAnimDetails = [this] ( Color color )
@@ -339,45 +404,6 @@ namespace EE::Animation
         PrintAnimDetails( Colors::Yellow );
 
         ImGui::Unindent();
-    }
-
-    void AnimationClipWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
-    {
-        TWorkspace<AnimationClip>::DrawWorkspaceToolbar( context );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::Separator();
-
-        if ( ImGui::BeginMenu( EE_ICON_TUNE_VERTICAL" Options" ) )
-        {
-            ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
-            ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
-
-            ImGui::EndMenu();
-        }
-
-        // Preview Button
-        //-------------------------------------------------------------------------
-
-        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
-        float buttonDimensions = 75;
-        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
-
-        if ( m_eventEditor.IsPlaying() )
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PAUSE, "Pause", ImGuiX::ImColors::Yellow, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                m_eventEditor.Pause();
-            }
-        }
-        else
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Play", ImGuiX::ImColors::Lime, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                m_eventEditor.Play();
-            }
-        }
     }
 
     void AnimationClipWorkspace::DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )

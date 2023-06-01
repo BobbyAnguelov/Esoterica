@@ -13,7 +13,7 @@ namespace EE::Animation
     // Base Animation Flow Graph
     //-------------------------------------------------------------------------
 
-    class FlowGraph : public VisualGraph::FlowGraph
+    class EE_ENGINETOOLS_API FlowGraph : public VisualGraph::FlowGraph
     {
         friend class ToolsGraphDefinition;
         EE_REFLECT_TYPE( FlowGraph );
@@ -69,7 +69,7 @@ namespace EE::Animation
     private:
 
         virtual bool SupportsAutoConnection() const override { return true; }
-        virtual bool DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pSourcePin ) override;
+        virtual bool DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pOriginPin ) override;
         virtual void HandleDragAndDrop( VisualGraph::UserContext* pUserContext, ImVec2 const& mouseCanvasPos ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
         virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const override;

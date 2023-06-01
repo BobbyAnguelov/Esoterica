@@ -123,11 +123,6 @@ namespace EE::Animation
                 }
             }
 
-            if ( category.m_depth == -1 )
-            {
-                ImGui::Separator();
-            }
-
             for ( auto const& item : category.m_items )
             {
                 if ( !NodeFilter( item ) )
@@ -225,6 +220,79 @@ namespace EE::Animation
         }
     }
 
+    template<typename T>
+    static void FilterParameters( TInlineVector<T*, 20>& parameters, TVector<String> const& filterTokens, VisualGraph::Flow::Pin* pFilterPin )
+    {
+        for ( int32_t i = 0; i < parameters.size(); i++ )
+        {
+            bool excludeParameter = false;
+
+            // Filter by name
+            if ( !MatchesFilter( filterTokens, parameters[i]->GetName() ) )
+            {
+                excludeParameter = true;
+            }
+
+            // Filter by pin type
+            if ( pFilterPin != nullptr && ( pFilterPin->IsOutputPin() || GraphValueType( pFilterPin->m_type ) != parameters[i]->GetValueType() ) )
+            {
+                excludeParameter = true;
+            }
+
+            // Remove parameter from the list
+            if ( excludeParameter )
+            {
+                parameters.erase( parameters.begin() + i );
+                i--;
+            }
+        }
+    }
+
+    template<typename T>
+    static void DrawParameterItems( bool hasAdvancedFilter, char const* pMenuLabel, TInlineVector<T*, 20>&parameters, TypeSystem::TypeInfo const*& pNodeTypeToCreate, T*& pParameterToReference)
+    {
+        bool isUsingSubmenu = false;
+        bool shouldDrawSubMenuItems = hasAdvancedFilter;
+
+        if ( !hasAdvancedFilter )
+        {
+            isUsingSubmenu = shouldDrawSubMenuItems = ImGui::BeginMenu( pMenuLabel );
+        }
+
+        if ( shouldDrawSubMenuItems )
+        {
+            if ( parameters.empty() )
+            {
+                if ( isUsingSubmenu )
+                {
+                    ImGui::Text( "No Parameters" );
+                }
+            }
+            else
+            {
+                for ( auto pParameter : parameters )
+                {
+                    ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameter->GetTitleBarColor() );
+                    ImGui::Bullet();
+                    ImGui::PopStyleColor();
+
+                    ImGui::SameLine();
+                    bool const isMenuItemTriggered = ImGui::MenuItem( pParameter->GetName() );
+                    if ( isMenuItemTriggered || ( ImGui::IsItemFocused() && ImGui::IsKeyReleased( ImGuiKey_Enter ) ) )
+                    {
+                        pNodeTypeToCreate = GraphNodes::ParameterReferenceToolsNode::s_pTypeInfo;
+                        pParameterToReference = pParameter;
+                    }
+                }
+            }
+        }
+
+        if ( isUsingSubmenu )
+        {
+            ImGui::EndMenu();
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     FlowGraph::FlowGraph( GraphType type )
@@ -244,7 +312,7 @@ namespace EE::Animation
         writer.Uint( (uint8_t) m_type );
     }
 
-    bool FlowGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pSourcePin )
+    bool FlowGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pOriginPin )
     {
         if ( ctx.m_isReadOnly )
         {
@@ -254,137 +322,39 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         auto pToolsGraphContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        bool const hasAdvancedFilter = !filterTokens.empty() || pOriginPin != nullptr;
 
         TypeSystem::TypeInfo const* pNodeTypeToCreate = nullptr;
+        GraphNodes::ControlParameterToolsNode* pParameterToReference = nullptr;
+        GraphNodes::VirtualParameterToolsNode* pVirtualParameterToReference = nullptr;
 
-        //-------------------------------------------------------------------------
-
-        bool const hasAdvancedFilter = !filterTokens.empty() || pSourcePin != nullptr;
-
+        // Parameters
         //-------------------------------------------------------------------------
 
         TInlineVector<GraphNodes::ControlParameterToolsNode*, 20> sortedControlParameters = pToolsGraphContext->GetControlParameters();
+        FilterParameters( sortedControlParameters, filterTokens, pOriginPin );
         eastl::sort( sortedControlParameters.begin(), sortedControlParameters.end(), [] ( GraphNodes::ControlParameterToolsNode* const& pA, GraphNodes::ControlParameterToolsNode* const& pB ) { return strcmp( pA->GetName(), pB->GetName() ) < 0; } );
-        GraphNodes::ControlParameterToolsNode* pParameterToReference = nullptr;
 
         TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> sortedVirtualParameters = pToolsGraphContext->GetVirtualParameters();
+        FilterParameters( sortedVirtualParameters, filterTokens, pOriginPin );
         eastl::sort( sortedVirtualParameters.begin(), sortedVirtualParameters.end(), [] ( GraphNodes::VirtualParameterToolsNode* const& pA, GraphNodes::VirtualParameterToolsNode* const& pB ) { return strcmp( pA->GetName(), pB->GetName() ) < 0; } );
-        GraphNodes::VirtualParameterToolsNode* pVirtualParameterToReference = nullptr;
 
-        bool shouldDrawItems = hasAdvancedFilter;
-        bool isUsingSubmenu = false;
-
-        ImGuiX::TextSeparator( "Parameters" );
-
-        // Control Parameters
-        //-------------------------------------------------------------------------
-
-        if ( !hasAdvancedFilter )
+        if ( ( sortedVirtualParameters.size() + sortedControlParameters.size() ) > 0 )
         {
-            isUsingSubmenu = shouldDrawItems = ImGui::BeginMenu( "Control Parameters" );
+            ImGuiX::TextSeparator( "Parameters" );
+            DrawParameterItems( hasAdvancedFilter, "Control Parameters", sortedControlParameters, pNodeTypeToCreate, pParameterToReference );
+            DrawParameterItems( hasAdvancedFilter, "Virtual Parameters", sortedVirtualParameters, pNodeTypeToCreate, pVirtualParameterToReference );
         }
 
-        if ( shouldDrawItems )
-        {
-            if ( pToolsGraphContext->GetControlParameters().empty() )
-            {
-                if ( isUsingSubmenu )
-                {
-                    ImGui::Text( "No Parameters" );
-                }
-            }
-            else
-            {
-                for ( auto pParameter : sortedControlParameters )
-                {
-                    if ( !MatchesFilter( filterTokens, pParameter->GetName() ) )
-                    {
-                        continue;
-                    }
-
-                    if ( pSourcePin != nullptr && ( pSourcePin->IsOutputPin() || GraphValueType( pSourcePin->m_type ) != pParameter->GetValueType() ) )
-                    {
-                        continue;
-                    }
-
-                    ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameter->GetTitleBarColor() );
-                    ImGui::Bullet();
-                    ImGui::PopStyleColor();
-
-                    ImGui::SameLine();
-                    bool const isMenuItemTriggered = ImGui::MenuItem( pParameter->GetName() );
-                    if ( isMenuItemTriggered || ( ImGui::IsItemFocused() && ImGui::IsKeyReleased( ImGuiKey_Enter ) ) )
-                    {
-                        pNodeTypeToCreate = GraphNodes::ParameterReferenceToolsNode::s_pTypeInfo;
-                        pParameterToReference = pParameter;
-                    }
-                }
-            }
-
-            if ( isUsingSubmenu )
-            {
-                ImGui::EndMenu();
-            }
-        }
-
-        // Virtual Parameters
-        //-------------------------------------------------------------------------
-
-        if ( !hasAdvancedFilter )
-        {
-            isUsingSubmenu = shouldDrawItems = ImGui::BeginMenu( "Virtual Parameters" );
-        }
-
-        if ( shouldDrawItems )
-        {
-            if ( pToolsGraphContext->GetVirtualParameters().empty() )
-            {
-                if ( isUsingSubmenu )
-                {
-                    ImGui::Text( "No Parameters" );
-                }
-            }
-            else
-            {
-                for ( auto pParameter : sortedVirtualParameters )
-                {
-                    if ( !MatchesFilter( filterTokens, pParameter->GetName() ) )
-                    {
-                        continue;
-                    }
-
-                    if ( pSourcePin != nullptr && ( pSourcePin->IsOutputPin() || GraphValueType( pSourcePin->m_type ) != pParameter->GetValueType() ) )
-                    {
-                        continue;
-                    }
-
-                    ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameter->GetTitleBarColor() );
-                    ImGui::Bullet();
-                    ImGui::PopStyleColor();
-
-                    ImGui::SameLine();
-                    bool const isMenuItemTriggered = ImGui::MenuItem( pParameter->GetName() );
-                    if ( isMenuItemTriggered || ( ImGui::IsItemFocused() && ImGui::IsKeyReleased( ImGuiKey_Enter ) ) )
-                    {
-                        pNodeTypeToCreate = GraphNodes::ParameterReferenceToolsNode::s_pTypeInfo;
-                        pVirtualParameterToReference = pParameter;
-                    }
-                }
-            }
-
-            if ( isUsingSubmenu )
-            {
-                ImGui::EndMenu();
-            }
-        }
-
+        // Draw the node categories
         //-------------------------------------------------------------------------
 
         if ( pNodeTypeToCreate == nullptr )
         {
-            pNodeTypeToCreate = DrawNodeTypeCategoryContextMenu( this, mouseCanvasPos, filterTokens, pSourcePin, pToolsGraphContext->GetCategorizedNodeTypes() );
+            pNodeTypeToCreate = DrawNodeTypeCategoryContextMenu( this, mouseCanvasPos, filterTokens, pOriginPin, pToolsGraphContext->GetCategorizedNodeTypes() );
         }
 
+        // Create a selected node
         //-------------------------------------------------------------------------
 
         if ( pNodeTypeToCreate != nullptr )
@@ -414,11 +384,11 @@ namespace EE::Animation
             {
                 VisualGraph::Flow::Pin* pTargetPin = nullptr;
 
-                if ( pSourcePin->IsInputPin() )
+                if ( pOriginPin->IsInputPin() )
                 {
                     for ( auto const& outputPin : pTargetNode->GetOutputPins() )
                     {
-                        if ( outputPin.m_type == pSourcePin->m_type )
+                        if ( outputPin.m_type == pOriginPin->m_type )
                         {
                             pTargetPin = const_cast<VisualGraph::Flow::Pin*>( &outputPin );
                             break;
@@ -427,14 +397,14 @@ namespace EE::Animation
 
                     if ( pTargetPin != nullptr )
                     {
-                        TryMakeConnection( pTargetNode, pTargetPin, pSourceNode, pSourcePin );
+                        TryMakeConnection( pTargetNode, pTargetPin, pSourceNode, pOriginPin );
                     }
                 }
                 else // Output pin
                 {
                     for ( auto const& inputPin : pTargetNode->GetInputPins() )
                     {
-                        if ( inputPin.m_type == pSourcePin->m_type )
+                        if ( inputPin.m_type == pOriginPin->m_type )
                         {
                             pTargetPin = const_cast<VisualGraph::Flow::Pin*>( &inputPin );
                             break;
@@ -443,7 +413,7 @@ namespace EE::Animation
 
                     if ( pTargetPin != nullptr )
                     {
-                        TryMakeConnection( pSourceNode, pSourcePin, pTargetNode, pTargetPin );
+                        TryMakeConnection( pSourceNode, pOriginPin, pTargetNode, pTargetPin );
                     }
                 }
             }

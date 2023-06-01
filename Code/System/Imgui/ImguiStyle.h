@@ -37,14 +37,6 @@ namespace EE::ImGuiX
         static ImColor const s_colorAccent1;
         static ImColor const s_colorAccent2;  // Darkest
 
-        // Additional tool colors
-        //-------------------------------------------------------------------------
-
-        static ImColor const s_gridBackgroundColor;
-        static ImColor const s_gridLineColor;
-        static ImColor const s_selectionBoxOutlineColor;
-        static ImColor const s_selectionBoxFillColor;
-
         // Misc settings
         //-------------------------------------------------------------------------
 

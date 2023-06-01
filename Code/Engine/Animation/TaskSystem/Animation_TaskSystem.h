@@ -6,6 +6,10 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE::TypeSystem { class TypeRegistry; }
+
+//-------------------------------------------------------------------------
+
 namespace EE::Animation
 {
     #if EE_DEVELOPMENT_TOOLS
@@ -88,6 +92,15 @@ namespace EE::Animation
         // Task Serialization
         //-------------------------------------------------------------------------
 
+        // Have we enabled serialization
+        bool IsSerializationEnabled() const { return m_serializationEnabled; }
+
+        // Enable serialization
+        void EnableSerialization( TypeSystem::TypeRegistry const& typeRegistry );
+
+        // Disable Serialization
+        void DisableSerialization();
+
         // Serialized the current executed tasks - NOTE: this can fail since some tasks (i.e. physics) cannot be serialized!
         // Only do this if there are no currently pending tasks!
         bool SerializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob& outSerializedData ) const;
@@ -116,18 +129,26 @@ namespace EE::Animation
 
     private:
 
-        TVector<Task*>                  m_tasks;
-        PoseBufferPool                  m_posePool;
-        BoneMaskPool                    m_boneMaskPool;
-        TaskContext                     m_taskContext;
-        TInlineVector<TaskIndex, 16>    m_prePhysicsTaskIndices;
-        Pose                            m_finalPose;
-        bool                            m_hasPhysicsDependency = false;
-        bool                            m_hasCodependentPhysicsTasks = false;
-        bool                            m_needsUpdate = false;
+        TVector<Task*>                          m_tasks;
+        PoseBufferPool                          m_posePool;
+        BoneMaskPool                            m_boneMaskPool;
+        TaskContext                             m_taskContext;
+        TInlineVector<TaskIndex, 16>            m_prePhysicsTaskIndices;
+        Pose                                    m_finalPose;
+        bool                                    m_hasPhysicsDependency = false;
+        bool                                    m_hasCodependentPhysicsTasks = false;
+        bool                                    m_needsUpdate = false;
+
+        //-------------------------------------------------------------------------
+
+        TVector<TypeSystem::TypeInfo const*>    m_taskTypeRemapTable;
+        uint32_t                                m_maxBitsForTaskTypeID = 0;
+        bool                                    m_serializationEnabled = false;
+
+        //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        TaskSystemDebugMode             m_debugMode = TaskSystemDebugMode::Off;
+        TaskSystemDebugMode                     m_debugMode = TaskSystemDebugMode::Off;
         #endif
     };
 }

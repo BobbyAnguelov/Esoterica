@@ -34,9 +34,31 @@ namespace EE::VisualGraph
         friend BaseGraph;
         friend class GraphView;
 
-        constexpr static char const* const s_typeDataKey = "TypeData";
-        constexpr static char const* const s_childGraphKey = "ChildGraph";
-        constexpr static char const* const s_secondaryChildGraphKey = "SecondaryGraph";
+        // Serialization Keys
+        //-------------------------------------------------------------------------
+
+        constexpr static char const* const  s_typeDataKey = "TypeData";
+        constexpr static char const* const  s_childGraphKey = "ChildGraph";
+        constexpr static char const* const  s_secondaryChildGraphKey = "SecondaryGraph";
+
+        // Colors
+        //-------------------------------------------------------------------------
+
+    public:
+
+        constexpr static uint32_t const     s_defaultTitleColor = IM_COL32( 28, 28, 28, 255 );
+        constexpr static uint32_t const     s_defaultBackgroundColor = IM_COL32( 64, 64, 64, 255 );
+        constexpr static uint32_t const     s_defaultActiveColor = IM_COL32( 50, 205, 50, 255 );
+        constexpr static uint32_t const     s_defaultHoveredColor = IM_COL32( 150, 150, 150, 255 );
+        constexpr static uint32_t const     s_defaultSelectedColor = IM_COL32( 200, 200, 200, 255 );
+
+        constexpr static uint32_t const     s_connectionColor = IM_COL32( 185, 185, 185, 255 );
+        constexpr static uint32_t const     s_connectionColorValid = IM_COL32( 0, 255, 0, 255 );
+        constexpr static uint32_t const     s_connectionColorInvalid = IM_COL32( 255, 0, 0, 255 );
+        constexpr static uint32_t const     s_connectionColorHovered = IM_COL32( 255, 255, 255, 255 );
+
+        static Color const                  s_genericNodeSeparatorColor;
+        static Color const                  s_genericNodeInternalRegionDefaultColor;
 
     public:
 
@@ -131,7 +153,7 @@ namespace EE::VisualGraph
         void SetCanvasPosition( Float2 const& newPosition );
 
         // Get node title bar color
-        virtual ImColor GetTitleBarColor() const { return VisualSettings::s_genericNodeTitleColor; }
+        virtual ImColor GetTitleBarColor() const { return s_defaultTitleColor; }
 
         // Optional function that can be overridden in derived classes to draw a border around the node to signify an active state
         virtual bool IsActive( UserContext* pUserContext ) const { return false; }
@@ -143,10 +165,10 @@ namespace EE::VisualGraph
         virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }
 
         // Draw an internal separator
-        void DrawInternalSeparator( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeSeparatorColor, float preMarginY = 4, float postMarginY = 4 ) const;
+        void DrawInternalSeparator( DrawContext const& ctx, Color color = s_genericNodeSeparatorColor, float preMarginY = 0.0f, float postMarginY = ImGui::GetStyle().ItemSpacing.y ) const;
 
         // Start an internal box region
-        void BeginDrawInternalRegion( DrawContext const& ctx, Color color = VisualSettings::s_genericNodeInternalRegionDefaultColor, float preMarginY = 0, float postMarginY = 0 ) const;
+        void BeginDrawInternalRegion( DrawContext const& ctx, Color color = s_genericNodeInternalRegionDefaultColor, float preMarginY = 0, float postMarginY = 0 ) const;
 
         // End an internal region
         void EndDrawInternalRegion( DrawContext const& ctx ) const;

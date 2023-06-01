@@ -8,7 +8,7 @@ namespace EE::Animation::Tasks
 {
     class DefaultPoseTask : public Task
     {
-        EE_ANIMATION_TASK( DefaultPoseTask );
+        EE_REFLECT_TYPE( DefaultPoseTask );
 
     public:
 
@@ -21,7 +21,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return "Default Pose Task"; }
-        virtual Color GetDebugColor() const { return Colors::LightGray; }
+        virtual Color GetDebugColor() const override { return Colors::LightGray; }
         #endif
 
     private:

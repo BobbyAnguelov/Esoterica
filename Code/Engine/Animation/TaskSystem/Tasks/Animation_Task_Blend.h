@@ -10,7 +10,7 @@ namespace EE::Animation::Tasks
 {
     class BlendTask : public Task
     {
-        EE_ANIMATION_TASK( BlendTask );
+        EE_REFLECT_TYPE( BlendTask );
 
     public:
 
@@ -23,7 +23,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return String( String::CtorSprintf(), "Blend Task: %.2f", m_blendWeight ); }
-        virtual Color GetDebugColor() const { return Colors::Yellow; }
+        virtual Color GetDebugColor() const override { return Colors::Yellow; }
         #endif
 
     private:

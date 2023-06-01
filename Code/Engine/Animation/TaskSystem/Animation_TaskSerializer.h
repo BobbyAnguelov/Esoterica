@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/_Module/API.h"
 #include "System/Resource/ResourcePtr.h"
 #include "System/Serialization/BitSerialization.h"
 
@@ -16,17 +17,8 @@ namespace EE::Animation
     // Single use serializer!
     //-------------------------------------------------------------------------
 
-    class TaskSerializer : public Serialization::BitArchive<1280>
+    class EE_ENGINE_API TaskSerializer : public Serialization::BitArchive<1280>
     {
-
-    public:
-
-        // Task Factory
-        //-------------------------------------------------------------------------
-
-        static uint8_t GetNumTaskTypes();
-        static uint8_t GetSerializedTaskTypeID( Task const* pTask );
-        static Task* CreateTask( uint8_t serializedTaskTypeID );
 
     public:
 
@@ -51,9 +43,6 @@ namespace EE::Animation
 
         // Write out a task dependency index, the max number of bits was set at serializer construction time
         void WriteDependencyIndex( int8_t index );
-
-        // Write out a task type ID, the max number of bits is already known to the serializer
-        void WriteTaskTypeID( uint8_t ID );
 
         // Deserialization
         //-------------------------------------------------------------------------
@@ -83,15 +72,11 @@ namespace EE::Animation
         // Reads back a task dependency index, the max number of bits was read from the serialized stream
         int8_t ReadDependencyIndex();
 
-        // Read back a task type ID, the max number of bits is already known to the serializer
-        uint8_t ReadTaskTypeID();
-
     private:
 
         TInlineVector<ResourceLUT const*, 10> const&                m_LUTs;
         uint8_t                                                     m_numSerializedTasks = 0;
         uint32_t                                                    m_maxBitsForDependencies = 8;
-        uint32_t                                                    m_maxBitsForTaskTypeID;
         uint32_t                                                    m_maxBitsForBoneMask;
     };
 }

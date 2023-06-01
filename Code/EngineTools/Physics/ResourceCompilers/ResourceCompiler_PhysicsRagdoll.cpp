@@ -23,7 +23,15 @@ namespace EE::Physics
             return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
         }
 
-        if ( !resourceDescriptor.m_definition.IsValid() )
+        // Transfer Data
+        //-------------------------------------------------------------------------
+
+        RagdollDefinition definition;
+        definition.m_skeleton = resourceDescriptor.m_skeleton;
+        definition.m_bodies = resourceDescriptor.m_bodies;
+        definition.m_profiles = resourceDescriptor.m_profiles;
+
+        if ( !definition.IsValid() )
         {
             return Error( "Invalid ragdoll definition: %s", ctx.m_inputFilePath.c_str() );
         }
@@ -32,10 +40,10 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         Resource::ResourceHeader hdr( s_version, RagdollDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
-        hdr.AddInstallDependency( resourceDescriptor.m_definition.m_skeleton.GetResourceID() );
+        hdr.AddInstallDependency( definition.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;
-        archive << hdr << resourceDescriptor.m_definition;
+        archive << hdr << definition;
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {

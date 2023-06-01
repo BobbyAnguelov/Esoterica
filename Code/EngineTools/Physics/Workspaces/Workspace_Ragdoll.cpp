@@ -194,6 +194,15 @@ namespace EE::Physics
     // Workspace Lifetime
     //-------------------------------------------------------------------------
 
+    bool RagdollWorkspace::Save()
+    {
+        auto pResourceDescriptor = GetRagdollDescriptor();
+        pResourceDescriptor->m_bodies = m_ragdollDefinition.m_bodies;
+        pResourceDescriptor->m_profiles = m_ragdollDefinition.m_profiles;
+
+        return TWorkspace::Save();
+    }
+
     void RagdollWorkspace::Initialize( UpdateContext const& context )
     {
         TWorkspace::Initialize( context );
@@ -208,6 +217,11 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         LoadSkeleton();
+
+        auto pResourceDescriptor = GetRagdollDescriptor();
+        m_ragdollDefinition.m_skeleton = pResourceDescriptor->m_skeleton;
+        m_ragdollDefinition.m_bodies = pResourceDescriptor->m_bodies;
+        m_ragdollDefinition.m_profiles = pResourceDescriptor->m_profiles;
     }
 
     void RagdollWorkspace::Shutdown( UpdateContext const& context )
@@ -296,16 +310,16 @@ namespace EE::Physics
 
     void RagdollWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
     {
-        ImGuiX::SameLineSeparator( 15 );
+        bool const isValidDefinition = IsValidDefinition();
 
-        auto pRagdollDefinition = GetRagdollDefinition();
+        ImGuiX::SameLineSeparator( 15 );
 
         //-------------------------------------------------------------------------
 
         ImGui::BeginDisabled( IsPreviewing() );
         if ( ImGui::BeginMenu( EE_ICON_ACCOUNT_WRENCH" Authoring Tools" ) )
         {
-            ImGui::BeginDisabled( !pRagdollDefinition->IsValid() );
+            ImGui::BeginDisabled( !isValidDefinition );
             if ( ImGui::MenuItem( "Autogenerate Bodies + joints" ) )
             {
                 AutogenerateBodiesAndJoints();
@@ -353,7 +367,7 @@ namespace EE::Physics
         }
         else
         {
-            ImGui::BeginDisabled( !pRagdollDefinition->IsValid() );
+            ImGui::BeginDisabled( !isValidDefinition );
             if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Ragdoll", ImGuiX::ImColors::Lime, ImVec2( buttonDimensions, 0 ) ) )
             {
                 StartPreview( context );
@@ -412,8 +426,7 @@ namespace EE::Physics
             return;
         }
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        if ( !pRagdollDefinition->IsValid() )
+        if ( !IsValidDefinition() )
         {
             return;
         }
@@ -475,10 +488,10 @@ namespace EE::Physics
 
             if ( m_editorMode == Mode::BodyEditor )
             {
-                int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+                int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
                 for ( auto i = 0; i < numBodies; i++ )
                 {
-                    auto const& body = pRagdollDefinition->m_bodies[i];
+                    auto const& body = m_ragdollDefinition.m_bodies[i];
                     int32_t const boneIdx = m_skeleton->GetBoneIndex( body.m_boneID );
                     EE_ASSERT( boneIdx != InvalidIndex );
 
@@ -501,10 +514,10 @@ namespace EE::Physics
                     // Draw joint
                     if ( i > 0 )
                     {
-                        int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), *pRagdollDefinition, i );
-                        int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( pRagdollDefinition->m_bodies[parentBodyIdx].m_boneID );
+                        int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), m_ragdollDefinition, i );
+                        int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[parentBodyIdx].m_boneID );
                         EE_ASSERT( parentBoneIdx != InvalidIndex );
-                        Transform const parentBodyTransform = pRagdollDefinition->m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( parentBoneIdx );
+                        Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( parentBoneIdx );
 
                         drawingCtx.DrawAxis( body.m_jointTransform, 0.1f, 3 );
                         drawingCtx.DrawLine( body.m_jointTransform.GetTranslation(), parentBodyTransform.GetTranslation(), Colors::Cyan, 2.0f );
@@ -514,13 +527,13 @@ namespace EE::Physics
             }
             else // Joint Editor
             {
-                int32_t const numBodies = pRagdollDefinition->GetNumBodies();
-                auto pActiveProfile = pRagdollDefinition->GetProfile( m_activeProfileID );
+                int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
+                auto pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
 
                 for ( auto bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
                 {
                     int32_t const jointIdx = bodyIdx - 1;
-                    auto const& body = pRagdollDefinition->m_bodies[bodyIdx];
+                    auto const& body = m_ragdollDefinition.m_bodies[bodyIdx];
                     int32_t const boneIdx = m_skeleton->GetBoneIndex( body.m_boneID );
                     EE_ASSERT( boneIdx != InvalidIndex );
 
@@ -529,12 +542,12 @@ namespace EE::Physics
                         continue;
                     }
 
-                    int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), *pRagdollDefinition, bodyIdx );
-                    int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( pRagdollDefinition->m_bodies[parentBodyIdx].m_boneID );
+                    int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), m_ragdollDefinition, bodyIdx );
+                    int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[parentBodyIdx].m_boneID );
                     EE_ASSERT( parentBoneIdx != InvalidIndex );
 
                     Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneGlobalTransform( boneIdx );
-                    Transform const parentBodyTransform = pRagdollDefinition->m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( parentBoneIdx );
+                    Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( parentBoneIdx );
 
                     // Draw joint
                     drawingCtx.DrawAxis( body.m_jointTransform, 0.1f, 4 );
@@ -560,10 +573,10 @@ namespace EE::Physics
             if ( m_selectedBoneID.IsValid() )
             {
                 int32_t const boneIdx = m_skeleton->GetBoneIndex( m_selectedBoneID );
-                int32_t const bodyIdx = pRagdollDefinition->GetBodyIndexForBoneID( m_selectedBoneID );
+                int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( m_selectedBoneID );
                 if ( bodyIdx != InvalidIndex )
                 {
-                    auto& body = pRagdollDefinition->m_bodies[bodyIdx];
+                    auto& body = m_ragdollDefinition.m_bodies[bodyIdx];
 
                     if ( m_editorMode == Mode::BodyEditor )
                     {
@@ -653,7 +666,7 @@ namespace EE::Physics
             {
                 CreatePreviewEntity();
                 CreateSkeletonTree();
-                ValidateDefinition();
+                PerformAdvancedDefinitionValidation();
 
                 m_needToCreateEditorState = false;
             }
@@ -662,13 +675,12 @@ namespace EE::Physics
         // Profile Management
         //-------------------------------------------------------------------------
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        if ( pRagdollDefinition->IsValid() )
+        if ( m_ragdollDefinition.IsValid() )
         {
             // Ensure we always have a valid profile set
-            if ( !m_activeProfileID.IsValid() || pRagdollDefinition->GetProfile( m_activeProfileID ) == nullptr )
+            if ( !m_activeProfileID.IsValid() || m_ragdollDefinition.GetProfile( m_activeProfileID ) == nullptr )
             {
-                SetActiveProfile( pRagdollDefinition->GetDefaultProfile()->m_ID );
+                SetActiveProfile( m_ragdollDefinition.GetDefaultProfile()->m_ID );
             }
         }
 
@@ -799,8 +811,6 @@ namespace EE::Physics
     {
         constexpr static char const* const dialogNames[2] = { "Create New Profile", "Rename Profile" };
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-
         //-------------------------------------------------------------------------
 
         bool completeOperation = false;
@@ -820,7 +830,7 @@ namespace EE::Physics
                 if ( isValidName )
                 {
                     StringID const potentialID( m_profileNameBuffer );
-                    for ( auto const& profile : pRagdollDefinition->m_profiles )
+                    for ( auto const& profile : m_ragdollDefinition.m_profiles )
                     {
                         if ( profile.m_ID == potentialID )
                         {
@@ -892,7 +902,7 @@ namespace EE::Physics
                 case Operation::RenameProfile:
                 {
                     ScopedRagdollSettingsModification const sdm( this );
-                    auto pProfile = pRagdollDefinition->GetProfile( m_activeProfileID );
+                    auto pProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
                     EE_ASSERT( pProfile != nullptr );
                     pProfile->m_ID = StringID( m_profileNameBuffer );
                     SetActiveProfile( pProfile->m_ID );
@@ -981,15 +991,15 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::ValidateDefinition()
+    void RagdollWorkspace::PerformAdvancedDefinitionValidation()
     {
         InlineString errorMsg;
 
         auto pRagdollDesc = GetRagdollDescriptor();
         EE_ASSERT( pRagdollDesc->IsValid() );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        if ( pRagdollDefinition->IsValid() )
+        
+        if ( m_ragdollDefinition.IsValid() )
         {
             return;
         }
@@ -997,22 +1007,22 @@ namespace EE::Physics
         // Ensure skeleton matches that of the descriptor
         //-------------------------------------------------------------------------
 
-        if ( !pRagdollDefinition->m_skeleton.IsSet() )
+        if ( !m_ragdollDefinition.m_skeleton.IsSet() )
         {
-            pRagdollDefinition->m_skeleton = pRagdollDesc->m_skeleton;
+            m_ragdollDefinition.m_skeleton = pRagdollDesc->m_skeleton;
         }
         else // Skeleton mismatch
         {
-            if ( pRagdollDesc->m_skeleton.GetResourceID() != pRagdollDefinition->m_skeleton.GetResourceID() )
+            if ( pRagdollDesc->m_skeleton.GetResourceID() != m_ragdollDefinition.m_skeleton.GetResourceID() )
             {
-                errorMsg.sprintf( "Skeleton mismatch detected.\r\nDescriptor Skeleton: %s\r\nDefinition Skeleton: %s\r\n\r\nThe definition will now be reset!", pRagdollDesc->m_skeleton.GetResourceID().c_str(), pRagdollDefinition->m_skeleton.GetResourceID().c_str() );
+                errorMsg.sprintf( "Skeleton mismatch detected.\r\nDescriptor Skeleton: %s\r\nDefinition Skeleton: %s\r\n\r\nThe definition will now be reset!", pRagdollDesc->m_skeleton.GetResourceID().c_str(), m_ragdollDefinition.m_skeleton.GetResourceID().c_str() );
                 pfd::message( "Ragdoll Skeleton Mismatch", errorMsg.c_str(), pfd::choice::ok, pfd::icon::error ).result();
 
                 // Remove all bodies
-                pRagdollDefinition->m_bodies.clear();
+                m_ragdollDefinition.m_bodies.clear();
 
                 // Reset all profiles
-                for ( auto& profile : pRagdollDefinition->m_profiles )
+                for ( auto& profile : m_ragdollDefinition.m_profiles )
                 {
                     ResetProfile( profile );
                 }
@@ -1024,11 +1034,11 @@ namespace EE::Physics
         // Ensure we have at least one profile
         //-------------------------------------------------------------------------
 
-        int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
 
-        if ( pRagdollDefinition->m_profiles.empty() )
+        if ( m_ragdollDefinition.m_profiles.empty() )
         {
-            auto& profile = pRagdollDefinition->m_profiles.emplace_back();
+            auto& profile = m_ragdollDefinition.m_profiles.emplace_back();
             profile.m_ID = StringID( RagdollDefinition::Profile::s_defaultProfileID );
             profile.m_bodySettings.resize( numBodies );
             profile.m_materialSettings.resize( numBodies );
@@ -1045,7 +1055,7 @@ namespace EE::Physics
         // Validate all profiles
         //-------------------------------------------------------------------------
 
-        for ( auto& profile : pRagdollDefinition->m_profiles )
+        for ( auto& profile : m_ragdollDefinition.m_profiles )
         {
             if ( !profile.IsValid( numBodies ) )
             {
@@ -1065,24 +1075,24 @@ namespace EE::Physics
 
     void RagdollWorkspace::CreateBody( StringID boneID )
     {
-        auto pRagdollDefinition = GetRagdollDefinition();
-        EE_ASSERT( pRagdollDefinition->IsValid() && m_skeleton.IsLoaded() );
+        
+        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
 
-        if ( pRagdollDefinition->GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
+        if ( m_ragdollDefinition.GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
         {
             return;
         }
 
         ScopedRagdollSettingsModification const sdm( this );
 
-        EE_ASSERT( pRagdollDefinition->GetBodyIndexForBoneID( boneID ) == InvalidIndex );
+        EE_ASSERT( m_ragdollDefinition.GetBodyIndexForBoneID( boneID ) == InvalidIndex );
 
         int32_t const newBodyBoneIdx = m_skeleton->GetBoneIndex( boneID );
-        int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
         int32_t bodyInsertionIdx = 0;
         for ( bodyInsertionIdx = 0; bodyInsertionIdx < numBodies; bodyInsertionIdx++ )
         {
-            int32_t const existingBodyBoneIdx = m_skeleton->GetBoneIndex( pRagdollDefinition->m_bodies[bodyInsertionIdx].m_boneID );
+            int32_t const existingBodyBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[bodyInsertionIdx].m_boneID );
             if ( existingBodyBoneIdx > newBodyBoneIdx )
             {
                 break;
@@ -1092,8 +1102,8 @@ namespace EE::Physics
         // Body
         //-------------------------------------------------------------------------
 
-        pRagdollDefinition->m_bodies.insert( pRagdollDefinition->m_bodies.begin() + bodyInsertionIdx, RagdollDefinition::BodyDefinition() );
-        auto& newBody = pRagdollDefinition->m_bodies[bodyInsertionIdx];
+        m_ragdollDefinition.m_bodies.insert( m_ragdollDefinition.m_bodies.begin() + bodyInsertionIdx, RagdollDefinition::BodyDefinition() );
+        auto& newBody = m_ragdollDefinition.m_bodies[bodyInsertionIdx];
         newBody.m_boneID = boneID;
 
         // Calculate initial  body and joint transforms
@@ -1138,11 +1148,11 @@ namespace EE::Physics
         // Profiles
         //-------------------------------------------------------------------------
 
-        for ( auto& profile : pRagdollDefinition->m_profiles )
+        for ( auto& profile : m_ragdollDefinition.m_profiles )
         {
             // Mass
             profile.m_bodySettings.insert( profile.m_bodySettings.begin() + bodyInsertionIdx, RagdollBodySettings() );
-            float const capsuleVolume = Math::CalculateCapsuleVolume( pRagdollDefinition->m_bodies[bodyInsertionIdx].m_radius, pRagdollDefinition->m_bodies[bodyInsertionIdx].m_halfHeight * 2 );
+            float const capsuleVolume = Math::CalculateCapsuleVolume( m_ragdollDefinition.m_bodies[bodyInsertionIdx].m_radius, m_ragdollDefinition.m_bodies[bodyInsertionIdx].m_halfHeight * 2 );
             profile.m_bodySettings[bodyInsertionIdx].m_mass = capsuleVolume * 985.0f; // human body density
 
             // Materials
@@ -1153,7 +1163,7 @@ namespace EE::Physics
             int32_t jointInsertionIdx = bodyInsertionIdx - 1;
 
             // If there are other bodies then we also need to add the joint between the new body and the previous root body
-            if ( bodyInsertionIdx == 0 && pRagdollDefinition->m_bodies.size() > 1 )
+            if ( bodyInsertionIdx == 0 && m_ragdollDefinition.m_bodies.size() > 1 )
             {
                 jointInsertionIdx = 0;
             }
@@ -1170,19 +1180,19 @@ namespace EE::Physics
     {
         ScopedRagdollSettingsModification const sdm( this );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        EE_ASSERT( pRagdollDefinition->IsValid() && m_skeleton.IsLoaded() );
-        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDefinition->GetNumBodies() );
+        
+        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_ragdollDefinition.GetNumBodies() );
 
         // Body
         //-------------------------------------------------------------------------
 
-        pRagdollDefinition->m_bodies.erase( pRagdollDefinition->m_bodies.begin() + bodyIdx );
+        m_ragdollDefinition.m_bodies.erase( m_ragdollDefinition.m_bodies.begin() + bodyIdx );
 
         // Profiles
         //-------------------------------------------------------------------------
 
-        for ( auto& profile : pRagdollDefinition->m_profiles )
+        for ( auto& profile : m_ragdollDefinition.m_profiles )
         {
             profile.m_bodySettings.erase( profile.m_bodySettings.begin() + bodyIdx );
             profile.m_materialSettings.erase( profile.m_materialSettings.begin() + bodyIdx );
@@ -1207,15 +1217,15 @@ namespace EE::Physics
     {
         ScopedRagdollSettingsModification const sdm( this );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        EE_ASSERT( pRagdollDefinition->IsValid() && m_skeleton.IsLoaded() );
-        EE_ASSERT( destructionRootBodyIdx >= 0 && destructionRootBodyIdx < pRagdollDefinition->GetNumBodies() );
+        
+        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( destructionRootBodyIdx >= 0 && destructionRootBodyIdx < m_ragdollDefinition.GetNumBodies() );
 
-        int32_t const destructionRootBoneIdx = m_skeleton->GetBoneIndex( pRagdollDefinition->m_bodies[destructionRootBodyIdx].m_boneID );
+        int32_t const destructionRootBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[destructionRootBodyIdx].m_boneID );
 
-        for ( int32_t bodyIdx = 0; bodyIdx < (int32_t) pRagdollDefinition->m_bodies.size(); bodyIdx++ )
+        for ( int32_t bodyIdx = 0; bodyIdx < (int32_t) m_ragdollDefinition.m_bodies.size(); bodyIdx++ )
         {
-            int32_t const bodyBoneIdx = m_skeleton->GetBoneIndex( pRagdollDefinition->m_bodies[bodyIdx].m_boneID );
+            int32_t const bodyBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[bodyIdx].m_boneID );
             if ( m_skeleton->IsChildBoneOf( destructionRootBoneIdx, bodyBoneIdx ) )
             {
                 DestroyBody( bodyIdx );
@@ -1228,13 +1238,13 @@ namespace EE::Physics
     {
         ScopedRagdollSettingsModification const sdm( this );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        EE_ASSERT( pRagdollDefinition->IsValid() && m_skeleton.IsLoaded() );
+        
+        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
 
         // Remove all bodies
         //-------------------------------------------------------------------------
 
-        while ( !pRagdollDefinition->m_bodies.empty() )
+        while ( !m_ragdollDefinition.m_bodies.empty() )
         {
             DestroyBody( 0 );
         }
@@ -1255,14 +1265,14 @@ namespace EE::Physics
     {
         ScopedRagdollSettingsModification const sdm( this );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        RagdollDefinition::Profile* pActiveProfile = pRagdollDefinition->GetProfile( m_activeProfileID );
+        
+        RagdollDefinition::Profile* pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
         EE_ASSERT( pActiveProfile != nullptr );
 
-        int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
         for ( int32_t i = 0; i < numBodies; i++ )
         {
-            float const capsuleVolume = Math::CalculateCapsuleVolume( pRagdollDefinition->m_bodies[i].m_radius, pRagdollDefinition->m_bodies[i].m_halfHeight * 2 );
+            float const capsuleVolume = Math::CalculateCapsuleVolume( m_ragdollDefinition.m_bodies[i].m_radius, m_ragdollDefinition.m_bodies[i].m_halfHeight * 2 );
             pActiveProfile->m_bodySettings[i].m_mass = capsuleVolume * 985; // human body density
         }
     }
@@ -1303,15 +1313,15 @@ namespace EE::Physics
     void RagdollWorkspace::DrawBodyEditorDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
         ImGui::SetNextWindowClass( pWindowClass );
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
         if ( m_selectedBoneID.IsValid() )
         {
-            int32_t const bodyIdx = pRagdollDefinition->GetBodyIndexForBoneID( m_selectedBoneID );
+            int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( m_selectedBoneID );
             if ( bodyIdx != InvalidIndex )
             {
-                if ( m_bodyEditorPropertyGrid.GetEditedType() != &pRagdollDefinition->m_bodies[bodyIdx] )
+                if ( m_bodyEditorPropertyGrid.GetEditedType() != &m_ragdollDefinition.m_bodies[bodyIdx] )
                 {
-                    m_bodyEditorPropertyGrid.SetTypeToEdit( &pRagdollDefinition->m_bodies[bodyIdx] );
+                    m_bodyEditorPropertyGrid.SetTypeToEdit( &m_ragdollDefinition.m_bodies[bodyIdx] );
                 }
             }
             else
@@ -1375,12 +1385,12 @@ namespace EE::Physics
     ImRect RagdollWorkspace::RenderSkeletonTree( BoneInfo* pBone )
     {
         EE_ASSERT( pBone != nullptr );
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
 
         //-------------------------------------------------------------------------
 
         StringID const currentBoneID = m_skeleton->GetBoneID( pBone->m_boneIdx );
-        int32_t const bodyIdx = pRagdollDefinition->GetBodyIndexForBoneID( currentBoneID );
+        int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( currentBoneID );
         bool const hasBody = bodyIdx != InvalidIndex;
 
         //-------------------------------------------------------------------------
@@ -1437,7 +1447,7 @@ namespace EE::Physics
             }
             else
             {
-                if ( pRagdollDefinition->GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
+                if ( m_ragdollDefinition.GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
                 {
                     ImGui::Text( "Max number of bodies reached" );
                 }
@@ -1506,8 +1516,7 @@ namespace EE::Physics
         }
 
         // Handle invalid profile IDs
-        auto pRagdollDef = GetRagdollDefinition();
-        auto pProfile = pRagdollDef->GetProfile( m_activeProfileID );
+        auto pProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
         if ( pProfile == nullptr )
         {
             m_activeProfileID.Clear();
@@ -1524,13 +1533,13 @@ namespace EE::Physics
         bool isNameUnique = false;
         int32_t suffixCounter = 0;
 
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
         while ( !isNameUnique )
         {
             isNameUnique = true;
 
             // Check control parameters
-            for ( auto const& profile : pRagdollDefinition->m_profiles )
+            for ( auto const& profile : m_ragdollDefinition.m_profiles )
             {
                 if ( _stricmp( uniqueName.c_str(), profile.m_ID.c_str() ) == 0 )
                 {
@@ -1556,8 +1565,8 @@ namespace EE::Physics
         auto const uniqueNameID = GetUniqueProfileName( newProfileName.c_str() );
 
         ScopedRagdollSettingsModification const sdm( this );
-        auto pRagdollDefinition = GetRagdollDefinition();
-        auto& profile = pRagdollDefinition->m_profiles.emplace_back();
+        
+        auto& profile = m_ragdollDefinition.m_profiles.emplace_back();
         profile.m_ID = StringID( uniqueNameID.c_str() );
         ResetProfile( profile );
         return profile.m_ID;
@@ -1567,14 +1576,14 @@ namespace EE::Physics
     {
         auto const uniqueNameID = GetUniqueProfileName( duplicateProfileName.c_str() );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        auto pOriginalProfile = pRagdollDefinition->GetProfile( originalProfileID );
+        
+        auto pOriginalProfile = m_ragdollDefinition.GetProfile( originalProfileID );
         EE_ASSERT( pOriginalProfile != nullptr );
 
         //-------------------------------------------------------------------------
 
         ScopedRagdollSettingsModification const sdm( this );
-        auto& profile = pRagdollDefinition->m_profiles.emplace_back();
+        auto& profile = m_ragdollDefinition.m_profiles.emplace_back();
         profile.m_ID = StringID( uniqueNameID.c_str() );
         profile.CopySettingsFrom( *pOriginalProfile );
         return profile.m_ID;
@@ -1582,8 +1591,8 @@ namespace EE::Physics
 
     void RagdollWorkspace::ResetProfile( RagdollDefinition::Profile& profile ) const
     {
-        auto pRagdollDefinition = GetRagdollDefinition();
-        int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+        
+        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
 
         //-------------------------------------------------------------------------
 
@@ -1613,12 +1622,12 @@ namespace EE::Physics
     {
         ScopedRagdollSettingsModification const sdm( this );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        for ( auto profileIter = pRagdollDefinition->m_profiles.begin(); profileIter != pRagdollDefinition->m_profiles.end(); ++profileIter )
+        
+        for ( auto profileIter = m_ragdollDefinition.m_profiles.begin(); profileIter != m_ragdollDefinition.m_profiles.end(); ++profileIter )
         {
             if ( profileIter->m_ID == profileID )
             {
-                pRagdollDefinition->m_profiles.erase( profileIter );
+                m_ragdollDefinition.m_profiles.erase( profileIter );
                 break;
             }
         }
@@ -1626,7 +1635,7 @@ namespace EE::Physics
 
     void RagdollWorkspace::DrawProfileEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
 
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_profileEditorWindowName.c_str() ) )
@@ -1636,9 +1645,9 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             RagdollDefinition::Profile* pActiveProfile = nullptr;
-            if ( pRagdollDefinition->IsValid() )
+            if ( m_ragdollDefinition.IsValid() )
             {
-                pActiveProfile = pRagdollDefinition->GetProfile( m_activeProfileID );
+                pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
             }
 
             //-------------------------------------------------------------------------
@@ -1651,7 +1660,7 @@ namespace EE::Physics
                     m_solverSettingsGrid.SetTypeToEdit( nullptr );
                 }
             }
-            else if ( pRagdollDefinition->GetNumBodies() == 0 )
+            else if ( m_ragdollDefinition.GetNumBodies() == 0 )
             {
                 ImGui::TextColored( Colors::Yellow.ToFloat4(), "No Bodies" );
                 if ( m_solverSettingsGrid.GetEditedType() != nullptr )
@@ -1702,8 +1711,8 @@ namespace EE::Physics
         constexpr static float const createButtonWidth = 60;
         float const spacing = ImGui::GetStyle().ItemSpacing.x;
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        if ( !pRagdollDefinition->IsValid() )
+        
+        if ( !m_ragdollDefinition.IsValid() )
         {
             return;
         }
@@ -1714,7 +1723,7 @@ namespace EE::Physics
         ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( createButtonWidth + spacing ) - ( 3 * ( iconButtonWidth + spacing ) ) );
         if ( ImGui::BeginCombo( "##ProfileSelector", m_activeProfileID.IsValid() ? m_activeProfileID.c_str() : "Invalid Profile ID" ) )
         {
-            for ( auto const& profile : pRagdollDefinition->m_profiles )
+            for ( auto const& profile : m_ragdollDefinition.m_profiles )
             {
                 bool const isSelected = ( profile.m_ID == m_activeProfileID );
                 if ( ImGui::Selectable( profile.m_ID.c_str(), isSelected ) )
@@ -1767,13 +1776,13 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            ImGui::BeginDisabled( pRagdollDefinition->GetNumProfiles() == 1 );
+            ImGui::BeginDisabled( m_ragdollDefinition.GetNumProfiles() == 1 );
             if ( ImGuiX::ColoredButton( ImGuiX::ImColors::MediumRed, ImGuiX::ImColors::White, EE_ICON_DELETE, ImVec2( iconButtonWidth, 0 ) ) )
             {
-                if ( pRagdollDefinition->GetNumProfiles() > 1 )
+                if ( m_ragdollDefinition.GetNumProfiles() > 1 )
                 {
                     DestroyProfile( m_activeProfileID );
-                    SetActiveProfile( pRagdollDefinition->GetDefaultProfile()->m_ID );
+                    SetActiveProfile( m_ragdollDefinition.GetDefaultProfile()->m_ID );
                 }
             }
             ImGui::EndDisabled();
@@ -1785,9 +1794,9 @@ namespace EE::Physics
     void RagdollWorkspace::DrawBodyAndJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
     {
         EE_ASSERT( pProfile != nullptr );
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
 
-        int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
         int32_t const numJoints = numBodies - 1;
 
         //-------------------------------------------------------------------------
@@ -1829,16 +1838,17 @@ namespace EE::Physics
                 auto& cachedBodySettings = m_workingProfileCopy.m_bodySettings[bodyIdx];
                 auto& realBodySettings = pProfile->m_bodySettings[bodyIdx];
 
+                ImGui::PushID( &cachedBodySettings );
+
                 //-------------------------------------------------------------------------
                 // Body Settings
                 //-------------------------------------------------------------------------
 
-                ImGui::PushID( &cachedBodySettings );
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( "%d. %s", bodyIdx, pRagdollDefinition->m_bodies[bodyIdx].m_boneID.c_str());
+                ImGui::Text( "%d. %s", bodyIdx, m_ragdollDefinition.m_bodies[bodyIdx].m_boneID.c_str());
 
                 //-------------------------------------------------------------------------
 
@@ -1906,6 +1916,7 @@ namespace EE::Physics
 
                 if ( bodyIdx == 0 )
                 {
+                    ImGui::PopID();
                     continue;
                 }
 
@@ -2403,7 +2414,7 @@ namespace EE::Physics
         static char const* const comboOptions[4] = { "Average", "Min", "Multiply", "Max" };
 
         EE_ASSERT( pProfile != nullptr );
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
 
         //-------------------------------------------------------------------------
 
@@ -2421,7 +2432,7 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            int32_t const numBodies = pRagdollDefinition->GetNumBodies();
+            int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
             for ( auto bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
             {
                 auto& bodySettings = m_workingProfileCopy.m_materialSettings[bodyIdx];
@@ -2432,7 +2443,7 @@ namespace EE::Physics
 
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( pRagdollDefinition->m_bodies[bodyIdx].m_boneID.c_str() );
+                ImGui::Text( m_ragdollDefinition.m_bodies[bodyIdx].m_boneID.c_str() );
 
                 //-------------------------------------------------------------------------
 
@@ -2562,7 +2573,7 @@ namespace EE::Physics
 
     void RagdollWorkspace::DrawPreviewControlsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
     {
-        auto pRagdollDefinition = GetRagdollDefinition();
+        
 
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_previewControlsWindowName.c_str() ) )
@@ -2576,7 +2587,7 @@ namespace EE::Physics
             }
             else
             {
-                ImGui::BeginDisabled( !pRagdollDefinition->IsValid() && m_pMeshComponent != nullptr );
+                ImGui::BeginDisabled( !m_ragdollDefinition.IsValid() && m_pMeshComponent != nullptr );
                 if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLAY" Start Preview", ImVec2( -1, 0 ) ) )
                 {
                     StartPreview( context );
@@ -2817,13 +2828,13 @@ namespace EE::Physics
 
     void RagdollWorkspace::StartPreview( UpdateContext const& context )
     {
-        auto pRagdollDefinition = GetRagdollDefinition();
-        EE_ASSERT( m_pRagdoll == nullptr && pRagdollDefinition->IsValid() );
+        
+        EE_ASSERT( m_pRagdoll == nullptr && m_ragdollDefinition.IsValid() );
         EE_ASSERT( m_skeleton.IsLoaded() );
 
         // Skeleton is already loaded so the LoadResource will immediately set the loaded skeleton ptr
-        LoadResource( &pRagdollDefinition->m_skeleton );
-        pRagdollDefinition->CreateRuntimeData();
+        LoadResource( &m_ragdollDefinition.m_skeleton );
+        m_ragdollDefinition.CreateRuntimeData();
 
         //-------------------------------------------------------------------------
 
@@ -2833,7 +2844,7 @@ namespace EE::Physics
         //}
 
         auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
-        m_pRagdoll = pPhysicsWorld->CreateRagdoll( pRagdollDefinition, m_activeProfileID, 0 );
+        m_pRagdoll = pPhysicsWorld->CreateRagdoll( &m_ragdollDefinition, m_activeProfileID, 0 );
         m_pRagdoll->SetGravityEnabled( m_enableGravity );
         m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
 
@@ -2879,10 +2890,10 @@ namespace EE::Physics
         auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
         pPhysicsWorld->DestroyRagdoll( m_pRagdoll );
 
-        auto pRagdollDefinition = GetRagdollDefinition();
-        if ( pRagdollDefinition->m_skeleton.WasRequested() )
+        
+        if ( m_ragdollDefinition.m_skeleton.WasRequested() )
         {
-            UnloadResource( &pRagdollDefinition->m_skeleton );
+            UnloadResource( &m_ragdollDefinition.m_skeleton );
         }
 
         //-------------------------------------------------------------------------

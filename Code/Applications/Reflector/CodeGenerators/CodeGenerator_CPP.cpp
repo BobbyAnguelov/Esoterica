@@ -31,15 +31,11 @@ namespace EE::CPP
 
         for ( auto i = 0; i < numTypes; i++ )
         {
-            int32_t const numParents = (int32_t) structureTypes[i].m_parents.size();
-            for ( auto p = 0; p < numParents; p++ )
+            for ( auto j = 0; j < numTypes; j++ )
             {
-                for ( auto j = 0; j < numTypes; j++ )
+                if ( i != j && structureTypes[j].m_ID == structureTypes[i].m_parentID )
                 {
-                    if ( i != j && structureTypes[j].m_ID == structureTypes[i].m_parents[p] )
-                    {
-                        list[i].m_children.push_back( &list[j] );
-                    }
+                    list[i].m_children.push_back( &list[j] );
                 }
             }
         }
@@ -434,7 +430,6 @@ namespace EE::CPP
                 TVector<ReflectedType> typesInHeader;
                 m_pDatabase->GetAllTypesForHeader( headerInfo.m_ID, typesInHeader );
 
-                TVector<ReflectedType> parentDescs;
                 for ( auto& type : typesInHeader )
                 {
                     // Generate enum info
@@ -444,28 +439,16 @@ namespace EE::CPP
                     }
                     else // Generate type info
                     {
-                        parentDescs.clear();
-                        bool hasNoRegisteredParents = true;
-
-                        for ( TypeID const& parentID : type.m_parents )
-                        {
-                            auto pTypeDesc = m_pDatabase->GetType( parentID );
-                            if ( pTypeDesc == nullptr )
-                            {
-                                continue;
-                            }
-
-                            parentDescs.push_back( *pTypeDesc );
-                            hasNoRegisteredParents = false;
-                        }
-
-                        if ( hasNoRegisteredParents )
+                        if ( !type.m_parentID.IsValid() )
                         {
                             String const fullTypeName = type.m_namespace + type.m_name;
                             return LogError( "Invalid parent hierarchy for type (%s), all registered types must derived from a registered type.", fullTypeName.c_str() );
                         }
 
-                        TypeGenerator::Generate( database, m_typeInfoFile, prj.m_exportMacro, type, parentDescs );
+                        auto pTypeDesc = m_pDatabase->GetType( type.m_parentID );
+                        EE_ASSERT( pTypeDesc != nullptr );
+
+                        TypeGenerator::Generate( database, m_typeInfoFile, prj.m_exportMacro, type, *pTypeDesc );
                     }
                 }
 

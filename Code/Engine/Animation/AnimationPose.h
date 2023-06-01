@@ -39,13 +39,10 @@ namespace EE::Animation
 
         Pose( Skeleton const* pSkeleton, Type initialPoseType = Type::ReferencePose );
 
-        // Move
         Pose( Pose&& rhs );
+        Pose( Pose const& rhs );
         Pose& operator=( Pose&& rhs );
-
-        // Explicitly disable the copy operation to prevent accidental copies
-        Pose( Pose const& rhs ) = delete;
-        Pose& operator=( Pose const& rhs ) = delete;
+        Pose& operator=( Pose const& rhs );
 
         void CopyFrom( Pose const& rhs );
         EE_FORCE_INLINE void CopyFrom( Pose const* pRhs ) { CopyFrom( *pRhs ); }

@@ -179,7 +179,6 @@
     <ClCompile Include="Core\TimelineEditor\TimelineEditor.cpp" />
     <ClCompile Include="Core\UndoStack.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_BaseGraph.cpp" />
-    <ClCompile Include="Core\VisualGraph\VisualGraph_DrawingContext.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_FlowGraph.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_StateMachineGraph.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_View.cpp" />

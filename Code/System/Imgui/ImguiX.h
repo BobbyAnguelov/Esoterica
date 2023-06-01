@@ -119,13 +119,13 @@ namespace EE::ImGuiX
     EE_SYSTEM_API void TextTooltip( const char* fmt, ... );
 
     // Draw a button with an explicit icon
-    EE_SYSTEM_API bool IconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
+    EE_SYSTEM_API bool IconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
 
     // Draw a colored button
     EE_SYSTEM_API bool ColoredButton( ImColor const& backgroundColor, ImColor const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
 
     // Draw a colored icon button
-    EE_SYSTEM_API bool ColoredIconButton( ImColor const& backgroundColor, ImColor const& foregroundColor, ImColor const& iconColor, char const* pIcon, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
+    EE_SYSTEM_API bool ColoredIconButton( ImColor const& backgroundColor, ImColor const& foregroundColor, ImColor const& iconColor, char const* pIcon, char const* label, ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
 
     // Draws a flat button - a button with no background
     EE_SYSTEM_API bool FlatButton( char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
@@ -142,10 +142,10 @@ namespace EE::ImGuiX
     }
 
     // Draw a colored icon button
-    EE_SYSTEM_API bool FlatIconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ) );
+    EE_SYSTEM_API bool FlatIconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
 
     // Button with extra drop down options - returns true if the primary button was pressed
-    EE_SYSTEM_API bool IconButtonWithDropDown( char const* widgetID, char const* pIcon, char const* pButtonLabel, ImColor const& iconColor, float buttonWidth, TFunction<void()> const& comboCallback );
+    EE_SYSTEM_API bool IconButtonWithDropDown( char const* widgetID, char const* pIcon, char const* pButtonLabel, ImColor const& iconColor, float buttonWidth, TFunction<void()> const& comboCallback, bool shouldCenterContents = false );
 
     // Toggle button
     EE_SYSTEM_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), ImColor const& onColor = ImGuiX::Style::s_colorAccent0, ImColor const& offColor = ImGui::GetStyle().Colors[ImGuiCol_Text] );

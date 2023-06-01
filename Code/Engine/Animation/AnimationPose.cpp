@@ -19,11 +19,27 @@ namespace EE::Animation
         operator=( eastl::move( rhs ) );
     }
 
+    Pose::Pose( Pose const& rhs )
+    {
+        EE_ASSERT( rhs.m_pSkeleton != nullptr );
+        operator=( rhs );
+    }
+
     Pose& Pose::operator=( Pose&& rhs )
     {
         m_pSkeleton = rhs.m_pSkeleton;
         m_localTransforms.swap( rhs.m_localTransforms );
         m_globalTransforms.swap( rhs.m_globalTransforms );
+        m_state = rhs.m_state;
+
+        return *this;
+    }
+
+    Pose& Pose::operator=( Pose const& rhs )
+    {
+        m_pSkeleton = rhs.m_pSkeleton;
+        m_localTransforms = rhs.m_localTransforms;
+        m_globalTransforms = rhs.m_globalTransforms;
         m_state = rhs.m_state;
 
         return *this;

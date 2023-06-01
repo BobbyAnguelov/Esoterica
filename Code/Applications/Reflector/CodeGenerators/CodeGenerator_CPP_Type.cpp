@@ -16,7 +16,8 @@ namespace EE::CPP
         file << "            {\n";
         if ( !type.IsAbstract() )
         {
-            file << "                return EE::New<" << type.m_namespace.c_str() << type.m_name.c_str() << ">();\n";
+            file << "                auto pMemory = EE::Alloc( sizeof( " << type.m_namespace.c_str() << type.m_name.c_str() << " ), alignof( " << type.m_namespace.c_str() << type.m_name.c_str() << " ) );\n";
+            file << "                return new ( pMemory ) " << type.m_namespace.c_str() << type.m_name.c_str() << "();\n";
         }
         else
         {
@@ -1277,7 +1278,8 @@ namespace EE::CPP
         }
         else
         {
-            file << "                IReflectedType* pDefaultTypeInstance = EE::New<" << type.m_namespace.c_str() << type.m_name.c_str() << ">();\n";
+            file << "                auto pMemory = EE::Alloc( sizeof( " << type.m_namespace.c_str() << type.m_name.c_str() << " ), alignof( " << type.m_namespace.c_str() << type.m_name.c_str() << " ) );\n";
+            file << "                IReflectedType* pDefaultTypeInstance = new ( pMemory ) " << type.m_namespace.c_str() << type.m_name.c_str() << "();\n";
         }
 
         file << "                " << type.m_namespace.c_str() << type.m_name.c_str() << "::s_pTypeInfo = EE::New<TTypeInfo<" << type.m_namespace.c_str() << type.m_name.c_str() << ">>( pDefaultTypeInstance );\n";
@@ -1301,7 +1303,7 @@ namespace EE::CPP
         file << "            }\n\n";
     }
 
-    static void GenerateTypeInfoConstructor( std::stringstream& file, ReflectedType const& type, TVector<ReflectedType> const& parentDescs )
+    static void GenerateTypeInfoConstructor( std::stringstream& file, ReflectedType const& type, ReflectedType const& parentType )
     {
         // The pass by value here is intentional!
         auto GeneratePropertyRegistrationCode = [&file, type] ( ReflectedProperty prop )
@@ -1426,20 +1428,10 @@ namespace EE::CPP
 
         file << "                #endif\n\n";
 
-        // Add hierarchy info
-        if ( !type.m_parents.empty() )
-        {
-            file << "                // Parent types\n";
-            file << "                //-------------------------------------------------------------------------\n\n";
-            file << "                TypeSystem::TypeInfo const* pParentType = nullptr;\n\n";
-
-            for ( auto& parent : parentDescs )
-            {
-                file << "                pParentType = " << parent.m_namespace.c_str() << parent.m_name.c_str() << "::s_pTypeInfo;\n";
-                file << "                EE_ASSERT( pParentType != nullptr );\n";
-                file << "                m_parentTypes.push_back( pParentType );\n";
-            }
-        }
+        // Add parent info
+        file << "                // Parent types\n";
+        file << "                //-------------------------------------------------------------------------\n\n";
+        file << "                m_pParentTypeInfo = " << parentType.m_namespace.c_str() << parentType.m_name.c_str() << "::s_pTypeInfo;\n";
 
         // Add properties
         if ( type.HasProperties() )
@@ -1468,7 +1460,7 @@ namespace EE::CPP
     // File generation
     //-------------------------------------------------------------------------
 
-    static void GenerateTypeInfoFile( std::stringstream& file, ReflectionDatabase const& database, String const& exportMacro, ReflectedType const& type, TVector<ReflectedType> const& parentDescs )
+    static void GenerateTypeInfoFile( std::stringstream& file, ReflectionDatabase const& database, String const& exportMacro, ReflectedType const& type, ReflectedType const& parentType )
     {
         // Dev Flag
         if ( type.m_isDevOnly )
@@ -1505,7 +1497,7 @@ namespace EE::CPP
 
         file << "        public:\n\n";
 
-        GenerateTypeInfoConstructor( file, type, parentDescs );
+        GenerateTypeInfoConstructor( file, type, parentType );
         GenerateCreationMethod( file, type );
         GenerateInPlaceCreationMethod( file, type );
         GenerateLoadResourcesMethod( database, file, type );
@@ -1561,9 +1553,9 @@ namespace EE::CPP
 
     namespace TypeGenerator
     {
-        void Generate( ReflectionDatabase const& database, std::stringstream& codeFile, String const& exportMacro, ReflectedType const& type, TVector<ReflectedType> const& parentDescs )
+        void Generate( ReflectionDatabase const& database, std::stringstream& codeFile, String const& exportMacro, ReflectedType const& type, ReflectedType const& parentType )
         {
-            GenerateTypeInfoFile( codeFile, database, exportMacro, type, parentDescs );
+            GenerateTypeInfoFile( codeFile, database, exportMacro, type, parentType );
         }
     }
 }

@@ -114,6 +114,8 @@
     </ClCompile>
     <ClCompile Include="Player\Animation\PlayerGraphController_InAir.cpp" />
     <ClCompile Include="Player\DebugViews\DebugView_NetworkProto.cpp" />
+    <ClCompile Include="Animation\Tasks\Animation_Task_LookAtIK.cpp" />
+    <ClCompile Include="Animation\GraphNodes\Animation_RuntimeGraphNode_LookAtIK.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Player\Components\Component_PlayerInteractible.h">
@@ -232,6 +234,8 @@
     </ClInclude>
     <ClInclude Include="Player\Animation\PlayerGraphController_InAir.h" />
     <ClInclude Include="Player\DebugViews\DebugView_NetworkProto.h" />
+    <ClInclude Include="Animation\Tasks\Animation_Task_LookAtIK.h" />
+    <ClInclude Include="Animation\GraphNodes\Animation_RuntimeGraphNode_LookAtIK.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Player">

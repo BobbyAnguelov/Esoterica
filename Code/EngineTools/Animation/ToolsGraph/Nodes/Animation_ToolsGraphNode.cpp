@@ -115,6 +115,70 @@ namespace EE::Animation::GraphNodes
         }
     }
 
+    void DrawValueDisplayText( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType )
+    {
+        EE_ASSERT( pGraphNodeContext != nullptr );
+        EE_ASSERT( pGraphNodeContext->HasDebugData() );
+        EE_ASSERT( runtimeNodeIdx != InvalidIndex );
+
+        //-------------------------------------------------------------------------
+
+        switch ( valueType )
+        {
+            case GraphValueType::Bool:
+            {
+                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
+                ImGui::Text( value ? "Value: True" : "Value: False" );
+            }
+            break;
+
+            case GraphValueType::ID:
+            {
+                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
+                if ( value.IsValid() )
+                {
+                    ImGui::Text( "Value: %s", value.c_str() );
+                }
+                else
+                {
+                    ImGui::Text( "Value: Invalid" );
+                }
+            }
+            break;
+
+            case GraphValueType::Int:
+            {
+                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
+                ImGui::Text( "Value: %d", value );
+            }
+            break;
+
+            case GraphValueType::Float:
+            {
+                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
+                ImGui::Text( "Value: %.3f", value );
+            }
+            break;
+
+            case GraphValueType::Vector:
+            {
+                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
+                DrawVectorInfoText( ctx, value );
+            }
+            break;
+
+            case GraphValueType::Target:
+            {
+                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
+                DrawTargetInfoText( ctx, value );
+            }
+            break;
+
+            default:
+            break;
+        }
+    }
+
     static void TraverseHierarchy( VisualGraph::BaseNode const* pNode, TVector<VisualGraph::BaseNode const*>& nodePath )
     {
         EE_ASSERT( pNode != nullptr );
@@ -192,70 +256,13 @@ namespace EE::Animation::GraphNodes
 
             if ( GetValueType() != GraphValueType::Unknown && GetValueType() != GraphValueType::BoneMask && GetValueType() != GraphValueType::Pose && GetValueType() != GraphValueType::Special )
             {
-                DrawInternalSeparator( ctx, VisualGraph::VisualSettings::s_genericNodeSeparatorColor, 4.0f );
+                DrawInternalSeparator( ctx, s_genericNodeSeparatorColor, 4.0f );
 
                 BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4, 2 );
 
-                if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
+                if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) && HasOutputPin() )
                 {
-                    if ( HasOutputPin() )
-                    {
-                        GraphValueType const valueType = GetValueType();
-                        switch ( valueType )
-                        {
-                            case GraphValueType::Bool:
-                            {
-                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
-                                ImGui::Text( value ? "Value: True" : "Value: False" );
-                            }
-                            break;
-
-                            case GraphValueType::ID:
-                            {
-                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
-                                if ( value.IsValid() )
-                                {
-                                    ImGui::Text( "Value: %s", value.c_str() );
-                                }
-                                else
-                                {
-                                    ImGui::Text( "Value: Invalid" );
-                                }
-                            }
-                            break;
-
-                            case GraphValueType::Int:
-                            {
-                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
-                                ImGui::Text( "Value: %d", value );
-                            }
-                            break;
-
-                            case GraphValueType::Float:
-                            {
-                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
-                                ImGui::Text( "Value: %.3f", value );
-                            }
-                            break;
-
-                            case GraphValueType::Vector:
-                            {
-                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
-                                DrawVectorInfoText( ctx, value );
-                            }
-                            break;
-
-                            case GraphValueType::Target:
-                            {
-                                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
-                                DrawTargetInfoText( ctx, value );
-                            }
-                            break;
-
-                            default:
-                            break;
-                        }
-                    }
+                    DrawValueDisplayText( ctx, pGraphNodeContext, runtimeNodeIdx, GetValueType() );
                 }
                 else
                 {

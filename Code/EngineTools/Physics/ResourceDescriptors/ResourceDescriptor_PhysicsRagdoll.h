@@ -15,14 +15,48 @@ namespace EE::Physics
 
     public:
 
-        virtual bool IsValid() const override { return m_skeleton.IsSet(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return RagdollDefinition::GetStaticResourceTypeID(); }
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override {}
+
+        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override 
+        {
+            outDependencies.emplace_back( m_skeleton.GetResourceID() );
+        }
+
+        virtual bool IsValid() const override
+        {
+            if ( !m_skeleton.IsSet() )
+            {
+                return false;
+            }
+
+            if ( m_profiles.empty() )
+            {
+                return false;
+            }
+
+            // Validate the profiles
+            int32_t const numBodies = (int32_t) m_bodies.size();
+            for ( auto& profile : m_profiles )
+            {
+                if ( !profile.IsValid( numBodies ) )
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
     public:
 
-        EE_REFLECT()    TResourcePtr<Animation::Skeleton>             m_skeleton;
-        EE_REFLECT()    RagdollDefinition                             m_definition;
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        TResourcePtr<Animation::Skeleton>               m_skeleton;
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        TVector<RagdollDefinition::BodyDefinition>      m_bodies;
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        TVector<RagdollDefinition::Profile>             m_profiles;
     };
 }

@@ -85,6 +85,15 @@ namespace EE::Animation
         // Get the final pose from the task system
         Pose const* GetPose();
 
+        // Task System
+        //-------------------------------------------------------------------------
+
+        // Enable task serialization
+        void EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry );
+
+        // Disable task serialization
+        void DisableTaskSystemSerialization();
+
         // Does the task system have any pending pose tasks
         bool DoesTaskSystemNeedUpdate() const;
 
@@ -94,8 +103,11 @@ namespace EE::Animation
         // Graph State
         //-------------------------------------------------------------------------
 
+        // Is this a valid instance (i.e. has a valid root node)
+        bool IsValid() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
+
         // Is this a valid instance that has been correctly initialized
-        bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
+        bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
 
         // Reset the graph state with an initial time
         void ResetGraphState( SyncTrackTime initTime = SyncTrackTime() );

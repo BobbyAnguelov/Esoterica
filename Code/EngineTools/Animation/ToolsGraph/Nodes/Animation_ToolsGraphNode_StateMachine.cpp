@@ -220,13 +220,11 @@ namespace EE::Animation::GraphNodes
             {
                 auto const foundSourceStateIter = IDToCompiledNodeIdxMap.find( pStartStateNode->GetID() );
                 EE_ASSERT( foundSourceStateIter != IDToCompiledNodeIdxMap.end() );
-                context.BeginConduitCompilation( foundSourceStateIter->second );
 
                 if ( !TryCompileTransition( pGlobalTransition, pGlobalTransition->GetEndStateID() ) )
                 {
                     return InvalidIndex;
                 }
-                context.EndConduitCompilation();
             }
         }
 
