@@ -28,6 +28,13 @@ namespace EE::Log
 
     //-------------------------------------------------------------------------
 
+    char const* GetSeverityAsString( Severity severity )
+    {
+        return g_severityLabels[(int32_t) severity];
+    }
+
+    //-------------------------------------------------------------------------
+
     void Initialize()
     {
         EE_ASSERT( g_pLog == nullptr );

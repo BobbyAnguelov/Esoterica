@@ -81,4 +81,18 @@ namespace EE::Animation::Tasks
             m_boneMaskTaskList.Deserialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
         }
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    String BlendTask::GetDebugText() const
+    {
+        if ( m_boneMaskTaskList.HasTasks() )
+        {
+            return String( String::CtorSprintf(), "Blend Task (Masked): %.2f%%", m_blendWeight * 100 );
+        }
+        else
+        {
+            return String( String::CtorSprintf(), "Blend Task: %.2f%%", m_blendWeight * 100 );
+        }
+    }
+    #endif
 }

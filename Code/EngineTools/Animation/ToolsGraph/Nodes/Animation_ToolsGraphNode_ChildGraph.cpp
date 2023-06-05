@@ -2,6 +2,8 @@
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_ChildGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
+#include "EngineTools/Resource/ResourceDatabase.h"
 
 //-------------------------------------------------------------------------
 
@@ -39,10 +41,25 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         ImGui::BeginDisabled( !resourceID.IsValid() );
+
         if ( ImGui::MenuItem( EE_ICON_PENCIL_BOX" Edit Child Graph" ) )
         {
-            pGraphNodeContext->OpenChildGraph( this, resourceID, true );
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<OpenChildGraphCommand>( this, false );
+            pUserContext->RequestAdvancedCommand( command );
         }
+
+        if ( ImGui::MenuItem( EE_ICON_ARROW_RIGHT_BOLD" Reflect Parent Parameters to Child" ) )
+        {
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<ReflectParametersCommand>( this, true );
+            pUserContext->RequestAdvancedCommand( command );
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_ARROW_LEFT_BOLD" Reflect Child Parameters to Parent" ) )
+        {
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<ReflectParametersCommand>( this, true );
+            pUserContext->RequestAdvancedCommand( command );
+        }
+
         ImGui::EndDisabled();
     }
 
@@ -52,7 +69,8 @@ namespace EE::Animation::GraphNodes
         ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
         if ( resourceID.IsValid() )
         {
-            pGraphNodeContext->OpenChildGraph( this, resourceID, pUserContext->m_isCtrlDown );
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<OpenChildGraphCommand>( this, !pUserContext->m_isCtrlDown );
+            pUserContext->RequestAdvancedCommand( command );
         }
     }
 }

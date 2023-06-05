@@ -53,6 +53,7 @@ namespace EE::Animation
 
         virtual void DrawExtraInformation( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual bool DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens ) override;
+        virtual bool HasContextMenuFilter() const override { return false; }
         virtual void Initialize( VisualGraph::BaseNode* pParentNode ) override;
         virtual bool CanDeleteNode( VisualGraph::BaseNode const* pNode ) const override;
         virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
@@ -60,8 +61,5 @@ namespace EE::Animation
         virtual void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) override;
         virtual void PostDestroyNode( UUID const& nodeID ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
-
-        bool CanConvertToBlendTreeState() const;
-        bool CanConvertToStateMachineState() const;
     };
 }

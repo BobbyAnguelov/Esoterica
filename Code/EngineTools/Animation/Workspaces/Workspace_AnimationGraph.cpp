@@ -31,6 +31,10 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    TEvent<ResourceID const&> AnimationGraphWorkspace::s_graphModifiedEvent;
+
+    //-------------------------------------------------------------------------
+
     GraphUndoableAction::GraphUndoableAction( AnimationGraphWorkspace* pWorkspace )
         : m_pWorkspace( pWorkspace )
     {
@@ -797,6 +801,23 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        auto OnGlobalGraphEdited = [this]( ResourceID const& editedGraph )
+        {
+            if ( m_graphRecorder.HasRecordedDataForGraph( editedGraph ) )
+            {
+                if ( m_debugMode == DebugMode::ReviewRecording )
+                {
+                    StopDebugging();
+                }
+
+                m_graphRecorder.Reset();
+            }
+        };
+
+        m_globalGraphEditEventBindingID = s_graphModifiedEvent.Bind( OnGlobalGraphEdited );
+
+        //-------------------------------------------------------------------------
+
         UpdateUserContext();
     }
 
@@ -825,6 +846,10 @@ namespace EE::Animation
         {
             StopDebugging();
         }
+
+        s_graphModifiedEvent.Unbind( m_globalGraphEditEventBindingID );
+
+        //-------------------------------------------------------------------------
 
         EE_ASSERT( !m_previewGraphVariationPtr.IsSet() );
 
@@ -1229,6 +1254,32 @@ namespace EE::Animation
         }
     }
 
+    //-------------------------------------------------------------------------
+
+    void AnimationGraphWorkspace::ShowNotifyDialog( String const& title, String const& message )
+    {
+        EE_ASSERT( m_activeOperation == GraphOperationType::None );
+        EE_ASSERT( !title.empty() && !message.empty() );
+        m_notifyDialogTitle = title;
+        m_notifyDialogText = message;
+        m_activeOperation = GraphOperationType::NotifyUser;
+    }
+
+    void AnimationGraphWorkspace::ShowNotifyDialog( String const& title, char const* pMessageFormat, ... )
+    {
+        EE_ASSERT( m_activeOperation == GraphOperationType::None );
+        EE_ASSERT( !title.empty() );
+        m_notifyDialogTitle = title;
+        m_notifyDialogText.clear();
+        
+        va_list args;
+        va_start( args, pMessageFormat );
+        m_notifyDialogText.sprintf( pMessageFormat, args );
+        va_end( args );
+
+        m_activeOperation = GraphOperationType::NotifyUser;
+    }
+
     void AnimationGraphWorkspace::DrawDialogs( UpdateContext const& context )
     {
         bool isDialogOpen = m_activeOperation != GraphOperationType::None;
@@ -1249,6 +1300,29 @@ namespace EE::Animation
         switch ( m_activeOperation )
         {
             case GraphOperationType::None:
+            break;
+
+            case GraphOperationType::NotifyUser:
+            {
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 8, 8 ) );
+                if ( ImGuiX::BeginViewportPopupModal( m_notifyDialogTitle.c_str(), &isDialogOpen, ImVec2( 800, 200 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                {
+                    ImGui::Text( m_notifyDialogText.c_str() );
+
+                    ImGui::NewLine();
+
+                    ImGui::SameLine( ( ImGui::GetContentRegionAvail().x - 100 ) / 2.0f );
+                    if ( ImGui::Button( "OK", ImVec2( 100, 0 ) ) )
+                    {
+                        isDialogOpen = false;
+                        ImGui::CloseCurrentPopup();
+                    }
+
+                    EscCancelCheck();
+                    ImGui::EndPopup();
+                }
+                ImGui::PopStyleVar();
+            }
             break;
 
             case GraphOperationType::Navigate:
@@ -1467,7 +1541,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        RefreshControlParameterCache();
+        OnGraphStateModified();
 
         //-------------------------------------------------------------------------
 
@@ -1481,6 +1555,7 @@ namespace EE::Animation
         if ( IsPreviewOrReview() && !m_isFirstPreviewFrame )
         {
             StopDebugging();
+            m_graphRecorder.Reset();
         }
     }
 
@@ -1648,7 +1723,7 @@ namespace EE::Animation
             m_pActiveUndoableAction = nullptr;
             MarkDirty();
 
-            RefreshControlParameterCache();
+            OnGraphStateModified();
         }
     }
 
@@ -1666,7 +1741,14 @@ namespace EE::Animation
     {
         VisualGraph::ScopedGraphModification gm( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
         GetMainGraphData()->m_graphDefinition.RefreshParameterReferences();
+        OnGraphStateModified();
+    }
+
+    void AnimationGraphWorkspace::OnGraphStateModified()
+    {
+        m_graphRecorder.Reset();
         RefreshControlParameterCache();
+        s_graphModifiedEvent.Execute( m_workspaceResource.GetResourceID() );
     }
 
     //-------------------------------------------------------------------------
@@ -1782,9 +1864,14 @@ namespace EE::Animation
                 Save();
             }
 
-            if ( !RequestImmediateResourceCompilation( graphVariationResourceID ) )
+            // Only force recompile, if we are playing back a recording
+            bool requestImmediateCompilation = target.m_type != DebugTargetType::Recording;
+            if ( requestImmediateCompilation )
             {
-                return;
+                if ( !RequestImmediateResourceCompilation( graphVariationResourceID ) )
+                {
+                    return;
+                }
             }
 
             // Create Preview Graph Component
@@ -2188,6 +2275,7 @@ namespace EE::Animation
     void AnimationGraphWorkspace::InitializeUserContext()
     {
         m_userContext.m_pTypeRegistry = m_pToolsContext->m_pTypeRegistry;
+        m_userContext.m_pResourceDatabase = m_pToolsContext->m_pResourceDatabase;
         m_userContext.m_pCategorizedNodeTypes = &m_categorizedNodeTypes.GetRootCategory();
         m_userContext.m_pVariationHierarchy = &GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
         m_userContext.m_pControlParameters = &m_controlParameters;
@@ -2195,10 +2283,10 @@ namespace EE::Animation
 
         m_graphDoubleClickedEventBindingID = m_userContext.OnGraphDoubleClicked().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { GraphDoubleClicked( pGraph ); } );
         m_postPasteNodesEventBindingID = m_userContext.OnPostPasteNodes().Bind( [this] ( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) { PostPasteNodes( pastedNodes ); } );
-        m_requestOpenChildGraphBindingID = m_userContext.OnRequestOpenChildGraph().Bind( [this] ( VisualGraph::BaseNode* pSourceNode, ResourceID const& graphID, bool openInNewWorkspace ) { OpenChildGraph( pSourceNode, graphID, openInNewWorkspace ); } );
         m_resourceOpenRequestEventBindingID = m_userContext.OnRequestOpenResource().Bind( [this] ( ResourceID const& resourceID ) { m_pToolsContext->TryOpenResource( resourceID ); } );
         m_navigateToNodeEventBindingID = m_userContext.OnNavigateToNode().Bind( [this] ( VisualGraph::BaseNode* pNode ) { NavigateTo( pNode ); } );
         m_navigateToGraphEventBindingID = m_userContext.OnNavigateToGraph().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { NavigateTo( pGraph ); } );
+        m_advancedCommandEventBindingID = m_userContext.OnAdvancedCommandRequested().Bind( [this] ( TSharedPtr<VisualGraph::AdvancedCommand> const& command ) { ProcessAdvancedCommandRequest( command ); } );
     }
 
     void AnimationGraphWorkspace::UpdateUserContext()
@@ -2236,10 +2324,10 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::ShutdownUserContext()
     {
+        m_userContext.OnAdvancedCommandRequested().Unbind( m_advancedCommandEventBindingID );
         m_userContext.OnNavigateToNode().Unbind( m_navigateToNodeEventBindingID );
         m_userContext.OnNavigateToGraph().Unbind( m_navigateToGraphEventBindingID );
         m_userContext.OnRequestOpenResource().Unbind( m_resourceOpenRequestEventBindingID );
-        m_userContext.OnRequestOpenChildGraph().Unbind( m_requestOpenChildGraphBindingID );
         m_userContext.OnPostPasteNodes().Unbind( m_postPasteNodesEventBindingID );
         m_userContext.OnGraphDoubleClicked().Unbind( m_graphDoubleClickedEventBindingID );
 
@@ -3022,21 +3110,6 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphWorkspace::OpenChildGraph( VisualGraph::BaseNode* pSourceNode, ResourceID const& graphID, bool openInNewWorkspace )
-    {
-        EE_ASSERT( pSourceNode != nullptr );
-        EE_ASSERT( graphID.IsValid() && graphID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
-
-        if ( openInNewWorkspace )
-        {
-            m_userContext.RequestOpenResource( graphID );
-        }
-        else
-        {
-            PushOnGraphStack( pSourceNode, graphID );
-        }
-    }
-
     void AnimationGraphWorkspace::StartNavigationOperation()
     {
         m_navigationTargetNodes.clear();
@@ -3509,7 +3582,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::InitializeControlParameterEditor()
     {
-        RefreshControlParameterCache();
+        OnGraphStateModified();
     }
 
     void AnimationGraphWorkspace::ShutdownControlParameterEditor()
@@ -3758,32 +3831,32 @@ namespace EE::Animation
 
             if ( ImGui::MenuItem( "Control Parameter - Bool" ) )
             {
-                StartParameterCreate( GraphValueType::Bool, ParameterType::Default );
+                StartParameterCreate( GraphValueType::Bool, ParameterType::Control );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - ID" ) )
             {
-                StartParameterCreate( GraphValueType::ID, ParameterType::Default );
+                StartParameterCreate( GraphValueType::ID, ParameterType::Control );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Int" ) )
             {
-                StartParameterCreate( GraphValueType::Int, ParameterType::Default );
+                StartParameterCreate( GraphValueType::Int, ParameterType::Control );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Float" ) )
             {
-                StartParameterCreate( GraphValueType::Float, ParameterType::Default );
+                StartParameterCreate( GraphValueType::Float, ParameterType::Control );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Vector" ) )
             {
-                StartParameterCreate( GraphValueType::Vector, ParameterType::Default );
+                StartParameterCreate( GraphValueType::Vector, ParameterType::Control );
             }
 
             if ( ImGui::MenuItem( "Control Parameter - Target" ) )
             {
-                StartParameterCreate( GraphValueType::Target, ParameterType::Default );
+                StartParameterCreate( GraphValueType::Target, ParameterType::Control );
             }
 
             //-------------------------------------------------------------------------
@@ -3911,7 +3984,7 @@ namespace EE::Animation
             ImGui::Indent();
 
             ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pVirtualParameter->GetTitleBarColor() );
-            ImGui::Text( EE_ICON_ALPHA_V_BOX );
+            ImGui::Text( EE_ICON_ALPHA_V_CIRCLE );
             ImGui::SameLine();
             ImGui::Selectable( pVirtualParameter->GetName() );
             ImGui::PopStyleColor();
@@ -4149,85 +4222,15 @@ namespace EE::Animation
         auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
-        if ( parameterType == ParameterType::Default )
+        if ( parameterType == ParameterType::Control )
         {
-            GraphNodes::ControlParameterToolsNode* pParameter = nullptr;
-            switch ( valueType )
-            {
-                case GraphValueType::Bool:
-                pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::ID:
-                pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Int:
-                pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Float:
-                pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Vector:
-                pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Target:
-                pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                default:
-                {
-                    EE_UNREACHABLE_CODE();
-                }
-                break;
-            }
-
+            auto pParameter = GraphNodes::ControlParameterToolsNode::Create( pRootGraph, valueType, finalParameterName, finalCategoryName );
             EE_ASSERT( pParameter != nullptr );
             m_controlParameters.emplace_back( pParameter );
         }
         else
         {
-            GraphNodes::VirtualParameterToolsNode* pVirtualParameter = nullptr;
-            switch ( valueType )
-            {
-                case GraphValueType::Bool:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::BoolVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::ID:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::IDVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Int:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::IntVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Float:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::FloatVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Vector:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::VectorVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::Target:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::TargetVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                case GraphValueType::BoneMask:
-                pVirtualParameter = pRootGraph->CreateNode<GraphNodes::TargetVirtualParameterToolsNode>( finalParameterName, finalCategoryName );
-                break;
-
-                default:
-                {
-                    EE_UNREACHABLE_CODE();
-                }
-                break;
-            }
-
+            auto pVirtualParameter = GraphNodes::VirtualParameterToolsNode::Create( pRootGraph, valueType, finalParameterName, finalCategoryName );            
             EE_ASSERT( pVirtualParameter != nullptr );
             m_virtualParameters.emplace_back( pVirtualParameter );
         }
@@ -5329,5 +5332,107 @@ namespace EE::Animation
         EE_ASSERT( IsReviewingRecording() );
         int32_t const newFrameIdx = Math::Max( 0, m_currentReviewFrameIdx - 1 );
         SetFrameToReview( newFrameIdx );
+    }
+
+    //-------------------------------------------------------------------------
+    // Commands
+    //-------------------------------------------------------------------------
+
+    void AnimationGraphWorkspace::ProcessAdvancedCommandRequest( TSharedPtr<VisualGraph::AdvancedCommand> const& pCommand )
+    {
+        if ( auto pOpenChildGraphCommand = TryCast<GraphNodes::OpenChildGraphCommand>( pCommand.get() ) )
+        {
+            EE_ASSERT( pOpenChildGraphCommand->m_pCommandSourceNode != nullptr );
+            auto pChildGraphNode = Cast<GraphNodes::ChildGraphToolsNode>( pOpenChildGraphCommand->m_pCommandSourceNode );
+
+            ResourceID const childGraphResourceID = pChildGraphNode->GetResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+            EE_ASSERT( childGraphResourceID.IsValid() && childGraphResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+
+            if ( pOpenChildGraphCommand->m_openInPlace )
+            {
+                PushOnGraphStack( pChildGraphNode, childGraphResourceID );
+            }
+            else
+            {
+                m_userContext.RequestOpenResource( childGraphResourceID );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( auto pReflectParametersCommand = TryCast<GraphNodes::ReflectParametersCommand>( pCommand.get() ) )
+        {
+            EE_ASSERT( pReflectParametersCommand->m_pCommandSourceNode != nullptr );
+            auto pChildGraphNode = Cast<GraphNodes::ChildGraphToolsNode>( pReflectParametersCommand->m_pCommandSourceNode );
+
+            ResourceID const childGraphResourceID = pChildGraphNode->GetResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+            EE_ASSERT( childGraphResourceID.IsValid() && childGraphResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+
+            //-------------------------------------------------------------------------
+
+            ResourceID const childGraphDefinitionResourceID = Variation::GetGraphResourceID( childGraphResourceID );
+            FileSystem::Path const childGraphFilePath = childGraphDefinitionResourceID.ToFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
+            if ( !childGraphFilePath.IsValid() )
+            {
+                ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid !" );
+                return;
+            }
+
+            // Try read JSON data
+            Serialization::JsonArchiveReader reader;
+            if ( !reader.ReadFromFile( childGraphFilePath ) )
+            {
+                ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Child Graph ID!" );
+                return;
+            }
+
+            // Try to load the graph from the file
+            ToolsGraphDefinition childGraphDefinition;
+            if ( !childGraphDefinition.LoadFromJson( *m_pToolsContext->m_pTypeRegistry, reader.GetDocument() ) )
+            {
+                ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Child Graph ID!" );
+                return;
+            }
+
+
+            //-------------------------------------------------------------------------
+
+            TVector<Log::LogEntry> resultLog;
+
+            // Push all parameters to child graph
+            if ( pReflectParametersCommand->m_fromParentToChild )
+            {
+                childGraphDefinition.ReflectParameters( GetMainGraphData()->m_graphDefinition, true, &resultLog );
+
+                // Save child graph
+                Serialization::JsonArchiveWriter writer;
+                childGraphDefinition.SaveToJson( *m_pToolsContext->m_pTypeRegistry, *writer.GetWriter() );
+                if ( !writer.WriteToFile( childGraphFilePath ) )
+                {
+                    ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Child Graph ID!" );
+                    return;
+                }
+
+                // Open child graph
+                m_userContext.RequestOpenResource( childGraphDefinitionResourceID );
+            }
+            else // Transfer from the child graph any required parameters
+            {
+                VisualGraph::ScopedGraphModification gm( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
+                GetMainGraphData()->m_graphDefinition.ReflectParameters( childGraphDefinition, false, &resultLog );
+
+                OnGraphStateModified();
+            }
+
+            //-------------------------------------------------------------------------
+
+            String message;
+            for ( auto const& logEntry : resultLog )
+            {
+                message.append_sprintf( "%s: %s\n", Log::GetSeverityAsString( logEntry.m_severity ), logEntry.m_message.c_str() );
+            }
+
+            ShowNotifyDialog( EE_ICON_CHECK" Completed", message.c_str() );
+        }
     }
 }

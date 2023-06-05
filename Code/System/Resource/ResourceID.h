@@ -57,6 +57,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         inline String const& ToString() const { return m_path.GetString(); }
+        inline FileSystem::Path ToFileSystemPath( FileSystem::Path const& rawResourceDirectoryPath ) const { return m_path.ToFileSystemPath( rawResourceDirectoryPath ); }
         inline char const* c_str() const { return m_path.c_str(); }
 
         //-------------------------------------------------------------------------

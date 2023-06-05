@@ -302,33 +302,25 @@ namespace EE::Animation::GraphNodes
 
     void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
     {
-        if ( ImGui::BeginMenu( EE_ICON_INFORMATION_OUTLINE" Node Info" ) )
+        // Draw runtime node index
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
         {
-            // UUID
-            auto IDStr = GetID().ToString();
-            InlineString label = InlineString( InlineString::CtorSprintf(), "UUID: %s", IDStr.c_str() );
-            if ( ImGui::MenuItem( label.c_str() ) )
-            {
-                ImGui::SetClipboardText( IDStr.c_str() );
-            }
-
-            // Draw runtime node index
-            auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
-            if ( pGraphNodeContext->HasDebugData() )
+            if ( ImGui::BeginMenu( EE_ICON_INFORMATION_OUTLINE" Runtime Node ID" ) )
             {
                 int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
                 if ( runtimeNodeIdx != InvalidIndex )
                 {
-                    label = InlineString( InlineString::CtorSprintf(), "Runtime Index: %d", runtimeNodeIdx );
+                    InlineString const label( InlineString::CtorSprintf(), "Runtime Index: %d", runtimeNodeIdx );
                     if ( ImGui::MenuItem( label.c_str() ) )
                     {
                         InlineString const value( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
                         ImGui::SetClipboardText( value.c_str() );
                     }
                 }
-            }
 
-            ImGui::EndMenu();
+                ImGui::EndMenu();
+            }
         }
     }
 }

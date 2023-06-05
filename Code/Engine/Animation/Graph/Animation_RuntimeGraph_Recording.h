@@ -38,7 +38,7 @@ namespace EE::Animation
         void PrepareForReading();
 
         // Get a unique list of the various graphs recorded
-        void GetAllRecordedGraphResourceIDs( TVector<ResourceID>& outGraphIDs );
+        void GetAllRecordedGraphResourceIDs( TVector<ResourceID>& outGraphIDs ) const;
 
         // Child graphs
         //-------------------------------------------------------------------------
@@ -81,6 +81,7 @@ namespace EE::Animation
 
         ResourceID                                          m_graphID;
         StringID                                            m_variationID;
+        uint64_t                                            m_recordedResourceHash;
         TVector<int16_t>                                    m_initializedNodeIndices;
         TVector<ChildGraphState>                            m_childGraphStates;
         TVector<GraphNode*>*                                m_pNodes = nullptr;
@@ -120,11 +121,12 @@ namespace EE::Animation
     };
 
     // Records information about each update for the recorded graph instance
-    struct GraphRecorder
+    struct EE_ENGINE_API GraphRecorder
     {
     public:
 
         inline bool HasRecordedData() const { return !m_recordedData.empty(); }
+        bool HasRecordedDataForGraph( ResourceID const& graphResourceID ) const;
         inline int32_t GetNumRecordedFrames() const { return int32_t( m_recordedData.size() ); }
         inline bool IsValidRecordedFrameIndex( int32_t frameIdx ) const { return frameIdx >= 0 && frameIdx < m_recordedData.size(); }
 
@@ -138,6 +140,7 @@ namespace EE::Animation
 
         ResourceID                                          m_graphID;
         StringID                                            m_variationID;
+        uint64_t                                            m_recordedResourceHash;
         RecordedGraphState                                  m_initialState;
         TVector<RecordedGraphFrameData>                     m_recordedData;
     };

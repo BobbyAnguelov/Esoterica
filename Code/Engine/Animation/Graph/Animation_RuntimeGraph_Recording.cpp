@@ -44,7 +44,7 @@ namespace EE::Animation
         }
     }
 
-    void RecordedGraphState::GetAllRecordedGraphResourceIDs( TVector<ResourceID>& outGraphIDs )
+    void RecordedGraphState::GetAllRecordedGraphResourceIDs( TVector<ResourceID>& outGraphIDs ) const
     {
         GetGraphIDs( *this, outGraphIDs );
     }
@@ -73,6 +73,13 @@ namespace EE::Animation
         EE_ASSERT( foundIter != m_childGraphStates.end() ); // Ensure we have the desired data
 
         return foundIter->m_pRecordedState;
+    }
+
+    bool GraphRecorder::HasRecordedDataForGraph( ResourceID const& graphResourceID ) const
+    {
+        TVector<ResourceID> graphIDs;
+        m_initialState.GetAllRecordedGraphResourceIDs( graphIDs );
+        return VectorContains( graphIDs, graphResourceID );
     }
 }
 #endif

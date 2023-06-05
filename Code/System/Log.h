@@ -20,6 +20,8 @@ namespace EE::Log
         FatalError,
     };
 
+    EE_SYSTEM_API char const* GetSeverityAsString( Severity severity );
+
     struct LogEntry
     {
         String      m_timestamp;

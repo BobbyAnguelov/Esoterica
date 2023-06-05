@@ -39,6 +39,8 @@ namespace EE::Animation
         m_pRootGraph->CreateNode<PoseResultToolsNode>();
     }
 
+    //-------------------------------------------------------------------------
+
     void ToolsGraphDefinition::RefreshParameterReferences()
     {
         EE_ASSERT( m_pRootGraph != nullptr );
@@ -111,40 +113,7 @@ namespace EE::Animation
             }
             else // Create missing parameter
             {
-                GraphNodes::ControlParameterToolsNode* pParameter = nullptr;
-
-                switch ( pReferenceNode->GetReferencedParameterValueType() )
-                {
-                    case GraphValueType::Bool:
-                    pParameter = m_pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
-                    break;
-
-                    case GraphValueType::ID:
-                    pParameter = m_pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
-                    break;
-
-                    case GraphValueType::Int:
-                    pParameter = m_pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
-                    break;
-
-                    case GraphValueType::Float:
-                    pParameter = m_pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
-                    break;
-
-                    case GraphValueType::Vector:
-                    pParameter = m_pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
-                    break;
-
-                    case GraphValueType::Target:
-                    pParameter = m_pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
-                    break;
-
-                    default:
-                    {
-                        EE_UNREACHABLE_CODE();
-                    }
-                    break;
-                }
+                auto pParameter = GraphNodes::ControlParameterToolsNode::Create(m_pRootGraph, pReferenceNode->GetReferencedParameterValueType(), pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
 
                 // Set the reference to the newly created parameter
                 pReferenceNode->SetReferencedParameter( pParameter );
@@ -160,6 +129,132 @@ namespace EE::Animation
         for ( auto pInvalidNode : invalidReferenceNodes )
         {
             pInvalidNode->Destroy();
+        }
+    }
+
+    void ToolsGraphDefinition::ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<Log::LogEntry>* pOptionalOutputLog )
+    {
+        auto pOtherRootGraph = otherGraphDefinition.m_pRootGraph;
+        auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto otherVirtualParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+
+        auto pRootGraph = GetRootGraph();
+        auto controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+
+        //-------------------------------------------------------------------------
+
+        enum SearchResult { CanAdd, MismatchedCase, MismatchedType, AlreadyExists };
+
+        auto CanAddParameter = [&] ( String parameterName, GraphValueType type )
+        {
+            for ( auto pControlParameter : controlParameters )
+            {
+                if ( pControlParameter->GetParameterName().comparei( parameterName ) == 0 )
+                {
+                    // Names dont match in case
+                    if ( pControlParameter->GetParameterName().compare( parameterName ) != 0 )
+                    {
+                        return SearchResult::MismatchedCase;
+                    }
+
+                    // Types dont match
+                    if ( pControlParameter->GetValueType() != type )
+                    {
+                        return SearchResult::MismatchedType;
+                    }
+
+                    return SearchResult::AlreadyExists;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            for ( auto pVirtualParameter : virtualParameters )
+            {
+                if ( pVirtualParameter->GetParameterName().comparei( parameterName ) == 0 )
+                {
+                    // Names dont match in case
+                    if ( pVirtualParameter->GetParameterName().compare( parameterName ) != 0 )
+                    {
+                        return SearchResult::MismatchedType;
+                    }
+
+                    // Types dont match
+                    if ( pVirtualParameter->GetValueType() != type )
+                    {
+                        return SearchResult::MismatchedType;
+                    }
+
+                    return SearchResult::AlreadyExists;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            return SearchResult::CanAdd;
+        };
+
+        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory )
+        {
+            switch ( result )
+            {
+                case SearchResult::CanAdd:
+                {
+                    GraphNodes::ControlParameterToolsNode::Create( pRootGraph, type, parameterName, parameterCategory );
+                    if ( pOptionalOutputLog != nullptr )
+                    {
+                        Log::LogEntry& logEntry = pOptionalOutputLog->emplace_back();
+                        logEntry.m_severity = Log::Severity::Message;
+                        logEntry.m_message.sprintf( "Parameter Added: %s", parameterName.c_str() );
+                    }
+                }
+                break;
+
+                case SearchResult::MismatchedCase:
+                {
+                    if ( pOptionalOutputLog != nullptr )
+                    {
+                        Log::LogEntry& logEntry = pOptionalOutputLog->emplace_back();
+                        logEntry.m_severity = Log::Severity::Message;
+                        logEntry.m_message.sprintf( "Parameter Exists with Incorrect Case: %s\n", parameterName.c_str() );
+                    }
+                }
+                break;
+
+                case SearchResult::MismatchedType:
+                {
+                    if ( pOptionalOutputLog != nullptr )
+                    {
+                        Log::LogEntry& logEntry = pOptionalOutputLog->emplace_back();
+                        logEntry.m_severity = Log::Severity::Message;
+                        logEntry.m_message.sprintf( "Parameter Exists with Incorrect Type: %s\n", parameterName.c_str() );
+                    }
+                }
+                break;
+
+                default:
+                break;
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
+        for ( auto pParameterNode : otherControlParameters )
+        {
+            SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetValueType() );
+            ProcessResult( result, pParameterNode->GetValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterCategory() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( reflectVirtualParameters )
+        {
+            for ( auto pParameterNode : otherVirtualParameters )
+            {
+                SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetValueType() );
+                ProcessResult( result, pParameterNode->GetValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterCategory() );
+            }
         }
     }
 

@@ -300,8 +300,11 @@ namespace EE::VisualGraph
         // Do we support creating new nodes directly from a pin
         virtual bool SupportsAutoConnection() const { return false; }
 
-        // Draw the graph context menu options - returns true if the menu should be closed i.e. a cusotm selection or action has been made
+        // Draw the graph context menu options - returns true if the menu should be closed i.e. a custom selection or action has been made
         virtual bool DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, Flow::Node* pSourceNode, Flow::Pin* pSourcePin ) { return false; }
+
+        // Should we show the context menu filter?
+        virtual bool HasContextMenuFilter() const { return true; }
 
         // Serialization
         //-------------------------------------------------------------------------

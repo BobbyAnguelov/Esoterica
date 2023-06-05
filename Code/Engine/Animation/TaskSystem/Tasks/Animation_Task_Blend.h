@@ -22,7 +22,7 @@ namespace EE::Animation::Tasks
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override { return String( String::CtorSprintf(), "Blend Task: %.2f", m_blendWeight ); }
+        virtual String GetDebugText() const override;
         virtual Color GetDebugColor() const override { return Colors::Yellow; }
         #endif
 

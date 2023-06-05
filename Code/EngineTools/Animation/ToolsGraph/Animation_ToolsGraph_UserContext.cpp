@@ -16,12 +16,6 @@ namespace EE::Animation
         return m_pGraphInstance->GetActiveNodes();
     }
 
-    void ToolsGraphUserContext::OpenChildGraph( VisualGraph::BaseNode* pSourceNode, ResourceID const& graphID, bool openInNewWorkspace )
-    {
-        EE_ASSERT( graphID.IsValid() );
-        m_navigateToChildGraphEvent.Execute( pSourceNode, graphID, openInNewWorkspace );
-    }
-
     //-------------------------------------------------------------------------
 
     PoseNodeDebugInfo ToolsGraphUserContext::GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const

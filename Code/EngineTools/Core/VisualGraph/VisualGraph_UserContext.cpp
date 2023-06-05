@@ -66,4 +66,9 @@ namespace EE::VisualGraph
     {
         m_extraTitleInfoColor = ImGuiX::Style::s_colorText.operator ImU32();
     }
+
+    void UserContext::RequestAdvancedCommand( TSharedPtr<AdvancedCommand> const& command )
+    {
+        m_advancedCommandRequestedEvent.Execute( command );
+    }
 }

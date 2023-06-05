@@ -3,6 +3,13 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE::Animation
+{
+    class FlowGraph;
+}
+
+//-------------------------------------------------------------------------
+
 namespace EE::Animation::GraphNodes
 {
     //-------------------------------------------------------------------------
@@ -12,6 +19,10 @@ namespace EE::Animation::GraphNodes
     class ControlParameterToolsNode : public FlowToolsNode
     {
         EE_REFLECT_TYPE( ControlParameterToolsNode );
+
+    public:
+
+        static ControlParameterToolsNode* Create( FlowGraph* pRootGraph, GraphValueType type, String const& name, String const& category );
 
     public:
 
@@ -176,6 +187,10 @@ namespace EE::Animation::GraphNodes
     class VirtualParameterToolsNode : public FlowToolsNode
     {
         EE_REFLECT_TYPE( VirtualParameterToolsNode );
+
+    public:
+
+        static VirtualParameterToolsNode* Create( FlowGraph* pRootGraph, GraphValueType type, String const& name, String const& category );
 
     public:
 

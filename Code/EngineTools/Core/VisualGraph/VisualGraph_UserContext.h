@@ -3,6 +3,9 @@
 #include "EngineTools/_Module/API.h"
 #include "System/Types/Event.h"
 #include "System/Resource/ResourceID.h"
+#include "System/Memory/Pointers.h"
+#include "System/Types/StringID.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,6 +25,17 @@ namespace EE::VisualGraph
 
         UUID            m_nodeID;
         BaseNode*       m_pNode = nullptr;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct AdvancedCommand : public IReflectedType
+    {
+        EE_REFLECT_TYPE( AdvancedCommand );
+
+    public:
+
+        VisualGraph::BaseNode* m_pCommandSourceNode = nullptr;
     };
 
     //-------------------------------------------------------------------------
@@ -49,11 +63,13 @@ namespace EE::VisualGraph
         void NavigateTo( BaseGraph* pGraph );
         void DoubleClick( BaseNode* pNode );
         void DoubleClick( BaseGraph* pGraph );
+        void RequestAdvancedCommand( TSharedPtr<AdvancedCommand> const& command );
 
         inline TEventHandle<BaseNode*> OnNavigateToNode() { return m_navigateToNodeEvent; }
         inline TEventHandle<BaseNode*> OnNodeDoubleClicked() { return m_nodeDoubleClickedEvent; }
         inline TEventHandle<BaseGraph*> OnNavigateToGraph() { return m_navigateToGraphEvent; }
         inline TEventHandle<BaseGraph*> OnGraphDoubleClicked() { return m_graphDoubleClickedEvent; }
+        inline TEventHandle<TSharedPtr<AdvancedCommand>> OnAdvancedCommandRequested() { return m_advancedCommandRequestedEvent; }
 
         // Misc events
         //-------------------------------------------------------------------------
@@ -86,6 +102,7 @@ namespace EE::VisualGraph
         TEvent<BaseGraph*>                                                      m_navigateToGraphEvent;
         TEvent<BaseGraph*>                                                      m_graphDoubleClickedEvent;
         TEvent<ResourceID const&>                                               m_requestOpenResourceEvent;
+        TEvent<TSharedPtr<AdvancedCommand>>                                     m_advancedCommandRequestedEvent;
         TEvent<TInlineVector<BaseNode*, 20> const&>                             m_postPasteEvent;
         TEvent<TVector<SelectedNode> const&, TVector<SelectedNode> const&>      m_selectionChangedEvent;
 

@@ -249,7 +249,7 @@ namespace EE::Animation
     }
 
     template<typename T>
-    static void DrawParameterItems( bool hasAdvancedFilter, char const* pMenuLabel, TInlineVector<T*, 20>&parameters, TypeSystem::TypeInfo const*& pNodeTypeToCreate, T*& pParameterToReference)
+    static void DrawParameterItems( bool hasAdvancedFilter, char const* pMenuLabel, TInlineVector<T*, 20>&parameters, TypeSystem::TypeInfo const*& pNodeTypeToCreate, T*& pParameterToReference )
     {
         bool isUsingSubmenu = false;
         bool shouldDrawSubMenuItems = hasAdvancedFilter;
@@ -273,10 +273,11 @@ namespace EE::Animation
                 for ( auto pParameter : parameters )
                 {
                     ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameter->GetTitleBarColor() );
-                    ImGui::Bullet();
+                    ImGui::Text( IsOfType<GraphNodes::ControlParameterToolsNode>( pParameter ) ? EE_ICON_ALPHA_C_BOX : EE_ICON_ALPHA_V_CIRCLE );
                     ImGui::PopStyleColor();
 
                     ImGui::SameLine();
+
                     bool const isMenuItemTriggered = ImGui::MenuItem( pParameter->GetName() );
                     if ( isMenuItemTriggered || ( ImGui::IsItemFocused() && ImGui::IsKeyReleased( ImGuiKey_Enter ) ) )
                     {

@@ -297,6 +297,9 @@ namespace EE::ImGuiX
         ImGui::RenderNavHighlight( bb, ID );
         ImGui::RenderFrame( bb.Min, bb.Max, color, true, style.FrameRounding );
 
+        bool const isDisabled = g.CurrentItemFlags & ImGuiItemFlags_Disabled;
+        ImColor const finalIconColor = isDisabled ? Style::s_colorTextDisabled : iconColor;
+
         if ( shouldCenterContents )
         {
             // Icon and Label - ensure label is centered!
@@ -306,19 +309,19 @@ namespace EE::ImGuiX
                 ImGui::RenderTextClipped( bb.Min + textOffset, bb.Max - style.FramePadding, pLabel, NULL, &labelSize, ImVec2( 0, 0.5f ), &bb );
 
                 ImVec2 const iconOffset( textOffset.x - iconSize.x - style.ItemSpacing.x, style.FramePadding.y );
-                pWindow->DrawList->AddText( pos + iconOffset, iconColor, pIcon );
+                pWindow->DrawList->AddText( pos + iconOffset, finalIconColor, pIcon );
             }
             else // Only an icon
             {
                 ImVec2 const iconOffset( ( finalButtonSize.x - iconSize.x ) / 2.0f, style.FramePadding.y );
-                pWindow->DrawList->AddText( pos + iconOffset, iconColor, pIcon );
+                pWindow->DrawList->AddText( pos + iconOffset, finalIconColor, pIcon );
             }
         }
         else // No centering
         {
             ImVec2 const textOffset( style.FramePadding.x + iconSize.x + style.ItemSpacing.x, style.FramePadding.y );
             ImGui::RenderTextClipped( bb.Min + textOffset, bb.Max - style.FramePadding, pLabel, NULL, &labelSize, ImVec2( 0, 0.5f ), &bb );
-            pWindow->DrawList->AddText( pos + style.FramePadding, iconColor, pIcon );
+            pWindow->DrawList->AddText( pos + style.FramePadding, finalIconColor, pIcon );
         }
 
         return pressed;

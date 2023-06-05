@@ -81,6 +81,49 @@ namespace EE::Animation::GraphNodes
         m_parameterCategory = category;
     }
 
+    ControlParameterToolsNode* ControlParameterToolsNode::Create( FlowGraph* pRootGraph, GraphValueType type, String const& name, String const& category )
+    {
+        EE_ASSERT( pRootGraph != nullptr && pRootGraph->IsRootGraph() );
+        EE_ASSERT( type != GraphValueType::Pose && type != GraphValueType::BoneMask && type != GraphValueType::Unknown );
+
+        ControlParameterToolsNode* pParameter = nullptr;
+
+        switch ( type )
+        {
+            case GraphValueType::Bool:
+            pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::ID:
+            pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Int:
+            pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Float:
+            pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Vector:
+            pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Target:
+            pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( name, category );
+            break;
+
+            default:
+            {
+                EE_UNREACHABLE_CODE();
+            }
+            break;
+        }
+
+        return pParameter;
+    }
+
     //-------------------------------------------------------------------------
 
     BoolControlParameterToolsNode::BoolControlParameterToolsNode()
@@ -271,6 +314,49 @@ namespace EE::Animation::GraphNodes
         VisualGraph::ScopedNodeModification snm( this );
         m_name = name;
         m_parameterCategory = category;
+    }
+
+    VirtualParameterToolsNode* VirtualParameterToolsNode::Create( FlowGraph* pRootGraph, GraphValueType type, String const& name, String const& category )
+    {
+        EE_ASSERT( pRootGraph != nullptr && pRootGraph->IsRootGraph() );
+        EE_ASSERT( type != GraphValueType::Pose && type != GraphValueType::Unknown );
+
+        VirtualParameterToolsNode* pParameter = nullptr;
+
+        switch ( type )
+        {
+            case GraphValueType::Bool:
+            pParameter = pRootGraph->CreateNode<GraphNodes::BoolVirtualParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::ID:
+            pParameter = pRootGraph->CreateNode<GraphNodes::IDVirtualParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Int:
+            pParameter = pRootGraph->CreateNode<GraphNodes::IntVirtualParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Float:
+            pParameter = pRootGraph->CreateNode<GraphNodes::FloatVirtualParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Vector:
+            pParameter = pRootGraph->CreateNode<GraphNodes::VectorVirtualParameterToolsNode>( name, category );
+            break;
+
+            case GraphValueType::Target:
+            pParameter = pRootGraph->CreateNode<GraphNodes::TargetVirtualParameterToolsNode>( name, category );
+            break;
+
+            default:
+            {
+                EE_UNREACHABLE_CODE();
+            }
+            break;
+        }
+
+        return pParameter;
     }
 
     //-------------------------------------------------------------------------

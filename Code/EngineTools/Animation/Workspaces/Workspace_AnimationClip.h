@@ -4,6 +4,7 @@
 #include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Animation/Events/AnimationEventEditor.h"
 #include "Engine/Animation/AnimationClip.h"
+#include "System/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -49,6 +50,7 @@ namespace EE::Animation
         void DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         void DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
         bool DrawDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawClipBrowser( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
 
         void CreatePreviewEntity();
         void DestroyPreviewEntity();
@@ -59,6 +61,7 @@ namespace EE::Animation
 
         String                          m_timelineWindowName;
         String                          m_detailsWindowName;
+        String                          m_clipBrowserWindowName;
         String                          m_trackDataWindowName;
 
         Entity*                         m_pPreviewEntity = nullptr;
@@ -71,6 +74,11 @@ namespace EE::Animation
 
         EventBindingID                  m_beginModEventID;
         EventBindingID                  m_endModEventID;
+
+        ImGuiX::FilterWidget            m_clipBrowserFilter;
+        TVector<ResourceID>             m_clipsWithSameSkeleton;
+        TVector<ResourceID>             m_filteredClips;
+        Timer<PlatformClock>            m_clipBrowserCacheRefreshTimer;
 
         Transform                       m_characterTransform = Transform::Identity;
         ResourceID                      m_previewMeshOverride;

@@ -66,7 +66,7 @@ namespace EE::Animation
 
         enum class ParameterType
         {
-            Default,
+            Control,
             Virtual
         };
 
@@ -118,6 +118,7 @@ namespace EE::Animation
         enum class GraphOperationType
         {
             None,
+            NotifyUser,
             Navigate,
             CreateParameter,
             RenameParameter,
@@ -126,6 +127,9 @@ namespace EE::Animation
             RenameVariation,
             DeleteVariation
         };
+
+        // Event fired whenever we perform a graph edit
+        static TEvent<ResourceID const&> s_graphModifiedEvent;
 
     public:
 
@@ -153,7 +157,12 @@ namespace EE::Animation
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual bool Save() override;
 
+        // Dialogs
+        //-------------------------------------------------------------------------
+
         virtual void DrawDialogs( UpdateContext const& context );
+        void ShowNotifyDialog( String const& title, String const& message );
+        void ShowNotifyDialog( String const& title, char const* pMessageFormat, ... );
 
         // Graph Operations
         //-------------------------------------------------------------------------
@@ -166,6 +175,14 @@ namespace EE::Animation
 
         void GraphDoubleClicked( VisualGraph::BaseGraph* pGraph );
         void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes );
+
+        // Call this whenever any graph state is modified
+        void OnGraphStateModified();
+
+        // Commands
+        //-------------------------------------------------------------------------
+
+        void ProcessAdvancedCommandRequest( TSharedPtr<VisualGraph::AdvancedCommand> const& pCommand );
 
         // Variations
         //-------------------------------------------------------------------------
@@ -233,7 +250,6 @@ namespace EE::Animation
 
         void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
         void NavigateTo( VisualGraph::BaseGraph* pGraph );
-        void OpenChildGraph( VisualGraph::BaseNode* pNode, ResourceID const& graphID, bool openInNewWorkspace );
         void StartNavigationOperation();
         void DrawNavigationDialogWindow( UpdateContext const& context );
         void GenerateNavigationTargetList();
@@ -323,7 +339,7 @@ namespace EE::Animation
         // Hot Reload
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
 
-        // Starts a debugging session. If a target component is provided we assume we are attaching to a live game 
+        // Starts a debugging session. If a target component is provided we assume we are attaching to a live game
         void StartDebugging( UpdateContext const& context, DebugTarget target );
 
         // Ends the current debug session
@@ -371,15 +387,12 @@ namespace EE::Animation
         String                                                          m_graphLogWindowName;
         String                                                          m_debuggerWindowName;
         PropertyGrid                                                    m_propertyGrid;
-        GraphOperationType                                              m_activeOperation = GraphOperationType::None;
 
-        EventBindingID                                                  m_requestOpenChildGraphBindingID;
+        EventBindingID                                                  m_globalGraphEditEventBindingID;
         EventBindingID                                                  m_rootGraphBeginModificationBindingID;
         EventBindingID                                                  m_rootGraphEndModificationBindingID;
         EventBindingID                                                  m_preEditEventBindingID;
         EventBindingID                                                  m_postEditEventBindingID;
-        EventBindingID                                                  m_postPasteNodesEventBindingID;
-        EventBindingID                                                  m_graphDoubleClickedEventBindingID;
 
         // Graph Type Data
         TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
@@ -396,6 +409,14 @@ namespace EE::Animation
         EventBindingID                                                  m_navigateToNodeEventBindingID;
         EventBindingID                                                  m_navigateToGraphEventBindingID;
         EventBindingID                                                  m_resourceOpenRequestEventBindingID;
+        EventBindingID                                                  m_graphDoubleClickedEventBindingID;
+        EventBindingID                                                  m_postPasteNodesEventBindingID;
+        EventBindingID                                                  m_advancedCommandEventBindingID;
+
+        // Operations/Dialogs
+        GraphOperationType                                              m_activeOperation = GraphOperationType::None;
+        String                                                          m_notifyDialogTitle;
+        String                                                          m_notifyDialogText;
 
         // Graph view
         float                                                           m_primaryGraphViewProportionalHeight = 0.6f;

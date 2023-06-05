@@ -14,13 +14,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_scaleValueNodeIdx, m_scaleLimits, m_blendInTime );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_scaleValueNodeIdx, m_blendInTime );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                 m_scaleValueNodeIdx = InvalidIndex;
-            FloatRange              m_scaleLimits = FloatRange( 0, 0 );
             float                   m_blendInTime = 0.2f; // Amount of time to blend in the speed scale modifier
+            int16_t                 m_scaleValueNodeIdx = InvalidIndex;
         };
 
     private:
@@ -29,14 +28,6 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
-
-        inline float GetSpeedScale( GraphContext& context ) const
-        {
-            // Get clamped Modifier value
-            float scaleMultiplier = m_pScaleValueNode->GetValue<float>( context );
-            scaleMultiplier = GetSettings<SpeedScaleNode>()->m_scaleLimits.GetClampedValue( scaleMultiplier );
-            return scaleMultiplier;
-        }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -47,6 +38,34 @@ namespace EE::Animation::GraphNodes
 
         FloatValueNode*             m_pScaleValueNode = nullptr;
         float                       m_blendWeight = 1.0f; // Used to ensure the modifier is slowly blended in when coming from a sync'd transition that ends
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API DurationScaleNode final : public PassthroughNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
+        {
+            EE_REFLECT_TYPE ( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS ( PassthroughNode::Settings, m_durationValueNodeIdx );
+
+            virtual void InstantiateNode ( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            int16_t                 m_durationValueNodeIdx = InvalidIndex;
+        };
+
+    private:
+
+        virtual void InitializeInternal ( GraphContext& context, SyncTrackTime const& initialTime ) override;
+        virtual void ShutdownInternal ( GraphContext& context ) override;
+        virtual GraphPoseNodeResult Update ( GraphContext& context ) override;
+        virtual GraphPoseNodeResult Update ( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+
+    private:
+
+        FloatValueNode*             m_pDurationValueNode = nullptr;
     };
 
     //-------------------------------------------------------------------------

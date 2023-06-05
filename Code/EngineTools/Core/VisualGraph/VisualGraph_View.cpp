@@ -4,7 +4,7 @@
 
 namespace EE::VisualGraph
 {
-    static ImVec2 const                 g_graphTitleMargin( 4, 4 );
+    static ImVec2 const                 g_graphTitleMargin( 16, 10 );
     constexpr static float const        g_gridSpacing = 30;
     constexpr static float const        g_nodeSelectionBorderThickness = 2.0f;
     constexpr static float const        g_connectionSelectionExtraRadius = 5.0f;
@@ -180,7 +180,6 @@ namespace EE::VisualGraph
             // Background
             //-------------------------------------------------------------------------
 
-
             ImRect const windowRect = pWindow->Rect();
             ImVec2 const windowTL = windowRect.GetTL();
             float const canvasWidth = windowRect.GetWidth();
@@ -197,6 +196,14 @@ namespace EE::VisualGraph
                 pDrawList->AddLine( windowTL + ImVec2( 0.0f, y ), windowTL + ImVec2( canvasWidth, y ), g_gridLineColor );
             }
 
+            if ( IsReadOnly() )
+            {
+                static constexpr float const rectThickness = 8.0f;
+                static constexpr float const rectMargin = 2.0f;
+                static ImVec2 const offset( ( rectThickness / 2.f ) + rectMargin, ( rectThickness / 2.f ) + rectMargin );
+                pDrawList->AddRect( windowRect.Min + offset, windowRect.Max - offset, ImGuiX::Style::s_colorGray0, 8.0f, 0, rectThickness);
+            }
+
             // Title Block
             //-------------------------------------------------------------------------
 
@@ -209,35 +216,23 @@ namespace EE::VisualGraph
                     // Draw title text
                     //-------------------------------------------------------------------------
 
-                    ImFont* pLargeFont = ImGuiX::GetFont( ImGuiX::Font::LargeBold );
-                    ImGui::PushFont( pLargeFont );
-                    pDrawList->AddText( textPosition, g_graphTitleColor, pViewedGraph->GetTitle() );
-                    ImGui::PopFont();
-                    textPosition += ImVec2( 0, pLargeFont->FontSize );
+                    ImFont* pTitleFont = ImGuiX::GetFont( ImGuiX::Font::LargeBold );
+                    InlineString const title( InlineString::CtorSprintf(), "%s%s", pViewedGraph->GetTitle(), IsReadOnly() ? " (Read-Only)" : "" );
+                    pDrawList->AddText( pTitleFont, pTitleFont->FontSize, textPosition, IsReadOnly() ? ImGuiX::Style::s_colorTextDisabled : g_graphTitleColor, title.c_str() );
+                    textPosition += ImVec2( 0, pTitleFont->FontSize );
 
                     // Draw extra info
                     //-------------------------------------------------------------------------
 
                     ImFont* pMediumFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-                    ImGui::PushFont( pMediumFont );
-
                     if ( !m_pUserContext->GetExtraGraphTitleInfoText().empty() )
                     {
-                        pDrawList->AddText( textPosition, m_pUserContext->GetExtraTitleInfoTextColor(), m_pUserContext->GetExtraGraphTitleInfoText().c_str() );
-                        textPosition += ImVec2( 0, pMediumFont->FontSize );
+                        pDrawList->AddText( pMediumFont, pMediumFont->FontSize, textPosition, m_pUserContext->GetExtraTitleInfoTextColor(), m_pUserContext->GetExtraGraphTitleInfoText().c_str() );
                     }
-
-                    if ( m_isReadOnly )
-                    {
-                        pDrawList->AddText( textPosition, ImGuiX::Style::s_colorTextDisabled, "Read-Only" );
-                        textPosition += ImVec2( 0, pMediumFont->FontSize );
-                    }
-
-                    ImGui::PopFont();
                 }
                 else
                 {
-                    pDrawList->AddText( textPosition, ImGuiX::Style::s_colorTextDisabled, "Nothing to Show" );
+                    pDrawList->AddText( textPosition, ImGuiX::Style::s_colorTextDisabled, m_isReadOnly ? "Nothing to Show (Read-Only)" : "Nothing to Show" );
                 }
             }
         }
@@ -1883,8 +1878,15 @@ namespace EE::VisualGraph
         {
             auto pFlowNode = m_contextMenuState.GetAsFlowNode();
 
+            // Default node Menu
+            pFlowNode->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
+
+            //-------------------------------------------------------------------------
+
             if ( !m_isReadOnly )
             {
+                ImGuiX::TextSeparator( "Connections" );
+
                 // Dynamic Pins
                 if ( pFlowNode->SupportsUserEditableDynamicInputPins() )
                 {
@@ -1911,13 +1913,23 @@ namespace EE::VisualGraph
 
             //-------------------------------------------------------------------------
 
-            // Default node Menu
-            pFlowNode->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_pPin );
-
-            //-------------------------------------------------------------------------
-
             if ( !m_isReadOnly )
             {
+                ImGuiX::TextSeparator( "Node" );
+
+                if ( ImGui::BeginMenu( EE_ICON_IDENTIFIER" Node ID" ) )
+                {
+                    // UUID
+                    auto IDStr = m_contextMenuState.m_pNode->GetID().ToString();
+                    InlineString const label( InlineString::CtorSprintf(), "%s", IDStr.c_str() );
+                    if ( ImGui::MenuItem( label.c_str() ) )
+                    {
+                        ImGui::SetClipboardText( IDStr.c_str() );
+                    }
+
+                    ImGui::EndMenu();
+                }
+
                 // Renameable Nodes
                 if ( m_contextMenuState.m_pNode->IsRenameable() )
                 {
@@ -1927,7 +1939,7 @@ namespace EE::VisualGraph
                     }
                 }
 
-                // DestroyableNodes
+                // Destroyable Nodes
                 if ( m_contextMenuState.m_pNode->IsDestroyable() && m_pGraph->CanDeleteNode( m_contextMenuState.m_pNode ) )
                 {
                     if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Node" ) )
@@ -1941,14 +1953,19 @@ namespace EE::VisualGraph
         }
         else // Graph Menu
         {
-            m_contextMenuState.m_filterWidget.DrawAndUpdate( 100, ImGuiX::FilterWidget::TakeInitialFocus );
+            if ( pFlowGraph->HasContextMenuFilter() )
+            {
+                m_contextMenuState.m_filterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::TakeInitialFocus );
+            }
 
-            ImGui::SameLine();
+            //-------------------------------------------------------------------------
 
-            if ( ImGui::Button( EE_ICON_FIT_TO_PAGE_OUTLINE" Reset View" ) )
+            if ( ImGui::MenuItem( EE_ICON_FIT_TO_PAGE_OUTLINE" Reset View" ) )
             {
                 ResetView();
             }
+
+            //-------------------------------------------------------------------------
 
             if ( pFlowGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens(), TryCast<Flow::Node>( m_contextMenuState.m_pNode ), m_contextMenuState.m_pPin ) )
             {
@@ -2014,7 +2031,10 @@ namespace EE::VisualGraph
         }
         else // Graph Menu
         {
-            m_contextMenuState.m_filterWidget.DrawAndUpdate();
+            if ( pStateMachineGraph->HasContextMenuFilter() )
+            {
+                m_contextMenuState.m_filterWidget.DrawAndUpdate();
+            }
 
             if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )
             {

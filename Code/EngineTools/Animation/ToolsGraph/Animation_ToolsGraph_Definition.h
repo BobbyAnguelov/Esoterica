@@ -2,6 +2,7 @@
 #include "Graphs/Animation_ToolsGraph_FlowGraph.h"
 #include "Animation_ToolsGraph_Variations.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
+#include "System/Log.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,17 +24,15 @@ namespace EE::Animation
         inline FlowGraph* GetRootGraph() { return m_pRootGraph; }
         inline FlowGraph const* GetRootGraph() const { return m_pRootGraph; }
 
-        // Dirty State
+        // Parameters
         //-------------------------------------------------------------------------
 
-      /*  inline bool IsDirty() const { return m_isDirty; }
-        inline void MarkDirty() { m_isDirty = true; }
-        inline void ClearDirty() { m_isDirty = false; }*/
-
-        // Graph State
-        //-------------------------------------------------------------------------
-
+        // Refreshes and fixes up all parameter references in this graph
         void RefreshParameterReferences();
+
+        // Reflects all parameters from another graph into this one
+        // This will try to create a new control parameter for each control and virtual parameter present in the other graph
+        void ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<Log::LogEntry>* pOptionalOutputLog = nullptr );
 
         // Variations
         //-------------------------------------------------------------------------
@@ -66,6 +65,5 @@ namespace EE::Animation
 
         FlowGraph*                                                      m_pRootGraph = nullptr;
         VariationHierarchy                                              m_variationHierarchy;
-        bool                                                            m_isDirty = false;
     };
 }

@@ -25,4 +25,40 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetDefaultSlotName() const override { return "Graph"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override;
     };
+
+    //-------------------------------------------------------------------------
+
+    struct OpenChildGraphCommand : public VisualGraph::AdvancedCommand
+    {
+        EE_REFLECT_TYPE( OpenChildGraphCommand );
+
+        OpenChildGraphCommand() = default;
+
+        OpenChildGraphCommand( ChildGraphToolsNode* pSourceNode, bool m_openInPlace )
+            : m_openInPlace( m_openInPlace )
+        {
+            EE_ASSERT( pSourceNode != nullptr );
+            m_pCommandSourceNode = pSourceNode;
+        }
+
+        bool m_openInPlace = true;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct ReflectParametersCommand : public VisualGraph::AdvancedCommand
+    {
+        EE_REFLECT_TYPE( ReflectParametersCommand );
+
+        ReflectParametersCommand() = default;
+
+        ReflectParametersCommand( ChildGraphToolsNode* pSourceNode, bool fromParentToChild )
+            : m_fromParentToChild( fromParentToChild )
+        {
+            EE_ASSERT( pSourceNode != nullptr );
+            m_pCommandSourceNode = pSourceNode;
+        }
+
+        bool                        m_fromParentToChild = true;
+    };
 }

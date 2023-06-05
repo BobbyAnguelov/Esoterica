@@ -80,16 +80,18 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
     {
-        ImGuiID topDockID = 0, bottomDockID = 0, bottomLeftDockID = 0, bottomRightDockID = 0;
-        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.33f, &bottomDockID, &topDockID );
+        ImGuiID topLeftDockID = 0, topRightDockID = 0, bottomDockID = 0, bottomLeftDockID = 0, bottomRightDockID = 0;
+        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.33f, &bottomDockID, &topLeftDockID );
+        ImGui::DockBuilderSplitNode( topLeftDockID, ImGuiDir_Right, 0.33f, &topRightDockID, &topLeftDockID );
         ImGui::DockBuilderSplitNode( bottomDockID, ImGuiDir_Right, 0.25f, &bottomRightDockID, &bottomLeftDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), topDockID );
+        ImGui::DockBuilderDockWindow( GetViewportWindowID(), topLeftDockID );
         ImGui::DockBuilderDockWindow( m_timelineWindowName.c_str(), bottomLeftDockID );
         ImGui::DockBuilderDockWindow( m_trackDataWindowName.c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( m_detailsWindowName.c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( m_clipBrowserWindowName.c_str(), topRightDockID );
     }
 
     //-------------------------------------------------------------------------
@@ -102,6 +104,7 @@ namespace EE::Animation
 
         m_timelineWindowName.sprintf( "Timeline##%u", GetID() );
         m_detailsWindowName.sprintf( "Details##%u", GetID() );
+        m_clipBrowserWindowName.sprintf( "Clip Browser##%u", GetID() );
         m_trackDataWindowName.sprintf( "Track Data##%u", GetID() );
 
         if ( m_pDescriptor != nullptr )
@@ -250,6 +253,7 @@ namespace EE::Animation
         bool const isDescriptorWindowFocused = DrawDescriptorEditorWindow( context, pWindowClass );
         DrawTrackDataWindow( context, pWindowClass );
         DrawTimelineWindow( context, pWindowClass );
+        DrawClipBrowser( context, pWindowClass );
         bool const isDetailsWindowFocused = DrawDetailsWindow( context, pWindowClass );
 
         // Enable the global timeline keyboard shortcuts
@@ -539,6 +543,86 @@ namespace EE::Animation
         ImGui::End();
 
         return isDetailsWindowFocused;
+    }
+
+    void AnimationClipWorkspace::DrawClipBrowser( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    {
+        auto ApplyClipFilter = [this] ()
+        {
+            m_filteredClips.clear();
+
+            for ( auto const& clip : m_clipsWithSameSkeleton )
+            {
+                if ( m_clipBrowserFilter.MatchesFilter( clip.c_str() ) )
+                {
+                    m_filteredClips.emplace_back( clip );
+                }
+            }
+        };
+
+        // Update Cache
+        //-------------------------------------------------------------------------
+
+        if ( IsResourceLoaded() )
+        {
+            if ( m_clipBrowserCacheRefreshTimer.GetElapsedTimeSeconds() > 1.0f )
+            {
+                auto results = m_pToolsContext->m_pResourceDatabase->GetAllResourcesOfType( AnimationClip::GetStaticResourceTypeID() );
+                auto pSkeleton = m_workspaceResource->GetSkeleton();
+
+                m_clipsWithSameSkeleton.clear();
+                for ( auto const& result : results )
+                {
+                    m_clipsWithSameSkeleton.emplace_back( result->m_resourceID );
+                }
+
+                ApplyClipFilter();
+
+                m_clipBrowserCacheRefreshTimer.Reset();
+            }
+        }
+
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextWindowClass( pWindowClass );
+        if ( ImGui::Begin( m_clipBrowserWindowName.c_str() ) )
+        {
+            // Filter clips
+            //-------------------------------------------------------------------------
+
+            if ( m_clipBrowserFilter.DrawAndUpdate() )
+            {
+                ApplyClipFilter();
+            }
+
+            // Draw Clips
+            //-------------------------------------------------------------------------
+
+            if ( IsResourceLoaded() )
+            {
+                if ( ImGui::BeginTable( "ClipBrowser", 1, 0, ImVec2( -1, -1 ) ) )
+                {
+                    ImGuiListClipper clipper;
+                    clipper.Begin( (int32_t) m_filteredClips.size() );
+                    while ( clipper.Step() )
+                    {
+                        for ( int32_t i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                        {
+                            ImGui::TableNextRow();
+                            ImGui::TableNextColumn();
+                            if ( ImGuiX::FlatButton( m_filteredClips[i].c_str() ) )
+                            {
+                                m_pToolsContext->TryOpenResource( m_filteredClips[i] );
+                            }
+                        }
+                    }
+
+                    ImGui::EndTable();
+                }
+            }
+        }
+        ImGui::End();
     }
 
     //-------------------------------------------------------------------------

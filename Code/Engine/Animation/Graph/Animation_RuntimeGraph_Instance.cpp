@@ -594,6 +594,7 @@ namespace EE::Animation
         {
             m_pRecorder->m_graphID = GetDefinitionResourceID();
             m_pRecorder->m_variationID = GetVariationID();
+            m_pRecorder->m_recordedResourceHash = GetGraphVariation()->GetSourceResourceHash();
         }
     }
 
@@ -601,6 +602,7 @@ namespace EE::Animation
     {
         recordedState.m_graphID = GetDefinitionResourceID();
         recordedState.m_variationID = GetVariationID();
+        recordedState.m_recordedResourceHash = GetGraphVariation()->GetSourceResourceHash();
         recordedState.m_initializedNodeIndices.clear();
 
         for ( int16_t i = 0; i < m_nodes.size(); i++ )
