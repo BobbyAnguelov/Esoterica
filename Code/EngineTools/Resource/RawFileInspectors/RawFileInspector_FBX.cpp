@@ -360,7 +360,11 @@ namespace EE::Resource
 
             //-------------------------------------------------------------------------
 
-            m_propertyGrid.DrawGrid();
+            if ( ImGui::BeginChild( "Grid", ImGui::GetContentRegionAvail() - ImVec2( 0, 40 ) ) )
+            {
+                m_propertyGrid.DrawGrid();
+            }
+            ImGui::EndChild();
 
             //-------------------------------------------------------------------------
 
@@ -419,7 +423,12 @@ namespace EE::Resource
             {
                 auto pDesc = EE::New<Render::StaticMeshResourceDescriptor>();
                 pDesc->m_meshPath = ResourcePath::FromFileSystemPath( m_rawResourceDirectory, m_filePath );
-                pDesc->m_meshName = m_selectedItemID.IsValid() ? m_selectedItemID.c_str() : "";
+
+                if ( m_selectedItemID.IsValid() )
+                {
+                    pDesc->m_meshesToInclude.emplace_back( m_selectedItemID.c_str() );
+                }
+
                 m_pDescriptor = pDesc;
             }
             break;
@@ -437,7 +446,12 @@ namespace EE::Resource
             {
                 auto pDesc = EE::New<Render::SkeletalMeshResourceDescriptor>();
                 pDesc->m_meshPath = ResourcePath::FromFileSystemPath( m_rawResourceDirectory, m_filePath );
-                pDesc->m_meshName = m_selectedItemID.IsValid() ? m_selectedItemID.c_str() : "";
+
+                if ( m_selectedItemID.IsValid() )
+                {
+                    pDesc->m_meshesToInclude.emplace_back( m_selectedItemID.c_str() );
+                }
+
                 m_pDescriptor = pDesc;
             }
             break;

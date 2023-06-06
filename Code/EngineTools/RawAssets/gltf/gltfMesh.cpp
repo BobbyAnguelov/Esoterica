@@ -277,7 +277,7 @@ namespace EE::RawAssets
 
         //-------------------------------------------------------------------------
 
-        static TUniquePtr<RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, String const& nameOfMeshToCompile )
+        static TUniquePtr<RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
         {
             EE_ASSERT( sourceFilePath.IsValid() );
 
@@ -290,7 +290,7 @@ namespace EE::RawAssets
             if ( sceneCtx.IsValid() )
             {
                 auto pSceneData = sceneCtx.GetSceneData();
-                if ( nameOfMeshToCompile.empty() )
+                if ( meshesToInclude.empty() )
                 {
                     for ( auto m = 0; m < pSceneData->meshes_count; m++ )
                     {
@@ -309,7 +309,7 @@ namespace EE::RawAssets
                     bool meshFound = false;
                     for ( auto m = 0; m < pSceneData->meshes_count; m++ )
                     {
-                        if ( nameOfMeshToCompile == pSceneData->meshes[m].name )
+                        if ( VectorContains( meshesToInclude, pSceneData->meshes[m].name ) )
                         {
                             if ( IsValidTriangleMesh( pSceneData->meshes[m] ) )
                             {
@@ -317,8 +317,9 @@ namespace EE::RawAssets
                             }
                             else
                             {
-                                pRawMesh->LogError( "Specified mesh is not a triangle mesh: %s", nameOfMeshToCompile.c_str() );
+                                pRawMesh->LogError( "Specified mesh is not a triangle mesh: %s", pSceneData->meshes[m].name );
                             }
+
                             meshFound = true;
                             break;
                         }
@@ -326,7 +327,14 @@ namespace EE::RawAssets
 
                     if ( !meshFound )
                     {
-                        pRawMesh->LogError( "Failed to find specified mesh in gltf file: %s", nameOfMeshToCompile.c_str() );
+                        InlineString meshNames;
+                        for ( auto const& meshName : meshesToInclude )
+                        {
+                            meshNames.append_sprintf( "%s, ", meshName.c_str());
+                        }
+                        meshNames = meshNames.substr( 0, meshNames.length() - 2 );
+
+                        pRawMesh->LogError( "Failed to find any of the specified meshes in gltf file: %s", meshNames.c_str() );
                     }
                 }
             }
@@ -338,7 +346,7 @@ namespace EE::RawAssets
             return pMesh;
         }
 
-        static TUniquePtr<RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, int32_t maxBoneInfluences = 4 )
+        static TUniquePtr<RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences = 4 )
         {
             EE_ASSERT( sourceFilePath.IsValid() );
 
@@ -400,6 +408,14 @@ namespace EE::RawAssets
 
                     for ( auto pMeshData : skins[0].m_meshes )
                     {
+                        if ( !meshesToInclude.empty() )
+                        {
+                            if ( !VectorContains( meshesToInclude, pMeshData->name ) )
+                            {
+                                continue;
+                            }
+                        }
+
                         ReadMeshGeometry( sceneCtx, *pRawMesh, *pMeshData );
                     }
                 }
@@ -418,13 +434,13 @@ namespace EE::RawAssets
 
 namespace EE::gltf
 {
-    TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, String const& nameOfMeshToCompile )
+    TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
         {
-            return RawAssets::gltfMeshFileReader::ReadStaticMesh( sourceFilePath, nameOfMeshToCompile );
+            return RawAssets::gltfMeshFileReader::ReadStaticMesh( sourceFilePath, meshesToInclude );
         }
 
-    TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, int32_t maxBoneInfluences )
+    TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
         {
-            return RawAssets::gltfMeshFileReader::ReadSkeletalMesh( sourceFilePath, maxBoneInfluences );
+            return RawAssets::gltfMeshFileReader::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
         }
 }

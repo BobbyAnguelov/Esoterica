@@ -117,7 +117,9 @@ namespace EE::RawAssets
             {
                 StringID const& boneName = rawAnimation.m_skeleton.GetBoneName( boneIdx );
                 RawAnimation::TrackData& animTrack = rawAnimation.m_tracks[boneIdx];
-                FbxNode* pBoneNode = sceneCtx.m_pScene->FindNodeByName( boneName.c_str() );
+
+                String hack( String::CtorSprintf(), "trooper_melee_animsetup:RIG:MDL:%s", boneName.c_str() );
+                FbxNode* pBoneNode = sceneCtx.m_pScene->FindNodeByName( hack.c_str() );
 
                 // Get the parent node for non-root bones
                 FbxNode* pParentBoneNode = nullptr;
@@ -126,7 +128,8 @@ namespace EE::RawAssets
                     int32_t const parentBoneIdx = rawAnimation.m_skeleton.GetParentBoneIndex( boneIdx );
                     EE_ASSERT( parentBoneIdx != InvalidIndex );
                     StringID const parentBoneName = rawAnimation.m_skeleton.GetBoneName( parentBoneIdx );
-                    pParentBoneNode = sceneCtx.m_pScene->FindNodeByName( parentBoneName.c_str() );
+                    String parentHack( String::CtorSprintf(), "trooper_melee_animsetup:RIG:MDL:%s", parentBoneName.c_str() );
+                    pParentBoneNode = sceneCtx.m_pScene->FindNodeByName( parentHack.c_str() );
                     if ( pParentBoneNode == nullptr )
                     {
                         rawAnimation.LogError( "Error: Animation skeleton and animation data dont match. Skeleton bone (%s) not found in animation.", boneName.c_str() );

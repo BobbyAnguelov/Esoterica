@@ -85,7 +85,7 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            static TUniquePtr<RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, String const& nameOfMeshToCompile )
+            static TUniquePtr<RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
             {
                 EE_ASSERT( sourceFilePath.IsValid() );
 
@@ -97,7 +97,7 @@ namespace EE
                 Fbx::FbxSceneContext sceneCtx( sourceFilePath );
                 if ( sceneCtx.IsValid() )
                 {
-                    ReadAllSubmeshes( *pRawMesh, sceneCtx, nameOfMeshToCompile );
+                    ReadAllSubmeshes( *pRawMesh, sceneCtx, meshesToInclude );
                 }
                 else
                 {
@@ -107,7 +107,7 @@ namespace EE
                 return pMesh;
             }
 
-            static TUniquePtr<RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, int32_t maxBoneInfluences = 4 )
+            static TUniquePtr<RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences = 4 )
             {
                 EE_ASSERT( sourceFilePath.IsValid() );
 
@@ -125,7 +125,7 @@ namespace EE
                     // Read mesh data
                     //-------------------------------------------------------------------------
 
-                    ReadAllSubmeshes( *pRawMesh, sceneCtx );
+                    ReadAllSubmeshes( *pRawMesh, sceneCtx, meshesToInclude );
 
                     if ( pRawMesh->HasErrors() )
                     {
@@ -146,7 +146,7 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            static void ReadAllSubmeshes( FbxRawMesh& rawMesh, Fbx::FbxSceneContext const& sceneCtx, String const& nameOfMeshToCompile = String() )
+            static void ReadAllSubmeshes( FbxRawMesh& rawMesh, Fbx::FbxSceneContext const& sceneCtx, TVector<String> const& meshesToInclude )
             {
                 FbxGeometryConverter geomConverter( sceneCtx.m_pManager );
                 geomConverter.SplitMeshesPerMaterial( sceneCtx.m_pScene, true );
@@ -192,10 +192,10 @@ namespace EE
 
                     auto pMesh = foundMesh.m_pMesh;
 
-                    // If we've specified a specific mesh name to compile, skip all other meshes
-                    if ( !nameOfMeshToCompile.empty() )
+                    // Only process specified meshes
+                    if ( !meshesToInclude.empty() )
                     {
-                        if ( pMesh->GetNode()->GetNameWithoutNameSpacePrefix() != nameOfMeshToCompile )
+                        if ( !VectorContains( meshesToInclude, pMesh->GetNode()->GetNameWithoutNameSpacePrefix() ) )
                         {
                             continue;
                         }
@@ -237,7 +237,14 @@ namespace EE
 
                 if ( !meshFound )
                 {
-                    rawMesh.m_errors.push_back( String( String::CtorSprintf(), "Couldn't find specified mesh: %s", nameOfMeshToCompile.c_str() ) );
+                    InlineString meshNames;
+                    for ( auto const& meshName : meshesToInclude )
+                    {
+                        meshNames.append_sprintf( "%s, ", meshName.c_str() );
+                    }
+                    meshNames = meshNames.substr( 0, meshNames.length() - 2 );
+
+                    rawMesh.m_errors.push_back( String( String::CtorSprintf(), "Couldn't find any specified meshes: %s", meshNames.c_str() ) );
                 }
             }
 
@@ -667,13 +674,13 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<RawAssets::RawMesh> Fbx::ReadStaticMesh( FileSystem::Path const& sourceFilePath, String const& nameOfMeshToCompile )
+    TUniquePtr<RawAssets::RawMesh> Fbx::ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
     {
-        return RawAssets::FbxMeshFileReader::ReadStaticMesh( sourceFilePath, nameOfMeshToCompile );
+        return RawAssets::FbxMeshFileReader::ReadStaticMesh( sourceFilePath, meshesToInclude );
     }
 
-    TUniquePtr<RawAssets::RawMesh> Fbx::ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, int32_t maxBoneInfluences )
+    TUniquePtr<RawAssets::RawMesh> Fbx::ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
     {
-        return RawAssets::FbxMeshFileReader::ReadSkeletalMesh( sourceFilePath, maxBoneInfluences );
+        return RawAssets::FbxMeshFileReader::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
     }
 }

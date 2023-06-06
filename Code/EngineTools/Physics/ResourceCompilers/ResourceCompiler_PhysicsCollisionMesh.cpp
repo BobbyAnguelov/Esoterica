@@ -73,7 +73,7 @@ namespace EE::Physics
         }
 
         RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_sourceItemName );
+        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, { resourceDescriptor.m_sourceItemName } );
         if ( pRawMesh == nullptr )
         {
             return Error( "Failed to read mesh from source file" );

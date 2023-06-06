@@ -32,7 +32,7 @@ namespace EE::RawAssets
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& nameOfMeshToCompile )
+    TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
     {
         EE_ASSERT( sourceFilePath.IsValid() && ctx.IsValid() );
 
@@ -41,11 +41,11 @@ namespace EE::RawAssets
         auto const extension = sourceFilePath.GetLowercaseExtensionAsString();
         if ( extension == "fbx" )
         {
-            pRawMesh = Fbx::ReadStaticMesh( sourceFilePath, nameOfMeshToCompile );
+            pRawMesh = Fbx::ReadStaticMesh( sourceFilePath, meshesToInclude );
         }
         else if ( extension == "gltf" || extension == "glb" )
         {
-            pRawMesh = gltf::ReadStaticMesh( sourceFilePath, nameOfMeshToCompile );
+            pRawMesh = gltf::ReadStaticMesh( sourceFilePath, meshesToInclude );
         }
         else
         {
@@ -66,7 +66,7 @@ namespace EE::RawAssets
         return pRawMesh;
     }
 
-    TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, int32_t maxBoneInfluences )
+    TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
     {
         EE_ASSERT( sourceFilePath.IsValid() && ctx.IsValid() );
 
@@ -75,11 +75,11 @@ namespace EE::RawAssets
         auto const extension = sourceFilePath.GetLowercaseExtensionAsString();
         if ( extension == "fbx" )
         {
-            pRawMesh = Fbx::ReadSkeletalMesh( sourceFilePath, maxBoneInfluences );
+            pRawMesh = Fbx::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
         }
         else if ( extension == "gltf" || extension == "glb" )
         {
-            pRawMesh = gltf::ReadSkeletalMesh( sourceFilePath, maxBoneInfluences );
+            pRawMesh = gltf::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
         }
         else
         {
@@ -158,7 +158,10 @@ namespace EE::RawAssets
 
         //-------------------------------------------------------------------------
 
-        pRawAnimation->Finalize();
+        if ( !pRawAnimation->HasErrors() )
+        {
+            pRawAnimation->Finalize();
+        }
 
         //-------------------------------------------------------------------------
 

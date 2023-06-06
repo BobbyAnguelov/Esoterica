@@ -89,8 +89,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( !CompileParameterAndSourceNodes( context, pSettings ) )
             {
-                return false;
-                //return InvalidIndex;
+                return InvalidIndex;
             }
 
             // Create parameterization

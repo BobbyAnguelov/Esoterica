@@ -43,21 +43,17 @@ namespace EE::Resource
             //-------------------------------------------------------------------------
 
             auto availableSpace = ImGui::GetContentRegionAvail();
-            if ( ImGui::BeginTable( "DialogTable", 2, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable | ImGuiTableFlags_PadOuterX | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_ScrollY, availableSpace ) )
+            if ( ImGui::BeginTable( "DialogTable", 2, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable | ImGuiTableFlags_PadOuterX | ImGuiTableFlags_NoSavedSettings, availableSpace ) )
             {
                 ImGui::TableSetupColumn( "Info", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Creator", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
 
                 ImGui::TableNextRow();
 
-                ImGui::TableSetColumnIndex( 0);
-                if ( ImGui::BeginChild( "Contents", ImGui::GetContentRegionAvail() - ImVec2( 0, 4 ) ) )
-                {
-                    DrawFileContents();
-                }
-                ImGui::EndChild();
+                ImGui::TableSetColumnIndex( 0 );
+                DrawFileContents();
 
-                ImGui::TableSetColumnIndex( 1);
+                ImGui::TableSetColumnIndex( 1 );
                 DrawResourceDescriptorCreator();
 
                 ImGui::EndTable();
