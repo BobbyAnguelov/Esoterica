@@ -322,35 +322,13 @@
     <ClCompile Include="RawAssets\RawSkeleton.cpp">
       <Filter>RawAssets</Filter>
     </ClCompile>
-    <ClCompile Include="RawAssets\Fbx\FbxAnimation.cpp">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\Fbx\FbxMesh.cpp">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\Fbx\FbxSceneContext.cpp">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\Fbx\FbxSkeleton.cpp">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\gltf\gltfAnimation.cpp">
-      <Filter>RawAssets\gltf</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\gltf\gltfMesh.cpp">
-      <Filter>RawAssets\gltf</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\gltf\gltfSceneContext.cpp">
-      <Filter>RawAssets\gltf</Filter>
-    </ClCompile>
-    <ClCompile Include="RawAssets\gltf\gltfSkeleton.cpp">
-      <Filter>RawAssets\gltf</Filter>
-    </ClCompile>
     <ClCompile Include="Physics\Workspaces\Workspace_CollisionMesh.cpp" />
     <ClCompile Include="Physics\PropertyGrid\PropertyGrid_PhysicsBodySettings.cpp" />
-    <ClCompile Include="Core\PropertyGrid\PropertyGridHelper.cpp" />
+    <ClCompile Include="Core\PropertyGrid\PropertyGridTypeEditingRules.cpp" />
     <ClCompile Include="Physics\PropertyGrid\PropertyGrid_Component_PhysicsCollision.cpp" />
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp" />
+    <ClCompile Include="RawAssets\Formats\FBX.cpp" />
+    <ClCompile Include="RawAssets\Formats\GLTF.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\ToolsContext.h">
@@ -704,9 +682,6 @@
     <ClInclude Include="RawAssets\RawAsset.h">
       <Filter>RawAssets</Filter>
     </ClInclude>
-    <ClInclude Include="RawAssets\RawAssetInfo.h">
-      <Filter>RawAssets</Filter>
-    </ClInclude>
     <ClInclude Include="RawAssets\RawAssetReader.h">
       <Filter>RawAssets</Filter>
     </ClInclude>
@@ -715,30 +690,6 @@
     </ClInclude>
     <ClInclude Include="RawAssets\RawSkeleton.h">
       <Filter>RawAssets</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\Fbx\FbxAnimation.h">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\Fbx\FbxMesh.h">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\Fbx\FbxSceneContext.h">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\Fbx\FbxSkeleton.h">
-      <Filter>RawAssets\Fbx</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\gltf\gltfAnimation.h">
-      <Filter>RawAssets\gltf</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\gltf\gltfMesh.h">
-      <Filter>RawAssets\gltf</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\gltf\gltfSceneContext.h">
-      <Filter>RawAssets\gltf</Filter>
-    </ClInclude>
-    <ClInclude Include="RawAssets\gltf\gltfSkeleton.h">
-      <Filter>RawAssets\gltf</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\pfd\portable-file-dialogs.h">
       <Filter>ThirdParty\pfd</Filter>
@@ -753,9 +704,11 @@
       <Filter>ThirdParty\subprocess</Filter>
     </ClInclude>
     <ClInclude Include="Physics\Workspaces\Workspace_CollisionMesh.h" />
-    <ClInclude Include="Core\PropertyGrid\PropertyGridHelper.h" />
+    <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h" />
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h" />
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h" />
+    <ClInclude Include="RawAssets\Formats\FBX.h" />
+    <ClInclude Include="RawAssets\Formats\GLTF.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

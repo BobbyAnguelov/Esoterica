@@ -5,6 +5,8 @@
 #include "System/Types/Event.h"
 #include "System/Types/HashMap.h"
 #include "System/Threading/TaskSystem.h"
+#include "System/Threading/Threading.h"
+#include "System/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,22 +20,37 @@ namespace EE
 
 namespace EE::Resource
 {
+    // Maintains a DB of all source resources in the source data folder
+    //-------------------------------------------------------------------------
+    // The way we load descriptors is pretty naive and can definitely be improved
+
     class EE_ENGINETOOLS_API ResourceDatabase final : public FileSystem::IFileSystemChangeListener
     {
     public:
 
+        enum class Status
+        {
+            Idle,
+            BuildingDB,
+        };
+
         struct FileEntry
         {
+            ~FileEntry();
+
             ResourceID                                              m_resourceID;
             FileSystem::Path                                        m_filePath;
             bool                                                    m_isRegisteredResourceType = false;
+            struct ResourceDescriptor*                              m_pDescriptor = nullptr;
         };
 
         struct DirectoryEntry
         {
+            inline bool IsEmpty() const { return m_directories.empty() && m_files.empty(); }
             void ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath );
+
+            // Delete all file entries and sub directories
             void Clear();
-            bool IsEmpty() const { return m_directories.empty() && m_files.empty(); }
 
         public:
 
@@ -52,16 +69,28 @@ namespace EE::Resource
         void Initialize( TypeSystem::TypeRegistry const* pTypeRegistry, TaskSystem* pTaskSystem, FileSystem::Path const& rawResourceDirPath, FileSystem::Path const& compiledResourceDirPath );
         void Shutdown();
 
+        // Get the path for the raw resources
         inline FileSystem::Path const& GetRawResourceDirectoryPath() const { return m_rawResourceDirPath; }
 
+        // Get the path for the compiled resources
         inline FileSystem::Path const& GetCompiledResourceDirectoryPath() const { return m_compiledResourceDirPath; }
 
-        inline DirectoryEntry const* GetDataDirectory() const { return &m_rootDir; }
+        // Get a structured representation of all known raw resources
+        inline DirectoryEntry const* GetRawResourceDirectoryEntry() const { return &m_reflectedDataDirectory; }
+
+        // Try to get an entry for a resource path
+        FileEntry const* GetFileEntry( ResourcePath const& resourcePath ) const;
+
+        // Try to get an entry for a resource ID
+        EE_FORCE_INLINE FileEntry const* GetFileEntry( ResourceID const& resourceID ) const { return GetFileEntry( resourceID.GetResourcePath() ); }
 
         //-------------------------------------------------------------------------
 
         // Are we currently rebuilding the DB?
-        bool IsRebuilding() const { return m_pRebuildTask != nullptr; }
+        bool IsRebuilding() const { return m_pAsyncTask != nullptr; }
+
+        // Get the rebuild progress where 0 mean no progress and 1.0f means complete!
+        inline float GetRebuildProgress() const { return m_rebuildProgress; }
 
         // Process any filesystem updates, returns true if any changes were detected!
         bool Update();
@@ -72,11 +101,14 @@ namespace EE::Resource
         // Check if this is a existing resource
         bool DoesResourceExist( ResourcePath const& resourcePath ) const;
 
-        // Gets the list of all found resources
+        // Gets the list of all known resources
         THashMap<ResourceTypeID, TVector<FileEntry*>> const& GetAllResources() const { return m_resourcesPerType; }
 
         // Get a list of all known resource of the specified type
-        TVector<FileEntry*> GetAllResourcesOfType( ResourceTypeID typeID, bool includeDerivedTypes = false ) const;
+        TVector<ResourceID> GetAllResourcesOfType( ResourceTypeID resourceTypeID, bool includeDerivedTypes = false ) const;
+
+        // Get a list of all known resource of the specified type
+        TVector<ResourceID> GetAllResourcesOfTypeFiltered( ResourceTypeID resourceTypeID, TFunction<bool( ResourceDescriptor const*)> const& filter, bool includeDerivedTypes = false ) const;
 
         // Event that fires whenever the database is updated
         TEventHandle<> OnDatabaseUpdated() const { return m_databaseUpdatedEvent; }
@@ -86,8 +118,16 @@ namespace EE::Resource
 
     private:
 
+        void ClearDatabase();
+
         // Trigger a full rebuild of the database, this is done async
         void RequestDatabaseRebuild();
+
+        // The actual rebuild task
+        void RebuildDatabase();
+
+        // Cancel the rebuild of the database
+        void CancelDatabaseRebuild();
 
         // Directory operations
         DirectoryEntry* FindDirectory( FileSystem::Path const& dirPath );
@@ -101,6 +141,7 @@ namespace EE::Resource
         virtual void OnFileCreated( FileSystem::Path const& path ) override final;
         virtual void OnFileDeleted( FileSystem::Path const& path ) override final;
         virtual void OnFileRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) override final;
+        virtual void OnFileModified( FileSystem::Path const& path ) override final;
         virtual void OnDirectoryCreated( FileSystem::Path const& path ) override final;
         virtual void OnDirectoryDeleted( FileSystem::Path const& path ) override final;
         virtual void OnDirectoryRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) override final;
@@ -114,9 +155,12 @@ namespace EE::Resource
         int32_t                                                     m_dataDirectoryPathDepth;
         FileSystem::FileSystemWatcher                               m_fileSystemWatcher;
 
-        ITaskSet*                                                   m_pRebuildTask = nullptr;
+        Status                                                      m_status = Status::Idle;
+        ITaskSet*                                                   m_pAsyncTask = nullptr;
+        bool                                                        m_cancelActiveTask = false;
+        std::atomic<float>                                          m_rebuildProgress = 1.0f;
 
-        DirectoryEntry                                              m_rootDir;
+        DirectoryEntry                                              m_reflectedDataDirectory;
         THashMap<ResourceTypeID, TVector<FileEntry*>>               m_resourcesPerType;
         THashMap<ResourcePath, FileEntry*>                          m_resourcesPerPath;
         mutable TEvent<>                                            m_databaseUpdatedEvent;

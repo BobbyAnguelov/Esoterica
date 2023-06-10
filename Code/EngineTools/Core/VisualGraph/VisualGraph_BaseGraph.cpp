@@ -108,7 +108,7 @@ namespace EE::VisualGraph
         return pRootGraph;
     }
 
-    String BaseNode::GetPathFromRoot() const
+    String BaseNode::GetStringPathFromRoot() const
     {
         TVector<BaseNode const*> path;
         TraverseHierarchy( this, path );
@@ -128,6 +128,22 @@ namespace EE::VisualGraph
         return pathString;
     }
 
+    TVector<UUID> BaseNode::GetIDPathFromRoot() const
+    {
+        TVector<BaseNode const*> path;
+        TraverseHierarchy( this, path );
+
+        //-------------------------------------------------------------------------
+
+        TVector<UUID> pathFromRoot;
+        for ( auto iter = path.rbegin(); iter != path.rend(); ++iter )
+        {
+            pathFromRoot.emplace_back( ( *iter )->GetID() );
+        }
+
+        return pathFromRoot;
+    }
+
     void BaseNode::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue )
     {
         EE_ASSERT( nodeObjectValue.IsObject() );
@@ -137,6 +153,12 @@ namespace EE::VisualGraph
         // Note serialization is not symmetric for the nodes, since the node creation also deserializes registered values
 
         //-------------------------------------------------------------------------
+
+
+        if ( GetID() == UUID( "7ab864a5-2267-a142-8121-fce7b7f3e560" ) )
+        {
+            EE_HALT();
+        }
 
         EE::Delete( m_pChildGraph );
 
@@ -347,8 +369,8 @@ namespace EE::VisualGraph
 
     //-------------------------------------------------------------------------
 
-    TEvent<BaseGraph*> BaseGraph::s_onEndModification;
-    TEvent<BaseGraph*> BaseGraph::s_onBeginModification;
+    TEvent<BaseGraph*> BaseGraph::s_onEndRootGraphModification;
+    TEvent<BaseGraph*> BaseGraph::s_onBeginRootGraphModification;
 
     //-------------------------------------------------------------------------
 
@@ -395,9 +417,9 @@ namespace EE::VisualGraph
 
         if ( pRootGraph->m_beginModificationCallCount == 0 )
         {
-            if ( s_onBeginModification.HasBoundUsers() )
+            if ( s_onBeginRootGraphModification.HasBoundUsers() )
             {
-                s_onBeginModification.Execute( pRootGraph );
+                s_onBeginRootGraphModification.Execute( pRootGraph );
             }
         }
         pRootGraph->m_beginModificationCallCount++;
@@ -412,9 +434,9 @@ namespace EE::VisualGraph
 
         if ( pRootGraph->m_beginModificationCallCount == 0 )
         {
-            if ( s_onEndModification.HasBoundUsers() )
+            if ( s_onEndRootGraphModification.HasBoundUsers() )
             {
-                s_onEndModification.Execute( pRootGraph );
+                s_onEndRootGraphModification.Execute( pRootGraph );
             }
         }
     }
@@ -612,6 +634,54 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         writer.EndObject();
+    }
+
+    String BaseGraph::GetStringPathFromRoot() const
+    {
+        String pathString;
+        if ( IsRootGraph() )
+        {
+            return pathString;
+        }
+
+        //-------------------------------------------------------------------------
+
+        TVector<BaseNode const*> path;
+        TraverseHierarchy( GetParentNode(), path );
+
+        //-------------------------------------------------------------------------
+
+        for ( auto iter = path.rbegin(); iter != path.rend(); ++iter )
+        {
+            pathString += ( *iter )->GetName();
+            if ( iter != ( path.rend() - 1 ) )
+            {
+                pathString += "/";
+            }
+        }
+
+        return pathString;
+    }
+
+    TVector<UUID> BaseGraph::GetIDPathFromRoot() const
+    {
+        TVector<UUID> pathFromRoot;
+        if ( IsRootGraph() )
+        {
+            return pathFromRoot;
+        }
+
+        TVector<BaseNode const*> path;
+        TraverseHierarchy( GetParentNode(), path );
+
+        //-------------------------------------------------------------------------
+
+        for ( auto iter = path.rbegin(); iter != path.rend(); ++iter )
+        {
+            pathFromRoot.emplace_back( ( *iter )->GetID() );
+        }
+
+        return pathFromRoot;
     }
 
     UUID BaseGraph::RegenerateIDs( THashMap<UUID, UUID>& IDMapping )

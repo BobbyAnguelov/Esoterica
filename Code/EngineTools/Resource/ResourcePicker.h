@@ -1,16 +1,12 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "System/Resource/ResourcePtr.h"
+#include "System/Imgui/ImguiX.h"
+#include "System/Resource/ResourceID.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE
-{
-    class ToolsContext;
-}
+namespace EE { class ToolsContext; }
 
-//-------------------------------------------------------------------------
-// Resource Picker
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
@@ -21,78 +17,67 @@ namespace EE::Resource
 
     class EE_ENGINETOOLS_API ResourcePicker final
     {
-        struct PickerOption
-        {
-            PickerOption( ResourceID const& resourceID );
-
-            inline bool operator==( ResourceID const& resourceID ) const { return m_resourceID == resourceID; }
-            inline bool operator==( ResourceID& resourceID ) const { return m_resourceID == resourceID; }
-            inline bool operator!=( ResourceID const& resourceID ) const { return m_resourceID != resourceID; }
-            inline bool operator!=( ResourceID& resourceID ) const { return m_resourceID != resourceID; }
-
-            ResourceID                  m_resourceID;
-            String                      m_filename;
-            String                      m_parentFolder;
-        };
-
-        struct Result
-        {
-            ResourcePath m_newPath;
-            bool m_wasPathUpdated;
-        };
 
     public:
 
-        ResourcePicker( ToolsContext const& toolsContext );
+        ResourcePicker( ToolsContext const& toolsContext, ResourceTypeID resourceTypeID = ResourceTypeID(), ResourceID const& resourceID = ResourceID() );
 
-        // Draw a picker for a specified resource type - return true if the resource path is updated
-        template<typename T>
-        bool DrawPicker( TResourcePtr<T> const& ptr, ResourcePath& outPath )
-        {
-            static_assert( std::is_base_of<IResource, T>::value, "T has to derive from IResource" );
-            return DrawPicker( ptr.GetResourcePath(), outPath, true, T::GetStaticResourceTypeID() );
-        }
+        // Update the widget and draws it, returns true if the path was updated
+        bool UpdateAndDraw();
 
-        // Draw a picker restricted to only registered resources - return true if the resource path is updated
-        bool DrawPicker( ResourcePtr const& ptr, ResourcePath& outPath )
-        {
-            return DrawPicker( ptr.GetResourcePath(), outPath, true, ResourceTypeID() );
-        }
+        // Set the type of resource we wish to select
+        void SetRequiredResourceType( ResourceTypeID resourceTypeID );
 
-        // Draw a picker restricted to only registered resources - return true if the resource path is updated
-        bool DrawPicker( ResourceID const& resourceID, ResourcePath& outPath, ResourceTypeID restrictedType = ResourceTypeID() )
-        {
-            return DrawPicker( resourceID.GetResourcePath(), outPath, true, restrictedType );
-        }
+        // Set the path
+        void SetResourceID( ResourceID const& resourceID );
 
-        // Draw a picker for any valid resource path - return true if the resource path is updated
-        bool DrawPicker( ResourcePath const& resourcePath, ResourcePath& outPath )
-        {
-            return DrawPicker( resourcePath, outPath, false, ResourceTypeID() );
-        }
+        // Get the resource path that was set
+        inline ResourceID const& GetResourceID() const { return m_resourceID; }
 
     private:
-
-        bool DrawPicker( ResourcePath const& resourcePath, ResourcePath& outPath, bool restrictToResources, ResourceTypeID restrictedResourceTypeID );
-
-        // Draw the selection dialog, returns true if the dialog is closed
-        bool DrawDialog();
 
         // Generate the set of valid resource options
-        void GenerateResourceOptionsList( ResourceTypeID resourceTypeID );
+        void GenerateResourceOptionsList();
 
         // Generate the set of filtered options
-        void GeneratedFilteredOptionList();
+        void GenerateFilteredOptionList();
 
     private:
 
-        ToolsContext const&             m_toolsContext;
+        ToolsContext const&         m_toolsContext;
+        ResourceTypeID              m_resourceTypeID; // The type of resource we should pick from
+        ResourceID                  m_resourceID;
+        ImGuiX::FilterWidget        m_filterWidget;
+        TVector<ResourceID>         m_allResourceIDs;
+        TVector<ResourceID>         m_filteredResourceIDs;
+        bool                        m_isComboOpen = false;
+    };
 
-        char                            m_filterBuffer[256];
-        TVector<PickerOption>           m_allResourceIDs;
-        TVector<PickerOption>           m_filteredResourceIDs;
-        ResourceID                      m_currentlySelectedID;
-        bool                            m_initializeFocus = false;
-        bool                            m_shouldOpenPickerDialog = false;
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINETOOLS_API ResourcePathPicker final
+    {
+    public:
+
+        ResourcePathPicker( FileSystem::Path const& rawResourceDirectoryPath, ResourcePath const& path = ResourcePath() )
+            : m_rawResourceDirectoryPath( rawResourceDirectoryPath )
+            , m_resourcePath( path )
+        { 
+            EE_ASSERT( m_rawResourceDirectoryPath.IsValid() && m_rawResourceDirectoryPath.Exists() );
+        }
+
+        // Update the widget and draws it, returns true if the path was updated
+        bool UpdateAndDraw();
+
+        // Set the path
+        void SetPath( ResourcePath const& path ) { m_resourcePath = path; }
+
+        // Get the resource path that was set
+        inline ResourcePath const& GetPath() const { return m_resourcePath; }
+
+    private:
+
+        FileSystem::Path const      m_rawResourceDirectoryPath;
+        ResourcePath                m_resourcePath;
     };
 }

@@ -81,7 +81,7 @@ namespace EE::Animation::GraphNodes
         void GenerateWarpedRootMotion( GraphContext& context );
 
         // Sample the warped root motion
-        void SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result, bool wasWarpUpdatedThisFrame );
+        void SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result );
 
         // Section Solvers
         //-------------------------------------------------------------------------

@@ -223,7 +223,13 @@ namespace EE::Navmesh
                 [this] ( char const* pString ) { EE_LOG_ERROR( "Navmesh", "Generation", pString ); }
             };
 
-            TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, { resourceDescriptor.m_sourceItemName } );
+            TVector<String> meshesToInclude;
+            if ( !resourceDescriptor.m_sourceItemName.empty() )
+            {
+                meshesToInclude.emplace_back( resourceDescriptor.m_sourceItemName );
+            }
+
+            TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, meshesToInclude );
             if ( pRawMesh == nullptr )
             {
                 return LogError( "Failed to read mesh from source file: %s" );

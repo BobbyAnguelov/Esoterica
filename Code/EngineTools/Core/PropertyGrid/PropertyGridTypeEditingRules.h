@@ -13,14 +13,17 @@ namespace EE
 }
 
 //-------------------------------------------------------------------------
+// Type Editing Rules
+//-------------------------------------------------------------------------
+// These classes provide additional editing rules/guidelines for the property grid to use when editing a given type
 
 namespace EE::PG
 {
-    class EE_ENGINETOOLS_API PropertyHelper
+    class EE_ENGINETOOLS_API TypeEditingRules
     {
     public:
 
-        virtual ~PropertyHelper() = default;
+        virtual ~TypeEditingRules() = default;
 
     public:
 
@@ -31,13 +34,13 @@ namespace EE::PG
     //-------------------------------------------------------------------------
 
     template<typename T>
-    class EE_ENGINETOOLS_API TPropertyHelper : public PropertyHelper
+    class EE_ENGINETOOLS_API TTypeEditingRules : public TypeEditingRules
     {
         static_assert( std::is_base_of<EE::IReflectedType, T>::value, "T is not derived from IReflectedType" );
 
     public:
 
-        TPropertyHelper( ToolsContext const* pToolsContext, T* pTypeInstance )
+        TTypeEditingRules( ToolsContext const* pToolsContext, T* pTypeInstance )
             : m_pTypeInstance( pTypeInstance )
         {}
 
@@ -47,18 +50,18 @@ namespace EE::PG
     };
 
     //-------------------------------------------------------------------------
-    // Property Grid Helper Factory
+    // Factory
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API PropertyGridHelperFactory : public TGlobalRegistryBase<PropertyGridHelperFactory>
+    class EE_ENGINETOOLS_API TypeEditingRulesFactory : public TGlobalRegistryBase<TypeEditingRulesFactory>
     {
-        EE_DECLARE_GLOBAL_REGISTRY( PropertyGridHelperFactory );
+        EE_DECLARE_GLOBAL_REGISTRY( TypeEditingRulesFactory );
 
     public:
 
-        virtual ~PropertyGridHelperFactory() = default;
+        virtual ~TypeEditingRulesFactory() = default;
 
-        static PropertyHelper* TryCreateHelper( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance );
+        static TypeEditingRules* TryCreateRules( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance );
 
     protected:
 
@@ -66,23 +69,23 @@ namespace EE::PG
         virtual TypeSystem::TypeID GetSupportedTypeID() const = 0;
 
         // Virtual method that will create a helper if the type ID matches the appropriate type
-        virtual PropertyHelper* TryCreateHelperInternal( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance ) const = 0;
+        virtual TypeEditingRules* TryCreateRulesInternal( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance ) const = 0;
     };
 
     //-------------------------------------------------------------------------
-    //  Macro to create a property grid helper factory
+    //  Macro to create a factory
     //-------------------------------------------------------------------------
-    // Use in a CPP to define a factory e.g., EE_PROPERTY_GRID_HELPER( ObjectSettingsHelperFactory, ObjectSettings );
+    // Use in a CPP to define a factory e.g., EE_PROPERTY_GRID_EDITING_RULES( ObjectSettingsHelperFactory, ObjectSettings );
 
-    #define EE_PROPERTY_GRID_HELPER( factoryName, editedType, helperClass )\
-    class factoryName final : public PG::PropertyGridHelperFactory\
+    #define EE_PROPERTY_GRID_EDITING_RULES( factoryName, editedType, rulesClass )\
+    class factoryName final : public PG::TypeEditingRulesFactory\
     {\
         virtual TypeSystem::TypeID GetSupportedTypeID() const override { return editedType::GetStaticTypeID(); }\
-        virtual PG::PropertyHelper* TryCreateHelperInternal( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance ) const override\
+        virtual PG::TypeEditingRules* TryCreateRulesInternal( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance ) const override\
         {\
             EE_ASSERT( pTypeInstance != nullptr );\
             EE_ASSERT( IsOfType<editedType>( pTypeInstance ) );\
-            return EE::New<helperClass>( pToolsContext, static_cast<editedType*>( pTypeInstance ) );\
+            return EE::New<rulesClass>( pToolsContext, static_cast<editedType*>( pTypeInstance ) );\
         }\
     };\
     static factoryName g_##factoryName;

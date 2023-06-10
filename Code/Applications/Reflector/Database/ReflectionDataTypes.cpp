@@ -102,6 +102,13 @@ namespace EE::TypeSystem::Reflection
             {
                 m_isToolsReadOnly = toolsReadOnlyValueIter->value.GetBool();
             }
+
+            auto const customEditorValueIter = metaDataObject.FindMember( "CustomEditor" );
+            if ( customEditorValueIter != metaDataObject.MemberEnd() )
+            {
+                char const* pEditorID = customEditorValueIter->value.GetString();
+                m_customEditorID = StringID( pEditorID );
+            }
         }
     }
 

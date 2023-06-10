@@ -63,12 +63,12 @@ namespace EE::VisualGraph
         : m_pUserContext( m_pUserContext )
     {
         EE_ASSERT( m_pUserContext != nullptr );
-        m_graphEndModificationBindingID = VisualGraph::BaseGraph::OnEndModification().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { OnGraphModified( pGraph ); } );
+        m_graphEndModificationBindingID = VisualGraph::BaseGraph::OnEndRootGraphModification().Bind( [this] ( VisualGraph::BaseGraph* pGraph ) { OnGraphModified( pGraph ); } );
     }
 
     GraphView::~GraphView()
     {
-        VisualGraph::BaseGraph::OnEndModification().Unbind( m_graphEndModificationBindingID );
+        VisualGraph::BaseGraph::OnEndRootGraphModification().Unbind( m_graphEndModificationBindingID );
     }
 
     void GraphView::OnGraphModified( VisualGraph::BaseGraph* pModifiedGraph )
@@ -929,6 +929,17 @@ namespace EE::VisualGraph
         AddToSelection( const_cast<BaseNode*>( pNode ) );
     }
 
+    void GraphView::SelectNodes( TVector<BaseNode const*> pNodes )
+    {
+        ClearSelection();
+
+        for ( auto pNode : pNodes )
+        {
+            EE_ASSERT( GetViewedGraph()->FindNode( pNode->GetID() ) != nullptr );
+            AddToSelection( const_cast<BaseNode*>( pNode ) );
+        }
+    }
+
     void GraphView::ClearSelection()
     {
         TVector<SelectedNode> oldSelection;
@@ -1285,7 +1296,8 @@ namespace EE::VisualGraph
 
             EE_ASSERT( !m_isReadOnly );
             ScopedNodeModification const snm( m_pNodeBeingRenamed );
-            String const uniqueName = m_pNodeBeingRenamed->GetParentGraph()->GetUniqueNameForRenameableNode( m_renameBuffer, m_pNodeBeingRenamed );
+            auto pParentGraph = m_pNodeBeingRenamed->GetParentGraph();
+            String const uniqueName = pParentGraph->GetUniqueNameForRenameableNode( m_renameBuffer, m_pNodeBeingRenamed );
             m_pNodeBeingRenamed->SetName( uniqueName );
         }
 

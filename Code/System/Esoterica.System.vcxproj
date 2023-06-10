@@ -17,6 +17,7 @@
   <ItemGroup>
     <ClInclude Include="Encoding\Hash.h" />
     <ClInclude Include="Encoding\Quantization.h" />
+    <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
     <ClInclude Include="Serialization\BitSerialization.h" />
     <ClInclude Include="ThirdParty\implot\implot.h" />
     <ClInclude Include="ThirdParty\implot\implot_internal.h" />

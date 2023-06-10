@@ -1,16 +1,15 @@
 #include "RawAssetReader.h"
-#include "Fbx/FbxSkeleton.h"
-#include "Fbx/FbxAnimation.h"
-#include "Fbx/FbxMesh.h"
-#include "gltf/gltfMesh.h"
-#include "gltf/gltfSkeleton.h"
-#include "gltf/gltfAnimation.h"
+#include "RawMesh.h"
+#include "RawSkeleton.h"
+#include "RawAnimation.h"
+#include "Formats/FBX.h"
+#include "Formats/GLTF.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::RawAssets
 {
-    static bool ValidateRawAsset( ReaderContext const& ctx, RawAssets::RawAsset const* pRawAsset )
+    static bool ValidateRawAsset( ReaderContext const& ctx, RawAsset const* pRawAsset )
     {
         if ( pRawAsset )
         {
@@ -32,11 +31,11 @@ namespace EE::RawAssets
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
+    TUniquePtr<RawMesh> ReadStaticMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
     {
         EE_ASSERT( sourceFilePath.IsValid() && ctx.IsValid() );
 
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = nullptr;
+        TUniquePtr<RawMesh> pRawMesh = nullptr;
 
         auto const extension = sourceFilePath.GetLowercaseExtensionAsString();
         if ( extension == "fbx" )
@@ -66,11 +65,11 @@ namespace EE::RawAssets
         return pRawMesh;
     }
 
-    TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
+    TUniquePtr<RawMesh> ReadSkeletalMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
     {
         EE_ASSERT( sourceFilePath.IsValid() && ctx.IsValid() );
 
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = nullptr;
+        TUniquePtr<RawMesh> pRawMesh = nullptr;
 
         auto const extension = sourceFilePath.GetLowercaseExtensionAsString();
         if ( extension == "fbx" )
@@ -100,11 +99,11 @@ namespace EE::RawAssets
         return pRawMesh;
     }
 
-    TUniquePtr<RawAssets::RawSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+    TUniquePtr<RawSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
     {
         EE_ASSERT( sourceFilePath.IsValid() && ctx.IsValid() );
 
-        TUniquePtr<RawAssets::RawSkeleton> pRawSkeleton = nullptr;
+        TUniquePtr<RawSkeleton> pRawSkeleton = nullptr;
 
         auto const extension = sourceFilePath.GetLowercaseExtensionAsString();
         if ( extension == "fbx" )
@@ -134,11 +133,11 @@ namespace EE::RawAssets
         return pRawSkeleton;
     }
 
-    TUniquePtr<RawAssets::RawAnimation> ReadAnimation( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, RawAssets::RawSkeleton const& rawSkeleton, String const& animationName )
+    TUniquePtr<RawAnimation> ReadAnimation( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, RawSkeleton const& rawSkeleton, String const& animationName )
     {
         EE_ASSERT( ctx.IsValid() && sourceFilePath.IsValid() && rawSkeleton.IsValid() );
 
-        TUniquePtr<RawAssets::RawAnimation> pRawAnimation = nullptr;
+        TUniquePtr<RawAnimation> pRawAnimation = nullptr;
 
         auto const extension = sourceFilePath.GetLowercaseExtensionAsString();
         if ( extension == "fbx" )

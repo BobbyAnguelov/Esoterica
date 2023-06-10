@@ -810,7 +810,7 @@ namespace EE::ImGuiX
     // Advanced Widgets
     //-------------------------------------------------------------------------
 
-    bool FilterWidget::DrawAndUpdate( float width, TBitFlags<Options> options )
+    bool FilterWidget::DrawAndUpdate( float width, TBitFlags<Flags> flags )
     {
         bool filterUpdated = false;
         ImGui::PushID( this );
@@ -822,7 +822,7 @@ namespace EE::ImGuiX
         ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg] );
         if ( ImGui::BeginChild( "FilterLayout", ImVec2( width, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NoScrollbar ) )
         {
-            if ( options.IsFlagSet( Options::TakeInitialFocus ) )
+            if ( flags.IsFlagSet( Flags::TakeInitialFocus ) )
             {
                 if ( ImGui::IsWindowAppearing() )
                 {

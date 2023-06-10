@@ -32,6 +32,8 @@ namespace EE::Resource
             return false;
         }
 
+        CreateTables();
+
         return true;
     }
 

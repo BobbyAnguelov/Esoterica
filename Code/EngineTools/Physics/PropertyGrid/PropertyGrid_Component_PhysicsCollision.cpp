@@ -1,13 +1,13 @@
-#include "EngineTools/Core/PropertyGrid/PropertyGridHelper.h"
+#include "EngineTools/Core/PropertyGrid/PropertyGridTypeEditingRules.h"
 #include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    class CollisionComponentPropertyHelper : public PG::TPropertyHelper<CollisionMeshComponent>
+    class CollisionComponentEditingRules : public PG::TTypeEditingRules<CollisionMeshComponent>
     {
-        using PG::TPropertyHelper<CollisionMeshComponent>::TPropertyHelper;
+        using PG::TTypeEditingRules<CollisionMeshComponent>::TTypeEditingRules;
 
         virtual bool IsReadOnly( StringID const& propertyID ) override
         {
@@ -25,5 +25,5 @@ namespace EE::Physics
         }
     };
 
-    EE_PROPERTY_GRID_HELPER( BodySettingsHelperFactory, CollisionMeshComponent, CollisionComponentPropertyHelper );
+    EE_PROPERTY_GRID_EDITING_RULES( BodySettingsHelperFactory, CollisionMeshComponent, CollisionComponentEditingRules );
 }

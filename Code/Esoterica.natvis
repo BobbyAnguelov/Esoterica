@@ -71,7 +71,7 @@
   </Type>
 
   <Type Name="EE::TypeSystem::TypeID">
-    <DisplayString>Test = {m_ID}</DisplayString>
+    <DisplayString>{m_ID}</DisplayString>
   </Type>
 
   <Type Name="EE::UUID">

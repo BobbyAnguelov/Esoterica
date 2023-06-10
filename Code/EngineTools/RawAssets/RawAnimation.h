@@ -35,8 +35,6 @@ namespace EE::RawAssets
         virtual bool IsValid() const override final { return m_numFrames > 0; }
 
         inline bool IsAdditive() const { return m_isAdditive; }
-        inline Seconds GetStartFrameTime() const { return m_start; }
-        inline Seconds GetEndFrameTime() const { return m_end; }
         inline Seconds GetDuration() const { return m_duration; }
         inline int32_t GetNumFrames() const { return m_numFrames; }
         inline float GetSamplingFrameRate() const { return m_samplingFrameRate; }
@@ -56,7 +54,10 @@ namespace EE::RawAssets
         void RegenerateLocalTransforms();
 
         // Generate Additive Data
-        void GenerateAdditiveData();
+        void MakeAdditiveRelativeToSkeleton();
+
+        // Generate Additive Data
+        void MakeAdditiveRelativeToAnimation( RawAnimation const& baseAnimation );
 
     private:
 
@@ -66,8 +67,6 @@ namespace EE::RawAssets
 
         RawSkeleton const                   m_skeleton;
         float                               m_samplingFrameRate = 0;
-        Seconds                             m_start = 0;
-        Seconds                             m_end = 0;
         Seconds                             m_duration = 0.0f;
         int32_t                             m_numFrames = 0;
         TVector<TrackData>                  m_tracks;

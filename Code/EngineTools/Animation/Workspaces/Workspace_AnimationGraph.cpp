@@ -9,6 +9,7 @@
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachineGraph.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
+#include "EngineTools/Core/PropertyGrid/PropertyGridEditor.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Animation/DebugViews/DebugView_Animation.h"
@@ -18,10 +19,751 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
+#include "System/Imgui/ImguiFilteredCombo.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "EASTL/sort.h"
 
+//-------------------------------------------------------------------------
+// Widgets
+//-------------------------------------------------------------------------
+
+namespace EE::Animation
+{
+    class IDComboWidget : public ImGuiX::ComboWithFilterWidget<StringID>
+    {
+
+    public:
+
+        IDComboWidget( AnimationGraphWorkspace* pGraphWorkspace )
+            : ImGuiX::ComboWithFilterWidget<StringID>( Flags::HidePreview )
+            , m_pGraphWorkspace( pGraphWorkspace )
+        {
+            EE_ASSERT( m_pGraphWorkspace != nullptr );
+        }
+
+    private:
+
+        virtual void PopulateOptionsList() override
+        {
+            TVector<StringID> foundIDs;
+
+            // Get all IDs in the graph
+            auto pRootGraph = m_pGraphWorkspace->GetEditedRootGraph();
+            auto const foundNodes = pRootGraph->FindAllNodesOfType<VisualGraph::BaseNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+            for ( auto pNode : foundNodes )
+            {
+                if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+                {
+                    pStateNode->GetLogicAndEventIDs( foundIDs );
+                }
+                else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+                {
+                    pFlowNode->GetLogicAndEventIDs( foundIDs );
+                }
+            }
+
+            // De-duplicate and remove invalid IDs
+            TVector<StringID> sortedIDlist;
+            sortedIDlist.clear();
+
+            for ( auto ID : foundIDs )
+            {
+                if ( !ID.IsValid() )
+                {
+                    continue;
+                }
+
+                if ( VectorContains( sortedIDlist, ID ) )
+                {
+                    continue;
+                }
+
+                sortedIDlist.emplace_back( ID );
+            }
+
+            // Sort
+            auto Comparator = [] ( StringID const& a, StringID const& b ) { return strcmp( a.c_str(), b.c_str() ) < 0; };
+            eastl::sort( sortedIDlist.begin(), sortedIDlist.end(), Comparator );
+
+            // Add empty option
+            auto& emptyOpt = m_options.emplace_back();
+            emptyOpt.m_label = "##Invalid";
+            emptyOpt.m_filterComparator = "";
+            emptyOpt.m_value = StringID();
+
+            // Create options
+            for ( auto const& ID : sortedIDlist )
+            {
+                if ( !ID.IsValid() )
+                {
+                    continue;
+                }
+
+                auto& opt = m_options.emplace_back();
+                opt.m_label = ID.c_str();
+                opt.m_filterComparator = ID.c_str();
+                opt.m_filterComparator.make_lower();
+                opt.m_value = ID;
+            }
+        };
+
+    private:
+
+        AnimationGraphWorkspace* m_pGraphWorkspace = nullptr;
+    };
+}
+
+//-------------------------------------------------------------------------
+// Control Parameter Preview States
+//-------------------------------------------------------------------------
+
+namespace EE::Animation
+{
+    AnimationGraphWorkspace::ControlParameterPreviewState::ControlParameterPreviewState( AnimationGraphWorkspace* pGraphWorkspace, GraphNodes::ControlParameterToolsNode* pParameter )
+        : m_pGraphWorkspace( pGraphWorkspace)
+        , m_pParameter( pParameter ) 
+    {
+        EE_ASSERT( m_pGraphWorkspace != nullptr );
+        EE_ASSERT( m_pParameter != nullptr ); 
+    }
+
+    inline int16_t AnimationGraphWorkspace::ControlParameterPreviewState::GetRuntimeGraphNodeIndex( UUID const& nodeID ) const
+    {
+        EE_ASSERT( m_pGraphWorkspace != nullptr );
+        auto const foundIter = m_pGraphWorkspace->GetEditedGraphData()->m_nodeIDtoIndexMap.find( nodeID );
+        if ( foundIter != m_pGraphWorkspace->GetEditedGraphData()->m_nodeIDtoIndexMap.end() )
+        {
+            return foundIter->second;
+        }
+
+        return InvalidIndex;
+    }
+
+    //-------------------------------------------------------------------------
+
+    class AnimationGraphWorkspace::BoolParameterState : public AnimationGraphWorkspace::ControlParameterPreviewState
+    {
+        using ControlParameterPreviewState::ControlParameterPreviewState;
+
+        virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            auto value = GetGraphInstance()->GetControlParameterValue<bool>( parameterIdx );
+            if ( ImGui::Checkbox( "##bp", &value ) )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            }
+        }
+    };
+
+    //-------------------------------------------------------------------------
+
+    class AnimationGraphWorkspace::IntParameterState : public ControlParameterPreviewState
+    {
+        using ControlParameterPreviewState::ControlParameterPreviewState;
+
+        virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            auto value = GetGraphInstance()->GetControlParameterValue<int32_t>( parameterIdx );
+            ImGui::SetNextItemWidth( -1 );
+            if ( ImGui::InputInt( "##ip", &value ) )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            }
+
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            }
+        }
+    };
+
+    //-------------------------------------------------------------------------
+
+    class AnimationGraphWorkspace::FloatParameterState : public ControlParameterPreviewState
+    {
+    public:
+
+        FloatParameterState( AnimationGraphWorkspace* pGraphWorkspace, GraphNodes::ControlParameterToolsNode* pParameter )
+            : ControlParameterPreviewState( pGraphWorkspace, pParameter )
+        {
+            auto pFloatParameter = Cast<GraphNodes::FloatControlParameterToolsNode>( pParameter );
+            m_min = pFloatParameter->GetPreviewRangeMin();
+            m_max = pFloatParameter->GetPreviewRangeMax();
+        }
+
+    private:
+
+        virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            float value = GetGraphInstance()->GetControlParameterValue<float>( parameterIdx );
+
+            //-------------------------------------------------------------------------
+
+            auto UpdateLimits = [this, &value, parameterIdx] ()
+            {
+                if ( m_min > m_max )
+                {
+                    m_max = m_min;
+                }
+
+                // Clamp the value to the range
+                value = Math::Clamp( value, m_min, m_max );
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            };
+
+            //-------------------------------------------------------------------------
+
+            constexpr float const limitWidth = 40;
+
+            ImGui::SetNextItemWidth( limitWidth );
+            if ( ImGui::InputFloat( "##min", &m_min, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue ) )
+            {
+                UpdateLimits();
+            }
+
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                UpdateLimits();
+            }
+
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - limitWidth - ImGui::GetStyle().ItemSpacing.x );
+            if ( ImGui::SliderFloat( "##fp", &value, m_min, m_max ) )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            }
+
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            }
+
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth( limitWidth );
+            if ( ImGui::InputFloat( "##max", &m_max, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue ) )
+            {
+                UpdateLimits();
+            }
+
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                UpdateLimits();
+            }
+        }
+
+    private:
+
+        float m_min = 0.0f;
+        float m_max = 1.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class AnimationGraphWorkspace::VectorParameterState : public ControlParameterPreviewState
+    {
+        using ControlParameterPreviewState::ControlParameterPreviewState;
+
+        virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            Float4 basicEditorValue = GetGraphInstance()->GetControlParameterValue<Vector>( parameterIdx );
+
+            // Basic Editor
+            //-------------------------------------------------------------------------
+
+            ImGui::BeginDisabled( m_showAdvancedEditor );
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
+            if ( ImGui::InputFloat4( "##vp", &basicEditorValue.m_x ) )
+            {
+                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( basicEditorValue ) );
+            }
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+
+            ImColor const buttonColor = m_showAdvancedEditor ? ImGuiX::ImColors::Green : ImGuiX::Style::s_colorGray1;
+            if ( ImGuiX::ColoredButton( buttonColor, ImGuiX::ImColors::White, EE_ICON_COG, ImVec2( 24, 0 ) ) )
+            {
+                m_showAdvancedEditor = !m_showAdvancedEditor;
+                m_maxLength = 1.0f;
+                m_selectedStickComboItem = 0;
+                m_convertToCharacterSpace = false;
+                m_isEditingValueWithMouse = false;
+                m_invertStickX = m_invertStickY = false;
+            }
+            ImGuiX::ItemTooltip( "Advanced Editor" );
+
+            // Advanced Editor
+            //-------------------------------------------------------------------------
+
+            if ( m_showAdvancedEditor )
+            {
+                Float4 advancedEditorValue = basicEditorValue;
+
+                if ( m_convertToCharacterSpace )
+                {
+                    advancedEditorValue = characterWorldTransform.RotateVector( advancedEditorValue );
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 2, 2 ) );
+                if ( ImGui::BeginChild( "#CW", ImVec2( 0, 100 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+                {
+                    char const* const comboOptions[] = { "Mouse", "Left Stick", "Right Stick" };
+                    constexpr float const labelOffset = 110.0f;
+                    constexpr float const widgetOffset = 175;
+
+                    Float2 const previousValueRatio( advancedEditorValue.m_x / m_maxLength, advancedEditorValue.m_y / m_maxLength );
+
+                    ImGui::SameLine( labelOffset );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "XY Radius" );
+                    ImGui::SameLine( widgetOffset );
+                    ImGui::SetNextItemWidth( -1 );
+                    if ( ImGui::InputFloat( "##L", &m_maxLength ) )
+                    {
+                        if ( m_maxLength <= 0.0 )
+                        {
+                            m_maxLength = 0.01f;
+                        }
+
+                        advancedEditorValue.m_x = ( previousValueRatio.m_x * m_maxLength );
+                        advancedEditorValue.m_y = ( previousValueRatio.m_y * m_maxLength );
+
+                        if ( m_convertToCharacterSpace )
+                        {
+                            Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
+                            GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, paramValue );
+                        }
+                        else
+                        {
+                            GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( advancedEditorValue ) );
+                        }
+                    }
+                    ImGuiX::ItemTooltip( "Max Length" );
+
+                    ImGui::NewLine();
+
+                    ImGui::SameLine( labelOffset );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Z" );
+                    ImGui::SameLine( widgetOffset );
+                    ImGui::SetNextItemWidth( -1 );
+                    if ( ImGui::DragFloat( "##Z", &advancedEditorValue.m_z, 0.01f ) )
+                    {
+                        GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( advancedEditorValue ) );
+                    }
+                    ImGuiX::ItemTooltip( "Z-Value" );
+
+                    ImGui::NewLine();
+
+                    ImGui::SameLine( labelOffset );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Control" );
+                    ImGui::SameLine( widgetOffset );
+                    ImGui::SetNextItemWidth( -1 );
+                    ImGui::Combo( "##SC", &m_selectedStickComboItem, comboOptions, 3 );
+                    ImGuiX::ItemTooltip( "Control" );
+
+                    ImGui::NewLine();
+
+                    ImGui::SameLine( labelOffset );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( "Convert CS" );
+                    ImGui::SameLine( widgetOffset );
+                    ImGui::Checkbox( "##WS", &m_convertToCharacterSpace );
+                    ImGuiX::ItemTooltip( "Convert this (world space) vector to character space" );
+
+                    ImGui::BeginDisabled( m_selectedStickComboItem == 0 );
+                    ImGui::SameLine( 0, 10 );
+                    ImGui::Text( "Inv. X" );
+                    ImGui::SameLine();
+                    ImGui::Checkbox( "##ISX", &m_invertStickX );
+                    ImGuiX::ItemTooltip( "Invert the stick X axis" );
+
+                    ImGui::SameLine( 0, 10 );
+                    ImGui::Text( "Inv. Y" );
+                    ImGui::SameLine();
+                    ImGui::Checkbox( "##ISY", &m_invertStickY );
+                    ImGuiX::ItemTooltip( "Invert the stick Y axis" );
+                    ImGui::EndDisabled();
+
+                    //-------------------------------------------------------------------------
+
+                    constexpr float const circleRadius = 45.0f;
+                    constexpr float const dotRadius = 5.0f;
+                    ImVec2 const circleOrigin = ImGui::GetWindowPos() + ImVec2( circleRadius + 5, circleRadius + 5 );
+
+                    auto pDrawList = ImGui::GetWindowDrawList();
+                    pDrawList->AddCircle( circleOrigin, circleRadius, 0xFFFFFFFF, 0, 2.0f );
+                    pDrawList->AddCircleFilled( circleOrigin, 1, 0xFFFFFFFF, 0 );
+
+                    // Stick Control
+                    //-------------------------------------------------------------------------
+
+                    if ( m_selectedStickComboItem != 0 )
+                    {
+                        Float2 scaledStickValue( 0, 0 );
+
+                        auto pInputState = context.GetSystem<Input::InputSystem>()->GetControllerState( 0 );
+                        if ( m_selectedStickComboItem == 1 )
+                        {
+                            scaledStickValue = pInputState->GetLeftAnalogStickValue() * m_maxLength;
+                        }
+                        else // Right stick
+                        {
+                            scaledStickValue = pInputState->GetRightAnalogStickValue() * m_maxLength;
+                        }
+
+                        advancedEditorValue.m_x = scaledStickValue.m_x;
+                        advancedEditorValue.m_y = scaledStickValue.m_y;
+
+                        Float4 paramValue = advancedEditorValue;
+                        if ( m_invertStickX )
+                        {
+                            paramValue.m_x = -paramValue.m_x;
+                        }
+
+                        if ( m_invertStickY )
+                        {
+                            paramValue.m_y = -paramValue.m_y;
+                        }
+
+                        if ( m_convertToCharacterSpace )
+                        {
+                            paramValue = characterWorldTransform.InverseRotateVector( paramValue );
+                        }
+
+                        GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( paramValue ) );
+
+                        //-------------------------------------------------------------------------
+
+                        float const scale = circleRadius / m_maxLength;
+                        ImVec2 const offset( advancedEditorValue.m_x * scale, -advancedEditorValue.m_y * scale );
+                        ImVec2 const dotOrigin = circleOrigin + offset;
+                        pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ImColors::LimeGreen );
+                    }
+                    else // Mouse Control
+                    {
+                        Vector const mousePos = ImGui::GetMousePos();
+
+                        constexpr float const editRegionRadius = 10.0f;
+                        float const distanceFromCircleOrigin = mousePos.GetDistance2( circleOrigin );
+
+                        // Manage edit state
+                        if ( !m_isEditingValueWithMouse )
+                        {
+                            // Should we start editing
+                            if ( ImGui::IsWindowFocused() && distanceFromCircleOrigin < ( circleRadius + editRegionRadius ) && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 2.0f ) )
+                            {
+                                m_isEditingValueWithMouse = true;
+                            }
+                        }
+                        else // Check if we should stop editing
+                        {
+                            if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
+                            {
+                                m_isEditingValueWithMouse = false;
+                            }
+                        }
+
+                        // Update the value
+                        if ( m_isEditingValueWithMouse )
+                        {
+                            float const distanceFromCircleOriginPercentage = Math::Min( 1.0f, distanceFromCircleOrigin / circleRadius );
+                            Float4 const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
+                            advancedEditorValue.m_x = newValue.m_x;
+                            advancedEditorValue.m_y = -newValue.m_y;
+
+                            if ( m_convertToCharacterSpace )
+                            {
+                                Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
+                                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, paramValue );
+                            }
+                            else
+                            {
+                                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( advancedEditorValue ) );
+                            }
+                        }
+
+                        // Calculate offset and dot position and draw dot
+                        ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
+                        ImVec2 const dotOrigin = circleOrigin + offset;
+                        pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ToIm( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
+                    }
+                }
+                ImGui::EndChild();
+                ImGui::PopStyleVar();
+            }
+        }
+
+    public:
+
+        bool        m_showAdvancedEditor = false;
+        float       m_maxLength = 1.0f;
+        int32_t     m_selectedStickComboItem = 0;
+        bool        m_convertToCharacterSpace = false;
+        bool        m_isEditingValueWithMouse = false;
+        bool        m_invertStickX = true;
+        bool        m_invertStickY = true;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class AnimationGraphWorkspace::IDParameterState : public ControlParameterPreviewState
+    {
+    public:
+
+        IDParameterState( AnimationGraphWorkspace* pGraphWorkspace, GraphNodes::ControlParameterToolsNode* pParameter )
+            : ControlParameterPreviewState( pGraphWorkspace, pParameter )
+            , m_comboWidget( pGraphWorkspace )
+        {}
+
+    private:
+
+        virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            auto value = GetGraphInstance()->GetControlParameterValue<StringID>( parameterIdx );
+            if ( value.IsValid() )
+            {
+                strncpy_s( m_buffer, 255, value.c_str(), strlen( value.c_str() ) );
+            }
+            else
+            {
+                memset( m_buffer, 0, 255 );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 24 );
+            if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
+            }
+
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SameLine(0, 0);
+            if ( m_comboWidget.DrawAndUpdate() )
+            {
+                StringID ID;
+                if ( m_comboWidget.HasValidSelection() )
+                {
+                    ID = m_comboWidget.GetSelectedOption()->m_value;
+                }
+
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, ID );
+            }
+        }
+
+    private:
+
+        char                m_buffer[256] = { 0 };
+        IDComboWidget       m_comboWidget;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class AnimationGraphWorkspace::TargetParameterState : public ControlParameterPreviewState
+    {
+        using ControlParameterPreviewState::ControlParameterPreviewState;
+
+        virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+
+            Target value = GetGraphInstance()->GetControlParameterValue<Target>( parameterIdx );
+
+            // Reflect actual state
+            //-------------------------------------------------------------------------
+
+            m_isSet = value.IsTargetSet();
+            m_isBoneTarget = value.IsBoneTarget();
+
+            if ( m_isBoneTarget )
+            {
+                StringID const boneID = value.GetBoneID();
+                if ( boneID.IsValid() )
+                {
+                    strncpy_s( m_buffer, 255, boneID.c_str(), strlen( boneID.c_str() ) );
+                }
+                else
+                {
+                    memset( m_buffer, 0, 255 );
+                }
+
+                m_useBoneSpaceOffsets = value.IsUsingBoneSpaceOffsets();
+            }
+
+            if ( m_isBoneTarget && value.HasOffsets() )
+            {
+                m_rotationOffset = value.GetRotationOffset().ToEulerAngles();
+                m_translationOffset = value.GetTranslationOffset().ToFloat3();
+            }
+
+            if ( m_isSet && !m_isBoneTarget )
+            {
+                m_transform = value.GetTransform();
+            }
+
+            //-------------------------------------------------------------------------
+
+            bool updateValue = false;
+
+            //-------------------------------------------------------------------------
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "Is Set:" );
+            ImGui::SameLine();
+
+            if ( ImGui::Checkbox( "##IsSet", &m_isSet ) )
+            {
+                updateValue = true;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( m_isSet )
+            {
+                ImGui::SameLine( 0, 8 );
+                ImGui::Text( "Is Bone:" );
+                ImGui::SameLine();
+
+                if ( ImGui::Checkbox( "##IsBone", &m_isBoneTarget ) )
+                {
+                    updateValue = true;
+                }
+
+                if ( m_isBoneTarget )
+                {
+                    if ( ImGui::BeginTable( "BoneSettings", 2 ) )
+                    {
+                        ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 45 );
+                        ImGui::TableSetupColumn( "Editor", ImGuiTableColumnFlags_WidthStretch );
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::AlignTextToFramePadding();
+                        {
+                            ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
+                            ImGui::Text( "Bone ID" );
+                        }
+
+                        ImGui::TableNextColumn();
+                        if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+                        {
+                            updateValue = true;
+                        }
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::AlignTextToFramePadding();
+                        {
+                            ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
+                            ImGui::Text( "Offset R" );
+                        }
+
+                        ImGui::TableNextColumn();
+                        Float3 degrees = m_rotationOffset.GetAsDegrees();
+                        if ( ImGuiX::InputFloat3( "##RotationOffset", degrees ) )
+                        {
+                            m_rotationOffset = EulerAngles( degrees );
+                            updateValue = true;
+                        }
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::AlignTextToFramePadding();
+
+                        {
+                            ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
+                            ImGui::Text( "Offset T" );
+                        }
+
+                        ImGui::TableNextColumn();
+                        if ( ImGuiX::InputFloat3( "##TranslationOffset", m_translationOffset ) )
+                        {
+                            updateValue = true;
+                        }
+
+                        ImGui::EndTable();
+                    }
+                }
+                else
+                {
+                    if ( ImGuiX::InputTransform( "##Transform", m_transform ) )
+                    {
+                        updateValue = true;
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( updateValue )
+            {
+                if ( m_isSet )
+                {
+                    if ( m_isBoneTarget )
+                    {
+                        value = Target( StringID( m_buffer ) );
+
+                        if ( !Quaternion( m_rotationOffset ).IsIdentity() || !Vector( m_translationOffset ).IsNearZero3() )
+                        {
+                            value.SetOffsets( Quaternion( m_rotationOffset ), m_translationOffset, m_useBoneSpaceOffsets );
+                        }
+                    }
+                    else
+                    {
+                        value = Target( m_transform );
+                    }
+                }
+                else
+                {
+                    value = Target();
+                }
+
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+            }
+        }
+
+    private:
+
+        bool            m_isSet = false;
+        bool            m_isBoneTarget = false;
+        bool            m_useBoneSpaceOffsets = false;
+        char            m_buffer[256] = { 0 };
+        EulerAngles     m_rotationOffset;
+        Float3          m_translationOffset = Float3::Zero;
+        Transform       m_transform = Transform::Identity;
+    };
+}
+
+//-------------------------------------------------------------------------
+// Workspace
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
@@ -45,14 +787,14 @@ namespace EE::Animation
     {
         Serialization::JsonArchiveReader archive;
         archive.ReadFromString( m_valueBefore.c_str() );
-        m_pWorkspace->GetMainGraphData()->m_graphDefinition.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
+        m_pWorkspace->GetEditedGraphData()->m_graphDefinition.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
     }
 
     void GraphUndoableAction::Redo()
     {
         Serialization::JsonArchiveReader archive;
         archive.ReadFromString( m_valueAfter.c_str() );
-        m_pWorkspace->GetMainGraphData()->m_graphDefinition.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
+        m_pWorkspace->GetEditedGraphData()->m_graphDefinition.LoadFromJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
     }
 
     void GraphUndoableAction::SerializeBeforeState()
@@ -63,7 +805,7 @@ namespace EE::Animation
         }
 
         Serialization::JsonArchiveWriter archive;
-        m_pWorkspace->GetMainGraphData()->m_graphDefinition.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
+        m_pWorkspace->GetEditedGraphData()->m_graphDefinition.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
         m_valueBefore.resize( archive.GetStringBuffer().GetSize() );
         memcpy( m_valueBefore.data(), archive.GetStringBuffer().GetString(), archive.GetStringBuffer().GetSize() );
     }
@@ -71,597 +813,9 @@ namespace EE::Animation
     void GraphUndoableAction::SerializeAfterState()
     {
         Serialization::JsonArchiveWriter archive;
-        m_pWorkspace->GetMainGraphData()->m_graphDefinition.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
+        m_pWorkspace->GetEditedGraphData()->m_graphDefinition.SaveToJson( *m_pWorkspace->m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
         m_valueAfter.resize( archive.GetStringBuffer().GetSize() );
         memcpy( m_valueAfter.data(), archive.GetStringBuffer().GetString(), archive.GetStringBuffer().GetSize() );
-    }
-
-    //-------------------------------------------------------------------------
-
-    class ControlParameterPreviewState
-    {
-    public:
-
-        ControlParameterPreviewState( GraphNodes::ControlParameterToolsNode* pParameter ) : m_pParameter( pParameter ) { EE_ASSERT( m_pParameter != nullptr ); }
-        virtual ~ControlParameterPreviewState() = default;
-
-        virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) = 0;
-
-    protected:
-
-        inline int16_t GetRuntimeGraphNodeIndex( AnimationGraphWorkspace::GraphData* pMainGraphData, UUID const& nodeID ) const
-        {
-            auto const foundIter = pMainGraphData->m_nodeIDtoIndexMap.find( nodeID );
-            if ( foundIter != pMainGraphData->m_nodeIDtoIndexMap.end() )
-            {
-                return foundIter->second;
-            }
-
-            return InvalidIndex;
-        }
-
-    public:
-
-        GraphNodes::ControlParameterToolsNode*     m_pParameter = nullptr;
-    };
-
-    namespace
-    {
-        struct BoolParameterState : public ControlParameterPreviewState
-        {
-            using ControlParameterPreviewState::ControlParameterPreviewState;
-
-            virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) override
-            {
-                int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
-                EE_ASSERT( parameterIdx != InvalidIndex );
-
-                auto value = pMainGraphData->m_pGraphInstance->GetControlParameterValue<bool>( parameterIdx );
-                if ( ImGui::Checkbox( "##bp", &value ) )
-                {
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
-                }
-            }
-        };
-
-        struct IntParameterState : public ControlParameterPreviewState
-        {
-            using ControlParameterPreviewState::ControlParameterPreviewState;
-
-            virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) override
-            {
-                int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
-                EE_ASSERT( parameterIdx != InvalidIndex );
-
-                auto value = pMainGraphData->m_pGraphInstance->GetControlParameterValue<int32_t>( parameterIdx );
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputInt( "##ip", &value ) )
-                {
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
-                }
-            }
-        };
-
-        struct FloatParameterState : public ControlParameterPreviewState
-        {
-            FloatParameterState( GraphNodes::ControlParameterToolsNode* pParameter )
-                : ControlParameterPreviewState( pParameter )
-            {
-                auto pFloatParameter = Cast<GraphNodes::FloatControlParameterToolsNode>( pParameter );
-                m_min = pFloatParameter->GetPreviewRangeMin();
-                m_max = pFloatParameter->GetPreviewRangeMax();
-            }
-
-            virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) override
-            {
-                int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
-                EE_ASSERT( parameterIdx != InvalidIndex );
-
-                float value = pMainGraphData->m_pGraphInstance->GetControlParameterValue<float>( parameterIdx );
-
-                //-------------------------------------------------------------------------
-
-                auto UpdateLimits = [this, pMainGraphData, &value, parameterIdx] ()
-                {
-                    if ( m_min > m_max )
-                    {
-                        m_max = m_min;
-                    }
-
-                    // Clamp the value to the range
-                    value = Math::Clamp( value, m_min, m_max );
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
-                };
-
-                //-------------------------------------------------------------------------
-
-                constexpr float const limitWidth = 40;
-
-                ImGui::SetNextItemWidth( limitWidth );
-                if ( ImGui::InputFloat( "##min", &m_min, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue ) )
-                {
-                    UpdateLimits();
-                }
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - limitWidth - ImGui::GetStyle().ItemSpacing.x );
-                if ( ImGui::SliderFloat( "##fp", &value, m_min, m_max ) )
-                {
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
-                }
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth( limitWidth );
-                if ( ImGui::InputFloat( "##max", &m_max, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue ) )
-                {
-                    UpdateLimits();
-                }
-            }
-
-        private:
-
-            float m_min = 0.0f;
-            float m_max = 1.0f;
-        };
-
-        struct VectorParameterState : public ControlParameterPreviewState
-        {
-            using ControlParameterPreviewState::ControlParameterPreviewState;
-
-            virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) override
-            {
-                int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
-                EE_ASSERT( parameterIdx != InvalidIndex );
-
-                Float4 basicEditorValue = pMainGraphData->m_pGraphInstance->GetControlParameterValue<Vector>( parameterIdx );
-
-                // Basic Editor
-                //-------------------------------------------------------------------------
-
-                ImGui::BeginDisabled( m_showAdvancedEditor );
-                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
-                if ( ImGui::InputFloat4( "##vp", &basicEditorValue.m_x ) )
-                {
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, basicEditorValue );
-                }
-                ImGui::EndDisabled();
-
-                ImGui::SameLine();
-
-                ImColor const buttonColor = m_showAdvancedEditor ? ImGuiX::ImColors::Green : ImGuiX::Style::s_colorGray1;
-                if ( ImGuiX::ColoredButton( buttonColor, ImGuiX::ImColors::White, EE_ICON_COG, ImVec2( 24, 0 ) ) )
-                {
-                    m_showAdvancedEditor = !m_showAdvancedEditor;
-                    m_maxLength = 1.0f;
-                    m_selectedStickComboItem = 0;
-                    m_convertToCharacterSpace = false;
-                    m_isEditingValueWithMouse = false;
-                    m_invertStickX = m_invertStickY = false;
-                }
-                ImGuiX::ItemTooltip( "Advanced Editor" );
-
-                // Advanced Editor
-                //-------------------------------------------------------------------------
-
-                if ( m_showAdvancedEditor )
-                {
-                    Float4 advancedEditorValue = basicEditorValue;
-
-                    if ( m_convertToCharacterSpace )
-                    {
-                        advancedEditorValue = characterWorldTransform.RotateVector( advancedEditorValue );
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-                    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 2, 2 ) );
-                    if ( ImGui::BeginChild( "#CW", ImVec2( 0, 100 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
-                    {
-                        char const* const comboOptions[] = { "Mouse", "Left Stick", "Right Stick" };
-                        constexpr float const labelOffset = 110.0f;
-                        constexpr float const widgetOffset = 175;
-
-                        Float2 const previousValueRatio( advancedEditorValue.m_x / m_maxLength, advancedEditorValue.m_y / m_maxLength );
-
-                        ImGui::SameLine( labelOffset );
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( "XY Radius" );
-                        ImGui::SameLine( widgetOffset );
-                        ImGui::SetNextItemWidth( -1 );
-                        if ( ImGui::InputFloat( "##L", &m_maxLength ) )
-                        {
-                            if ( m_maxLength <= 0.0 )
-                            {
-                                m_maxLength = 0.01f;
-                            }
-
-                            advancedEditorValue.m_x = ( previousValueRatio.m_x * m_maxLength );
-                            advancedEditorValue.m_y = ( previousValueRatio.m_y * m_maxLength );
-
-                            if ( m_convertToCharacterSpace )
-                            {
-                                Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
-                                pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, paramValue );
-                            }
-                            else
-                            {
-                                pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, advancedEditorValue );
-                            }
-                        }
-                        ImGuiX::ItemTooltip( "Max Length" );
-
-                        ImGui::NewLine();
-
-                        ImGui::SameLine( labelOffset );
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( "Z" );
-                        ImGui::SameLine( widgetOffset );
-                        ImGui::SetNextItemWidth( -1 );
-                        if ( ImGui::DragFloat( "##Z", &advancedEditorValue.m_z, 0.01f ) )
-                        {
-                            pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, advancedEditorValue );
-                        }
-                        ImGuiX::ItemTooltip( "Z-Value" );
-
-                        ImGui::NewLine();
-
-                        ImGui::SameLine( labelOffset );
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( "Control" );
-                        ImGui::SameLine( widgetOffset );
-                        ImGui::SetNextItemWidth( -1 );
-                        ImGui::Combo( "##SC", &m_selectedStickComboItem, comboOptions, 3 );
-                        ImGuiX::ItemTooltip( "Control" );
-
-                        ImGui::NewLine();
-
-                        ImGui::SameLine( labelOffset );
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( "Convert CS" );
-                        ImGui::SameLine( widgetOffset );
-                        ImGui::Checkbox( "##WS", &m_convertToCharacterSpace );
-                        ImGuiX::ItemTooltip( "Convert this (world space) vector to character space" );
-
-                        ImGui::BeginDisabled( m_selectedStickComboItem == 0 );
-                        ImGui::SameLine( 0, 10 );
-                        ImGui::Text( "Inv. X" );
-                        ImGui::SameLine();
-                        ImGui::Checkbox( "##ISX", &m_invertStickX );
-                        ImGuiX::ItemTooltip( "Invert the stick X axis" );
-
-                        ImGui::SameLine( 0, 10 );
-                        ImGui::Text( "Inv. Y" );
-                        ImGui::SameLine();
-                        ImGui::Checkbox( "##ISY", &m_invertStickY );
-                        ImGuiX::ItemTooltip( "Invert the stick Y axis" );
-                        ImGui::EndDisabled();
-
-                        //-------------------------------------------------------------------------
-
-                        constexpr float const circleRadius = 45.0f;
-                        constexpr float const dotRadius = 5.0f;
-                        ImVec2 const circleOrigin = ImGui::GetWindowPos() + ImVec2( circleRadius + 5, circleRadius + 5 );
-
-                        auto pDrawList = ImGui::GetWindowDrawList();
-                        pDrawList->AddCircle( circleOrigin, circleRadius, 0xFFFFFFFF, 0, 2.0f );
-                        pDrawList->AddCircleFilled( circleOrigin, 1, 0xFFFFFFFF, 0 );
-
-                        // Stick Control
-                        //-------------------------------------------------------------------------
-
-                        if ( m_selectedStickComboItem != 0 )
-                        {
-                            Float2 scaledStickValue( 0, 0 );
-
-                            auto pInputState = context.GetSystem<Input::InputSystem>()->GetControllerState( 0 );
-                            if ( m_selectedStickComboItem == 1 )
-                            {
-                                scaledStickValue = pInputState->GetLeftAnalogStickValue() * m_maxLength;
-                            }
-                            else // Right stick
-                            {
-                                scaledStickValue = pInputState->GetRightAnalogStickValue() * m_maxLength;
-                            }
-
-                            advancedEditorValue.m_x = scaledStickValue.m_x;
-                            advancedEditorValue.m_y = scaledStickValue.m_y;
-
-                            Float4 paramValue = advancedEditorValue;
-                            if ( m_invertStickX )
-                            {
-                                paramValue.m_x = -paramValue.m_x;
-                            }
-
-                            if ( m_invertStickY )
-                            {
-                                paramValue.m_y = -paramValue.m_y;
-                            }
-
-                            if ( m_convertToCharacterSpace )
-                            {
-                                paramValue = characterWorldTransform.InverseRotateVector( paramValue );
-                            }
-
-                            pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, paramValue );
-
-                            //-------------------------------------------------------------------------
-
-                            float const scale = circleRadius / m_maxLength;
-                            ImVec2 const offset( advancedEditorValue.m_x * scale, -advancedEditorValue.m_y * scale );
-                            ImVec2 const dotOrigin = circleOrigin + offset;
-                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ImColors::LimeGreen );
-                        }
-                        else // Mouse Control
-                        {
-                            Vector const mousePos = ImGui::GetMousePos();
-
-                            constexpr float const editRegionRadius = 10.0f;
-                            float const distanceFromCircleOrigin = mousePos.GetDistance2( circleOrigin );
-
-                            // Manage edit state
-                            if ( !m_isEditingValueWithMouse )
-                            {
-                                // Should we start editing
-                                if ( ImGui::IsWindowFocused() && distanceFromCircleOrigin < ( circleRadius + editRegionRadius ) && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 2.0f ) )
-                                {
-                                    m_isEditingValueWithMouse = true;
-                                }
-                            }
-                            else // Check if we should stop editing
-                            {
-                                if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
-                                {
-                                    m_isEditingValueWithMouse = false;
-                                }
-                            }
-
-                            // Update the value
-                            if ( m_isEditingValueWithMouse )
-                            {
-                                float const distanceFromCircleOriginPercentage = Math::Min( 1.0f, distanceFromCircleOrigin / circleRadius );
-                                Float4 const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
-                                advancedEditorValue.m_x = newValue.m_x;
-                                advancedEditorValue.m_y = -newValue.m_y;
-
-                                if ( m_convertToCharacterSpace )
-                                {
-                                    Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
-                                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, paramValue );
-                                }
-                                else
-                                {
-                                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, advancedEditorValue );
-                                }
-                            }
-
-                            // Calculate offset and dot position and draw dot
-                            ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
-                            ImVec2 const dotOrigin = circleOrigin + offset;
-                            pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ToIm( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
-                        }
-                    }
-                    ImGui::EndChild();
-                    ImGui::PopStyleVar();
-                }
-            }
-
-        public:
-
-            bool        m_showAdvancedEditor = false;
-            float       m_maxLength = 1.0f;
-            int32_t     m_selectedStickComboItem = 0;
-            bool        m_convertToCharacterSpace = false;
-            bool        m_isEditingValueWithMouse = false;
-            bool        m_invertStickX = true;
-            bool        m_invertStickY = true;
-        };
-
-        struct IDParameterState : public ControlParameterPreviewState
-        {
-            using ControlParameterPreviewState::ControlParameterPreviewState;
-
-            virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) override
-            {
-                int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
-                EE_ASSERT( parameterIdx != InvalidIndex );
-
-                auto value = pMainGraphData->m_pGraphInstance->GetControlParameterValue<StringID>( parameterIdx );
-                if ( value.IsValid() )
-                {
-                    strncpy_s( m_buffer, 255, value.c_str(), strlen( value.c_str() ) );
-                }
-                else
-                {
-                    memset( m_buffer, 0, 255 );
-                }
-
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
-                {
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
-                }
-            }
-
-        private:
-
-            char m_buffer[256];
-        };
-
-        struct TargetParameterState : public ControlParameterPreviewState
-        {
-            using ControlParameterPreviewState::ControlParameterPreviewState;
-
-            virtual void DrawPreviewEditor( UpdateContext const& context, AnimationGraphWorkspace::GraphData* pMainGraphData, Transform const& characterWorldTransform, bool isLiveDebug ) override
-            {
-                int16_t const parameterIdx = GetRuntimeGraphNodeIndex( pMainGraphData, m_pParameter->GetID() );
-                EE_ASSERT( parameterIdx != InvalidIndex );
-
-                Target value = pMainGraphData->m_pGraphInstance->GetControlParameterValue<Target>( parameterIdx );
-
-                // Reflect actual state
-                //-------------------------------------------------------------------------
-
-                m_isSet = value.IsTargetSet();
-                m_isBoneTarget = value.IsBoneTarget();
-
-                if ( m_isBoneTarget )
-                {
-                    StringID const boneID = value.GetBoneID();
-                    if ( boneID.IsValid() )
-                    {
-                        strncpy_s( m_buffer, 255, boneID.c_str(), strlen( boneID.c_str() ) );
-                    }
-                    else
-                    {
-                        memset( m_buffer, 0, 255 );
-                    }
-
-                    m_useBoneSpaceOffsets = value.IsUsingBoneSpaceOffsets();
-                }
-
-                if ( m_isBoneTarget && value.HasOffsets() )
-                {
-                    m_rotationOffset = value.GetRotationOffset().ToEulerAngles();
-                    m_translationOffset = value.GetTranslationOffset().ToFloat3();
-                }
-
-                if ( m_isSet && !m_isBoneTarget )
-                {
-                    m_transform = value.GetTransform();
-                }
-
-                //-------------------------------------------------------------------------
-
-                bool updateValue = false;
-
-                //-------------------------------------------------------------------------
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Is Set:" );
-                ImGui::SameLine();
-
-                if ( ImGui::Checkbox( "##IsSet", &m_isSet ) )
-                {
-                    updateValue = true;
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( m_isSet )
-                {
-                    ImGui::SameLine( 0, 8 );
-                    ImGui::Text( "Is Bone:" );
-                    ImGui::SameLine();
-
-                    if ( ImGui::Checkbox( "##IsBone", &m_isBoneTarget ) )
-                    {
-                        updateValue = true;
-                    }
-
-                    if ( m_isBoneTarget )
-                    {
-                        if ( ImGui::BeginTable( "BoneSettings", 2 ) )
-                        {
-                            ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 45 );
-                            ImGui::TableSetupColumn( "Editor", ImGuiTableColumnFlags_WidthStretch );
-
-                            ImGui::TableNextRow();
-                            ImGui::TableNextColumn();
-                            ImGui::AlignTextToFramePadding();
-                            {
-                                ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-                                ImGui::Text( "Bone ID" );
-                            }
-
-                            ImGui::TableNextColumn();
-                            if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
-                            {
-                                updateValue = true;
-                            }
-
-                            ImGui::TableNextRow();
-                            ImGui::TableNextColumn();
-                            ImGui::AlignTextToFramePadding();
-                            {
-                                ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-                                ImGui::Text( "Offset R" );
-                            }
-
-                            ImGui::TableNextColumn();
-                            Float3 degrees = m_rotationOffset.GetAsDegrees();
-                            if ( ImGuiX::InputFloat3( "##RotationOffset", degrees ) )
-                            {
-                                m_rotationOffset = EulerAngles( degrees );
-                                updateValue = true;
-                            }
-
-                            ImGui::TableNextRow();
-                            ImGui::TableNextColumn();
-                            ImGui::AlignTextToFramePadding();
-
-                            {
-                                ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-                                ImGui::Text( "Offset T" );
-                            }
-
-                            ImGui::TableNextColumn();
-                            if ( ImGuiX::InputFloat3( "##TranslationOffset", m_translationOffset ) )
-                            {
-                                updateValue = true;
-                            }
-
-                            ImGui::EndTable();
-                        }
-                    }
-                    else
-                    {
-                        if ( ImGuiX::InputTransform( "##Transform", m_transform ) )
-                        {
-                            updateValue = true;
-                        }
-                    }
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( updateValue )
-                {
-                    if ( m_isSet )
-                    {
-                        if ( m_isBoneTarget )
-                        {
-                            value = Target( StringID( m_buffer ) );
-
-                            if ( !Quaternion( m_rotationOffset ).IsIdentity() || !Vector( m_translationOffset ).IsNearZero3() )
-                            {
-                                value.SetOffsets( Quaternion( m_rotationOffset ), m_translationOffset, m_useBoneSpaceOffsets );
-                            }
-                        }
-                        else
-                        {
-                            value = Target( m_transform );
-                        }
-                    }
-                    else
-                    {
-                        value = Target();
-                    }
-
-                    pMainGraphData->m_pGraphInstance->SetControlParameterValue( parameterIdx, value );
-                }
-            }
-
-        private:
-
-            bool            m_isSet = false;
-            bool            m_isBoneTarget = false;
-            bool            m_useBoneSpaceOffsets = false;
-            char            m_buffer[256] = { 0 };
-            EulerAngles     m_rotationOffset;
-            Float3          m_translationOffset = Float3::Zero;
-            Transform       m_transform = Transform::Identity;
-        };
     }
 
     //-------------------------------------------------------------------------
@@ -699,12 +853,14 @@ namespace EE::Animation
         , m_propertyGrid( m_pToolsContext )
         , m_primaryGraphView( &m_userContext )
         , m_secondaryGraphView( &m_userContext )
-        , m_resourcePicker( *m_pToolsContext )
+        , m_variationSkeletonPicker( *m_pToolsContext, Skeleton::GetStaticResourceTypeID() )
     {
+        m_propertyGrid.SetUserContext( this );
+
         // Create main graph data storage
         //-------------------------------------------------------------------------
 
-        m_graphStack.emplace_back( EE::New<GraphData>() );
+        m_loadedGraphStack.emplace_back( EE::New<LoadedGraphData>() );
 
         // Get anim graph type info
         //-------------------------------------------------------------------------
@@ -726,26 +882,31 @@ namespace EE::Animation
         m_graphFilePath = GetFileSystemPath( m_workspaceResource.GetResourcePath() );
         if ( m_graphFilePath.IsValid() )
         {
-            bool graphLoadFailed = false;
-
             // Try read JSON data
             Serialization::JsonArchiveReader archive;
-            if ( !archive.ReadFromFile( m_graphFilePath ) )
+            if ( archive.ReadFromFile( m_graphFilePath ) )
             {
-                graphLoadFailed = true;
+                // Try to load the graph from the file
+                if ( !GetEditedGraphData()->m_graphDefinition.LoadFromJson( *m_pToolsContext->m_pTypeRegistry, archive.GetDocument() ) )
+                {
+                    EE_LOG_ERROR( "Animation", "Graph Editor", "Failed to load graph definition: %s", m_graphFilePath.c_str() );
+                }
             }
-
-            // Try to load the graph from the file
-            if ( !GetMainGraphData()->m_graphDefinition.LoadFromJson( *m_pToolsContext->m_pTypeRegistry, archive.GetDocument() ) )
+            else
             {
-                EE_LOG_ERROR( "Animation", "Graph Editor", "Failed to load graph definition: %s", m_graphFilePath.c_str() );
+                EE_LOG_ERROR( "Animation", "Graph Editor", "Failed to read graph definition: %s", m_graphFilePath.c_str() );
             }
         }
+
+        // Variations
+        //-------------------------------------------------------------------------
 
         if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
         {
             TrySetSelectedVariation( Variation::GetVariationNameFromResourceID( resourceID ) );
         }
+
+        RefreshVariationEditor();
 
         // Gizmo
         //-------------------------------------------------------------------------
@@ -758,22 +919,22 @@ namespace EE::Animation
         // Bind events
         //-------------------------------------------------------------------------
 
-        m_rootGraphBeginModificationBindingID = VisualGraph::BaseGraph::OnBeginModification().Bind( [this] ( VisualGraph::BaseGraph* pRootGraph ) { OnBeginGraphModification( pRootGraph ); } );
-        m_rootGraphEndModificationBindingID = VisualGraph::BaseGraph::OnEndModification().Bind( [this] ( VisualGraph::BaseGraph* pRootGraph ) { OnEndGraphModification( pRootGraph ); } );
+        m_rootGraphBeginModificationBindingID = VisualGraph::BaseGraph::OnBeginRootGraphModification().Bind( [this] ( VisualGraph::BaseGraph* pRootGraph ) { OnBeginGraphModification( pRootGraph ); } );
+        m_rootGraphEndModificationBindingID = VisualGraph::BaseGraph::OnEndRootGraphModification().Bind( [this] ( VisualGraph::BaseGraph* pRootGraph ) { OnEndGraphModification( pRootGraph ); } );
 
         // Set initial graph view
         //-------------------------------------------------------------------------
 
-        NavigateTo( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
+        NavigateTo( GetEditedRootGraph() );
     }
 
     AnimationGraphWorkspace::~AnimationGraphWorkspace()
     {
-        VisualGraph::BaseGraph::OnEndModification().Unbind( m_rootGraphEndModificationBindingID );
-        VisualGraph::BaseGraph::OnBeginModification().Unbind( m_rootGraphBeginModificationBindingID );
+        VisualGraph::BaseGraph::OnEndRootGraphModification().Unbind( m_rootGraphEndModificationBindingID );
+        VisualGraph::BaseGraph::OnBeginRootGraphModification().Unbind( m_rootGraphBeginModificationBindingID );
 
-        EE_ASSERT( m_graphStack.size() == 1 );
-        EE::Delete( m_graphStack[0] );
+        EE_ASSERT( m_loadedGraphStack.size() == 1 );
+        EE::Delete( m_loadedGraphStack[0] );
     }
 
     bool AnimationGraphWorkspace::IsWorkingOnResource( ResourceID const& resourceID ) const
@@ -834,10 +995,10 @@ namespace EE::Animation
         ImGui::DockBuilderDockWindow( GetViewportWindowID(), rightDockID );
         ImGui::DockBuilderDockWindow( m_debuggerWindowName.c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( m_controlParametersWindowName.c_str(), topLeftDockID );
-        ImGui::DockBuilderDockWindow( m_propertyGridWindowName.c_str(), bottomLeftDockID );
         ImGui::DockBuilderDockWindow( m_graphViewWindowName.c_str(), centerDockID );
         ImGui::DockBuilderDockWindow( m_variationEditorWindowName.c_str(), centerDockID );
         ImGui::DockBuilderDockWindow( m_graphLogWindowName.c_str(), bottomLeftDockID );
+        ImGui::DockBuilderDockWindow( m_propertyGridWindowName.c_str(), bottomLeftDockID );
     }
 
     void AnimationGraphWorkspace::Shutdown( UpdateContext const& context )
@@ -890,12 +1051,13 @@ namespace EE::Animation
         // Draw UI
         //-------------------------------------------------------------------------
 
+        DrawGraphLog( context, pWindowClass );
         DrawVariationEditor( context, pWindowClass );
         DrawControlParameterEditor( context, pWindowClass );
-        DrawPropertyGrid( context, pWindowClass );
-        DrawGraphLog( context, pWindowClass );
         DrawDebuggerWindow( context, pWindowClass );
         DrawGraphView( context, pWindowClass );
+        DrawPropertyGrid( context, pWindowClass );
+
         DrawDialogs( context );
     }
 
@@ -1208,7 +1370,7 @@ namespace EE::Animation
                         if ( !IsDebugging() )
                         {
                             MarkDirty();
-                            GetMainGraphData()->m_graphDefinition.GetRootGraph()->BeginModification();
+                            GetEditedRootGraph()->BeginModification();
                         }
 
                         gizmoResult.ApplyResult( gizmoTransform );
@@ -1229,7 +1391,7 @@ namespace EE::Animation
                         SetParameterValue( gizmoTransform );
                         if ( !IsDebugging() )
                         {
-                            GetMainGraphData()->m_graphDefinition.GetRootGraph()->EndModification();
+                            GetEditedRootGraph()->EndModification();
                         }
                     }
                     break;
@@ -1424,7 +1586,7 @@ namespace EE::Animation
     {
         EE_ASSERT( m_graphFilePath.IsValid() );
         Serialization::JsonArchiveWriter archive;
-        GetMainGraphData()->m_graphDefinition.SaveToJson( *m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
+        GetEditedGraphData()->m_graphDefinition.SaveToJson( *m_pToolsContext->m_pTypeRegistry, *archive.GetWriter() );
         if ( archive.WriteToFile( m_graphFilePath ) )
         {
             auto const definitionExtension = GraphDefinition::GetStaticResourceTypeID().ToString();
@@ -1435,7 +1597,7 @@ namespace EE::Animation
 
             TVector<FileSystem::Path> validVariations;
 
-            auto const& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+            auto const& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
             for ( auto const& variation : variationHierarchy.GetAllVariations() )
             {
                 validVariations.emplace_back( Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID ) );
@@ -1495,55 +1657,85 @@ namespace EE::Animation
             StopDebugging();
         }
 
-        // Record selection
+        // Record selection and current location
         //-------------------------------------------------------------------------
 
-        m_selectedNodesPreUndoRedo = m_selectedNodes;
-        m_selectedNodes.clear();
+        m_viewedGraphPathPreUndoRedo = m_primaryGraphView.GetViewedGraph()->GetIDPathFromRoot();
+
+        if ( !m_selectedNodes.empty() )
+        {
+            m_selectedNodesPreUndoRedo = m_selectedNodes;
+            m_selectedNodes.clear();
+        }
+
         m_propertyGrid.SetTypeToEdit( nullptr );
     }
 
     void AnimationGraphWorkspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        enum class ViewRestoreResult { Failed, PartialMatch, Success };
 
-        // Restore Selection
-        //-------------------------------------------------------------------------
+        auto pRootGraph = GetEditedRootGraph();
+        ViewRestoreResult viewRestoreResult = ViewRestoreResult::Failed;
 
-        m_selectedNodes.clear();
-        for ( auto const& selectedNode : m_selectedNodesPreUndoRedo )
+        // Try to restore the view to the graph we were viewing before the undo/redo
+        // This is necessary since undo/redo will change all graph ptrs
+        if ( !m_viewedGraphPathPreUndoRedo.empty() )
         {
-            auto pSelectedNode = pRootGraph->FindNode( selectedNode.m_nodeID );
-            if ( pSelectedNode != nullptr )
+            VisualGraph::BaseNode* pFoundParentNode = nullptr;
+            for ( auto iter = m_viewedGraphPathPreUndoRedo.rbegin(); iter != m_viewedGraphPathPreUndoRedo.rend(); ++iter )
             {
-                m_selectedNodes.emplace_back( VisualGraph::SelectedNode( pSelectedNode ) );
+                pFoundParentNode = pRootGraph->FindNode( *iter, true );
+                if ( pFoundParentNode != nullptr )
+                {
+                    auto pChildGraph = pFoundParentNode->GetChildGraph();
+                    if ( pChildGraph != nullptr )
+                    {
+                        m_primaryGraphView.SetGraphToView( pChildGraph );
+                        viewRestoreResult = ( iter == m_viewedGraphPathPreUndoRedo.rbegin() ) ? ViewRestoreResult::Success : ViewRestoreResult::PartialMatch;
+                        break;
+                    }
+                }
             }
         }
-
-        // Ensure that we are viewing the correct graph
-        //-------------------------------------------------------------------------
-        // This is necessary since undo/redo will change all graph ptrs
-
-        auto pFoundGraph = pRootGraph->FindPrimaryGraph( m_primaryViewGraphID );
-        if ( pFoundGraph != nullptr )
+        else // We had the root graph selected
         {
-            if ( m_primaryGraphView.GetViewedGraph() != pFoundGraph )
+            NavigateTo( pRootGraph );
+            viewRestoreResult = ViewRestoreResult::Success;
+        }
+
+        // Restore selection
+        if ( viewRestoreResult == ViewRestoreResult::Success )
+        {
+            auto pViewedGraph = m_primaryGraphView.GetViewedGraph();
+            TVector<VisualGraph::BaseNode const*> validNodesToReselect;
+
+            m_selectedNodes.clear();
+            for ( auto const& selectedNode : m_selectedNodesPreUndoRedo )
             {
-                m_primaryGraphView.SetGraphToView( pFoundGraph );
+                auto pSelectedNode = pViewedGraph->FindNode( selectedNode.m_nodeID );
+                if ( pSelectedNode != nullptr )
+                {
+                    m_selectedNodes.emplace_back( VisualGraph::SelectedNode( pSelectedNode ) );
+                    validNodesToReselect.emplace_back( pSelectedNode );
+                }
             }
 
+            m_primaryGraphView.SelectNodes( validNodesToReselect );
             UpdateSecondaryViewState();
         }
-        else
+        else if ( viewRestoreResult == ViewRestoreResult::Failed )
         {
             NavigateTo( pRootGraph );
         }
 
+        // Clear saved state and refresh variation editor data
+        m_viewedGraphPathPreUndoRedo.clear();
+        m_selectedNodesPreUndoRedo.clear();
+
         //-------------------------------------------------------------------------
 
         OnGraphStateModified();
-
-        //-------------------------------------------------------------------------
 
         TWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
     }
@@ -1702,7 +1894,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::OnBeginGraphModification( VisualGraph::BaseGraph* pRootGraph )
     {
-        if ( pRootGraph == GetMainGraphData()->m_graphDefinition.GetRootGraph() )
+        if ( pRootGraph == GetEditedRootGraph() )
         {
             EE_ASSERT( m_pActiveUndoableAction == nullptr );
 
@@ -1714,7 +1906,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::OnEndGraphModification( VisualGraph::BaseGraph* pRootGraph )
     {
-        if ( pRootGraph == GetMainGraphData()->m_graphDefinition.GetRootGraph() )
+        if ( pRootGraph == GetEditedRootGraph() )
         {
             EE_ASSERT( m_pActiveUndoableAction != nullptr );
 
@@ -1733,14 +1925,14 @@ namespace EE::Animation
         int32_t const stackIdx = GetStackIndexForGraph( pGraph );
         if ( pGraph->GetParentNode() == nullptr && stackIdx > 0 )
         {
-            NavigateTo( m_graphStack[stackIdx]->m_pParentNode );
+            NavigateTo( m_loadedGraphStack[stackIdx]->m_pParentNode );
         }
     }
 
     void AnimationGraphWorkspace::PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes )
     {
-        VisualGraph::ScopedGraphModification gm( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
-        GetMainGraphData()->m_graphDefinition.RefreshParameterReferences();
+        VisualGraph::ScopedGraphModification gm( GetEditedRootGraph() );
+        GetEditedGraphData()->m_graphDefinition.RefreshParameterReferences();
         OnGraphStateModified();
     }
 
@@ -1748,6 +1940,7 @@ namespace EE::Animation
     {
         m_graphRecorder.Reset();
         RefreshControlParameterCache();
+        RefreshVariationEditor();
         s_graphModifiedEvent.Execute( m_workspaceResource.GetResourceID() );
     }
 
@@ -1831,8 +2024,8 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         GraphDefinitionCompiler definitionCompiler;
-        bool const graphCompiledSuccessfully = definitionCompiler.CompileGraph( GetMainGraphData()->m_graphDefinition );
-        m_visualLog = definitionCompiler.GetLog();
+        bool const graphCompiledSuccessfully = definitionCompiler.CompileGraph( GetEditedGraphData()->m_graphDefinition );
+        m_compilationLog = definitionCompiler.GetLog();
 
         // Compilation failed, stop preview attempt
         if ( !graphCompiledSuccessfully )
@@ -1854,7 +2047,7 @@ namespace EE::Animation
         if ( target.m_type == DebugTargetType::None || target.m_type == DebugTargetType::Recording )
         {
             // Create resource ID for the graph variation
-            String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, GetMainGraphData()->m_selectedVariationID );
+            String const variationPathStr = Variation::GenerateResourceFilePath( m_graphFilePath, GetEditedGraphData()->m_selectedVariationID );
             ResourceID const graphVariationResourceID( GetResourcePath( variationPathStr.c_str() ) );
 
             // Save the graph if needed
@@ -1936,7 +2129,7 @@ namespace EE::Animation
 
             // Switch to the correct variation
             StringID const debuggedInstanceVariationID = m_pDebugGraphInstance->GetVariationID();
-            if ( GetMainGraphData()->m_selectedVariationID != debuggedInstanceVariationID )
+            if ( GetEditedGraphData()->m_selectedVariationID != debuggedInstanceVariationID )
             {
                 SetSelectedVariation( debuggedInstanceVariationID );
             }
@@ -1945,7 +2138,7 @@ namespace EE::Animation
         // Try Create Preview Mesh Component
         //-------------------------------------------------------------------------
 
-        auto pVariation = GetMainGraphData()->m_graphDefinition.GetVariation( GetMainGraphData()->m_selectedVariationID );
+        auto pVariation = GetEditedGraphData()->m_graphDefinition.GetVariation( GetEditedGraphData()->m_selectedVariationID );
         EE_ASSERT( pVariation != nullptr );
         if ( pVariation->m_skeleton.IsSet() )
         {
@@ -2088,7 +2281,7 @@ namespace EE::Animation
     {
         EE_ASSERT( m_isFirstPreviewFrame && m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->IsInitialized() );
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         auto const controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pControlParameter : controlParameters )
         {
@@ -2245,27 +2438,31 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::SetSelectedVariation( StringID variationID )
     {
-        EE_ASSERT( GetMainGraphData()->m_graphDefinition.IsValidVariation( variationID ) );
-        if ( GetMainGraphData()->m_selectedVariationID != variationID )
+        EE_ASSERT( GetEditedGraphData()->m_graphDefinition.IsValidVariation( variationID ) );
+        if ( GetEditedGraphData()->m_selectedVariationID != variationID )
         {
             if ( IsDebugging() )
             {
                 StopDebugging();
             }
 
-            GetMainGraphData()->m_selectedVariationID = variationID;
+            GetEditedGraphData()->m_selectedVariationID = variationID;
             UpdateUserContext();
+            RefreshVariationEditor();
         }
     }
 
-    void AnimationGraphWorkspace::TrySetSelectedVariation( String const& variationName )
+    bool AnimationGraphWorkspace::TrySetSelectedVariation( String const& variationName )
     {
-        auto const& varHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+        auto const& varHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
         StringID const variationID = varHierarchy.TryGetCaseCorrectVariationID( variationName );
         if ( variationID.IsValid() )
         {
             SetSelectedVariation( variationID );
+            return true;
         }
+
+        return false;
     }
 
     //-------------------------------------------------------------------------
@@ -2277,7 +2474,7 @@ namespace EE::Animation
         m_userContext.m_pTypeRegistry = m_pToolsContext->m_pTypeRegistry;
         m_userContext.m_pResourceDatabase = m_pToolsContext->m_pResourceDatabase;
         m_userContext.m_pCategorizedNodeTypes = &m_categorizedNodeTypes.GetRootCategory();
-        m_userContext.m_pVariationHierarchy = &GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+        m_userContext.m_pVariationHierarchy = &GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
         m_userContext.m_pControlParameters = &m_controlParameters;
         m_userContext.m_pVirtualParameters = &m_virtualParameters;
 
@@ -2291,16 +2488,16 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::UpdateUserContext()
     {
-        m_userContext.m_selectedVariationID = m_graphStack.back()->m_selectedVariationID;
-        m_userContext.m_pVariationHierarchy = &m_graphStack.back()->m_graphDefinition.GetVariationHierarchy();
+        m_userContext.m_selectedVariationID = m_loadedGraphStack.back()->m_selectedVariationID;
+        m_userContext.m_pVariationHierarchy = &m_loadedGraphStack.back()->m_graphDefinition.GetVariationHierarchy();
 
         //-------------------------------------------------------------------------
 
         if ( IsDebugging() && m_pDebugGraphInstance != nullptr )
         {
-            m_userContext.m_pGraphInstance = m_graphStack.back()->m_pGraphInstance;
-            m_userContext.m_nodeIDtoIndexMap = m_graphStack.back()->m_nodeIDtoIndexMap;
-            m_userContext.m_nodeIndexToIDMap = m_graphStack.back()->m_nodeIndexToIDMap;
+            m_userContext.m_pGraphInstance = m_loadedGraphStack.back()->m_pGraphInstance;
+            m_userContext.m_nodeIDtoIndexMap = m_loadedGraphStack.back()->m_nodeIDtoIndexMap;
+            m_userContext.m_nodeIndexToIDMap = m_loadedGraphStack.back()->m_nodeIndexToIDMap;
         }
         else
         {
@@ -2311,7 +2508,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( m_graphStack.size() > 1 )
+        if ( m_loadedGraphStack.size() > 1 )
         {
             m_userContext.SetExtraGraphTitleInfoText( "External Child Graph" );
             m_userContext.SetExtraTitleInfoTextColor( Colors::HotPink.ToUInt32_ABGR() );
@@ -2349,12 +2546,12 @@ namespace EE::Animation
             return true;
         }
 
-        return m_graphStack.size() > 1;
+        return m_loadedGraphStack.size() > 1;
     }
 
     void AnimationGraphWorkspace::DrawGraphViewNavigationBar()
     {
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
 
         ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
 
@@ -2381,7 +2578,7 @@ namespace EE::Animation
 
         TInlineVector<NavBarItem, 20> pathFromChildToRoot;
 
-        int32_t pathStackIdx = int32_t( m_graphStack.size() ) - 1;
+        int32_t pathStackIdx = int32_t( m_loadedGraphStack.size() ) - 1;
         auto pGraph = m_primaryGraphView.GetViewedGraph();
         VisualGraph::BaseNode* pParentNode = nullptr;
 
@@ -2392,8 +2589,8 @@ namespace EE::Animation
             pParentNode = pGraph->GetParentNode();
             if ( pParentNode == nullptr && pathStackIdx > 0 )
             {
-                EE_ASSERT( pGraph == m_graphStack[pathStackIdx]->m_graphDefinition.GetRootGraph() );
-                pParentNode = m_graphStack[pathStackIdx]->m_pParentNode;
+                EE_ASSERT( pGraph == m_loadedGraphStack[pathStackIdx]->m_graphDefinition.GetRootGraph() );
+                pParentNode = m_loadedGraphStack[pathStackIdx]->m_pParentNode;
                 isStackBoundary = true;
                 pathStackIdx--;
             }
@@ -2467,8 +2664,8 @@ namespace EE::Animation
                 // Check external child graph for state machines
                 if ( IsOfType<GraphNodes::ChildGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                 {
-                    EE_ASSERT( ( pathFromChildToRoot[i].m_stackIdx + 1 ) < m_graphStack.size() );
-                    pChildGraphToCheck = m_graphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_graphDefinition.GetRootGraph();
+                    EE_ASSERT( ( pathFromChildToRoot[i].m_stackIdx + 1 ) < m_loadedGraphStack.size() );
+                    pChildGraphToCheck = m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_graphDefinition.GetRootGraph();
                 }
                 // We should search child graph
                 else if ( !IsOfType<GraphNodes::StateMachineToolsNode>( pathFromChildToRoot[i].m_pNode ) )
@@ -2516,8 +2713,8 @@ namespace EE::Animation
                         // Go to the external child graph's root graph
                         if ( auto pCG = TryCast<GraphNodes::ChildGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                         {
-                            EE_ASSERT( m_graphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pParentNode == pCG );
-                            pGraphToNavigateTo = m_graphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_graphDefinition.GetRootGraph();
+                            EE_ASSERT( m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pParentNode == pCG );
+                            pGraphToNavigateTo = m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_graphDefinition.GetRootGraph();
                         }
                         else // Go to the node's child graph
                         {
@@ -2605,8 +2802,8 @@ namespace EE::Animation
                 {
                     int32_t const nodeStackIdx = GetStackIndexForNode( pCG );
                     int32_t const childGraphStackIdx = nodeStackIdx + 1;
-                    EE_ASSERT( childGraphStackIdx < m_graphStack.size() );
-                    pGraphToSearch = m_graphStack[childGraphStackIdx]->m_graphDefinition.GetRootGraph();
+                    EE_ASSERT( childGraphStackIdx < m_loadedGraphStack.size() );
+                    pGraphToSearch = m_loadedGraphStack[childGraphStackIdx]->m_graphDefinition.GetRootGraph();
                 }
                 else
                 {
@@ -2812,9 +3009,9 @@ namespace EE::Animation
     {
         EE_ASSERT( pNode != nullptr );
 
-        for ( auto i = 0; i < m_graphStack.size(); i++ )
+        for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
         {
-            auto const pFoundNode = m_graphStack[i]->m_graphDefinition.GetRootGraph()->FindNode( pNode->GetID(), true );
+            auto const pFoundNode = m_loadedGraphStack[i]->m_graphDefinition.GetRootGraph()->FindNode( pNode->GetID(), true );
             if ( pFoundNode != nullptr )
             {
                 EE_ASSERT( pFoundNode == pNode );
@@ -2830,9 +3027,9 @@ namespace EE::Animation
         EE_ASSERT( pGraph != nullptr );
         EE_ASSERT( pGraph->GetParentNode() == nullptr || pGraph->GetParentNode()->GetSecondaryGraph() != pGraph );
 
-        for ( auto i = 0; i < m_graphStack.size(); i++ )
+        for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
         {
-            auto const pFoundGraph = m_graphStack[i]->m_graphDefinition.GetRootGraph()->FindPrimaryGraph( pGraph->GetID() );
+            auto const pFoundGraph = m_loadedGraphStack[i]->m_graphDefinition.GetRootGraph()->FindPrimaryGraph( pGraph->GetID() );
             if ( pFoundGraph != nullptr )
             {
                 EE_ASSERT( pFoundGraph == pGraph );
@@ -2857,7 +3054,7 @@ namespace EE::Animation
             if ( archive.ReadFromFile( childGraphFilePath ) )
             {
                 // Try to load the graph from the file
-                auto pChildGraphViewData = m_graphStack.emplace_back( EE::New<GraphData>() );
+                auto pChildGraphViewData = m_loadedGraphStack.emplace_back( EE::New<LoadedGraphData>() );
                 if ( pChildGraphViewData->m_graphDefinition.LoadFromJson( *m_pToolsContext->m_pTypeRegistry, archive.GetDocument() ) )
                 {
                     StringID const variationID = pChildGraphViewData->m_graphDefinition.GetVariationHierarchy().TryGetCaseCorrectVariationID( Variation::GetVariationNameFromResourceID( graphID ) );
@@ -2878,7 +3075,7 @@ namespace EE::Animation
                 {
                     pfd::message( "Error!", "Failed to load child graph!", pfd::choice::ok, pfd::icon::error ).result();
                     EE::Delete( pChildGraphViewData );
-                    m_graphStack.pop_back();
+                    m_loadedGraphStack.pop_back();
                 }
             }
             else // Show error dialog
@@ -2894,31 +3091,31 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::PopGraphStack()
     {
-        EE_ASSERT( m_graphStack.size() > 1 );
-        EE::Delete( m_graphStack.back() );
-        m_graphStack.pop_back();
+        EE_ASSERT( m_loadedGraphStack.size() > 1 );
+        EE::Delete( m_loadedGraphStack.back() );
+        m_loadedGraphStack.pop_back();
 
         UpdateUserContext();
     }
 
     void AnimationGraphWorkspace::ClearGraphStack()
     {
-        if ( m_graphStack.empty() )
+        if ( m_loadedGraphStack.empty() )
         {
             return;
         }
 
-        NavigateTo( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
+        NavigateTo( GetEditedRootGraph() );
 
-        for ( auto i = int32_t( m_graphStack.size() ) - 1; i > 0; i-- )
+        for ( auto i = int32_t( m_loadedGraphStack.size() ) - 1; i > 0; i-- )
         {
-            EE::Delete( m_graphStack[i] );
-            m_graphStack.pop_back();
+            EE::Delete( m_loadedGraphStack[i] );
+            m_loadedGraphStack.pop_back();
         }
 
         UpdateUserContext();
 
-        EE_ASSERT( m_graphStack.size() == 1 );
+        EE_ASSERT( m_loadedGraphStack.size() == 1 );
     }
 
     bool AnimationGraphWorkspace::GenerateGraphStackDebugData()
@@ -2932,30 +3129,30 @@ namespace EE::Animation
             GraphDefinitionCompiler definitionCompiler;
 
             TVector<int16_t> childGraphPathNodeIndices;
-            for ( auto i = 0; i < m_graphStack.size(); i++ )
+            for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
             {
                 // Compile the external child graph
-                if ( !definitionCompiler.CompileGraph( m_graphStack[i]->m_graphDefinition ) )
+                if ( !definitionCompiler.CompileGraph( m_loadedGraphStack[i]->m_graphDefinition ) )
                 {
                     pfd::message( "Error!", "Failed to compile graph - Stopping Debug!", pfd::choice::ok, pfd::icon::error ).result();
                     return false;
                 }
 
                 // Record node mappings for this graph
-                m_graphStack[i]->m_nodeIDtoIndexMap = definitionCompiler.GetUUIDToRuntimeIndexMap();
-                m_graphStack[i]->m_nodeIndexToIDMap = definitionCompiler.GetRuntimeIndexToUUIDMap();
+                m_loadedGraphStack[i]->m_nodeIDtoIndexMap = definitionCompiler.GetUUIDToRuntimeIndexMap();
+                m_loadedGraphStack[i]->m_nodeIndexToIDMap = definitionCompiler.GetRuntimeIndexToUUIDMap();
 
                 // Set the debug graph instance
                 if ( i == 0 )
                 {
-                    m_graphStack[i]->m_pGraphInstance = m_pDebugGraphInstance;
+                    m_loadedGraphStack[i]->m_pGraphInstance = m_pDebugGraphInstance;
                 }
                 else // Get the instance for the specified node idx
                 {
-                    GraphData* pParentStack = m_graphStack[i - 1];
-                    auto const foundIter = pParentStack->m_nodeIDtoIndexMap.find( m_graphStack[i]->m_pParentNode->GetID() );
+                    LoadedGraphData* pParentStack = m_loadedGraphStack[i - 1];
+                    auto const foundIter = pParentStack->m_nodeIDtoIndexMap.find( m_loadedGraphStack[i]->m_pParentNode->GetID() );
                     EE_ASSERT( foundIter != pParentStack->m_nodeIDtoIndexMap.end() );
-                    m_graphStack[i]->m_pGraphInstance = const_cast<GraphInstance*>( pParentStack->m_pGraphInstance->GetChildGraphDebugInstance( foundIter->second ) );
+                    m_loadedGraphStack[i]->m_pGraphInstance = const_cast<GraphInstance*>( pParentStack->m_pGraphInstance->GetChildGraphDebugInstance( foundIter->second ) );
                 }
             }
         }
@@ -2965,11 +3162,11 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::ClearGraphStackDebugData()
     {
-        for ( auto i = 0; i < m_graphStack.size(); i++ )
+        for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
         {
-            m_graphStack[i]->m_pGraphInstance = nullptr;
-            m_graphStack[i]->m_nodeIDtoIndexMap.clear();
-            m_graphStack[i]->m_nodeIndexToIDMap.clear();
+            m_loadedGraphStack[i]->m_pGraphInstance = nullptr;
+            m_loadedGraphStack[i]->m_nodeIDtoIndexMap.clear();
+            m_loadedGraphStack[i]->m_nodeIndexToIDMap.clear();
         }
     }
 
@@ -3025,7 +3222,7 @@ namespace EE::Animation
             auto& addedNodeTarget = outTargets.emplace_back( NavigationTarget() );
             addedNodeTarget.m_pNode = pNode;
             addedNodeTarget.m_label = pNode->GetName();
-            addedNodeTarget.m_path = pNode->GetPathFromRoot();
+            addedNodeTarget.m_path = pNode->GetStringPathFromRoot();
             addedNodeTarget.m_sortKey = addedNodeTarget.m_path;
             addedNodeTarget.m_compKey = StringID( addedNodeTarget.m_path );
             addedNodeTarget.m_type = type;
@@ -3038,10 +3235,15 @@ namespace EE::Animation
         {
             for ( auto ID : foundIDs )
             {
+                if ( !ID.IsValid() )
+                {
+                    continue;
+                }
+
                 auto& addedIDTarget = outTargets.emplace_back( NavigationTarget() );
                 addedIDTarget.m_pNode = pNode;
                 addedIDTarget.m_label = ID.c_str();
-                addedIDTarget.m_path = pNode->GetPathFromRoot();
+                addedIDTarget.m_path = pNode->GetStringPathFromRoot();
                 addedIDTarget.m_sortKey = addedIDTarget.m_path + addedIDTarget.m_label;
                 addedIDTarget.m_compKey = StringID( addedIDTarget.m_sortKey );
                 addedIDTarget.m_type = Type::ID;
@@ -3064,6 +3266,7 @@ namespace EE::Animation
         if ( m_primaryGraphView.GetViewedGraph()->FindNode( pNode->GetID() ) )
         {
             m_primaryGraphView.SelectNode( pNode );
+            SetSelectedNodes( { VisualGraph::SelectedNode( pNode ) } );
             if ( focusViewOnNode )
             {
                 m_primaryGraphView.CenterView( pNode );
@@ -3072,6 +3275,7 @@ namespace EE::Animation
         else if ( m_secondaryGraphView.GetViewedGraph() != nullptr && m_secondaryGraphView.GetViewedGraph()->FindNode( pNode->GetID() ) )
         {
             m_secondaryGraphView.SelectNode( pNode );
+            SetSelectedNodes( { VisualGraph::SelectedNode( pNode ) } );
             if ( focusViewOnNode )
             {
                 m_secondaryGraphView.CenterView( pNode );
@@ -3098,13 +3302,12 @@ namespace EE::Animation
             if ( m_primaryGraphView.GetViewedGraph() != pGraph )
             {
                 int32_t const stackIdx = GetStackIndexForGraph( pGraph );
-                while ( stackIdx < ( m_graphStack.size() - 1 ) )
+                while ( stackIdx < ( m_loadedGraphStack.size() - 1 ) )
                 {
                     PopGraphStack();
                 }
 
                 m_primaryGraphView.SetGraphToView( pGraph );
-                m_primaryViewGraphID = pGraph->GetID();
                 UpdateSecondaryViewState();
             }
         }
@@ -3120,27 +3323,14 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::GenerateNavigationTargetList()
     {
-        FlowGraph const* pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        FlowGraph const* pRootGraph = GetEditedRootGraph();
 
         m_navigationTargetNodes.clear();
 
         // Find all graph nodes
         //-------------------------------------------------------------------------
 
-        auto MatchFunction = [] ( VisualGraph::BaseNode const* pNode )
-        {
-            if ( auto pGraphNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
-            {
-                if ( pGraphNode->GetValueType() == GraphValueType::Pose )
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-
-        auto const foundNodes = pRootGraph->FindAllNodesOfTypeAdvanced<VisualGraph::BaseNode>( MatchFunction, VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto const foundNodes = pRootGraph->FindAllNodesOfType<VisualGraph::BaseNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pNode : foundNodes )
         {
             NavigationTarget::CreateNavigationTargets( pNode, m_navigationTargetNodes );
@@ -3168,7 +3358,7 @@ namespace EE::Animation
             UUID const nodeID = m_userContext.GetGraphNodeUUID( activeNodeIdx );
             if ( nodeID.IsValid() )
             {
-                auto pFoundNode = GetMainGraphData()->m_graphDefinition.GetRootGraph()->FindNode( nodeID, true );
+                auto pFoundNode = GetEditedRootGraph()->FindNode( nodeID, true );
                 if ( pFoundNode != nullptr )
                 {
                     NavigationTarget::CreateNavigationTargets( pFoundNode, m_navigationActiveTargetNodes );
@@ -3354,8 +3544,8 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::InitializePropertyGrid()
     {
-        m_preEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { GetMainGraphData()->m_graphDefinition.GetRootGraph()->BeginModification(); } );
-        m_postEditEventBindingID = m_propertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { GetMainGraphData()->m_graphDefinition.GetRootGraph()->EndModification(); } );
+        m_preEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { GetEditedRootGraph()->BeginModification(); } );
+        m_postEditEventBindingID = m_propertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { GetEditedRootGraph()->EndModification(); } );
 
     }
 
@@ -3376,6 +3566,88 @@ namespace EE::Animation
         ImGui::SetNextWindowClass( pWindowClass );
         if ( ImGui::Begin( m_graphLogWindowName.c_str(), nullptr, windowFlags ) )
         {
+            if ( m_compilationLog.empty() )
+            {
+                ImGui::TextColored( ImGuiX::ImColors::LimeGreen, EE_ICON_CHECK );
+                ImGui::SameLine();
+                ImGui::Text( "Graph Compiled Successfully" );
+            }
+            else // Draw compilation log
+            {
+                ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 6 ) );
+                if ( ImGui::BeginTable( "CLog", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
+                {
+                    ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+                    ImGui::TableSetupColumn( "Message", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupScrollFreeze( 0, 1 );
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableHeadersRow();
+
+                    //-------------------------------------------------------------------------
+
+                    ImGuiListClipper clipper;
+                    clipper.Begin( (int32_t) m_compilationLog.size() );
+                    while ( clipper.Step() )
+                    {
+                        for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                        {
+                            auto const& entry = m_compilationLog[i];
+
+                            ImGui::TableNextRow();
+
+                            //-------------------------------------------------------------------------
+
+                            ImGui::TableSetColumnIndex( 0 );
+                            switch ( entry.m_severity )
+                            {
+                                case Log::Severity::Warning:
+                                ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_ALERT_OCTAGON );
+                                break;
+
+                                case Log::Severity::Error:
+                                ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT );
+                                break;
+
+                                case Log::Severity::Message:
+                                ImGui::Text( "Message" );
+                                break;
+
+                                default:
+                                break;
+                            }
+
+                            //-------------------------------------------------------------------------
+
+                            ImGui::TableSetColumnIndex( 1 );
+                            if ( ImGui::Selectable( entry.m_message.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick ) )
+                            {
+                                if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                                {
+                                    auto pFoundNode = GetEditedRootGraph()->FindNode( entry.m_nodeID, true );
+                                    if ( pFoundNode != nullptr )
+                                    {
+                                        NavigateTo( pFoundNode );
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Auto scroll the table
+                    if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
+                    {
+                        ImGui::SetScrollHereY( 1.0f );
+                    }
+
+                    ImGui::EndTable();
+                }
+                ImGui::PopStyleVar();
+            }
+
+            //-------------------------------------------------------------------------
+
             if ( IsDebugging() && m_pDebugGraphInstance != nullptr )
             {
                 if ( ImGui::BeginTable( "RTLog", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
@@ -3435,7 +3707,7 @@ namespace EE::Animation
                                     UUID const nodeID = m_userContext.GetGraphNodeUUID( entry.m_nodeIdx );
                                     if ( nodeID.IsValid() )
                                     {
-                                        auto pFoundNode = GetMainGraphData()->m_graphDefinition.GetRootGraph()->FindNode( nodeID, true );
+                                        auto pFoundNode = GetEditedRootGraph()->FindNode( nodeID, true );
                                         if ( pFoundNode != nullptr )
                                         {
                                             NavigateTo( pFoundNode );
@@ -3455,88 +3727,6 @@ namespace EE::Animation
                     }
 
                     ImGui::EndTable();
-                }
-            }
-            else
-            {
-                if ( m_visualLog.empty() )
-                {
-                    ImGui::TextColored( ImGuiX::ImColors::LimeGreen, EE_ICON_CHECK );
-                    ImGui::SameLine();
-                    ImGui::Text( "Graph Compiled Successfully" );
-                }
-                else
-                {
-                    ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 6 ) );
-                    if ( ImGui::BeginTable( "CLog", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( 0, 0 ) ) )
-                    {
-                        ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
-                        ImGui::TableSetupColumn( "Message", ImGuiTableColumnFlags_WidthStretch );
-                        ImGui::TableSetupScrollFreeze( 0, 1 );
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableHeadersRow();
-
-                        //-------------------------------------------------------------------------
-
-                        ImGuiListClipper clipper;
-                        clipper.Begin( (int32_t) m_visualLog.size() );
-                        while ( clipper.Step() )
-                        {
-                            for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
-                            {
-                                auto const& entry = m_visualLog[i];
-
-                                ImGui::TableNextRow();
-
-                                //-------------------------------------------------------------------------
-
-                                ImGui::TableSetColumnIndex( 0 );
-                                switch ( entry.m_severity )
-                                {
-                                    case Log::Severity::Warning:
-                                    ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_ALERT_OCTAGON );
-                                    break;
-
-                                    case Log::Severity::Error:
-                                    ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT );
-                                    break;
-
-                                    case Log::Severity::Message:
-                                    ImGui::Text( "Message" );
-                                    break;
-
-                                    default:
-                                    break;
-                                }
-
-                                //-------------------------------------------------------------------------
-
-                                ImGui::TableSetColumnIndex( 1 );
-                                if ( ImGui::Selectable( entry.m_message.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick ) )
-                                {
-                                    if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
-                                    {
-                                        auto pFoundNode = GetMainGraphData()->m_graphDefinition.GetRootGraph()->FindNode( entry.m_nodeID, true );
-                                        if ( pFoundNode != nullptr )
-                                        {
-                                            NavigateTo( pFoundNode );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Auto scroll the table
-                        if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
-                        {
-                            ImGui::SetScrollHereY( 1.0f );
-                        }
-
-                        ImGui::EndTable();
-                    }
-                    ImGui::PopStyleVar();
                 }
             }
         }
@@ -3595,7 +3785,7 @@ namespace EE::Animation
         m_controlParameters.clear();
         m_virtualParameters.clear();
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         m_controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         m_virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
 
@@ -3622,7 +3812,7 @@ namespace EE::Animation
 
         m_cachedNumUses.clear();
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         auto referenceNodes = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive );
         for ( auto pReferenceNode : referenceNodes )
         {
@@ -4127,7 +4317,7 @@ namespace EE::Animation
 
         auto DrawControlParameterEditorRow = [this, &context] ( ControlParameterPreviewState* pPreviewState )
         {
-            auto pControlParameter = pPreviewState->m_pParameter;
+            auto pControlParameter = pPreviewState->GetParameter();
 
             ImGui::PushID( pControlParameter );
             ImGui::TableNextRow();
@@ -4141,7 +4331,7 @@ namespace EE::Animation
             ImGui::PopStyleColor();
 
             ImGui::TableSetColumnIndex( 1 );
-            pPreviewState->DrawPreviewEditor( context, m_graphStack.front(), m_characterTransform, IsLiveDebugging() );
+            pPreviewState->DrawPreviewEditor( context, m_characterTransform, IsLiveDebugging() );
             ImGui::PopID();
         };
 
@@ -4219,7 +4409,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
         if ( parameterType == ParameterType::Control )
@@ -4281,7 +4471,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
         if ( pControlParameter != nullptr )
         {
@@ -4308,13 +4498,13 @@ namespace EE::Animation
             auto pParentNode = m_primaryGraphView.GetViewedGraph()->GetParentNode();
             if ( pParentNode != nullptr && pParentNode->GetID() == parameterID )
             {
-                NavigateTo( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
+                NavigateTo( GetEditedRootGraph() );
             }
         }
 
         //-------------------------------------------------------------------------
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
         // Find and remove all reference nodes
@@ -4451,37 +4641,37 @@ namespace EE::Animation
             {
                 case GraphValueType::Bool:
                 {
-                    m_previewParameterStates.emplace_back( EE::New<BoolParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<BoolParameterState>( this, pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Int:
                 {
-                    m_previewParameterStates.emplace_back( EE::New<IntParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<IntParameterState>( this, pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Float:
                 {
-                    m_previewParameterStates.emplace_back( EE::New<FloatParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<FloatParameterState>( this, pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Vector:
                 {
-                    m_previewParameterStates.emplace_back( EE::New<VectorParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<VectorParameterState>( this, pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::ID:
                 {
-                    m_previewParameterStates.emplace_back( EE::New<IDParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<IDParameterState>( this, pControlParameter ) );
                 }
                 break;
 
                 case GraphValueType::Target:
                 {
-                    m_previewParameterStates.emplace_back( EE::New<TargetParameterState>( pControlParameter ) );
+                    m_previewParameterStates.emplace_back( EE::New<TargetParameterState>( this, pControlParameter ) );
                 }
                 break;
 
@@ -4497,7 +4687,7 @@ namespace EE::Animation
 
         for ( auto pPreviewState : m_previewParameterStates )
         {
-            auto pControlParameter = pPreviewState->m_pParameter;
+            auto pControlParameter = pPreviewState->GetParameter();
             m_previewParameterCategoryTree.AddItem( pControlParameter->GetParameterCategory(), pControlParameter->GetName(), pPreviewState );
         }
     }
@@ -4596,8 +4786,8 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::CreateVariation( StringID newVariationID, StringID parentVariationID )
     {
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
-        auto& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+        auto pRootGraph = GetEditedRootGraph();
+        auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
 
         EE_ASSERT( !variationHierarchy.IsValidVariation( newVariationID ) );
 
@@ -4611,9 +4801,9 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::RenameVariation( StringID oldVariationID, StringID newVariationID )
     {
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
-        auto& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
-        bool const isRenamingCurrentlySelectedVariation = ( m_activeOperationVariationID == GetMainGraphData()->m_selectedVariationID );
+        auto pRootGraph = GetEditedRootGraph();
+        auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
+        bool const isRenamingCurrentlySelectedVariation = ( m_activeOperationVariationID == GetEditedGraphData()->m_selectedVariationID );
 
         EE_ASSERT( !variationHierarchy.IsValidVariation( newVariationID ) );
 
@@ -4637,10 +4827,10 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DeleteVariation( StringID variationID )
     {
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         VisualGraph::ScopedGraphModification gm( pRootGraph );
 
-        auto& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+        auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
         variationHierarchy.DestroyVariation( m_activeOperationVariationID );
     }
 
@@ -4649,7 +4839,7 @@ namespace EE::Animation
         ImGui::PushID( variationID.GetID() );
 
         auto const childVariations = variationHierarchy.GetChildVariations( variationID );
-        bool const isSelected = GetMainGraphData()->m_selectedVariationID == variationID;
+        bool const isSelected = GetEditedGraphData()->m_selectedVariationID == variationID;
 
         // Draw Tree Node
         //-------------------------------------------------------------------------
@@ -4727,11 +4917,10 @@ namespace EE::Animation
     {
         ImGui::BeginDisabled( IsInReadOnlyState() );
         ImGui::SetNextItemWidth( width );
-        if ( ImGui::BeginCombo( "##VariationSelector", GetMainGraphData()->m_selectedVariationID.c_str() ) )
+        if ( ImGui::BeginCombo( "##VariationSelector", GetEditedGraphData()->m_selectedVariationID.c_str() ) )
         {
-            auto& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+            auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
             DrawVariationTreeNode( variationHierarchy, Variation::s_defaultVariationID );
-
             ImGui::EndCombo();
         }
         ImGuiX::ItemTooltip( "Variation Selector - Right click on variations for more options!" );
@@ -4744,28 +4933,27 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pRootGraph = GetMainGraphData()->m_graphDefinition.GetRootGraph();
+        auto pRootGraph = GetEditedRootGraph();
         auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         bool isDefaultVariationSelected = IsDefaultVariationSelected();
+
+        // Rebuild pickers
+        //-------------------------------------------------------------------------
+
+        if ( dataSlotNodes.size() != m_variationResourcePickers.size() || m_refreshPickers )
+        {
+            RefreshVariationSlotPickers();
+        }
 
         // Skeleton Picker
         //-------------------------------------------------------------------------
 
         ImGui::AlignTextToFramePadding();
-        ResourcePath newPath;
-        auto pVariation = GetMainGraphData()->m_graphDefinition.GetVariation( GetMainGraphData()->m_selectedVariationID );
-        if ( m_resourcePicker.DrawPicker( pVariation->m_skeleton, newPath ) )
+        auto pVariation = GetEditedGraphData()->m_graphDefinition.GetVariation( GetEditedGraphData()->m_selectedVariationID );
+        if ( m_variationSkeletonPicker.UpdateAndDraw() )
         {
             VisualGraph::ScopedGraphModification sgm( pRootGraph );
-
-            if ( newPath.IsValid() )
-            {
-                pVariation->m_skeleton = ResourceID( newPath );
-            }
-            else
-            {
-                pVariation->m_skeleton.Clear();
-            }
+            pVariation->m_skeleton = m_variationSkeletonPicker.GetResourceID();
         }
 
         // Filter
@@ -4789,11 +4977,12 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            StringID const currentVariationID = GetMainGraphData()->m_selectedVariationID;
+            StringID const currentVariationID = GetEditedGraphData()->m_selectedVariationID;
 
-            for ( auto pDataSlotNode : dataSlotNodes )
+            for ( size_t i = 0; i < dataSlotNodes.size(); i++ )
             {
-                String const nodePath = pDataSlotNode->GetPathFromRoot();
+                auto pDataSlotNode = dataSlotNodes[i];
+                String const nodePath = pDataSlotNode->GetStringPathFromRoot();
 
                 // Apply filter
                 //-------------------------------------------------------------------------
@@ -4834,7 +5023,7 @@ namespace EE::Animation
 
                     if ( pDataSlotNode->HasOverride( currentVariationID ) )
                     {
-                        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::MediumRed, EE_ICON_CANCEL, buttonSize ) )
+                        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
                         {
                             pDataSlotNode->RemoveOverride( currentVariationID );
                         }
@@ -4888,15 +5077,16 @@ namespace EE::Animation
 
                 ImGui::TableNextColumn();
 
+                Resource::ResourcePicker& picker = m_variationResourcePickers[i];
+
                 // Validate the chosen resource to prevent self-references
-                auto ValidateResourceSelected = [this] ( ResourcePath const& path )
+                auto ValidateResourceSelected = [this] ( ResourceID const& resourceID )
                 {
-                    if ( path.IsValid() )
+                    if ( resourceID.IsValid() )
                     {
-                        ResourceID const ID( path );
-                        if ( ID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() || ID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
+                        if ( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() || resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
                         {
-                            ResourceID const graphResourceID = Variation::GetGraphResourceID( ID );
+                            ResourceID const graphResourceID = Variation::GetGraphResourceID( resourceID );
                             if ( graphResourceID == m_workspaceResource.GetResourceID() )
                             {
                                 return false;
@@ -4910,12 +5100,13 @@ namespace EE::Animation
                 // Default variations always have values created
                 if ( isDefaultVariationSelected )
                 {
-                    if ( m_resourcePicker.DrawPicker( pDataSlotNode->GetDefaultValue(), newPath, pDataSlotNode->GetSlotResourceTypeID() ) )
+                    if ( picker.UpdateAndDraw() )
                     {
-                        if ( ValidateResourceSelected( newPath ) )
+                        ResourceID const& newResourceID = picker.GetResourceID();
+                        if ( ValidateResourceSelected( newResourceID ) )
                         {
                             VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                            pDataSlotNode->SetDefaultValue( newPath.IsValid() ? ResourceID( newPath ) : ResourceID() );
+                            pDataSlotNode->SetDefaultValue( newResourceID.IsValid() ? newResourceID : ResourceID() );
                         }
                     }
                 }
@@ -4925,18 +5116,19 @@ namespace EE::Animation
                     if ( hasOverrideForVariation )
                     {
                         EE_ASSERT( pResourceID != nullptr );
-                        if ( m_resourcePicker.DrawPicker( *pResourceID, newPath, pDataSlotNode->GetSlotResourceTypeID() ) )
+                        if ( picker.UpdateAndDraw() )
                         {
-                            if ( ValidateResourceSelected( newPath ) )
+                            ResourceID const& newResourceID = picker.GetResourceID();
+                            if ( ValidateResourceSelected( newResourceID ) )
                             {
                                 VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                                pDataSlotNode->SetOverrideValue( currentVariationID, newPath );
+                                pDataSlotNode->SetOverrideValue( currentVariationID, newResourceID );
                             }
                         }
                     }
                     else // Show inherited value
                     {
-                        auto& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+                        auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
                         ResourceID const resolvedResourceID = pDataSlotNode->GetResourceID( variationHierarchy, currentVariationID );
                         ImGui::Text( resolvedResourceID.c_str() );
                         ImGuiX::TextTooltip( resolvedResourceID.c_str() );
@@ -4987,7 +5179,7 @@ namespace EE::Animation
 
             // Check for existing variations with the same name but different casing
             String newVariationName( m_nameBuffer );
-            auto const& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+            auto const& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
             for ( auto const& variation : variationHierarchy.GetAllVariations() )
             {
                 int32_t const result = newVariationName.comparei( variation.m_ID.c_str() );
@@ -5082,7 +5274,7 @@ namespace EE::Animation
             EE_ASSERT( m_activeOperationVariationID != Variation::s_defaultVariationID );
 
             // Update selection
-            auto& variationHierarchy = GetMainGraphData()->m_graphDefinition.GetVariationHierarchy();
+            auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
             auto const pVariation = variationHierarchy.GetVariation( m_activeOperationVariationID );
             SetSelectedVariation( pVariation->m_parentID );
 
@@ -5099,6 +5291,41 @@ namespace EE::Animation
             m_activeOperationVariationID = StringID();
             m_activeOperation = GraphOperationType::None;
         }
+    }
+
+    void AnimationGraphWorkspace::RefreshVariationEditor()
+    {
+        auto pVariation = GetEditedGraphData()->m_graphDefinition.GetVariation( GetEditedGraphData()->m_selectedVariationID );
+        m_variationSkeletonPicker.SetResourceID( pVariation->m_skeleton.GetResourceID() );
+        m_refreshPickers = true;
+    }
+
+    void AnimationGraphWorkspace::RefreshVariationSlotPickers()
+    {
+        StringID const currentVariationID = GetEditedGraphData()->m_selectedVariationID;
+        auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
+
+        auto pRootGraph = GetEditedRootGraph();
+        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+
+        for ( size_t i = 0; i < dataSlotNodes.size(); i++ )
+        {
+            auto pDataSlotNode = dataSlotNodes[i];
+            ResourceID const resolvedResourceID = pDataSlotNode->GetResourceID( variationHierarchy, currentVariationID );
+
+            // Refresh existing picker
+            if ( i < m_variationResourcePickers.size() )
+            {
+                m_variationResourcePickers[i].SetRequiredResourceType( pDataSlotNode->GetSlotResourceTypeID() );
+                m_variationResourcePickers[i].SetResourceID( resolvedResourceID );
+            }
+            else // Create new picker
+            {
+                m_variationResourcePickers.emplace_back( *m_pToolsContext, pDataSlotNode->GetSlotResourceTypeID(), resolvedResourceID );
+            }
+        }
+
+        m_refreshPickers = false;
     }
 
     //-------------------------------------------------------------------------
@@ -5402,7 +5629,7 @@ namespace EE::Animation
             // Push all parameters to child graph
             if ( pReflectParametersCommand->m_fromParentToChild )
             {
-                childGraphDefinition.ReflectParameters( GetMainGraphData()->m_graphDefinition, true, &resultLog );
+                childGraphDefinition.ReflectParameters( GetEditedGraphData()->m_graphDefinition, true, &resultLog );
 
                 // Save child graph
                 Serialization::JsonArchiveWriter writer;
@@ -5418,8 +5645,8 @@ namespace EE::Animation
             }
             else // Transfer from the child graph any required parameters
             {
-                VisualGraph::ScopedGraphModification gm( GetMainGraphData()->m_graphDefinition.GetRootGraph() );
-                GetMainGraphData()->m_graphDefinition.ReflectParameters( childGraphDefinition, false, &resultLog );
+                VisualGraph::ScopedGraphModification gm( GetEditedRootGraph() );
+                GetEditedGraphData()->m_graphDefinition.ReflectParameters( childGraphDefinition, false, &resultLog );
 
                 OnGraphStateModified();
             }
@@ -5435,4 +5662,211 @@ namespace EE::Animation
             ShowNotifyDialog( EE_ICON_CHECK" Completed", message.c_str() );
         }
     }
+}
+
+//-------------------------------------------------------------------------
+// Property Grid Extensions
+//-------------------------------------------------------------------------
+
+namespace EE::Animation
+{
+    class IDEditor final : public PG::PropertyEditor
+    {
+        constexpr static uint32_t const s_bufferSize = 256;
+
+    public:
+
+        IDEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+            , m_picker( reinterpret_cast<AnimationGraphWorkspace*>( context.m_pUserContext ) )
+        {
+            IDEditor::ResetWorkingCopy();
+        }
+
+    private:
+
+        virtual bool InternalUpdateAndDraw() override
+        {
+            bool valueUpdated = false;
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 24 );
+            if ( ImGui::InputText( "##agid", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            {
+                valueUpdated = true;
+            }
+
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                valueUpdated = true;
+            }
+
+            if ( valueUpdated )
+            {
+                StringUtils::StripTrailingWhitespace( m_buffer );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SameLine( 0, 0 );
+
+            if ( m_picker.DrawAndUpdate() )
+            {
+                auto pSelectedOption = m_picker.GetSelectedOption();
+                if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
+                {
+                    m_value_cached = pSelectedOption->m_value;
+                    strncpy_s( m_buffer, 255, pSelectedOption->m_value.c_str(), strlen( pSelectedOption->m_value.c_str() ) );
+                }
+                else // Clear value
+                {
+                    m_value_cached.Clear();
+                    memset( m_buffer, 0, 255 );
+                }
+
+                valueUpdated = true;
+            }
+
+            //-------------------------------------------------------------------------
+
+            return valueUpdated;
+        }
+
+        virtual void UpdatePropertyValue() override
+        {
+            if ( strlen( m_buffer ) > 0 )
+            {
+                m_value_cached = StringID( m_buffer );
+            }
+            else
+            {
+                m_value_cached.Clear();
+            }
+
+            *reinterpret_cast<StringID*>( m_pPropertyInstance ) = m_value_cached;
+        }
+
+        virtual void ResetWorkingCopy() override
+        {
+            m_value_cached = *reinterpret_cast<StringID*>( m_pPropertyInstance );
+            if ( m_value_cached.IsValid() )
+            {
+                strncpy_s( m_buffer, 255, m_value_cached.c_str(), strlen( m_value_cached.c_str() ) );
+            }
+            else
+            {
+                memset( m_buffer, 0, 255 );
+            }
+        }
+
+        virtual void HandleExternalUpdate() override
+        {
+            StringID* pID = reinterpret_cast<StringID*>( m_pPropertyInstance );
+            if ( *pID != m_value_cached )
+            {
+                m_value_cached = *pID;
+                if ( m_value_cached.IsValid() )
+                {
+                    strncpy_s( m_buffer, 255, m_value_cached.c_str(), strlen( m_value_cached.c_str() ) );
+                }
+                else
+                {
+                    memset( m_buffer, 0, 255 );
+                }
+            }
+        }
+
+    private:
+
+        IDComboWidget                               m_picker;
+        char                                        m_buffer[256] = { 0 };
+        StringID                                    m_value_cached;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class BoneMaskIDEditor final : public PG::PropertyEditor, public ImGuiX::ComboWithFilterWidget<StringID>
+    {
+        constexpr static uint32_t const s_bufferSize = 256;
+
+    public:
+
+        BoneMaskIDEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+            , m_pGraphWorkspace( reinterpret_cast<AnimationGraphWorkspace*>( context.m_pUserContext ) )
+        {
+            BoneMaskIDEditor::ResetWorkingCopy();
+        }
+
+    private:
+
+        virtual bool InternalUpdateAndDraw() override
+        {
+            return ImGuiX::ComboWithFilterWidget<StringID>::DrawAndUpdate();
+        }
+
+        virtual void UpdatePropertyValue() override
+        {
+            if ( HasValidSelection() )
+            {
+                m_value_cached = GetSelectedOption()->m_value;
+            }
+            else
+            {
+                m_value_cached.Clear();
+            }
+
+            *reinterpret_cast<StringID*>( m_pPropertyInstance ) = m_value_cached;
+        }
+
+        virtual void ResetWorkingCopy() override
+        {
+            m_value_cached = *reinterpret_cast<StringID*>( m_pPropertyInstance );
+            SetSelectedOption( m_value_cached );
+        }
+
+        virtual void HandleExternalUpdate() override
+        {
+            StringID* pBoneMaskID = reinterpret_cast<StringID*>( m_pPropertyInstance );
+            if ( *pBoneMaskID != m_value_cached )
+            {
+                m_value_cached = *pBoneMaskID;
+                SetSelectedOption( m_value_cached );
+            }
+        }
+
+        virtual void PopulateOptionsList() override
+        {
+            ResourceID const& skeletonResourceID = m_pGraphWorkspace->GetEditedGraphData()->GetSelectedVariationSkeleton();
+            auto pSkeletonFileEntry = m_pGraphWorkspace->m_pToolsContext->m_pResourceDatabase->GetFileEntry( skeletonResourceID );
+            if ( pSkeletonFileEntry != nullptr )
+            {
+                SkeletonResourceDescriptor const* pSkeletonDescriptor = Cast<SkeletonResourceDescriptor>( pSkeletonFileEntry->m_pDescriptor );
+                for ( auto const& boneMaskID : pSkeletonDescriptor->GetBoneMaskIDs() )
+                {
+                    if ( !boneMaskID.IsValid() )
+                    {
+                        continue;
+                    }
+
+                    auto& opt = m_options.emplace_back();
+                    opt.m_label = boneMaskID.c_str();
+                    opt.m_filterComparator = boneMaskID.c_str();
+                    opt.m_filterComparator.make_lower();
+                    opt.m_value = boneMaskID;
+                }
+            }
+        };
+
+    private:
+
+        AnimationGraphWorkspace*                    m_pGraphWorkspace = nullptr;
+        StringID                                    m_value_cached;
+    };
+
+    //-------------------------------------------------------------------------
+
+    EE_PROPERTY_GRID_CUSTOM_EDITOR( BoneMaskIDEditorFactory, "AnimGraph_BoneMaskID", BoneMaskIDEditor );
+    EE_PROPERTY_GRID_CUSTOM_EDITOR( IDEditorFactory, "AnimGraph_ID", IDEditor );
 }

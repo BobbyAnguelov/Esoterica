@@ -102,15 +102,14 @@ namespace EE::Animation
         Vector const rightDir = worldTransform.GetRightVector();
         
         Vector const charPos = worldTransform.GetTranslation();
-        Vector const offsetCharPos = charPos + Vector( 0, 0, 0.05f );
 
         static constexpr float const forwardAxisLength = 0.1f;
         static constexpr float const axisLength = 0.05f;
 
-        ctx.DrawLine( offsetCharPos, charPos, Colors::Yellow, 2 );
-        ctx.DrawArrow( offsetCharPos, offsetCharPos + fwdDir * forwardAxisLength, Colors::Lime, 4 );
-        ctx.DrawLine( offsetCharPos, offsetCharPos + upDir * axisLength, Colors::Blue, 3 );
-        ctx.DrawLine( offsetCharPos, offsetCharPos + rightDir * axisLength, Colors::Red, 3 );
+        ctx.DrawLine( charPos, charPos, Colors::Yellow, 2 );
+        ctx.DrawArrow( charPos, charPos + fwdDir * forwardAxisLength, Colors::Lime, 4 );
+        ctx.DrawLine( charPos, charPos + upDir * axisLength, Colors::Blue, 3 );
+        ctx.DrawLine( charPos, charPos + rightDir * axisLength, Colors::Red, 3 );
         ctx.DrawPoint( charPos, Colors::HotPink, 10 );
     }
 

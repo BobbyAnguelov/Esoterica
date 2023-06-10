@@ -25,10 +25,58 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() IDEventConditionNode::Operator                m_operator = IDEventConditionNode::Operator::Or;
-        EE_REFLECT() IDEventConditionNode::SearchRule              m_searchRule = IDEventConditionNode::SearchRule::SearchAll;
-        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
-        EE_REFLECT() TVector<StringID>                             m_eventIDs;
+        EE_REFLECT();
+        EventConditionOperator                          m_operator = EventConditionOperator::Or;
+
+        EE_REFLECT();
+        IDEventConditionNode::SearchRule                m_searchRule = IDEventConditionNode::SearchRule::SearchAll;
+
+        EE_REFLECT();
+        bool                                            m_onlyCheckEventsFromActiveBranch = false;
+
+        EE_REFLECT( "Category" : "Conditions", "CustomEditor" : "AnimGraph_ID");
+        TVector<StringID>                               m_eventIDs;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class StateEventConditionToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( StateEventConditionToolsNode );
+
+        struct Condition : public IReflectedType
+        {
+            EE_REFLECT_TYPE( Condition );
+
+            EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+            StringID                                    m_eventID;
+
+            EE_REFLECT();
+            StateEventTypeCondition                     m_type = StateEventTypeCondition::Any;
+        };
+
+    public:
+
+        StateEventConditionToolsNode();
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
+        virtual char const* GetTypeName() const override { return "State Event Condition"; }
+        virtual char const* GetCategory() const override { return "Events"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+
+    private:
+
+        EE_REFLECT();
+        EventConditionOperator                          m_operator = EventConditionOperator::Or;
+
+        EE_REFLECT();
+        bool                                            m_onlyCheckEventsFromActiveBranch = false;
+
+        EE_REFLECT( "Category" : "Conditions" );
+        TVector<Condition>                              m_conditions;
     };
 
     //-------------------------------------------------------------------------
@@ -51,9 +99,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
-        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
-        EE_REFLECT() StringID                                      m_eventID;
+        EE_REFLECT();
+        EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
+
+        EE_REFLECT();
+        bool                                          m_onlyCheckEventsFromActiveBranch = false;
+
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        StringID                                      m_eventID;
     };
 
     //-------------------------------------------------------------------------
@@ -75,8 +128,11 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT();
+        FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+
+        EE_REFLECT();
+        bool                                          m_onlyCheckEventsFromActiveBranch = false;
     };
 
     //-------------------------------------------------------------------------
@@ -98,9 +154,14 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-        EE_REFLECT() EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
-        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        EE_REFLECT();
+        FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+
+        EE_REFLECT();
+        EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
+
+        EE_REFLECT();
+        bool                                          m_onlyCheckEventsFromActiveBranch = false;
     };
 
     //-------------------------------------------------------------------------
@@ -122,8 +183,11 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() SyncEventIndexConditionNode::TriggerMode      m_triggerMode = SyncEventIndexConditionNode::TriggerMode::ExactlyAtEventIndex;
-        EE_REFLECT() int32_t                                       m_syncEventIdx = InvalidIndex;
+        EE_REFLECT();
+        SyncEventIndexConditionNode::TriggerMode      m_triggerMode = SyncEventIndexConditionNode::TriggerMode::ExactlyAtEventIndex;
+
+        EE_REFLECT();
+        int32_t                                       m_syncEventIdx = InvalidIndex;
     };
 
     //-------------------------------------------------------------------------
@@ -163,9 +227,16 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() TransitionMarkerCondition                     m_markerCondition = TransitionMarkerCondition::AnyAllowed;
-        EE_REFLECT() bool                                          m_onlyCheckEventsFromActiveBranch = false;
-        EE_REFLECT() bool                                          m_matchOnlySpecificMarkerID = false;
-        EE_REFLECT() StringID                                      m_markerIDToMatch;
+        EE_REFLECT();
+        TransitionMarkerCondition                     m_markerCondition = TransitionMarkerCondition::AnyAllowed;
+
+        EE_REFLECT();
+        bool                                          m_onlyCheckEventsFromActiveBranch = false;
+
+        EE_REFLECT();
+        bool                                          m_matchOnlySpecificMarkerID = false;
+
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        StringID                                      m_markerIDToMatch;
     };
 }

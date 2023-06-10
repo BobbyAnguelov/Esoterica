@@ -3,12 +3,16 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "d7a9d283-cdce-4c6c-9d08-5eef8b77712b",
+      "Command": "-compile data://citadel/animation/near_death.anim"
+    },
+    {
       "Id": "e288f09c-ec31-4a07-ac27-435fe08656bc",
       "Command": "-compile data://citadel/mesh/trooper_melee.smsh"
     },
     {
       "Id": "8f27866f-03ac-43a6-8e89-f0c8f6c21e2d",
-      "Command": "-compile data://citadel/animation/primary_run_n.anim"
+      "Command": "-compile data://citadel/animation/runstop_layer_additive.anim"
     },
     {
       "Id": "76bb572b-cfde-4707-be53-a3238235e108",

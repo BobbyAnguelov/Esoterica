@@ -123,7 +123,10 @@ namespace EE::VisualGraph
         virtual bool IsDestroyable() const { return IsUserCreatable(); }
 
         // Returns the string path from the root graph
-        virtual String GetPathFromRoot() const;
+        virtual String GetStringPathFromRoot() const;
+
+        // Returns the ID path from the root graph
+        virtual TVector<UUID> GetIDPathFromRoot() const;
 
         // Regenerate UUIDs for this node and its sub-graphs, returns the original ID for the node.
         // The ID mapping will contain all the IDs changed: key = original ID, value = new ID
@@ -277,6 +280,7 @@ namespace EE::VisualGraph
     class EE_ENGINETOOLS_API BaseGraph : public IReflectedType
     {
         friend class GraphView;
+        friend class ScopedNodeModification;
 
         constexpr static char const* const s_nodesKey = "Nodes";
 
@@ -286,13 +290,16 @@ namespace EE::VisualGraph
 
         static BaseGraph* CreateGraphFromSerializedData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue, BaseNode* pParentNode  );
 
-        static inline TEventHandle<BaseGraph*> OnBeginModification() { return s_onBeginModification; }
-        static inline TEventHandle<BaseGraph*> OnEndModification() { return s_onEndModification; }
+        // Fired whenever a root graph is about to be modified
+        static inline TEventHandle<BaseGraph*> OnBeginRootGraphModification() { return s_onBeginRootGraphModification; }
+
+        // Fired whenever a root graph modification has been completed
+        static inline TEventHandle<BaseGraph*> OnEndRootGraphModification() { return s_onEndRootGraphModification; }
 
     private:
 
-        static TEvent<BaseGraph*>                 s_onBeginModification;
-        static TEvent<BaseGraph*>                 s_onEndModification;
+        static TEvent<BaseGraph*>                 s_onBeginRootGraphModification;
+        static TEvent<BaseGraph*>                 s_onEndRootGraphModification;
 
     public:
 
@@ -334,7 +341,15 @@ namespace EE::VisualGraph
 
         // Root Graph
         inline bool IsRootGraph() const { return !HasParentNode(); }
+
+        // Get the root graph for this graph
         BaseGraph* GetRootGraph();
+
+        // Returns the string path from the root graph
+        String GetStringPathFromRoot() const;
+
+        // Returns the string path from the root graph
+        TVector<UUID> GetIDPathFromRoot() const;
 
         // Parent Node
         inline bool HasParentNode() const { return m_pParentNode != nullptr; }
@@ -514,6 +529,9 @@ namespace EE::VisualGraph
         // Called whenever the user double clicks the graph - By default this will request a navigate action to its parent graph if it has one
         virtual void OnDoubleClick( UserContext* pUserContext );
 
+        // Called whenever we modify a direct child node of this graph
+        virtual void OnNodeModified( BaseNode* pModifiedNode ) {}
+
         // User this to draw any extra contextual information on the graph canvas
         virtual void DrawExtraInformation( DrawContext const& ctx, UserContext* pUserContext ) {}
 
@@ -564,6 +582,11 @@ namespace EE::VisualGraph
 
         ~ScopedNodeModification()
         {
+            auto pParentGraph = m_pNode->GetParentGraph();
+            if ( pParentGraph != nullptr )
+            {
+                pParentGraph->OnNodeModified( m_pNode );
+            }
             m_pNode->EndModification();
         }
 

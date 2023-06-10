@@ -3,6 +3,9 @@ root = true
 
 [*.{c++,cc,cpp,cppm,cxx,h,h++,hh,hpp,hxx,inl,ipp,ixx,tlh,tli}]
 
+indent_style = space
+indent_size = 4
+
 # Visual C++ Code Style settings
 
 cpp_generate_documentation_comments = none

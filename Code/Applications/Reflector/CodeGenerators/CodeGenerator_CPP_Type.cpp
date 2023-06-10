@@ -1352,6 +1352,15 @@ namespace EE::CPP
                 file << "                propertyInfo.m_isToolsReadOnly = false;\n";
             }
 
+            if ( prop.m_customEditorID.IsValid() )
+            {
+                file << "                propertyInfo.m_customEditorID = StringID( \"" << prop.m_customEditorID.c_str() << "\" );\n";
+            }
+            else
+            {
+                file << "                propertyInfo.m_customEditorID = StringID();\n";
+            }
+
             file << "                #endif\n\n";
 
             // Abstract types cannot have default values since they cannot be instantiated

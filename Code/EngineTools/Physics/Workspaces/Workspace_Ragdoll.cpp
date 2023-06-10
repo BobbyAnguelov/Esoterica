@@ -2670,11 +2670,10 @@ namespace EE::Physics
                 ImGui::Text( "Preview Anim:" );
                 ImGui::SameLine();
 
-                ResourcePath newPath;
-                if ( m_resourceFilePicker.DrawPicker( m_previewAnimation, newPath ) )
+                if ( m_resourceFilePicker.UpdateAndDraw() )
                 {
                     // If we need to change resource ID, switch IDs
-                    ResourceID const selectedResourceID = newPath;
+                    ResourceID const selectedResourceID = m_resourceFilePicker.GetResourceID();
                     if ( selectedResourceID != m_previewAnimation.GetResourceID() )
                     {
                         if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )

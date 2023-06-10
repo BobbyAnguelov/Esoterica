@@ -33,77 +33,19 @@ namespace EE::Animation
 
     Resource::CompilationResult AnimationClipCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
+        // Read descriptor
+        rapidjson::Document descriptorDocument;
         AnimationClipResourceDescriptor resourceDescriptor;
-
-        Serialization::TypeArchiveReader typeReader( *m_pTypeRegistry );
-        if ( !typeReader.ReadFromFile( ctx.m_inputFilePath ) )
+        if ( !TryLoadResourceDescriptor( ctx.m_inputFilePath, resourceDescriptor, &descriptorDocument ) )
         {
-            return Error( "Failed to read resource descriptor file: %s", ctx.m_inputFilePath.c_str() );
-        }
-
-        if ( !typeReader.ReadType( &resourceDescriptor ) )
-        {
-            return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
-        }
-
-        FileSystem::Path animationFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_animationPath, animationFilePath ) )
-        {
-            return Error( "Invalid animation data path: %s", resourceDescriptor.m_animationPath.c_str() );
-        }
-
-        if ( !FileSystem::Exists( animationFilePath ) )
-        {
-            return Error( "Invalid animation file path: %s", animationFilePath.ToString().c_str() );
-        }
-
-        // Read Skeleton Data
-        //-------------------------------------------------------------------------
-
-        // Convert the skeleton resource path to a physical file path
-        if ( !resourceDescriptor.m_skeleton.GetResourceID().IsValid() )
-        {
-            return Error( "Invalid skeleton resource ID" );
-        }
-
-        ResourcePath const& skeletonPath = resourceDescriptor.m_skeleton.GetResourcePath();
-        FileSystem::Path skeletonDescriptorFilePath;
-        if ( !ConvertResourcePathToFilePath( skeletonPath, skeletonDescriptorFilePath ) )
-        {
-            return Error( "Invalid skeleton data path: %s", skeletonPath.c_str() );
-        }
-
-        if ( !FileSystem::Exists( skeletonDescriptorFilePath ) )
-        {
-            return Error( "Invalid skeleton descriptor file path: %s", skeletonDescriptorFilePath.ToString().c_str() );
-        }
-
-        SkeletonResourceDescriptor skeletonResourceDescriptor;
-        if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, skeletonDescriptorFilePath, skeletonResourceDescriptor ) )
-        {
-            return Error( "Failed to read skeleton resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
-        }
-
-        FileSystem::Path skeletonFilePath;
-        if ( !ConvertResourcePathToFilePath( skeletonResourceDescriptor.m_skeletonPath, skeletonFilePath ) )
-        {
-            return Error( "Invalid skeleton FBX data path: %s", skeletonResourceDescriptor.m_skeletonPath.GetString().c_str() );
-        }
-
-        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        auto pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName );
-        if ( pRawSkeleton == nullptr || !pRawSkeleton->IsValid() )
-        {
-            return Error( "Failed to read skeleton file: %s", skeletonFilePath.ToString().c_str() );
+            return Resource::CompilationResult::Failure;
         }
 
         // Read animation data
-        //-------------------------------------------------------------------------
-
-        TUniquePtr<RawAssets::RawAnimation> pRawAnimation = RawAssets::ReadAnimation( readerCtx, animationFilePath, *pRawSkeleton, resourceDescriptor.m_animationName );
-        if ( pRawAnimation == nullptr )
+        TUniquePtr<RawAssets::RawAnimation> pRawAnimation = nullptr;
+        if ( !ReadRawAnimation( ctx, resourceDescriptor, pRawAnimation ) )
         {
-            return Error( "Failed to read animation from source file" );
+            return Resource::CompilationResult::Failure;
         }
 
         // Validate frame limit
@@ -138,9 +80,12 @@ namespace EE::Animation
         }
 
         // Additive generation
-        if ( resourceDescriptor.m_generateTestAdditive )
+        if ( resourceDescriptor.m_additiveType != AnimationClipResourceDescriptor::AdditiveType::None )
         {
-            pRawAnimation->GenerateAdditiveData();
+            if ( !MakeAdditive( ctx, resourceDescriptor, *pRawAnimation ) )
+            {
+                return Resource::CompilationResult::Failure;
+            }
         }
 
         // Reflect raw animation data into runtime format
@@ -148,14 +93,13 @@ namespace EE::Animation
 
         AnimationClip animData;
         animData.m_skeleton = resourceDescriptor.m_skeleton;
-
         TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange );
 
         // Handle events
         //-------------------------------------------------------------------------
 
         AnimationClipEventData eventData;
-        if ( !ReadEventsData( ctx, typeReader.GetDocument(), *pRawAnimation, eventData ) )
+        if ( !ReadEventsData( ctx, descriptorDocument, *pRawAnimation, eventData ) )
         {
             return CompilationFailed( ctx );
         }
@@ -189,6 +133,101 @@ namespace EE::Animation
     }
 
     //-------------------------------------------------------------------------
+
+    bool AnimationClipCompiler::ReadRawAnimation( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, TUniquePtr<RawAssets::RawAnimation>& pOutAnimation ) const
+    {
+        EE_ASSERT( pOutAnimation == nullptr );
+
+        // Read Skeleton Data
+        //-------------------------------------------------------------------------
+
+        SkeletonResourceDescriptor skeletonResourceDescriptor;
+        if ( !TryLoadResourceDescriptor( resourceDescriptor.m_skeleton.GetResourcePath(), skeletonResourceDescriptor ) )
+        {
+            Error( "Failed to load skeleton descriptor!" );
+            return false;
+        }
+
+        FileSystem::Path skeletonFilePath;
+        if ( !ConvertResourcePathToFilePath( skeletonResourceDescriptor.m_skeletonPath, skeletonFilePath ) )
+        {
+            Error( "Invalid skeleton FBX data path: %s", skeletonResourceDescriptor.m_skeletonPath.GetString().c_str() );
+            return false;
+        }
+
+        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        auto pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName );
+        if ( pRawSkeleton == nullptr || !pRawSkeleton->IsValid() )
+        {
+            Error( "Failed to read skeleton file: %s", skeletonFilePath.ToString().c_str() );
+            return false;
+        }
+
+        // Read animation data
+        //-------------------------------------------------------------------------
+
+        FileSystem::Path animationFilePath;
+        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_animationPath, animationFilePath ) )
+        {
+            Error( "Invalid animation data path: %s", resourceDescriptor.m_animationPath.c_str() );
+            return false;
+        }
+
+        if ( !FileSystem::Exists( animationFilePath ) )
+        {
+            Error( "Invalid animation file path: %s", animationFilePath.ToString().c_str() );
+            return false;
+        }
+
+        pOutAnimation = RawAssets::ReadAnimation( readerCtx, animationFilePath, *pRawSkeleton, resourceDescriptor.m_animationName );
+        if ( pOutAnimation == nullptr )
+        {
+            Error( "Failed to read animation from source file" );
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        return true;
+    }
+
+    bool AnimationClipCompiler::MakeAdditive( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation& rawAnimData ) const
+    {
+        EE_ASSERT( resourceDescriptor.m_additiveType != AnimationClipResourceDescriptor::AdditiveType::None );
+
+        if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToSkeleton )
+        {
+            rawAnimData.MakeAdditiveRelativeToSkeleton();
+        }
+        else if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToAnimationClip )
+        {
+            AnimationClipResourceDescriptor baseAnimResourceDescriptor;
+            if ( !TryLoadResourceDescriptor( resourceDescriptor.m_additiveBaseAnimation.GetResourcePath(), baseAnimResourceDescriptor ) )
+            {
+                Error( "Failed to load base animation descriptor!" );
+                return false;
+            }
+
+            if ( baseAnimResourceDescriptor.m_skeleton != resourceDescriptor.m_skeleton )
+            {
+                Error( "Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
+                return false;
+            }
+
+            TUniquePtr<RawAssets::RawAnimation> pBaseRawAnimation = nullptr;
+            if ( !ReadRawAnimation( ctx, baseAnimResourceDescriptor, pBaseRawAnimation ) )
+            {
+                Error( "Failed to load base animation data!" );
+                return false;
+            }
+
+            rawAnimData.MakeAdditiveRelativeToAnimation( *pBaseRawAnimation.get() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        return true;
+    }
 
     bool AnimationClipCompiler::RegenerateRootMotion( AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation* pRawAnimation ) const
     {

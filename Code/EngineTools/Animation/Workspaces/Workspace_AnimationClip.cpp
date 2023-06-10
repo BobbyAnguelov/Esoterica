@@ -397,6 +397,11 @@ namespace EE::Animation
             ImGui::Text( "Frame: %.2f/%d (%.2f/%d)", frameTime.ToFloat(), numFrames - 1, frameTime.ToFloat() + 1.0f, numFrames ); // Draw offset time too to match DCC timelines that start at 1
             ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * m_workspaceResource->GetDuration(), m_workspaceResource->GetDuration().ToFloat() );
             ImGui::Text( "Percentage: %.2f%%", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * 100 );
+
+            if ( m_workspaceResource->IsAdditive() )
+            {
+                ImGui::Text( "Additive" );
+            }
         };
 
         ImVec2 const cursorPos = ImGui::GetCursorPos();
@@ -567,13 +572,19 @@ namespace EE::Animation
         {
             if ( m_clipBrowserCacheRefreshTimer.GetElapsedTimeSeconds() > 1.0f )
             {
-                auto results = m_pToolsContext->m_pResourceDatabase->GetAllResourcesOfType( AnimationClip::GetStaticResourceTypeID() );
+                auto SkeletonFilter = [this] ( Resource::ResourceDescriptor const* pDescriptor )
+                {
+                    auto pClipDescriptor = Cast<AnimationClipResourceDescriptor>( pDescriptor );
+                    return pClipDescriptor->m_skeleton.GetResourceID() == m_workspaceResource->GetSkeleton()->GetResourceID();
+                };
+
+                auto results = m_pToolsContext->m_pResourceDatabase->GetAllResourcesOfTypeFiltered( AnimationClip::GetStaticResourceTypeID(), SkeletonFilter );
                 auto pSkeleton = m_workspaceResource->GetSkeleton();
 
                 m_clipsWithSameSkeleton.clear();
                 for ( auto const& result : results )
                 {
-                    m_clipsWithSameSkeleton.emplace_back( result->m_resourceID );
+                    m_clipsWithSameSkeleton.emplace_back( result );
                 }
 
                 ApplyClipFilter();

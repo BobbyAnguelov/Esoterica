@@ -36,13 +36,16 @@ namespace EE::Render
     public:
 
         // The path to the mesh source file
-        EE_REFLECT() ResourcePath                         m_meshPath;
+        EE_REFLECT();
+        ResourcePath                            m_meshPath;
 
         // Optional value that specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
-        EE_REFLECT() TVector<String>                      m_meshesToInclude;
+        EE_REFLECT();
+        TVector<String>                         m_meshesToInclude;
 
         // Default materials - TODO: extract from source files
-        EE_REFLECT() TVector<TResourcePtr<Material>>      m_materials;
+        EE_REFLECT();
+        TVector<TResourcePtr<Material>>         m_materials;
     };
 
     //-------------------------------------------------------------------------

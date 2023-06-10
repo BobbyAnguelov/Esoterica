@@ -419,13 +419,16 @@ namespace EE::EntityModel
         for ( auto& pEntity : m_entities )
         {
             EE_ASSERT( !pEntity->IsInitialized() );
-            pEntity->UnloadComponents( loadingContext );
+            if ( pEntity->IsLoaded() )
+            {
+                pEntity->UnloadComponents( loadingContext );
+            }
             EE::Delete( pEntity );
         }
 
         m_entities.clear();
         m_entityIDLookupMap.clear();
-
+         
         #if EE_DEVELOPMENT_TOOLS
         m_entityNameLookupMap.clear();
         #endif

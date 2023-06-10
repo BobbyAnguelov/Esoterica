@@ -57,8 +57,7 @@ namespace EE::Resource
                 FbxMesh* pMesh = reinterpret_cast<FbxMesh*>( pGeometry );
 
                 auto& meshInfo = m_meshes.emplace_back();
-                StringID t( pMesh->GetNode()->GetNameWithNameSpacePrefix() );
-                meshInfo.m_nameID = StringID( pMesh->GetNode()->GetName() );
+                meshInfo.m_nameID = StringID( Fbx::GetNameWithoutNamespace( pMesh->GetNode() ) );
                 meshInfo.m_isSkinned = pMesh->GetDeformerCount( FbxDeformer::eSkin ) > 0;
             }
         }
@@ -123,7 +122,7 @@ namespace EE::Resource
         m_sceneContext.FindAllAnimStacks( stacks );
         for ( auto pAnimStack : stacks )
         {
-            auto pTakeInfo = m_sceneContext.m_pScene->GetTakeInfo( pAnimStack->GetNameWithoutNameSpacePrefix() );
+            auto pTakeInfo = m_sceneContext.m_pScene->GetTakeInfo( Fbx::GetNameWithoutNamespace( pAnimStack ) );
             if ( pTakeInfo != nullptr )
             {
                 auto& animInfo = m_animations.emplace_back();

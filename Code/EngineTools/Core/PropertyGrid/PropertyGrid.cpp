@@ -1,9 +1,19 @@
 #include "PropertyGrid.h"
-#include "PropertyGridEditor.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/TypeSystem/PropertyInfo.h"
-#include "PropertyGridHelper.h"
+#include "PropertyGridEditor.h"
+#include "PropertyGridTypeEditingRules.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::PG
+{
+    struct GridContext : public PropertyEditorContext
+    {
+        PropertyGrid*               m_pPropertyGrid = nullptr;
+    };
+}
 
 //-------------------------------------------------------------------------
 
@@ -41,10 +51,12 @@ namespace EE
     //-------------------------------------------------------------------------
 
     PropertyGrid::PropertyGrid( ToolsContext const* pToolsContext )
-        : m_pToolsContext( pToolsContext )
-        , m_resourcePicker( *pToolsContext )
     {
-        EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
+        EE_ASSERT( pToolsContext != nullptr && pToolsContext->IsValid() );
+
+        m_pGridContext = EE::New<PG::GridContext>();
+        m_pGridContext->m_pPropertyGrid = this;
+        m_pGridContext->m_pToolsContext = pToolsContext;
     }
 
     PropertyGrid::~PropertyGrid()
@@ -52,6 +64,12 @@ namespace EE
         m_pTypeInstance = nullptr;
         m_pTypeInfo = nullptr;
         RebuildGrid();
+        EE::Delete( m_pGridContext );
+    }
+
+    void PropertyGrid::SetUserContext( void* pContext )
+    {
+        m_pGridContext->m_pUserContext = pContext;
     }
 
     //-------------------------------------------------------------------------
@@ -102,12 +120,7 @@ namespace EE
 
         for ( auto const& propertyInfo : m_pTypeInfo->m_properties )
         {
-            PG::GridContext gridContext;
-            gridContext.m_pPropertyGrid = this;
-            gridContext.m_pToolsContext = m_pToolsContext;
-            gridContext.m_pResourcePicker = &m_resourcePicker;
-
-            PG::CategoryRow* pCategory = PG::CategoryRow::FindOrCreateCategory( nullptr, gridContext, m_categories, propertyInfo.m_category.empty() ? "General" : propertyInfo.m_category );
+            PG::CategoryRow* pCategory = PG::CategoryRow::FindOrCreateCategory( nullptr, *m_pGridContext, m_categories, propertyInfo.m_category.empty() ? "General" : propertyInfo.m_category );
             pCategory->AddProperty( m_pTypeInstance, propertyInfo );
         }
 
@@ -774,8 +787,8 @@ namespace EE::PG
 
         //-------------------------------------------------------------------------
 
-        m_pPropertyEditor = PropertyGridEditorFactory::TryCreateEditor( m_context.m_pToolsContext, *m_context.m_pResourcePicker, m_propertyInfo, m_pPropertyInstance );
-        m_pPropertyHelper = PropertyGridHelperFactory::TryCreateHelper( m_context.m_pToolsContext, m_pParentTypeInstance );
+        m_pPropertyEditor = PropertyGridEditorFactory::TryCreateEditor( m_context, m_propertyInfo, m_pPropertyInstance );
+        m_pTypeEditingRules = TypeEditingRulesFactory::TryCreateRules( m_context.m_pToolsContext, m_pParentTypeInstance );
 
         RebuildChildren();
     }
@@ -783,7 +796,7 @@ namespace EE::PG
     PropertyRow::~PropertyRow()
     {
         EE::Delete( m_pPropertyEditor );
-        EE::Delete( m_pPropertyHelper );
+        EE::Delete( m_pTypeEditingRules );
     }
 
     bool PropertyRow::ShouldDrawRow() const
@@ -808,14 +821,14 @@ namespace EE::PG
 
     void PropertyRow::Update()
     {
-        if ( m_pPropertyHelper != nullptr )
+        if ( m_pTypeEditingRules != nullptr )
         {
             if ( !m_isDeclaredReadOnly )
             {
-                m_isReadOnly = m_pPropertyHelper->IsReadOnly( m_propertyInfo.m_ID );
+                m_isReadOnly = m_pTypeEditingRules->IsReadOnly( m_propertyInfo.m_ID );
             }
 
-            m_isHidden = m_pPropertyHelper->IsHidden( m_propertyInfo.m_ID );
+            m_isHidden = m_pTypeEditingRules->IsHidden( m_propertyInfo.m_ID );
         }
     }
 
@@ -937,7 +950,7 @@ namespace EE::PG
             ImGui::EndPopup();
         }
 
-        ImGuiX::ItemTooltip( "Remove array item" );
+        ImGuiX::ItemTooltip( "Array Element Options" );
     }
 
     bool PropertyRow::HasResetSection() const

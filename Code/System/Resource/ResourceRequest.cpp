@@ -22,7 +22,7 @@ namespace EE::Resource
 
         if ( m_type == Type::Load )
         {
-            EE_ASSERT( m_pResourceRecord->IsUnloaded() );
+            EE_ASSERT( m_pResourceRecord->IsUnloaded() || m_pResourceRecord->HasLoadingFailed() );
             m_stage = Stage::RequestRawResource;
             m_pResourceRecord->SetLoadingStatus( LoadingStatus::Loading );
         }

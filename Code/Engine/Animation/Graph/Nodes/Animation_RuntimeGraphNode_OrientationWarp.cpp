@@ -12,6 +12,11 @@ namespace EE::Animation::GraphNodes
         context.SetNodePtrFromIndex( m_targetValueNodeIdx, pNode->m_pTargetValueNode );
     }
 
+    bool OrientationWarpNode::IsValid() const
+    {
+        return PoseNode::IsValid() && m_pClipReferenceNode->IsValid();
+    }
+
     void OrientationWarpNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() );
@@ -27,7 +32,21 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        m_shouldUpdateWarp = true;
+        if ( m_pClipReferenceNode->IsValid() )
+        {
+            m_duration = m_pClipReferenceNode->GetDuration();
+            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+            m_shouldUpdateWarp = true;
+        }
+        else
+        {
+            m_previousTime = m_currentTime = 0.0f;
+            m_duration = s_oneFrameDuration;
+            m_shouldUpdateWarp = false;
+        }
+
+        EE_ASSERT( m_duration != 0.0f );
     }
 
     void OrientationWarpNode::ShutdownInternal( GraphContext& context )
@@ -38,6 +57,7 @@ namespace EE::Animation::GraphNodes
         m_pTargetValueNode->Shutdown( context );
         m_pClipReferenceNode->Shutdown( context );
         m_warpedRootMotion.Clear();
+        m_shouldUpdateWarp = false;
 
         PoseNode::ShutdownInternal( context );
     }
@@ -134,12 +154,20 @@ namespace EE::Animation::GraphNodes
         else
         {
             targetDirCS = m_pTargetValueNode->GetValue<Vector>( context );
+
+            if ( targetDirCS.IsNearZero3() )
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( GetNodeIndex(), "Orientation warp failed since there wasnt a valid target direction set!" );
+                #endif
+                return;
+            }
+
             targetDirCS.Normalize2();
         }
 
         // Calculate the desired modification we need to make
         Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenNormalizedVectors( postWarpOriginalDirCS, targetDirCS );
-
 
         // Perform warp
         //-------------------------------------------------------------------------
@@ -189,80 +217,107 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult OrientationWarpNode::Update( GraphContext& context )
     {
-        auto pNodeSettings = GetSettings<OrientationWarpNode>();
         MarkNodeActive( context );
 
-        // Calculate the warped root motion
         //-------------------------------------------------------------------------
 
-        if ( m_shouldUpdateWarp )
+        GraphPoseNodeResult result;
+
+        if ( IsValid() )
         {
-            PerformWarp( context );
-            m_shouldUpdateWarp = false;
+            // Calculate the warped root motion
+            //-------------------------------------------------------------------------
+
+            if ( m_shouldUpdateWarp )
+            {
+                PerformWarp( context );
+                m_shouldUpdateWarp = false;
+            }
+
+            // Update source node
+            //-------------------------------------------------------------------------
+
+            result = m_pClipReferenceNode->Update( context );
+            m_duration = m_pClipReferenceNode->GetDuration();
+            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+
+            // Sample warped root motion
+            //-------------------------------------------------------------------------
+
+            if ( m_warpedRootMotion.IsValid() )
+            {
+                auto pNodeSettings = GetSettings<OrientationWarpNode>();
+                if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
+                {
+                    result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+                }
+                else
+                {
+                    result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
+                }
+            }
+        }
+        else
+        {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
-        // Update source node
-        //-------------------------------------------------------------------------
-
-        auto result = m_pClipReferenceNode->Update( context );
-        m_duration = m_pClipReferenceNode->GetDuration();
-        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
-        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
-
-        // Sample warped root motion
-        //-------------------------------------------------------------------------
-
-        if ( m_warpedRootMotion.IsValid() )
-        {
-            if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
-            {
-                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
-            }
-            else
-            {
-                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
-            }
-        }
+        EE_ASSERT( m_duration != 0.0f );
 
         return result;
     }
 
     GraphPoseNodeResult OrientationWarpNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
-        auto pNodeSettings = GetSettings<OrientationWarpNode>();
         MarkNodeActive( context );
 
-        // Calculate the warped root motion
         //-------------------------------------------------------------------------
 
-        if ( m_shouldUpdateWarp )
+        GraphPoseNodeResult result;
+
+        if ( IsValid() )
         {
-            PerformWarp( context );
-            m_shouldUpdateWarp = false;
+            // Calculate the warped root motion
+            //-------------------------------------------------------------------------
+
+            if ( m_shouldUpdateWarp )
+            {
+                PerformWarp( context );
+                m_shouldUpdateWarp = false;
+            }
+
+            // Update source node
+            //-------------------------------------------------------------------------
+
+            result = m_pClipReferenceNode->Update( context, updateRange );
+            m_duration = m_pClipReferenceNode->GetDuration();
+            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+
+            // Sample warped root motion
+            //-------------------------------------------------------------------------
+
+            if ( m_warpedRootMotion.IsValid() )
+            {
+                auto pNodeSettings = GetSettings<OrientationWarpNode>();
+                if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
+                {
+                    result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+                }
+                else
+                {
+                    result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
+                }
+            }
+
+        }
+        else
+        {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
-        // Update source node
-        //-------------------------------------------------------------------------
-
-        auto result = m_pClipReferenceNode->Update( context, updateRange );
-        m_duration = m_pClipReferenceNode->GetDuration();
-        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
-        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
-
-        // Sample warped root motion
-        //-------------------------------------------------------------------------
-
-        if ( m_warpedRootMotion.IsValid() )
-        {
-            if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
-            {
-                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
-            }
-            else
-            {
-                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
-            }
-        }
+        EE_ASSERT( m_duration != 0.0f );
 
         return result;
     }

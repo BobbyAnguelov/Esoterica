@@ -264,7 +264,7 @@ namespace EE::Animation::GraphNodes
 
         TInlineString<100> pinName;
         pinName.sprintf( "Option %d", numOptions - 1 );
-        pConditionsNode->CreateInputPin( pinName.c_str(), GraphValueType::Bool );
+        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), (uint32_t) GraphValueType::Bool );
     }
 
     void AnimationClipSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
@@ -301,7 +301,7 @@ namespace EE::Animation::GraphNodes
         // Destroy condition node pin
         //-------------------------------------------------------------------------
 
-        pConditionsNode->DestroyInputPin( pintoBeRemovedIdx );
+        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pintoBeRemovedIdx )->m_ID );
     }
 
     bool AnimationClipSelectorToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const

@@ -1,4 +1,5 @@
 #include "ResourceDatabase.h"
+#include "ResourceDescriptor.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Types/Function.h"
@@ -7,6 +8,13 @@
 
 namespace EE::Resource
 {
+    ResourceDatabase::FileEntry::~FileEntry()
+    {
+        EE::Delete( m_pDescriptor );
+    }
+
+    //-------------------------------------------------------------------------
+
     void ResourceDatabase::DirectoryEntry::ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath )
     {
         FileSystem::Path const oldPath = m_filePath;
@@ -41,9 +49,9 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        for ( auto& pRecord : m_files )
+        for ( auto& pFile : m_files )
         {
-            EE::Delete( pRecord );
+            EE::Delete( pFile );
         }
 
         //-------------------------------------------------------------------------
@@ -56,7 +64,7 @@ namespace EE::Resource
 
     ResourceDatabase::~ResourceDatabase()
     {
-        EE_ASSERT( m_rootDir.IsEmpty() && m_resourcesPerType.empty() && m_resourcesPerPath.empty() );
+        EE_ASSERT( m_reflectedDataDirectory.IsEmpty() && m_resourcesPerType.empty() && m_resourcesPerPath.empty() );
     }
 
     //-------------------------------------------------------------------------
@@ -77,16 +85,12 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         RequestDatabaseRebuild();
-
-        // Start file watcher
-        //-------------------------------------------------------------------------
-
-        m_fileSystemWatcher.RegisterChangeListener( this );
-        m_fileSystemWatcher.StartWatching( m_rawResourceDirPath );
     }
 
     void ResourceDatabase::Shutdown()
     {
+        CancelDatabaseRebuild();
+
         // Stop file watcher
         //-------------------------------------------------------------------------
 
@@ -95,9 +99,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        m_resourcesPerType.clear();
-        m_resourcesPerPath.clear();
-        m_rootDir.Clear();
+        ClearDatabase();
 
         if ( m_databaseUpdatedEvent.HasBoundUsers() )
         {
@@ -115,40 +117,72 @@ namespace EE::Resource
         // Wait for rebuild to complete
         //-------------------------------------------------------------------------
 
-        if ( m_pRebuildTask != nullptr )
+        if ( m_status != Status::Idle )
         {
-            if ( m_pRebuildTask->GetIsComplete() )
+            EE_ASSERT( m_pAsyncTask != nullptr );
+            if ( m_pAsyncTask->GetIsComplete() )
             {
-                EE::Delete( m_pRebuildTask );
+                EE::Delete( m_pAsyncTask );
 
                 // Notify users that the DB has been rebuilt
                 m_databaseUpdatedEvent.Execute();
-            }
-            else
-            {
-                return false;
+
+                // Set status to idle
+                m_status = Status::Idle;
             }
         }
 
         // Update file watcher
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( m_fileSystemWatcher.IsWatching() );
-        bool const fileSystemChangesDetected = m_fileSystemWatcher.Update();
-        if ( fileSystemChangesDetected )
+        if ( m_status == Status::Idle )
         {
-            if ( m_databaseUpdatedEvent.HasBoundUsers() )
+            EE_ASSERT( m_fileSystemWatcher.IsWatching() );
+            bool const fileSystemChangesDetected = m_fileSystemWatcher.Update();
+            if ( fileSystemChangesDetected )
             {
-                m_databaseUpdatedEvent.Execute();
+                if ( m_databaseUpdatedEvent.HasBoundUsers() )
+                {
+                    m_databaseUpdatedEvent.Execute();
+                }
             }
+
+            return fileSystemChangesDetected;
         }
-        return fileSystemChangesDetected;
+
+        //-------------------------------------------------------------------------
+
+        return false;
     }
 
     //-------------------------------------------------------------------------
 
+    void ResourceDatabase::ClearDatabase()
+    {
+        m_resourcesPerType.clear();
+        m_resourcesPerPath.clear();
+        m_reflectedDataDirectory.Clear();
+    }
+
+    void ResourceDatabase::CancelDatabaseRebuild()
+    {
+        if ( m_pAsyncTask != nullptr )
+        {
+            m_cancelActiveTask = true;
+            m_pTaskSystem->WaitForTask( m_pAsyncTask );
+            EE::Delete( m_pAsyncTask );
+            ClearDatabase();
+            m_cancelActiveTask = false;
+        }
+    }
+
     void ResourceDatabase::RequestDatabaseRebuild()
     {
+        // Cancel any running task
+        //-------------------------------------------------------------------------
+
+        CancelDatabaseRebuild();
+
         // Stop file watcher
         //-------------------------------------------------------------------------
 
@@ -158,79 +192,117 @@ namespace EE::Resource
             m_fileSystemWatcher.UnregisterChangeListener( this );
         }
 
-        // Task Payload
+        // Kick off new task
         //-------------------------------------------------------------------------
 
-        auto RebuildDatabase = [this] ()
+        struct Task : public ITaskSet
         {
-            // Reset the resource type category and add an entry for for every known resource type
-            //-------------------------------------------------------------------------
-
-            m_resourcesPerType.clear();
-            for ( auto const& resourceInfoPair : m_pTypeRegistry->GetRegisteredResourceTypes() )
-            {
-                auto const& resourceInfo = resourceInfoPair.second;
-                m_resourcesPerType.insert( TPair<ResourceTypeID, TVector<FileEntry*>>( resourceInfo.m_resourceTypeID, TVector<FileEntry*>() ) );
-            }
-
-            // Reset file map
-            //-------------------------------------------------------------------------
-
-            m_resourcesPerPath.clear();
-
-            // Reset the root dir
-            //-------------------------------------------------------------------------
-
-            m_rootDir.Clear();
-            m_rootDir.m_name = StringID( m_rawResourceDirPath.GetDirectoryName() );
-            m_rootDir.m_filePath = m_rawResourceDirPath;
-
-            // Get all files in the data directory
-            //-------------------------------------------------------------------------
-
-            TVector<FileSystem::Path> foundPaths;
-            if ( !FileSystem::GetDirectoryContents( m_rawResourceDirPath, foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand ) )
-            {
-                EE_HALT();
-            }
-
-            // Add record for all files
-            //-------------------------------------------------------------------------
-
-            for ( auto const& filePath : foundPaths )
-            {
-                if ( filePath.IsDirectoryPath() )
-                {
-                    DirectoryEntry* pDirectory = FindOrCreateDirectory( filePath );
-                    EE_ASSERT( pDirectory != nullptr );
-                }
-                else
-                {
-                    AddFileRecord( filePath );
-                }
-            }
-        };
-
-        //-------------------------------------------------------------------------
-
-        struct RebuildTask : public ITaskSet
-        {
-            RebuildTask( TFunction<void()>&& func ) : m_function( func ) {}
+            Task( ResourceDatabase* pDB ) : m_pDB( pDB ) {}
 
             virtual void ExecuteRange( TaskSetPartition range, uint32_t threadnum ) override final
             {
-                m_function();
+                m_pDB->RebuildDatabase();
             }
 
-            TFunction<void()> m_function;
+            ResourceDatabase* m_pDB;
         };
 
-        // Kick off rebuild task
-        m_pRebuildTask = EE::New<RebuildTask>( RebuildDatabase );
-        m_pTaskSystem->ScheduleTask( m_pRebuildTask );
+        EE_ASSERT( m_pAsyncTask == nullptr );
+        m_status = Status::BuildingDB;
+        m_pAsyncTask = EE::New<Task>( this );
+        m_pTaskSystem->ScheduleTask( m_pAsyncTask );
+        m_rebuildProgress = 0.0f;
+    }
+
+    void ResourceDatabase::RebuildDatabase()
+    {
+        EE_ASSERT( m_status == Status::BuildingDB );
+
+        // Reset the resource type category and add an entry for for every known resource type
+        //-------------------------------------------------------------------------
+
+        m_resourcesPerType.clear();
+        for ( auto const& resourceInfoPair : m_pTypeRegistry->GetRegisteredResourceTypes() )
+        {
+            auto const& resourceInfo = resourceInfoPair.second;
+            m_resourcesPerType.insert( TPair<ResourceTypeID, TVector<FileEntry*>>( resourceInfo.m_resourceTypeID, TVector<FileEntry*>() ) );
+        }
+
+        // Reset file map
+        //-------------------------------------------------------------------------
+
+        m_resourcesPerPath.clear();
+
+        // Reset the root dir
+        //-------------------------------------------------------------------------
+
+        m_reflectedDataDirectory.Clear();
+        m_reflectedDataDirectory.m_name = StringID( m_rawResourceDirPath.GetDirectoryName() );
+        m_reflectedDataDirectory.m_filePath = m_rawResourceDirPath;
+
+        // Get all files in the data directory
+        //-------------------------------------------------------------------------
+
+        if ( m_cancelActiveTask )
+        {
+            return;
+        }
+
+        TVector<FileSystem::Path> foundPaths;
+        if ( !FileSystem::GetDirectoryContents( m_rawResourceDirPath, foundPaths, FileSystem::DirectoryReaderOutput::All, FileSystem::DirectoryReaderMode::Expand ) )
+        {
+            EE_HALT();
+        }
+
+        // Add record for all files
+        //-------------------------------------------------------------------------
+
+        int32_t const numFoundPaths = (int32_t) foundPaths.size();
+        for ( int32_t i = 0; i < numFoundPaths; i++ )
+        {
+            auto const& filePath = foundPaths[i];
+
+            if ( m_cancelActiveTask )
+            {
+                m_rebuildProgress = 1.0f;
+                return;
+            }
+
+            if ( filePath.IsDirectoryPath() )
+            {
+                DirectoryEntry* pDirectory = FindOrCreateDirectory( filePath );
+                EE_ASSERT( pDirectory != nullptr );
+            }
+            else
+            {
+                AddFileRecord( filePath );
+            }
+
+            m_rebuildProgress = float( i ) / ( numFoundPaths - 1 );
+        }
+
+        EE_ASSERT( m_rebuildProgress == 1.0f );
+
+        // Start file system watcher
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( !m_fileSystemWatcher.IsWatching() );
+        m_fileSystemWatcher.RegisterChangeListener( this );
+        m_fileSystemWatcher.StartWatching( m_rawResourceDirPath );
     }
 
     //-------------------------------------------------------------------------
+
+    ResourceDatabase::FileEntry const* ResourceDatabase::GetFileEntry( ResourcePath const& resourcePath ) const
+    {
+        auto fileEntryIter = m_resourcesPerPath.find( resourcePath );;
+        if ( fileEntryIter != m_resourcesPerPath.end() )
+        {
+            return fileEntryIter->second;
+        }
+
+        return  nullptr;
+    }
 
     bool ResourceDatabase::DoesResourceExist( ResourceID const& resourceID ) const
     {
@@ -244,12 +316,21 @@ namespace EE::Resource
         return m_resourcesPerPath.find( resourcePath ) != m_resourcesPerPath.end();
     }
 
-    TVector<ResourceDatabase::FileEntry*> ResourceDatabase::GetAllResourcesOfType( ResourceTypeID resourceTypeID, bool includeDerivedTypes ) const
+    TVector<ResourceID> ResourceDatabase::GetAllResourcesOfType( ResourceTypeID resourceTypeID, bool includeDerivedTypes ) const
     {
         EE_ASSERT( m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) );
 
-        TVector<ResourceDatabase::FileEntry*> results;
-        results = m_resourcesPerType.at( resourceTypeID );
+        TVector<ResourceID> results;
+
+        //-------------------------------------------------------------------------
+
+        auto const& foundEntries = m_resourcesPerType.at( resourceTypeID );
+        for ( auto const& entry : foundEntries )
+        {
+            results.emplace_back( entry->m_resourceID );
+        }
+
+        //-------------------------------------------------------------------------
 
         if ( includeDerivedTypes )
         {
@@ -257,7 +338,48 @@ namespace EE::Resource
             for ( ResourceTypeID derivedResourceTypeID : derivedResourceTypeIDs )
             {
                 auto const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
-                results.insert( results.end(), derivedResources.begin(), derivedResources.end() );
+                for ( auto const& entry : derivedResources )
+                {
+                    results.emplace_back( entry->m_resourceID );
+                }
+            }
+        }
+
+        return results;
+    }
+
+    TVector<EE::ResourceID> ResourceDatabase::GetAllResourcesOfTypeFiltered( ResourceTypeID resourceTypeID, TFunction<bool( ResourceDescriptor const* )> const& filter, bool includeDerivedTypes ) const
+    {
+        EE_ASSERT( m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) );
+
+        TVector<ResourceID> results;
+
+        //-------------------------------------------------------------------------
+
+        auto const& foundEntries = m_resourcesPerType.at( resourceTypeID );
+        for ( auto const& entry : foundEntries )
+        {
+            if ( filter( entry->m_pDescriptor ) )
+            {
+                results.emplace_back( entry->m_resourceID );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( includeDerivedTypes )
+        {
+            auto const derivedResourceTypeIDs = m_pTypeRegistry->GetAllDerivedResourceTypes( resourceTypeID );
+            for ( ResourceTypeID derivedResourceTypeID : derivedResourceTypeIDs )
+            {
+                auto const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
+                for ( auto const& entry : derivedResources )
+                {
+                    if ( filter( entry->m_pDescriptor ) )
+                    {
+                        results.emplace_back( entry->m_resourceID );
+                    }
+                }
             }
         }
 
@@ -270,7 +392,7 @@ namespace EE::Resource
     {
         EE_ASSERT( dirPathToFind.IsDirectoryPath() );
 
-        DirectoryEntry* pCurrentDir = &m_rootDir;
+        DirectoryEntry* pCurrentDir = &m_reflectedDataDirectory;
         FileSystem::Path directoryPath = m_rawResourceDirPath;
         TInlineVector<String, 10> splitPath = dirPathToFind.Split();
 
@@ -304,7 +426,7 @@ namespace EE::Resource
     {
         EE_ASSERT( dirPathToFind.IsDirectoryPath() );
 
-        DirectoryEntry* pCurrentDir = &m_rootDir;
+        DirectoryEntry* pCurrentDir = &m_reflectedDataDirectory;
         FileSystem::Path directoryPath = m_rawResourceDirPath;
         TInlineVector<String, 10> splitPath = dirPathToFind.Split();
 
@@ -349,6 +471,12 @@ namespace EE::Resource
         pNewEntry->m_filePath = path;
         pNewEntry->m_resourceID = resourcePath;
         pNewEntry->m_isRegisteredResourceType = m_pTypeRegistry->IsRegisteredResourceType( pNewEntry->m_resourceID.GetResourceTypeID() );
+
+        // Read descriptor
+        if ( pNewEntry->m_isRegisteredResourceType )
+        {
+            pNewEntry->m_pDescriptor = ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, path );
+        }
 
         // Add to directory list
         DirectoryEntry* pDirectory = FindOrCreateDirectory( path.GetParentDirectory() );
@@ -406,6 +534,7 @@ namespace EE::Resource
         }
     }
 
+    // Watcher Events
     //-------------------------------------------------------------------------
 
     void ResourceDatabase::OnFileCreated( FileSystem::Path const& path )
@@ -422,6 +551,27 @@ namespace EE::Resource
     {
         RemoveFileRecord( oldPath );
         AddFileRecord( newPath );
+    }
+
+    void ResourceDatabase::OnFileModified( FileSystem::Path const& path )
+    {
+        DirectoryEntry* pDirectory = FindDirectory( path.GetParentDirectory() );
+        EE_ASSERT( pDirectory != nullptr );
+
+        int32_t const numFiles = (int32_t) pDirectory->m_files.size();
+        for ( int32_t i = 0; i < numFiles; i++ )
+        {
+            if ( pDirectory->m_files[i]->m_filePath == path )
+            {
+                if ( pDirectory->m_files[i]->m_isRegisteredResourceType )
+                {
+                    EE::Delete( pDirectory->m_files[i]->m_pDescriptor );
+                    pDirectory->m_files[i]->m_pDescriptor = ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, path );
+                }
+
+                break;
+            }
+        }
     }
 
     void ResourceDatabase::OnDirectoryCreated( FileSystem::Path const& newDirectoryPath )

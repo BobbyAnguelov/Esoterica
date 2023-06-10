@@ -25,8 +25,11 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() IDComparisonNode::Comparison     m_comparison = IDComparisonNode::Comparison::Matches;
-        EE_REFLECT() TVector<StringID>                m_IDs;
+        EE_REFLECT();
+        IDComparisonNode::Comparison     m_comparison = IDComparisonNode::Comparison::Matches;
+
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        TVector<StringID>                m_IDs;
     };
 
     //-------------------------------------------------------------------------
@@ -39,8 +42,11 @@ namespace EE::Animation::GraphNodes
         {
             EE_REFLECT_TYPE( Mapping );
 
-            EE_REFLECT() StringID    m_ID;
-            EE_REFLECT() float       m_value;
+            EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+            StringID    m_ID;
+
+            EE_REFLECT();
+            float       m_value;
         };
 
     public:
@@ -61,7 +67,10 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() float                            m_defaultValue = 0.0f;
-        EE_REFLECT() TVector<Mapping>                 m_mappings;
+        EE_REFLECT();
+        float                            m_defaultValue = 0.0f;
+
+        EE_REFLECT();
+        TVector<Mapping>                 m_mappings;
     };
 }

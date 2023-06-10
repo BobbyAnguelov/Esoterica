@@ -114,8 +114,8 @@ namespace EE::Animation::GraphNodes
                 {
                     if ( pNodeSettings->m_eventIDs[t] == foundID )
                     {
-                        // 
-                        if ( pNodeSettings->m_operator == Operator::Or )
+                        // If we are using an 'or' operator, we can early out here
+                        if ( pNodeSettings->m_operator == EventConditionOperator::Or )
                         {
                             return true;
                         }
@@ -131,6 +131,130 @@ namespace EE::Animation::GraphNodes
 
         // Ensure that all events have been found
         for ( auto t = 0; t < numEventIDs; t++ )
+        {
+            if ( !foundIDs[t] )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void StateEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<StateEventConditionNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void StateEventConditionNode::InitializeInternal( GraphContext& context )
+    {
+        BoolValueNode::InitializeInternal( context );
+        if ( m_pSourceStateNode != nullptr )
+        {
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+        }
+
+        m_result = false;
+    }
+
+    void StateEventConditionNode::ShutdownInternal( GraphContext& context )
+    {
+        BoolValueNode::ShutdownInternal( context );
+    }
+
+    void StateEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_result = TryMatchTags( context );
+        }
+
+        // Set Result
+        *( (bool*) pOutValue ) = m_result;
+    }
+
+    bool StateEventConditionNode::TryMatchTags( GraphContext& context ) const
+    {
+        auto pNodeSettings = GetSettings<StateEventConditionNode>();
+        int32_t const numConditions = (int32_t) pNodeSettings->m_conditions.size();
+        auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numConditions );
+        Memory::MemsetZero( foundIDs, sizeof( bool ) * numConditions );
+
+        // Calculate event search range
+        //-------------------------------------------------------------------------
+
+        bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
+
+        SampledEventRange searchRange( 0, 0 );
+        if ( shouldSearchAllEvents || context.IsInLayer() )
+        {
+            // If we dont have a child node set, search all sampled events for the event
+            searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        }
+        else // Only search the sampled event range for the child node
+        {
+            searchRange = m_pSourceStateNode->GetSampledEventRange();
+        }
+
+        // Perform search
+        //-------------------------------------------------------------------------
+
+        for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
+        {
+            SampledEvent const& sampledEvent = context.m_sampledEventsBuffer[i];
+
+            if ( sampledEvent.IsIgnored() )
+            {
+                continue;
+            }
+
+            // Skip events from inactive branch if so requested
+            if ( pNodeSettings->m_onlyCheckEventsFromActiveBranch && !sampledEvent.IsFromActiveBranch() )
+            {
+                continue;
+            }
+
+            // Only check state events
+            if ( sampledEvent.IsAnimationEvent() )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            StringID const foundID = sampledEvent.GetStateEventID();
+            if ( foundID.IsValid() )
+            {
+                // Check against the set of events we need to match
+                for ( auto t = 0; t < numConditions; t++ )
+                {
+                    auto const& condition = pNodeSettings->m_conditions[t];
+                    if ( condition.m_eventID == foundID && DoesStateEventTypesMatchCondition( condition.m_eventTypeCondition, sampledEvent.GetStateEventType() ) )
+                    {
+                        // If we have an 'or' operator we can early out here
+                        if ( pNodeSettings->m_operator == EventConditionOperator::Or )
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            foundIDs[t] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ensure that all events have been found
+        for ( auto t = 0; t < numConditions; t++ )
         {
             if ( !foundIDs[t] )
             {

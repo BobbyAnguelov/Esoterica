@@ -34,10 +34,10 @@ namespace EE
     public:
 
         inline UUID() { Memory::MemsetZero( &m_data ); }
-        inline UUID( uint64_t v0, uint64_t v1 ) { m_data.m_U64[0] = v0; m_data.m_U64[1] = v1; }
-        inline UUID( uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3 ) { m_data.m_U32[0] = v0; m_data.m_U32[1] = v1; m_data.m_U32[2] = v2; m_data.m_U32[3] = v3; }
-        inline UUID( String const& str ) : UUID( str.c_str() ) {}
-        UUID( char const* pString );
+        inline explicit UUID( uint64_t v0, uint64_t v1 ) { m_data.m_U64[0] = v0; m_data.m_U64[1] = v1; }
+        inline explicit UUID( uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3 ) { m_data.m_U32[0] = v0; m_data.m_U32[1] = v1; m_data.m_U32[2] = v2; m_data.m_U32[3] = v3; }
+        inline explicit UUID( String const& str ) : UUID( str.c_str() ) {}
+        explicit UUID( char const* pString );
 
         inline UUIDString ToString() const
         {

@@ -69,6 +69,7 @@ namespace EE::TypeSystem::Reflection
         // From MetaData
         String                                          m_category;
         bool                                            m_isToolsReadOnly = false;
+        StringID                                        m_customEditorID;
     };
 
     //-------------------------------------------------------------------------

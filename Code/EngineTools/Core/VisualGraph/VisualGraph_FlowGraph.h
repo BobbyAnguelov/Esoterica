@@ -85,7 +85,7 @@ namespace EE::VisualGraph
             // Get node category name (separated via '/')
             virtual char const* GetCategory() const { return nullptr; }
 
-            // Pins
+            // Input Pins
             //-------------------------------------------------------------------------
 
             // Does this node support user editing of dynamic input pins
@@ -97,26 +97,17 @@ namespace EE::VisualGraph
             // What's the value type of the dynamic inputs
             virtual uint32_t GetDynamicInputPinValueType() const { return 0; }
 
-            // Does this node have an output pin
-            inline bool HasOutputPin() const { return !m_outputPins.empty(); }
-
             // Get the number of input pins on this node
             inline int32_t GetNumInputPins() const { return (int32_t) m_inputPins.size(); }
-
-            // Get the number of input pins on this node
-            inline int32_t GetNumOutputPins() const { return (int32_t) m_outputPins.size(); }
 
             // Get all input pins
             inline TInlineVector<Pin, 4> const& GetInputPins() const { return m_inputPins; }
 
-            // Get all output pins
-            inline TInlineVector<Pin, 1> const& GetOutputPins() const { return m_outputPins; }
-
             // Does an input pin exist with this ID
             inline bool HasInputPin( UUID const& pinID ) const { return GetInputPin( pinID ) != nullptr; }
 
-            // Does an input pin exist with this ID
-            inline bool HasOutputPin( UUID const& pinID ) const { return GetOutputPin( pinID ) != nullptr; }
+            // Does an output pin exist with this index
+            inline bool HasInputPin( int32_t pinIdx ) const { return pinIdx >= 0 && pinIdx < m_inputPins.size(); }
 
             // Get an input pin for this node
             inline Pin* GetInputPin( int32_t pinIdx ) { EE_ASSERT( pinIdx >= 0 && pinIdx < m_inputPins.size() ); return &m_inputPins[pinIdx]; }
@@ -124,17 +115,38 @@ namespace EE::VisualGraph
             // Get an input pin for this node
             inline Pin const* GetInputPin( int32_t pinIdx ) const { EE_ASSERT( pinIdx >= 0 && pinIdx < m_inputPins.size() ); return &m_inputPins[pinIdx]; }
 
-            // Get an output pin for this node
-            inline Pin* GetOutputPin( int32_t pinIdx = 0 ) { EE_ASSERT( pinIdx >= 0 && pinIdx < m_outputPins.size() ); return &m_outputPins[pinIdx]; }
-
-            // Get an output pin for this node
-            inline Pin const* GetOutputPin( int32_t pinIdx = 0 ) const { EE_ASSERT( pinIdx >= 0 && pinIdx < m_outputPins.size() ); return &m_outputPins[pinIdx]; }
-
             // Get a specific input pin via ID
             inline Pin const* GetInputPin( UUID const& pinID ) const;
 
             // Get a specific input pin via ID
             inline Pin* GetInputPin( UUID const& pinID ) { return const_cast<Pin*>( const_cast<Node const*>( this )->GetInputPin( pinID ) ); }
+
+            // Get the index for a specific input pin via ID
+            int32_t GetInputPinIndex( UUID const& pinID ) const;
+
+            // Output Pins
+            //-------------------------------------------------------------------------
+
+            // Get the number of output pins on this node
+            inline int32_t GetNumOutputPins() const { return (int32_t) m_outputPins.size(); }
+
+            // Get all output pins
+            inline TInlineVector<Pin, 1> const& GetOutputPins() const { return m_outputPins; }
+
+            // Does this node have an output pin
+            inline bool HasOutputPin() const { return !m_outputPins.empty(); }
+
+            // Does an output pin exist with this ID
+            inline bool HasOutputPin( UUID const& pinID ) const { return GetOutputPin( pinID ) != nullptr; }
+
+            // Does an output pin exist with this index
+            inline bool HasOutputPin( int32_t pinIdx ) const { return pinIdx >= 0 && pinIdx < m_outputPins.size(); }
+
+            // Get an output pin for this node
+            inline Pin* GetOutputPin( int32_t pinIdx = 0 ) { EE_ASSERT( pinIdx >= 0 && pinIdx < m_outputPins.size() ); return &m_outputPins[pinIdx]; }
+
+            // Get an output pin for this node
+            inline Pin const* GetOutputPin( int32_t pinIdx = 0 ) const { EE_ASSERT( pinIdx >= 0 && pinIdx < m_outputPins.size() ); return &m_outputPins[pinIdx]; }
 
             // Get a specific output pin via ID
             inline Pin const* GetOutputPin( UUID const& pinID ) const;
@@ -144,9 +156,6 @@ namespace EE::VisualGraph
 
             // Does the specified pin ID exist on this node
             inline bool HasPin( UUID const& pinID ) const { return HasInputPin( pinID ) || HasOutputPin( pinID ); }
-
-            // Get the index for a specific input pin via ID
-            int32_t GetInputPinIndex( UUID const& pinID ) const;
 
             // Get the index for a specific output pin via ID
             int32_t GetOutputPinIndex( UUID const& pinID ) const;

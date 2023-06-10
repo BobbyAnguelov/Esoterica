@@ -108,6 +108,7 @@ namespace EE::TypeSystem
         String                      m_friendlyName;
         String                      m_category;
         String                      m_description;                          // Generated from the comments for the property
+        StringID                    m_customEditorID;                       // Should we use a custom property grid editor?
         #endif
     };
 }

@@ -15,8 +15,8 @@ namespace EE::Physics
 
         using PropertyEditor::PropertyEditor;
 
-        CollisionSettingsEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance ) 
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        CollisionSettingsEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance ) 
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             UpdateCollidesWithWorkingData( m_value_imgui );
         }
@@ -56,10 +56,10 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            TypeSystem::EnumInfo const* pColliderTypeEnumInfo = m_pToolsContext->m_pTypeRegistry->GetEnumInfo<CollisionCategory>();
+            TypeSystem::EnumInfo const* pColliderTypeEnumInfo = GetTypeRegistry()->GetEnumInfo<CollisionCategory>();
             EE_ASSERT( pColliderTypeEnumInfo != nullptr );
 
-            TypeSystem::EnumInfo const* pQueryChannelEnumInfo = m_pToolsContext->m_pTypeRegistry->GetEnumInfo<QueryChannel>();
+            TypeSystem::EnumInfo const* pQueryChannelEnumInfo = GetTypeRegistry()->GetEnumInfo<QueryChannel>();
             EE_ASSERT( pQueryChannelEnumInfo != nullptr );
 
             //-------------------------------------------------------------------------
@@ -151,10 +151,10 @@ namespace EE::Physics
 
         void UpdateCollidesWithWorkingData( CollisionSettings const& settings )
         {
-            TypeSystem::EnumInfo const* pColliderTypeEnumInfo = m_pToolsContext->m_pTypeRegistry->GetEnumInfo<CollisionCategory>();
+            TypeSystem::EnumInfo const* pColliderTypeEnumInfo = GetTypeRegistry()->GetEnumInfo<CollisionCategory>();
             EE_ASSERT( pColliderTypeEnumInfo != nullptr );
 
-            TypeSystem::EnumInfo const* pQueryChannelEnumInfo = m_pToolsContext->m_pTypeRegistry->GetEnumInfo<QueryChannel>();
+            TypeSystem::EnumInfo const* pQueryChannelEnumInfo = GetTypeRegistry()->GetEnumInfo<QueryChannel>();
             EE_ASSERT( pQueryChannelEnumInfo != nullptr );
 
             for ( auto const& constant : pColliderTypeEnumInfo->m_constants )
@@ -190,5 +190,5 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    EE_PROPERTY_GRID_EDITOR( CollisionSettingsEditorFactory, Physics::CollisionSettings, CollisionSettingsEditor );
+    EE_PROPERTY_GRID_TYPE_EDITOR( CollisionSettingsEditorFactory, Physics::CollisionSettings, CollisionSettingsEditor );
 }

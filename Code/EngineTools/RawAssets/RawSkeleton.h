@@ -22,7 +22,7 @@ namespace EE::RawAssets
             StringID            m_name;
             Transform           m_localTransform = Transform::Identity;
             Transform           m_globalTransform = Transform::Identity;
-            int32_t               m_parentBoneIdx = InvalidIndex;
+            int32_t             m_parentBoneIdx = InvalidIndex;
         };
 
     public:

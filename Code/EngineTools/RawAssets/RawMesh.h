@@ -77,9 +77,6 @@ namespace EE::RawAssets
     protected:
 
         TVector<GeometrySection>                m_geometrySections;
-        TVector<String>                         m_warnings;
-        TVector<String>                         m_errors;
-
         RawSkeleton                             m_skeleton;
         int32_t                                 m_maxNumberOfBoneInfluences = 0;
         bool                                    m_isSkeletalMesh = false;

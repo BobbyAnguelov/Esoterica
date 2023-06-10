@@ -5,6 +5,7 @@
 #include "System/Types/StringID.h"
 #include "System/Types/BitFlags.h"
 #include "System/Types/Arrays.h"
+#include "System/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,13 +15,35 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    enum class StateEventType
+    enum class StateEventType : uint8_t
     {
-        Entry,             // Is this a state transition in event
+        Entry = 0,         // Is this a state transition in event
         FullyInState,      // Is this a "fully in state" event
         Exit,              // Is this a state transition out event
         Timed,             // Timed event coming from a state
     };
+
+    // Use this enum when performing event type comparisons
+    enum class StateEventTypeCondition : uint8_t
+    {
+        EE_REFLECT_ENUM
+
+        Entry = 0,         // Is this a state transition in event
+        FullyInState,      // Is this a "fully in state" event
+        Exit,              // Is this a state transition out event
+        Timed,             // Timed event coming from a state
+        Any                // Any kind of state event
+    };
+
+    EE_FORCE_INLINE bool DoesStateEventTypesMatchCondition( StateEventTypeCondition condition, StateEventType eventType )
+    {
+        if ( condition == StateEventTypeCondition::Any ) 
+        {
+            return true;
+        }
+
+        return (uint8_t) condition == (uint8_t) eventType;
+    }
 
     //-------------------------------------------------------------------------
     // A sampled event from the graph
@@ -108,7 +131,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline StringID GetStateEventID() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_ID; }
-        inline StateEventType GetEventType() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type; }
+        inline StateEventType GetStateEventType() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type; }
 
         inline bool IsEntryEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Entry; }
         inline bool IsFullyInStateEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::FullyInState; }

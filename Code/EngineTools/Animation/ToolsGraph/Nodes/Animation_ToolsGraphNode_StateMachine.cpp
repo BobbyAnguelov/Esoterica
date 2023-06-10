@@ -245,9 +245,24 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        for ( auto const& ID : pStateNode->m_entryEvents ) { pSettings->m_entryEvents.emplace_back( ID ); }
-        for ( auto const& ID : pStateNode->m_executeEvents ) { pSettings->m_executeEvents.emplace_back( ID ); }
-        for ( auto const& ID : pStateNode->m_exitEvents ) { pSettings->m_exitEvents.emplace_back( ID ); }
+        auto ReflectStateEvents = [&] ( TVector<StringID> const& IDs, TInlineVector<StringID, 3>& outEvents )
+        {
+            for ( auto const& ID : IDs )
+            {
+                if ( ID.IsValid() )
+                {
+                    outEvents.emplace_back( ID );
+                }
+                else
+                {
+                    context.LogWarning( this, "Invalid state event detected and ignored!" );
+                }
+            }
+        };
+
+        ReflectStateEvents( pStateNode->m_entryEvents, pSettings->m_entryEvents );
+        ReflectStateEvents( pStateNode->m_executeEvents, pSettings->m_executeEvents );
+        ReflectStateEvents( pStateNode->m_exitEvents, pSettings->m_exitEvents );
 
         //-------------------------------------------------------------------------
 
@@ -317,8 +332,23 @@ namespace EE::Animation::GraphNodes
             // Transfer additional state events
             //-------------------------------------------------------------------------
 
-            for ( auto const& evt : pStateNode->m_timeRemainingEvents ) { pSettings->m_timedRemainingEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) ); }
-            for ( auto const& evt : pStateNode->m_timeElapsedEvents ) { pSettings->m_timedElapsedEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) ); }
+            auto ReflectTimedStateEvents = [&] ( TVector<StateToolsNode::TimedStateEvent> const& timedEvents, TInlineVector<StateNode::TimedEvent, 1>& outEvents )
+            {
+                for ( auto const& evt : timedEvents )
+                {
+                    if ( evt.m_ID.IsValid() )
+                    {
+                        outEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) );
+                    }
+                    else
+                    {
+                        context.LogWarning( this, "Invalid state event detected and ignored!" );
+                    }
+                }
+            };
+
+            ReflectTimedStateEvents( pStateNode->m_timeRemainingEvents, pSettings->m_timedRemainingEvents );
+            ReflectTimedStateEvents( pStateNode->m_timeElapsedEvents, pSettings->m_timedElapsedEvents );
         }
 
         //-------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Resource/ResourcePicker.h"
+#include "EngineTools/_Module/API.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/TypeSystem/TypeInfo.h"
 #include "System/TypeSystem/ReflectedType.h"
@@ -19,9 +19,10 @@ namespace EE
 
     namespace PG 
     {
+        struct GridContext;
         class CategoryRow;
         class PropertyEditor;
-        class PropertyHelper;
+        class TypeEditingRules;
         struct ScopedChangeNotifier;
     }
 
@@ -62,6 +63,8 @@ namespace EE
 
         PropertyGrid( ToolsContext const* pToolsContext );
         ~PropertyGrid();
+
+        void SetUserContext( void* pContext );
 
         // Set this grid to be read only
         void SetReadOnly( bool isReadOnly ) { m_isReadOnly = isReadOnly; }
@@ -114,9 +117,8 @@ namespace EE
 
     private:
 
-        ToolsContext const*                                         m_pToolsContext;
+        PG::GridContext*                                            m_pGridContext = nullptr;
         TypeSystem::TypeInfo const*                                 m_pTypeInfo = nullptr;
-        Resource::ResourcePicker                                    m_resourcePicker;
         IReflectedType*                                             m_pTypeInstance = nullptr;
         bool                                                        m_isDirty = false;
         bool                                                        m_isControlBarVisible = true;
@@ -135,15 +137,6 @@ namespace EE
 
 namespace EE::PG
 {
-    struct GridContext
-    {
-        PropertyGrid*               m_pPropertyGrid = nullptr;
-        ToolsContext const*         m_pToolsContext = nullptr;
-        Resource::ResourcePicker*   m_pResourcePicker = nullptr;
-    };
-
-    //-------------------------------------------------------------------------
-
     class GridRow
     {
     public:
@@ -211,7 +204,7 @@ namespace EE::PG
         GridRow*            m_pParent = nullptr;
         TVector<GridRow*>   m_children;
         String              m_name;
-        GridContext         m_context;
+        GridContext const&  m_context;
         bool const          m_isDeclaredReadOnly = false; // Is this property EXPLICITY marked as read-only?
 
         bool                m_isReadOnly = false; // Some time properties need to be declared readonly based on the helper logic
@@ -326,6 +319,6 @@ namespace EE::PG
         int32_t                             m_arrayElementIdx = InvalidIndex; // If we are an array element this will be set
         void*                               m_pPropertyInstance = nullptr; // Either a core type instance or a structure instance
         PropertyEditor*                     m_pPropertyEditor = nullptr; // A core type or custom property editor, if this is set we dont display struct children
-        PropertyHelper*                     m_pPropertyHelper = nullptr; // Helper that allows for complex visibility/read-only rules for a given type
+        TypeEditingRules*                   m_pTypeEditingRules = nullptr; // Helper that allows for complex visibility/read-only rules for a given type
     };
 }

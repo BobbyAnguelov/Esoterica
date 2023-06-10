@@ -24,7 +24,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() StringID                               m_maskID;
+        EE_REFLECT( "CustomEditor" : "AnimGraph_BoneMaskID" );
+        StringID                               m_maskID;
     };
 
     //-------------------------------------------------------------------------
@@ -67,8 +68,13 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() bool                                   m_switchDynamically = false;
-        EE_REFLECT() TVector<StringID>                      m_parameterValues;
-        EE_REFLECT() Seconds                                m_blendTime = 0.1f;
+        EE_REFLECT();
+        bool                                   m_switchDynamically = false;
+
+        EE_REFLECT();
+        TVector<StringID>                      m_parameterValues;
+
+        EE_REFLECT();
+        Seconds                                m_blendTime = 0.1f;
     };
 }

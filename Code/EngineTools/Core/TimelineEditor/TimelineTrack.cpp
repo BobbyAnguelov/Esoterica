@@ -206,6 +206,18 @@ namespace EE::Timeline
         ImVec2 const adjustedItemEndPos = ImVec2( itemEndPos ) - ImVec2( 0, itemMarginY );
         ImRect const itemRect( adjustedItemStartPos, adjustedItemEndPos );
 
+        ImVec2 const mousePos = ImGui::GetMousePos();
+        bool const isHovered = itemRect.Contains( mousePos );
+
+        if ( isHovered )
+        {
+            InlineString tooltipText = GetItemTooltip( pItem );
+            if ( !tooltipText.empty() )
+            {
+                ImGui::SetTooltip( tooltipText.c_str() );
+            }
+        }
+
         //-------------------------------------------------------------------------
 
         Color const itemColor = GetItemColor( pItem );

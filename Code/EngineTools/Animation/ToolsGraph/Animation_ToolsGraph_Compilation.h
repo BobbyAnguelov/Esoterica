@@ -76,7 +76,7 @@ namespace EE::Animation
             EE_ASSERT( m_nodeSettings.size() < 0xFFFF );
             pOutSettings = EE::New<T::Settings>();
             m_nodeSettings.emplace_back( pOutSettings );
-            m_compiledNodePaths.emplace_back( pNode->GetPathFromRoot() );
+            m_compiledNodePaths.emplace_back( pNode->GetStringPathFromRoot() );
             pOutSettings->m_nodeIdx = int16_t( m_nodeSettings.size() ) - 1;
 
             // Add to map

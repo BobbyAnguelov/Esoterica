@@ -36,8 +36,11 @@ namespace EE::Animation::GraphNodes
         {
             EE_REFLECT_TYPE( TimedStateEvent );
 
-            EE_REFLECT() StringID                 m_ID;
-            EE_REFLECT() Seconds                  m_timeValue;
+            EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+            StringID                 m_ID;
+
+            EE_REFLECT();
+            Seconds                  m_timeValue;
         };
 
     public:
@@ -90,13 +93,13 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT( "IsToolsReadOnly" : true );
         String                          m_name = "State";
         
-        EE_REFLECT();
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
         TVector<StringID>               m_entryEvents;
 
-        EE_REFLECT();
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
         TVector<StringID>               m_executeEvents;
 
-        EE_REFLECT();
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
         TVector<StringID>               m_exitEvents;
 
         EE_REFLECT();

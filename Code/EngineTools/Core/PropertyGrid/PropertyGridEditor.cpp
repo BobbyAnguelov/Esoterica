@@ -21,8 +21,8 @@ using namespace EE::TypeSystem;
 
 namespace EE::PG
 {
-    PropertyEditor::PropertyEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-        : m_pToolsContext( pToolsContext )
+    PropertyEditor::PropertyEditor( PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+        : m_context( context )
         , m_propertyInfo( propertyInfo )
         , m_pPropertyInstance( m_pPropertyInstance )
         , m_coreType( GetCoreType( propertyInfo.m_typeID ) )
@@ -57,9 +57,9 @@ namespace EE::PG
     {
     public:
 
-        EnumEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
-            , m_pEnumInfo( pToolsContext->m_pTypeRegistry->GetEnumInfo( m_propertyInfo.m_typeID ) )
+        EnumEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+            , m_pEnumInfo( GetTypeRegistry()->GetEnumInfo( m_propertyInfo.m_typeID ) )
         {
             EE_ASSERT( m_pEnumInfo != nullptr );
             EnumEditor::ResetWorkingCopy();
@@ -93,7 +93,7 @@ namespace EE::PG
                 ImGui::EndCombo();
             }
 
-            return  m_value_cached != m_value_imgui;
+            return m_value_cached != m_value_imgui;
         }
 
         virtual void UpdatePropertyValue() override
@@ -279,8 +279,8 @@ namespace EE::PG
     {
     public:
 
-        BoolEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        BoolEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             BoolEditor::ResetWorkingCopy();
         }
@@ -318,8 +318,8 @@ namespace EE::PG
     {
     public:
 
-        ScalarEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        ScalarEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             ScalarEditor::ResetWorkingCopy();
         }
@@ -433,8 +433,8 @@ namespace EE::PG
     {
     public:
 
-        FloatNEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        FloatNEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             FloatNEditor::ResetWorkingCopy();
         }
@@ -514,8 +514,8 @@ namespace EE::PG
     {
     public:
 
-        VectorEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        VectorEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             VectorEditor::ResetWorkingCopy();
         }
@@ -562,8 +562,8 @@ namespace EE::PG
     {
     public:
 
-        ColorEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        ColorEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             ColorEditor::ResetWorkingCopy();
         }
@@ -607,8 +607,8 @@ namespace EE::PG
     {
     public:
 
-        RotationEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        RotationEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             RotationEditor::ResetWorkingCopy();
             EE_ASSERT( m_coreType == CoreTypeID::EulerAngles || m_coreType == CoreTypeID::Quaternion );
@@ -682,8 +682,8 @@ namespace EE::PG
     {
     public:
 
-        AngleEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        AngleEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             AngleEditor::ResetWorkingCopy();
             EE_ASSERT( m_coreType == CoreTypeID::Degrees || m_coreType == CoreTypeID::Radians );
@@ -774,8 +774,8 @@ namespace EE::PG
     {
     public:
 
-        UUIDEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        UUIDEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             UUIDEditor::ResetWorkingCopy();
         }
@@ -836,8 +836,8 @@ namespace EE::PG
     {
     public:
 
-        TimeEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        TimeEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             TimeEditor::ResetWorkingCopy();
             EE_ASSERT( m_coreType == CoreTypeID::Microseconds || m_coreType == CoreTypeID::Milliseconds || m_coreType == CoreTypeID::Seconds );
@@ -931,8 +931,8 @@ namespace EE::PG
     {
     public:
 
-        PercentageEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        PercentageEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             PercentageEditor::ResetWorkingCopy();
         }
@@ -990,8 +990,8 @@ namespace EE::PG
     {
     public:
 
-        TransformEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        TransformEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             TransformEditor::ResetWorkingCopy();
             EE_ASSERT( m_coreType == CoreTypeID::Transform || m_coreType == CoreTypeID::Matrix );
@@ -1177,58 +1177,77 @@ namespace EE::PG
     {
     public:
 
-        ResourcePathEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
-            , m_resourceFilePicker( resourcePicker )
+        ResourcePathEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+            , m_picker( context.m_pToolsContext->GetRawResourceDirectory() )
         {
             ResourcePathEditor::ResetWorkingCopy();
-            EE_ASSERT( m_coreType == CoreTypeID::ResourcePath || m_coreType == CoreTypeID::ResourceID || m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr );
+            EE_ASSERT( m_coreType == CoreTypeID::ResourcePath );
+        }
 
-            //-------------------------------------------------------------------------
+        virtual bool InternalUpdateAndDraw() override
+        {
+            return m_picker.UpdateAndDraw();
+        }
+
+        virtual void UpdatePropertyValue() override
+        {
+            m_value_cached = m_picker.GetPath();
+            *reinterpret_cast<ResourcePath*>( m_pPropertyInstance ) = m_value_cached;
+        }
+
+        virtual void ResetWorkingCopy() override
+        {
+            m_value_cached = *reinterpret_cast<ResourcePath*>( m_pPropertyInstance );
+            m_picker.SetPath( m_value_cached );
+        }
+
+        virtual void HandleExternalUpdate() override
+        {
+            ResourcePath const* pActualPath = nullptr;
+            pActualPath = reinterpret_cast<ResourcePath*>( m_pPropertyInstance );
+            if ( *pActualPath != m_value_cached )
+            {
+                m_value_cached = *pActualPath;
+                m_picker.SetPath( m_value_cached );
+            }
+        }
+
+    private:
+
+        Resource::ResourcePathPicker            m_picker;
+        ResourcePath                            m_value_cached;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class ResourceIDEditor final : public PropertyEditor
+    {
+    public:
+
+        ResourceIDEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+            , m_picker( *context.m_pToolsContext )
+        {
+            ResourceIDEditor::ResetWorkingCopy();
+            EE_ASSERT( m_coreType == CoreTypeID::ResourceID || m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr );
 
             if ( m_coreType == CoreTypeID::TResourcePtr )
             {
-                m_resourceTypeID = m_pToolsContext->m_pTypeRegistry->GetResourceInfoForType( propertyInfo.m_templateArgumentTypeID )->m_resourceTypeID;
+               m_picker.SetRequiredResourceType( GetTypeRegistry()->GetResourceInfoForType( propertyInfo.m_templateArgumentTypeID )->m_resourceTypeID );
             }
         }
 
         virtual bool InternalUpdateAndDraw() override
         {
-            bool valueChanged = false;
-            ResourcePath newPath;
-
-            if ( m_coreType == CoreTypeID::ResourcePath )
-            {
-                if ( m_resourceFilePicker.DrawPicker( m_value_imgui, newPath ) )
-                {
-                    m_value_imgui = newPath;
-                    valueChanged = true;
-                }
-            }
-            else if ( m_coreType == CoreTypeID::ResourceID || m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr )
-            {
-                if ( m_resourceFilePicker.DrawPicker( m_tempResourceID, newPath, m_resourceTypeID ) )
-                {
-                    m_tempResourceID = newPath.IsValid() ? newPath : ResourceID();
-                    m_value_imgui = m_tempResourceID.GetResourcePath();
-                    valueChanged = true;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            return valueChanged;
+            return m_picker.UpdateAndDraw();
         }
 
         virtual void UpdatePropertyValue() override
         {
-            m_value_cached = m_value_imgui;
+            m_value_cached = m_picker.GetResourceID();
 
-            if ( m_coreType == CoreTypeID::ResourcePath )
-            {
-                *reinterpret_cast<ResourcePath*>( m_pPropertyInstance ) = m_value_cached;
-            }
-            else if ( m_coreType == CoreTypeID::ResourceID )
+            if ( m_coreType == CoreTypeID::ResourceID )
             {
                 *reinterpret_cast<ResourceID*>( m_pPropertyInstance ) = m_value_cached.IsValid() ? ResourceID( m_value_cached ) : ResourceID();
             }
@@ -1240,75 +1259,44 @@ namespace EE::PG
 
         virtual void ResetWorkingCopy() override
         {
-            if ( m_coreType == CoreTypeID::ResourcePath )
+            if ( m_coreType == CoreTypeID::ResourceID )
             {
-                m_value_cached = m_value_imgui = *reinterpret_cast<ResourcePath*>( m_pPropertyInstance );
-                m_tempResourceID.Clear();
-            }
-            else if ( m_coreType == CoreTypeID::ResourceID )
-            {
-                m_tempResourceID = *reinterpret_cast<ResourceID*>( m_pPropertyInstance );
-                m_value_cached = m_value_imgui = m_tempResourceID.GetResourcePath();
+                m_value_cached = *reinterpret_cast<ResourceID*>( m_pPropertyInstance );
             }
             else if ( m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr )
             {
-                Resource::ResourcePtr* pResourcePtr = reinterpret_cast<Resource::ResourcePtr*>( m_pPropertyInstance );
-                m_value_cached = m_value_imgui = pResourcePtr->GetResourcePath();
-                if ( m_value_imgui.IsValid() )
-                {
-                    m_tempResourceID = m_value_imgui;
-                }
-                else
-                {
-                    m_tempResourceID.Clear();
-                }
+                m_value_cached = reinterpret_cast<Resource::ResourcePtr*>( m_pPropertyInstance )->GetResourceID();
             }
+
+            m_picker.SetResourceID( m_value_cached );
         }
 
         virtual void HandleExternalUpdate() override
         {
-            ResourcePath const* pActualPath = nullptr;
-
-            if ( m_coreType == CoreTypeID::ResourcePath )
-            {
-                pActualPath = reinterpret_cast<ResourcePath*>( m_pPropertyInstance );
-            }
-            else if ( m_coreType == CoreTypeID::ResourceID )
+            if ( m_coreType == CoreTypeID::ResourceID )
             {
                 ResourceID* pResourceID = reinterpret_cast<ResourceID*>( m_pPropertyInstance );
-                pActualPath = &pResourceID->GetResourcePath();
+                if ( *pResourceID != m_value_cached )
+                {
+                    m_value_cached = *pResourceID;
+                }
             }
             else if ( m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr )
             {
-                Resource::ResourcePtr* pResourcePtr = reinterpret_cast<Resource::ResourcePtr*>( m_pPropertyInstance );
-                pActualPath = &pResourcePtr->GetResourcePath();
-            }
-
-            if ( *pActualPath != m_value_cached )
-            {
-                m_value_cached = m_value_imgui = *pActualPath;
-
-                if ( m_coreType == CoreTypeID::ResourceID || m_coreType == CoreTypeID::ResourcePtr || m_coreType == CoreTypeID::TResourcePtr )
+                ResourceID resourceID = reinterpret_cast<Resource::ResourcePtr*>( m_pPropertyInstance )->GetResourceID();
+                if ( resourceID != m_value_cached )
                 {
-                    if ( m_value_imgui.IsValid() )
-                    {
-                        m_tempResourceID = m_value_imgui;
-                    }
-                    else
-                    {
-                        m_tempResourceID.Clear();
-                    }
+                    m_value_cached = resourceID;
                 }
             }
+
+            m_picker.SetResourceID( m_value_cached );
         }
 
     private:
 
-        Resource::ResourcePicker&               m_resourceFilePicker;
-        ResourceTypeID                          m_resourceTypeID;
-        ResourceID                              m_tempResourceID;
-        ResourcePath                            m_value_imgui;
-        ResourcePath                            m_value_cached;
+        Resource::ResourcePicker                m_picker;
+        ResourceID                              m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -1317,8 +1305,8 @@ namespace EE::PG
     {
     public:
 
-        ResourceTypeIDEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        ResourceTypeIDEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             ResourceTypeIDEditor::ResetWorkingCopy();
         }
@@ -1329,7 +1317,7 @@ namespace EE::PG
 
             //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x );
+            ImGui::SetNextItemWidth( -1 );
             if ( ImGui::BeginCombo( "##resTypeID", m_resourceTypeFriendlyName.c_str() ) )
             {
                 auto AddComboItem = [this, &valueChanged]( ResourceInfo const& resourceInfo )
@@ -1358,7 +1346,7 @@ namespace EE::PG
 
                 //-------------------------------------------------------------------------
 
-                auto const& registeredResourceTypes = m_pToolsContext->m_pTypeRegistry->GetRegisteredResourceTypes();
+                auto const& registeredResourceTypes = GetTypeRegistry()->GetRegisteredResourceTypes();
                 for ( auto& pair : registeredResourceTypes )
                 {
                     AddComboItem( pair.second );
@@ -1384,7 +1372,7 @@ namespace EE::PG
 
             if ( m_value_cached.IsValid() )
             {
-                m_resourceTypeFriendlyName = m_pToolsContext->m_pTypeRegistry->GetResourceInfoForResourceType( m_value_cached )->m_friendlyName;
+                m_resourceTypeFriendlyName = GetTypeRegistry()->GetResourceInfoForResourceType( m_value_cached )->m_friendlyName;
             }
             else
             {
@@ -1414,8 +1402,8 @@ namespace EE::PG
     {
     public:
 
-        BitflagsEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        BitflagsEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             BitflagsEditor::ResetWorkingCopy();
             EE_ASSERT( m_coreType == CoreTypeID::BitFlags || m_coreType == CoreTypeID::TBitFlags );
@@ -1460,7 +1448,7 @@ namespace EE::PG
             {
                 // Get enum type for specific flags
                 TypeID const enumTypeID = m_propertyInfo.m_templateArgumentTypeID;
-                EnumInfo const* pEnumInfo = m_pToolsContext->m_pTypeRegistry->GetEnumInfo( enumTypeID );
+                EnumInfo const* pEnumInfo = GetTypeRegistry()->GetEnumInfo( enumTypeID );
                 EE_ASSERT( pEnumInfo != nullptr );
 
                 //-------------------------------------------------------------------------
@@ -1543,8 +1531,8 @@ namespace EE::PG
     {
     public:
 
-        StringEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        StringEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             StringEditor::ResetWorkingCopy();
         }
@@ -1593,22 +1581,35 @@ namespace EE::PG
 
     public:
 
-        StringIDEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        StringIDEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             StringIDEditor::ResetWorkingCopy();
         }
 
         virtual bool InternalUpdateAndDraw() override
         {
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 60 );
-            ImGui::InputText( "##StringInput", m_buffer_imgui, s_bufferSize );
+            bool valueUpdated = false;
 
-            bool const itemEdited = ImGui::IsItemDeactivatedAfterEdit();
-            if ( itemEdited )
+            //-------------------------------------------------------------------------
+
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 60 );
+            if ( ImGui::InputText( "##StringInput", m_buffer_imgui, s_bufferSize, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            {
+                valueUpdated = true;
+            }
+            
+            if ( ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                valueUpdated = true;
+            }
+
+            if ( valueUpdated )
             {
                 StringUtils::StripTrailingWhitespace( m_buffer_imgui );
             }
+
+            //-------------------------------------------------------------------------
 
             ImGui::SameLine();
 
@@ -1619,7 +1620,7 @@ namespace EE::PG
                 ImGui::TextColored( Colors::LightGreen.ToFloat4(), m_IDString.data() );
             }
 
-            return itemEdited;
+            return valueUpdated;
         }
 
         virtual void UpdatePropertyValue() override
@@ -1689,8 +1690,8 @@ namespace EE::PG
     {
     public:
 
-        TagEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        TagEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             TagEditor::ResetWorkingCopy();
         }
@@ -1830,8 +1831,8 @@ namespace EE::PG
     {
     public:
 
-        IntRangeEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        IntRangeEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             IntRangeEditor::ResetWorkingCopy();
         }
@@ -1967,8 +1968,8 @@ namespace EE::PG
     {
     public:
 
-        FloatRangeEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        FloatRangeEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
         {
             FloatRangeEditor::ResetWorkingCopy();
         }
@@ -2104,8 +2105,8 @@ namespace EE::PG
     {
     public:
 
-        FloatCurveEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( pToolsContext, resourcePicker, propertyInfo, m_pPropertyInstance )
+        FloatCurveEditor( PropertyEditorContext const& context, PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
             , m_editor( m_value_imgui )
         {
             FloatCurveEditor::ResetWorkingCopy();
@@ -2160,18 +2161,37 @@ namespace EE::PG
 
     EE_GLOBAL_REGISTRY( PropertyGridEditorFactory );
 
-    PropertyEditor* PropertyGridEditorFactory::TryCreateEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance )
+    PropertyEditor* PropertyGridEditorFactory::TryCreateEditor( PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance )
     {
         EE_ASSERT( propertyInfo.IsValid() );
         auto typeID = propertyInfo.m_typeID;
         EE_ASSERT( typeID.IsValid() );
+
+        // Check if we have a custom editor for this type
+        //-------------------------------------------------------------------------
+
+        auto pCurrentFactory = s_pHead;
+        while ( pCurrentFactory != nullptr )
+        {
+            if ( pCurrentFactory->SupportsTypeID( typeID ) )
+            {
+                return pCurrentFactory->TryCreateEditorInternal( context, propertyInfo, pPropertyInstance );
+            }
+
+            if ( pCurrentFactory->SupportsCustomEditorID( propertyInfo.m_customEditorID ) )
+            {
+                return pCurrentFactory->TryCreateEditorInternal( context, propertyInfo, pPropertyInstance );
+            }
+
+            pCurrentFactory = pCurrentFactory->GetNextItem();
+        }
 
         // Create core type editors
         //-------------------------------------------------------------------------
 
         if ( propertyInfo.IsEnumProperty() )
         {
-            return EE::New<EnumEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+            return EE::New<EnumEditor>( context, propertyInfo, pPropertyInstance );
         }
 
         if ( TypeSystem::IsCoreType( typeID ) )
@@ -2181,86 +2201,86 @@ namespace EE::PG
             {
                 case CoreTypeID::Bool:
                 {
-                    return EE::New<BoolEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<BoolEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Int8:
                 {
-                    return EE::New<ScalarEditor<int8_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<int8_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Int16:
                 {
-                    return EE::New<ScalarEditor<int16_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<int16_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Int32:
                 {
-                    return EE::New<ScalarEditor<int32_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<int32_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Int64:
                 {
-                    return EE::New<ScalarEditor<int64_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<int64_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Uint8:
                 {
-                    return EE::New<ScalarEditor<uint8_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<uint8_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Uint16:
                 {
-                    return EE::New<ScalarEditor<uint16_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<uint16_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Uint32:
                 {
-                    return EE::New<ScalarEditor<uint32_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<uint32_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Uint64:
                 {
-                    return EE::New<ScalarEditor<uint64_t>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<uint64_t>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Float:
                 {
-                    return EE::New<ScalarEditor<float>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<float>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Double:
                 {
-                    return EE::New<ScalarEditor<double>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ScalarEditor<double>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Color:
                 {
-                    return EE::New<ColorEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ColorEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::EulerAngles:
                 case CoreTypeID::Quaternion:
                 {
-                    return EE::New<RotationEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<RotationEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::UUID:
                 {
-                    return EE::New<UUIDEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<UUIDEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
@@ -2268,109 +2288,114 @@ namespace EE::PG
                 case CoreTypeID::Milliseconds:
                 case CoreTypeID::Seconds:
                 {
-                    return EE::New<TimeEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<TimeEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Degrees:
                 case CoreTypeID::Radians:
                 {
-                    return EE::New<AngleEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<AngleEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Matrix:
                 case CoreTypeID::Transform:
                 {
-                    return EE::New<TransformEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<TransformEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::ResourcePath:
+                {
+                    return EE::New<ResourcePathEditor>( context, propertyInfo, pPropertyInstance );
+                }
+                break;
+
                 case CoreTypeID::ResourceID:
                 case CoreTypeID::ResourcePtr:
                 case CoreTypeID::TResourcePtr:
                 {
-                    return EE::New<ResourcePathEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ResourceIDEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::ResourceTypeID:
                 {
-                    return EE::New<ResourceTypeIDEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<ResourceTypeIDEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::BitFlags:
                 case CoreTypeID::TBitFlags:
                 {
-                    return EE::New<BitflagsEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<BitflagsEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::StringID:
                 {
-                    return EE::New<StringIDEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<StringIDEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Tag:
                 {
-                    return EE::New<TagEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<TagEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::String:
                 {
-                    return EE::New<StringEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<StringEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Float2:
                 {
-                    return EE::New<FloatNEditor<Float2>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<FloatNEditor<Float2>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Float3:
                 {
-                    return EE::New<FloatNEditor<Float3>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<FloatNEditor<Float3>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Float4:
                 {
-                    return EE::New<FloatNEditor<Float4>>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<FloatNEditor<Float4>>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Vector:
                 {
-                    return EE::New<VectorEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<VectorEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::Percentage:
                 {
-                    return EE::New<PercentageEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<PercentageEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::IntRange:
                 {
-                    return EE::New<IntRangeEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<IntRangeEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::FloatRange:
                 {
-                    return EE::New<FloatRangeEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<FloatRangeEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
                 case CoreTypeID::FloatCurve:
                 {
-                    return EE::New<FloatCurveEditor>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
+                    return EE::New<FloatCurveEditor>( context, propertyInfo, pPropertyInstance );
                 }
                 break;
 
@@ -2380,20 +2405,6 @@ namespace EE::PG
                 }
                 break;
             }
-        }
-
-        // Check if we have a custom editor for this type
-        //-------------------------------------------------------------------------
-
-        auto pCurrentFactory = s_pHead;
-        while ( pCurrentFactory != nullptr )
-        {
-            if ( typeID == pCurrentFactory->GetSupportedTypeID() )
-            {
-                return pCurrentFactory->TryCreateEditorInternal( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );
-            }
-
-            pCurrentFactory = pCurrentFactory->GetNextItem();
         }
 
         return nullptr;

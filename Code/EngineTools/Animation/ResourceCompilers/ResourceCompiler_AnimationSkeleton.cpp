@@ -26,7 +26,7 @@ namespace EE::Animation
 
         // Read Skeleton Data
         //-------------------------------------------------------------------------
-            
+
         FileSystem::Path skeletonFilePath;
         if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_skeletonPath, skeletonFilePath ) )
         {

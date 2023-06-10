@@ -1,21 +1,21 @@
-#include "PropertyGridHelper.h"
+#include "PropertyGridTypeEditingRules.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::PG
 {
-    EE_GLOBAL_REGISTRY( PropertyGridHelperFactory );
+    EE_GLOBAL_REGISTRY( TypeEditingRulesFactory );
 
     //-------------------------------------------------------------------------
 
-    PropertyHelper* PropertyGridHelperFactory::TryCreateHelper( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance )
+    TypeEditingRules* TypeEditingRulesFactory::TryCreateRules( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance )
     {
         auto pCurrentFactory = s_pHead;
         while ( pCurrentFactory != nullptr )
         {
             if ( pTypeInstance->GetTypeID() == pCurrentFactory->GetSupportedTypeID() )
             {
-                return pCurrentFactory->TryCreateHelperInternal( pToolsContext, pTypeInstance );
+                return pCurrentFactory->TryCreateRulesInternal( pToolsContext, pTypeInstance );
             }
 
             pCurrentFactory = pCurrentFactory->GetNextItem();

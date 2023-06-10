@@ -3,6 +3,7 @@
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsRagdoll.h"
 #include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Core/Helpers/SkeletonHelpers.h"
+#include "EngineTools/Resource/ResourcePicker.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
 

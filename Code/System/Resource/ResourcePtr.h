@@ -25,7 +25,7 @@ namespace EE
 
             ResourcePtr() = default;
             ResourcePtr( nullptr_t ) {};
-            ResourcePtr( ResourceID id ) : m_resourceID( id ) {}
+            ResourcePtr( ResourceID ID ) : m_resourceID( ID ) {}
             ResourcePtr( Resource::ResourcePtr const& rhs ) { operator=( rhs ); }
             ResourcePtr( Resource::ResourcePtr&& rhs ) { operator=( eastl::move( rhs ) ); }
 
@@ -109,7 +109,7 @@ namespace EE
 
         TResourcePtr() : ResourcePtr() {}
         TResourcePtr( nullptr_t ) : ResourcePtr( nullptr ) {}
-        TResourcePtr( ResourceID ID ) : Resource::ResourcePtr( ID ) { EE_ASSERT( ID.GetResourceTypeID() == T::GetStaticResourceTypeID() ); }
+        TResourcePtr( ResourceID ID ) : Resource::ResourcePtr( ID ) { EE_ASSERT( !ID.IsValid() || ID.GetResourceTypeID() == T::GetStaticResourceTypeID() ); }
         TResourcePtr( Resource::ResourcePtr const& otherResourcePtr ) { operator=( otherResourcePtr ); }
 
         // Move ctor

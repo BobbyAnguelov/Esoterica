@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
+#include "EngineTools/Core/ToolsContext.h"
 #include "System/TypeSystem/CoreTypeIDs.h"
 #include "System/Utils/GlobalRegistryBase.h"
 
@@ -8,7 +9,6 @@
 
 namespace EE
 {
-    class ToolsContext;
     namespace Resource { class ResourcePicker; }
     namespace TypeSystem { class PropertyInfo; }
 }
@@ -17,12 +17,20 @@ namespace EE
 
 namespace EE::PG
 {
+    struct PropertyEditorContext
+    {
+        ToolsContext const*     m_pToolsContext = nullptr;
+        void*                   m_pUserContext = nullptr; // Additional context provided to the property grid for specialized use cases
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINETOOLS_API PropertyEditor
     {
 
     public:
 
-        PropertyEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance );
+        PropertyEditor( PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance );
         virtual ~PropertyEditor() = default;
 
         // Returns true if the value was updated
@@ -42,9 +50,12 @@ namespace EE::PG
         // Draw the editor widgets and handle the user input, returns true if the value has been updated
         virtual bool InternalUpdateAndDraw() = 0;
 
+        // Get type registry
+        EE_FORCE_INLINE TypeSystem::TypeRegistry const* GetTypeRegistry() const { return m_context.m_pToolsContext->m_pTypeRegistry; }
+
     protected:
 
-        ToolsContext const*                 m_pToolsContext;
+        PropertyEditorContext               m_context;
         TypeSystem::PropertyInfo const&     m_propertyInfo;
         void*                               m_pPropertyInstance;
         TypeSystem::CoreTypeID const        m_coreType;
@@ -62,15 +73,18 @@ namespace EE::PG
 
         virtual ~PropertyGridEditorFactory() = default;
 
-        static PropertyEditor* TryCreateEditor( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance );
+        static PropertyEditor* TryCreateEditor( PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance );
 
     protected:
 
+        // Does this factory support this type
+        virtual bool SupportsTypeID( TypeSystem::TypeID typeID ) const = 0;
+
         // Get the type that that this factory can create an editor for
-        virtual TypeSystem::TypeID GetSupportedTypeID() const = 0;
+        virtual bool SupportsCustomEditorID( StringID customEditorID ) const = 0;
 
         // Virtual method that will create a editor if the property type ID matches the appropriate types
-        virtual PropertyEditor* TryCreateEditorInternal( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance ) const = 0;
+        virtual PropertyEditor* TryCreateEditorInternal( PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance ) const = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -78,15 +92,30 @@ namespace EE::PG
     //-------------------------------------------------------------------------
     // Use in a CPP to define a factory e.g., EE_PROPERTY_GRID_EDITOR( ObjectSettingsEditorFactory, ObjectSettings, ObjectSettingsEditor );
 
-    #define EE_PROPERTY_GRID_EDITOR( factoryName, editedType, propertyGridEditorClass )\
+    #define EE_PROPERTY_GRID_TYPE_EDITOR( factoryName, editedType, propertyGridEditorClass )\
     class factoryName final : public PG::PropertyGridEditorFactory\
     {\
-        virtual TypeSystem::TypeID GetSupportedTypeID() const override { return editedType::GetStaticTypeID(); }\
-        virtual PG::PropertyEditor* TryCreateEditorInternal( ToolsContext const* pToolsContext, Resource::ResourcePicker& resourcePicker, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance ) const override\
+        virtual bool SupportsTypeID( TypeSystem::TypeID typeID ) const override { return editedType::GetStaticTypeID() == typeID; }\
+        virtual bool SupportsCustomEditorID( StringID customEditorID ) const override { return false; }\
+        virtual PG::PropertyEditor* TryCreateEditorInternal( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance ) const override\
         {\
             EE_ASSERT( propertyInfo.IsValid() );\
             EE_ASSERT( pPropertyInstance != nullptr );\
-            return EE::New<propertyGridEditorClass>( pToolsContext, resourcePicker, propertyInfo, pPropertyInstance );\
+            return EE::New<propertyGridEditorClass>( context, propertyInfo, pPropertyInstance );\
+        }\
+    };\
+    static factoryName g_##factoryName;
+
+    #define EE_PROPERTY_GRID_CUSTOM_EDITOR( factoryName, customEditorID, propertyGridEditorClass )\
+    class factoryName final : public PG::PropertyGridEditorFactory\
+    {\
+        virtual bool SupportsTypeID( TypeSystem::TypeID typeID ) const override { return false; }\
+        virtual bool SupportsCustomEditorID( StringID editorID ) const override { static StringID const supportedEditorID( customEditorID ); return editorID == supportedEditorID; }\
+        virtual PG::PropertyEditor* TryCreateEditorInternal( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance ) const override\
+        {\
+            EE_ASSERT( propertyInfo.IsValid() );\
+            EE_ASSERT( pPropertyInstance != nullptr );\
+            return EE::New<propertyGridEditorClass>( context, propertyInfo, pPropertyInstance );\
         }\
     };\
     static factoryName g_##factoryName;

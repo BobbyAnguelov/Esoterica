@@ -61,5 +61,6 @@ namespace EE::Animation
         virtual void PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes ) override;
         virtual void PostDestroyNode( UUID const& nodeID ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+        virtual void OnNodeModified( VisualGraph::BaseNode* pModifiedNode ) override { UpdateDependentNodes(); }
     };
 }

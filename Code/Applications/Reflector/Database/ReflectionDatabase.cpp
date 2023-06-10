@@ -949,7 +949,10 @@ namespace EE::TypeSystem::Reflection
 
         for ( auto const& enumConstant : type.m_enumConstants )
         {
-            if ( !ExecuteSimpleQuery( "INSERT INTO `EnumConstants`(`TypeID`,`Label`,`Value`, `Description`) VALUES ( %u, \"%s\", %u, \"%s\" );", (uint32_t) type.m_ID, enumConstant.m_label.c_str(), enumConstant.m_value, enumConstant.m_description.c_str() ) )
+            String escapedDescription = enumConstant.m_description;
+            StringUtils::ReplaceAllOccurrencesInPlace( escapedDescription, "\"", "\"\"" );
+
+            if ( !ExecuteSimpleQuery( "INSERT INTO `EnumConstants`(`TypeID`,`Label`,`Value`, `Description`) VALUES ( %u, \"%s\", %u, \"%s\" );", (uint32_t) type.m_ID, enumConstant.m_label.c_str(), enumConstant.m_value, escapedDescription.c_str() ) )
             {
                 return false;
             }

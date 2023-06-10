@@ -105,11 +105,14 @@ namespace EE::CPP
 
         for ( auto i = 0u; i < type.m_enumConstants.size(); i++ )
         {
+            String escapedDescription = type.m_enumConstants[i].m_description;
+            StringUtils::ReplaceAllOccurrencesInPlace( escapedDescription, "\"", "\\\"" );
+
             file << "\n";
             file << "            constantInfo.m_ID = StringID( \"" << type.m_enumConstants[i].m_label.c_str() << "\" );\n";
             file << "            constantInfo.m_value = " << type.m_enumConstants[i].m_value << ";\n";
             file << "            constantInfo.m_alphabeticalOrder = " << sortedOrder[i] << ";\n";
-            file << "            EE_DEVELOPMENT_TOOLS_ONLY( constantInfo.m_description = \"" << type.m_enumConstants[i].m_description.c_str() << "\" );\n";
+            file << "            EE_DEVELOPMENT_TOOLS_ONLY( constantInfo.m_description = \"" << escapedDescription.c_str() << "\" );\n";
             file << "            enumInfo.m_constants.emplace_back( constantInfo );\n";
         }
 

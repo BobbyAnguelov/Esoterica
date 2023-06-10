@@ -25,6 +25,16 @@ namespace EE::Animation
             }
         }
 
+        inline TInlineVector<StringID, 10> GetBoneMaskIDs() const
+        {
+            TInlineVector<StringID, 10> boneMaskIDs;
+            for ( auto const& maskDefinition : m_boneMaskDefinitions )
+            {
+                boneMaskIDs.emplace_back( maskDefinition.m_ID );
+            }
+            return boneMaskIDs;
+        }
+
     public:
 
         EE_REFLECT();

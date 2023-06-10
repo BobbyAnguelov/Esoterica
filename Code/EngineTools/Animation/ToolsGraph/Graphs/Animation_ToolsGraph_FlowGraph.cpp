@@ -72,7 +72,7 @@ namespace EE::Animation
             {
                 if ( pFilterPin->IsInputPin() )
                 {
-                    if ( pDefaultNode->GetOutputPin( 0 )->m_type != pFilterPin->m_type )
+                    if ( !pDefaultNode->HasOutputPin() || pDefaultNode->GetOutputPin( 0 )->m_type != pFilterPin->m_type )
                     {
                         return false;
                     }

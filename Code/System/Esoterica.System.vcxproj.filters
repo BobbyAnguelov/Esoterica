@@ -1783,6 +1783,7 @@
     <ClInclude Include="ThirdParty\implot\implot.h" />
     <ClInclude Include="ThirdParty\implot\implot_internal.h" />
     <ClInclude Include="Serialization\BitSerialization.h" />
+    <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\cmdParser\LICENSE">

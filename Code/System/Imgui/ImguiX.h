@@ -210,7 +210,7 @@ namespace EE::ImGuiX
 
     public:
 
-        enum Options : uint8_t
+        enum Flags : uint8_t
         {
             TakeInitialFocus = 0
         };
@@ -218,7 +218,7 @@ namespace EE::ImGuiX
     public:
 
         // Draws the filter. Returns true if the filter has been updated
-        bool DrawAndUpdate( float width = -1, TBitFlags<Options> options = TBitFlags<Options>() );
+        bool DrawAndUpdate( float width = -1, TBitFlags<Flags> flags = TBitFlags<Flags>() );
 
         // Set the help text shown when we dont have focus and the filter is empty
         void SetFilterHelpText( String const& helpText ) { m_filterHelpText = helpText; }
@@ -241,6 +241,8 @@ namespace EE::ImGuiX
         TVector<String>     m_tokens;
         String              m_filterHelpText = "Filter...";
     };
+
+    //-------------------------------------------------------------------------
 
     // A simple 3D gizmo to show the orientation of a camera in a scene
     struct EE_SYSTEM_API OrientationGuide

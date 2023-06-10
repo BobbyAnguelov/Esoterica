@@ -51,16 +51,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    bool TargetWarpNode::IsValid() const
-    {
-        return PoseNode::IsValid() && m_pClipReferenceNode->IsValid();
-    }
-
     void TargetWarpNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TargetWarpNode>( context, options );
         context.SetNodePtrFromIndex( m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
         context.SetNodePtrFromIndex( m_targetValueNodeIdx, pNode->m_pTargetValueNode );
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool TargetWarpNode::IsValid() const
+    {
+        return PoseNode::IsValid() && m_pClipReferenceNode->IsValid();
     }
 
     void TargetWarpNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -71,6 +73,22 @@ namespace EE::Animation::GraphNodes
         PoseNode::InitializeInternal( context, initialTime );
         m_pClipReferenceNode->Initialize( context, initialTime );
         m_pTargetValueNode->Initialize( context );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_pClipReferenceNode->IsValid() )
+        {
+            m_duration = m_pClipReferenceNode->GetDuration();
+            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+        }
+        else
+        {
+            m_previousTime = m_currentTime = 0.0f;
+            m_duration = s_oneFrameDuration;
+        }
+
+        EE_ASSERT( m_duration != 0.0f );
 
         //-------------------------------------------------------------------------
 
@@ -1056,8 +1074,10 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TargetWarpNode::SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result, bool wasWarpUpdatedThisFrame )
+    void TargetWarpNode::SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result )
     {
+        bool const wasWarpUpdatedThisFrame = UpdateWarp( context );
+
         // If we failed to warp, just keep the original root motion delta
         if ( !m_warpedRootMotion.IsValid() )
         {
@@ -1110,23 +1130,27 @@ namespace EE::Animation::GraphNodes
     {
         MarkNodeActive( context );
 
-        // Calculate or update warp
-        //-------------------------------------------------------------------------
-
-        bool const wasWarpUpdatedThisFrame = UpdateWarp( context );
-
         // Update source node
         //-------------------------------------------------------------------------
 
-        GraphPoseNodeResult result = m_pClipReferenceNode->Update( context );
-        m_duration = m_pClipReferenceNode->GetDuration();
-        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
-        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+        GraphPoseNodeResult result;
 
-        // Sample root motion
-        //-------------------------------------------------------------------------
+        if ( IsValid() )
+        {
+            result = m_pClipReferenceNode->Update( context );
+            m_duration = m_pClipReferenceNode->GetDuration();
+            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
 
-        SampleWarpedRootMotion( context, result, wasWarpUpdatedThisFrame );
+            SampleWarpedRootMotion( context, result );
+        }
+        else
+        {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        }
+
+        EE_ASSERT( m_duration != 0.0f );
+
         return result;
     }
 
@@ -1134,23 +1158,27 @@ namespace EE::Animation::GraphNodes
     {
         MarkNodeActive( context );
 
-        // Calculate or update warp
-        //-------------------------------------------------------------------------
-
-        bool const wasWarpUpdatedThisFrame = UpdateWarp( context );
-
         // Update source node
         //-------------------------------------------------------------------------
 
-        GraphPoseNodeResult result = m_pClipReferenceNode->Update( context, updateRange );
-        m_duration = m_pClipReferenceNode->GetDuration();
-        m_previousTime = m_pClipReferenceNode->GetPreviousTime();
-        m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+        GraphPoseNodeResult result;
 
-        // Sample root motion
-        //-------------------------------------------------------------------------
+        if ( IsValid() )
+        {
+            result = m_pClipReferenceNode->Update( context, updateRange );
+            m_duration = m_pClipReferenceNode->GetDuration();
+            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
+            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
 
-        SampleWarpedRootMotion( context, result, wasWarpUpdatedThisFrame );
+            SampleWarpedRootMotion( context, result );
+        }
+        else
+        {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        }
+
+        EE_ASSERT( m_duration != 0.0f );
+
         return result;
     }
 

@@ -44,7 +44,10 @@ namespace EE
         inline bool IsBusy() const { return m_taskScheduler.GetIsRunning(); }
         inline uint32_t GetNumWorkers() const { return m_numWorkers; }
 
-        inline void WaitForAll() { m_taskScheduler.WaitforAll(); }
+        inline void WaitForAll() 
+        {
+            m_taskScheduler.WaitforAll(); 
+        }
 
         inline void ScheduleTask( ITaskSet* pTask )
         {

@@ -188,11 +188,9 @@ namespace EE
         {
             if ( m_toolsContext.m_pResourceDatabase->IsRebuilding() )
             {
-                ImGui::Indent();
-                ImGuiX::DrawSpinner( "SP" );
-                ImGui::SameLine( 0, 10 );
-                ImGui::Text( "Resource DB building..." );
-                ImGui::Unindent();
+                ImGui::Text( "Resource DB building: " );
+                ImGui::SameLine();
+                ImGui::ProgressBar( m_toolsContext.m_pResourceDatabase->GetRebuildProgress() );
             }
             else
             {
@@ -244,7 +242,7 @@ namespace EE
     void ResourceBrowser::RebuildTreeUserFunction()
     {
         EE_ASSERT( !m_toolsContext.m_pResourceDatabase->IsRebuilding() );
-        auto pDataDirectory = m_toolsContext.m_pResourceDatabase->GetDataDirectory();
+        auto pDataDirectory = m_toolsContext.m_pResourceDatabase->GetRawResourceDirectoryEntry();
 
         //-------------------------------------------------------------------------
 

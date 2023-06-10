@@ -150,6 +150,11 @@ namespace EE::Animation
         {
             DestroyEntityInWorld( m_pPreviewEntity );
         }
+
+        if ( descriptorNeedsReload )
+        {
+            DestroySkeletonTree();
+        }
     }
 
     void SkeletonWorkspace::OnHotReloadComplete()

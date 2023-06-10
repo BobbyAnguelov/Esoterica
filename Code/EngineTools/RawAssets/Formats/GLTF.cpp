@@ -1,15 +1,414 @@
-#include "gltfMesh.h"
-#include "gltfSceneContext.h"
+#include "GLTF.h"
+#include "EngineTools/RawAssets/RawSkeleton.h"
+#include "EngineTools/RawAssets/RawAnimation.h"
+#include "EngineTools/RawAssets/RawMesh.h"
+
+#define CGLTF_IMPLEMENTATION
+#include "EngineTools/ThirdParty/cgltf/cgltf.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::RawAssets
+using namespace EE::RawAssets;
+
+//-------------------------------------------------------------------------
+// Scene Context
+//-------------------------------------------------------------------------
+
+namespace EE::gltf
+{
+    static char const* const g_errorStrings[] =
+    {
+        ""
+        "data_too_short",
+        "unknown_format",
+        "invalid_json",
+        "invalid_gltf",
+        "invalid_options",
+        "file_not_found",
+        "io_error",
+        "out_of_memory",
+        "legacy_gltf",
+    };
+
+    //-------------------------------------------------------------------------
+
+    gltfSceneContext::gltfSceneContext( FileSystem::Path const& filePath )
+    {
+        cgltf_options options = { cgltf_file_type_invalid, 0 };
+
+        // Parse gltf/glb files
+        //-------------------------------------------------------------------------
+
+        cgltf_result const parseResult = cgltf_parse_file( &options, filePath.c_str(), &m_pSceneData );
+        if ( parseResult != cgltf_result_success )
+        {
+            m_error.sprintf( "Failed to load specified gltf file ( %s ) : %s", filePath.c_str(), g_errorStrings[parseResult] );
+            return;
+        }
+
+        // Load all data buffers
+        //-------------------------------------------------------------------------
+
+        cgltf_result bufferLoadResult = cgltf_load_buffers( &options, m_pSceneData, filePath.c_str() );
+        if ( bufferLoadResult != cgltf_result_success )
+        {
+            m_error.sprintf( "Failed to load gltf file buffers ( %s ) : %s", filePath.c_str(), g_errorStrings[parseResult] );
+            return;
+        }
+    }
+
+    gltfSceneContext::~gltfSceneContext()
+    {
+        if ( m_pSceneData != nullptr )
+        {
+            cgltf_free( m_pSceneData );
+            m_pSceneData = nullptr;
+        }
+    }
+}
+
+//-------------------------------------------------------------------------
+// Skeleton
+//-------------------------------------------------------------------------
+
+namespace EE::gltf
 {
     class gltfRawSkeleton : public RawSkeleton
     {
+        friend class gltfSkeletonFileReader;
         friend class gltfMeshFileReader;
     };
 
+    //-------------------------------------------------------------------------
+
+    class gltfSkeletonFileReader
+    {
+
+    public:
+
+        static TUniquePtr<RawSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+        {
+            EE_ASSERT( sourceFilePath.IsValid() );
+
+            TUniquePtr<RawSkeleton> pSkeleton( EE::New<RawSkeleton>() );
+            gltfRawSkeleton* pRawSkeleton = (gltfRawSkeleton*) pSkeleton.get();
+
+            //-------------------------------------------------------------------------
+
+            gltf::gltfSceneContext sceneCtx( sourceFilePath );
+            if ( sceneCtx.IsValid() )
+            {
+                ReadSkeleton( sceneCtx, skeletonRootBoneName, *pRawSkeleton );
+            }
+            else
+            {
+                pRawSkeleton->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+            }
+
+            return pSkeleton;
+        }
+
+        static void ReadSkeleton( gltf::gltfSceneContext const& sceneCtx, String const& skeletonRootBoneName, gltfRawSkeleton& rawSkeleton )
+        {
+            auto pSceneData = sceneCtx.GetSceneData();
+
+            if ( pSceneData->skins_count == 0 )
+            {
+                return;
+            }
+
+            cgltf_node* pSkeletonToRead = nullptr;
+            if ( !skeletonRootBoneName.empty() )
+            {
+                for ( int32_t i = 0; i < pSceneData->skins_count; i++ )
+                {
+                    if ( pSceneData->skins[i].joints_count > 0 && pSceneData->skins[i].joints[0]->name == skeletonRootBoneName )
+                    {
+                        pSkeletonToRead = pSceneData->skins[i].joints[0];
+                        break;
+                    }
+                }
+            }
+            else // Use first skin we find
+            {
+                if ( pSceneData->skins[0].joints_count > 0 )
+                {
+                    pSkeletonToRead = pSceneData->skins[0].joints[0];
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( pSkeletonToRead == nullptr )
+            {
+                if ( skeletonRootBoneName.empty() )
+                {
+                    rawSkeleton.LogError( "Failed to find any skeletons" );
+                }
+                else
+                {
+                    rawSkeleton.LogError( "Failed to find specified skeleton: %s", skeletonRootBoneName.c_str() );
+                }
+                return;
+            }
+
+            rawSkeleton.m_name = StringID( (char const*) pSkeletonToRead->name );
+            ReadBoneHierarchy( rawSkeleton, sceneCtx, pSkeletonToRead, -1 );
+
+            if ( rawSkeleton.GetNumBones() > 0 )
+            {
+                rawSkeleton.m_bones[0].m_localTransform = sceneCtx.ApplyUpAxisCorrection( rawSkeleton.m_bones[0].m_localTransform );
+                rawSkeleton.CalculateGlobalTransforms();
+            }
+        }
+
+        static void ReadBoneHierarchy( gltfRawSkeleton& rawSkeleton, gltf::gltfSceneContext const& sceneCtx, cgltf_node* pNode, int32_t parentIdx )
+        {
+            EE_ASSERT( pNode != nullptr );
+
+            auto const boneIdx = (int32_t) rawSkeleton.m_bones.size();
+            rawSkeleton.m_bones.push_back( RawSkeleton::BoneData( pNode->name ) );
+            rawSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
+
+            // Default Bone transform
+            rawSkeleton.m_bones[boneIdx].m_localTransform = sceneCtx.GetNodeTransform( pNode );
+
+            // Read child bones
+            for ( int i = 0; i < pNode->children_count; i++ )
+            {
+                cgltf_node* pChildNode = pNode->children[i];
+                ReadBoneHierarchy( rawSkeleton, sceneCtx, pChildNode, boneIdx );
+            }
+        }
+    };
+
+    //-------------------------------------------------------------------------
+
+    TUniquePtr<RawSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+    {
+        return gltfSkeletonFileReader::ReadSkeleton( sourceFilePath, skeletonRootBoneName );
+    }
+}
+
+//-------------------------------------------------------------------------
+// Animation
+//-------------------------------------------------------------------------
+
+namespace EE::gltf
+{
+    class gltfRawAnimation : public RawAnimation
+    {
+        friend class gltfAnimationFileReader;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class gltfAnimationFileReader
+    {
+        struct TransformData
+        {
+            Quaternion m_rotation;
+            Vector     m_translation;
+            float      m_scale;
+        };
+
+    public:
+
+        static TUniquePtr<RawAnimation> ReadAnimation( FileSystem::Path const& sourceFilePath, RawSkeleton const& rawSkeleton, String const& animationName )
+        {
+            EE_ASSERT( sourceFilePath.IsValid() && rawSkeleton.IsValid() );
+
+            TUniquePtr<RawAnimation> pAnimation( EE::New<RawAnimation>( rawSkeleton ) );
+            gltfRawAnimation* pRawAnimation = (gltfRawAnimation*) pAnimation.get();
+
+            gltf::gltfSceneContext sceneCtx( sourceFilePath );
+            if ( sceneCtx.IsValid() )
+            {
+                auto pSceneData = sceneCtx.GetSceneData();
+
+                if ( pSceneData->animations_count == 0 )
+                {
+                    pRawAnimation->LogError( "Could not find any animations in the gltf scene", animationName.c_str() );
+                    return pAnimation;
+                }
+
+                // Get animation node
+                //-------------------------------------------------------------------------
+
+                cgltf_animation* pAnimationNode = nullptr;
+
+                if ( animationName.empty() )
+                {
+                    pAnimationNode = &pSceneData->animations[0];
+                }
+                else // Try to find the specified animation
+                {
+                    for ( auto i = 0; i < pSceneData->animations_count; i++ )
+                    {
+                        if ( pSceneData->animations[i].name != nullptr && animationName == pSceneData->animations[i].name )
+                        {
+                            pAnimationNode = &pSceneData->animations[i];
+                        }
+                    }
+
+                    if ( pAnimationNode == nullptr )
+                    {
+                        pRawAnimation->LogError( "Could not find requested animation (%s) in gltf scene", animationName.c_str() );
+                        return pAnimation;
+                    }
+                }
+
+                EE_ASSERT( pAnimationNode != nullptr );
+
+                // Get animation details
+                //-------------------------------------------------------------------------
+
+                float animationDuration = -1.0f;
+                size_t numFrames = 0;
+                for ( auto s = 0; s < pAnimationNode->samplers_count; s++ )
+                {
+                    cgltf_accessor const* pInputAccessor = pAnimationNode->samplers[s].input;
+                    EE_ASSERT( pInputAccessor->has_max );
+                    animationDuration = Math::Max( pInputAccessor->max[0], animationDuration );
+                    numFrames = Math::Max( pInputAccessor->count, numFrames );
+                }
+
+                pRawAnimation->m_duration = animationDuration;
+                pRawAnimation->m_numFrames = (uint32_t) numFrames;
+                pRawAnimation->m_samplingFrameRate = animationDuration / numFrames;
+
+                // Read animation transforms
+                //-------------------------------------------------------------------------
+
+                ReadAnimationData( sceneCtx, *pRawAnimation, pAnimationNode );
+            }
+            else
+            {
+                pRawAnimation->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+            }
+
+            return pAnimation;
+        }
+
+        static void ReadAnimationData( gltf::gltfSceneContext const& ctx, gltfRawAnimation& rawAnimation, cgltf_animation const* pAnimation )
+        {
+            EE_ASSERT( pAnimation != nullptr );
+
+            // Create temporary transform storage
+            size_t const numBones = rawAnimation.GetNumBones();
+            TVector<TVector<TransformData>> trackData;
+            trackData.resize( numBones );
+            for ( auto& track : trackData )
+            {
+                track.resize( rawAnimation.m_numFrames );
+            }
+
+            // Read raw transform data
+            //-------------------------------------------------------------------------
+
+            size_t const numFrames = rawAnimation.m_numFrames;
+            for ( auto c = 0; c < pAnimation->channels_count; c++ )
+            {
+                cgltf_animation_channel const& channel = pAnimation->channels[c];
+
+                if ( channel.target_node->name == nullptr )
+                {
+                    rawAnimation.LogError( "Invalid setup in gltf file, bones have no names" );
+                    return;
+                }
+
+                int32_t const boneIdx = rawAnimation.m_skeleton.GetBoneIndex( StringID( channel.target_node->name ) );
+                if ( boneIdx == InvalidIndex )
+                {
+                    continue;
+                }
+
+                EE_ASSERT( channel.sampler->output->count == numFrames );
+
+                switch ( channel.target_path )
+                {
+                    case cgltf_animation_path_type_rotation:
+                    {
+                        EE_ASSERT( channel.sampler->output->type == cgltf_type_vec4 );
+
+                        for ( auto i = 0; i < numFrames; i++ )
+                        {
+                            Float4 rotation;
+                            cgltf_accessor_read_float( channel.sampler->output, i, &rotation.m_x, 4 );
+                            trackData[boneIdx][i].m_rotation = Quaternion( rotation );
+                        }
+                    }
+                    break;
+
+                    case cgltf_animation_path_type_translation:
+                    {
+                        EE_ASSERT( channel.sampler->output->type == cgltf_type_vec3 );
+
+                        for ( auto i = 0; i < numFrames; i++ )
+                        {
+                            Float3 translation;
+                            cgltf_accessor_read_float( channel.sampler->output, i, &translation.m_x, 3 );
+                            trackData[boneIdx][i].m_translation = translation;
+                        }
+                    }
+                    break;
+
+                    case cgltf_animation_path_type_scale:
+                    {
+                        EE_ASSERT( channel.sampler->output->type == cgltf_type_vec3 );
+
+                        for ( auto i = 0; i < numFrames; i++ )
+                        {
+                            Float3 scale;
+                            cgltf_accessor_read_float( channel.sampler->output, i, &scale.m_x, 3 );
+                            // TODO: Log warning
+                            EE_ASSERT( scale.m_x == scale.m_y && scale.m_y == scale.m_z );
+                            trackData[boneIdx][i].m_scale = scale.m_x;
+                        }
+                    }
+                    break;
+
+                    default:
+                    break;
+                }
+            }
+
+            // Create matrices from raw gltf data
+            //-------------------------------------------------------------------------
+
+            rawAnimation.m_tracks.resize( rawAnimation.GetNumBones() );
+            for ( auto boneIdx = 0u; boneIdx < numBones; boneIdx++ )
+            {
+                rawAnimation.m_tracks[boneIdx].m_localTransforms.resize( rawAnimation.m_numFrames );
+                for ( auto f = 0; f < rawAnimation.m_numFrames; f++ )
+                {
+                    TransformData const& transformData = trackData[boneIdx][f];
+                    rawAnimation.m_tracks[boneIdx].m_localTransforms[f] = Transform( transformData.m_rotation, transformData.m_translation, transformData.m_scale );
+
+                    // Correct the up-axis for all root transform
+                    if ( boneIdx == 0 )
+                    {
+                        rawAnimation.m_tracks[boneIdx].m_localTransforms[f] = ctx.ApplyUpAxisCorrection( rawAnimation.m_tracks[boneIdx].m_localTransforms[f] );
+                    }
+                }
+            }
+        }
+    };
+
+    //-------------------------------------------------------------------------
+
+    TUniquePtr<RawAnimation> ReadAnimation( FileSystem::Path const& animationFilePath, RawSkeleton const& rawSkeleton, String const& takeName )
+    {
+        return gltfAnimationFileReader::ReadAnimation( animationFilePath, rawSkeleton, takeName );
+    }
+}
+
+//-------------------------------------------------------------------------
+// Mesh
+//-------------------------------------------------------------------------
+
+namespace EE::gltf
+{
     class gltfRawMesh : public RawMesh
     {
         friend class gltfMeshFileReader;
@@ -330,7 +729,7 @@ namespace EE::RawAssets
                         InlineString meshNames;
                         for ( auto const& meshName : meshesToInclude )
                         {
-                            meshNames.append_sprintf( "%s, ", meshName.c_str());
+                            meshNames.append_sprintf( "%s, ", meshName.c_str() );
                         }
                         meshNames = meshNames.substr( 0, meshNames.length() - 2 );
 
@@ -428,19 +827,16 @@ namespace EE::RawAssets
             return pMesh;
         }
     };
-}
 
-//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
-namespace EE::gltf
-{
-    TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
-        {
-            return RawAssets::gltfMeshFileReader::ReadStaticMesh( sourceFilePath, meshesToInclude );
-        }
+    TUniquePtr<RawMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
+    {
+        return gltfMeshFileReader::ReadStaticMesh( sourceFilePath, meshesToInclude );
+    }
 
-    TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
-        {
-            return RawAssets::gltfMeshFileReader::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
-        }
+    TUniquePtr<RawMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
+    {
+        return gltfMeshFileReader::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
+    }
 }

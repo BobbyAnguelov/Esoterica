@@ -86,10 +86,10 @@ namespace EE::Timeline
 
     private:
 
-        EE_REFLECT() float         m_startTime = 0.0f; // Timeline units
-        EE_REFLECT() float         m_duration = 0.0f; // Timeline units
-        IReflectedType*        m_pData = nullptr;
-        bool                    m_isDirty = false;
+        EE_REFLECT() float          m_startTime = 0.0f; // Timeline units
+        EE_REFLECT() float          m_duration = 0.0f; // Timeline units
+        IReflectedType*             m_pData = nullptr;
+        bool                        m_isDirty = false;
     };
 
     //-------------------------------------------------------------------------
@@ -163,6 +163,9 @@ namespace EE::Timeline
 
         // Draws a duration item and returns the hover/interaction rect for the drawn item. This rect defines the resize handle locations and drag zone.
         virtual ImRect DrawDurationItem( ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState );
+
+        // Get extra info for a given item
+        virtual InlineString GetItemTooltip( TrackItem* pItem ) const { return InlineString(); }
 
         // Items
         //-------------------------------------------------------------------------

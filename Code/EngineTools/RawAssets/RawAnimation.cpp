@@ -1,4 +1,7 @@
 #include "RawAnimation.h"
+#include "System/FileSystem/FileSystemPath.h"
+#include "Formats/FBX.h"
+#include "Formats/GLTF.h"
 
 //-------------------------------------------------------------------------
 
@@ -90,7 +93,7 @@ namespace EE::RawAssets
         }
     }
 
-    void RawAnimation::GenerateAdditiveData()
+    void RawAnimation::MakeAdditiveRelativeToSkeleton()
     {
         uint32_t const numBones = m_skeleton.GetNumBones();
         for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
@@ -103,6 +106,48 @@ namespace EE::RawAssets
 
                 Transform additiveTransform;
                 additiveTransform.SetRotation( Quaternion::Delta( baseTransform.GetRotation(), poseTransform.GetRotation() ) );
+                additiveTransform.SetTranslation( poseTransform.GetTranslation() - baseTransform.GetTranslation() );
+                additiveTransform.SetScale( poseTransform.GetScale() - baseTransform.GetScale() );
+
+                m_tracks[boneIdx].m_localTransforms[frameIdx] = additiveTransform;
+            }
+        }
+
+        CalculateComponentRanges();
+        m_isAdditive = true;
+    }
+
+    void RawAnimation::MakeAdditiveRelativeToAnimation( RawAnimation const& baseAnimation )
+    {
+        EE_ASSERT( !IsAdditive() );
+        EE_ASSERT( baseAnimation.IsValid() && !baseAnimation.IsAdditive() );
+        EE_ASSERT( baseAnimation.m_skeleton.GetName() == m_skeleton.GetName() );
+
+        if ( baseAnimation.GetNumFrames() < GetNumFrames() )
+        {
+            LogWarning( "Base Additive Animation has less frames than required so we are truncating this animation to the same length as the base animation" );
+            m_numFrames = baseAnimation.GetNumFrames();
+            m_duration = baseAnimation.GetDuration();
+        }
+
+
+        //-------------------------------------------------------------------------
+
+        uint32_t const numBones = m_skeleton.GetNumBones();
+        for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        {
+            // Resize tracks to new animation length
+            m_tracks[boneIdx].m_localTransforms.resize( m_numFrames );
+
+            TVector<Transform> const& baseLocalTransforms = baseAnimation.GetTrackData()[boneIdx].m_localTransforms;
+
+            for ( int32_t frameIdx = 0; frameIdx < m_numFrames; frameIdx++ )
+            {
+                Transform const& baseTransform = baseLocalTransforms[frameIdx];
+                Transform const& poseTransform = m_tracks[boneIdx].m_localTransforms[frameIdx];
+
+                Transform additiveTransform;
+                additiveTransform.SetRotation( Quaternion::Delta( baseTransform.GetRotation(), poseTransform.GetRotation()));
                 additiveTransform.SetTranslation( poseTransform.GetTranslation() - baseTransform.GetTranslation() );
                 additiveTransform.SetScale( poseTransform.GetScale() - baseTransform.GetScale() );
 

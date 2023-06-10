@@ -59,7 +59,7 @@ namespace EE::Animation
                     continue;
                 }
 
-                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetEventType() == eventType && se.GetStateEventID() == ID )
+                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetStateEventType() == eventType && se.GetStateEventID() == ID )
                 {
                     return true;
                 }
@@ -74,7 +74,7 @@ namespace EE::Animation
                     continue;
                 }
 
-                if ( !se.IsIgnored() && se.GetEventType() == eventType && se.GetStateEventID() == ID )
+                if ( !se.IsIgnored() && se.GetStateEventType() == eventType && se.GetStateEventID() == ID )
                 {
                     return true;
                 }
@@ -139,7 +139,7 @@ namespace EE::Animation
                 continue;
             }
 
-            if ( se.GetEventType() == eventType && se.GetStateEventID() == ID )
+            if ( se.GetStateEventType() == eventType && se.GetStateEventID() == ID )
             {
                 return true;
             }

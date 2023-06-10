@@ -127,7 +127,8 @@ namespace EE::VisualGraph
         // This returns whether any selection changes occurred this update, will be cleared on each call to draw
         inline bool HasSelectionChangedThisFrame() const { return m_selectionChanged; }
 
-        inline void SelectNode( BaseNode const* pNode );
+        void SelectNode( BaseNode const* pNode );
+        void SelectNodes( TVector<BaseNode const*> pNodes );
         inline bool HasSelectedNodes() const { return !m_selectedNodes.empty(); }
         inline bool IsNodeSelected( BaseNode const* pNode ) const { return eastl::find( m_selectedNodes.begin(), m_selectedNodes.end(), pNode ) != m_selectedNodes.end(); }
         inline TVector<SelectedNode> const& GetSelectedNodes() const { return m_selectedNodes; }
