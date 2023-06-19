@@ -729,6 +729,8 @@ namespace EE::VisualGraph
     void GraphView::UpdateAndDraw( TypeSystem::TypeRegistry const& typeRegistry, float childHeightOverride )
     {
         EE_ASSERT( m_pUserContext != nullptr );
+
+        ImGui::SetWindowFontScale( 1.0f );
  
         // Update context
         //-------------------------------------------------------------------------
@@ -891,8 +893,11 @@ namespace EE::VisualGraph
             for ( int32_t i = 1; i < numNodes; i++ )
             {
                 auto pNode = m_pGraph->m_nodes[i];
-                ImRect const nodeRect( pNode->GetCanvasPosition(), ImVec2( pNode->GetCanvasPosition() ) + pNode->GetSize() );
-                totalRect.Add( nodeRect );
+                if ( pNode->IsVisible() )
+                {
+                    ImRect const nodeRect( pNode->GetCanvasPosition(), ImVec2( pNode->GetCanvasPosition() ) + pNode->GetSize() );
+                    totalRect.Add( nodeRect );
+                }
             }
 
             *m_pViewOffset = totalRect.GetCenter() - ( m_canvasSize / 2 );

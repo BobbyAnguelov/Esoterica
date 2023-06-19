@@ -1,6 +1,6 @@
 #pragma once
 #include "Animation_ToolsGraphNode.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blends.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend1D.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Animation/Blends"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override final { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
-        virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Input"; }
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Pose; }
 
     protected:
@@ -33,13 +33,13 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class RangedBlendToolsNode final : public ParameterizedBlendToolsNode
+    class Blend1DToolsNode final : public ParameterizedBlendToolsNode
     {
-        EE_REFLECT_TYPE( RangedBlendToolsNode );
+        EE_REFLECT_TYPE( Blend1DToolsNode );
 
-        RangedBlendToolsNode();
+        Blend1DToolsNode();
 
-        virtual char const* GetTypeName() const override { return "Animation/Ranged Blend"; }
+        virtual char const* GetTypeName() const override { return "Blend 1D"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual bool DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
         virtual void OnDynamicPinCreation( UUID pinID ) override;
@@ -57,7 +57,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_REFLECT_TYPE( VelocityBlendToolsNode );
 
-        virtual char const* GetTypeName() const override { return "Animation/Velocity Blend"; }
+        virtual char const* GetTypeName() const override { return "Blend 1D (Velocity)"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
     };

@@ -12,58 +12,44 @@ namespace EE::Render
     void TextureWorkspace::Initialize( UpdateContext const& context )
     {
         TWorkspace<Texture>::Initialize( context );
-        m_previewWindowName.sprintf( "Preview##%u", GetID() );
-        m_infoWindowName.sprintf( "Info##%u", GetID() );
-        m_showDescriptorEditor = true;
+        CreateToolWindow( "Preview", [this] ( UpdateContext const& context, bool isFocused ) { DrawPreviewWindow( context, isFocused ); } );
+        CreateToolWindow( "Info", [this] ( UpdateContext const& context, bool isFocused ) { DrawInfoWindow( context, isFocused ); } );
     }
 
-    void TextureWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void TextureWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID topDockID = 0;
         ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( m_previewWindowName.c_str(), topDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( m_infoWindowName.c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Preview" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Info" ).c_str(), bottomDockID );
     }
 
-    void TextureWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void TextureWorkspace::DrawInfoWindow( UpdateContext const& context, bool isFocused )
     {
-        TWorkspace::Update( context, pWindowClass, isFocused );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_previewWindowName.c_str() ) )
+        if ( IsWaitingForResource() )
         {
-            if ( IsResourceLoaded() )
-            {
-                ImGui::Image( ImGuiX::ToIm( m_workspaceResource.GetPtr() ), Float2( m_workspaceResource->GetDimensions() ) );
-            }
+            ImGui::Text( "Loading:" );
+            ImGui::SameLine();
+            ImGuiX::DrawSpinner( "Loading" );
         }
-        ImGui::End();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_infoWindowName.c_str() ) )
+        else if ( HasLoadingFailed() )
         {
-            if ( IsWaitingForResource() )
-            {
-                ImGui::Text( "Loading:" );
-                ImGui::SameLine();
-                ImGuiX::DrawSpinner( "Loading" );
-            }
-            else if ( HasLoadingFailed() )
-            {
-                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
-            }
-            else
-            {
-                ImGui::Text( "Dimensions: %d x %d", m_workspaceResource->GetDimensions().m_x, m_workspaceResource->GetDimensions().m_y );
-            }
+            ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
         }
-        ImGui::End();
+        else
+        {
+            ImGui::Text( "Dimensions: %d x %d", m_workspaceResource->GetDimensions().m_x, m_workspaceResource->GetDimensions().m_y );
+        }
+    }
+
+    void TextureWorkspace::DrawPreviewWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( IsResourceLoaded() )
+        {
+            ImGui::Image( ImGuiX::ToIm( m_workspaceResource.GetPtr() ), Float2( m_workspaceResource->GetDimensions() ) );
+        }
     }
 }

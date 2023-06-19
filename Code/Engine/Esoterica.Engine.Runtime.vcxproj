@@ -75,6 +75,7 @@
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
@@ -87,7 +88,7 @@
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Definition.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blends.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend1D.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_BoneMasks.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Bools.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_CachedValues.cpp" />
@@ -223,6 +224,7 @@
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
@@ -235,7 +237,7 @@
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Definition.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blends.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend1D.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_BoneMasks.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Bools.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_CachedValues.h" />

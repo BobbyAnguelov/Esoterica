@@ -38,8 +38,16 @@ namespace EE
 {
     class EE_ENGINETOOLS_API Workspace
     {
+        friend class EditorUI;
         friend class ScopedDescriptorModification;
         friend ResourceDescriptorUndoableAction;
+
+        // Create the tool window name
+        EE_FORCE_INLINE static InlineString GetToolWindowName( char const* pToolWindowName, ImGuiID dockspaceID )
+        {
+            EE_ASSERT( pToolWindowName != nullptr );
+            return InlineString( InlineString::CtorSprintf(), "%s##%08X", pToolWindowName, dockspaceID );
+        }
 
     public:
 
@@ -47,6 +55,43 @@ namespace EE
         {
             ImTextureID                                     m_pViewportRenderTargetTexture = nullptr;
             TFunction<Render::PickingID( Int2 const& )>     m_retrievePickingID;
+        };
+
+        class ToolWindow
+        {
+            friend class Workspace;
+            friend class EditorUI;
+
+            enum class Type : uint8_t
+            {
+                Viewport,
+                Descriptor,
+                Tool
+            };
+
+        public:
+
+            ToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ) )
+                : m_name( name )
+                , m_drawFunction( drawFunction )
+                , m_windowPadding( windowPadding )
+            {
+                EE_ASSERT( !name.empty() );
+                EE_ASSERT( m_drawFunction != nullptr );
+            }
+
+            inline bool HasUserSpecifiedWindowPadding() const
+            {
+                return m_windowPadding.x >= 0 && m_windowPadding.y >= 0;
+            }
+
+        private:
+
+            String                                          m_name;
+            TFunction<void(UpdateContext const&, bool)>     m_drawFunction;
+            ImVec2                                          m_windowPadding;
+            Type                                            m_type = Type::Tool;
+            bool                                            m_isOpen = true;
         };
 
     public:
@@ -58,14 +103,11 @@ namespace EE
         // Workspace
         //-------------------------------------------------------------------------
 
-        // Get a unique ID for this workspace
-        inline uint32_t GetID() const { return m_ID; }
+        // Get the unique typename for this workspace
+        virtual char const* GetWorkspaceUniqueTypeName() const = 0;
 
         // Get the display name for this workspace (shown on tab, dialogs, etc...)
-        virtual char const* GetDisplayName() const { return m_displayName.c_str(); }
-
-        // Get the main workspace window ID - Needs to be unique per workspace instance!
-        inline char const* GetWorkspaceWindowID() const { EE_ASSERT( !m_workspaceWindowID.empty() ); return m_workspaceWindowID.c_str(); }
+        virtual char const* GetDisplayName() const { return m_windowName.c_str(); }
 
         // Does this workspace have a title bar icon
         virtual bool HasTitlebarIcon() const { return false; }
@@ -74,10 +116,10 @@ namespace EE
         virtual char const* GetTitlebarIcon() const { EE_ASSERT( HasTitlebarIcon() ); return nullptr; }
 
         // Does this workspace have a toolbar?
-        virtual bool HasWorkspaceToolbar() const { return true; }
+        virtual bool HasMenu() const { return true; }
 
         // Draws the workspace toolbar menu - by default will draw the default items and descriptor items
-        virtual void DrawWorkspaceToolbar( UpdateContext const& context );
+        virtual void DrawMenu( UpdateContext const& context );
 
         // Does this workspace operate on a resource descriptor?
         inline bool IsADescriptorWorkspace() const { return m_descriptorID.IsValid(); }
@@ -88,14 +130,14 @@ namespace EE
         // Was the initialization function called
         inline bool IsInitialized() const { return m_isInitialized; }
 
+        // Draw any open dialogs that this workspace has
+        virtual void DrawDialogs( UpdateContext const& context ) {}
+
         // Viewport
         //-------------------------------------------------------------------------
 
         // Should this workspace display a viewport?
         virtual bool HasViewportWindow() const { return false; }
-
-        // Get the viewport window name/ID - Needs to be unique per workspace instance!
-        inline char const* GetViewportWindowID() const { EE_ASSERT( !m_viewportWindowID.empty() ); return m_viewportWindowID.c_str(); }
 
         // Should we draw the time control widget in the viewport toolbar
         virtual bool HasViewportToolbarTimeControls() const { return false; }
@@ -107,16 +149,13 @@ namespace EE
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) {}
 
         // Draw the viewport for this workspace - returns true if this viewport is currently focused
-        bool DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass );
+        void DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo );
 
         // Docking
         //-------------------------------------------------------------------------
 
-        // Get the main workspace window ID - Needs to be unique per workspace instance!
-        inline char const* GetDockspaceID() const { EE_ASSERT( !m_dockspaceID.empty() ); return m_dockspaceID.c_str(); }
-
         // Set up initial docking layout
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const;
+        virtual void InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const;
 
         // Resource Dependencies
         //-------------------------------------------------------------------------
@@ -142,11 +181,11 @@ namespace EE
         // Called just before the world is updated per update stage
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) {}
 
-        // Frame update and draw any tool windows needed for the workspace
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
-
         // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
-        void CommonUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused );
+        void SharedUpdate( UpdateContext const& context, bool isFocused );
+
+        // Frame update and draw any tool windows needed for the workspace
+        virtual void Update( UpdateContext const& context, bool isFocused ) {}
 
         // Preview World
         //-------------------------------------------------------------------------
@@ -181,11 +220,11 @@ namespace EE
         // Undo/Redo
         //-------------------------------------------------------------------------
 
-        // Called immediately before we execute an undo or redo action
+        // Called immediately before we execute an undo or redo action - undo/redo commands occur before the workspace "update" call
         virtual void PreUndoRedo( UndoStack::Operation operation ) {}
 
-        // Called immediately after we execute an undo or redo action
-        virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction );
+        // Called immediately after we execute an undo or redo action - undo/redo commands occur before the workspace "update" call
+        virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) {}
 
         inline bool CanUndo() { return m_undoStack.CanUndo(); }
         void Undo();
@@ -231,14 +270,18 @@ namespace EE
         // Set the workspace tab-title
         void SetDisplayName( String const& name );
 
-        // Menu
+        // Tool Windows
         //-------------------------------------------------------------------------
 
-        // Draw the common toolbar items (save, undo, redo)
-        void DrawWorkspaceToolBar_Default();
+        ImGuiWindowClass* GetToolWindowClass() { return &m_toolWindowClass; }
 
-        // Draw toolbar items for descriptor workspaces
-        void DrawWorkspaceToolBar_Descriptor();
+        void CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ) );
+
+        EE_FORCE_INLINE TVector<ToolWindow> const& GetToolWindows() const { return m_toolWindows; }
+
+        EE_FORCE_INLINE InlineString GetToolWindowName( String const& name ) const { return GetToolWindowName( name.c_str(), m_currentDockspaceID ); }
+
+        void HideDescriptorWindow();
 
         // Viewport
         //-------------------------------------------------------------------------
@@ -262,7 +305,7 @@ namespace EE
         void DrawViewportToolbarCombo( char const* pID, char const* pLabel, char const* pTooltip, TFunction<void()> const& function, float width = -1 );
 
         // Creates a fixed width viewport drop down with an icon as a label
-        void DrawViewportToolbarComboIcon( char const* pID, char const* pIcon, char const* pTooltip, TFunction<void()> const& function ) { DrawViewportToolbarCombo( pID, pIcon, pTooltip, function, 48 ); }
+        void DrawViewportToolbarComboIcon( char const* pID, char const* pIcon, char const* pTooltip, TFunction<void()> const& function );
 
         // Draw the common viewport toolbar items (rendering/camera/etc...)
         void DrawViewportToolBar_Common();
@@ -274,6 +317,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         inline FileSystem::Path const& GetRawResourceDirectoryPath() const { return m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(); }
+
         inline FileSystem::Path const& GetCompiledResourceDirectoryPath() const { return m_pToolsContext->m_pResourceDatabase->GetCompiledResourceDirectoryPath(); }
 
         inline FileSystem::Path GetFileSystemPath( ResourcePath const& resourcePath ) const
@@ -351,7 +395,7 @@ namespace EE
         void EndDescriptorModification();
 
         // Draws a separate descriptor property grid editor window - return true if focused
-        bool DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow = true );
+        void DrawDescriptorEditorWindow( UpdateContext const& context, bool isFocused );
 
 private:
 
@@ -364,24 +408,28 @@ private:
         // Create the workspace camera
         void CreateCamera();
 
+        // Calculate the dockspace ID for this workspace relative to its parent
+        inline ImGuiID CalculateDockspaceID()
+        {
+            int32_t dockspaceID = m_currentLocationID;
+            char const* const pWorkspaceTypeName = GetWorkspaceUniqueTypeName();
+            dockspaceID = ImHashData( pWorkspaceTypeName, strlen( pWorkspaceTypeName ), dockspaceID);
+            return dockspaceID;
+        }
+
     protected:
 
-        uint32_t                                    m_ID = 0;
+        ImGuiID                                     m_ID = 0; // Document identifier (unique)
         EntityWorld*                                m_pWorld = nullptr;
         ToolsContext const*                         m_pToolsContext = nullptr;
 
         DebugCameraComponent*                       m_pCamera = nullptr;
 
         UndoStack                                   m_undoStack;
-        String                                      m_displayName;
-        String                                      m_workspaceWindowID;
-        String                                      m_viewportWindowID;
-        String                                      m_dockspaceID;
+        String                                      m_windowName;
         bool                                        m_isViewportFocused = false;
         bool                                        m_isViewportHovered = false;
-        bool                                        m_showDescriptorEditor = false;
 
-        String                                      m_descriptorWindowName;
         ResourceID                                  m_descriptorID;
         FileSystem::Path                            m_descriptorPath;
         PropertyGrid*                               m_pDescriptorPropertyGrid = nullptr;
@@ -391,8 +439,18 @@ private:
         IUndoableAction*                            m_pActiveUndoableAction = nullptr;
         int32_t                                     m_beginModificationCallCount = 0;
         ImGuiX::Gizmo                               m_gizmo;
+        bool                                        m_isDescriptorWindowFocused = false;
 
     private:
+
+        ImGuiID                                     m_currentDockID = 0;  // The doc we are currently in
+        ImGuiID                                     m_desiredDockID = 0; // The dock we wish to be in
+        ImGuiID                                     m_currentLocationID = 0;     // Current Dock node we are docked into _OR_ window ID if floating window
+        ImGuiID                                     m_previousLocationID = 0;     // Previous dock node we are docked into _OR_ window ID if floating window
+        ImGuiID                                     m_currentDockspaceID = 0;    // Dockspace ID ~~ Hash of LocationID + WorkspaceType
+        ImGuiID                                     m_previousDockspaceID = 0;
+        TVector<ToolWindow>                         m_toolWindows;
+        ImGuiWindowClass                            m_toolWindowClass;  // All our tools windows will share the same WindowClass (based on ID) to avoid mixing tools from different top-level window
 
         Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         bool                                        m_isDirty = false;
@@ -509,6 +567,18 @@ private:
 
         TResourcePtr<T>                     m_workspaceResource;
         bool                                m_shouldAutoLoadResource = true;
+    };
+
+    //-------------------------------------------------------------------------
+    // Default Generic Workspace
+    //-------------------------------------------------------------------------
+
+    class GenericWorkspace : public Workspace
+    {
+    public:
+
+        using Workspace::Workspace;
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Descriptor"; }
     };
 
     //-------------------------------------------------------------------------

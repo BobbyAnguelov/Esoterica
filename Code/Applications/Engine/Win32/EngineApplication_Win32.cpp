@@ -62,8 +62,6 @@ namespace EE
 
     bool EngineApplication::ApplicationLoop()
     {
-        // Uncomment for live editing of ImguiTheme
-        //ImGuiX::Style::Apply();
         return m_engine.Update();
     }
 }

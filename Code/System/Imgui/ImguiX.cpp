@@ -229,6 +229,23 @@ namespace EE::ImGuiX
         ImGui::PopStyleVar();
     }
 
+    bool Checkbox( char const* pLabel, bool* pValue )
+    {
+        float const originalCursorPosY = ImGui::GetCursorPosY();
+
+        ImVec2 const newFramePadding( 2, 2 );
+        float const offsetY = ImGui::GetStyle().FramePadding.y - newFramePadding.y;
+        ImGui::SetCursorPosY( offsetY * 2 );
+
+        ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, newFramePadding );
+        bool result = ImGui::Checkbox( pLabel, pValue );
+        ImGui::PopStyleVar();
+
+        ImGui::SetCursorPosY( originalCursorPosY );
+
+        return result;
+    }
+
     bool IconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor, ImVec2 const& buttonSize, bool shouldCenterContents )
     {
         if ( pIcon == nullptr )

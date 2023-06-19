@@ -194,10 +194,6 @@ namespace EE::Animation
             return pGraph->CreateNode<GraphNodes::IDParameterReferenceToolsNode>( pParameter );
             break;
 
-            case GraphValueType::Int:
-            return pGraph->CreateNode<GraphNodes::IntParameterReferenceToolsNode>( pParameter );
-            break;
-
             case GraphValueType::Float:
             return pGraph->CreateNode<GraphNodes::FloatParameterReferenceToolsNode>( pParameter );
             break;

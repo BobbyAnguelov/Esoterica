@@ -140,6 +140,8 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Parameter", GraphValueType::ID );
         CreateInputPin( "Default Mask", GraphValueType::BoneMask );
         CreateInputPin( "Mask 0", GraphValueType::BoneMask );
+
+        m_parameterValues.emplace_back();
     }
 
     int16_t BoneMaskSelectorToolsNode::Compile( GraphCompilationContext& context ) const
@@ -220,13 +222,32 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            // Set parameter values
+            // Validate parameter values
             //-------------------------------------------------------------------------
+
+            if ( m_parameterValues.size() < numDynamicOptions )
+            {
+                context.LogError( "Less parameters set than we have options! Please add missing parameter values" );
+                return InvalidIndex;
+            }
 
             if ( m_parameterValues.size() > numDynamicOptions )
             {
                 context.LogWarning( "More parameters set than we have options, extra parameters will be ignored!" );
             }
+
+            for ( auto parameter : m_parameterValues )
+            {
+                if ( !parameter.IsValid() )
+                {
+                    context.LogError( "Invalid parameter value set for bone mask selector!" );
+                    return InvalidIndex;
+                }
+            }
+
+            // Set parameter values
+            //-------------------------------------------------------------------------
+
             pSettings->m_parameterValues.clear();
             pSettings->m_parameterValues.insert( pSettings->m_parameterValues.begin(), m_parameterValues.begin(), m_parameterValues.begin() + numDynamicOptions );
 
@@ -241,9 +262,46 @@ namespace EE::Animation::GraphNodes
 
     TInlineString<100> BoneMaskSelectorToolsNode::GetNewDynamicInputPinName() const
     {
-        int32_t const numOptions = GetNumInputPins();
+        int32_t const numInputPins = GetNumInputPins();
         TInlineString<100> pinName;
-        pinName.sprintf( "Mask %d", numOptions - 3 );
+        pinName.sprintf( "Mask %d", numInputPins - 3 );
         return pinName;
+    }
+
+    void BoneMaskSelectorToolsNode::OnDynamicPinCreation( UUID pinID )
+    {
+        m_parameterValues.emplace_back();
+    }
+
+    void BoneMaskSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
+    {
+        int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
+        EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
+
+        //-------------------------------------------------------------------------
+
+        int32_t const numInputPins = GetNumInputPins();
+        int32_t const numOptions = ( numInputPins - 2 );
+        if ( m_parameterValues.size() == numOptions )
+        {
+            m_parameterValues.erase( m_parameterValues.begin() + pinToBeRemovedIdx - 2 );
+        }
+
+        // Rename Pins
+        //-------------------------------------------------------------------------
+
+        int32_t newPinIdx = 1;
+        for ( auto i = 2; i < numInputPins; i++ )
+        {
+            if ( i == pinToBeRemovedIdx )
+            {
+                continue;
+            }
+
+            TInlineString<100> newPinName;
+            newPinName.sprintf( "Mask %d", newPinIdx );
+            GetInputPin( i )->m_name = newPinName;
+            newPinIdx++;
+        }
     }
 }

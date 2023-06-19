@@ -24,16 +24,17 @@ namespace EE
 
     private:
 
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Game Previewer"; }
         virtual bool HasViewportWindow() const override { return true; }
         virtual bool HasViewportOrientationGuide() const override { return false; }
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
 
         virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
-        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
+        virtual void DrawMenu( UpdateContext const& context ) override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override {}
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
 
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isFocused ) override;
 
         virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
         virtual void EndHotReload() override;

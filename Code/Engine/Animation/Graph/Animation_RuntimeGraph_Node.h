@@ -32,7 +32,6 @@ namespace EE::Animation
         Unknown = 0,
         Bool,
         ID,
-        Int,
         Float,
         Vector,
         Target,
@@ -240,7 +239,6 @@ namespace EE::Animation
     template<typename T> struct ValueTypeValidation { static GraphValueType const Type = GraphValueType::Unknown; };
     template<> struct ValueTypeValidation<bool> { static GraphValueType const Type = GraphValueType::Bool; };
     template<> struct ValueTypeValidation<StringID> { static GraphValueType const Type = GraphValueType::ID; };
-    template<> struct ValueTypeValidation<int32_t> { static GraphValueType const Type = GraphValueType::Int; };
     template<> struct ValueTypeValidation<float> { static GraphValueType const Type = GraphValueType::Float; };
     template<> struct ValueTypeValidation<Vector> { static GraphValueType const Type = GraphValueType::Vector; };
     template<> struct ValueTypeValidation<Target> { static GraphValueType const Type = GraphValueType::Target; };
@@ -286,13 +284,6 @@ namespace EE::Animation
     class EE_ENGINE_API IDValueNode : public ValueNode
     {
         virtual GraphValueType GetValueType() const override final { return GraphValueType::ID; }
-    };
-
-    //-------------------------------------------------------------------------
-
-    class EE_ENGINE_API IntValueNode : public ValueNode
-    {
-        virtual GraphValueType GetValueType() const override final { return GraphValueType::Int; }
     };
 
     //-------------------------------------------------------------------------

@@ -85,41 +85,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API CachedIntNode final : public IntValueNode
-    {
-    public:
-
-        struct EE_ENGINE_API Settings final : public IntValueNode::Settings
-        {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( IntValueNode::Settings, m_inputValueNodeIdx, m_mode );
-
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            int16_t                 m_inputValueNodeIdx = InvalidIndex;
-            CachedValueMode         m_mode;
-        };
-
-    private:
-
-        virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
-
-    private:
-
-        IntValueNode*               m_pInputValueNode = nullptr;
-        int32_t                     m_value;
-        bool                        m_hasCachedValue = false;
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API CachedFloatNode final : public FloatValueNode
     {
     public:

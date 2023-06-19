@@ -69,7 +69,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    void EntityCollectionEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void EntityCollectionEditor::Update( UpdateContext const& context, bool isFocused )
     {
         if ( !m_collectionInstantiated )
         {
@@ -85,6 +85,6 @@ namespace EE::EntityModel
             }
         }
 
-        EntityEditorWorkspace::Update( context, pWindowClass, isFocused );
+        EntityEditorWorkspace::Update( context, isFocused );
     }
 }

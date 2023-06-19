@@ -35,14 +35,6 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case GraphValueType::Int:
-            {
-                GraphNodes::ControlParameterIntNode::Settings* pSettings = nullptr;
-                context.GetSettings<GraphNodes::ControlParameterIntNode>( this, pSettings );
-                return pSettings->m_nodeIdx;
-            }
-            break;
-
             case GraphValueType::Float:
             {
                 GraphNodes::ControlParameterFloatNode::Settings* pSettings = nullptr;
@@ -98,10 +90,6 @@ namespace EE::Animation::GraphNodes
             pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( name, category );
             break;
 
-            case GraphValueType::Int:
-            pParameter = pRootGraph->CreateNode<GraphNodes::IntControlParameterToolsNode>( name, category );
-            break;
-
             case GraphValueType::Float:
             pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( name, category );
             break;
@@ -150,20 +138,6 @@ namespace EE::Animation::GraphNodes
         : ControlParameterToolsNode( name, categoryName )
     {
         CreateOutputPin( "Value", GraphValueType::Float, true );
-    }
-
-    //-------------------------------------------------------------------------
-
-    IntControlParameterToolsNode::IntControlParameterToolsNode()
-        : ControlParameterToolsNode()
-    {
-        CreateOutputPin( "Value", GraphValueType::Int, true );
-    }
-
-    IntControlParameterToolsNode::IntControlParameterToolsNode( String const& name, String const& categoryName )
-        : ControlParameterToolsNode( name, categoryName )
-    {
-        CreateOutputPin( "Value", GraphValueType::Int, true );
     }
 
     //-------------------------------------------------------------------------
@@ -260,10 +234,6 @@ namespace EE::Animation::GraphNodes
             pParameterGraph->CreateNode<IDResultToolsNode>();
             break;
 
-            case GraphValueType::Int:
-            pParameterGraph->CreateNode<IntResultToolsNode>();
-            break;
-
             case GraphValueType::Float:
             pParameterGraph->CreateNode<FloatResultToolsNode>();
             break;
@@ -331,10 +301,6 @@ namespace EE::Animation::GraphNodes
 
             case GraphValueType::ID:
             pParameter = pRootGraph->CreateNode<GraphNodes::IDVirtualParameterToolsNode>( name, category );
-            break;
-
-            case GraphValueType::Int:
-            pParameter = pRootGraph->CreateNode<GraphNodes::IntVirtualParameterToolsNode>( name, category );
             break;
 
             case GraphValueType::Float:

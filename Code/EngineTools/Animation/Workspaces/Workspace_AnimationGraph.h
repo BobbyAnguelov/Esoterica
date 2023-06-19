@@ -9,6 +9,7 @@
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "System/Time/Timers.h"
+#include "System/Imgui/ImguiFilteredCombo.h"
 
 //-------------------------------------------------------------------------
 
@@ -31,7 +32,7 @@ namespace EE::Animation
         friend class GraphUndoableAction;
         friend class BoneMaskIDEditor;
         friend class IDComboWidget;
-
+        friend class IDEditor;
     private:
 
         struct LoadedGraphData
@@ -57,6 +58,24 @@ namespace EE::Animation
             GraphInstance*                          m_pGraphInstance = nullptr;
             THashMap<UUID, int16_t>                 m_nodeIDtoIndexMap;
             THashMap<int16_t, UUID>                 m_nodeIndexToIDMap;
+        };
+
+        //-------------------------------------------------------------------------
+
+        class IDComboWidget : public ImGuiX::ComboWithFilterWidget<StringID>
+        {
+
+        public:
+
+            IDComboWidget( AnimationGraphWorkspace* pGraphWorkspace );
+
+        private:
+
+            virtual void PopulateOptionsList() override;
+
+        private:
+
+            AnimationGraphWorkspace* m_pGraphWorkspace = nullptr;
         };
 
         //-------------------------------------------------------------------------
@@ -177,9 +196,11 @@ namespace EE::Animation
             None,
             NotifyUser,
             Navigate,
+            RenameIDs,
             CreateParameter,
             RenameParameter,
             DeleteParameter,
+            DeleteUnusedParameters,
             CreateVariation,
             RenameVariation,
             DeleteVariation
@@ -197,18 +218,19 @@ namespace EE::Animation
 
     private:
 
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Animation Graph"; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_STATE_MACHINE; }
-        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
+        virtual void DrawMenu( UpdateContext const& context ) override;
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isFocused ) override;
         virtual void PreUndoRedo( UndoStack::Operation operation ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual bool AlwaysAllowSaving() const override { return true; }
@@ -217,7 +239,7 @@ namespace EE::Animation
         // Dialogs
         //-------------------------------------------------------------------------
 
-        virtual void DrawDialogs( UpdateContext const& context );
+        virtual void DrawDialogs( UpdateContext const& context ) override;
         void ShowNotifyDialog( String const& title, String const& message );
         void ShowNotifyDialog( String const& title, char const* pMessageFormat, ... );
 
@@ -242,6 +264,12 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         void ProcessAdvancedCommandRequest( TSharedPtr<VisualGraph::AdvancedCommand> const& pCommand );
+
+        // Start a graph rename operation
+        void StartRenameIDs();
+
+        // Draw the rename dialog
+        void DrawRenameIDsDialog();
 
         // Variations
         //-------------------------------------------------------------------------
@@ -272,7 +300,7 @@ namespace EE::Animation
         // Graph View
         //-------------------------------------------------------------------------
 
-        void DrawGraphView( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawGraphView( UpdateContext const& context, bool isFocused );
         void DrawGraphViewNavigationBar();
         void UpdateSecondaryViewState();
 
@@ -317,7 +345,7 @@ namespace EE::Animation
         // Property Grid
         //-------------------------------------------------------------------------
 
-        void DrawPropertyGrid( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawPropertyGrid( UpdateContext const& context, bool isFocused );
 
         void InitializePropertyGrid();
         void ShutdownPropertyGrid();
@@ -325,12 +353,12 @@ namespace EE::Animation
         // Compilation Log
         //-------------------------------------------------------------------------
 
-        void DrawGraphLog( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawGraphLog( UpdateContext const& context, bool isFocused );
 
         // Control Parameter Editor
         //-------------------------------------------------------------------------
 
-        void DrawControlParameterEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawControlParameterEditor( UpdateContext const& context, bool isFocused );
 
         void InitializeControlParameterEditor();
         void ShutdownControlParameterEditor();
@@ -345,6 +373,7 @@ namespace EE::Animation
 
         void DrawCreateOrRenameParameterDialogWindow();
         void DrawDeleteParameterDialogWindow();
+        void DrawDeleteUnusedParameterDialogWindow();
 
         void ControlParameterCategoryDragAndDropHandler( Category<GraphNodes::FlowToolsNode*>& category );
 
@@ -365,11 +394,11 @@ namespace EE::Animation
         // Variation Editor
         //-------------------------------------------------------------------------
 
-        void DrawVariationEditor( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawVariationEditor( UpdateContext const& context, bool isFocused );
 
-        void StartCreate( StringID variationID );
-        void StartRename( StringID variationID );
-        void StartDelete( StringID variationID );
+        void StartCreateVariation( StringID variationID );
+        void StartRenameVariation( StringID variationID );
+        void StartDeleteVariation( StringID variationID );
 
         void CreateVariation( StringID newVariationID, StringID parentVariationID );
         void RenameVariation( StringID oldVariationID, StringID newVariationID );
@@ -390,7 +419,7 @@ namespace EE::Animation
         // Debugging
         //-------------------------------------------------------------------------
 
-        void DrawDebuggerWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawDebuggerWindow( UpdateContext const& context, bool isFocused );
 
         inline bool IsDebugging() const { return m_debugMode != DebugMode::None; }
         inline bool IsPreviewing() const { return m_debugMode == DebugMode::Preview; }
@@ -442,12 +471,6 @@ namespace EE::Animation
 
     private:
 
-        String                                                          m_controlParametersWindowName;
-        String                                                          m_graphViewWindowName;
-        String                                                          m_propertyGridWindowName;
-        String                                                          m_variationEditorWindowName;
-        String                                                          m_graphLogWindowName;
-        String                                                          m_debuggerWindowName;
         PropertyGrid                                                    m_propertyGrid;
 
         EventBindingID                                                  m_globalGraphEditEventBindingID;
@@ -494,6 +517,12 @@ namespace EE::Animation
         TVector<NavigationTarget>                                       m_navigationTargetNodes;
         TVector<NavigationTarget>                                       m_navigationActiveTargetNodes;
         ImGuiX::FilterWidget                                            m_navigationFilter;
+
+        // Rename Dialog State
+        IDComboWidget                                                   m_oldIDWidget;
+        char                                                            m_oldIDBuffer[256] = { 0 };
+        IDComboWidget                                                   m_newIDWidget;
+        char                                                            m_newIDBuffer[256] = { 0 };
 
         // Compilation Log
         TVector<NodeCompilationLogEntry>                                m_compilationLog;
@@ -542,7 +571,7 @@ namespace EE::Animation
         SyncTrackTime                                                   m_previewStartSyncTime;
         bool                                                            m_startPaused = false;
         bool                                                            m_isFirstPreviewFrame = false;
-        bool                                                            m_isCameraTrackingEnabled = false;
+        bool                                                            m_isCameraTrackingEnabled = true;
         bool                                                            m_initializeGraphToSpecifiedSyncTime = false;
 
         // Recording

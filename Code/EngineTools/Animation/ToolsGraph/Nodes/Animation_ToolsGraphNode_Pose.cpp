@@ -62,17 +62,31 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
-            else
-            {
-                context.LogError( this, "Disconnected time parameter pin on animation pose node!" );
-                return InvalidIndex;
-            }
 
             //-------------------------------------------------------------------------
 
             pSettings->m_dataSlotIndex = context.RegisterDataSlotNode( GetID() );
             pSettings->m_inputTimeRemapRange = m_inputTimeRemapRange;
+            pSettings->m_userSpecifiedTime = m_fixedTimeValue;
         }
         return pSettings->m_nodeIdx;
+    }
+
+    bool AnimationPoseToolsNode::DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    {
+        DataSlotToolsNode::DrawPinControls( pUserContext, pin );
+
+        // Add parameter value input field
+        if ( pin.IsInputPin() && pin.m_type == (uint32_t) GraphValueType::Float )
+        {
+            int32_t const pinIdx = GetInputPinIndex( pin.m_ID );
+
+            ImGui::SetNextItemWidth( 50 );
+            ImGui::InputFloat( "##parameter", &m_fixedTimeValue, 0.0f, 0.0f, "%.2f" );
+
+            return true;
+        }
+
+        return false;
     }
 }

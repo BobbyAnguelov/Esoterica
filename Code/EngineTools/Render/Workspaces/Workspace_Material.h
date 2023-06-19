@@ -20,17 +20,18 @@ namespace EE::Render
 
     private:
 
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Material"; }
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_PALETTE_SWATCH; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual bool HasViewportToolbar() const { return true; }
+
+        void DrawDetailsWindow( UpdateContext const& context, bool isFocused );
 
     private:
 
         StaticMeshComponent*    m_pPreviewComponent = nullptr;
-        String                  m_materialDetailsWindowName;
     };
 }

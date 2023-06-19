@@ -96,26 +96,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class IntControlParameterToolsNode : public ControlParameterToolsNode
-    {
-        EE_REFLECT_TYPE( IntControlParameterToolsNode );
-
-    public:
-
-        IntControlParameterToolsNode();
-        IntControlParameterToolsNode( String const& name, String const& categoryName = String() );
-
-        inline int32_t GetPreviewStartValue() const { return m_previewStartValue; }
-
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
-
-    private:
-
-        EE_REFLECT() int32_t m_previewStartValue = 0;
-    };
-
-    //-------------------------------------------------------------------------
-
     class IDControlParameterToolsNode : public ControlParameterToolsNode
     {
         EE_REFLECT_TYPE( IDControlParameterToolsNode );
@@ -131,7 +111,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() StringID m_previewStartValue;
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        StringID m_previewStartValue;
     };
 
     //-------------------------------------------------------------------------
@@ -229,19 +210,6 @@ namespace EE::Animation::GraphNodes
         BoolVirtualParameterToolsNode() : VirtualParameterToolsNode() { CreateOutputPin( "Value", GraphValueType::Bool, true ); }
         BoolVirtualParameterToolsNode( String const& name, String const& categoryName = String() ) : VirtualParameterToolsNode( name, categoryName ) { CreateOutputPin( "Value", GraphValueType::Bool, true ); }
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
-    };
-
-    //-------------------------------------------------------------------------
-
-    class IntVirtualParameterToolsNode final : public VirtualParameterToolsNode
-    {
-        EE_REFLECT_TYPE( IntVirtualParameterToolsNode );
-
-    public:
-
-        IntVirtualParameterToolsNode() : VirtualParameterToolsNode() { CreateOutputPin( "Value", GraphValueType::Int, true ); }
-        IntVirtualParameterToolsNode( String const& name, String const& categoryName = String() ) : VirtualParameterToolsNode( name, categoryName ) { CreateOutputPin( "Value", GraphValueType::Int, true ); }
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
     };
 
     //-------------------------------------------------------------------------
@@ -380,20 +348,6 @@ namespace EE::Animation::GraphNodes
         BoolParameterReferenceToolsNode( ControlParameterToolsNode* pParameter ) : ParameterReferenceToolsNode( pParameter ) { CreateOutputPin( "Value", GraphValueType::Bool, true ); }
         BoolParameterReferenceToolsNode( VirtualParameterToolsNode* pParameter ) : ParameterReferenceToolsNode( pParameter ) { CreateOutputPin( "Value", GraphValueType::Bool, true ); }
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
-    };
-
-    //-------------------------------------------------------------------------
-
-    class IntParameterReferenceToolsNode final : public ParameterReferenceToolsNode
-    {
-        EE_REFLECT_TYPE( IntParameterReferenceToolsNode );
-
-    public:
-
-        IntParameterReferenceToolsNode() : ParameterReferenceToolsNode() { CreateOutputPin( "Value", GraphValueType::Int, true ); }
-        IntParameterReferenceToolsNode( ControlParameterToolsNode* pParameter ) : ParameterReferenceToolsNode( pParameter ) { CreateOutputPin( "Value", GraphValueType::Int, true ); }
-        IntParameterReferenceToolsNode( VirtualParameterToolsNode* pParameter ) : ParameterReferenceToolsNode( pParameter ) { CreateOutputPin( "Value", GraphValueType::Int, true ); }
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
     };
 
     //-------------------------------------------------------------------------

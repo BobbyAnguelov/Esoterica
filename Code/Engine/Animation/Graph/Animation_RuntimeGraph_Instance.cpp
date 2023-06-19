@@ -653,12 +653,6 @@ namespace EE::Animation
                 }
                 break;
 
-                case GraphValueType::Int:
-                {
-                    paramData.m_int = pParameter->GetValue<int32_t>( m_graphContext );
-                }
-                break;
-
                 case GraphValueType::Float:
                 {
                     paramData.m_float = pParameter->GetValue<float>( m_graphContext );
@@ -762,12 +756,6 @@ namespace EE::Animation
                 case GraphValueType::ID:
                 {
                     pParameter->SetValue<StringID>( paramData.m_ID );
-                }
-                break;
-
-                case GraphValueType::Int:
-                {
-                    pParameter->SetValue<int32_t>( paramData.m_int );
                 }
                 break;
 

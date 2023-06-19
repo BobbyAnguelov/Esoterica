@@ -57,31 +57,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    ConstIntToolsNode::ConstIntToolsNode()
-        : FlowToolsNode()
-    {
-        CreateOutputPin( "Value", GraphValueType::Int, true );
-    }
-
-    int16_t ConstIntToolsNode::Compile( GraphCompilationContext& context ) const
-    {
-        ConstIntNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<ConstIntNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
-        {
-            pSettings->m_value = m_value;
-        }
-        return pSettings->m_nodeIdx;
-    }
-
-    void ConstIntToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
-    {
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
-        ImGui::Text( "%d", m_value );
-        EndDrawInternalRegion( ctx );
-    }
-
-    //-------------------------------------------------------------------------
-
     ConstFloatToolsNode::ConstFloatToolsNode()
         : FlowToolsNode()
     {

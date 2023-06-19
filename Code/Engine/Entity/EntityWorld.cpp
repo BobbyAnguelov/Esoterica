@@ -426,6 +426,15 @@ namespace EE
         return *foundMapIter;
     }
 
+    EntityModel::EntityMap const* EntityWorld::GetMapForEntity( Entity const* pEntity ) const
+    {
+        EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
+        auto const& mapID = pEntity->GetMapID();
+        auto pMap = GetMap( mapID );
+        EE_ASSERT( pMap != nullptr );
+        return pMap;
+    }
+
     EntityMapID EntityWorld::LoadMap( ResourceID const& mapResourceID )
     {
         EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );

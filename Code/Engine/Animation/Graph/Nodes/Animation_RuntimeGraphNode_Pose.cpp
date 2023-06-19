@@ -63,7 +63,7 @@ namespace EE::Animation::GraphNodes
     void AnimationPoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<AnimationPoseNode>( context, options );
-        context.SetNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
+        context.SetOptionalNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
         pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIndex );
     }
 
@@ -74,9 +74,13 @@ namespace EE::Animation::GraphNodes
 
     void AnimationPoseNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
-        EE_ASSERT( context.IsValid() && m_pPoseTimeValue != nullptr );
+        EE_ASSERT( context.IsValid() );
         PoseNode::InitializeInternal( context, initialTime );
-        m_pPoseTimeValue->Initialize( context );
+
+        if ( m_pPoseTimeValue != nullptr )
+        {
+            m_pPoseTimeValue->Initialize( context );
+        }
 
         m_previousTime = m_currentTime;
         m_duration = s_oneFrameDuration;
@@ -84,8 +88,13 @@ namespace EE::Animation::GraphNodes
 
     void AnimationPoseNode::ShutdownInternal( GraphContext& context )
     {
-        EE_ASSERT( context.IsValid() && m_pPoseTimeValue != nullptr );
-        m_pPoseTimeValue->Shutdown( context );
+        EE_ASSERT( context.IsValid() );
+
+        if ( m_pPoseTimeValue != nullptr )
+        {
+            m_pPoseTimeValue->Shutdown( context );
+        }
+
         PoseNode::ShutdownInternal( context );
     }
 
@@ -106,18 +115,18 @@ namespace EE::Animation::GraphNodes
         // Register the sample task
         //-------------------------------------------------------------------------
 
-        float timeValue = m_pPoseTimeValue->GetValue<float>( context );
+        auto pSettings = GetSettings<AnimationPoseNode>();
+        float timeValue = ( m_pPoseTimeValue != nullptr ) ? m_pPoseTimeValue->GetValue<float>( context ) : pSettings->m_userSpecifiedTime;
 
         // Optional Remap
-        auto pSettings = GetSettings<AnimationPoseNode>();
         if ( pSettings->m_inputTimeRemapRange.IsSet() )
         {
             timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
         }
 
         // Ensure valid time value
-        timeValue = Math::Clamp( timeValue, 0.0f, 1.0f );
-        Percentage const sampleTime( timeValue );
+        m_currentTime = Math::Clamp( timeValue, 0.0f, 1.0f );
+        Percentage const sampleTime( m_currentTime );
 
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, sampleTime );

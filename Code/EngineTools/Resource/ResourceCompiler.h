@@ -133,7 +133,7 @@ namespace EE::Resource
             // Make a copy of the json document to read further data from
             if ( pOutOptionalDescriptorDocument != nullptr )
             {
-                pOutOptionalDescriptorDocument->CopyFrom( typeReader.GetDocument(), typeReader.GetDocument().GetAllocator() );
+                pOutOptionalDescriptorDocument->CopyFrom( typeReader.GetDocument(), pOutOptionalDescriptorDocument->GetAllocator(), true );
             }
 
             return true;

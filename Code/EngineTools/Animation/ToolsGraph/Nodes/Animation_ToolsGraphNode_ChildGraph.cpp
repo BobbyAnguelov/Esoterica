@@ -44,19 +44,19 @@ namespace EE::Animation::GraphNodes
 
         if ( ImGui::MenuItem( EE_ICON_PENCIL_BOX" Edit Child Graph" ) )
         {
-            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<OpenChildGraphCommand>( this, false );
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<OpenChildGraphCommand>( this, OpenChildGraphCommand::OpenInNewEditor );
             pUserContext->RequestAdvancedCommand( command );
         }
 
         if ( ImGui::MenuItem( EE_ICON_ARROW_RIGHT_BOLD" Reflect Parent Parameters to Child" ) )
         {
-            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<ReflectParametersCommand>( this, true );
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<ReflectParametersCommand>( this, ReflectParametersCommand::FromParent );
             pUserContext->RequestAdvancedCommand( command );
         }
 
         if ( ImGui::MenuItem( EE_ICON_ARROW_LEFT_BOLD" Reflect Child Parameters to Parent" ) )
         {
-            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<ReflectParametersCommand>( this, true );
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<ReflectParametersCommand>( this, ReflectParametersCommand::FromChild );
             pUserContext->RequestAdvancedCommand( command );
         }
 
@@ -69,7 +69,7 @@ namespace EE::Animation::GraphNodes
         ResourceID const resourceID = GetResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
         if ( resourceID.IsValid() )
         {
-            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<OpenChildGraphCommand>( this, !pUserContext->m_isCtrlDown );
+            TSharedPtr<VisualGraph::AdvancedCommand> command = eastl::make_shared<OpenChildGraphCommand>( this, pUserContext->m_isCtrlDown ? OpenChildGraphCommand::OpenInNewEditor : OpenChildGraphCommand::OpenInPlace );
             pUserContext->RequestAdvancedCommand( command );
         }
     }

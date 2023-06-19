@@ -583,6 +583,16 @@ namespace EE::PG
 
     void ArrayRow::Update()
     {
+        // External Update Check
+        //-------------------------------------------------------------------------
+
+        auto pTypeInfo = m_pParentTypeInstance->GetTypeInfo();
+        size_t const arraySize = pTypeInfo->GetArraySize( m_pParentTypeInstance, m_propertyInfo.m_ID );
+        if ( m_children.size() != arraySize )
+        {
+            RebuildChildren();
+        }
+
         // Element Operations
         //-------------------------------------------------------------------------
 

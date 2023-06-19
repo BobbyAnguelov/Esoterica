@@ -163,7 +163,9 @@ namespace EE::Physics
             m_hits.clear();
         }
 
-        inline bool HasHits() const { return !m_hits.empty(); }
+        EE_FORCE_INLINE bool HasHits() const { return !m_hits.empty(); }
+
+        EE_FORCE_INLINE Vector const& GetFirstHitPosition() const { EE_ASSERT( HasHits() ); return m_hits[0].m_contactPoint; }
 
         // Operators
         //-------------------------------------------------------------------------

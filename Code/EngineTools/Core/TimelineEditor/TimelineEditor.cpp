@@ -189,9 +189,10 @@ namespace EE::Timeline
         {
             case ViewUpdateMode::ShowFullTimeRange:
             {
-                float const timeRangeLength = m_timeRange.GetLength();
+                float const timeRangeLength = m_timeRange.GetLength() + 1;
                 m_pixelsPerFrame = Math::Max( 1.0f, Math::Floor( trackAreaWidth / timeRangeLength ) );
                 m_viewRange = m_timeRange;
+                m_viewRange.m_end += 1;
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
             break;

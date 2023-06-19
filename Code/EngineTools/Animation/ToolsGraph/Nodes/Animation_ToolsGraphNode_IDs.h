@@ -22,6 +22,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 
@@ -60,6 +61,7 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 

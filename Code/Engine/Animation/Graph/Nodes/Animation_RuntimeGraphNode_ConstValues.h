@@ -47,27 +47,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API ConstIntNode final : public IntValueNode
-    {
-    public:
-
-        struct EE_ENGINE_API Settings final : public IntValueNode::Settings
-        {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( IntValueNode::Settings, m_value );
-
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            int32_t m_value;
-        };
-
-    private:
-
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API ConstFloatNode final : public FloatValueNode
     {
     public:

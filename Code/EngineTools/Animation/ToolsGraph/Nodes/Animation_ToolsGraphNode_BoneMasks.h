@@ -60,11 +60,13 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::BlendTree ); }
 
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::BoneMask; }
-
-        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void OnDynamicPinCreation( UUID pinID ) override;
+        virtual void OnDynamicPinDestruction( UUID pinID ) override;
 
     private:
 

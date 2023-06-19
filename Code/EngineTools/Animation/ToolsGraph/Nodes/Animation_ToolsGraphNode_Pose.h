@@ -53,6 +53,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Animation/Poses"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual bool DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
 
         virtual char const* GetDefaultSlotName() const override { return "Pose"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override { return AnimationClip::GetStaticResourceTypeID(); }
@@ -61,6 +62,11 @@ namespace EE::Animation::GraphNodes
     private:
 
         // Use this to remap an input value into a valid 0~1 range.
-        EE_REFLECT() FloatRange   m_inputTimeRemapRange = FloatRange( 0, 1 );
+        EE_REFLECT();
+        FloatRange              m_inputTimeRemapRange = FloatRange( 0, 1 );
+
+        // User specified fixed time
+        EE_REFLECT();
+        float                   m_fixedTimeValue = 0.0f;
     };
 }

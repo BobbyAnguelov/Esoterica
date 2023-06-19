@@ -16,12 +16,6 @@ namespace EE::Render
 
         TWorkspace<StaticMesh>::Initialize( context );
 
-        m_showDescriptorEditor = true;
-
-        //-------------------------------------------------------------------------
-
-        m_infoWindowName.sprintf( "Info##%u", GetID() );
-
         //-------------------------------------------------------------------------
 
         // We dont own the entity as soon as we add it to the map
@@ -32,22 +26,26 @@ namespace EE::Render
         m_pPreviewEntity->AddComponent( pStaticMeshComponent );
 
         AddEntityToWorld( m_pPreviewEntity );
+
+        //-------------------------------------------------------------------------
+
+        CreateToolWindow( "Info", [this] ( UpdateContext const& context, bool isFocused ) { DrawInfoWindow( context, isFocused ); } );
     }
 
-    void StaticMeshWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void StaticMeshWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID topDockID = 0;
         ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), topDockID );
-        ImGui::DockBuilderDockWindow( m_infoWindowName.c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Info" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID );
     }
 
-    void StaticMeshWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
+    void StaticMeshWorkspace::DrawMenu( UpdateContext const& context )
     {
-        TWorkspace<StaticMesh>::DrawWorkspaceToolbar( context );
+        TWorkspace<StaticMesh>::DrawMenu( context );
 
         ImGui::Separator();
 
@@ -62,92 +60,9 @@ namespace EE::Render
         }
     }
 
-    void StaticMeshWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void StaticMeshWorkspace::Update( UpdateContext const& context, bool isFocused )
     {
-        TWorkspace::Update( context, pWindowClass, isFocused );
-
-        //-------------------------------------------------------------------------
-
-        auto DrawWindowContents = [this] ()
-        {
-            if ( IsWaitingForResource() )
-            {
-                ImGui::Text( "Loading:" );
-                ImGui::SameLine();
-                ImGuiX::DrawSpinner( "Loading" );
-                return;
-            }
-
-            if ( HasLoadingFailed() )
-            {
-                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
-                return;
-            }
-
-            //-------------------------------------------------------------------------
-
-            auto pMesh = m_workspaceResource.GetPtr();
-            EE_ASSERT( m_workspaceResource.IsLoaded() );
-            EE_ASSERT( pMesh != nullptr );
-
-            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
-            if ( ImGui::BeginTable( "MeshInfoTable", 2, ImGuiTableFlags_Borders ) )
-            {
-                ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 100 );
-                ImGui::TableSetupColumn( "Data", ImGuiTableColumnFlags_NoHide );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "Data Path" );
-
-                ImGui::TableNextColumn();
-                ImGui::Text( pMesh->GetResourceID().c_str() );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "Num Vertices" );
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "%d", pMesh->GetNumVertices() );
-
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "Num Indices" );
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "%d", pMesh->GetNumIndices() );
-
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                ImGui::Text( "Mesh Sections" );
-
-                ImGui::TableNextColumn();
-                for ( auto const& section : pMesh->GetSections() )
-                {
-                    ImGui::Text( section.m_ID.c_str() );
-                }
-
-                ImGui::EndTable();
-            }
-            ImGui::PopStyleVar();
-        };
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_infoWindowName.c_str() ) )
-        {
-            DrawWindowContents();
-        }
-        ImGui::End();
+        TWorkspace::Update( context, isFocused );
 
         //-------------------------------------------------------------------------
 
@@ -191,5 +106,77 @@ namespace EE::Render
                 }
             }
         }
+    }
+
+    void StaticMeshWorkspace::DrawInfoWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( IsWaitingForResource() )
+        {
+            ImGui::Text( "Loading:" );
+            ImGui::SameLine();
+            ImGuiX::DrawSpinner( "Loading" );
+            return;
+        }
+
+        if ( HasLoadingFailed() )
+        {
+            ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto pMesh = m_workspaceResource.GetPtr();
+        EE_ASSERT( m_workspaceResource.IsLoaded() );
+        EE_ASSERT( pMesh != nullptr );
+
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
+        if ( ImGui::BeginTable( "MeshInfoTable", 2, ImGuiTableFlags_Borders ) )
+        {
+            ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 100 );
+            ImGui::TableSetupColumn( "Data", ImGuiTableColumnFlags_NoHide );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::Text( "Data Path" );
+
+            ImGui::TableNextColumn();
+            ImGui::Text( pMesh->GetResourceID().c_str() );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::Text( "Num Vertices" );
+
+            ImGui::TableNextColumn();
+            ImGui::Text( "%d", pMesh->GetNumVertices() );
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::Text( "Num Indices" );
+
+            ImGui::TableNextColumn();
+            ImGui::Text( "%d", pMesh->GetNumIndices() );
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::Text( "Mesh Sections" );
+
+            ImGui::TableNextColumn();
+            for ( auto const& section : pMesh->GetSections() )
+            {
+                ImGui::Text( section.m_ID.c_str() );
+            }
+
+            ImGui::EndTable();
+        }
+        ImGui::PopStyleVar();
     }
 }

@@ -19,6 +19,7 @@ namespace EE::Animation
 
             None,
             RelativeToSkeleton,
+            RelativeToFrame,
             RelativeToAnimationClip
         };
 
@@ -70,11 +71,18 @@ namespace EE::Animation
         EE_REFLECT( "Category" : "Root Motion" );
         EulerAngles                 m_rootMotionGenerationPreRotation;
 
+        //-------------------------------------------------------------------------
+
         // This is to generate an additive pose (based on the reference pose) so that we can test the rest of the code (remove once we have a proper additive import pipeline)
         EE_REFLECT( "Category" : "Additive" );
         AdditiveType                m_additiveType = AdditiveType::None;
 
+        // The animation to use as the the base for the additive animation
         EE_REFLECT( "Category" : "Additive" );
         TResourcePtr<AnimationClip> m_additiveBaseAnimation = nullptr;
+
+        // The frame to use as the base for the additive animation
+        EE_REFLECT( "Category" : "Additive" );
+        uint32_t                    m_additiveBaseFrameIndex = 0;
     };
 }

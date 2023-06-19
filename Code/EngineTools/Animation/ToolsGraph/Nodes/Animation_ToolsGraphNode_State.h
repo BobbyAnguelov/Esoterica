@@ -72,6 +72,9 @@ namespace EE::Animation::GraphNodes
         // Return any logic or event IDs entered into this node (things like event IDs, parameter ID values, etc...)
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const;
 
+        // Rename any logic or event IDs entered into this node (things like event IDs, parameter ID values, etc...)
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID );
+
     private:
 
         virtual char const* GetTypeName() const override { return "State"; }

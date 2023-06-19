@@ -103,6 +103,31 @@ namespace EE::Animation::GraphNodes
         }
     }
 
+    void IDEventConditionToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = false;
+        for ( auto ID : m_eventIDs )
+        {
+            if ( ID == oldID )
+            {
+                foundMatch = true;
+                break;
+            }
+        }
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+            for ( auto ID : m_eventIDs )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     StateEventConditionToolsNode::StateEventConditionToolsNode()
@@ -181,6 +206,31 @@ namespace EE::Animation::GraphNodes
         for ( auto const& condition : m_conditions )
         {
             outIDs.emplace_back( condition.m_eventID );
+        }
+    }
+
+    void StateEventConditionToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = false;
+        for ( auto condition : m_conditions )
+        {
+            if ( condition.m_eventID == oldID )
+            {
+                foundMatch = true;
+                break;
+            }
+        }
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+            for ( auto condition : m_conditions )
+            {
+                if ( condition.m_eventID == oldID )
+                {
+                    condition.m_eventID = newID;
+                }
+            }
         }
     }
 

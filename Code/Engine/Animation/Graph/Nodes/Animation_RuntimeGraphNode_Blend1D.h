@@ -55,6 +55,15 @@ namespace EE::Animation::GraphNodes
             FloatRange                              m_parameterRange;
         };
 
+    private:
+
+        struct BlendSpaceResult
+        {
+            PoseNode*                               m_pSource0 = nullptr;
+            PoseNode*                               m_pSource1 = nullptr;
+            float                                   m_blendWeight = 0.0f;
+        };
+
     public:
 
         virtual bool IsValid() const override;
@@ -71,12 +80,8 @@ namespace EE::Animation::GraphNodes
         // Parameterization
         //-------------------------------------------------------------------------
 
-        // Optional function to create a parameterization if one isnt serialized
-        virtual void InitializeParameterization( GraphContext& context ) {}
-        virtual void ShutdownParameterization( GraphContext& context ) {}
-
-        virtual Parameterization const& GetParameterization() const = 0;
-        void SelectBlendRange( GraphContext& context );
+        void EvaluateBlendSpace( GraphContext& context );
+        GraphPoseNodeResult SharedUpdate( GraphContext& context, SyncTrackTimeRange const* pUpdateRange );
 
         // Debugging
         //-------------------------------------------------------------------------
@@ -90,14 +95,14 @@ namespace EE::Animation::GraphNodes
 
         TInlineVector<PoseNode*, 5>                 m_sourceNodes;
         FloatValueNode*                             m_pInputParameterValueNode = nullptr;
-        int32_t                                     m_selectedRangeIdx = InvalidIndex;
-        float                                       m_blendWeight = 0.0f;
+        BlendSpaceResult                            m_bsr;
         SyncTrack                                   m_blendedSyncTrack;
+        Parameterization                            m_parameterization;
     };
 
     //-------------------------------------------------------------------------
 
-    class RangedBlendNode final : public ParameterizedBlendNode
+    class Blend1DNode final : public ParameterizedBlendNode
     {
     public:
 
@@ -110,10 +115,6 @@ namespace EE::Animation::GraphNodes
 
             Parameterization                        m_parameterization;
         };
-
-    private:
-
-        virtual Parameterization const& GetParameterization() const { return GetSettings<RangedBlendNode>()->m_parameterization; }
     };
 
     //-------------------------------------------------------------------------
@@ -125,26 +126,16 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public ParameterizedBlendNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
+
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 
     private:
 
-        virtual void InitializeParameterization( GraphContext& context ) override;
-        virtual void ShutdownParameterization( GraphContext& context ) override;
-        virtual Parameterization const& GetParameterization() const override { return m_parameterization; }
+        virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
 
-        // Debugging
-        //-------------------------------------------------------------------------
+    private:
 
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
-
-    protected:
-
-        Parameterization                            m_parameterization; // Lazily initialized parameterization
-        bool                                        m_parameterizationInitialized = false;
+        bool m_lazyInitializationPerformed = false;
     };
 }

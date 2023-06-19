@@ -6,6 +6,7 @@
 #include "EngineTools/Core/VisualGraph/VisualGraph_UserContext.h"
 #include "EngineTools/Core/Helpers/CategoryTree.h"
 #include "System/Types/HashMap.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend2D.h"
 
 
 //-------------------------------------------------------------------------
@@ -90,6 +91,18 @@ namespace EE::Animation
             }
 
             return 0.0f;
+        }
+
+        // Get layer weight from a given runtime layer blend node
+        inline Float2 GetBlend2DParameter( int16_t runtimeNodeIdx ) const
+        {
+            auto pLayerNode = static_cast<GraphNodes::Blend2DNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
+            if ( pLayerNode->IsInitialized() )
+            {
+                return pLayerNode->GetParameter();
+            }
+
+            return Float2::Zero;
         }
 
         // Get transition progress

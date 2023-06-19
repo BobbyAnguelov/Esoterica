@@ -95,6 +95,18 @@ namespace EE::ImGuiX
         return ImGui::BeginPopupModal( pPopupName, pIsPopupOpen, windowFlags );
     }
 
+    // Cancels an option dialog via ESC
+    inline bool CancelDialogViaEsc( bool isDialogOpen )
+    {
+        if ( ImGui::IsKeyPressed( ImGuiKey_Escape ) )
+        {
+            ImGui::CloseCurrentPopup();
+            return false;
+        }
+
+        return isDialogOpen;
+    }
+
     //-------------------------------------------------------------------------
     // Separators
     //-------------------------------------------------------------------------
@@ -117,6 +129,9 @@ namespace EE::ImGuiX
 
     // For use with text widget
     EE_SYSTEM_API void TextTooltip( const char* fmt, ... );
+
+    // A smaller checkbox allowing us to use a larger frame padding value
+    EE_SYSTEM_API bool Checkbox( char const* pLabel, bool* pValue );
 
     // Draw a button with an explicit icon
     EE_SYSTEM_API bool IconButton( char const* pIcon, char const* pLabel, ImColor const& iconColor = ImGui::GetStyle().Colors[ImGuiCol_Text], ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
@@ -268,16 +283,17 @@ namespace EE::ImGuiX
 
     struct EE_SYSTEM_API ApplicationTitleBar
     {
-        static Float2 const s_windowControlButtonSize;
-        constexpr static float const s_minimumDraggableGap = 20;
+        constexpr static float const s_windowControlButtonWidth = 45;
+        constexpr static float const s_minimumDraggableGap = 24; // Minimum open gap left open to allow dragging
+        constexpr static float const s_sectionPadding = 8; // Padding between the window frame/window controls and the menu/control sections
 
-        static inline float GetWindowsControlsWidth() { return s_windowControlButtonSize.m_x * 3; }
+        static inline float GetWindowsControlsWidth() { return s_windowControlButtonWidth * 3; }
         static void DrawWindowControls();
 
     public:
 
-        // This function takes three delegates and sizes each representing an area of the title bar to draw to.
-        void Draw( TFunction<void()>&& leftSectionDrawFunction = TFunction<void()>(), float leftSectionWidth = 0, TFunction<void()>&& midSectionDrawFunction = TFunction<void()>(), float midSectionWidth = 0, TFunction<void()>&& rightSectionDrawFunction = TFunction<void()>(), float rightSectionWidth = 0 );
+        // This function takes two delegates and sizes each representing the title bar menu and an extra optional controls section
+        void Draw( TFunction<void()>&& menuSectionDrawFunction = TFunction<void()>(), float menuSectionWidth = 0, TFunction<void()>&& controlsSectionDrawFunction = TFunction<void()>(), float controlsSectionWidth = 0 );
 
         // Get the screen space rectangle for this title bar
         Math::ScreenSpaceRectangle const& GetScreenRectangle() const { return m_rect; }

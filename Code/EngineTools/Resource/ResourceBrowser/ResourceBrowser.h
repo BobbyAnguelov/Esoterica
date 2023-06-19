@@ -16,7 +16,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API ResourceBrowser final: public TreeListView
+    class EE_ENGINETOOLS_API ResourceBrowser final
     {
     public:
 
@@ -30,15 +30,9 @@ namespace EE
 
     private:
 
-        // Tree
-        //-------------------------------------------------------------------------
-
-        virtual void RebuildTreeUserFunction() override;
-        virtual void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) override;
-        void OnBrowserItemDoubleClicked( TreeListViewItem* pItem );
-
-        // Update visual tree item visibility based on the user filter
         void UpdateVisibility();
+        void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
+        void RebuildTreeView( TreeListViewItem* pRootItem );
 
         // UI
         //-------------------------------------------------------------------------
@@ -64,7 +58,8 @@ namespace EE
 
         CategoryTree<TypeSystem::TypeInfo const*>           m_categorizedDescriptorTypes;
         ResourceDescriptorCreator*                          m_pResourceDescriptorCreator = nullptr;
-        Resource::RawFileInspector*                         m_pRawResourceInspector = nullptr;
-        EventBindingID                                      m_onDoubleClickEventID;
+
+        TreeListView                                        m_treeview;
+        bool                                                m_rebuildTree = false;
     };
 }

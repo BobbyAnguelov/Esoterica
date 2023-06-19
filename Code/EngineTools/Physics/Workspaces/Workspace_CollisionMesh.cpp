@@ -20,18 +20,13 @@ namespace EE::Physics
         TWorkspace<CollisionMesh>::Shutdown( context );
     }
 
-    void CollisionMeshWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void CollisionMeshWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID topDockID = 0;
         ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), topDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
-    }
-
-    void CollisionMeshWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
-    {
-        TWorkspace<CollisionMesh>::Update( context, pWindowClass, isFocused );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID );
     }
 }

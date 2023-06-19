@@ -136,12 +136,6 @@ namespace EE::Animation::GraphNodes
                 }
                 break;
 
-                case GraphValueType::Int:
-                {
-                    m_pGraphInstance->SetControlParameterValue( childParamIdx, pParameter->GetValue<int32_t>( context ) );
-                }
-                break;
-
                 case GraphValueType::Float:
                 {
                     m_pGraphInstance->SetControlParameterValue( childParamIdx, pParameter->GetValue<float>( context ) );

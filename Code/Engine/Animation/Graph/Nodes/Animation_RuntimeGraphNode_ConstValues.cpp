@@ -28,18 +28,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ConstIntNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
-    {
-        CreateNode<ConstIntNode>( context, options );
-    }
-
-    void ConstIntNode::GetValueInternal( GraphContext& context, void* pOutValue )
-    {
-        *( (int32_t*) pOutValue ) = GetSettings<ConstIntNode>()->m_value;
-    }
-
-    //-------------------------------------------------------------------------
-
     void ConstFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ConstFloatNode>( context, options );

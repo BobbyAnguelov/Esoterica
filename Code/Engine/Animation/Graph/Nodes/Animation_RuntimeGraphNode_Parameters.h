@@ -64,33 +64,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API ControlParameterIntNode final : public IntValueNode
-    {
-    public:
-
-        struct EE_ENGINE_API Settings final : public IntValueNode::Settings
-        {
-            EE_REFLECT_TYPE( Settings );
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-        };
-
-    private:
-
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override;
-
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
-
-    private:
-
-        int32_t m_value = 0;
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API ControlParameterFloatNode final : public FloatValueNode
     {
     public:
@@ -227,34 +200,6 @@ namespace EE::Animation::GraphNodes
 
         IDValueNode*    m_pChildNode = nullptr;
         StringID        m_value;
-    };
-
-    //-------------------------------------------------------------------------
-
-    class EE_ENGINE_API VirtualParameterIntNode final : public IntValueNode
-    {
-    public:
-
-        struct EE_ENGINE_API Settings final : public IntValueNode::Settings
-        {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( IntValueNode::Settings, m_childNodeIdx );
-
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            int16_t m_childNodeIdx = InvalidIndex;
-        };
-
-    private:
-
-        virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-
-    private:
-
-        IntValueNode*   m_pChildNode = nullptr;
-        int32_t         m_value = 0;
     };
 
     //-------------------------------------------------------------------------

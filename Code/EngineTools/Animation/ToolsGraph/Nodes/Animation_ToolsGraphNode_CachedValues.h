@@ -49,28 +49,6 @@ namespace EE::Animation::GraphNodes
     };
 
     //-------------------------------------------------------------------------
-    
-    class CachedIntToolsNode final : public FlowToolsNode
-    {
-        EE_REFLECT_TYPE( CachedIntToolsNode );
-
-    public:
-
-        CachedIntToolsNode();
-
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Int; }
-        virtual char const* GetTypeName() const override { return "Cached Int"; }
-        virtual char const* GetCategory() const override { return "Values/Cached"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
-        virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
-
-    private:
-
-        EE_REFLECT() CachedValueMode          m_mode = CachedValueMode::OnEntry;
-    };
-
-    //-------------------------------------------------------------------------
 
     class CachedFloatToolsNode final : public FlowToolsNode
     {

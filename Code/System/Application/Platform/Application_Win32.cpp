@@ -230,15 +230,14 @@ namespace EE
 
                     if ( IsWindowMaximized( m_windowHandle ) )
                     {
-                        auto pMonitor = ::MonitorFromWindow( m_windowHandle, MONITOR_DEFAULTTONEAREST );
+                        auto pMonitor = ::MonitorFromRect( &params.rgrc[0], MONITOR_DEFAULTTONEAREST );
                         if ( pMonitor )
                         {
                             MONITORINFO monitorInfo{};
                             monitorInfo.cbSize = sizeof( monitorInfo );
                             if ( ::GetMonitorInfoW( pMonitor, &monitorInfo ) )
                             {
-                                // When maximized, make the client area fill just the monitor (without task bar) rect,
-                                // not the whole window rect which extends beyond the monitor.
+                                // When maximized, make the client area fill just the monitor (without task bar) rect and not the whole window rect which extends beyond the monitor.
                                 params.rgrc[0] = monitorInfo.rcWork;
                                 params.rgrc[0].left--; // For some reason maximizing, offsets the window one pixel to the right?!
                                 params.rgrc[0].right--; // For some reason maximizing, offsets the window one pixel to the right?!
@@ -248,16 +247,16 @@ namespace EE
                     else // Offset the hit-test borders by the system border metric to replicate Windows10+ resize behavior
                     {
                         int32_t const borderWidth = ::GetSystemMetrics( SM_CXFRAME ) + ::GetSystemMetrics( SM_CXPADDEDBORDER );
-                        params.rgrc[0].left = params.rgrc[0].left + borderWidth;
-                        params.rgrc[0].top = params.rgrc[0].top + 0;
-                        params.rgrc[0].right = params.rgrc[0].right - borderWidth;
-                        params.rgrc[0].bottom = params.rgrc[0].bottom - borderWidth;
+                        params.rgrc[0].left += borderWidth;
+                        params.rgrc[0].top = params.rgrc[0].top;
+                        params.rgrc[0].right -= borderWidth;
+                        params.rgrc[0].bottom -= borderWidth;
                     }
 
                     return 0;
                 }
-                break;
             }
+            break;
 
             // Set window min size!
             case WM_GETMINMAXINFO:
@@ -276,8 +275,8 @@ namespace EE
                 {
                     return BorderlessWindowHitTest( POINT{ GET_X_LPARAM( lParam ), GET_Y_LPARAM( lParam ) } );
                 }
-                break;
             }
+            break;
 
             case WM_NCACTIVATE:
             {
@@ -287,8 +286,8 @@ namespace EE
                     // in "basic" theme, where no aero shadow is present.
                     return 1;
                 }
-                break;
             }
+            break;
 
             //-------------------------------------------------------------------------
 

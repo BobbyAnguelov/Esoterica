@@ -32,16 +32,22 @@ namespace EE::Animation::GraphNodes
     {
         EE_REFLECT_TYPE( OpenChildGraphCommand );
 
+        enum Option { OpenInPlace, OpenInNewEditor };
+
+    public:
+
         OpenChildGraphCommand() = default;
 
-        OpenChildGraphCommand( ChildGraphToolsNode* pSourceNode, bool m_openInPlace )
-            : m_openInPlace( m_openInPlace )
+        OpenChildGraphCommand( ChildGraphToolsNode* pSourceNode, Option option )
+            : m_option( option )
         {
             EE_ASSERT( pSourceNode != nullptr );
             m_pCommandSourceNode = pSourceNode;
         }
 
-        bool m_openInPlace = true;
+    public:
+
+        Option m_option = OpenInPlace;
     };
 
     //-------------------------------------------------------------------------
@@ -50,15 +56,21 @@ namespace EE::Animation::GraphNodes
     {
         EE_REFLECT_TYPE( ReflectParametersCommand );
 
+        enum Option { FromParent, FromChild };
+
+    public:
+
         ReflectParametersCommand() = default;
 
-        ReflectParametersCommand( ChildGraphToolsNode* pSourceNode, bool fromParentToChild )
-            : m_fromParentToChild( fromParentToChild )
+        ReflectParametersCommand( ChildGraphToolsNode* pSourceNode, Option option )
+            : m_option( option )
         {
             EE_ASSERT( pSourceNode != nullptr );
             m_pCommandSourceNode = pSourceNode;
         }
 
-        bool                        m_fromParentToChild = true;
+    public:
+
+        Option m_option = FromParent;
     };
 }

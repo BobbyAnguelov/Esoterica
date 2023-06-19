@@ -17,16 +17,14 @@ namespace EE::Render
 
     private:
 
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Texture"; }
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_IMAGE_OUTLINE; }
         virtual bool HasViewportWindow() const { return false; }
         virtual void Initialize( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
 
-    private:
-
-        String          m_previewWindowName;
-        String          m_infoWindowName;
+        void DrawInfoWindow( UpdateContext const& context, bool isFocused );
+        void DrawPreviewWindow( UpdateContext const& context, bool isFocused );
     };
 }

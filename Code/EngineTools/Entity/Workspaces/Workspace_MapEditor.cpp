@@ -105,7 +105,7 @@ namespace EE::EntityModel
     {
         if ( mapToLoad.GetResourceID() != m_loadedMap )
         {
-            m_outliner.ClearSelection();
+           // m_outliner.ClearSelection();
 
             // Should we save the current map before unloading?
             if ( IsDirty() )
@@ -129,7 +129,7 @@ namespace EE::EntityModel
             SetDisplayName( m_loadedMap.GetResourcePath().GetFileNameWithoutExtension() );
 
             // Reset widget
-            m_entityStructureEditor.SetEntityToEdit( nullptr );
+          //  m_entityStructureEditor.SetEntityToEdit( nullptr );
             m_undoStack.Reset();
         }
     }
@@ -190,7 +190,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    void EntityMapEditor::DrawWorkspaceToolbar( UpdateContext const& context )
+    void EntityMapEditor::DrawMenu( UpdateContext const& context )
     {
         if ( ImGui::MenuItem( EE_ICON_FILE"##NewMap" ) )
         {
@@ -198,7 +198,7 @@ namespace EE::EntityModel
         }
         ImGuiX::ItemTooltip( "New" );
 
-        DrawWorkspaceToolBar_Default();
+        EntityEditorWorkspace::DrawMenu( context );
 
         // Tools
         //-------------------------------------------------------------------------
@@ -347,9 +347,9 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityMapEditor::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void EntityMapEditor::Update( UpdateContext const& context, bool isFocused )
     {
-        EntityEditorWorkspace::Update( context, pWindowClass, isFocused );
+        EntityEditorWorkspace::Update( context, isFocused );
 
         if ( m_pNavmeshGeneratorDialog != nullptr )
         {

@@ -43,12 +43,14 @@ namespace EE::EntityModel
 
         EntityMap* GetEditedMap() const;
 
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Map Editor"; }
+
         virtual bool Save() override;
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_EARTH; }
-        virtual void DrawWorkspaceToolbar( UpdateContext const& context ) override;
+        virtual void DrawMenu( UpdateContext const& context ) override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isFocused ) override;
 
         // Navmesh
         //-------------------------------------------------------------------------

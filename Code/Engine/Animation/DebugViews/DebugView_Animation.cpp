@@ -57,12 +57,6 @@ namespace EE::Animation
                     }
                     break;
 
-                    case GraphValueType::Int:
-                    {
-                        stringValue.sprintf( "%d", pGraphInstance->GetControlParameterValue<int32_t>( i ) );
-                    }
-                    break;
-
                     case GraphValueType::Float:
                     {
                         stringValue.sprintf( "%.3f", pGraphInstance->GetControlParameterValue<float>( i ) );

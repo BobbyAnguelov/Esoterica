@@ -15,6 +15,7 @@
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/ThirdParty/implot/implot.h"
+#include "EngineTools/Resource/RawFileInspector.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,6 +23,11 @@ namespace EE
 {
     EditorUI::~EditorUI()
     {
+        if ( m_pRawResourceInspector )
+        {
+            EE::Delete( m_pRawResourceInspector );
+        }
+
         EE_ASSERT( m_workspaces.empty() );
         EE_ASSERT( m_pMapEditor == nullptr );
         EE_ASSERT( m_pGamePreviewer == nullptr );
@@ -47,6 +53,17 @@ namespace EE
 
     void EditorUI::Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache )
     {
+        // ImGui
+        //-------------------------------------------------------------------------
+
+        m_editorWindowClass.ClassId = ImHashStr( "EditorWindowClass" );
+        m_editorWindowClass.DockingAllowUnclassed = false;
+        m_editorWindowClass.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge;
+        m_editorWindowClass.ViewportFlagsOverrideClear = ImGuiViewportFlags_NoDecoration | ImGuiViewportFlags_NoTaskBarIcon;
+        m_editorWindowClass.ParentViewportId = 0; // Top level window
+        m_editorWindowClass.DockingAllowUnclassed = false;
+        m_editorWindowClass.DockingAlwaysTabBar = true;
+
         // Systems
         //-------------------------------------------------------------------------
 
@@ -75,27 +92,8 @@ namespace EE
         // Map Editor
         //-------------------------------------------------------------------------
 
-        // Destroy the default created game world
-        m_pWorldManager->DestroyWorld( m_pWorldManager->GetWorlds()[0] );
-
-        // Create a new editor world for the map editor workspace
-        auto pMapEditorWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pMapEditorWorld->GetViewport(), true );
-
-        // Create the map editor workspace
-        m_pMapEditor = EE::New<EntityModel::EntityMapEditor>( this, pMapEditorWorld );
-        m_pMapEditor->Initialize( context );
-        m_workspaces.emplace_back( m_pMapEditor );
-
-        m_gamePreviewStartRequestEventBindingID = m_pMapEditor->OnGamePreviewStartRequested().Bind( [this] ( UpdateContext const& context ) { CreateGamePreviewWorkspace( context ); } );
-        m_gamePreviewStopRequestEventBindingID = m_pMapEditor->OnGamePreviewStopRequested().Bind( [this] ( UpdateContext const& context ) { DestroyGamePreviewWorkspace( context ); } );
-
-        // Load startup map
-        if ( m_startupMapResourceID.IsValid() )
-        {
-            EE_ASSERT( m_startupMapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
-            m_pMapEditor->LoadMap( m_startupMapResourceID );
-        }
+        auto& request = m_workspaceCreationRequests.emplace_back();
+        request.m_type = WorkspaceCreationRequest::MapEditor;
     }
 
     void EditorUI::Shutdown( UpdateContext const& context )
@@ -141,11 +139,28 @@ namespace EE
         m_pTypeRegistry = nullptr;
     }
 
-    void EditorUI::TryOpenResource( ResourceID const& resourceID ) const
+    bool EditorUI::TryOpenResource( ResourceID const& resourceID ) const
     {
         if ( resourceID.IsValid() )
         {
             const_cast<EditorUI*>( this )->QueueCreateWorkspace( resourceID );
+            return true;
+        }
+
+        return false;
+    }
+
+    bool EditorUI::TryOpenRawResource( FileSystem::Path const& resourcePath ) const
+    {
+        if ( Resource::RawFileInspectorFactory::CanCreateInspector( resourcePath ) )
+        {
+            const_cast<EditorUI*>( this )->m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( this, resourcePath );
+            return true;
+        }
+        else
+        {
+            pfd::message( "Import Error", "File type is not importable!", pfd::choice::ok, pfd::icon::error );
+            return false;
         }
     }
 
@@ -161,71 +176,36 @@ namespace EE
 
     void EditorUI::DrawTitleBarMenu( UpdateContext const& context )
     {
-        ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 4 ) );
-
-        //-------------------------------------------------------------------------
-
         ImGuiX::Image( m_editorIcon );
 
         //-------------------------------------------------------------------------
 
         ImGui::SameLine();
 
-        if ( ImGui::BeginChild( "#HackChild", ImVec2( 0, 0 ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar ) )
+        if ( ImGui::BeginMenu( "Resource" ) )
         {
-            if ( ImGui::BeginMenuBar() )
-            {
-                if ( ImGui::BeginMenu( "Resource" ) )
-                {
-                    ImGui::MenuItem( "Resource Browser", nullptr, &m_isResourceBrowserWindowOpen );
-                    ImGui::MenuItem( "Resource System Overview", nullptr, &m_isResourceOverviewWindowOpen );
-                    ImGui::MenuItem( "Resource Log", nullptr, &m_isResourceLogWindowOpen );
-                    ImGui::EndMenu();
-                }
-
-                ImGui::SameLine();
-                if ( ImGui::BeginMenu( "System" ) )
-                {
-                    ImGui::MenuItem( "System Log", nullptr, &m_isSystemLogWindowOpen );
-
-                    ImGui::Separator();
-
-                    ImGui::MenuItem( "Imgui UI Test Window", nullptr, &m_isUITestWindowOpen );
-                    ImGui::MenuItem( "Imgui Demo Window", nullptr, &m_isImguiDemoWindowOpen );
-
-                    ImGui::EndMenu();
-                }
-
-                ImGui::EndMenuBar();
-            }
+            ImGui::MenuItem( "Resource Browser", nullptr, &m_isResourceBrowserWindowOpen );
+            ImGui::MenuItem( "Resource System Overview", nullptr, &m_isResourceOverviewWindowOpen );
+            ImGui::MenuItem( "Resource Log", nullptr, &m_isResourceLogWindowOpen );
+            ImGui::EndMenu();
         }
-        ImGui::EndChild();
-    }
 
-    void EditorUI::DrawTitleBarGamePreviewControls( UpdateContext const& context )
-    {
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 6 );
-        ImGui::BeginDisabled( !m_pMapEditor->HasLoadedMap() );
-        if ( m_pGamePreviewer != nullptr )
+        ImGui::SameLine();
+        if ( ImGui::BeginMenu( "System" ) )
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview##MapEditor", ImGuiX::ImColors::Red, ImVec2( -1, 0 ) ) )
-            {
-                DestroyGamePreviewWorkspace( context );
-            }
+            ImGui::MenuItem( "System Log", nullptr, &m_isSystemLogWindowOpen );
+
+            ImGui::Separator();
+
+            ImGui::MenuItem( "Imgui UI Test Window", nullptr, &m_isUITestWindowOpen );
+            ImGui::MenuItem( "Imgui Demo Window", nullptr, &m_isImguiDemoWindowOpen );
+
+            ImGui::EndMenu();
         }
-        else
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Loaded Map##MapEditor", ImGuiX::ImColors::Lime, ImVec2( -1, 0 ) ) )
-            {
-                CreateGamePreviewWorkspace( context );
-            }
-        }
-        ImGui::EndDisabled();
     }
 
     void EditorUI::DrawTitleBarPerformanceStats( UpdateContext const& context )
     {
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 6 );
         SystemDebugView::DrawFrameLimiterCombo( const_cast<UpdateContext&>( context ) );
 
         ImGui::SameLine();
@@ -262,6 +242,11 @@ namespace EE
         // We needed to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
         for ( auto pWorkspaceToDestroy : m_workspaceDestructionRequests )
         {
+            if ( m_pLastActiveWorkspace == pWorkspaceToDestroy )
+            {
+                m_pLastActiveWorkspace = nullptr;
+            }
+
             DestroyWorkspace( context, pWorkspaceToDestroy );
         }
         m_workspaceDestructionRequests.clear();
@@ -282,33 +267,25 @@ namespace EE
             DrawTitleBarMenu( context );
         };
 
-        auto TitleBarMidContents = [this, &context] ()
-        {
-            // Do Nothing
-        };
-
         auto TitleBarRightContents = [this, &context] ()
         {
             DrawTitleBarPerformanceStats( context );
         };
 
-        m_titleBar.Draw( TitleBarLeftContents, 210, TitleBarMidContents, 170, TitleBarRightContents, 190 );
+        m_titleBar.Draw( TitleBarLeftContents, 210, TitleBarRightContents, 190 );
 
         //-------------------------------------------------------------------------
         // Create main dock window
         //-------------------------------------------------------------------------
 
-        m_editorWindowClass.ClassId = ImGui::GetID( "EditorWindowClass" );
-        m_editorWindowClass.DockingAllowUnclassed = false;
-
         ImGuiID const dockspaceID = ImGui::GetID( "EditorDockSpace" );
-
-        ImGuiWindowFlags const windowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
         ImGuiViewport const* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos( viewport->WorkPos );
         ImGui::SetNextWindowSize( viewport->WorkSize );
         ImGui::SetNextWindowViewport( viewport->ID );
+
+        ImGuiWindowFlags const windowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
         ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, 0.0f );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0.0f );
@@ -316,6 +293,7 @@ namespace EE
         ImGui::Begin( "EditorDockSpaceWindow", nullptr, windowFlags );
         ImGui::PopStyleVar( 3 );
         {
+            // Create initial layout
             if ( !ImGui::DockBuilderGetNode( dockspaceID ) )
             {
                 ImGui::DockBuilderAddNode( dockspaceID, ImGuiDockNodeFlags_DockSpace );
@@ -325,12 +303,12 @@ namespace EE
                 ImGui::DockBuilderFinish( dockspaceID );
 
                 ImGui::DockBuilderDockWindow( m_pResourceBrowser->GetWindowName(), leftDockID );
-                ImGui::DockBuilderDockWindow( m_pMapEditor->GetWorkspaceWindowID(), rightDockID );
+                ImGui::DockBuilderDockWindow( m_pMapEditor->m_windowName.c_str(), rightDockID );
             }
 
             // Create the actual dock space
             ImGui::PushStyleVar( ImGuiStyleVar_TabRounding, 0 );
-            ImGui::DockSpace( dockspaceID, viewport->WorkSize, ImGuiDockNodeFlags_None, &m_editorWindowClass );
+            ImGui::DockSpace( dockspaceID, viewport->WorkSize, 0, &m_editorWindowClass );
             ImGui::PopStyleVar( 1 );
         }
         ImGui::End();
@@ -343,6 +321,14 @@ namespace EE
         {
             ImGui::SetNextWindowClass( &m_editorWindowClass );
             m_isResourceBrowserWindowOpen = m_pResourceBrowser->UpdateAndDraw( context );
+        }
+
+        if ( m_pRawResourceInspector != nullptr )
+        {
+            if ( !m_pRawResourceInspector->DrawDialog() )
+            {
+                EE::Delete( m_pRawResourceInspector );
+            }
         }
 
         if ( m_isResourceOverviewWindowOpen )
@@ -383,9 +369,24 @@ namespace EE
         // Reset mouse state, this is updated via the workspaces
         Workspace* pWorkspaceToClose = nullptr;
 
+        // Update the location for all workspaces
+        for ( auto pWorkspace : m_workspaces )
+        {
+            if ( !SubmitWorkspaceWindow( context, pWorkspace, dockspaceID ) )
+            {
+                pWorkspaceToClose = pWorkspace;
+            }
+        }
+
         // Draw all workspaces
         for ( auto pWorkspace : m_workspaces )
         {
+            // If we've been asked to close, no point drawing
+            if ( pWorkspace == pWorkspaceToClose )
+            {
+                continue;
+            }
+
             // The game previewer is special and is handled separately
             if ( pWorkspace == m_pGamePreviewer )
             {
@@ -398,13 +399,7 @@ namespace EE
                 continue;
             }
 
-            // Draw the workspaces
-            EE_ASSERT( pWorkspace->IsInitialized() );
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            if ( !DrawWorkspaceWindow( context, pWorkspace ) )
-            {
-                pWorkspaceToClose = pWorkspace;
-            }
+            DrawWorkspaceContents( context, pWorkspace );
         }
 
         // Did we get a close request?
@@ -428,12 +423,9 @@ namespace EE
     void EditorUI::EndFrame( UpdateContext const& context )
     {
         // Game previewer needs to be drawn at the end of the frames since then all the game simulation data will be correct and all the debug tools will be accurate
-        if ( m_pGamePreviewer != nullptr )
+        if ( m_pGamePreviewer != nullptr && !VectorContains( m_workspaceDestructionRequests, m_pGamePreviewer ) )
         {
-            if ( !DrawWorkspaceWindow( context, m_pGamePreviewer ) )
-            {
-                QueueDestroyWorkspace( m_pGamePreviewer );
-            }
+            DrawWorkspaceContents( context, m_pGamePreviewer );
         }
     }
 
@@ -495,70 +487,134 @@ namespace EE
     // Workspace Management
     //-------------------------------------------------------------------------
 
-    bool EditorUI::TryCreateWorkspace( UpdateContext const& context, ResourceID const& resourceID )
+    bool EditorUI::TryCreateWorkspace( UpdateContext const& context, WorkspaceCreationRequest const& request )
     {
-        ResourceTypeID const resourceTypeID = resourceID.GetResourceTypeID();
-
-        // Don't try to open invalid resource IDs
-        if ( !m_resourceDB.DoesResourceExist( resourceID ) )
-        {
-            return false;
-        }
-
-        // Handle maps explicitly
+        // Map editor
         //-------------------------------------------------------------------------
 
-        if ( resourceTypeID == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
+        if( request.m_type == WorkspaceCreationRequest::MapEditor )
         {
-            m_pMapEditor->LoadMap( resourceID );
-            ImGuiX::MakeTabVisible( m_pMapEditor->GetWorkspaceWindowID() );
+            // Destroy the default created game world
+            m_pWorldManager->DestroyWorld( m_pWorldManager->GetWorlds()[0] );
+
+            // Create a new editor world for the map editor workspace
+            auto pMapEditorWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
+            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pMapEditorWorld->GetViewport(), true );
+
+            // Create the map editor workspace
+            m_pMapEditor = EE::New<EntityModel::EntityMapEditor>( this, pMapEditorWorld );
+            m_pMapEditor->Initialize( context );
+            m_workspaces.emplace_back( m_pMapEditor );
+
+            m_gamePreviewStartRequestEventBindingID = m_pMapEditor->OnGamePreviewStartRequested().Bind( [this] ( UpdateContext const& context ) { CreateGamePreviewWorkspace( context ); } );
+            m_gamePreviewStopRequestEventBindingID = m_pMapEditor->OnGamePreviewStopRequested().Bind( [this] ( UpdateContext const& context ) { DestroyGamePreviewWorkspace( context ); } );
+
+            // Load startup map
+            if ( m_startupMapResourceID.IsValid() )
+            {
+                EE_ASSERT( m_startupMapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
+                m_pMapEditor->LoadMap( m_startupMapResourceID );
+            }
+
             return true;
         }
 
-        // Other resource types
+        // Game previewer
         //-------------------------------------------------------------------------
 
-        // Check if we already have a workspace open for this resource, if so then switch focus to it
-        for ( auto pWorkspace : m_workspaces )
+        else if ( request.m_type == WorkspaceCreationRequest::GamePreview )
         {
-            if ( pWorkspace->IsWorkingOnResource( resourceID ) )
+            auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Game );
+            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
+            m_pGamePreviewer = EE::New<GamePreviewer>( this, pPreviewWorld );
+            m_pGamePreviewer->Initialize( context );
+            m_pGamePreviewer->LoadMapToPreview( m_pMapEditor->GetLoadedMap() );
+            m_workspaces.emplace_back( m_pGamePreviewer );
+
+            m_pMapEditor->NotifyGamePreviewStarted();
+
+            return true;
+        }
+
+        // Resource
+        //-------------------------------------------------------------------------
+
+        else if ( request.m_type == WorkspaceCreationRequest::ResourceWorkspace )
+        {
+            EE_ASSERT( request.m_resourceID.IsValid() );
+            ResourceTypeID const resourceTypeID = request.m_resourceID.GetResourceTypeID();
+
+            // Don't try to open invalid resource IDs
+            if ( !m_resourceDB.DoesResourceExist( request.m_resourceID ) )
             {
-                ImGuiX::MakeTabVisible( pWorkspace->GetWorkspaceWindowID() );
+                return false;
+            }
+
+            // Handle maps explicitly
+            //-------------------------------------------------------------------------
+
+            if ( resourceTypeID == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() )
+            {
+                m_pMapEditor->LoadMap( request.m_resourceID );
+                ImGuiX::MakeTabVisible( m_pMapEditor->m_windowName.c_str() );
                 return true;
             }
-        }
 
-        // Check if we can create a new workspace
-        if ( !ResourceWorkspaceFactory::CanCreateWorkspace( this, resourceID ) )
+            // Other resource types
+            //-------------------------------------------------------------------------
+
+            // Check if we already have a workspace open for this resource, if so then switch focus to it
+            for ( auto pWorkspace : m_workspaces )
+            {
+                if ( pWorkspace->IsWorkingOnResource( request.m_resourceID ) )
+                {
+                    ImGuiX::MakeTabVisible( pWorkspace->m_windowName.c_str() );
+                    return true;
+                }
+            }
+
+            // Check if we can create a new workspace
+            if ( !ResourceWorkspaceFactory::CanCreateWorkspace( this, request.m_resourceID ) )
+            {
+                return false;
+            }
+
+            // Create tools world
+            auto pWorkspaceWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
+            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pWorkspaceWorld->GetViewport(), true );
+
+            // Create workspace
+            auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pWorkspaceWorld, request.m_resourceID );
+            m_workspaces.emplace_back( pCreatedWorkspace );
+
+            // Check if the descriptor was correctly loaded, if not schedule this workspace to be destroyed
+            if ( pCreatedWorkspace->IsADescriptorWorkspace() && !pCreatedWorkspace->IsDescriptorLoaded() )
+            {
+                InlineString const str( InlineString::CtorSprintf(), "There was an error loading the descriptor for %s! Please check the log for details.", request.m_resourceID.c_str() );
+                pfd::message( "Error Loading Descriptor", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+                QueueDestroyWorkspace( pCreatedWorkspace );
+                return false;
+            }
+
+            // Initialize workspace
+            pCreatedWorkspace->Initialize( context );
+            return true;
+        }
+        else
         {
-            return false;
+            EE_UNREACHABLE_CODE();
         }
 
-        // Create tools world
-        auto pWorkspaceWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pWorkspaceWorld->GetViewport(), true );
+        //-------------------------------------------------------------------------
 
-        // Create workspace
-        auto pCreatedWorkspace = ResourceWorkspaceFactory::CreateWorkspace( this, pWorkspaceWorld, resourceID );
-        m_workspaces.emplace_back( pCreatedWorkspace );
-
-        // Check if the descriptor was correctly loaded, if not schedule this workspace to be destroyed
-        if ( pCreatedWorkspace->IsADescriptorWorkspace() && !pCreatedWorkspace->IsDescriptorLoaded() )
-        {
-            InlineString const str( InlineString::CtorSprintf(), "There was an error loading the descriptor for %s! Please check the log for details.", resourceID.c_str() );
-            pfd::message( "Error Loading Descriptor", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
-            QueueDestroyWorkspace( pCreatedWorkspace );
-            return false;
-        }
-
-        // Initialize workspace
-        pCreatedWorkspace->Initialize( context );
-        return true;
+        return false;
     }
 
     void EditorUI::QueueCreateWorkspace( ResourceID const& resourceID )
     {
-        m_workspaceCreationRequests.emplace_back( resourceID );
+        auto& request = m_workspaceCreationRequests.emplace_back();
+        request.m_type = WorkspaceCreationRequest::ResourceWorkspace;
+        request.m_resourceID = resourceID;
     }
 
     void EditorUI::DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace, bool isEditorShutdown )
@@ -631,21 +687,83 @@ namespace EE
         m_workspaceDestructionRequests.emplace_back( pWorkspace );
     }
 
-    bool EditorUI::DrawWorkspaceWindow( UpdateContext const& context, Workspace* pWorkspace )
+    void EditorUI::WorkspaceLayoutCopy( Workspace* pWorkspace )
+    {
+        ImGuiID sourceWorkspaceID = pWorkspace->m_previousDockspaceID;
+        ImGuiID destinationWorkspaceID = pWorkspace->m_currentDockspaceID;
+        IM_ASSERT( sourceWorkspaceID != 0 );
+        IM_ASSERT( destinationWorkspaceID != 0 );
+
+        // Helper to build an array of strings pointer into the same contiguous memory buffer.
+        struct ContiguousStringArrayBuilder
+        {
+            void AddEntry( const char* data, size_t dataLength )
+            {
+                int32_t const bufferSize = (int32_t) m_buffer.size();
+                m_offsets.push_back( bufferSize );
+                int32_t const offset = bufferSize;
+                m_buffer.resize( bufferSize + (int32_t) dataLength );
+                memcpy( m_buffer.data() + offset, data, dataLength );
+            }
+
+            void BuildPointerArray( ImVector<const char*>& outArray )
+            {
+                outArray.resize( (int32_t) m_offsets.size() );
+                for ( int32_t n = 0; n < (int32_t) m_offsets.size(); n++ )
+                {
+                    outArray[n] = m_buffer.data() + m_offsets[n];
+                }
+            }
+
+            TVector<char>       m_buffer;
+            TVector<int32_t>    m_offsets;
+        };
+
+        // Build an array of remapped names
+        ContiguousStringArrayBuilder namePairsBuilder;
+
+        // Iterate tool windows
+        for ( auto& toolWindow : pWorkspace->m_toolWindows )
+        {
+            InlineString const sourceToolWindowName = Workspace::GetToolWindowName( toolWindow.m_name.c_str(), sourceWorkspaceID );
+            InlineString const destinationToolWindowName = Workspace::GetToolWindowName( toolWindow.m_name.c_str(), destinationWorkspaceID );
+            namePairsBuilder.AddEntry( sourceToolWindowName.c_str(), sourceToolWindowName.length() + 1 );
+            namePairsBuilder.AddEntry( destinationToolWindowName.c_str(), destinationToolWindowName.length() + 1 );
+        }
+
+        // Build the same array with char* pointers at it is the input of DockBuilderCopyDockspace() (may change its signature?)
+        ImVector<const char*> windowRemapPairs;
+        namePairsBuilder.BuildPointerArray( windowRemapPairs );
+
+        // Perform the cloning
+        ImGui::DockBuilderCopyDockSpace( sourceWorkspaceID, destinationWorkspaceID, &windowRemapPairs );
+        ImGui::DockBuilderFinish( destinationWorkspaceID );
+    }
+
+    bool EditorUI::SubmitWorkspaceWindow( UpdateContext const& context, Workspace* pWorkspace, ImGuiID editorDockspaceID )
     {
         EE_ASSERT( pWorkspace != nullptr );
+        IM_ASSERT( editorDockspaceID != 0 );
 
-        //-------------------------------------------------------------------------
-        // Create Workspace Window
-        //-------------------------------------------------------------------------
-        // This is an empty window that just contains the dockspace for the workspace
+        bool isWorkspaceStillOpen = true;
+        bool* pIsWorkspaceOpen = ( pWorkspace == m_pMapEditor ) ? nullptr : &isWorkspaceStillOpen; // Prevent closing the map-editor workspace
 
-        bool isTabOpen = true;
-        bool* pIsTabOpen = ( pWorkspace == m_pMapEditor ) ? nullptr : &isTabOpen; // Prevent closing the map-editor workspace
+        // Top level editors can only be docked with each others
+        ImGui::SetNextWindowClass( &m_editorWindowClass );
+        if ( pWorkspace->m_desiredDockID != 0 )
+        {
+            ImGui::SetNextWindowDockID( pWorkspace->m_desiredDockID );
+            pWorkspace->m_desiredDockID = 0;
+        }
+        else
+        {
+            ImGui::SetNextWindowDockID( editorDockspaceID, ImGuiCond_FirstUseEver );
+        }
 
+        // Window flags
         ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse;
 
-        if ( pWorkspace->HasWorkspaceToolbar() )
+        if ( pWorkspace->HasMenu() )
         {
             windowFlags |= ImGuiWindowFlags_MenuBar;
         }
@@ -655,99 +773,243 @@ namespace EE
             windowFlags |= ImGuiWindowFlags_UnsavedDocument;
         }
 
+        // Create top level editor tab/window
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
         ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 1.0f );
-
-        bool const shouldDrawWindowContents = ImGui::Begin( pWorkspace->GetWorkspaceWindowID(), pIsTabOpen, windowFlags );
-        bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
+        ImGui::Begin( pWorkspace->m_windowName.c_str(), pIsWorkspaceOpen, windowFlags );
         ImGui::PopStyleVar();
 
-        // Draw Workspace Menu
-        //-------------------------------------------------------------------------
-
-        if ( pWorkspace->HasWorkspaceToolbar() )
+        // Store last focused document
+        bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
+        if ( isFocused )
         {
-            if ( ImGui::BeginMenuBar() )
-            {
-                pWorkspace->DrawWorkspaceToolbar( context );
-                ImGui::EndMenuBar();
-            }
+           m_pLastActiveWorkspace = pWorkspace;
         }
 
-        // Create dockspace
-        //-------------------------------------------------------------------------
+        // Set WindowClass based on per-document ID, so tabs from Document A are not dockable in Document B etc. We could be using any ID suiting us, e.g. &pWorkspace
+        // We also set ParentViewportId to request the platform back-end to set parent/child relationship at the windowing level.
+        pWorkspace->m_toolWindowClass.ClassId = pWorkspace->m_ID;
+        pWorkspace->m_toolWindowClass.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoTaskBarIcon | ImGuiViewportFlags_NoDecoration;
+        pWorkspace->m_toolWindowClass.ParentViewportId = ImGui::GetWindowViewport()->ID; // Make child of the top-level editor window
+        pWorkspace->m_toolWindowClass.DockingAllowUnclassed = true;
 
-        ImGuiID const dockspaceID = ImGui::GetID( pWorkspace->GetDockspaceID() );
-        ImGuiWindowClass workspaceWindowClass;
-        workspaceWindowClass.ClassId = dockspaceID;
-        workspaceWindowClass.DockingAllowUnclassed = false;
+        // Track LocationID change so we can fork/copy the layout data according to where the window is going + reference count
+        // LocationID ~~ (DockId != 0 ? DockId : DocumentID) // When we are in a loose floating window we use our own document id instead of the dock id
+        pWorkspace->m_currentDockID = ImGui::GetWindowDockID();
+        pWorkspace->m_previousLocationID = pWorkspace->m_currentLocationID;
+        pWorkspace->m_currentLocationID = pWorkspace->m_currentDockID != 0 ? pWorkspace->m_currentDockID : pWorkspace->m_ID;
 
-        if ( !ImGui::DockBuilderGetNode( dockspaceID ) )
-        {
-            ImGui::DockBuilderAddNode( dockspaceID, ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton );
-            ImGui::DockBuilderSetNodeSize( dockspaceID, ImGui::GetContentRegionAvail() );
-            pWorkspace->InitializeDockingLayout( dockspaceID );
-            ImGui::DockBuilderFinish( dockspaceID );
-        }
+        // Dockspace ID ~~ Hash of LocationID + DocType
+        // So all editors of a same type inside a same tab-bar will share the same layout.
+        // We will also use this value as a suffix to create window titles, but we could perfectly have an indirection to allocate and use nicer names for window names (e.g. 0001, 0002).
+        pWorkspace->m_previousDockspaceID = pWorkspace->m_currentDockspaceID;
+        pWorkspace->m_currentDockspaceID = pWorkspace->CalculateDockspaceID();
+        EE_ASSERT( pWorkspace->m_currentDockspaceID != 0 );
 
-        ImGuiDockNodeFlags const dockFlags = shouldDrawWindowContents ? ImGuiDockNodeFlags_None : ImGuiDockNodeFlags_KeepAliveOnly;
-        ImGui::DockSpace( dockspaceID, ImGui::GetContentRegionAvail(), dockFlags, &workspaceWindowClass );
-
-        //-------------------------------------------------------------------------
-        // Draw workspace contents
-        //-------------------------------------------------------------------------
-
-        bool enableCameraUpdate = false;
-        auto pWorld = pWorkspace->GetWorld();
-
-        if ( shouldDrawWindowContents )
-        {
-            if ( pWorkspace != m_pMapEditor || m_pGamePreviewer == nullptr )
-            {
-                pWorld->ResumeUpdates();
-            }
-
-            if ( pWorkspace->HasViewportWindow() )
-            {
-                Workspace::ViewportInfo viewportInfo;
-                viewportInfo.m_pViewportRenderTargetTexture = (void*) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
-                viewportInfo.m_retrievePickingID = [this, pWorld] ( Int2 const& pixelCoords ) { return m_pRenderingSystem->GetViewportPickingID( pWorld->GetViewport(), pixelCoords ); };
-                enableCameraUpdate = pWorkspace->DrawViewport( context, viewportInfo, &workspaceWindowClass );
-            }
-
-            pWorkspace->CommonUpdate( context, &workspaceWindowClass, isFocused );
-            pWorkspace->Update( context, &workspaceWindowClass, isFocused );
-        }
-        else // If the workspace window is hidden suspend world updates
-        {
-            pWorld->SuspendUpdates();
-        }
-
-        pWorkspace->SetCameraUpdateEnabled( enableCameraUpdate );
-
-        //-------------------------------------------------------------------------
-
-        // End the workspace window here so that it is still in the window stack so that popups can get the correct viewport
         ImGui::End();
 
         //-------------------------------------------------------------------------
 
-        return isTabOpen;
+        return isWorkspaceStillOpen;
+    }
+
+    void EditorUI::DrawWorkspaceContents( UpdateContext const& context, Workspace* pWorkspace )
+    {
+        EE_ASSERT( pWorkspace != nullptr );
+        auto pWorld = pWorkspace->GetWorld();
+
+        //-------------------------------------------------------------------------
+
+        // This is the second Begin(), as MyEditor_UpdateDocLocationAndLayout() has already done one
+        // (Therefore only the p_open and flags of the first call to Begin() applies)
+        ImGui::Begin( pWorkspace->m_windowName.c_str() );
+        int32_t const beginCount = ImGui::GetCurrentWindow()->BeginCount;
+        IM_ASSERT( beginCount == 2 );
+
+        ImGuiID const dockspaceID = pWorkspace->m_currentDockspaceID;
+        ImVec2 const dockspaceSize = ImGui::GetContentRegionAvail();
+
+        // Fork settings when extracting to a new location, or Overwrite settings when docking back into an existing location
+        if ( pWorkspace->m_previousLocationID != 0 && pWorkspace->m_previousLocationID != pWorkspace->m_currentLocationID )
+        {
+            // Count references to tell if we should Copy or Move the layout.
+            int32_t previousDockspaceRefCount = 0;
+            int32_t currentDockspaceRefCount = 0;
+            for ( int32_t i = 0; i < (int32_t) m_workspaces.size(); i++ )
+            {
+                Workspace* pOtherWorkspace = m_workspaces[i];
+
+                if ( pOtherWorkspace->m_currentDockspaceID == pWorkspace->m_previousDockspaceID )
+                {
+                    previousDockspaceRefCount++;
+                }
+
+                if ( pOtherWorkspace->m_currentDockspaceID == pWorkspace->m_currentDockspaceID )
+                {
+                    currentDockspaceRefCount++;
+                }
+            }
+
+            // Fork or overwrite settings
+            // FIXME: should be able to do a "move window but keep layout" if curr_dockspace_ref_count > 1.
+            // FIXME: when moving, delete settings of old windows
+            //IMGUI_DEBUG_LOG( "LayoutCopy DockID %08X -> DockID %08X requested by pWorkspace '%s'\n", pWorkspace->m_previousDockspaceID, pWorkspace->m_currentDockspaceID, pWorkspace->Name );
+            //IMGUI_DEBUG_LOG( "--> prev_dockspace_ref_count = %d --> %s\n", prev_dockspace_ref_count, ( prev_dockspace_ref_count == 0 ) ? "Remove" : "Keep" );
+            //IMGUI_DEBUG_LOG( "--> curr_dockspace_ref_count = %d\n", curr_dockspace_ref_count );
+            WorkspaceLayoutCopy( pWorkspace );
+
+            if ( previousDockspaceRefCount == 0 )
+            {
+                ImGui::DockBuilderRemoveNode( pWorkspace->m_previousDockspaceID );
+            }
+        }
+        else if ( ImGui::DockBuilderGetNode( pWorkspace->m_currentDockspaceID ) == nullptr )
+        {
+            ImGui::DockBuilderAddNode( pWorkspace->m_currentDockspaceID, ImGuiDockNodeFlags_DockSpace );
+            ImGui::DockBuilderSetNodeSize( pWorkspace->m_currentDockspaceID, dockspaceSize );
+            pWorkspace->InitializeDockingLayout( dockspaceID, dockspaceSize );
+            ImGui::DockBuilderFinish( dockspaceID );
+        }
+
+        // FIXME-DOCK: This is a little tricky to explain but we currently need this to use the pattern of sharing a same dockspace between tabs of a same tab bar
+        bool visible = true;
+        if ( ImGui::GetCurrentWindow()->Hidden )
+        {
+            visible = false;
+        }
+
+        if ( !visible )
+        {
+            // Keep alive document dockspace so windows that are docked into it but which visibility are not linked to the dockspace visibility won't get undocked.
+            ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_KeepAliveOnly, &pWorkspace->m_toolWindowClass );
+            ImGui::End();
+
+            // Suspend world updates for hidden windows
+            pWorld->SuspendUpdates();
+
+            return;
+        }
+
+        // Draw Workspace Menu
+        //-------------------------------------------------------------------------
+
+        if ( pWorkspace->HasMenu() )
+        {
+            ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 8, 16 ) );
+            if ( ImGui::BeginMenuBar() )
+            {
+                pWorkspace->DrawMenu( context );
+                ImGui::EndMenuBar();
+            }
+            ImGui::PopStyleVar( 1 );
+        }
+
+        // Submit the dockspace node and end window
+        //-------------------------------------------------------------------------
+
+        ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_None, &pWorkspace->m_toolWindowClass );
+        ImGui::End();
+
+        bool const isLastFocusedWorkspace = ( m_pLastActiveWorkspace == pWorkspace );
+
+        // Manage World state
+        //-------------------------------------------------------------------------
+
+        if ( pWorkspace != m_pMapEditor || m_pGamePreviewer == nullptr )
+        {
+            pWorld->ResumeUpdates();
+        }
+
+        // Update workspace
+        //-------------------------------------------------------------------------
+
+        pWorkspace->SharedUpdate( context, isLastFocusedWorkspace );
+        pWorkspace->Update( context, isLastFocusedWorkspace );
+        pWorkspace->m_isViewportFocused = false;
+        pWorkspace->m_isViewportHovered = false;
+
+        // Draw workspace tool windows
+        //-------------------------------------------------------------------------
+
+        for ( auto& toolWindow : pWorkspace->m_toolWindows )
+        {
+            if ( !toolWindow.m_isOpen )
+            {
+                continue;
+            }
+
+            InlineString const toolWindowName = Workspace::GetToolWindowName( toolWindow.m_name.c_str(), pWorkspace->m_currentDockspaceID );
+
+            // When multiple documents are open, floating tools only appear for focused one
+            if ( !isLastFocusedWorkspace )
+            {
+                if ( ImGuiWindow* pWindow = ImGui::FindWindowByName( toolWindowName.c_str() ) )
+                {
+                    if ( pWindow->DockNode == nullptr || ImGui::DockNodeGetRootNode( pWindow->DockNode )->ID != dockspaceID )
+                    {
+                        continue;
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( toolWindow.m_type == Workspace::ToolWindow::Type::Viewport )
+            {
+                Workspace::ViewportInfo viewportInfo;
+                viewportInfo.m_pViewportRenderTargetTexture = (void*) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
+                viewportInfo.m_retrievePickingID = [this, pWorld] ( Int2 const& pixelCoords ) { return m_pRenderingSystem->GetViewportPickingID( pWorld->GetViewport(), pixelCoords ); };
+
+                ImGuiWindowFlags const viewportWindowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                ImGui::SetNextWindowClass( &pWorkspace->m_toolWindowClass );
+
+                ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
+                bool const drawViewportWindow = ImGui::Begin( toolWindowName.c_str(), nullptr, viewportWindowFlags );
+                ImGui::PopStyleVar();
+
+                if ( drawViewportWindow )
+                {
+                    pWorkspace->m_isViewportFocused = ImGui::IsWindowFocused();
+                    pWorkspace->m_isViewportHovered = ImGui::IsWindowHovered();
+                    pWorkspace->DrawViewport( context, viewportInfo );
+                }
+
+                ImGui::End();
+            }
+            else // Draw the tool window
+            {
+                ImGuiWindowFlags const toolWindowFlags = ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                ImGui::SetNextWindowClass( &pWorkspace->m_toolWindowClass );
+
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, toolWindow.HasUserSpecifiedWindowPadding() ? toolWindow.m_windowPadding : ImGui::GetStyle().WindowPadding );
+                bool const drawToolWindow = ImGui::Begin( toolWindowName.c_str(), &toolWindow.m_isOpen, toolWindowFlags );
+                ImGui::PopStyleVar();
+
+                if ( drawToolWindow )
+                {
+                    bool const isToolWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
+                    toolWindow.m_drawFunction( context, isToolWindowFocused );
+                }
+
+                ImGui::End();
+            }
+        }
+
+        pWorkspace->SetCameraUpdateEnabled( pWorkspace->m_isViewportHovered );
+
+        // Draw any open dialogs
+        //-------------------------------------------------------------------------
+
+        pWorkspace->DrawDialogs( context );
     }
 
     void EditorUI::CreateGamePreviewWorkspace( UpdateContext const& context )
     {
         EE_ASSERT( m_pGamePreviewer == nullptr );
-
-        auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Game );
-        m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
-        m_pGamePreviewer = EE::New<GamePreviewer>( this, pPreviewWorld );
-        m_pGamePreviewer->Initialize( context );
-        m_pGamePreviewer->LoadMapToPreview( m_pMapEditor->GetLoadedMap() );
-        m_workspaces.emplace_back( m_pGamePreviewer );
-
-        m_pMapEditor->NotifyGamePreviewStarted();
+        auto& request = m_workspaceCreationRequests.emplace_back();
+        request.m_type = WorkspaceCreationRequest::GamePreview;
     }
 
     void EditorUI::DestroyGamePreviewWorkspace( UpdateContext const& context )

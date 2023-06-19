@@ -87,6 +87,31 @@ namespace EE::Animation::GraphNodes
         }
     }
 
+    void IDComparisonToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = false;
+        for ( auto ID : m_IDs )
+        {
+            if ( ID == oldID )
+            {
+                foundMatch = true;
+                break;
+            }
+        }
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+            for ( auto ID : m_IDs )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     IDToFloatToolsNode::IDToFloatToolsNode()
@@ -183,4 +208,30 @@ namespace EE::Animation::GraphNodes
             outIDs.emplace_back( mapping.m_ID );
         }
     }
+
+    void IDToFloatToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = false;
+        for ( auto mapping : m_mappings )
+        {
+            if ( mapping.m_ID == oldID )
+            {
+                foundMatch = true;
+                break;
+            }
+        }
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+            for ( auto mapping : m_mappings )
+            {
+                if ( mapping.m_ID == oldID )
+                {
+                    mapping.m_ID = newID;
+                }
+            }
+        }
+    }
+
 }

@@ -14,7 +14,7 @@ namespace EE
         ImGui::PushStyleColor( ImGuiCol_FrameBg, 0x00000000 );
         ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGui::GetColorU32( ImGuiCol_ButtonHovered ) );
         ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGui::GetColorU32( ImGuiCol_ButtonActive ) );
-        ImGui::SetNextItemWidth( 26 );
+        ImGui::SetNextItemWidth( 30 );
         if ( ImGui::BeginCombo( "##FLC", EE_ICON_CAR_SPEED_LIMITER, ImGuiComboFlags_NoArrowButton ) )
         {
             ImGui::PopStyleColor( 3 );
@@ -96,11 +96,18 @@ namespace EE
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            ImGui::Checkbox( "Messages", &m_showLogMessages );
+
+            ImGuiX::Checkbox( "##Messages", &m_showLogMessages );
             ImGui::SameLine();
-            ImGui::Checkbox( "Warnings", &m_showLogWarnings );
+            ImGui::Text( "Errors" );
             ImGui::SameLine();
-            ImGui::Checkbox( "Errors", &m_showLogErrors );
+
+            ImGuiX::Checkbox( "Warnings", &m_showLogWarnings );
+            ImGui::SameLine();
+
+            ImGuiX::Checkbox( "##Errors", &m_showLogErrors );
+            ImGui::SameLine();
+            ImGui::Text( "Errors" );
 
             //-------------------------------------------------------------------------
 

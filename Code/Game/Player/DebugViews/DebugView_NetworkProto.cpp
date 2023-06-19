@@ -255,12 +255,6 @@ namespace EE::Player
                                     }
                                     break;
 
-                                    case Animation::GraphValueType::Int:
-                                    {
-                                        ImGui::Text( "%d", frameData.m_parameterData[i].m_int );
-                                    }
-                                    break;
-
                                     case Animation::GraphValueType::Float:
                                     {
                                         ImGui::Text( "%f", frameData.m_parameterData[i].m_float );

@@ -6,6 +6,9 @@
 
 namespace EE::Math
 {
+    // Velocity
+    //-------------------------------------------------------------------------
+
     inline Vector CalculateAngularVelocity( Quaternion const& from, Quaternion const& to, float deltaTime )
     {
         EE_ASSERT( deltaTime > 0 );
@@ -32,6 +35,7 @@ namespace EE::Math
         return ( to - from ) / Vector( deltaTime );
     }
 
+    // Direction
     //-------------------------------------------------------------------------
 
     inline bool IsVectorToTheLeft( Vector const& reference, Vector const& v, Vector const& upAxis = Vector::UnitZ )
@@ -162,5 +166,21 @@ namespace EE::Math
         float const radiusSq = radius * radius;
         float const v =  Math::Pi * radiusSq * ( ( fourThirds * radius ) + height );
         return v;
+    }
+
+    // Calculate the barycentric coordinates for a given point vs a triangle - returns true if the point is inside the triangle
+    [[nodiscard]] EE_FORCE_INLINE bool CalculateBarycentricCoordinates( Vector const& point, Vector const& triangleVert0, Vector const& triangleVert1, Vector const& triangleVert2, Float3& outCoords )
+    {
+        Float3 const v0 = ( triangleVert1 - triangleVert0 ).ToFloat3();
+        Float3 const v1 = ( triangleVert2 - triangleVert0 ).ToFloat3();
+        Float3 const v2 = ( point - triangleVert0 ).ToFloat3();
+
+        float const denominator = 1.0f / ( ( v0.m_x * v1.m_y ) - ( v1.m_x * v0.m_y ) );
+        outCoords.m_y = ( ( v2.m_x * v1.m_y ) - ( v1.m_x * v2.m_y ) ) * denominator;
+        outCoords.m_z = ( ( v0.m_x * v2.m_y ) - ( v2.m_x * v0.m_y ) ) * denominator;
+        outCoords.m_x = 1.0f - outCoords.m_y - outCoords.m_z;
+
+        Vector vCoords( outCoords );
+        return vCoords.IsGreaterThanEqual3( Vector::Zero ) && vCoords.IsLessThanEqual3( Vector::One );
     }
 }

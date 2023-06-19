@@ -123,10 +123,6 @@ namespace EE::Animation
         bool AddTaskChainToPrePhysicsList( TaskIndex taskIdx );
         void ExecuteTasks();
 
-        #if EE_DEVELOPMENT_TOOLS
-        void CalculateTaskOffset( TaskIndex taskIdx, Float2 const& currentOffset, TInlineVector<Float2, 16>& offsets );
-        #endif
-
     private:
 
         TVector<Task*>                          m_tasks;

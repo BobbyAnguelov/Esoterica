@@ -39,7 +39,7 @@ namespace EE
         struct Serializer;
 
         #if EE_DEVELOPMENT_TOOLS
-        class EntityStructureEditor;
+        class EntityEditorWorkspace;
         #endif
     }
 
@@ -53,7 +53,7 @@ namespace EE
         friend EntityModel::EntityMap;
 
         #if EE_DEVELOPMENT_TOOLS
-        friend EntityModel::EntityStructureEditor;
+        friend EntityModel::EntityEditorWorkspace;
         #endif
 
         using SystemUpdateList = TVector<EntitySystem*>;

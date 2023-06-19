@@ -16,8 +16,6 @@ namespace EE::Render
 
         TWorkspace<Material>::Initialize( context );
 
-        m_materialDetailsWindowName.sprintf( "Material Properties##%u", GetID() );
-
         //-------------------------------------------------------------------------
 
         m_pPreviewComponent = EE::New<StaticMeshComponent>( StringID( "Static Mesh Component" ) );
@@ -29,6 +27,10 @@ namespace EE::Render
         auto pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
         pPreviewEntity->AddComponent( m_pPreviewComponent );
         AddEntityToWorld( pPreviewEntity );
+
+        //-------------------------------------------------------------------------
+
+        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
     }
 
     void MaterialWorkspace::Shutdown( UpdateContext const& context )
@@ -37,41 +39,36 @@ namespace EE::Render
         TWorkspace<Material>::Shutdown( context );
     }
 
-    void MaterialWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void MaterialWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID topDockID = 0;
         ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), topDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( m_materialDetailsWindowName.c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomDockID );
     }
 
-    void MaterialWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void MaterialWorkspace::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
     {
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_materialDetailsWindowName.c_str() ) )
+        if ( IsWaitingForResource() )
         {
-            if ( IsWaitingForResource() )
+            ImGui::Text( "Loading:" );
+            ImGui::SameLine();
+            ImGuiX::DrawSpinner( "Loading" );
+        }
+        else if ( HasLoadingFailed() )
+        {
+            ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
+            return;
+        }
+        else
+        {
+            if ( m_pDescriptor != nullptr )
             {
-                ImGui::Text( "Loading:" );
-                ImGui::SameLine();
-                ImGuiX::DrawSpinner( "Loading" );
-            }
-            else if ( HasLoadingFailed() )
-            {
-                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
-                return;
-            }
-            else
-            {
-                if ( m_pDescriptor != nullptr )
-                {
-                    m_pDescriptorPropertyGrid->DrawGrid();
-                }
+                m_pDescriptorPropertyGrid->DrawGrid();
             }
         }
-        ImGui::End();
     }
 }

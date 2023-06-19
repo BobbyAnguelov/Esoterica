@@ -69,7 +69,7 @@ namespace EE::Animation
         EE_ASSERT( m_pSkeletonTreeRoot == nullptr );
     }
 
-    void SkeletonWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void SkeletonWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID viewportDockID = 0;
         ImGuiID leftDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.3f, nullptr, &viewportDockID );
@@ -79,11 +79,11 @@ namespace EE::Animation
         // Dock windows
         //-------------------------------------------------------------------------
 
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), viewportDockID );
-        ImGui::DockBuilderDockWindow( m_skeletonWindowName.c_str(), leftDockID );
-        ImGui::DockBuilderDockWindow( m_boneMasksWindowName.c_str(), rightDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( m_boneInfoWindowName.c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), viewportDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton" ).c_str(), leftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Masks" ).c_str(), rightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Info" ).c_str(), bottomRightDockID );
     }
 
     //-------------------------------------------------------------------------
@@ -94,16 +94,18 @@ namespace EE::Animation
 
         TWorkspace<Skeleton>::Initialize( context );
 
-        m_skeletonWindowName.sprintf( "Skeleton##%u", GetID() );
-        m_boneInfoWindowName.sprintf( "Bone Info##%u", GetID() );
-        m_boneMasksWindowName.sprintf( "Bone Masks##%u", GetID() );
-
         //-------------------------------------------------------------------------
 
         if ( IsDescriptorLoaded() )
         {
             CreatePreviewEntity();
         }
+
+        //-------------------------------------------------------------------------
+
+        CreateToolWindow( "Skeleton", [this] ( UpdateContext const& context, bool isFocused ) { DrawSkeletonWindow( context, isFocused ); } );
+        CreateToolWindow( "Bone Info", [this] ( UpdateContext const& context, bool isFocused ) { DrawBoneInfoWindow( context, isFocused ); } );
+        CreateToolWindow( "Bone Masks", [this] ( UpdateContext const& context, bool isFocused ) { DrawBoneMaskWindow( context, isFocused ); } );
     }
 
     void SkeletonWorkspace::Shutdown( UpdateContext const& context )
@@ -174,9 +176,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void SkeletonWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void SkeletonWorkspace::Update( UpdateContext const& context, bool isFocused )
     {
-        TWorkspace::Update( context, pWindowClass, isFocused );
+        TWorkspace::Update( context, isFocused );
 
         // Wait for resource to load
         //-------------------------------------------------------------------------
@@ -201,18 +203,6 @@ namespace EE::Animation
                 DrawSkeletonPreview();
             }
         }
-
-        // Windows
-        //-------------------------------------------------------------------------
-
-        DrawSkeletonWindow( context, pWindowClass );
-        DrawBoneInfoWindow( context, pWindowClass );
-        DrawBoneMaskWindow( context, pWindowClass );
-
-        // Dialogs
-        //-------------------------------------------------------------------------
-
-        DrawDialogs( context );
     }
 
     static int FilterMaskNameChars( ImGuiInputTextCallbackData* data )
@@ -370,37 +360,32 @@ namespace EE::Animation
     // Skeleton
     //-------------------------------------------------------------------------
 
-    void SkeletonWorkspace::DrawSkeletonWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void SkeletonWorkspace::DrawSkeletonWindow( UpdateContext const& context, bool isFocused )
     {
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_skeletonWindowName.c_str() ) )
+        if ( IsResourceLoaded() )
         {
-            if ( IsResourceLoaded() )
+            EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
+
+            static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
+            if ( ImGui::BeginTable( "WeightEditor", IsEditingBoneMask() ? 2 : 1, flags ) )
             {
-                EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
+                // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
+                ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide );
 
-                static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
-                if ( ImGui::BeginTable( "WeightEditor", IsEditingBoneMask() ? 2 : 1, flags ) )
+                if ( IsEditingBoneMask() )
                 {
-                    // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
-                    ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide );
-
-                    if ( IsEditingBoneMask() )
-                    {
-                        ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed, 120.0f );
-                    }
-
-                    ImGui::TableHeadersRow();
-
-                    //-------------------------------------------------------------------------
-
-                    DrawBoneRow( m_pSkeletonTreeRoot );
-
-                    ImGui::EndTable();
+                    ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed, 120.0f );
                 }
+
+                ImGui::TableHeadersRow();
+
+                //-------------------------------------------------------------------------
+
+                DrawBoneRow( m_pSkeletonTreeRoot );
+
+                ImGui::EndTable();
             }
         }
-        ImGui::End();
     }
 
     void SkeletonWorkspace::CreateSkeletonTree()
@@ -603,7 +588,7 @@ namespace EE::Animation
         }
     }
 
-    void SkeletonWorkspace::DrawBoneInfoWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void SkeletonWorkspace::DrawBoneInfoWindow( UpdateContext const& context, bool isFocused )
     {
         auto DrawTransform = [] ( Transform transform )
         {
@@ -620,34 +605,27 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 8, 8 ) );
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_boneInfoWindowName.c_str() ) )
+        if ( IsResourceLoaded() && m_selectedBoneID.IsValid() )
         {
-            if ( IsResourceLoaded() && m_selectedBoneID.IsValid() )
+            Skeleton const* pSkeleton = m_workspaceResource.GetPtr();
+            int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( m_selectedBoneID );
+            EE_ASSERT( selectedBoneIdx != InvalidIndex );
+
             {
-                Skeleton const* pSkeleton = m_workspaceResource.GetPtr();
-                int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( m_selectedBoneID );
-                EE_ASSERT( selectedBoneIdx != InvalidIndex );
-
-                {
-                    ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                    ImGui::Text( "%d. %s", selectedBoneIdx, pSkeleton->GetBoneID( selectedBoneIdx ).c_str() );
-                }
-
-                ImGui::NewLine();
-                ImGuiX::TextSeparator( "Local Transform" );
-                Transform const& localBoneTransform = pSkeleton->GetLocalReferencePose()[selectedBoneIdx];
-                DrawTransform( localBoneTransform );
-
-                ImGui::NewLine();
-                ImGuiX::TextSeparator( "Global Transform" );
-                Transform const& globalBoneTransform = pSkeleton->GetGlobalReferencePose()[selectedBoneIdx];
-                DrawTransform( globalBoneTransform );
+                ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
+                ImGui::Text( "%d. %s", selectedBoneIdx, pSkeleton->GetBoneID( selectedBoneIdx ).c_str() );
             }
+
+            ImGui::NewLine();
+            ImGuiX::TextSeparator( "Local Transform" );
+            Transform const& localBoneTransform = pSkeleton->GetLocalReferencePose()[selectedBoneIdx];
+            DrawTransform( localBoneTransform );
+
+            ImGui::NewLine();
+            ImGuiX::TextSeparator( "Global Transform" );
+            Transform const& globalBoneTransform = pSkeleton->GetGlobalReferencePose()[selectedBoneIdx];
+            DrawTransform( globalBoneTransform );
         }
-        ImGui::End();
-        ImGui::PopStyleVar();
     }
 
     void SkeletonWorkspace::DrawSkeletonPreview()
@@ -899,143 +877,138 @@ namespace EE::Animation
         }
     }
 
-    void SkeletonWorkspace::DrawBoneMaskWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void SkeletonWorkspace::DrawBoneMaskWindow( UpdateContext const& context, bool isFocused )
     {
         StringID maskToDelete;
 
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_boneMasksWindowName.c_str() ) )
-        {
-            auto pDescriptor = TryCast<SkeletonResourceDescriptor>( m_pDescriptor );
+        auto pDescriptor = TryCast<SkeletonResourceDescriptor>( m_pDescriptor );
 
-            ImGui::BeginDisabled( !IsDescriptorLoaded() );
-            if ( ImGuiX::ColoredIconButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, ImGuiX::ImColors::White, EE_ICON_PLUS, "Add New Mask", ImVec2( -1, 0 ) ) )
-            {
-                CreateBoneMask();
-            }
-            ImGui::EndDisabled();
+        ImGui::BeginDisabled( !IsDescriptorLoaded() );
+        if ( ImGuiX::ColoredIconButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, ImGuiX::ImColors::White, EE_ICON_PLUS, "Add New Mask", ImVec2( -1, 0 ) ) )
+        {
+            CreateBoneMask();
+        }
+        ImGui::EndDisabled();
+
+        //-------------------------------------------------------------------------
+
+        static ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
+        if ( ImGui::BeginTable( "BoneMasks", 2, flags, ImGui::GetContentRegionAvail() ) )
+        {
+            static ImVec2 const buttonSize( 30, 0 );
+
+            ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide );
+            ImGui::TableSetupColumn( "Controls", ImGuiTableColumnFlags_WidthFixed, ( buttonSize.x * 3 + ( ImGui::GetStyle().ItemSpacing.x * 2 ) ) );
 
             //-------------------------------------------------------------------------
-
-            static ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
-            if ( ImGui::BeginTable( "BoneMasks", 2, flags, ImGui::GetContentRegionAvail() ) )
+            if ( pDescriptor != nullptr )
             {
-                static ImVec2 const buttonSize( 30, 0 );
-
-                ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide );
-                ImGui::TableSetupColumn( "Controls", ImGuiTableColumnFlags_WidthFixed, ( buttonSize.x * 3 + ( ImGui::GetStyle().ItemSpacing.x * 2 ) ) );
-
-                //-------------------------------------------------------------------------
-                if ( pDescriptor != nullptr )
+                for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
                 {
-                    for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
+                    auto const& boneMaskDefinition = pDescriptor->m_boneMaskDefinitions[i];
+                    ImGui::PushID( &boneMaskDefinition );
+                    ImGui::TableNextRow();
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+
+                    ImGui::AlignTextToFramePadding();
+
+                    bool const isSelected = ( m_editedMaskIdx != InvalidIndex ) ? ( m_editedMaskIdx == i ) : false;
+                    ImGui::PushStyleColor( ImGuiCol_Text, isSelected ? ImGuiX::ImColors::Lime.Value : ImGuiX::Style::s_colorText );
+                    InlineString const label( InlineString::CtorSprintf(), EE_ICON_DRAMA_MASKS" %s", boneMaskDefinition.m_ID.c_str() );
+                    if ( ImGui::Selectable( label.c_str(), isSelected ) )
                     {
-                        auto const& boneMaskDefinition = pDescriptor->m_boneMaskDefinitions[i];
-                        ImGui::PushID( &boneMaskDefinition );
-                        ImGui::TableNextRow();
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableNextColumn();
-
-                        ImGui::AlignTextToFramePadding();
-
-                        bool const isSelected = ( m_editedMaskIdx != InvalidIndex ) ? ( m_editedMaskIdx == i ) : false;
-                        ImGui::PushStyleColor( ImGuiCol_Text, isSelected ? ImGuiX::ImColors::Lime.Value : ImGuiX::Style::s_colorText );
-                        InlineString const label( InlineString::CtorSprintf(), EE_ICON_DRAMA_MASKS" %s", boneMaskDefinition.m_ID.c_str() );
-                        if ( ImGui::Selectable( label.c_str(), isSelected) )
+                        if ( m_editedMaskIdx != i )
                         {
-                            if ( m_editedMaskIdx != i )
-                            {
-                                if ( IsEditingBoneMask() )
-                                {
-                                    StopEditingMask();
-                                }
-
-                                StartEditingMask( boneMaskDefinition.m_ID );
-                            }
-                        }
-                        ImGui::PopStyleColor();
-
-                        //-------------------------------------------------------------------------
-
-                        if ( ImGui::BeginPopupContextItem( "MaskContextMenu" ) )
-                        {
-                            if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy Bone Mask ID" ) )
-                            {
-                                ImGui::SetClipboardText( boneMaskDefinition.m_ID.c_str() );
-                            }
-
-                            if ( ImGui::MenuItem( EE_ICON_SQUARE_EDIT_OUTLINE" Rename" ) )
-                            {
-                                EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
-                                m_activeOperation = OperationType::RenameMask;
-                                m_operationID = boneMaskDefinition.m_ID;
-                            }
-
-                            if ( ImGui::MenuItem( EE_ICON_DELETE" Delete" ) )
-                            {
-                                m_activeOperation = OperationType::DeleteMask;
-                                m_operationID = boneMaskDefinition.m_ID;
-                            }
-
-                            ImGui::EndPopup();
-                        }
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableNextColumn();
-
-                        if ( isSelected )
-                        {
-                            if ( ImGuiX::IconButton( EE_ICON_CHECK, "##StopEdit", ImGuiX::ImColors::Lime, buttonSize ) )
+                            if ( IsEditingBoneMask() )
                             {
                                 StopEditingMask();
                             }
-                            ImGuiX::ItemTooltip( "Stop Editing Mask" );
+
+                            StartEditingMask( boneMaskDefinition.m_ID );
                         }
-                        else
-                        {
-                            ImGui::Dummy( buttonSize );
-                        }
-
-                        ImGui::SameLine();
-
-                        if ( ImGui::Button( EE_ICON_SQUARE_EDIT_OUTLINE"##Rename", buttonSize ) )
-                        {
-                            if ( m_activeOperation == OperationType::None )
-                            {
-                                EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
-                                m_activeOperation = OperationType::RenameMask;
-                                m_operationID = boneMaskDefinition.m_ID;
-                            }
-                        }
-                        ImGuiX::ItemTooltip( "Rename" );
-
-                        ImGui::SameLine();
-
-                        if ( ImGui::Button( EE_ICON_DELETE"##Delete", buttonSize ) )
-                        {
-                            if ( m_activeOperation == OperationType::None )
-                            {
-                                m_activeOperation = OperationType::DeleteMask;
-                                m_operationID = boneMaskDefinition.m_ID;
-                            }
-                        }
-                        ImGuiX::ItemTooltip( "Delete" );
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::PopID();
                     }
-                }
+                    ImGui::PopStyleColor();
 
-                ImGui::EndTable();
+                    //-------------------------------------------------------------------------
+
+                    if ( ImGui::BeginPopupContextItem( "MaskContextMenu" ) )
+                    {
+                        if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy Bone Mask ID" ) )
+                        {
+                            ImGui::SetClipboardText( boneMaskDefinition.m_ID.c_str() );
+                        }
+
+                        if ( ImGui::MenuItem( EE_ICON_SQUARE_EDIT_OUTLINE" Rename" ) )
+                        {
+                            EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
+                            m_activeOperation = OperationType::RenameMask;
+                            m_operationID = boneMaskDefinition.m_ID;
+                        }
+
+                        if ( ImGui::MenuItem( EE_ICON_DELETE" Delete" ) )
+                        {
+                            m_activeOperation = OperationType::DeleteMask;
+                            m_operationID = boneMaskDefinition.m_ID;
+                        }
+
+                        ImGui::EndPopup();
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+
+                    if ( isSelected )
+                    {
+                        if ( ImGuiX::IconButton( EE_ICON_CHECK, "##StopEdit", ImGuiX::ImColors::Lime, buttonSize ) )
+                        {
+                            StopEditingMask();
+                        }
+                        ImGuiX::ItemTooltip( "Stop Editing Mask" );
+                    }
+                    else
+                    {
+                        ImGui::Dummy( buttonSize );
+                    }
+
+                    ImGui::SameLine();
+
+                    if ( ImGui::Button( EE_ICON_SQUARE_EDIT_OUTLINE"##Rename", buttonSize ) )
+                    {
+                        if ( m_activeOperation == OperationType::None )
+                        {
+                            EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
+                            m_activeOperation = OperationType::RenameMask;
+                            m_operationID = boneMaskDefinition.m_ID;
+                        }
+                    }
+                    ImGuiX::ItemTooltip( "Rename" );
+
+                    ImGui::SameLine();
+
+                    if ( ImGui::Button( EE_ICON_DELETE"##Delete", buttonSize ) )
+                    {
+                        if ( m_activeOperation == OperationType::None )
+                        {
+                            m_activeOperation = OperationType::DeleteMask;
+                            m_operationID = boneMaskDefinition.m_ID;
+                        }
+                    }
+                    ImGuiX::ItemTooltip( "Delete" );
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::PopID();
+                }
             }
+
+            ImGui::EndTable();
         }
-        ImGui::End();
     }
 
     void SkeletonWorkspace::ValidateDescriptorBoneMaskDefinitions()

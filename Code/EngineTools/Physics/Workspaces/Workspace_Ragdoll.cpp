@@ -209,19 +209,19 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        m_bodyEditorWindowName.sprintf( "Body Editor##%u", GetID() );
-        m_bodyEditorDetailsWindowName.sprintf( "Details##%u", GetID() );
-        m_profileEditorWindowName.sprintf( "Profile Editor##%u", GetID() );
-        m_previewControlsWindowName.sprintf( "Preview Controls##%u", GetID() );
-
-        //-------------------------------------------------------------------------
-
         LoadSkeleton();
 
         auto pResourceDescriptor = GetRagdollDescriptor();
         m_ragdollDefinition.m_skeleton = pResourceDescriptor->m_skeleton;
         m_ragdollDefinition.m_bodies = pResourceDescriptor->m_bodies;
         m_ragdollDefinition.m_profiles = pResourceDescriptor->m_profiles;
+
+        //-------------------------------------------------------------------------
+
+        CreateToolWindow( "Body Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Profile Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Preview Controls", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
     }
 
     void RagdollWorkspace::Shutdown( UpdateContext const& context )
@@ -289,7 +289,7 @@ namespace EE::Physics
     // Workspace UI
     //-------------------------------------------------------------------------
 
-    void RagdollWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void RagdollWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID viewportDockID = 0;
         ImGuiID leftDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.3f, nullptr, &viewportDockID );
@@ -300,15 +300,15 @@ namespace EE::Physics
         // Dock windows
         //-------------------------------------------------------------------------
 
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), viewportDockID );
-        ImGui::DockBuilderDockWindow( m_bodyEditorWindowName.c_str(), leftDockID );
-        ImGui::DockBuilderDockWindow( m_bodyEditorDetailsWindowName.c_str(), bottomleftDockID );
-        ImGui::DockBuilderDockWindow( m_profileEditorWindowName.c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( m_previewControlsWindowName.c_str(), rightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), viewportDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Body Editor" ).c_str(), leftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomleftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Profile Editor" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Preview Controls" ).c_str(), rightDockID );
     }
 
-    void RagdollWorkspace::DrawWorkspaceToolbar( UpdateContext const& context )
+    void RagdollWorkspace::DrawMenu( UpdateContext const& context )
     {
         bool const isValidDefinition = IsValidDefinition();
 
@@ -652,9 +652,9 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void RagdollWorkspace::Update( UpdateContext const& context, bool isFocused )
     {
-        TWorkspace::Update( context, pWindowClass, isFocused );
+        TWorkspace::Update( context, isFocused );
 
         // Lazy creation of editor state
         //-------------------------------------------------------------------------
@@ -683,20 +683,6 @@ namespace EE::Physics
                 SetActiveProfile( m_ragdollDefinition.GetDefaultProfile()->m_ID );
             }
         }
-
-        // UI
-        //-------------------------------------------------------------------------
-
-        ImGui::BeginDisabled( IsPreviewing() );
-        {
-            DrawBodyEditorWindow( context, pWindowClass );
-            DrawBodyEditorDetailsWindow( context, pWindowClass );
-        }
-        ImGui::EndDisabled();
-
-        DrawProfileEditorWindow( context, pWindowClass );
-        DrawPreviewControlsWindow( context, pWindowClass );
-        DrawDialogs();
     }
 
     void RagdollWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
@@ -807,7 +793,7 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::DrawDialogs()
+    void RagdollWorkspace::DrawDialogs( UpdateContext const& context )
     {
         constexpr static char const* const dialogNames[2] = { "Create New Profile", "Rename Profile" };
 
@@ -1277,43 +1263,36 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::DrawBodyEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void RagdollWorkspace::DrawBodyEditorWindow( UpdateContext const& context, bool isFocused )
     {
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_bodyEditorWindowName.c_str() ) )
+        if ( m_pSkeletonTreeRoot != nullptr )
         {
-            if ( m_pSkeletonTreeRoot != nullptr )
+            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetResourcePath().GetFileNameWithoutExtension().c_str() );
+
+            if ( m_editorMode == Mode::BodyEditor )
             {
-                ImGui::Text( "Skeleton ID: %s", m_skeleton->GetResourcePath().GetFileNameWithoutExtension().c_str() );
-
-                if ( m_editorMode == Mode::BodyEditor )
+                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::RoyalBlue, ImGuiX::ImColors::White, "Switch to Joint Editor", ImVec2( -1, 0 ) ) )
                 {
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::RoyalBlue, ImGuiX::ImColors::White, "Switch to Joint Editor", ImVec2( -1, 0 ) ) )
-                    {
-                        m_editorMode = Mode::JointEditor;
-                    }
+                    m_editorMode = Mode::JointEditor;
                 }
-                else
-                {
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Orange, ImGuiX::ImColors::Black, "Switch to Body Editor", ImVec2( -1, 0 ) ) )
-                    {
-                        m_editorMode = Mode::BodyEditor;
-                    }
-                }
-
-                ImGui::Separator();
-
-                EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
-                RenderSkeletonTree( m_pSkeletonTreeRoot );
             }
+            else
+            {
+                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Orange, ImGuiX::ImColors::Black, "Switch to Body Editor", ImVec2( -1, 0 ) ) )
+                {
+                    m_editorMode = Mode::BodyEditor;
+                }
+            }
+
+            ImGui::Separator();
+
+            EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
+            RenderSkeletonTree( m_pSkeletonTreeRoot );
         }
-        ImGui::End();
     }
 
-    void RagdollWorkspace::DrawBodyEditorDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void RagdollWorkspace::DrawBodyEditorDetailsWindow( UpdateContext const& context, bool isFocused )
     {
-        ImGui::SetNextWindowClass( pWindowClass );
-        
         if ( m_selectedBoneID.IsValid() )
         {
             int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( m_selectedBoneID );
@@ -1342,11 +1321,7 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::Begin( m_bodyEditorDetailsWindowName.c_str() ) )
-        {
-            m_bodyEditorPropertyGrid.DrawGrid();
-        }
-        ImGui::End();
+        m_bodyEditorPropertyGrid.DrawGrid();
     }
 
     void RagdollWorkspace::CreateSkeletonTree()
@@ -1633,76 +1608,69 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::DrawProfileEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void RagdollWorkspace::DrawProfileEditorWindow( UpdateContext const& context, bool isFocused )
     {
-        
+        DrawProfileManager();
 
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_profileEditorWindowName.c_str() ) )
+        //-------------------------------------------------------------------------
+
+        RagdollDefinition::Profile* pActiveProfile = nullptr;
+        if ( m_ragdollDefinition.IsValid() )
         {
-            DrawProfileManager();
+            pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
+        }
 
-            //-------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
-            RagdollDefinition::Profile* pActiveProfile = nullptr;
-            if ( m_ragdollDefinition.IsValid() )
+        if ( pActiveProfile == nullptr )
+        {
+            ImGui::TextColored( Colors::Red.ToFloat4(), "Invalid Definition" );
+            if ( m_solverSettingsGrid.GetEditedType() != nullptr )
             {
-                pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( pActiveProfile == nullptr )
-            {
-                ImGui::TextColored( Colors::Red.ToFloat4(), "Invalid Definition" );
-                if ( m_solverSettingsGrid.GetEditedType() != nullptr )
-                {
-                    m_solverSettingsGrid.SetTypeToEdit( nullptr );
-                }
-            }
-            else if ( m_ragdollDefinition.GetNumBodies() == 0 )
-            {
-                ImGui::TextColored( Colors::Yellow.ToFloat4(), "No Bodies" );
-                if ( m_solverSettingsGrid.GetEditedType() != nullptr )
-                {
-                    m_solverSettingsGrid.SetTypeToEdit( nullptr );
-                }
-            }
-            else
-            {
-                if ( ImGui::BeginTabBar( "ProfileSetings" ) )
-                {
-                    if ( ImGui::BeginTabItem( "Body/Joint Settings" ) )
-                    {
-                        DrawBodyAndJointSettingsTable( context, pActiveProfile );
-                        ImGui::EndTabItem();
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    if ( ImGui::BeginTabItem( "Material Settings" ) )
-                    {
-                        DrawMaterialSettingsTable( context, pActiveProfile );
-                        ImGui::EndTabItem();
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    if ( ImGui::BeginTabItem( "Solver Settings" ) )
-                    {
-                        if ( m_solverSettingsGrid.GetEditedType() != pActiveProfile )
-                        {
-                            m_solverSettingsGrid.SetTypeToEdit( pActiveProfile );
-                        }
-                        m_solverSettingsGrid.DrawGrid();
-                        ImGui::EndTabItem();
-                    }
-
-                    ImGui::EndTabBar();
-                }
+                m_solverSettingsGrid.SetTypeToEdit( nullptr );
             }
         }
-        ImGui::End();
+        else if ( m_ragdollDefinition.GetNumBodies() == 0 )
+        {
+            ImGui::TextColored( Colors::Yellow.ToFloat4(), "No Bodies" );
+            if ( m_solverSettingsGrid.GetEditedType() != nullptr )
+            {
+                m_solverSettingsGrid.SetTypeToEdit( nullptr );
+            }
+        }
+        else
+        {
+            if ( ImGui::BeginTabBar( "ProfileSetings" ) )
+            {
+                if ( ImGui::BeginTabItem( "Body/Joint Settings" ) )
+                {
+                    DrawBodyAndJointSettingsTable( context, pActiveProfile );
+                    ImGui::EndTabItem();
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( ImGui::BeginTabItem( "Material Settings" ) )
+                {
+                    DrawMaterialSettingsTable( context, pActiveProfile );
+                    ImGui::EndTabItem();
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( ImGui::BeginTabItem( "Solver Settings" ) )
+                {
+                    if ( m_solverSettingsGrid.GetEditedType() != pActiveProfile )
+                    {
+                        m_solverSettingsGrid.SetTypeToEdit( pActiveProfile );
+                    }
+                    m_solverSettingsGrid.DrawGrid();
+                    ImGui::EndTabItem();
+                }
+
+                ImGui::EndTabBar();
+            }
+        }
     }
 
     void RagdollWorkspace::DrawProfileManager()
@@ -2571,258 +2539,251 @@ namespace EE::Physics
     // Preview
     //-------------------------------------------------------------------------
 
-    void RagdollWorkspace::DrawPreviewControlsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void RagdollWorkspace::DrawPreviewControlsWindow( UpdateContext const& context, bool isFocused )
     {
-        
-
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_previewControlsWindowName.c_str() ) )
+        if ( IsPreviewing() )
         {
-            if ( IsPreviewing() )
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::MediumRed, ImGuiX::ImColors::White, EE_ICON_STOP" Stop Preview", ImVec2( -1, 0 ) ) )
             {
-                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::MediumRed, ImGuiX::ImColors::White, EE_ICON_STOP" Stop Preview", ImVec2( -1, 0 ) ) )
+                StopPreview();
+            }
+        }
+        else
+        {
+            ImGui::BeginDisabled( !m_ragdollDefinition.IsValid() && m_pMeshComponent != nullptr );
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLAY" Start Preview", ImVec2( -1, 0 ) ) )
+            {
+                StartPreview( context );
+            }
+            ImGui::EndDisabled();
+        }
+
+        //-------------------------------------------------------------------------
+        // General Settings
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Start Transform" ) )
+        {
+            ImGui::Indent();
+
+            ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, -1.0f );
+
+            if ( ImGui::Button( EE_ICON_RESTART" Reset Start Transform", ImVec2( -1, 0 ) ) )
+            {
+                m_previewStartTransform = Transform::Identity;
+            }
+
+            ImGui::Unindent();
+        }
+
+        //-------------------------------------------------------------------------
+        // Ragdoll
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Ragdoll Settings" ) )
+        {
+            ImGui::Indent();
+
+            if ( ImGui::Checkbox( "Enable Gravity", &m_enableGravity ) )
+            {
+                if ( IsPreviewing() )
                 {
-                    StopPreview();
+                    m_pRagdoll->SetGravityEnabled( m_enableGravity );
+                }
+            }
+
+            if ( ImGui::Checkbox( "Enable Pose Following", &m_enablePoseFollowing ) )
+            {
+                if ( IsPreviewing() )
+                {
+                    m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
+                }
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "Blend Weight:" );
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::SliderFloat( "##PhysicsWeight", &m_physicsBlendWeight, 0, 1, "%.3f", ImGuiSliderFlags_NoInput );
+
+            ImGui::BeginDisabled( !IsPreviewing() );
+            if ( ImGui::Button( EE_ICON_RESTART" Reset Ragdoll State", ImVec2( -1, 0 ) ) )
+            {
+                m_pRagdoll->ResetState();
+                m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
+                m_initializeRagdollPose = true;
+            }
+            ImGui::EndDisabled();
+
+            ImGui::Unindent();
+        }
+
+        //-------------------------------------------------------------------------
+        // Animation
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Animation" ) )
+        {
+            ImGui::Indent();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "Preview Anim:" );
+            ImGui::SameLine();
+
+            if ( m_resourceFilePicker.UpdateAndDraw() )
+            {
+                // If we need to change resource ID, switch IDs
+                ResourceID const selectedResourceID = m_resourceFilePicker.GetResourceID();
+                if ( selectedResourceID != m_previewAnimation.GetResourceID() )
+                {
+                    if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
+                    {
+                        UnloadResource( &m_previewAnimation );
+                    }
+
+                    m_previewAnimation = selectedResourceID.IsValid() ? selectedResourceID : nullptr;
+
+                    if ( m_previewAnimation.IsSet() )
+                    {
+                        LoadResource( &m_previewAnimation );
+                    }
+                }
+            }
+
+            ImGui::Checkbox( "Enable Looping", &m_enableAnimationLooping );
+            ImGui::Checkbox( "Apply Root Motion", &m_applyRootMotion );
+            ImGui::Checkbox( "Auto Start", &m_autoPlayAnimation );
+
+            //-------------------------------------------------------------------------
+
+            bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
+            ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
+
+            ImVec2 const buttonSize( 30, 24 );
+            if ( m_isPlayingAnimation )
+            {
+                if ( ImGui::Button( EE_ICON_STOP"##StopAnim", buttonSize ) )
+                {
+                    m_isPlayingAnimation = false;
                 }
             }
             else
             {
-                ImGui::BeginDisabled( !m_ragdollDefinition.IsValid() && m_pMeshComponent != nullptr );
-                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLAY" Start Preview", ImVec2( -1, 0 ) ) )
+                if ( ImGui::Button( EE_ICON_PLAY"##PlayAnim", buttonSize ) )
                 {
-                    StartPreview( context );
+                    m_isPlayingAnimation = true;
+
+                    if ( !m_enableAnimationLooping && m_animTime == 1.0f )
+                    {
+                        m_animTime = 0.0f;
+                    }
                 }
-                ImGui::EndDisabled();
+            }
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth( -1 );
+            float currentAnimTime = m_animTime.ToFloat();
+            if ( ImGui::SliderFloat( "##AnimTime", &currentAnimTime, 0, 1, "%.3f", ImGuiSliderFlags_NoInput ) )
+            {
+                m_isPlayingAnimation = false;
+                m_animTime = currentAnimTime;
             }
 
-            //-------------------------------------------------------------------------
-            // General Settings
-            //-------------------------------------------------------------------------
-
-            ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
-            if ( ImGui::CollapsingHeader( "Start Transform" ) )
-            {
-                ImGui::Indent();
-
-                ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, -1.0f );
-
-                if ( ImGui::Button( EE_ICON_RESTART" Reset Start Transform", ImVec2( -1, 0 ) ) )
-                {
-                    m_previewStartTransform = Transform::Identity;
-                }
-
-                ImGui::Unindent();
-            }
-
-            //-------------------------------------------------------------------------
-            // Ragdoll
-            //-------------------------------------------------------------------------
-
-            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
-            if ( ImGui::CollapsingHeader( "Ragdoll Settings" ) )
-            {
-                ImGui::Indent();
-
-                if ( ImGui::Checkbox( "Enable Gravity", &m_enableGravity ) )
-                {
-                    if ( IsPreviewing() )
-                    {
-                        m_pRagdoll->SetGravityEnabled( m_enableGravity );
-                    }
-                }
-
-                if ( ImGui::Checkbox( "Enable Pose Following", &m_enablePoseFollowing ) )
-                {
-                    if ( IsPreviewing() )
-                    {
-                        m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
-                    }
-                }
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Blend Weight:" );
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##PhysicsWeight", &m_physicsBlendWeight, 0, 1, "%.3f", ImGuiSliderFlags_NoInput );
-
-                ImGui::BeginDisabled( !IsPreviewing() );
-                if ( ImGui::Button( EE_ICON_RESTART" Reset Ragdoll State", ImVec2( -1, 0 ) ) )
-                {
-                    m_pRagdoll->ResetState();
-                    m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
-                    m_initializeRagdollPose = true;
-                }
-                ImGui::EndDisabled();
-
-                ImGui::Unindent();
-            }
-
-            //-------------------------------------------------------------------------
-            // Animation
-            //-------------------------------------------------------------------------
-
-            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
-            if ( ImGui::CollapsingHeader( "Animation" ) )
-            {
-                ImGui::Indent();
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Preview Anim:" );
-                ImGui::SameLine();
-
-                if ( m_resourceFilePicker.UpdateAndDraw() )
-                {
-                    // If we need to change resource ID, switch IDs
-                    ResourceID const selectedResourceID = m_resourceFilePicker.GetResourceID();
-                    if ( selectedResourceID != m_previewAnimation.GetResourceID() )
-                    {
-                        if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
-                        {
-                            UnloadResource( &m_previewAnimation );
-                        }
-
-                        m_previewAnimation = selectedResourceID.IsValid() ? selectedResourceID : nullptr;
-
-                        if ( m_previewAnimation.IsSet() )
-                        {
-                            LoadResource( &m_previewAnimation );
-                        }
-                    }
-                }
-
-                ImGui::Checkbox( "Enable Looping", &m_enableAnimationLooping );
-                ImGui::Checkbox( "Apply Root Motion", &m_applyRootMotion );
-                ImGui::Checkbox( "Auto Start", &m_autoPlayAnimation );
-
-                //-------------------------------------------------------------------------
-
-                bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
-                ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
-
-                ImVec2 const buttonSize( 30, 24 );
-                if ( m_isPlayingAnimation )
-                {
-                    if ( ImGui::Button( EE_ICON_STOP"##StopAnim", buttonSize ) )
-                    {
-                        m_isPlayingAnimation = false;
-                    }
-                }
-                else
-                {
-                    if ( ImGui::Button( EE_ICON_PLAY"##PlayAnim", buttonSize ) )
-                    {
-                        m_isPlayingAnimation = true;
-
-                        if ( !m_enableAnimationLooping && m_animTime == 1.0f )
-                        {
-                            m_animTime = 0.0f;
-                        }
-                    }
-                }
-                ImGui::EndDisabled();
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth( -1 );
-                float currentAnimTime = m_animTime.ToFloat();
-                if ( ImGui::SliderFloat( "##AnimTime", &currentAnimTime, 0, 1, "%.3f", ImGuiSliderFlags_NoInput ) )
-                {
-                    m_isPlayingAnimation = false;
-                    m_animTime = currentAnimTime;
-                }
-
-                ImGui::Unindent();
-            }
-
-            //-------------------------------------------------------------------------
-            // Manipulation Controls
-            //-------------------------------------------------------------------------
-
-            ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
-            if ( ImGui::CollapsingHeader( "Manipulation" ) )
-            {
-                ImGui::Indent();
-
-                constexpr float offset = 95;
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Impulse Str:" );
-                ImGui::SameLine( offset );
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##IS", &m_impulseStrength, 0.1f, 1000.0f );
-                ImGuiX::ItemTooltip( "Applied impulse strength" );
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "CS Radius:" );
-                ImGui::SameLine( offset );
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##CAR", &m_collisionActorRadius, 0.1f, 1.0f );
-                ImGuiX::ItemTooltip( "Spawned Collision Sphere Radius" );
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "CS Mass:" );
-                ImGui::SameLine( offset );
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##CAM", &m_collisionActorMass, 1.0f, 500.0f );
-                ImGuiX::ItemTooltip( "Spawned Collision Sphere Mass" );
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "CS Velocity:" );
-                ImGui::SameLine( offset );
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##CAV", &m_collisionActorInitialVelocity, 1.0f, 250.0f );
-                ImGuiX::ItemTooltip( "Spawned Collision Sphere Velocity" );
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "CS Gravity:" );
-                ImGui::SameLine( offset );
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::Checkbox( "##CAG", &m_collisionActorGravity );
-                ImGuiX::ItemTooltip( "Does the Spawned Collision Sphere have gravity" );
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "CS Lifetime:" );
-                ImGui::SameLine( offset );
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##CAL", &m_collisionActorLifetime, 1.0f, 20.0f );
-                ImGuiX::ItemTooltip( "Spawned Collision Sphere Lifetime" );
-
-                ImGui::Unindent();
-            }
-
-            //-------------------------------------------------------------------------
-            // PVD
-            //-------------------------------------------------------------------------
-
-            /*ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
-            if ( ImGui::CollapsingHeader( "PhysX Visual Debugger" ) )
-            {
-                ImGui::Indent();
-
-                ImGui::BeginDisabled( IsPreviewing() );
-                ImGui::Checkbox( "Auto Connect to PVD", &m_autoConnectToPVD );
-                ImGui::EndDisabled();
-
-                ImGui::BeginDisabled( !IsPreviewing() );
-                if ( m_pPhysicsSystem != nullptr && m_pPhysicsSystem->IsConnectedToPVD() )
-                {
-                    if ( ImGui::Button( "Disconnect From PVD", ImVec2( -1, 0 ) ) )
-                    {
-                        m_pPhysicsSystem->DisconnectFromPVD();
-                    }
-                }
-                else
-                {
-                    if ( ImGui::Button( "Connect To PVD", ImVec2( -1, 0 ) ) )
-                    {
-                        m_pPhysicsSystem->ConnectToPVD();
-                    }
-                }
-                ImGui::EndDisabled();
-
-                ImGui::Unindent();
-            }*/
+            ImGui::Unindent();
         }
-        ImGui::End();
+
+        //-------------------------------------------------------------------------
+        // Manipulation Controls
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Manipulation" ) )
+        {
+            ImGui::Indent();
+
+            constexpr float offset = 95;
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "Impulse Str:" );
+            ImGui::SameLine( offset );
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::SliderFloat( "##IS", &m_impulseStrength, 0.1f, 1000.0f );
+            ImGuiX::ItemTooltip( "Applied impulse strength" );
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "CS Radius:" );
+            ImGui::SameLine( offset );
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::SliderFloat( "##CAR", &m_collisionActorRadius, 0.1f, 1.0f );
+            ImGuiX::ItemTooltip( "Spawned Collision Sphere Radius" );
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "CS Mass:" );
+            ImGui::SameLine( offset );
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::SliderFloat( "##CAM", &m_collisionActorMass, 1.0f, 500.0f );
+            ImGuiX::ItemTooltip( "Spawned Collision Sphere Mass" );
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "CS Velocity:" );
+            ImGui::SameLine( offset );
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::SliderFloat( "##CAV", &m_collisionActorInitialVelocity, 1.0f, 250.0f );
+            ImGuiX::ItemTooltip( "Spawned Collision Sphere Velocity" );
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "CS Gravity:" );
+            ImGui::SameLine( offset );
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::Checkbox( "##CAG", &m_collisionActorGravity );
+            ImGuiX::ItemTooltip( "Does the Spawned Collision Sphere have gravity" );
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "CS Lifetime:" );
+            ImGui::SameLine( offset );
+            ImGui::SetNextItemWidth( -1 );
+            ImGui::SliderFloat( "##CAL", &m_collisionActorLifetime, 1.0f, 20.0f );
+            ImGuiX::ItemTooltip( "Spawned Collision Sphere Lifetime" );
+
+            ImGui::Unindent();
+        }
+
+        //-------------------------------------------------------------------------
+        // PVD
+        //-------------------------------------------------------------------------
+
+        /*ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "PhysX Visual Debugger" ) )
+        {
+            ImGui::Indent();
+
+            ImGui::BeginDisabled( IsPreviewing() );
+            ImGui::Checkbox( "Auto Connect to PVD", &m_autoConnectToPVD );
+            ImGui::EndDisabled();
+
+            ImGui::BeginDisabled( !IsPreviewing() );
+            if ( m_pPhysicsSystem != nullptr && m_pPhysicsSystem->IsConnectedToPVD() )
+            {
+                if ( ImGui::Button( "Disconnect From PVD", ImVec2( -1, 0 ) ) )
+                {
+                    m_pPhysicsSystem->DisconnectFromPVD();
+                }
+            }
+            else
+            {
+                if ( ImGui::Button( "Connect To PVD", ImVec2( -1, 0 ) ) )
+                {
+                    m_pPhysicsSystem->ConnectToPVD();
+                }
+            }
+            ImGui::EndDisabled();
+
+            ImGui::Unindent();
+        }*/
     }
 
     void RagdollWorkspace::StartPreview( UpdateContext const& context )

@@ -30,19 +30,20 @@ namespace EE::Animation
 
     private:
 
+        virtual char const* GetWorkspaceUniqueTypeName() const { return "Animation Skeleton"; }
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_SKULL; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void Update( UpdateContext const& context, bool isFocused ) override;
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
         virtual void OnHotReloadComplete() override;
 
         void CreatePreviewEntity();
-        void DrawDialogs( UpdateContext const& context );
+        virtual void DrawDialogs( UpdateContext const& context ) override;
 
         // Skeleton
         //-------------------------------------------------------------------------
@@ -50,8 +51,8 @@ namespace EE::Animation
         void CreateSkeletonTree();
         void DestroySkeletonTree();
 
-        void DrawSkeletonWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
-        void DrawBoneInfoWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawSkeletonWindow( UpdateContext const& context, bool isFocused );
+        void DrawBoneInfoWindow( UpdateContext const& context, bool isFocused );
         void DrawBoneRow( BoneInfo* pBone );
 
         void DrawSkeletonPreview();
@@ -75,7 +76,7 @@ namespace EE::Animation
 
         void ReflectWeightsToEditedBoneMask();
 
-        void DrawBoneMaskWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawBoneMaskWindow( UpdateContext const& context, bool isFocused );
         void DrawBoneMaskPreview();
 
         void GenerateUniqueBoneMaskName( int32_t boneMaskIdx );

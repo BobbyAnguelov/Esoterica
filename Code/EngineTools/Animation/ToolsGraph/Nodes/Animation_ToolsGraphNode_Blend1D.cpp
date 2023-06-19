@@ -1,4 +1,4 @@
-#include "Animation_ToolsGraphNode_Blends.h"
+#include "Animation_ToolsGraphNode_Blend1D.h"
 #include "Animation_ToolsGraphNode_AnimationClip.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 
@@ -72,19 +72,24 @@ namespace EE::Animation::GraphNodes
         return true;
     }
 
+    TInlineString<100> ParameterizedBlendToolsNode::GetNewDynamicInputPinName() const
+    {
+        return TInlineString<100>( TInlineString<100>::CtorSprintf(), "Input %d", GetNumInputPins() - 1 );
+    }
+
     //-------------------------------------------------------------------------
 
-    RangedBlendToolsNode::RangedBlendToolsNode()
+    Blend1DToolsNode::Blend1DToolsNode()
         : ParameterizedBlendToolsNode()
     {
         m_parameterValues.emplace_back( 0.0f );
         m_parameterValues.emplace_back( 1.0f );
     }
 
-    int16_t RangedBlendToolsNode::Compile( GraphCompilationContext & context ) const
+    int16_t Blend1DToolsNode::Compile( GraphCompilationContext & context ) const
     {
-        RangedBlendNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<RangedBlendNode>( this, pSettings );
+        Blend1DNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<Blend1DNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( !CompileParameterAndSourceNodes( context, pSettings ) )
@@ -98,12 +103,14 @@ namespace EE::Animation::GraphNodes
             EE_ASSERT( m_parameterValues.size() == ( GetNumInputPins() - 1 ) );
             TInlineVector<float, 5> values( m_parameterValues.begin(), m_parameterValues.end() );
             pSettings->m_parameterization = ParameterizedBlendNode::Parameterization::CreateParameterization( values );
+
+            // TODO: add validation of ranges!
         }
 
         return pSettings->m_nodeIdx;
     }
 
-    bool RangedBlendToolsNode::DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    bool Blend1DToolsNode::DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
     {
         ParameterizedBlendToolsNode::DrawPinControls( pUserContext, pin );
 
@@ -125,12 +132,12 @@ namespace EE::Animation::GraphNodes
         return false;
     }
 
-    void RangedBlendToolsNode::OnDynamicPinCreation( UUID pinID )
+    void Blend1DToolsNode::OnDynamicPinCreation( UUID pinID )
     {
         m_parameterValues.emplace_back( 0.0f );
     }
 
-    void RangedBlendToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void Blend1DToolsNode::OnDynamicPinDestruction( UUID pinID )
     {
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );

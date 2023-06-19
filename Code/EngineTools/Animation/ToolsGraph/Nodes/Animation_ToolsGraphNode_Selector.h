@@ -64,7 +64,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
-        virtual char const* GetTypeName() const override { return "Animation Clip Selector"; }
+        virtual char const* GetTypeName() const override { return "Clip Selector"; }
         virtual char const* GetCategory() const override { return "Animation/Selectors"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
@@ -75,5 +75,56 @@ namespace EE::Animation::GraphNodes
         virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Pose; }
         virtual void OnDynamicPinCreation( UUID pinID ) override;
         virtual void OnDynamicPinDestruction( UUID pinID ) override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class ParameterizedSelectorToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( ParameterizedSelectorToolsNode );
+
+    public:
+
+        ParameterizedSelectorToolsNode();
+
+    private:
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
+        virtual char const* GetTypeName() const override { return "Parameterized Selector"; }
+        virtual char const* GetCategory() const override { return "Animation/Selectors"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
+        virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Pose; }
+        virtual void OnDynamicPinCreation( UUID pinID ) override;
+        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class ParameterizedAnimationClipSelectorToolsNode final : public AnimationClipReferenceToolsNode
+    {
+        EE_REFLECT_TYPE( ParameterizedAnimationClipSelectorToolsNode );
+
+    public:
+
+        ParameterizedAnimationClipSelectorToolsNode();
+
+    public:
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
+        virtual char const* GetTypeName() const override { return "Parameterized Clip Selector"; }
+        virtual char const* GetCategory() const override { return "Animation/Selectors"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
+        virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Pose; }
+        virtual void OnDynamicPinCreation( UUID pinID ) override;
+        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
     };
 }

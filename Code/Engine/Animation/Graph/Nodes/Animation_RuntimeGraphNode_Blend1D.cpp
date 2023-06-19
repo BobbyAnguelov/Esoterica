@@ -1,0 +1,443 @@
+#include "Animation_RuntimeGraphNode_Blend1D.h"
+#include "Animation_RuntimeGraphNode_AnimationClip.h"
+#include "Engine/Animation/AnimationClip.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
+#include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
+#include "EASTL/sort.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::Animation::GraphNodes
+{
+    // Creates a parameterization for a given set of values (each value corresponds to an input node and are initially ordered as such)
+    ParameterizedBlendNode::Parameterization ParameterizedBlendNode::Parameterization::CreateParameterization( TInlineVector<float, 5> values )
+    {
+        struct IndexValuePair
+        {
+            int16_t             m_idx;
+            float               m_value;
+        };
+
+        // Create sorted list of index/value pairs
+        //-------------------------------------------------------------------------
+
+        TInlineVector<IndexValuePair, 10> sortedIndexValuePairs;
+        int16_t const numSources = (int16_t) values.size();
+        sortedIndexValuePairs.resize( numSources );
+        for ( int16_t i = 0; i < numSources; i++ )
+        {
+            sortedIndexValuePairs[i].m_idx = i;
+            sortedIndexValuePairs[i].m_value = values[i];
+        }
+
+        // Sort the options based on value
+        //-------------------------------------------------------------------------
+
+        auto SortPredicate = [] ( IndexValuePair const& a, IndexValuePair const& b )
+        {
+            if ( a.m_value == b.m_value )
+            {
+                return a.m_idx < b.m_idx;
+            }
+
+            return a.m_value < b.m_value;
+        };
+
+        eastl::sort( sortedIndexValuePairs.begin(), sortedIndexValuePairs.end(), SortPredicate );
+
+        // Create the parameterization
+        //-------------------------------------------------------------------------
+
+        Parameterization parameterization;
+
+        int32_t const numBlendRanges = numSources - 1;
+        parameterization.m_blendRanges.resize( numBlendRanges );
+        for ( auto i = 0; i < numBlendRanges; i++ )
+        {
+            EE_ASSERT( sortedIndexValuePairs[i].m_value <= sortedIndexValuePairs[i + 1].m_value );
+            parameterization.m_blendRanges[i].m_inputIdx0 = sortedIndexValuePairs[i].m_idx;
+            parameterization.m_blendRanges[i].m_inputIdx1 = sortedIndexValuePairs[i + 1].m_idx;
+            parameterization.m_blendRanges[i].m_parameterValueRange = FloatRange( sortedIndexValuePairs[i].m_value, sortedIndexValuePairs[i + 1].m_value );
+        }
+
+        parameterization.m_parameterRange = FloatRange( sortedIndexValuePairs.front().m_value, sortedIndexValuePairs.back().m_value );
+
+        return parameterization;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ParameterizedBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        EE_ASSERT( options == InstantiationOptions::NodeAlreadyCreated );
+
+        auto pNode = reinterpret_cast<ParameterizedBlendNode*>( context.m_nodePtrs[m_nodeIdx] );
+        context.SetNodePtrFromIndex( m_inputParameterValueNodeIdx, pNode->m_pInputParameterValueNode );
+
+        pNode->m_sourceNodes.reserve( m_sourceNodeIndices.size() );
+        for ( auto sourceIdx : m_sourceNodeIndices )
+        {
+            context.SetNodePtrFromIndex( sourceIdx, pNode->m_sourceNodes.emplace_back() );
+        }
+    }
+
+    bool ParameterizedBlendNode::IsValid() const
+    {
+        if ( !PoseNode::IsValid() )
+        {
+            return false;
+        }
+
+        if ( !m_pInputParameterValueNode->IsValid() )
+        {
+            return false;
+        }
+
+        for ( auto pSource : m_sourceNodes )
+        {
+            if ( !pSource->IsValid() )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    void ParameterizedBlendNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
+    {
+        EE_ASSERT( context.IsValid() );
+        EE_ASSERT( m_pInputParameterValueNode != nullptr && m_sourceNodes.size() > 1 );
+
+        PoseNode::InitializeInternal( context, initialTime );
+
+        //-------------------------------------------------------------------------
+
+        if ( IsValid() )
+        {
+            for ( auto pSourceNode : m_sourceNodes )
+            {
+                pSourceNode->Initialize( context, initialTime );
+            }
+
+            m_pInputParameterValueNode->Initialize( context );
+
+            m_currentTime = m_previousTime = 0.0f;
+            m_duration = s_oneFrameDuration;
+        }
+    }
+
+    void ParameterizedBlendNode::ShutdownInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        if ( IsValid() )
+        {
+            m_pInputParameterValueNode->Shutdown( context );
+
+            for ( auto Source : m_sourceNodes )
+            {
+                Source->Shutdown( context );
+            }
+        }
+
+        PoseNode::ShutdownInternal( context );
+    }
+
+    void ParameterizedBlendNode::EvaluateBlendSpace( GraphContext& context)
+    {
+        int32_t selectedRangeIdx = InvalidIndex;
+
+        // Get Parameter clamped to parameterization range
+        float inputParameterValue = m_pInputParameterValueNode->GetValue<float>( context );
+        inputParameterValue = m_parameterization.m_parameterRange.GetClampedValue( inputParameterValue );
+
+        // Find matching source nodes and blend weight
+        auto const numBlendRanges = m_parameterization.m_blendRanges.size();
+        for ( auto i = 0; i < numBlendRanges; i++ )
+        {
+            if ( m_parameterization.m_blendRanges[i].m_parameterValueRange.ContainsInclusive( inputParameterValue ) )
+            {
+                selectedRangeIdx = i;
+                m_bsr.m_blendWeight = m_parameterization.m_blendRanges[i].m_parameterValueRange.GetPercentageThrough( inputParameterValue );
+                break;
+            }
+        }
+
+        // Ensure we found a valid range
+        EE_ASSERT( selectedRangeIdx != InvalidIndex );
+
+        //-------------------------------------------------------------------------
+
+        auto const& blendRange = m_parameterization.m_blendRanges[selectedRangeIdx];
+        if ( m_bsr.m_blendWeight == 0.0f )
+        {
+            m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx0];
+            m_bsr.m_pSource1 = nullptr;
+        }
+        else if ( m_bsr.m_blendWeight == 0.0f )
+        {
+            m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx1];
+            m_bsr.m_pSource1 = nullptr;
+        }
+        else
+        {
+            m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx0];
+            m_bsr.m_pSource1 = m_sourceNodes[blendRange.m_inputIdx1];
+        }
+    }
+
+    GraphPoseNodeResult ParameterizedBlendNode::Update( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        GraphPoseNodeResult result;
+
+        if ( !IsValid() )
+        {
+            return result;
+        }
+
+        //-------------------------------------------------------------------------
+
+        // If this node is synchronized, call the synchronize update
+        auto pSettings = GetSettings<Blend1DNode>();
+        if ( pSettings->m_isSynchronized )
+        {
+            Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
+            Percentage const fromTime = m_currentTime;
+            Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage );
+
+            SyncTrackTimeRange UpdateRange;
+            UpdateRange.m_startTime = m_blendedSyncTrack.GetTime( fromTime );
+            UpdateRange.m_endTime = m_blendedSyncTrack.GetTime( toTime );
+            return Update( context, UpdateRange );
+        }
+        else // Update in a asynchronous manner
+        {
+            MarkNodeActive( context );
+            result = SharedUpdate( context, nullptr );
+
+            // Update time / duration for the remaining source nodes
+            // For unsynchronized update, we unfortunately need to update all nodes but we ensure that no unnecessary tasks are registered
+            // Ensure that all event weights from the inactive nodes are also set to 0
+            //-------------------------------------------------------------------------
+
+            for ( auto pSourceNode : m_sourceNodes )
+            {
+                if ( pSourceNode != m_bsr.m_pSource0 && pSourceNode != m_bsr.m_pSource1 )
+                {
+                    auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
+                    GraphPoseNodeResult const transientUpdateResult = pSourceNode->Update( context );
+                    context.m_sampledEventsBuffer.MarkEventsAsIgnored( transientUpdateResult.m_sampledEventRange );
+                    context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
+                }
+            }
+        }
+
+        return result;
+    }
+
+    GraphPoseNodeResult ParameterizedBlendNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        GraphPoseNodeResult result;
+
+        if ( IsValid() )
+        {
+            MarkNodeActive( context );
+            result = SharedUpdate( context, &updateRange );
+        }
+
+        return result;
+    }
+
+    GraphPoseNodeResult ParameterizedBlendNode::SharedUpdate( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
+    {
+        EE_ASSERT( IsValid() );
+
+        auto UpdateSourceNode = [&] ( PoseNode* pNode )
+        {
+            return ( pUpdateRange == nullptr ) ? pNode->Update( context ) : pNode->Update( context, *pUpdateRange );
+        };
+
+        //-------------------------------------------------------------------------
+
+        GraphPoseNodeResult result;
+        EvaluateBlendSpace( context );
+
+        #if EE_DEVELOPMENT_TOOLS
+        int16_t baseMotionActionIdx = InvalidIndex;
+        #endif
+
+        // Only a single source
+        //-------------------------------------------------------------------------
+
+        if ( m_bsr.m_pSource1 == nullptr )
+        {
+            result = UpdateSourceNode( m_bsr.m_pSource0 );
+
+            m_duration = m_bsr.m_pSource0->GetDuration();
+            m_previousTime = m_bsr.m_pSource0->GetPreviousTime();
+            m_currentTime = m_bsr.m_pSource0->GetCurrentTime();
+            m_blendedSyncTrack = m_bsr.m_pSource0->GetSyncTrack();
+        }
+
+        // 2-Way Blend
+        //-------------------------------------------------------------------------
+
+        else
+        {
+            // Update Source 0
+            GraphPoseNodeResult const sourceResult0 = UpdateSourceNode( m_bsr.m_pSource0 );
+            #if EE_DEVELOPMENT_TOOLS
+            int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
+            #endif
+
+            // Update Source 1
+            GraphPoseNodeResult const sourceResult1 = UpdateSourceNode( m_bsr.m_pSource1 );
+            #if EE_DEVELOPMENT_TOOLS
+            int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
+            #endif
+
+            // Register Tasks
+            //-------------------------------------------------------------------------
+
+            if ( sourceResult0.HasRegisteredTasks() && sourceResult1.HasRegisteredTasks() )
+            {
+                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult0.m_taskIdx, sourceResult1.m_taskIdx, m_bsr.m_blendWeight );
+                result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_bsr.m_blendWeight );
+
+                #if EE_DEVELOPMENT_TOOLS
+                baseMotionActionIdx = context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
+                #endif
+            }
+            else
+            {
+                result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
+            }
+
+            result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeight );
+
+            // Update internal time and events
+            //-------------------------------------------------------------------------
+
+            // Unsynchronized
+            if ( pUpdateRange == nullptr )
+            {
+                auto const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
+                m_previousTime = m_currentTime;
+                m_currentTime = ( m_currentTime + deltaPercentage ).GetNormalizedTime();
+            }
+            else // Synchronized Blend
+            {
+                SyncTrack const& syncTrack0 = m_bsr.m_pSource0->GetSyncTrack();
+                SyncTrack const& syncTrack1 = m_bsr.m_pSource1->GetSyncTrack();
+                m_blendedSyncTrack = SyncTrack( syncTrack0, syncTrack1, m_bsr.m_blendWeight );
+                m_duration = SyncTrack::CalculateDurationSynchronized( m_bsr.m_pSource0->GetDuration(), m_bsr.m_pSource1->GetDuration(), syncTrack0.GetNumEvents(), syncTrack1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeight );
+                m_previousTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_startTime );
+                m_currentTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_endTime );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        return result;
+    }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ParameterizedBlendNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        PoseNode::RecordGraphState( outState );
+
+        auto FindSourceIndex = [&] ( PoseNode* pNode )
+        {
+            if ( pNode == nullptr )
+            {
+                return InvalidIndex;
+            }
+
+            for ( int32_t i = 0; i < (int32_t) m_sourceNodes.size(); i++ )
+            {
+                if ( m_sourceNodes[i] == pNode )
+                {
+                    return i;
+                }
+            }
+
+            return InvalidIndex;
+        };
+
+        outState.WriteValue( FindSourceIndex( m_bsr.m_pSource0 ) );
+        outState.WriteValue( FindSourceIndex( m_bsr.m_pSource1 ) );
+        outState.WriteValue( m_bsr.m_blendWeight );
+        outState.WriteValue( m_blendedSyncTrack );
+        outState.WriteValue( m_parameterization );
+    }
+
+    void ParameterizedBlendNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        PoseNode::RestoreGraphState( inState );
+
+        int32_t idx = InvalidIndex;
+
+        inState.ReadValue( idx );
+        m_bsr.m_pSource0 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
+
+        inState.ReadValue( idx );
+        m_bsr.m_pSource0 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
+
+        inState.ReadValue( m_bsr.m_blendWeight );
+        inState.ReadValue( m_blendedSyncTrack );
+        inState.ReadValue( m_parameterization );
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
+    void Blend1DNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<Blend1DNode>( context, options );
+        ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        pNode->m_parameterization = m_parameterization;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void VelocityBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<VelocityBlendNode>( context, options );
+        ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+    }
+
+    void VelocityBlendNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
+    {
+        ParameterizedBlendNode::InitializeInternal( context, initialTime );
+
+        if ( !m_lazyInitializationPerformed )
+        {
+            // Get source node speeds
+            //-------------------------------------------------------------------------
+
+            TInlineVector<float, 5> values;
+            int32_t const numSources = (int32_t) m_sourceNodes.size();
+            for ( int16_t i = 0; i < numSources; i++ )
+            {
+                // The editor tooling guarantees that the source nodes are actually clip references!
+                AnimationClip const* pAnimation = reinterpret_cast<AnimationClipReferenceNode const*>( m_sourceNodes[i] )->GetAnimation();
+                EE_ASSERT( pAnimation != nullptr );
+                values.emplace_back( pAnimation->GetAverageLinearVelocity() );
+            }
+
+            // Create parameterization
+            //-------------------------------------------------------------------------
+
+            m_parameterization = Parameterization::CreateParameterization( values );
+            m_lazyInitializationPerformed = true;
+        }
+    }
+}

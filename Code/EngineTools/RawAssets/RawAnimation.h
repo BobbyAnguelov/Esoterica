@@ -53,8 +53,14 @@ namespace EE::RawAssets
         // Regenerate local transforms from the global ones - This is only needed in very special circumstances
         void RegenerateLocalTransforms();
 
+        // Additive Generation
+        //-------------------------------------------------------------------------
+
         // Generate Additive Data
         void MakeAdditiveRelativeToSkeleton();
+
+        // Generate Additive Data
+        void MakeAdditiveRelativeToFrame( int32_t baseFrameIdx );
 
         // Generate Additive Data
         void MakeAdditiveRelativeToAnimation( RawAnimation const& baseAnimation );

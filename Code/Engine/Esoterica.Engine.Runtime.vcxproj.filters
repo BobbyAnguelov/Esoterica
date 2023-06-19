@@ -125,7 +125,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blends.cpp">
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend1D.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_BoneMasks.cpp">
@@ -419,6 +419,7 @@
     <ClCompile Include="DebugViews\DebugView_System.cpp">
       <Filter>DebugViews</Filter>
     </ClCompile>
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -560,7 +561,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blends.h">
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend1D.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_BoneMasks.h">
@@ -914,6 +915,7 @@
     <ClInclude Include="DebugViews\DebugView_System.h">
       <Filter>DebugViews</Filter>
     </ClInclude>
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">

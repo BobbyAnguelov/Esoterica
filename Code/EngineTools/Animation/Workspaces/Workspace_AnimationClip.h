@@ -29,12 +29,13 @@ namespace EE::Animation
 
     private:
 
+        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Animation Clip"; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
         virtual void OnHotReloadComplete() override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID ) const override;
-        virtual void Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused ) override;
+        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void Update( UpdateContext const& context, bool isFocused ) override;
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
@@ -47,10 +48,10 @@ namespace EE::Animation
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_RUN_FAST; }
 
-        void DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
-        void DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
-        bool DrawDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
-        void DrawClipBrowser( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
+        void DrawTimelineWindow( UpdateContext const& context, bool isFocused );
+        void DrawTrackDataWindow( UpdateContext const& context, bool isFocused );
+        void DrawDetailsWindow( UpdateContext const& context, bool isFocused );
+        void DrawClipBrowser( UpdateContext const& context, bool isFocused );
 
         void CreatePreviewEntity();
         void DestroyPreviewEntity();
@@ -58,11 +59,6 @@ namespace EE::Animation
         void DestroyPreviewMeshComponent();
 
     private:
-
-        String                          m_timelineWindowName;
-        String                          m_detailsWindowName;
-        String                          m_clipBrowserWindowName;
-        String                          m_trackDataWindowName;
 
         Entity*                         m_pPreviewEntity = nullptr;
         AnimationClipPlayerComponent*   m_pAnimationComponent = nullptr;
@@ -89,5 +85,7 @@ namespace EE::Animation
         bool                            m_isPreviewCapsuleDrawingEnabled = false;
         float                           m_previewCapsuleHalfHeight = 0.65f;
         float                           m_previewCapsuleRadius = 0.35f;
+
+        bool                            m_isDetailsWindowFocused = false;
     };
 }

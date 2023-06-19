@@ -146,13 +146,6 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case GraphValueType::Int:
-            {
-                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<int32_t>( runtimeNodeIdx );
-                ImGui::Text( "Value: %d", value );
-            }
-            break;
-
             case GraphValueType::Float:
             {
                 auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );

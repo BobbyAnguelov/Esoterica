@@ -56,8 +56,14 @@ namespace EE::Animation::GraphNodes
         // Compile this node into its runtime representation. Returns the node index of the compiled node.
         virtual int16_t Compile( GraphCompilationContext& context ) const { return int16_t(); }
 
+        // IDs
+        //-------------------------------------------------------------------------
+
         // Return any logic or event IDs entered into this node (things like event IDs, parameter ID values, etc...)
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const {}
+
+        // Rename any logic or event IDs entered into this node (things like event IDs, parameter ID values, etc...)
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) {}
 
     protected:
 

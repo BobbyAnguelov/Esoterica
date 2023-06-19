@@ -97,51 +97,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    CachedIntToolsNode::CachedIntToolsNode()
-        : FlowToolsNode()
-    {
-        CreateOutputPin( "Result", GraphValueType::Int, true );
-        CreateInputPin( "Value", GraphValueType::Int );
-    }
-
-    int16_t CachedIntToolsNode::Compile( GraphCompilationContext& context ) const
-    {
-        CachedIntNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<CachedIntNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
-        {
-            auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
-            if ( pInputNode != nullptr )
-            {
-                int16_t const compiledNodeIdx = pInputNode->Compile( context );
-                if ( compiledNodeIdx != InvalidIndex )
-                {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
-                }
-                else
-                {
-                    return InvalidIndex;
-                }
-            }
-            else
-            {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
-            }
-
-            //-------------------------------------------------------------------------
-
-            pSettings->m_mode = m_mode;
-        }
-        return pSettings->m_nodeIdx;
-    }
-
-    void CachedIntToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
-    {
-        ImGui::Text( m_mode == CachedValueMode::OnEntry ? "Cache On Entry" : "Cache On Exit" );
-    }
-
-    //-------------------------------------------------------------------------
-
     CachedFloatToolsNode::CachedFloatToolsNode()
         : FlowToolsNode()
     {

@@ -54,17 +54,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class IntResultToolsNode final : public ResultToolsNode
-    {
-        EE_REFLECT_TYPE( IntResultToolsNode );
-
-    public:
-
-        IntResultToolsNode() : ResultToolsNode( GraphValueType::Int ) {}
-    };
-
-    //-------------------------------------------------------------------------
-
     class IDResultToolsNode final : public ResultToolsNode
     {
         EE_REFLECT_TYPE( IDResultToolsNode );

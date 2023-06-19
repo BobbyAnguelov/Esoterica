@@ -429,17 +429,17 @@ namespace EE::Animation::GraphNodes
 
     void StateToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
     {
-        for ( auto& ID : m_entryEvents )
+        for ( auto const ID : m_entryEvents )
         {
             outIDs.emplace_back( ID );
         }
 
-        for ( auto& ID : m_executeEvents )
+        for ( auto const ID : m_executeEvents )
         {
             outIDs.emplace_back( ID );
         }
 
-        for ( auto& ID : m_exitEvents )
+        for ( auto const ID : m_exitEvents )
         {
             outIDs.emplace_back( ID );
         }
@@ -452,6 +452,71 @@ namespace EE::Animation::GraphNodes
         for ( auto const& evt : m_timeElapsedEvents )
         {
             outIDs.emplace_back( evt.m_ID );
+        }
+    }
+
+    void StateToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = false;
+
+        //-------------------------------------------------------------------------
+
+        TVector<StringID> IDs;
+        GetLogicAndEventIDs( IDs );
+        for ( auto ID : IDs )
+        {
+            if ( ID == oldID )
+            {
+                foundMatch = true;
+                break;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+
+            for ( auto& ID : m_entryEvents )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
+
+            for ( auto& ID : m_executeEvents )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
+
+            for ( auto& ID : m_exitEvents )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
+
+            for ( auto& evt : m_timeRemainingEvents )
+            {
+                if ( evt.m_ID == oldID )
+                {
+                    evt.m_ID = newID;
+                }
+            }
+
+            for ( auto& evt : m_timeElapsedEvents )
+            {
+                if ( evt.m_ID == oldID )
+                {
+                    evt.m_ID = newID;
+                }
+            }
         }
     }
 }

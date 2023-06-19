@@ -117,6 +117,43 @@ namespace EE::RawAssets
         m_isAdditive = true;
     }
 
+    void RawAnimation::MakeAdditiveRelativeToFrame( int32_t baseFrameIdx )
+    {
+        EE_ASSERT( baseFrameIdx >= 0 && baseFrameIdx < ( m_numFrames - 1 ) );
+
+        uint32_t const numBones = m_skeleton.GetNumBones();
+
+        // Copy reference pose
+        TVector<Transform> basePose;
+        basePose.reserve( numBones );
+
+        for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        {
+            basePose.emplace_back( m_tracks[boneIdx].m_localTransforms[baseFrameIdx] );
+        }
+
+        // Generate Additive Data
+        for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        {
+            Transform baseTransform = basePose[boneIdx];
+
+            for ( int32_t frameIdx = 0; frameIdx < m_numFrames; frameIdx++ )
+            {
+                Transform const& poseTransform = m_tracks[boneIdx].m_localTransforms[frameIdx];
+
+                Transform additiveTransform;
+                additiveTransform.SetRotation( Quaternion::Delta( baseTransform.GetRotation(), poseTransform.GetRotation() ) );
+                additiveTransform.SetTranslation( poseTransform.GetTranslation() - baseTransform.GetTranslation() );
+                additiveTransform.SetScale( poseTransform.GetScale() - baseTransform.GetScale() );
+
+                m_tracks[boneIdx].m_localTransforms[frameIdx] = additiveTransform;
+            }
+        }
+
+        CalculateComponentRanges();
+        m_isAdditive = true;
+    }
+
     void RawAnimation::MakeAdditiveRelativeToAnimation( RawAnimation const& baseAnimation )
     {
         EE_ASSERT( !IsAdditive() );
@@ -129,7 +166,6 @@ namespace EE::RawAssets
             m_numFrames = baseAnimation.GetNumFrames();
             m_duration = baseAnimation.GetDuration();
         }
-
 
         //-------------------------------------------------------------------------
 

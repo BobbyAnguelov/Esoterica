@@ -131,8 +131,8 @@ namespace EE::Animation::GraphNodes
         int32_t const numOptions = GetNumInputPins();
         EE_ASSERT( pConditionsNode->GetNumInputPins() == numOptions );
 
-        int32_t const pintoBeRemovedIdx = GetInputPinIndex( pinID );
-        EE_ASSERT( pintoBeRemovedIdx != InvalidIndex );
+        int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
+        EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
 
         // Rename all pins
         //-------------------------------------------------------------------------
@@ -140,12 +140,12 @@ namespace EE::Animation::GraphNodes
         int32_t newPinIdx = 2;
         for ( auto i = 2; i < numOptions; i++ )
         {
-            if ( i == pintoBeRemovedIdx )
+            if ( i == pinToBeRemovedIdx )
             {
                 continue;
             }
 
-            TInlineString<100> newPinName; 
+            TInlineString<100> newPinName;
             newPinName.sprintf( "Option %d", newPinIdx );
 
             GetInputPin( i )->m_name = newPinName;
@@ -156,7 +156,7 @@ namespace EE::Animation::GraphNodes
         // Destroy condition node pin
         //-------------------------------------------------------------------------
 
-        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pintoBeRemovedIdx )->m_ID );
+        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pinToBeRemovedIdx )->m_ID );
     }
 
     //-------------------------------------------------------------------------
@@ -308,6 +308,249 @@ namespace EE::Animation::GraphNodes
     {
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx >= 0 )
+        {
+            return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+        }
+
+        return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
+    }
+
+    //-------------------------------------------------------------------------
+
+    ParameterizedSelectorToolsNode::ParameterizedSelectorToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Pose", GraphValueType::Pose );
+        CreateInputPin( "Parameter", GraphValueType::Float );
+        CreateInputPin( "Option 0", GraphValueType::Pose );
+        CreateInputPin( "Option 1", GraphValueType::Pose );
+    }
+
+    int16_t ParameterizedSelectorToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        ParameterizedSelectorNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<ParameterizedSelectorNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            // Compile Parameter
+            //-------------------------------------------------------------------------
+
+            auto pParameterNode = GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pParameterNode != nullptr )
+            {
+                auto compiledNodeIdx = pParameterNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pSettings->m_parameterNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                context.LogError( this, "Disconnected parameter pin on selector node!" );
+                return InvalidIndex;
+            }
+
+            // Compile Options
+            //-------------------------------------------------------------------------
+
+            int32_t const numInputPins = GetNumInputPins();
+            for ( auto i = 1; i < numInputPins; i++ )
+            {
+                auto pOptionNode = GetConnectedInputNode<FlowToolsNode>( i );
+                if ( pOptionNode != nullptr )
+                {
+                    auto compiledNodeIdx = pOptionNode->Compile( context );
+                    if ( compiledNodeIdx != InvalidIndex )
+                    {
+                        pSettings->m_optionNodeIndices.emplace_back( compiledNodeIdx );
+                    }
+                    else
+                    {
+                        return InvalidIndex;
+                    }
+                }
+                else
+                {
+                    context.LogError( this, "Disconnected option pin on selector node!" );
+                    return InvalidIndex;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( pSettings->m_optionNodeIndices.empty() )
+            {
+                context.LogError( this, "No inputs on selector" );
+                return InvalidIndex;
+            }
+        }
+        return pSettings->m_nodeIdx;
+    }
+
+    TInlineString<100> ParameterizedSelectorToolsNode::GetNewDynamicInputPinName() const
+    {
+        int32_t const numInputPins = GetNumInputPins();
+        TInlineString<100> pinName;
+        pinName.sprintf( "Option %d", numInputPins - 2 );
+        return pinName;
+    }
+
+    void ParameterizedSelectorToolsNode::OnDynamicPinCreation( UUID pinID )
+    {
+        int32_t const numInputPins = GetNumInputPins();
+        TInlineString<100> pinName;
+        pinName.sprintf( "Option %d", numInputPins - 1 );
+    }
+
+    void ParameterizedSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
+    {
+        int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
+        EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
+
+        // Rename all pins
+        //-------------------------------------------------------------------------
+
+        int32_t newPinIdx = 2;
+        int32_t const numInputPins = GetNumInputPins();
+        for ( auto i = 3; i < numInputPins; i++ )
+        {
+            if ( i == pinToBeRemovedIdx )
+            {
+                continue;
+            }
+
+            TInlineString<100> newPinName;
+            newPinName.sprintf( "Option %d", newPinIdx );
+
+            GetInputPin( i )->m_name = newPinName;
+            newPinIdx++;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    ParameterizedAnimationClipSelectorToolsNode::ParameterizedAnimationClipSelectorToolsNode()
+        : AnimationClipReferenceToolsNode()
+    {
+        CreateOutputPin( "Pose", GraphValueType::Pose );
+        CreateInputPin( "Parameter", GraphValueType::Float );
+        CreateInputPin( "Option 0", GraphValueType::Pose );
+        CreateInputPin( "Option 1", GraphValueType::Pose );
+    }
+
+    int16_t ParameterizedAnimationClipSelectorToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        ParameterizedAnimationClipSelectorNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<ParameterizedAnimationClipSelectorNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            // Compile Parameter
+            //-------------------------------------------------------------------------
+
+            auto pParameterNode = GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pParameterNode != nullptr )
+            {
+                auto compiledNodeIdx = pParameterNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pSettings->m_parameterNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                context.LogError( this, "Disconnected parameter pin on selector node!" );
+                return InvalidIndex;
+            }
+
+            // Compile Options
+            //-------------------------------------------------------------------------
+
+            int32_t const numInputPins = GetNumInputPins();
+            for ( auto i = 1; i < numInputPins; i++ )
+            {
+                auto pOptionNode = GetConnectedInputNode<FlowToolsNode>( i );
+                if ( pOptionNode != nullptr )
+                {
+                    auto compiledNodeIdx = pOptionNode->Compile( context );
+                    if ( compiledNodeIdx != InvalidIndex )
+                    {
+                        pSettings->m_optionNodeIndices.emplace_back( compiledNodeIdx );
+                    }
+                    else
+                    {
+                        return InvalidIndex;
+                    }
+                }
+                else
+                {
+                    context.LogError( this, "Disconnected option pin on selector node!" );
+                    return InvalidIndex;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( pSettings->m_optionNodeIndices.empty() )
+            {
+                context.LogError( this, "No inputs on selector" );
+                return InvalidIndex;
+            }
+        }
+        return pSettings->m_nodeIdx;
+    }
+
+    TInlineString<100> ParameterizedAnimationClipSelectorToolsNode::GetNewDynamicInputPinName() const
+    {
+        int32_t const numInputPins = GetNumInputPins();
+        TInlineString<100> pinName;
+        pinName.sprintf( "Option %d", numInputPins - 2 );
+        return pinName;
+    }
+
+    void ParameterizedAnimationClipSelectorToolsNode::OnDynamicPinCreation( UUID pinID )
+    {
+        int32_t const numInputPins = GetNumInputPins();
+        TInlineString<100> pinName;
+        pinName.sprintf( "Option %d", numInputPins - 1 );
+    }
+
+    void ParameterizedAnimationClipSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
+    {
+        int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
+        EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
+
+        // Rename all pins
+        //-------------------------------------------------------------------------
+
+        int32_t newPinIdx = 2;
+        int32_t const numInputPins = GetNumInputPins();
+        for ( auto i = 3; i < numInputPins; i++ )
+        {
+            if ( i == pinToBeRemovedIdx )
+            {
+                continue;
+            }
+
+            TInlineString<100> newPinName;
+            newPinName.sprintf( "Option %d", newPinIdx );
+
+            GetInputPin( i )->m_name = newPinName;
+            newPinIdx++;
+        }
+    }
+
+    bool ParameterizedAnimationClipSelectorToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    {
+        int32_t const pinIdx = GetInputPinIndex( inputPinID );
+        if ( pinIdx >= 1 )
         {
             return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
         }

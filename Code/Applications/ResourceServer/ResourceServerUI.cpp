@@ -48,14 +48,15 @@ namespace EE::Resource
 
         auto DrawTitleBarContents = [this] ()
         {
-            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 4 ) );
+            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 0, 4 ) );
             ImGuiX::Image( m_resourceServerIcon );
             ImGui::SameLine();
-            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 2, 3 ) );
+            ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( -8, -2 ) );
+            ImGui::AlignTextToFramePadding();
             ImGui::Text( "Resource Server" );
         };
 
-        m_titleBar.Draw( DrawTitleBarContents, 140 );
+        m_titleBar.Draw( DrawTitleBarContents, 200 );
 
         // Create dock space
         //-------------------------------------------------------------------------

@@ -105,7 +105,7 @@ namespace EE
         Int2 const windowDimensions( ( m_windowRect.right - m_windowRect.left ), ( m_windowRect.bottom - m_windowRect.top ) );
         if ( !m_engine.Initialize( windowDimensions ) )
         {
-            return FatalError( "Failed to initialize engine" );
+            return false;
         }
 
         return true;
@@ -118,8 +118,6 @@ namespace EE
 
     bool EditorApplication::ApplicationLoop()
     {
-        // Uncomment for live editing of ImguiTheme
-        //ImGuiX::Style::Apply();
         return m_engine.Update();
     }
 }

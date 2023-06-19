@@ -78,7 +78,7 @@ namespace EE::Animation
         m_propertyGrid.OnPostEdit().Unbind( m_propertyGridPostEditEventBindingID );
     }
 
-    void AnimationClipWorkspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void AnimationClipWorkspace::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID topLeftDockID = 0, topRightDockID = 0, bottomDockID = 0, bottomLeftDockID = 0, bottomRightDockID = 0;
         ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.33f, &bottomDockID, &topLeftDockID );
@@ -86,12 +86,12 @@ namespace EE::Animation
         ImGui::DockBuilderSplitNode( bottomDockID, ImGuiDir_Right, 0.25f, &bottomRightDockID, &bottomLeftDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetViewportWindowID(), topLeftDockID );
-        ImGui::DockBuilderDockWindow( m_timelineWindowName.c_str(), bottomLeftDockID );
-        ImGui::DockBuilderDockWindow( m_trackDataWindowName.c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( m_detailsWindowName.c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( m_clipBrowserWindowName.c_str(), topRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topLeftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Timeline" ).c_str(), bottomLeftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Track Data" ).c_str(), bottomRightDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomRightDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), topRightDockID);
     }
 
     //-------------------------------------------------------------------------
@@ -102,17 +102,19 @@ namespace EE::Animation
 
         TWorkspace<AnimationClip>::Initialize( context );
 
-        m_timelineWindowName.sprintf( "Timeline##%u", GetID() );
-        m_detailsWindowName.sprintf( "Details##%u", GetID() );
-        m_clipBrowserWindowName.sprintf( "Clip Browser##%u", GetID() );
-        m_trackDataWindowName.sprintf( "Track Data##%u", GetID() );
-
         if ( m_pDescriptor != nullptr )
         {
             CreatePreviewEntity();
         }
 
         m_characterPoseUpdateRequested = true;
+
+        //-------------------------------------------------------------------------
+
+        CreateToolWindow( "Timeline", [this] ( UpdateContext const& context, bool isFocused ) { DrawTimelineWindow( context, isFocused ); }, ImVec2( 0, 0 ) );
+        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
+        CreateToolWindow( "Clip Browser", [this] ( UpdateContext const& context, bool isFocused ) { DrawClipBrowser( context, isFocused ); } );
+        CreateToolWindow( "Track Data", [this] ( UpdateContext const& context, bool isFocused ) { DrawTrackDataWindow( context, isFocused ); } );
     }
 
     void AnimationClipWorkspace::Shutdown( UpdateContext const& context )
@@ -235,7 +237,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipWorkspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void AnimationClipWorkspace::Update( UpdateContext const& context, bool isFocused )
     {
         if ( IsResourceLoaded() )
         {
@@ -247,17 +249,8 @@ namespace EE::Animation
             MarkDirty();
         }
 
-        // Draw UI
-        //-------------------------------------------------------------------------
-
-        bool const isDescriptorWindowFocused = DrawDescriptorEditorWindow( context, pWindowClass );
-        DrawTrackDataWindow( context, pWindowClass );
-        DrawTimelineWindow( context, pWindowClass );
-        DrawClipBrowser( context, pWindowClass );
-        bool const isDetailsWindowFocused = DrawDetailsWindow( context, pWindowClass );
-
         // Enable the global timeline keyboard shortcuts
-        if ( isFocused && !isDescriptorWindowFocused && !isDetailsWindowFocused )
+        if ( isFocused && !m_isDescriptorWindowFocused && !m_isDetailsWindowFocused )
         {
             m_eventEditor.HandleGlobalKeyboardInputs();
         }
@@ -415,61 +408,51 @@ namespace EE::Animation
         ImGui::Unindent();
     }
 
-    void AnimationClipWorkspace::DrawTimelineWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void AnimationClipWorkspace::DrawTimelineWindow( UpdateContext const& context, bool isFocused )
     {
-        // Draw timeline window
-        //-------------------------------------------------------------------------
-
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_timelineWindowName.c_str() ) )
+        if ( IsWaitingForResource() )
         {
-            if ( IsWaitingForResource() )
+            ImGui::Text( "Loading:" );
+            ImGui::SameLine();
+            ImGuiX::DrawSpinner( "Loading" );
+        }
+        else if ( HasLoadingFailed() )
+        {
+            ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
+        }
+        else
+        {
+            // Track editor and property grid
+            //-------------------------------------------------------------------------
+
+            m_eventEditor.UpdateAndDraw( GetWorld()->GetTimeScale() * context.GetDeltaTime() );
+
+            // Transfer dirty state from property grid
+            if ( m_propertyGrid.IsDirty() )
             {
-                ImGui::Text( "Loading:" );
-                ImGui::SameLine();
-                ImGuiX::DrawSpinner( "Loading" );
+                m_eventEditor.MarkDirty();
             }
-            else if ( HasLoadingFailed() )
+
+            // Handle selection changes
+            auto const& selectedItems = m_eventEditor.GetSelectedItems();
+            if ( !selectedItems.empty() )
             {
-                ImGui::Text( "Loading Failed: %s", m_workspaceResource.GetResourceID().c_str() );
+                if ( selectedItems.back()->GetData() != m_propertyGrid.GetEditedType() )
+                {
+                    m_propertyGrid.SetTypeToEdit( selectedItems.back()->GetData() );
+                }
             }
-            else
+            else // Clear property grid
             {
-                // Track editor and property grid
-                //-------------------------------------------------------------------------
-
-                m_eventEditor.UpdateAndDraw( GetWorld()->GetTimeScale() * context.GetDeltaTime() );
-
-                // Transfer dirty state from property grid
-                if ( m_propertyGrid.IsDirty() )
+                if ( m_propertyGrid.GetEditedType() != nullptr )
                 {
-                    m_eventEditor.MarkDirty();
-                }
-
-                // Handle selection changes
-                auto const& selectedItems = m_eventEditor.GetSelectedItems();
-                if ( !selectedItems.empty() )
-                {
-                    if ( selectedItems.back()->GetData() != m_propertyGrid.GetEditedType() )
-                    {
-                        m_propertyGrid.SetTypeToEdit( selectedItems.back()->GetData() );
-                    }
-                }
-                else // Clear property grid
-                {
-                    if ( m_propertyGrid.GetEditedType() != nullptr )
-                    {
-                        m_propertyGrid.SetTypeToEdit( nullptr );
-                    }
+                    m_propertyGrid.SetTypeToEdit( nullptr );
                 }
             }
         }
-        ImGui::End();
-        ImGui::PopStyleVar();
     }
 
-    void AnimationClipWorkspace::DrawTrackDataWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void AnimationClipWorkspace::DrawTrackDataWindow( UpdateContext const& context, bool isFocused )
     {
         auto DrawTransform = [] ( Transform transform )
         {
@@ -487,70 +470,57 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_trackDataWindowName.c_str() ) )
+        if ( IsResourceLoaded() )
         {
-            if ( IsResourceLoaded() )
+            // There may be a frame delay between the UI and the entity system creating the pose
+            Pose const* pPose = m_pAnimationComponent->GetPose();
+            if ( pPose != nullptr )
             {
-                // There may be a frame delay between the UI and the entity system creating the pose
-                Pose const* pPose = m_pAnimationComponent->GetPose();
-                if ( pPose != nullptr )
+                if ( ImGui::BeginTable( "TrackDataTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
                 {
-                    if ( ImGui::BeginTable( "TrackDataTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
+                    ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "Transform", ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableHeadersRow();
+
+                    //-------------------------------------------------------------------------
+
+                    Skeleton const* pSkeleton = pPose->GetSkeleton();
+                    int32_t const numBones = pSkeleton->GetNumBones();
+
+                    ImGuiListClipper clipper;
+                    clipper.Begin( numBones );
+                    while ( clipper.Step() )
                     {
-                        ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_WidthStretch );
-                        ImGui::TableSetupColumn( "Transform", ImGuiTableColumnFlags_WidthStretch );
-                        ImGui::TableHeadersRow();
-
-                        //-------------------------------------------------------------------------
-
-                        Skeleton const* pSkeleton = pPose->GetSkeleton();
-                        int32_t const numBones = pSkeleton->GetNumBones();
-
-                        ImGuiListClipper clipper;
-                        clipper.Begin( numBones );
-                        while ( clipper.Step() )
+                        for ( int boneIdx = clipper.DisplayStart; boneIdx < clipper.DisplayEnd; boneIdx++ )
                         {
-                            for ( int boneIdx = clipper.DisplayStart; boneIdx < clipper.DisplayEnd; boneIdx++ )
-                            {
-                                Transform const& boneTransform = ( boneIdx == 0 ) ? m_workspaceResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetGlobalTransform( boneIdx );
+                            Transform const& boneTransform = ( boneIdx == 0 ) ? m_workspaceResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetGlobalTransform( boneIdx );
 
-                                ImGui::TableNextColumn();
-                                ImGui::Text( "%d. %s", boneIdx, pSkeleton->GetBoneID( boneIdx ).c_str() );
+                            ImGui::TableNextColumn();
+                            ImGui::Text( "%d. %s", boneIdx, pSkeleton->GetBoneID( boneIdx ).c_str() );
 
-                                ImGui::TableNextColumn();
-                                DrawTransform( boneTransform );
-                            }
+                            ImGui::TableNextColumn();
+                            DrawTransform( boneTransform );
                         }
-                        clipper.End();
-
-                        ImGui::EndTable();
                     }
+                    clipper.End();
+
+                    ImGui::EndTable();
                 }
             }
-            else
-            {
-                ImGui::Text( "Nothing to show!" );
-            }
         }
-        ImGui::End();
-    }
-
-    bool AnimationClipWorkspace::DrawDetailsWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_detailsWindowName.c_str() ) )
+        else
         {
-            m_propertyGrid.DrawGrid();
+            ImGui::Text( "Nothing to show!" );
         }
-
-        bool const isDetailsWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_RootAndChildWindows );
-        ImGui::End();
-
-        return isDetailsWindowFocused;
     }
 
-    void AnimationClipWorkspace::DrawClipBrowser( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void AnimationClipWorkspace::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
+    {
+        m_propertyGrid.DrawGrid();
+        m_isDetailsWindowFocused = true;
+    }
+
+    void AnimationClipWorkspace::DrawClipBrowser( UpdateContext const& context, bool isFocused )
     {
         auto ApplyClipFilter = [this] ()
         {
@@ -593,47 +563,39 @@ namespace EE::Animation
             }
         }
 
-        // Draw UI
+        // Filter clips
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextWindowClass( pWindowClass );
-        if ( ImGui::Begin( m_clipBrowserWindowName.c_str() ) )
+        if ( m_clipBrowserFilter.DrawAndUpdate() )
         {
-            // Filter clips
-            //-------------------------------------------------------------------------
+            ApplyClipFilter();
+        }
 
-            if ( m_clipBrowserFilter.DrawAndUpdate() )
+        // Draw Clips
+        //-------------------------------------------------------------------------
+
+        if ( IsResourceLoaded() )
+        {
+            if ( ImGui::BeginTable( "ClipBrowser", 1, 0, ImVec2( -1, -1 ) ) )
             {
-                ApplyClipFilter();
-            }
-
-            // Draw Clips
-            //-------------------------------------------------------------------------
-
-            if ( IsResourceLoaded() )
-            {
-                if ( ImGui::BeginTable( "ClipBrowser", 1, 0, ImVec2( -1, -1 ) ) )
+                ImGuiListClipper clipper;
+                clipper.Begin( (int32_t) m_filteredClips.size() );
+                while ( clipper.Step() )
                 {
-                    ImGuiListClipper clipper;
-                    clipper.Begin( (int32_t) m_filteredClips.size() );
-                    while ( clipper.Step() )
+                    for ( int32_t i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                     {
-                        for ( int32_t i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        if ( ImGuiX::FlatButton( m_filteredClips[i].c_str() ) )
                         {
-                            ImGui::TableNextRow();
-                            ImGui::TableNextColumn();
-                            if ( ImGuiX::FlatButton( m_filteredClips[i].c_str() ) )
-                            {
-                                m_pToolsContext->TryOpenResource( m_filteredClips[i] );
-                            }
+                            m_pToolsContext->TryOpenResource( m_filteredClips[i] );
                         }
                     }
-
-                    ImGui::EndTable();
                 }
+
+                ImGui::EndTable();
             }
         }
-        ImGui::End();
     }
 
     //-------------------------------------------------------------------------

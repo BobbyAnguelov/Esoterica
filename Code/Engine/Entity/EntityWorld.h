@@ -140,6 +140,12 @@ namespace EE
         // Get a specific map
         EntityModel::EntityMap* GetMap( EntityMapID const& mapID ) { return const_cast<EntityModel::EntityMap*>( const_cast<EntityWorld const*>( this )->GetMap( mapID ) ); }
 
+        // Get map for a given entity
+        EntityModel::EntityMap const* GetMapForEntity( Entity const* pEntity ) const;
+
+        // Get map for a given entity
+        EntityModel::EntityMap* GetMapForEntity( Entity const* pEntity ) { return const_cast<EntityModel::EntityMap*>( const_cast<EntityWorld const*>( this )->GetMapForEntity( pEntity ) ); }
+
         // Are we currently loading anything
         bool IsBusyLoading() const;
 

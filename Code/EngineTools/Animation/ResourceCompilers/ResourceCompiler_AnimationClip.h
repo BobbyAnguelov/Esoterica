@@ -21,7 +21,7 @@ namespace EE::Animation
     class AnimationClipCompiler : public Resource::Compiler
     {
         EE_REFLECT_TYPE( AnimationClipCompiler );
-        static const int32_t s_version = 35;
+        static const int32_t s_version = 36;
 
     public:
 

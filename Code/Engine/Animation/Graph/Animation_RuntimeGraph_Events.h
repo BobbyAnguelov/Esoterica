@@ -236,6 +236,17 @@ namespace EE::Animation
             }
         }
 
+        // Mark all events in the range as ignored and clear their weights
+        inline void MarkEventsAsIgnoredAndClearWeights( SampledEventRange range )
+        {
+            EE_ASSERT( IsValidRange( range ) );
+            for ( int16_t i = range.m_startIdx; i < range.m_endIdx; i++ )
+            {
+                m_sampledEvents[i].m_isIgnored = true;
+                m_sampledEvents[i].m_weight = 0.0f;
+            }
+        }
+
         // Mark all the events in the range as coming from an inactive branch
         inline void MarkEventsAsFromInactiveBranch( SampledEventRange range )
         {

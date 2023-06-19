@@ -16,6 +16,7 @@
 #include "System/Serialization/TypeSerialization.h"
 #include "System/Resource/ResourceRequesterID.h"
 #include "System/Resource/ResourceSettings.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -95,7 +96,7 @@ namespace EE
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
         : m_pWorld( pWorld )
         , m_pToolsContext( pToolsContext )
-        , m_displayName( resourceID.GetFileNameWithoutExtension() )
+        , m_windowName( resourceID.GetFileNameWithoutExtension() )
         , m_descriptorID( resourceID )
         , m_descriptorPath( GetFileSystemPath( resourceID ) )
     {
@@ -138,7 +139,7 @@ namespace EE
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
         : m_pWorld( pWorld )
         , m_pToolsContext( pToolsContext )
-        , m_displayName( displayName )
+        , m_windowName( displayName )
     {
         EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
@@ -209,10 +210,22 @@ namespace EE
 
         m_pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
 
-        SetDisplayName( m_displayName );
-        m_viewportWindowID.sprintf( "Viewport##%u", GetID() );
-        m_dockspaceID.sprintf( "Dockspace##%u", GetID() );
-        m_descriptorWindowName.sprintf( "Descriptor##%u", GetID() );
+        SetDisplayName( m_windowName );
+
+        // Create Tool Windows
+        //-------------------------------------------------------------------------
+
+        if ( IsADescriptorWorkspace() )
+        {
+            CreateToolWindow( "Descriptor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
+            m_toolWindows.back().m_type = ToolWindow::Type::Descriptor;
+        }
+
+        if ( HasViewportWindow() )
+        {
+            CreateToolWindow( "Viewport", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
+            m_toolWindows.back().m_type = ToolWindow::Type::Viewport;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -228,15 +241,30 @@ namespace EE
 
     void Workspace::SetDisplayName( String const& name )
     {
-        m_displayName = name;
-        m_pWorld->SetDebugName( m_displayName.c_str() );
-        if ( HasTitlebarIcon() )
+        m_windowName = name;
+        m_pWorld->SetDebugName( m_windowName.c_str() );
+    }
+
+    void Workspace::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding )
+    {
+        for ( auto const& toolWindow : m_toolWindows )
         {
-            m_workspaceWindowID.sprintf( "%s %s###window%u", GetTitlebarIcon(), m_displayName.c_str(), GetID() );
+            EE_ASSERT( toolWindow.m_name != name );
         }
-        else
+
+        m_toolWindows.emplace_back( name, drawFunction, windowPadding );
+
+        eastl::sort( m_toolWindows.begin(), m_toolWindows.end(), [] ( ToolWindow const& lhs, ToolWindow const& rhs ) { return lhs.m_name < rhs.m_name; } );
+    }
+
+    void Workspace::HideDescriptorWindow()
+    {
+        for ( auto& toolWindow : m_toolWindows )
         {
-            m_workspaceWindowID.sprintf( "%s###window%u", m_displayName.c_str(), GetID() );
+            if ( toolWindow.m_type == ToolWindow::Type::Descriptor )
+            {
+                toolWindow.m_isOpen = false;
+            }
         }
     }
 
@@ -247,17 +275,17 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Workspace::InitializeDockingLayout( ImGuiID dockspaceID ) const
+    void Workspace::InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const
     {
-        ImGui::DockBuilderDockWindow( m_descriptorWindowName.c_str(), dockspaceID );
+        ImGui::DockBuilderRemoveNodeChildNodes( dockspaceID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), dockspaceID );
     }
 
     //-------------------------------------------------------------------------
 
-    void Workspace::DrawWorkspaceToolBar_Default()
+    void Workspace::DrawMenu( UpdateContext const& context )
     {
         bool const isSavingAllowed = AlwaysAllowSaving() || IsDirty();
-
         ImGui::BeginDisabled( !isSavingAllowed );
         if ( ImGui::MenuItem( EE_ICON_CONTENT_SAVE"##Save" ) )
         {
@@ -265,6 +293,8 @@ namespace EE
         }
         ImGuiX::ItemTooltip( "Save" );
         ImGui::EndDisabled();
+
+        //-------------------------------------------------------------------------
 
         ImGui::BeginDisabled( !CanUndo() );
         if ( ImGui::MenuItem( EE_ICON_UNDO_VARIANT"##Undo" ) )
@@ -274,6 +304,8 @@ namespace EE
         ImGuiX::ItemTooltip( "Undo" );
         ImGui::EndDisabled();
 
+        //-------------------------------------------------------------------------
+
         ImGui::BeginDisabled( !CanRedo() );
         if ( ImGui::MenuItem( EE_ICON_REDO_VARIANT"##Redo" ) )
         {
@@ -281,39 +313,32 @@ namespace EE
         }
         ImGuiX::ItemTooltip( "Redo" );
         ImGui::EndDisabled();
-    }
-
-    void Workspace::DrawWorkspaceToolBar_Descriptor()
-    {
-        if ( !IsADescriptorWorkspace() )
-        {
-            return;
-        }
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginMenu( EE_ICON_FILE_COG"##descriptorOpts" ) )
+        if ( IsADescriptorWorkspace() )
         {
-            if ( ImGui::MenuItem( EE_ICON_FILE_DOCUMENT_OUTLINE" Show Descriptor Window" ) )
-            {
-                m_showDescriptorEditor = true;
-            }
-            ImGuiX::ItemTooltip( "Show Descriptor Editor" );
-
             if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Resource Path" ) )
             {
                 ImGui::SetClipboardText( m_descriptorID.c_str() );
             }
             ImGuiX::ItemTooltip( "Copy Resource Path" );
-
-            ImGui::EndMenu();
         }
-    }
 
-    void Workspace::DrawWorkspaceToolbar( UpdateContext const& context )
-    {
-        DrawWorkspaceToolBar_Default();
-        DrawWorkspaceToolBar_Descriptor();
+        //-------------------------------------------------------------------------
+
+        if ( !m_toolWindows.empty() )
+        {
+            if ( ImGui::BeginMenu( EE_ICON_WINDOW_RESTORE" Window" ) )
+            {
+                for ( auto& toolWindow : m_toolWindows )
+                {
+                    ImGui::MenuItem( toolWindow.m_name.c_str(), nullptr, &toolWindow.m_isOpen );
+                }
+
+                ImGui::EndMenu();
+            }
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -347,27 +372,10 @@ namespace EE
 
     void Workspace::DrawViewportToolbarCombo( char const* pID, char const* pLabel, char const* pTooltip, TFunction<void()> const& function, float width )
     {
-        if ( width > 0 )
-        {
-            ImGui::SetNextItemWidth( width );
-        }
-
+        ImGui::SetNextItemWidth( width );
         if ( ImGui::BeginCombo( pID, pLabel, ImGuiComboFlags_HeightLarge ) )
         {
-            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 8 ) );
-            ImGui::PushStyleColor( ImGuiCol_TableBorderStrong, 0 );
-            ImGui::PushStyleColor( ImGuiCol_TableBorderLight, 0 );
-            bool const drawTable = ImGui::BeginTable( "LayoutTable", 1, ImGuiTableFlags_Borders );
-            ImGui::PopStyleVar();
-            ImGui::PopStyleColor( 2 );
-
-            if ( drawTable )
-            {
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                function();
-                ImGui::EndTable();
-            }
+            function();
 
             ImGui::EndCombo();
         }
@@ -376,6 +384,12 @@ namespace EE
         {
             ImGuiX::ItemTooltip( pTooltip );
         }
+    }
+
+    void Workspace::DrawViewportToolbarComboIcon( char const* pID, char const* pIcon, char const* pTooltip, TFunction<void()> const& function )
+    {
+        float const width = ImGui::CalcTextSize( pIcon ).x + ( ImGui::GetStyle().FramePadding.x * 2 ) + 28;
+        DrawViewportToolbarCombo( pID, pIcon, pTooltip, function, width );
     }
 
     void Workspace::DrawViewportToolBar_Common()
@@ -477,153 +491,129 @@ namespace EE
         DrawViewportToolBar_TimeControls();
     }
 
-    bool Workspace::DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo, ImGuiWindowClass* pWindowClass )
+    void Workspace::DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo )
     {
         EE_ASSERT( viewportInfo.m_pViewportRenderTargetTexture != nullptr && viewportInfo.m_retrievePickingID != nullptr );
 
-        m_isViewportFocused = false;
-        m_isViewportHovered = false;
+        ImVec2 const viewportSize( Math::Max( ImGui::GetContentRegionAvail().x, 64.0f ), Math::Max( ImGui::GetContentRegionAvail().y, 64.0f ) );
+        ImVec2 const windowPos = ImGui::GetWindowPos();
 
-        auto pWorld = GetWorld();
-        Render::Viewport* pViewport = pWorld->GetViewport();
-
-        // Create viewport window
-        ImGuiWindowFlags const viewportWindowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs;
-        ImGui::SetNextWindowClass( pWindowClass );
-        ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-        bool const shouldDrawWindow = ImGui::Begin( GetViewportWindowID(), nullptr, viewportWindowFlags );
-        ImGui::PopStyleVar();
-
-        if ( shouldDrawWindow )
-        {
-            m_isViewportFocused = ImGui::IsWindowFocused();
-            m_isViewportHovered = ImGui::IsWindowHovered();
-
-            ImGuiStyle const& style = ImGui::GetStyle();
-            ImVec2 const viewportSize( Math::Max( ImGui::GetContentRegionAvail().x, 64.0f ), Math::Max( ImGui::GetContentRegionAvail().y, 64.0f ) );
-
-            ImVec2 const windowPos = ImGui::GetWindowPos();
-
-            // Switch focus based on mouse input
-            //-------------------------------------------------------------------------
-
-            if ( m_isViewportHovered )
-            {
-                if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) || ImGui::IsMouseClicked( ImGuiMouseButton_Middle ) )
-                {
-                    ImGui::SetWindowFocus();
-                    m_isViewportFocused = true;
-                }
-            }
-
-            // Update engine viewport dimensions
-            //-------------------------------------------------------------------------
-
-            Math::Rectangle const viewportRect( Float2::Zero, viewportSize );
-            pViewport->Resize( viewportRect );
-
-            // Draw 3D scene
-            //-------------------------------------------------------------------------
-
-            ImVec2 const viewportImageCursorPos = ImGui::GetCursorPos();
-            ImGui::Image( viewportInfo.m_pViewportRenderTargetTexture, viewportSize );
-
-            if ( ImGui::BeginDragDropTarget() )
-            {
-                if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( "ResourceFile", ImGuiDragDropFlags_AcceptBeforeDelivery ) )
-                {
-                    if ( payload->IsDelivery() )
-                    {
-                        InlineString payloadStr = (char*) payload->Data;
-
-                        ResourceID const resourceID( payloadStr.c_str() );
-                        if ( resourceID.IsValid() && m_pToolsContext->m_pResourceDatabase->DoesResourceExist( resourceID ) )
-                        {
-                            // Unproject mouse into viewport
-                            Vector const nearPointWS = pViewport->ScreenSpaceToWorldSpaceNearPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
-                            Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
-                            Vector worldPosition = Vector::Zero;
-
-                            EE_UNIMPLEMENTED_FUNCTION();
-                            //// Raycast against the environmental collision
-                            //Physics::RayCastResults results;
-                            //Physics::QueryFilter filter( Physics::CreateLayerMask( Physics::Layers::Environment ) );
-                            //Physics::PhysicsWorld* pPhysicsWorld = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>()->GetScene();
-                            //pPhysicsWorld->AcquireReadLock();
-                            //if ( pPhysicsWorld->RayCast( nearPointWS, farPointWS, filter, results ) )
-                            //{
-                            //    worldPosition = results.GetHitPosition();
-                            //}
-                            //else // Arbitrary position
-                            //{
-                            //    worldPosition = nearPointWS + ( ( farPointWS - nearPointWS ).GetNormalized3() * 10.0f );
-                            //}
-                            //pPhysicsWorld->ReleaseReadLock();
-
-                            // Notify workspace of a resource drag and drop operation
-                            DropResourceInViewport( resourceID, worldPosition );
-                        }
-                    }
-                }
-                else // Generic drag and drop notification
-                {
-                    OnDragAndDropIntoViewport( pViewport );
-                }
-
-                ImGui::EndDragDropTarget();
-            }
-
-            // Draw overlay elements
-            //-------------------------------------------------------------------------
-
-            ImGui::SetCursorPos( style.WindowPadding );
-            DrawViewportOverlayElements( context, pViewport );
-
-            if ( HasViewportOrientationGuide() )
-            {
-                ImGuiX::OrientationGuide::Draw( ImGui::GetWindowPos() + viewportSize - ImVec2( ImGuiX::OrientationGuide::GetWidth() + 4, ImGuiX::OrientationGuide::GetWidth() + 4 ), *pViewport );
-            }
-
-            // Draw viewport toolbar
-            //-------------------------------------------------------------------------
-
-            ImGui::SetCursorPos( ImGui::GetWindowContentRegionMin() + ImGui::GetStyle().ItemSpacing );
-            DrawViewportToolbar( context, pViewport );
-
-            // Handle picking
-            //-------------------------------------------------------------------------
-
-            if ( m_isViewportHovered && !ImGui::IsAnyItemHovered() )
-            {
-                if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
-                {
-                    ImVec2 const mousePos = ImGui::GetMousePos();
-                    if ( mousePos.x != FLT_MAX && mousePos.y != FLT_MAX )
-                    {
-                        ImVec2 const mousePosWithinViewportImage = ( mousePos - windowPos ) - viewportImageCursorPos;
-                        Int2 const pixelCoords = Int2( Math::RoundToInt( mousePosWithinViewportImage.x ), Math::RoundToInt( mousePosWithinViewportImage.y ) );
-                        Render::PickingID const pickingID = viewportInfo.m_retrievePickingID( pixelCoords );
-                        OnMousePick( pickingID );
-                    }
-                }
-            }
-
-            // Handle being docked
-            //-------------------------------------------------------------------------
-
-            if ( auto pDockNode = ImGui::GetWindowDockNode() )
-            {
-                pDockNode->LocalFlags = 0;
-                pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverMe;
-                pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
-            }
-        }
-        ImGui::End();
-
+        // Switch focus based on mouse input
         //-------------------------------------------------------------------------
 
-        return m_isViewportFocused;
+        if ( m_isViewportHovered )
+        {
+            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) || ImGui::IsMouseClicked( ImGuiMouseButton_Middle ) )
+            {
+                ImGui::SetWindowFocus();
+                m_isViewportFocused = true;
+            }
+        }
+
+        // Update engine viewport dimensions
+        //-------------------------------------------------------------------------
+
+        auto pWorld = GetWorld();
+        Math::Rectangle const viewportRect( Float2::Zero, viewportSize );
+        Render::Viewport* pEngineViewport = pWorld->GetViewport();
+        pEngineViewport->Resize( viewportRect );
+
+        // Draw 3D scene
+        //-------------------------------------------------------------------------
+
+        ImVec2 const viewportImageCursorPos = ImGui::GetCursorPos();
+        ImGui::Image( viewportInfo.m_pViewportRenderTargetTexture, viewportSize );
+
+        if ( ImGui::BeginDragDropTarget() )
+        {
+            if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( "ResourceFile", ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+            {
+                if ( payload->IsDelivery() )
+                {
+                    InlineString payloadStr = (char*) payload->Data;
+
+                    ResourceID const resourceID( payloadStr.c_str() );
+                    if ( resourceID.IsValid() && m_pToolsContext->m_pResourceDatabase->DoesResourceExist( resourceID ) )
+                    {
+                        // Unproject mouse into viewport
+                        Vector const nearPointWS = pEngineViewport->ScreenSpaceToWorldSpaceNearPlane( ImGui::GetMousePos() - windowPos );
+                        Vector const farPointWS = pEngineViewport->ScreenSpaceToWorldSpaceFarPlane( ImGui::GetMousePos() - windowPos );
+                        Vector worldPosition = Vector::Zero;
+
+                        // Raycast against the environmental collision
+                        Physics::RayCastResults results;
+                        Physics::QueryRules rules;
+                        rules.SetCollidesWith( Physics::CollisionCategory::Environment );
+                        Physics::PhysicsWorld* pPhysicsWorld = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>()->GetWorld();
+                        pPhysicsWorld->AcquireReadLock();
+                        if ( pPhysicsWorld->RayCast( nearPointWS, farPointWS, rules, results ) )
+                        {
+                            worldPosition = results.GetFirstHitPosition();
+                        }
+                        else // Arbitrary position
+                        {
+                            worldPosition = nearPointWS + ( ( farPointWS - nearPointWS ).GetNormalized3() * 10.0f );
+                        }
+                        pPhysicsWorld->ReleaseReadLock();
+
+                        // Notify workspace of a resource drag and drop operation
+                        DropResourceInViewport( resourceID, worldPosition );
+                    }
+                }
+            }
+            else // Generic drag and drop notification
+            {
+                OnDragAndDropIntoViewport( pEngineViewport );
+            }
+
+            ImGui::EndDragDropTarget();
+        }
+
+        // Draw overlay elements
+        //-------------------------------------------------------------------------
+
+        ImGuiStyle const& style = ImGui::GetStyle();
+        ImGui::SetCursorPos( style.WindowPadding );
+        DrawViewportOverlayElements( context, pEngineViewport );
+
+        if ( HasViewportOrientationGuide() )
+        {
+            ImGuiX::OrientationGuide::Draw( windowPos + viewportSize - ImVec2( ImGuiX::OrientationGuide::GetWidth() + 4, ImGuiX::OrientationGuide::GetWidth() + 4 ), *pEngineViewport );
+        }
+
+        // Draw viewport toolbar
+        //-------------------------------------------------------------------------
+
+        ImGui::SetCursorPos( ImGui::GetWindowContentRegionMin() + style.ItemSpacing );
+        DrawViewportToolbar( context, pEngineViewport );
+
+        // Handle picking
+        //-------------------------------------------------------------------------
+
+        if ( m_isViewportHovered && !ImGui::IsAnyItemHovered() )
+        {
+            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+            {
+                ImVec2 const mousePos = ImGui::GetMousePos();
+                if ( mousePos.x != FLT_MAX && mousePos.y != FLT_MAX )
+                {
+                    ImVec2 const mousePosWithinViewportImage = ( mousePos - windowPos ) - viewportImageCursorPos;
+                    Int2 const pixelCoords = Int2( Math::RoundToInt( mousePosWithinViewportImage.x ), Math::RoundToInt( mousePosWithinViewportImage.y ) );
+                    Render::PickingID const pickingID = viewportInfo.m_retrievePickingID( pixelCoords );
+                    OnMousePick( pickingID );
+                }
+            }
+        }
+
+        // Handle being docked
+        //-------------------------------------------------------------------------
+
+        if ( auto pDockNode = ImGui::GetWindowDockNode() )
+        {
+            pDockNode->LocalFlags = 0;
+            pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverMe;
+            pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -873,19 +863,18 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Workspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
-    {
-        if ( m_pDescriptorPropertyGrid != nullptr )
-        {
-            m_pDescriptorPropertyGrid->MarkDirty();
-        }
-    }
-
     void Workspace::Undo()
     {
         PreUndoRedo( UndoStack::Operation::Undo );
         auto pAction = m_undoStack.Undo();
         PostUndoRedo( UndoStack::Operation::Undo, pAction );
+
+        if ( m_pDescriptorPropertyGrid != nullptr )
+        {
+            m_pDescriptorPropertyGrid->MarkDirty();
+        }
+
+        MarkDirty();
     }
 
     void Workspace::Redo()
@@ -893,6 +882,13 @@ namespace EE
         PreUndoRedo( UndoStack::Operation::Redo );
         auto pAction = m_undoStack.Redo();
         PostUndoRedo( UndoStack::Operation::Redo, pAction );
+
+        if ( m_pDescriptorPropertyGrid != nullptr )
+        {
+            m_pDescriptorPropertyGrid->MarkDirty();
+        }
+
+        MarkDirty();
     }
 
     //-------------------------------------------------------------------------
@@ -1030,66 +1026,36 @@ namespace EE
         m_pDescriptorPropertyGrid->SetTypeToEdit( m_pDescriptor );
     }
 
-    bool Workspace::DrawDescriptorEditorWindow( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isSeparateWindow )
+    void Workspace::DrawDescriptorEditorWindow( UpdateContext const& context, bool isFocused )
     {
         EE_ASSERT( IsADescriptorWorkspace() );
         EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
 
-        bool hasFocus = false;
-        ImGui::SetNextWindowClass( pWindowClass );
-        ImGui::SetNextWindowSize( ImVec2( 800, 600 ), ImGuiCond_FirstUseEver );
-        if ( ImGui::Begin( m_descriptorWindowName.c_str(), isSeparateWindow ? &m_showDescriptorEditor : nullptr ) )
+        if ( m_pDescriptor == nullptr )
         {
-            if ( !isSeparateWindow )
-            {
-                if ( auto pDockNode = ImGui::GetWindowDockNode() )
-                {
-                    pDockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( m_pDescriptor == nullptr )
-            {
-                ImGui::Text( "Failed to load descriptor!" );
-            }
-            else
-            {
-                if ( !isSeparateWindow )
-                {
-                    ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
-                    ImGui::Text( "Descriptor: %s", m_descriptorID.c_str() );
-
-                    ImGui::BeginDisabled( !m_pDescriptorPropertyGrid->IsDirty() );
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::ForestGreen, ImGuiX::ImColors::White, EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
-                    {
-                        Save();
-                    }
-                    ImGui::EndDisabled();
-                }
-
-                m_pDescriptorPropertyGrid->DrawGrid();
-            }
-
-            hasFocus = ImGui::IsWindowFocused( ImGuiFocusedFlags_RootAndChildWindows );
+            ImGui::Text( "Failed to load descriptor!" );
         }
-        ImGui::End();
+        else
+        {
+            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
+            ImGui::Text( "Descriptor: %s", m_descriptorID.c_str() );
 
-        return hasFocus;
+            ImGui::BeginDisabled( !m_pDescriptorPropertyGrid->IsDirty() );
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::ForestGreen, ImGuiX::ImColors::White, EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
+            {
+                Save();
+            }
+            ImGui::EndDisabled();
+
+            m_pDescriptorPropertyGrid->DrawGrid();
+        }
+
+        m_isDescriptorWindowFocused = isFocused;
     }
 
     //-------------------------------------------------------------------------
 
-    void Workspace::Update( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
-    {
-        if ( m_showDescriptorEditor )
-        {
-            DrawDescriptorEditorWindow( context, pWindowClass, true );
-        }
-    }
-
-    void Workspace::CommonUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass, bool isFocused )
+    void Workspace::SharedUpdate( UpdateContext const& context, bool isFocused )
     {
         if ( isFocused )
         {
@@ -1196,7 +1162,7 @@ namespace EE
             auto pDefaultInstance = Cast<Resource::ResourceDescriptor>( pResourceDescriptorTypeInfo->GetDefaultInstance() );
             if ( pDefaultInstance->GetCompiledResourceTypeID() == resourceID.GetResourceTypeID() )
             {
-                return EE::New<Workspace>( pToolsContext, pWorld, resourceID );
+                return EE::New<GenericWorkspace>( pToolsContext, pWorld, resourceID );
             }
         }
 

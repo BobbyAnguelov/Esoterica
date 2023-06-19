@@ -173,6 +173,11 @@ namespace EE::ImGuiX
 
     void ImguiSystem::StartFrame( float deltaTime )
     {
+        // Style Test
+        Style::Apply();
+
+        //-------------------------------------------------------------------------
+
         ImGuiIO& io = ImGui::GetIO();
         io.DeltaTime = deltaTime;
         PlatformNewFrame();

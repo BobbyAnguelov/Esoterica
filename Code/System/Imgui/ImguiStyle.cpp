@@ -108,11 +108,11 @@ namespace EE::ImGuiX
         // Style
         //-------------------------------------------------------------------------
 
-        style.FramePadding = ImVec2( 4, 4 );
-        style.WindowPadding = ImVec2( 4, 4 );
+        style.FramePadding = ImVec2( 6, 6 );
+        style.WindowPadding = ImVec2( 8, 8 );
         style.ChildBorderSize = 0.0f;
         style.TabBorderSize = 1.0f;
-        style.GrabRounding = 2.0f;
+        style.GrabRounding = 0.0f;
         style.GrabMinSize = 8.0f;
         style.WindowRounding = 0.0f;
         style.WindowBorderSize = 0.0f;
@@ -120,7 +120,8 @@ namespace EE::ImGuiX
         style.IndentSpacing = 8;
         style.ItemSpacing = ImVec2( 4, 6 );
         style.TabRounding = 6.0f;
-        style.ScrollbarSize = 18.0f;
+        style.ScrollbarSize = 20.0f;
+        style.ScrollbarRounding = 0.0f;
         style.CellPadding = ImVec2( 4, 6 );
     }
 

@@ -11,7 +11,6 @@ namespace EE::Animation
         {
             Colors::GhostWhite,
             Colors::PaleGreen,
-            Colors::Violet,
             Colors::LightSkyBlue,
             Colors::CornflowerBlue,
             Colors::DeepSkyBlue,
@@ -37,12 +36,6 @@ namespace EE::Animation
             case GraphValueType::ID:
             {
                 return "ID";
-            }
-            break;
-
-            case GraphValueType::Int:
-            {
-                return "Int";
             }
             break;
 

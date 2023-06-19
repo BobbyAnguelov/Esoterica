@@ -22,6 +22,7 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 
@@ -66,6 +67,7 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 
@@ -96,6 +98,7 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_eventID ); }
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_eventID == oldID ) { VisualGraph::ScopedNodeModification snm( this ); m_eventID = newID; } }
 
     private:
 
@@ -224,6 +227,7 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_markerIDToMatch ); }
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_markerIDToMatch == oldID ) { VisualGraph::ScopedNodeModification snm( this ); m_markerIDToMatch = newID; } }
 
     private:
 

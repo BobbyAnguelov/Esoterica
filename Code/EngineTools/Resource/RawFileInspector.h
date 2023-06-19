@@ -18,7 +18,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    class RawFileInspector
+    class EE_ENGINETOOLS_API RawFileInspector
     {
     public:
 
@@ -72,7 +72,7 @@ namespace EE::Resource
     //-------------------------------------------------------------------------
     // Used to spawn the appropriate factory
 
-    class RawFileInspectorFactory : public TGlobalRegistryBase<RawFileInspectorFactory>
+    class EE_ENGINETOOLS_API RawFileInspectorFactory : public TGlobalRegistryBase<RawFileInspectorFactory>
     {
         EE_DECLARE_GLOBAL_REGISTRY( RawFileInspectorFactory );
 

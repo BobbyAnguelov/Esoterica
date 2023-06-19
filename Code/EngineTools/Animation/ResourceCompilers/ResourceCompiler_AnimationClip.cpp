@@ -199,6 +199,11 @@ namespace EE::Animation
         {
             rawAnimData.MakeAdditiveRelativeToSkeleton();
         }
+        else if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToFrame )
+        {
+            int32_t const baseFrameIdx = Math::Clamp( (int32_t) resourceDescriptor.m_additiveBaseFrameIndex, 0, rawAnimData.GetNumFrames() - 1 );
+            rawAnimData.MakeAdditiveRelativeToFrame( baseFrameIdx );
+        }
         else if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToAnimationClip )
         {
             AnimationClipResourceDescriptor baseAnimResourceDescriptor;
