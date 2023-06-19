@@ -118,7 +118,6 @@
     <ClCompile Include="Core\VisualGraph\VisualGraph_UserContext.cpp" />
     <ClCompile Include="Core\ToolsContext.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp" />
-    <ClCompile Include="Entity\EntityEditor\EntityStructureEditor.cpp" />
     <ClCompile Include="Entity\Workspaces\Workspace_EntityEditor.cpp" />
     <ClCompile Include="Entity\EntitySerializationTools.cpp" />
     <ClCompile Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.cpp" />
@@ -236,7 +235,6 @@
     <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
     <ClInclude Include="Core\VisualGraph\VisualGraph_UserContext.h" />
-    <ClInclude Include="Entity\EntityEditor\EntityStructureEditor.h" />
     <ClInclude Include="Entity\Workspaces\Workspace_EntityEditor.h" />
     <ClInclude Include="Entity\EntitySerializationTools.h" />
     <ClInclude Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.h" />

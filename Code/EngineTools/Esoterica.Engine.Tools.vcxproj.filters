@@ -250,9 +250,6 @@
     <ClCompile Include="Entity\Workspaces\Workspace_MapEditor.cpp">
       <Filter>Entity\Workspaces</Filter>
     </ClCompile>
-    <ClCompile Include="Entity\EntityEditor\EntityStructureEditor.cpp">
-      <Filter>Entity\EntityEditor</Filter>
-    </ClCompile>
     <ClCompile Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.cpp">
       <Filter>Entity\ResourceCompilers</Filter>
     </ClCompile>
@@ -629,9 +626,6 @@
     </ClInclude>
     <ClInclude Include="Entity\Workspaces\Workspace_MapEditor.h">
       <Filter>Entity\Workspaces</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityEditor\EntityStructureEditor.h">
-      <Filter>Entity\EntityEditor</Filter>
     </ClInclude>
     <ClInclude Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.h">
       <Filter>Entity\ResourceCompilers</Filter>
