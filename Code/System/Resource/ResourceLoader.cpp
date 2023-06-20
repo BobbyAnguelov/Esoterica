@@ -1,7 +1,7 @@
 #include "ResourceLoader.h"
 #include "ResourceHeader.h"
 #include "System/Serialization/BinarySerialization.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

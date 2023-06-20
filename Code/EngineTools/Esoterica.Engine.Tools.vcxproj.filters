@@ -157,7 +157,7 @@
     <ClCompile Include="Core\PropertyGrid\PropertyGrid.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
-    <ClCompile Include="Core\Helpers\CommonDialogs.cpp">
+    <ClCompile Include="Core\CommonDialogs.cpp">
       <Filter>Core\Helpers</Filter>
     </ClCompile>
     <ClCompile Include="Core\Widgets\CurveEditor.cpp">
@@ -504,13 +504,10 @@
     <ClInclude Include="Core\PropertyGrid\PropertyGrid.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Helpers\SkeletonHelpers.h">
+    <ClInclude Include="Core\CategoryTree.h">
       <Filter>Core\Helpers</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Helpers\CategoryTree.h">
-      <Filter>Core\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Helpers\CommonDialogs.h">
+    <ClInclude Include="Core\CommonDialogs.h">
       <Filter>Core\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="Core\Widgets\CurveEditor.h">

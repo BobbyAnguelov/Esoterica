@@ -36,7 +36,7 @@ namespace EE::CPP
 
         file << "\n";
         file << "//-------------------------------------------------------------------------\n";
-        file << "// Enum Helper: " << type.m_namespace.c_str() << type.m_name.c_str() << "\n";
+        file << "// Enum Info: " << type.m_namespace.c_str() << type.m_name.c_str() << "\n";
         file << "//-------------------------------------------------------------------------\n\n";
 
         if ( type.m_isDevOnly )

@@ -1,5 +1,5 @@
 #include "EntityDescriptors.h"
-#include "System/Log.h"
+
 #include "Entity.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/Profiling.h"

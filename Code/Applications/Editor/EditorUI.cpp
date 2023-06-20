@@ -1,5 +1,6 @@
 #include "EditorUI.h"
 #include "RenderingSystem.h"
+#include "EngineTools/Resource/RawFileInspector.h"
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
@@ -15,7 +16,7 @@
 #include "System/Resource/ResourceSettings.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/ThirdParty/implot/implot.h"
-#include "EngineTools/Resource/RawFileInspector.h"
+#include "System/Logging/LoggingSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -413,7 +414,7 @@ namespace EE
         // Handle Warnings/Errors
         //-------------------------------------------------------------------------
 
-        auto const unhandledWarningsAndErrors = Log::GetUnhandledWarningsAndErrors();
+        auto const unhandledWarningsAndErrors = Log::System::GetUnhandledWarningsAndErrors();
         if ( !unhandledWarningsAndErrors.empty() )
         {
             m_isSystemLogWindowOpen = true;

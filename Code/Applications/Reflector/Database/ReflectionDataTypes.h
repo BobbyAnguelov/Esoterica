@@ -40,7 +40,7 @@ namespace EE::TypeSystem::Reflection
         inline bool operator==( ReflectedProperty const& RHS ) const { return m_propertyID == RHS.m_propertyID; }
         inline bool operator!=( ReflectedProperty const& RHS ) const { return m_propertyID != RHS.m_propertyID; }
 
-        // Dev tools helpers
+        // Dev Info
         //-------------------------------------------------------------------------
 
         String GetFriendlyName() const;

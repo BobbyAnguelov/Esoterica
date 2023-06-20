@@ -1,7 +1,7 @@
 #include "TypeDescriptors.h"
 #include "TypeRegistry.h"
 #include "System/Math/Math.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

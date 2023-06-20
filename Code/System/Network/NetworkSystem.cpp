@@ -1,5 +1,5 @@
 #include "NetworkSystem.h"
-#include "System/Log.h"
+
 #include "System/Threading/Threading.h"
 
 #include <steam/steamnetworkingsockets.h>

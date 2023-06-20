@@ -6,7 +6,7 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "System/Imgui/ImguiX.h"
-#include "System/Math/MathStringHelpers.h"
+#include "System/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

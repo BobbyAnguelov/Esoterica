@@ -1,7 +1,6 @@
 #pragma once
 
 #include "EngineTools/Core/Workspace.h"
-#include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 #include "System/Imgui/ImguiX.h"
 
@@ -15,6 +14,26 @@ namespace EE::Render
 
     class SkeletalMeshWorkspace : public TWorkspace<SkeletalMesh>
     {
+
+        struct BoneInfo
+        {
+            inline void DestroyChildren()
+            {
+                for ( auto& pChild : m_children )
+                {
+                    pChild->DestroyChildren();
+                    EE::Delete( pChild );
+                }
+
+                m_children.clear();
+            }
+
+        public:
+
+            int32_t                         m_boneIdx;
+            TInlineVector<BoneInfo*, 5>     m_children;
+            bool                            m_isExpanded = true;
+        };
 
     public:
 

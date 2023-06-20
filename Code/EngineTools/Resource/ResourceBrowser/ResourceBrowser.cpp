@@ -7,9 +7,9 @@
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/Profiling.h"
-#include "System/Platform/PlatformHelpers_Win32.h"
+#include "System/Platform/PlatformUtils_Win32.h"
 #include <eastl/sort.h>
-#include "EngineTools/Core/Helpers/CommonDialogs.h"
+#include "EngineTools/Core/CommonDialogs.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 
 //-------------------------------------------------------------------------

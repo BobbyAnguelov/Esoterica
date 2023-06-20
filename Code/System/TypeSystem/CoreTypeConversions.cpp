@@ -13,7 +13,7 @@
 #include "System/Math/Transform.h"
 #include "System/Math/FloatCurve.h"
 #include "System/Math/NumericRange.h"
-#include "System/Log.h"
+
 #include "EnumInfo.h"
 
 //-------------------------------------------------------------------------

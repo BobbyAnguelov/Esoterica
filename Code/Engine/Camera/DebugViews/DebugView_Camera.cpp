@@ -7,7 +7,7 @@
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Math/MathStringHelpers.h"
+#include "System/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

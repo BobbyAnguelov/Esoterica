@@ -1,11 +1,11 @@
 #include "ApplicationGlobalState.h"
 #include "System/TypeSystem/CoreTypeIDs.h"
-#include "System/CrashHandler/CrashHandler.h"
 #include "System/Memory/Memory.h"
 #include "System/Types/StringID.h"
 #include "System/Profiling.h"
 #include "System/Threading/Threading.h"
-#include "System/Log.h"
+#include "System/Logging/LoggingSystem.h"
+#include "System/Platform/Platform.h"
 
 //-------------------------------------------------------------------------
 
@@ -20,40 +20,31 @@ namespace EE
 
     ApplicationGlobalState::ApplicationGlobalState( char const* pMainThreadName )
     {
-        EE_ASSERT( !g_platformInitialized );
+        EE_ASSERT( !g_platformInitialized ); // Prevent multiple calls to initialize
 
-        CrashHandling::Initialize();
-
-        // Initialize memory and threading subsystems
         //-------------------------------------------------------------------------
 
+        Platform::Initialize();
         Memory::Initialize();
         Threading::Initialize( ( pMainThreadName != nullptr ) ? pMainThreadName : "Main Thread" );
-
-        Log::Initialize();
-
+        Log::System::Initialize();
         TypeSystem::CoreTypeRegistry::Initialize();
 
         g_platformInitialized = true;
-        m_primaryState = true;
+        m_initialized = true;
     }
 
     ApplicationGlobalState::~ApplicationGlobalState()
     {
-        if ( m_primaryState )
-        {
-            EE_ASSERT( g_platformInitialized );
-            g_platformInitialized = false;
-            m_primaryState = false;
+        EE_ASSERT( m_initialized );
+        EE_ASSERT( g_platformInitialized );
+        g_platformInitialized = false;
+        m_initialized = false;
 
-            TypeSystem::CoreTypeRegistry::Shutdown();
-
-            Log::Shutdown();
-
-            Threading::Shutdown();
-            Memory::Shutdown();
-        }
-
-        CrashHandling::Shutdown();
+        TypeSystem::CoreTypeRegistry::Shutdown();
+        Log::System::Shutdown();
+        Threading::Shutdown();
+        Memory::Shutdown();
+        Platform::Shutdown();
     }
 }

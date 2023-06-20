@@ -1,5 +1,6 @@
 #include "Physics.h"
 #include "omnipvd/PxOmniPvd.h"
+#include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 

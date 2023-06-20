@@ -2,7 +2,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
-#include "System/Math/MathStringHelpers.h"
+#include "System/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

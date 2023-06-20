@@ -132,7 +132,7 @@ namespace EE::Animation
         }
     }
 
-    void ToolsGraphDefinition::ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<Log::LogEntry>* pOptionalOutputLog )
+    void ToolsGraphDefinition::ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<String>* pOptionalOutputLog )
     {
         auto pOtherRootGraph = otherGraphDefinition.m_pRootGraph;
         auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
@@ -204,9 +204,7 @@ namespace EE::Animation
                     GraphNodes::ControlParameterToolsNode::Create( pRootGraph, type, parameterName, parameterCategory );
                     if ( pOptionalOutputLog != nullptr )
                     {
-                        Log::LogEntry& logEntry = pOptionalOutputLog->emplace_back();
-                        logEntry.m_severity = Log::Severity::Message;
-                        logEntry.m_message.sprintf( "Parameter Added: %s", parameterName.c_str() );
+                        pOptionalOutputLog->emplace_back( String::CtorSprintf(), "Parameter Added: %s", parameterName.c_str() );
                     }
                 }
                 break;
@@ -215,9 +213,7 @@ namespace EE::Animation
                 {
                     if ( pOptionalOutputLog != nullptr )
                     {
-                        Log::LogEntry& logEntry = pOptionalOutputLog->emplace_back();
-                        logEntry.m_severity = Log::Severity::Message;
-                        logEntry.m_message.sprintf( "Parameter Exists with Incorrect Case: %s\n", parameterName.c_str() );
+                        pOptionalOutputLog->emplace_back( String::CtorSprintf(), "Parameter Exists with Incorrect Case: %s\n", parameterName.c_str() );
                     }
                 }
                 break;
@@ -226,9 +222,7 @@ namespace EE::Animation
                 {
                     if ( pOptionalOutputLog != nullptr )
                     {
-                        Log::LogEntry& logEntry = pOptionalOutputLog->emplace_back();
-                        logEntry.m_severity = Log::Severity::Message;
-                        logEntry.m_message.sprintf( "Parameter Exists with Incorrect Type: %s\n", parameterName.c_str() );
+                        pOptionalOutputLog->emplace_back( String::CtorSprintf(), "Parameter Exists with Incorrect Type: %s\n", parameterName.c_str() );
                     }
                 }
                 break;

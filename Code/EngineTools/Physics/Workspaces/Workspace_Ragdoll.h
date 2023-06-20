@@ -2,7 +2,6 @@
 
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsRagdoll.h"
 #include "EngineTools/Core/Workspace.h"
-#include "EngineTools/Core/Helpers/SkeletonHelpers.h"
 #include "EngineTools/Resource/ResourcePicker.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
@@ -20,6 +19,26 @@ namespace EE::Physics
         friend class ScopedRagdollSettingsModification;
 
         //-------------------------------------------------------------------------
+
+        struct BoneInfo
+        {
+            inline void DestroyChildren()
+            {
+                for ( auto& pChild : m_children )
+                {
+                    pChild->DestroyChildren();
+                    EE::Delete( pChild );
+                }
+
+                m_children.clear();
+            }
+
+        public:
+
+            int32_t                         m_boneIdx;
+            TInlineVector<BoneInfo*, 5>     m_children;
+            bool                            m_isExpanded = true;
+        };
 
         enum class Mode
         {

@@ -4,8 +4,8 @@
 #include "System/Profiling.h"
 #include "System/Drawing/DebugDrawing.h"
 #include "System/Imgui/ImguiX.h"
-#include "System/Math/MathStringHelpers.h"
-#include "System/Math/MathHelpers.h"
+#include "System/Math/MathUtils.h"
+#include "System/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

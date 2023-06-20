@@ -1,7 +1,7 @@
 #include "TypeSerialization.h"
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/TypeSystem/TypeInfo.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

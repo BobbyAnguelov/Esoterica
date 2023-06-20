@@ -8,7 +8,7 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
-#include "System/Math/MathStringHelpers.h"
+#include "System/Math/MathUtils.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 
 //-------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #include "Workspace_MapEditor.h"
 #include "EngineTools/Navmesh/NavmeshGeneratorDialog.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
-#include "EngineTools/Core/Helpers/CommonDialogs.h"
+#include "EngineTools/Core/CommonDialogs.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Entity/EntityWorld.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Matrix.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 // VQS Transform

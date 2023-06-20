@@ -6,7 +6,7 @@
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "System/Drawing/DebugDrawingSystem.h"
 #include "System/Input/InputSystem.h"
-#include "System/Math/MathHelpers.h"
+#include "System/Math/MathUtils.h"
 #include "System/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UUID.h"
-#include "System/Log.h"
+
 #include <EASTL/functional.h>
 
 //-------------------------------------------------------------------------

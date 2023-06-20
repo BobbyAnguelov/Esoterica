@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/Core/Widgets/TreeListView.h"
-#include "EngineTools/Core/Helpers/CategoryTree.h"
+#include "EngineTools/Core/CategoryTree.h"
 #include "System/Resource/ResourceTypeID.h"
 
 //-------------------------------------------------------------------------

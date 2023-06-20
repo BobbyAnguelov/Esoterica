@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Log.h"
+
 #include "EntityIDs.h"
 #include "System/Types/Containers_ForwardDecl.h"
 

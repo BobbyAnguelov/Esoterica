@@ -5,7 +5,7 @@
 #include "EngineTools/Resource/ResourcePicker.h"
 #include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_View.h"
-#include "EngineTools/Core/Helpers/CategoryTree.h"
+#include "EngineTools/Core/CategoryTree.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "System/Time/Timers.h"

@@ -5,7 +5,7 @@
 #include "Engine/Entity/EntityLog.h"
 #include "System/Encoding/Hash.h"
 #include "System/Types/StringID.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 // Animation Graph Controller

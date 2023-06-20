@@ -1,6 +1,6 @@
 #include "ResourceSettings.h"
 #include "System/IniFile.h"
-#include "System/Log.h"
+
 #include "System/FileSystem/FileSystemUtils.h"
 
 //-------------------------------------------------------------------------

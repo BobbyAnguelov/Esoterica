@@ -2,7 +2,7 @@
 #include "System/FileSystem/FileSystem.h"
 #include "System/Profiling.h"
 #include "System/Threading/Threading.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

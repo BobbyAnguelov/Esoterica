@@ -9,7 +9,7 @@
 //-------------------------------------------------------------------------
 
 #ifdef _WIN32
-#include "System/Platform/PlatformHelpers_Win32.h"
+#include "System/Platform/PlatformUtils_Win32.h"
 #endif
 
 //-------------------------------------------------------------------------

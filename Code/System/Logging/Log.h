@@ -1,14 +1,12 @@
 #pragma once
 
 #include "System/_Module/API.h"
-#include "System/Types/String.h"
-#include "System/Types/Arrays.h"
+#include <stdarg.h>
 
 //-------------------------------------------------------------------------
-
-namespace EE::FileSystem { class Path; }
-
+// This is the global logging API included throughout the entire engine
 //-------------------------------------------------------------------------
+// If you want access to the logging system and the engine log include "LoggingSystem.h"
 
 namespace EE::Log
 {
@@ -20,50 +18,22 @@ namespace EE::Log
         FatalError,
     };
 
-    EE_SYSTEM_API char const* GetSeverityAsString( Severity severity );
-
-    struct LogEntry
-    {
-        String      m_timestamp;
-        String      m_category;
-        String      m_sourceInfo; // Extra optional information about the source of the log
-        String      m_message;
-        String      m_filename;
-        uint32_t    m_lineNumber;
-        Severity    m_severity;
-    };
-
-    // Lifetime
-    //-------------------------------------------------------------------------
-
-    EE_SYSTEM_API void Initialize();
-    EE_SYSTEM_API void Shutdown();
-    EE_SYSTEM_API bool IsInitialized();
-
     // Logging
     //-------------------------------------------------------------------------
 
     EE_SYSTEM_API void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
     EE_SYSTEM_API void AddEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
-    EE_SYSTEM_API TVector<LogEntry> const& GetLogEntries();
-    EE_SYSTEM_API int32_t GetNumWarnings();
-    EE_SYSTEM_API int32_t GetNumErrors();
 
-    // Output
+    // Asserts
     //-------------------------------------------------------------------------
 
-    EE_SYSTEM_API void SetLogFilePath( FileSystem::Path const& logFilePath );
-    EE_SYSTEM_API void SaveToFile();
+    EE_SYSTEM_API void LogAssert( char const* pFile, int line, char const* pAssertInfo );
+    EE_SYSTEM_API void LogAssertVarArgs( char const* pFile, int line, char const* pAssertInfoFormat, ... );
 
-    // Warnings and errors
+    // Trace to Output Log
     //-------------------------------------------------------------------------
 
-    EE_SYSTEM_API bool HasFatalErrorOccurred();
-    EE_SYSTEM_API LogEntry const& GetFatalError();
-
-    // Transfers a list of unhandled warnings and errors - useful for displaying all errors for a given frame.
-    // Calling this function will clear the list of warnings and errors.
-    EE_SYSTEM_API TVector<LogEntry> GetUnhandledWarningsAndErrors();
+    EE_SYSTEM_API void TraceMessage( const char* format, ... );
 }
 
 //-------------------------------------------------------------------------

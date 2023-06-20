@@ -4,7 +4,7 @@
 #include "CodeGenerators/CodeGenerator_CPP.h"
 #include "System/Application/ApplicationGlobalState.h"
 #include "System/ThirdParty/cmdParser/cmdParser.h"
-#include "System/Log.h"
+
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/Time/Timers.h"
 #include "System/Utils/TopologicalSort.h"

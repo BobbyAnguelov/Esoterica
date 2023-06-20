@@ -7,7 +7,7 @@
 #include "System/Resource/ResourceSettings.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/IniFile.h"
-#include "System/Log.h"
+
 
 #include <windows.h>
 #include <iostream>

@@ -1,7 +1,7 @@
 #include "PackagedResourceProvider.h"
 #include "System/Resource/ResourceRequest.h"
 #include "System/Resource/ResourceSettings.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

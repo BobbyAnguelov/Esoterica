@@ -3,7 +3,7 @@
 #include "ResourceDescriptor.h"
 #include "System/Resource/ResourceHeader.h"
 #include "System/TypeSystem/ReflectedType.h"
-#include "System/Log.h"
+
 #include "System/Types/Function.h"
 
 //-------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #include "FileSystemWatcher.h"
 #include "System/FileSystem/FileSystem.h"
-#include "System/Log.h"
-#include "System/Platform/PlatformHelpers_Win32.h"
+
+#include "System/Platform/PlatformUtils_Win32.h"
 
 //-------------------------------------------------------------------------
 

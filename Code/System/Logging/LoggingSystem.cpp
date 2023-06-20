@@ -1,4 +1,4 @@
-#include "Log.h"
+#include "LoggingSystem.h"
 #include "System/Threading/Threading.h"
 #include "System/FileSystem/FileSystem.h"
 #include "System/FileSystem/FileStreams.h"
@@ -36,34 +36,118 @@ namespace EE::Log
 
     //-------------------------------------------------------------------------
 
-    void Initialize()
+    void System::Initialize()
     {
         EE_ASSERT( g_pLog == nullptr );
         g_pLog = EE::New<LogData>();
     }
 
-    void Shutdown()
+    void System::Shutdown()
     {
         EE_ASSERT( g_pLog != nullptr );
         EE::Delete( g_pLog );
     }
 
-    bool IsInitialized()
+    bool System::IsInitialized()
     {
         return g_pLog != nullptr;
     }
 
     //-------------------------------------------------------------------------
 
-    TVector<EE::Log::LogEntry> const& GetLogEntries()
+    TVector<EE::Log::LogEntry> const& System::GetLogEntries()
     {
         EE_ASSERT( IsInitialized() );
         return g_pLog->m_logEntries;
     }
 
-    void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
+    //-------------------------------------------------------------------------
+
+    void System::SetLogFilePath( FileSystem::Path const& logFilePath )
     {
         EE_ASSERT( IsInitialized() );
+        g_pLog->m_logPath = logFilePath;
+    }
+
+    void System::SaveToFile()
+    {
+        EE_ASSERT( IsInitialized() );
+
+        if ( !g_pLog->m_logPath.IsValid() || !g_pLog->m_logPath.IsFilePath() )
+        {
+            return;
+        }
+
+        g_pLog->m_logPath.EnsureDirectoryExists();
+
+        String logData;
+        InlineString logLine;
+
+        std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
+        for ( auto const& entry : g_pLog->m_logEntries )
+        {
+            if ( entry.m_sourceInfo.empty() )
+            {
+                logLine.sprintf( "[%s] %s >>> %s: %s, File: %s, %d\r\n", entry.m_timestamp.c_str(), entry.m_category.c_str(), g_severityLabels[(int32_t) entry.m_severity], entry.m_message.c_str(), entry.m_filename.c_str(), entry.m_lineNumber );
+            }
+            else
+            {
+                logLine.sprintf( "[%s] %s >>> %s: %s, Source: %s, File: %s, %d\r\n", entry.m_timestamp.c_str(), entry.m_category.c_str(), g_severityLabels[(int32_t) entry.m_severity], entry.m_message.c_str(), entry.m_sourceInfo.c_str(), entry.m_filename.c_str(), entry.m_lineNumber );
+            }
+
+            logData.append( logLine.c_str() );
+        }
+
+        FileSystem::OutputFileStream logFile( g_pLog->m_logPath );
+        logFile.Write( (void*) logData.data(), logData.size() );
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool System::HasFatalErrorOccurred()
+    {
+        EE_ASSERT( IsInitialized() );
+        return g_pLog->m_fatalErrorIndex != InvalidIndex;
+    }
+
+    LogEntry const& System::GetFatalError()
+    {
+        EE_ASSERT( IsInitialized() && g_pLog->m_fatalErrorIndex != InvalidIndex );
+        return g_pLog->m_logEntries[g_pLog->m_fatalErrorIndex];
+    }
+
+    //-------------------------------------------------------------------------
+
+    TVector<Log::LogEntry> System::GetUnhandledWarningsAndErrors()
+    {
+        EE_ASSERT( IsInitialized() );
+        std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
+
+        TVector<Log::LogEntry> outEntries = g_pLog->m_unhandledWarningsAndErrors;
+        g_pLog->m_unhandledWarningsAndErrors.clear();
+        return outEntries;
+    }
+
+    int32_t System::GetNumWarnings()
+    {
+        EE_ASSERT( IsInitialized() );
+        return g_pLog->m_numWarnings;
+    }
+
+    int32_t System::GetNumErrors()
+    {
+        EE_ASSERT( IsInitialized() );
+        return g_pLog->m_numErrors;
+    }
+}
+
+//-------------------------------------------------------------------------
+
+namespace EE::Log
+{
+    void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
+    {
+        EE_ASSERT( System::IsInitialized() );
         va_list args;
         va_start( args, pMessageFormat );
         AddEntryVarArgs( severity, pCategory, pSourceInfo, pFilename, pLineNumber, pMessageFormat, args );
@@ -72,7 +156,7 @@ namespace EE::Log
 
     void AddEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( System::IsInitialized() );
         EE_ASSERT( pCategory != nullptr && pFilename != nullptr && pMessageFormat != nullptr );
 
         {
@@ -88,7 +172,7 @@ namespace EE::Log
             //-------------------------------------------------------------------------
 
             entry.m_category = pCategory;
-            entry.m_sourceInfo = ( pSourceInfo  != nullptr ) ? pSourceInfo : String();
+            entry.m_sourceInfo = ( pSourceInfo != nullptr ) ? pSourceInfo : String();
             entry.m_filename = pFilename;
             entry.m_lineNumber = pLineNumber;
             entry.m_severity = severity;
@@ -137,80 +221,24 @@ namespace EE::Log
 
     //-------------------------------------------------------------------------
 
-    void SetLogFilePath( FileSystem::Path const& logFilePath )
+    void LogAssert( char const* pFile, int32_t line, char const* pAssertInfo )
     {
-        EE_ASSERT( IsInitialized() );
-        g_pLog->m_logPath = logFilePath;
-    }
+        EE_TRACE_MSG( pAssertInfo );
 
-    void SaveToFile()
-    {
-        EE_ASSERT( IsInitialized() );
-
-        if ( !g_pLog->m_logPath.IsValid() || !g_pLog->m_logPath.IsFilePath() )
+        if ( g_pLog != nullptr )
         {
-            return;
+            Log::AddEntry( Log::Severity::Error, "Assert", "Assert", pFile, line, pAssertInfo );
         }
-
-        g_pLog->m_logPath.EnsureDirectoryExists();
-
-        String logData;
-        InlineString logLine;
-
-        std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
-        for ( auto const& entry : g_pLog->m_logEntries )
-        {
-            if ( entry.m_sourceInfo.empty() )
-            {
-                logLine.sprintf( "[%s] %s >>> %s: %s, File: %s, %d\r\n", entry.m_timestamp.c_str(), entry.m_category.c_str(), g_severityLabels[(int32_t) entry.m_severity], entry.m_message.c_str(), entry.m_filename.c_str(), entry.m_lineNumber );
-            }
-            else
-            {
-                logLine.sprintf( "[%s] %s >>> %s: %s, Source: %s, File: %s, %d\r\n", entry.m_timestamp.c_str(), entry.m_category.c_str(), g_severityLabels[(int32_t) entry.m_severity], entry.m_message.c_str(), entry.m_sourceInfo.c_str(), entry.m_filename.c_str(), entry.m_lineNumber );
-            }
-
-            logData.append( logLine.c_str() );
-        }
-
-        FileSystem::OutputFileStream logFile( g_pLog->m_logPath );
-        logFile.Write( (void*) logData.data(), logData.size() );
     }
 
-    //-------------------------------------------------------------------------
-
-    bool HasFatalErrorOccurred()
+    void LogAssertVarArgs( char const* pFile, int line, char const* pAssertInfoFormat, ... )
     {
-        EE_ASSERT( IsInitialized() );
-        return g_pLog->m_fatalErrorIndex != InvalidIndex;
-    }
+        va_list args;
+        va_start( args, pAssertInfoFormat );
+        char buffer[512];
+        vsprintf_s( buffer, 512, pAssertInfoFormat, args );
+        va_end( args );
 
-    LogEntry const& GetFatalError()
-    {
-        EE_ASSERT( IsInitialized() && g_pLog->m_fatalErrorIndex != InvalidIndex );
-        return g_pLog->m_logEntries[g_pLog->m_fatalErrorIndex];
-    }
-
-    //-------------------------------------------------------------------------
-
-    TVector<Log::LogEntry> GetUnhandledWarningsAndErrors()
-    {
-        EE_ASSERT( IsInitialized() );
-        std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
-
-        TVector<Log::LogEntry> outEntries = g_pLog->m_unhandledWarningsAndErrors;
-        g_pLog->m_unhandledWarningsAndErrors.clear();
-        return outEntries;
-    }
-
-    int32_t GetNumWarnings()
-    {
-        EE_ASSERT( IsInitialized() );
-        return g_pLog->m_numWarnings;
-    }
-
-    int32_t GetNumErrors()
-    {
-        EE_ASSERT( IsInitialized() );
-        return g_pLog->m_numErrors;
+        LogAssert( pFile, line, &buffer[0] );
     }
 }

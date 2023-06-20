@@ -1,5 +1,5 @@
 #include "Animation_RuntimeGraphNode_SpeedScale.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

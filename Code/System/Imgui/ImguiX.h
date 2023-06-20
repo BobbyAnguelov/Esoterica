@@ -10,6 +10,7 @@
 #include "System/Types/String.h"
 #include "System/Types/BitFlags.h"
 #include "System/Types/Function.h"
+#include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 

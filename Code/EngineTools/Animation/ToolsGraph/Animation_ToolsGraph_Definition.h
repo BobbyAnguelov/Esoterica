@@ -2,7 +2,6 @@
 #include "Graphs/Animation_ToolsGraph_FlowGraph.h"
 #include "Animation_ToolsGraph_Variations.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
-#include "System/Log.h"
 
 //-------------------------------------------------------------------------
 
@@ -32,7 +31,7 @@ namespace EE::Animation
 
         // Reflects all parameters from another graph into this one
         // This will try to create a new control parameter for each control and virtual parameter present in the other graph
-        void ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<Log::LogEntry>* pOptionalOutputLog = nullptr );
+        void ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<String>* pOptionalOutputLog = nullptr );
 
         // Variations
         //-------------------------------------------------------------------------

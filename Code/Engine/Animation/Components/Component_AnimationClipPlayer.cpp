@@ -4,7 +4,7 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityLog.h"
 #include "System/Profiling.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

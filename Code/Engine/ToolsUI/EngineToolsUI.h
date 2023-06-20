@@ -4,7 +4,7 @@
 #include "Engine/DebugViews/DebugView_System.h"
 #include "Engine/UpdateContext.h"
 #include "System/Types/Arrays.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

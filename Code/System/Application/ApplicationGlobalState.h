@@ -25,6 +25,6 @@ namespace EE
 
     private:
 
-        bool m_primaryState = false;
+        bool m_initialized = false;
     };
 }

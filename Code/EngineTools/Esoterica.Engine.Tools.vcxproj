@@ -126,7 +126,7 @@
     <ClCompile Include="Entity\Workspaces\Workspace_GamePreviewer.cpp" />
     <ClCompile Include="Entity\Workspaces\Workspace_MapEditor.cpp" />
     <ClCompile Include="Core\FileSystem\FileSystemWatcher.cpp" />
-    <ClCompile Include="Core\Helpers\CommonDialogs.cpp" />
+    <ClCompile Include="Core\CommonDialogs.cpp" />
     <ClCompile Include="Navmesh\NavmeshGenerator.cpp" />
     <ClCompile Include="Navmesh\NavmeshGeneratorDialog.cpp" />
     <ClCompile Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.cpp" />
@@ -231,7 +231,6 @@
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationGraph.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_Skeleton.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
-    <ClInclude Include="Core\Helpers\SkeletonHelpers.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
     <ClInclude Include="Core\VisualGraph\VisualGraph_UserContext.h" />
@@ -245,8 +244,8 @@
     <ClInclude Include="Entity\Workspaces\Workspace_GamePreviewer.h" />
     <ClInclude Include="Entity\Workspaces\Workspace_MapEditor.h" />
     <ClInclude Include="Core\FileSystem\FileSystemWatcher.h" />
-    <ClInclude Include="Core\Helpers\CategoryTree.h" />
-    <ClInclude Include="Core\Helpers\CommonDialogs.h" />
+    <ClInclude Include="Core\CategoryTree.h" />
+    <ClInclude Include="Core\CommonDialogs.h" />
     <ClInclude Include="Navmesh\NavmeshGenerator.h" />
     <ClInclude Include="Navmesh\NavmeshGeneratorDialog.h" />
     <ClInclude Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.h" />

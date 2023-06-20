@@ -3,7 +3,7 @@
 #include "System/Math/Vector.h"
 #include "System/Types/Arrays.h"
 #include "System/Types/HashMap.h"
-#include "System/Log.h"
+
 #include <windows.h>
 #include <XInput.h>
 

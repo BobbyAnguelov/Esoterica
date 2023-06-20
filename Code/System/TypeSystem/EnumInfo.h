@@ -2,8 +2,10 @@
 
 #include "TypeID.h"
 #include "CoreTypeIDs.h"
-#include "System/Log.h"
+
 #include "System/Types/HashMap.h"
+#include "System/Types/String.h"
+#include "System/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 

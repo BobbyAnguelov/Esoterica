@@ -1,5 +1,5 @@
 #include "AIBehaviorSelector.h"
-#include "System/Log.h"
+
 #include "Game/AI/Behaviors/AIBehavior_Wander.h"
 #include "Game/AI/Behaviors/AIBehavior_CombatPositioning.h"
 

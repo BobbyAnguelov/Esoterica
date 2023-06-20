@@ -5,6 +5,7 @@
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
+#include "System/Logging/LoggingSystem.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Input/InputSystem.h"
 
@@ -131,7 +132,7 @@ namespace EE
         DrawWindows( context, pGameWorld );
 
         // Always show the log if any errors/warnings occurred
-        auto const unhandledWarningsAndErrors = Log::GetUnhandledWarningsAndErrors();
+        auto const unhandledWarningsAndErrors = Log::System::GetUnhandledWarningsAndErrors();
         if ( !unhandledWarningsAndErrors.empty() )
         {
             m_isLogWindowOpen = true;
@@ -149,8 +150,8 @@ namespace EE
         float const currentFPS = 1.0f / context.GetDeltaTime();
         float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
 
-        TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", Log::GetNumWarnings() );
-        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT_CIRCLE_OUTLINE" %d", Log::GetNumErrors() );
+        TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", Log::System::GetNumWarnings() );
+        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT_CIRCLE_OUTLINE" %d", Log::System::GetNumErrors() );
         TInlineString<40> const perfStatsStr( TInlineString<40>::CtorSprintf(), "FPS: %3.0f", currentFPS );
         TInlineString<40> const memStatsStr( TInlineString<40>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
 

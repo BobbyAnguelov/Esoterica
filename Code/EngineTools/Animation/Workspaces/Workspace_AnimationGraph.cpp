@@ -5618,7 +5618,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            TVector<Log::LogEntry> resultLog;
+            TVector<String> resultLog;
 
             // Push all parameters to child graph
             if ( pReflectParametersCommand->m_option == GraphNodes::ReflectParametersCommand::FromParent )
@@ -5650,7 +5650,7 @@ namespace EE::Animation
             String message;
             for ( auto const& logEntry : resultLog )
             {
-                message.append_sprintf( "%s: %s\n", Log::GetSeverityAsString( logEntry.m_severity ), logEntry.m_message.c_str() );
+                message.append_sprintf( "%s\n", logEntry.c_str() );
             }
 
             ShowNotifyDialog( EE_ICON_CHECK" Completed", message.c_str() );

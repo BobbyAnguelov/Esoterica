@@ -1,6 +1,6 @@
 #include "ImguiGizmo.h"
 #include "System/Imgui/ImguiX.h"
-#include "System/Math/MathHelpers.h"
+#include "System/Math/MathUtils.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------

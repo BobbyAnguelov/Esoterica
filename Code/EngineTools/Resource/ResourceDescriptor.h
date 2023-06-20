@@ -5,7 +5,7 @@
 #include "System/TypeSystem/ReflectedType.h"
 #include "System/Resource/ResourceID.h"
 #include "System/Types/Function.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

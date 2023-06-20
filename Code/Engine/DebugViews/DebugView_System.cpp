@@ -1,8 +1,8 @@
 #include "DebugView_System.h"
+#include "Engine/UpdateContext.h"
 #include "System/Imgui/ImguiX.h"
 #include "System/Profiling.h"
-#include "Engine/UpdateContext.h"
-#include "System/Log.h"
+#include "System/Logging/LoggingSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ namespace EE
 
                 //-------------------------------------------------------------------------
 
-                auto const& logEntries = Log::GetLogEntries();
+                auto const& logEntries = Log::System::GetLogEntries();
 
                 ImGuiListClipper clipper;
                 clipper.Begin( (int32_t) logEntries.size() );

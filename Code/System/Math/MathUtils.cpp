@@ -1,14 +1,25 @@
-#pragma once
-#include "Transform.h"
+#include "MathUtils.h"
 #include "System/Types/String.h"
+#include "Transform.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Math
 {
-    EE_SYSTEM_API char const* ToString( Axis axis );
+    char const* ToString( Axis axis )
+    {
+        static char const* const axesStrings[] =
+        {
+            "X",
+            "Y",
+            "Z",
+            "-X",
+            "-Y",
+            "-Z",
+        };
 
-    //-------------------------------------------------------------------------
+        return axesStrings[(int32_t) axis];
+    }
 
     inline InlineString ToString( Vector const& vector )
     {

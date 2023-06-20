@@ -6,7 +6,7 @@
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "System/Profiling.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

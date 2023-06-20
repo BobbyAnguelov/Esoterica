@@ -2,11 +2,11 @@
 #include "Application_Win32.h"
 #include "System/IniFile.h"
 #include "System/Imgui/Platform/ImguiPlatform_Win32.h"
-#include "System/Platform/PlatformHelpers_Win32.h"
+#include "System/Platform/PlatformUtils_Win32.h"
 #include "System/FileSystem/FileSystemPath.h"
 #include "System/FileSystem/FileSystemUtils.h"
 #include "System/Math/Rectangle.h"
-#include "System/Log.h"
+#include "System/Logging/LoggingSystem.h"
 
 #include <dwmapi.h>
 #include <windowsx.h>
@@ -523,7 +523,7 @@ namespace EE
     int32_t Win32Application::Run( int32_t argc, char** argv )
     {
         FileSystem::Path const logFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
-        Log::SetLogFilePath( logFilePath );
+        Log::System::SetLogFilePath( logFilePath );
 
         // Read Settings
         //-------------------------------------------------------------------------
@@ -592,7 +592,7 @@ namespace EE
         bool const shutdownResult = Shutdown();
         m_initialized = false;
 
-        Log::SaveToFile();
+        Log::System::SaveToFile();
 
         //-------------------------------------------------------------------------
 

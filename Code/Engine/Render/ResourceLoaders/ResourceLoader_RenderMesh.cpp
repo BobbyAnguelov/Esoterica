@@ -3,7 +3,7 @@
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 #include "System/Render/RenderDevice.h"
 #include "System/Serialization/BinarySerialization.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

@@ -16,8 +16,8 @@
 #include "System/TypeSystem/TypeRegistry.h"
 #include "System/FileSystem/FileSystem.h"
 #include "System/Math/Math.h"
-#include "System/Math/MathStringHelpers.h"
-#include "System/Log.h"
+#include "System/Math/MathUtils.h"
+
 
 //-------------------------------------------------------------------------
 // Undo/Redo

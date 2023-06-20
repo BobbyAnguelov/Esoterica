@@ -3,7 +3,7 @@
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "Applications/Reflector/Database/ReflectionDatabase.h"
 #include "System/Time/Timers.h"
-#include "System/Platform/PlatformHelpers_Win32.h"
+#include "System/Platform/PlatformUtils_Win32.h"
 #include <fstream>
 
 //-------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 #include "System/Serialization/BinarySerialization.h"
 #include "System/FileSystem/FileSystem.h"
 #include "System/Profiling.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

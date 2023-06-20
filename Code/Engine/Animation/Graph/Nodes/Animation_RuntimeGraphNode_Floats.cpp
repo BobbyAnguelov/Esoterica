@@ -1,6 +1,6 @@
 #include "Animation_RuntimeGraphNode_Floats.h"
-#include "System/Log.h"
-#include "System/Math/MathHelpers.h"
+
+#include "System/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

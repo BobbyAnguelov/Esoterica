@@ -3,7 +3,7 @@
 #include "ResourceInfo.h"
 #include "EnumInfo.h"
 #include "TypeInfo.h"
-#include "System/Log.h"
+
 #include "DefaultTypeInfos.h"
 #include "EASTL/sort.h"
 

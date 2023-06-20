@@ -3,7 +3,7 @@
 #include "System/Render/RenderCoreResources.h"
 #include "System/IniFile.h"
 #include "System/Profiling.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

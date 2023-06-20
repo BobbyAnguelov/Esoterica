@@ -11,7 +11,7 @@
 #include "System/Render/RenderViewport.h"
 #include "System/Drawing/DebugDrawing.h"
 #include "System/Profiling.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

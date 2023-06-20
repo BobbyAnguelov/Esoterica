@@ -2,7 +2,7 @@
 #include "AnimationEventTrack.h"
 #include "Engine/Animation/AnimationEvent.h"
 #include "System/TypeSystem/TypeRegistry.h"
-#include "System/Log.h"
+
 
 //-------------------------------------------------------------------------
 

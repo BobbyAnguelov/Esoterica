@@ -1,6 +1,14 @@
 #pragma once
 #include "Quaternion.h"
 #include "Plane.h"
+#include "System/Types/Containers_ForwardDecl.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE
+{
+    class Transform;
+}
 
 //-------------------------------------------------------------------------
 
@@ -183,4 +191,12 @@ namespace EE::Math
         Vector vCoords( outCoords );
         return vCoords.IsGreaterThanEqual3( Vector::Zero ) && vCoords.IsLessThanEqual3( Vector::One );
     }
+
+    // String Conversion
+    //-------------------------------------------------------------------------
+
+    EE_SYSTEM_API char const* ToString( Axis axis );
+    EE_SYSTEM_API InlineString ToString( Vector const& vector );
+    EE_SYSTEM_API InlineString ToString( Quaternion const& q );
+    EE_SYSTEM_API InlineString ToString( Transform const& t );
 }

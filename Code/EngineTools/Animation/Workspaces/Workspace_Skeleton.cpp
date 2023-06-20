@@ -4,7 +4,7 @@
 #include "Engine/Animation/AnimationPose.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
-#include "System/Math/MathStringHelpers.h"
+#include "System/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

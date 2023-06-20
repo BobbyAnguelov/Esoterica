@@ -8,8 +8,8 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
-#include "System/Math/MathStringHelpers.h"
-#include "System/Math/MathHelpers.h"
+#include "System/Math/MathUtils.h"
+#include "System/Math/MathUtils.h"
 #include "Engine/Physics/PhysicsWorld.h"
 
 //-------------------------------------------------------------------------
