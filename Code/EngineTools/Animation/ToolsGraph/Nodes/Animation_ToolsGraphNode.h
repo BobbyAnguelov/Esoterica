@@ -41,6 +41,12 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        static StringID const s_pinTypes[];
+        static StringID GetPinTypeForValueType( GraphValueType valueType ) { return s_pinTypes[(uint8_t) valueType]; }
+        static GraphValueType GetValueTypeForPinType( StringID pinType );
+
+    public:
+
         using VisualGraph::Flow::Node::Node;
 
         virtual GraphValueType GetValueType() const = 0;
@@ -67,8 +73,8 @@ namespace EE::Animation::GraphNodes
 
     protected:
 
-        EE_FORCE_INLINE void CreateInputPin( char const* pPinName, GraphValueType pinType ) { VisualGraph::Flow::Node::CreateInputPin( pPinName, (uint32_t) pinType ); }
-        EE_FORCE_INLINE void CreateOutputPin( char const* pPinName, GraphValueType pinType, bool allowMultipleOutputConnections = false ) { VisualGraph::Flow::Node::CreateOutputPin( pPinName, (uint32_t) pinType, allowMultipleOutputConnections ); }
+        EE_FORCE_INLINE void CreateInputPin( char const* pPinName, GraphValueType pinType ) { VisualGraph::Flow::Node::CreateInputPin( pPinName, GetPinTypeForValueType( pinType ) ); }
+        EE_FORCE_INLINE void CreateOutputPin( char const* pPinName, GraphValueType pinType, bool allowMultipleOutputConnections = false ) { VisualGraph::Flow::Node::CreateOutputPin( pPinName, GetPinTypeForValueType( pinType ), allowMultipleOutputConnections ); }
 
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) {}
 

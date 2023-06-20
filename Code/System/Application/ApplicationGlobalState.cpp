@@ -1,5 +1,6 @@
 #include "ApplicationGlobalState.h"
 #include "System/TypeSystem/CoreTypeIDs.h"
+#include "System/CrashHandler/CrashHandler.h"
 #include "System/Memory/Memory.h"
 #include "System/Types/StringID.h"
 #include "System/Profiling.h"
@@ -20,6 +21,8 @@ namespace EE
     ApplicationGlobalState::ApplicationGlobalState( char const* pMainThreadName )
     {
         EE_ASSERT( !g_platformInitialized );
+
+        CrashHandling::Initialize();
 
         // Initialize memory and threading subsystems
         //-------------------------------------------------------------------------
@@ -50,5 +53,7 @@ namespace EE
             Threading::Shutdown();
             Memory::Shutdown();
         }
+
+        CrashHandling::Shutdown();
     }
 }

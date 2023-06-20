@@ -19,7 +19,7 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "And"; }
-        virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Bool; }
+        virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Bool ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -39,7 +39,7 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override{ return "Or"; }
-        virtual uint32_t GetDynamicInputPinValueType() const override{ return (uint32_t) GraphValueType::Bool; }
+        virtual StringID GetDynamicInputPinValueType() const override{ return GetPinTypeForValueType( GraphValueType::Bool ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 

@@ -62,7 +62,7 @@ namespace EE::Animation::GraphNodes
 
         for ( auto pState : pinsToCreate )
         {
-            CreateDynamicInputPin( pState->GetName(), (uint32_t) GraphValueType::Bool );
+            CreateDynamicInputPin( pState->GetName(), GetPinTypeForValueType( GraphValueType::Bool ) );
             m_pinToStateMapping.emplace_back( pState->GetID() );
         }
     }

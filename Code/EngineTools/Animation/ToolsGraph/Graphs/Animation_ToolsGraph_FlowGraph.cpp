@@ -230,7 +230,7 @@ namespace EE::Animation
             }
 
             // Filter by pin type
-            if ( pFilterPin != nullptr && ( pFilterPin->IsOutputPin() || GraphValueType( pFilterPin->m_type ) != parameters[i]->GetValueType() ) )
+            if ( pFilterPin != nullptr && ( pFilterPin->IsOutputPin() || GraphNodes::FlowToolsNode::GetValueTypeForPinType( pFilterPin->m_type ) != parameters[i]->GetValueType() ) )
             {
                 excludeParameter = true;
             }

@@ -115,7 +115,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
 
-        GraphPoseNodeResult Result;
+        GraphPoseNodeResult result;
 
         if ( IsValid() )
         {
@@ -124,7 +124,7 @@ namespace EE::Animation::GraphNodes
 
             MarkNodeActive( context );
             m_previousTime = m_pBaseLayerNode->GetCurrentTime();
-            Result = m_pBaseLayerNode->Update( context );
+            result = m_pBaseLayerNode->Update( context );
             m_currentTime = m_pBaseLayerNode->GetCurrentTime();
             m_duration = m_pBaseLayerNode->GetDuration();
 
@@ -136,15 +136,15 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             // We need to register a task at the base layer in all cases - since we blend the layers tasks on top of it
-            if ( !Result.HasRegisteredTasks() )
+            if ( !result.HasRegisteredTasks() )
             {
-                Result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
+                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
             }
 
-            UpdateLayers( context, Result );
+            UpdateLayers( context, result );
         }
 
-        return Result;
+        return result;
     }
 
     // NB: Layered nodes always update the base according to the specified update time delta or time range. The layers are then updated relative to the base.

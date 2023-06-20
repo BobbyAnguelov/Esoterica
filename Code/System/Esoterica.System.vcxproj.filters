@@ -361,6 +361,7 @@
     <ClCompile Include="ThirdParty\implot\implot.cpp" />
     <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
     <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
+    <ClCompile Include="CrashHandler\Platform\CrashHandler_Win32.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Imgui\ImguiGizmo.h">
@@ -1784,6 +1785,7 @@
     <ClInclude Include="ThirdParty\implot\implot_internal.h" />
     <ClInclude Include="Serialization\BitSerialization.h" />
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
+    <ClInclude Include="CrashHandler\CrashHandler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\cmdParser\LICENSE">

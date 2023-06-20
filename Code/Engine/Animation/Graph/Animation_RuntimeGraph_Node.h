@@ -25,7 +25,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    enum class GraphValueType
+    enum class GraphValueType : uint8_t
     {
         EE_REFLECT_ENUM
 

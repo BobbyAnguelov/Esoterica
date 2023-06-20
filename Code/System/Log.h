@@ -52,7 +52,8 @@ namespace EE::Log
     // Output
     //-------------------------------------------------------------------------
 
-    EE_SYSTEM_API void SaveToFile( FileSystem::Path const& logFilePath );
+    EE_SYSTEM_API void SetLogFilePath( FileSystem::Path const& logFilePath );
+    EE_SYSTEM_API void SaveToFile();
 
     // Warnings and errors
     //-------------------------------------------------------------------------

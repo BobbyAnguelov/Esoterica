@@ -59,21 +59,21 @@ namespace EE::VisualGraph::Flow
 
     //-------------------------------------------------------------------------
 
-    void Node::CreateInputPin( char const* pPinName, uint32_t valueType )
+    void Node::CreateInputPin( char const* pPinName, StringID pinType )
     {
         ScopedNodeModification snm( this );
         auto& newPin = m_inputPins.emplace_back( Pin() );
         newPin.m_name = pPinName;
-        newPin.m_type = valueType;
+        newPin.m_type = pinType;
         newPin.m_direction = Pin::Direction::In;
     }
 
-    void Node::CreateOutputPin( char const* pPinName, uint32_t valueType, bool allowMultipleOutputConnections )
+    void Node::CreateOutputPin( char const* pPinName, StringID pinType, bool allowMultipleOutputConnections )
     {
         ScopedNodeModification snm( this );
         auto& newPin = m_outputPins.emplace_back( Pin() );
         newPin.m_name = pPinName;
-        newPin.m_type = valueType;
+        newPin.m_type = pinType;
         newPin.m_direction = Pin::Direction::Out;
         newPin.m_allowMultipleOutConnections = allowMultipleOutputConnections;
     }
@@ -132,12 +132,12 @@ namespace EE::VisualGraph::Flow
         OnDynamicPinCreation( newPin.m_ID );
     }
 
-    void Node::CreateDynamicInputPin( char const* pPinName, uint32_t valueType )
+    void Node::CreateDynamicInputPin( char const* pPinName, StringID pinType )
     {
         ScopedNodeModification snm( this );
         auto& newPin = m_inputPins.emplace_back( Pin() );
         newPin.m_name = pPinName;
-        newPin.m_type = valueType;
+        newPin.m_type = pinType;
         newPin.m_direction = Pin::Direction::In;
         newPin.m_isDynamic = true;
         OnDynamicPinCreation( newPin.m_ID );
@@ -178,7 +178,7 @@ namespace EE::VisualGraph::Flow
             pin.m_direction = Pin::Direction::In;
             pin.m_ID = UUID( pinObjectValue[Pin::s_IDKey].GetString() );
             pin.m_name = pinObjectValue[Pin::s_nameKey].GetString();
-            pin.m_type = pinObjectValue[Pin::s_typeKey].GetUint();
+            pin.m_type = StringID( pinObjectValue[Pin::s_typeKey].GetString() );
             pin.m_isDynamic = pinObjectValue[Pin::s_dynamicKey].GetBool();
         }
 
@@ -191,7 +191,7 @@ namespace EE::VisualGraph::Flow
             pin.m_direction = Pin::Direction::Out;
             pin.m_ID = UUID( pinObjectValue[Pin::s_IDKey].GetString() );
             pin.m_name = pinObjectValue[Pin::s_nameKey].GetString();
-            pin.m_type = pinObjectValue[Pin::s_typeKey].GetUint();
+            pin.m_type = StringID( pinObjectValue[Pin::s_typeKey].GetString() );
             pin.m_allowMultipleOutConnections = pinObjectValue[Pin::s_allowMultipleConnectionsKey].GetBool();
         }
 
@@ -259,7 +259,7 @@ namespace EE::VisualGraph::Flow
             writer.String( pin.m_name.c_str() );
 
             writer.Key( Pin::s_typeKey );
-            writer.Uint( pin.m_type );
+            writer.String( pin.m_type.IsValid() ? pin.m_type.c_str() : "" );
 
             writer.Key( Pin::s_dynamicKey );
             writer.Bool( pin.m_isDynamic );
@@ -285,7 +285,7 @@ namespace EE::VisualGraph::Flow
             writer.String( pin.m_name.c_str() );
 
             writer.Key( Pin::s_typeKey );
-            writer.Uint( pin.m_type );
+            writer.String( pin.m_type.IsValid() ? pin.m_type.c_str() : "" );
 
             writer.Key( Pin::s_allowMultipleConnectionsKey );
             writer.Bool( pin.m_allowMultipleOutConnections );

@@ -17,6 +17,7 @@ namespace EE::Log
         {
             TVector<LogEntry>               m_logEntries;
             TVector<LogEntry>               m_unhandledWarningsAndErrors;
+            FileSystem::Path                m_logPath;
             Threading::Mutex                m_mutex;
             int32_t                         m_fatalErrorIndex = InvalidIndex;
             int32_t                         m_numWarnings = 0;
@@ -136,11 +137,22 @@ namespace EE::Log
 
     //-------------------------------------------------------------------------
 
-    void SaveToFile( FileSystem::Path const& logFilePath )
+    void SetLogFilePath( FileSystem::Path const& logFilePath )
     {
-        EE_ASSERT( IsInitialized() && logFilePath.IsValid() && logFilePath.IsFilePath() );
+        EE_ASSERT( IsInitialized() );
+        g_pLog->m_logPath = logFilePath;
+    }
 
-        logFilePath.EnsureDirectoryExists();
+    void SaveToFile()
+    {
+        EE_ASSERT( IsInitialized() );
+
+        if ( !g_pLog->m_logPath.IsValid() || !g_pLog->m_logPath.IsFilePath() )
+        {
+            return;
+        }
+
+        g_pLog->m_logPath.EnsureDirectoryExists();
 
         String logData;
         InlineString logLine;
@@ -160,7 +172,7 @@ namespace EE::Log
             logData.append( logLine.c_str() );
         }
 
-        FileSystem::OutputFileStream logFile( logFilePath );
+        FileSystem::OutputFileStream logFile( g_pLog->m_logPath );
         logFile.Write( (void*) logData.data(), logData.size() );
     }
 

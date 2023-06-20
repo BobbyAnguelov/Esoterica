@@ -7,7 +7,7 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     Color GetColorForValueType( GraphValueType type )
     {
-        const Color colors[10] =
+        static const Color colors[] =
         {
             Colors::GhostWhite,
             Colors::PaleGreen,
@@ -25,62 +25,20 @@ namespace EE::Animation
 
     char const* GetNameForValueType( GraphValueType type )
     {
-        switch ( type )
+        constexpr static char const* const names[] =
         {
-            case GraphValueType::Bool:
-            {
-                return "Bool";
-            }
-            break;
+            "Unknown",
+            "Bool",
+            "ID",
+            "Float",
+            "Vector",
+            "Target",
+            "Bone Mask",
+            "Pose",
+            "Special",
+        };
 
-            case GraphValueType::ID:
-            {
-                return "ID";
-            }
-            break;
-
-            case GraphValueType::Float:
-            {
-                return "Float";
-            }
-            break;
-
-            case GraphValueType::Vector:
-            {
-                return "Vector";
-            }
-            break;
-
-            case GraphValueType::Target:
-            {
-                return "Target";
-            }
-            break;
-
-            case GraphValueType::BoneMask:
-            {
-                return "Bone Mask";
-            }
-            break;
-
-            case GraphValueType::Pose:
-            {
-                return "Pose";
-            }
-            break;
-
-            case GraphValueType::Special:
-            {
-                return "Special";
-            }
-            break;
-
-            default:
-            {
-                return "Unknown";
-            }
-            break;
-        }
+        return names[(uint8_t) type];
     }
     #endif
 

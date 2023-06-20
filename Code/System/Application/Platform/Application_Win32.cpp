@@ -522,6 +522,9 @@ namespace EE
 
     int32_t Win32Application::Run( int32_t argc, char** argv )
     {
+        FileSystem::Path const logFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
+        Log::SetLogFilePath( logFilePath );
+
         // Read Settings
         //-------------------------------------------------------------------------
 
@@ -589,8 +592,7 @@ namespace EE
         bool const shutdownResult = Shutdown();
         m_initialized = false;
 
-        FileSystem::Path const LogFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
-        Log::SaveToFile( LogFilePath );
+        Log::SaveToFile();
 
         //-------------------------------------------------------------------------
 

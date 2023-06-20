@@ -119,7 +119,7 @@ namespace EE::Animation::GraphNodes
 
         TInlineString<100> pinName;
         pinName.sprintf( "Option %d", numOptions - 1 );
-        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), (uint32_t) GraphValueType::Bool );
+        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), GetPinTypeForValueType( GraphValueType::Bool ) );
     }
 
     void SelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
@@ -264,7 +264,7 @@ namespace EE::Animation::GraphNodes
 
         TInlineString<100> pinName;
         pinName.sprintf( "Option %d", numOptions - 1 );
-        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), (uint32_t) GraphValueType::Bool );
+        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), GetPinTypeForValueType( GraphValueType::Bool ) );
     }
 
     void AnimationClipSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )

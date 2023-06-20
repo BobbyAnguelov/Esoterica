@@ -15,6 +15,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CrashHandler\CrashHandler.h" />
     <ClInclude Include="Encoding\Hash.h" />
     <ClInclude Include="Encoding\Quantization.h" />
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
@@ -498,6 +499,7 @@
     <ClInclude Include="_Module\API.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CrashHandler\Platform\CrashHandler_Win32.cpp" />
     <ClCompile Include="Encoding\Hash.cpp" />
     <ClCompile Include="Math\Platform\Math_Win32.h" />
     <ClCompile Include="ThirdParty\implot\implot.cpp" />

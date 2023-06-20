@@ -9,6 +9,35 @@ namespace EE::Animation::GraphNodes
     constexpr static float const g_playbackBarMarkerSize = 4;
     constexpr static float const g_playbackBarRegionHeight = g_playbackBarHeight + g_playbackBarMarkerSize;
 
+    EE::StringID const FlowToolsNode::s_pinTypes[] =
+    {
+        StringID( GetNameForValueType( GraphValueType::Unknown ) ),
+        StringID( GetNameForValueType( GraphValueType::Bool ) ),
+        StringID( GetNameForValueType( GraphValueType::ID ) ),
+        StringID( GetNameForValueType( GraphValueType::Float ) ),
+        StringID( GetNameForValueType( GraphValueType::Vector ) ),
+        StringID( GetNameForValueType( GraphValueType::Target ) ),
+        StringID( GetNameForValueType( GraphValueType::BoneMask ) ),
+        StringID( GetNameForValueType( GraphValueType::Pose ) ),
+        StringID( GetNameForValueType( GraphValueType::Special ) )
+    };
+
+    GraphValueType FlowToolsNode::GetValueTypeForPinType( StringID pinType )
+    {
+        for ( uint8_t i = 0; i <= (uint8_t) GraphValueType::Special; i++ )
+        {
+            if ( s_pinTypes[i] == pinType )
+            {
+                return (GraphValueType) i;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return GraphValueType::Unknown;
+    }
+
+    //-------------------------------------------------------------------------
+
     void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo )
     {
         float const availableWidth = Math::Max( width, g_playbackBarMinimumWidth );
@@ -290,7 +319,7 @@ namespace EE::Animation::GraphNodes
 
     ImColor FlowToolsNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
     {
-        return ImGuiX::ToIm( GetColorForValueType( (GraphValueType) pin.m_type ) );
+        return ImGuiX::ToIm( GetColorForValueType( GetValueTypeForPinType( pin.m_type ) ) );
     }
 
     void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )

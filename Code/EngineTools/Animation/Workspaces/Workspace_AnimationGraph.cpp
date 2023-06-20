@@ -5672,12 +5672,12 @@ namespace EE::Animation
         // Old Value
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 24 );
+        ImGui::SetNextItemWidth( 200 );
         ImGui::InputText( "##oldid", m_oldIDBuffer, 255 );
 
-        ImGui::SameLine( 0, 0 );
+        ImGui::SameLine();
 
-        if ( m_oldIDWidget.DrawAndUpdate() )
+        if ( m_oldIDWidget.DrawAndUpdate( 30 ) )
         {
             auto pSelectedOption = m_oldIDWidget.GetSelectedOption();
             if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
@@ -5693,12 +5693,12 @@ namespace EE::Animation
         // New Value
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 24 );
+        ImGui::SetNextItemWidth( 200 );
         ImGui::InputText( "##newid", m_newIDBuffer, 255 );
 
-        ImGui::SameLine( 0, 0 );
+        ImGui::SameLine();
 
-        if ( m_newIDWidget.DrawAndUpdate() )
+        if ( m_newIDWidget.DrawAndUpdate( 30 ) )
         {
             auto pSelectedOption = m_newIDWidget.GetSelectedOption();
             if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
@@ -5730,8 +5730,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        float const buttonWidth = ( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x ) / 2;
+
         ImGui::BeginDisabled( !oldID.IsValid() || !newID.IsValid() );
-        if ( ImGui::Button( "Rename", ImVec2( 100, 0 ) ) )
+        if ( ImGui::Button( "Rename", ImVec2( buttonWidth, 0 ) ) )
         {
             VisualGraph::ScopedGraphModification gm( GetEditedRootGraph() );
 
@@ -5754,9 +5756,9 @@ namespace EE::Animation
         }
         ImGui::EndDisabled();
 
-        ImGui::SameLine( 0, 4 );
+        ImGui::SameLine();
 
-        if ( ImGui::Button( "Cancel", ImVec2( 100, 0 ) ) )
+        if ( ImGui::Button( "Cancel", ImVec2( buttonWidth, 0 ) ) )
         {
             m_activeOperation = GraphOperationType::None;
         }

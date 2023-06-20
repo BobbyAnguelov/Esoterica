@@ -2,6 +2,7 @@
 #ifdef _WIN32
 
 #include "System/_Module/API.h"
+#include "System/CrashHandler/CrashHandler.h"
 
 //-------------------------------------------------------------------------
 
@@ -39,12 +40,20 @@ namespace EE::Platform::Win32
 #if EE_DEVELOPMENT_TOOLS
 
 #define EE_DISABLE_OPTIMIZATION __pragma( optimize( "", off ) )
+
 #define EE_ENABLE_OPTIMIZATION __pragma( optimize( "", on ) )
 
+//-------------------------------------------------------------------------
+
 #define EE_TRACE_MSG( msgFormat, ... ) EE::Platform::Win32::OutputDebugMessage( msgFormat, __VA_ARGS__ )
-#define EE_ASSERT( cond ) do { if( !(cond) ) { EE_TRACE_MSG( "Assert fired: " #cond " (" EE_FILE_LINE ")" ); __debugbreak(); } } while( 0 )
-#define EE_BREAK() __debugbreak()
-#define EE_HALT() __debugbreak()
+
+//-------------------------------------------------------------------------
+
+#define EE_ASSERT( cond ) do { if( !(cond) ) { EE::CrashHandling::RecordAssert( __FILE__, __LINE__, "Assert fired: " #cond " (" EE_FILE_LINE ")" ); __debugbreak(); } } while( 0 )
+
+#define EE_TRACE_ASSERT( msgFormat, ... ) { EE::CrashHandling::RecordAssertVarArgs( __FILE__, __LINE__, msgFormat, __VA_ARGS__ ); __debugbreak(); }
+
+#define EE_HALT() { EE::CrashHandling::RecordAssert( __FILE__, __LINE__, "HALT" ); __debugbreak();  }
 
 #endif
 

@@ -31,14 +31,20 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult LookAtIKNode::Update( GraphContext& context )
     {
         GraphPoseNodeResult result = PassthroughNode::Update( context );
-        result = RegisterIKTask( context, result );
+        if ( result.HasRegisteredTasks() )
+        {
+            result = RegisterIKTask( context, result );
+        }
         return result;
     }
 
     GraphPoseNodeResult LookAtIKNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
     {
         GraphPoseNodeResult result = PassthroughNode::Update( context, updateRange );
-        result = RegisterIKTask( context, result );
+        if ( result.HasRegisteredTasks() )
+        {
+            result = RegisterIKTask( context, result );
+        }
         return result;
     }
 

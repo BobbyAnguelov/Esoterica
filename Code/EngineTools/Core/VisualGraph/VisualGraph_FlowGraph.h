@@ -51,7 +51,7 @@ namespace EE::VisualGraph
 
             UUID                    m_ID = UUID::GenerateID();
             String                  m_name;
-            uint32_t                m_type; // Generic type that allows user to set custom data be it StringIDs or enum values
+            StringID                m_type;
             Direction               m_direction;
             Float2                  m_screenPosition = Float2( 0, 0 ); // Updated each frame (Screen Space)
             Float2                  m_size = Float2( -1, -1 ); // Updated each frame
@@ -95,7 +95,7 @@ namespace EE::VisualGraph
             virtual TInlineString<100> GetNewDynamicInputPinName() const { return "Pin"; }
 
             // What's the value type of the dynamic inputs
-            virtual uint32_t GetDynamicInputPinValueType() const { return 0; }
+            virtual StringID GetDynamicInputPinValueType() const { return StringID(); }
 
             // Get the number of input pins on this node
             inline int32_t GetNumInputPins() const { return (int32_t) m_inputPins.size(); }
@@ -199,7 +199,7 @@ namespace EE::VisualGraph
             void CreateDynamicInputPin();
 
             // Create a new dynamic pin
-            void CreateDynamicInputPin( char const* pPinName, uint32_t valueType );
+            void CreateDynamicInputPin( char const* pPinName, StringID pinType );
 
             // Called just after creating a dynamic pin
             virtual void OnDynamicPinCreation( UUID pinID ) {}
@@ -210,14 +210,16 @@ namespace EE::VisualGraph
             // Called just before actually destroying a dynamic pin
             virtual void OnDynamicPinDestruction( UUID pinID ) {}
 
-            void CreateInputPin( char const* pPinName, uint32_t valueType );
-            void CreateOutputPin( char const* pPinName, uint32_t valueType, bool allowMultipleOutputConnections = false );
+            void CreateInputPin( char const* pPinName, StringID pinType );
+            void CreateOutputPin( char const* pPinName, StringID pinType, bool allowMultipleOutputConnections = false );
             void DestroyInputPin( int32_t pinIdx );
             void DestroyOutputPin( int32_t pinIdx );
             
             void DestroyPin( UUID const& pinID );
 
             // Serialization
+            //-------------------------------------------------------------------------
+
             virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue ) override;
             virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const override;
 

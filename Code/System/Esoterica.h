@@ -57,7 +57,6 @@ using nullptr_t = decltype( nullptr );
     //-------------------------------------------------------------------------
 
     #define EE_STATIC_ASSERT( cond, error ) static_assert( cond, error )
-    #define EE_TRACE_ASSERT( msgFormat, ... ) { EE_TRACE_MSG( msgFormat, __VA_ARGS__ ); EE_HALT(); }
     #define EE_UNIMPLEMENTED_FUNCTION() EE_TRACE_ASSERT( "Function not implemented!" )
     #define EE_UNREACHABLE_CODE() EE_TRACE_ASSERT( "Unreachable code encountered!" )
 
@@ -65,7 +64,6 @@ using nullptr_t = decltype( nullptr );
 
     // Platform specific, need to be defined in Platform/Defines_XXX.h
     #define EE_ASSERT( cond ) do { (void)sizeof( cond );} while (0)
-    #define EE_BREAK()
     #define EE_HALT()
 
     #define EE_DISABLE_OPTIMIZATION

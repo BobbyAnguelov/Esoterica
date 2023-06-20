@@ -85,7 +85,7 @@ namespace EE::Animation::GraphNodes
 
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
-        virtual uint32_t GetDynamicInputPinValueType() const override { return (uint32_t) GraphValueType::Special; }
+        virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Special ); }
         virtual void OnDynamicPinDestruction( UUID pinID ) override;
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

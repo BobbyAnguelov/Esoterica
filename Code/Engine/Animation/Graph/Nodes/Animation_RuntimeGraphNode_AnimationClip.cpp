@@ -15,6 +15,13 @@ namespace EE::Animation::GraphNodes
         auto pNode = CreateNode<AnimationClipNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
         pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
+
+        //-------------------------------------------------------------------------
+
+        if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+        {
+            pNode->m_pAnimation = nullptr;
+        }
     }
 
     bool AnimationClipNode::IsValid() const
@@ -39,6 +46,12 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pAnimation->IsSingleFrameAnimation() ? s_oneFrameDuration : m_pAnimation->GetDuration();
             m_currentTime = m_previousTime = m_pAnimation->GetSyncTrack().GetPercentageThrough( initialTime );
             EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
+        }
+        else
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "No animation set for clip node!" );
+            #endif
         }
 
         m_shouldSampleRootMotion = pSettings->m_sampleRootMotion;
