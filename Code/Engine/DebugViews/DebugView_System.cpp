@@ -72,43 +72,58 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    SystemLogView::SystemLogView()
-    {
-        m_logFilter.resize( 255 );
-    }
-
     bool SystemLogView::Draw( UpdateContext const& context )
     {
         bool isLogWindowOpen = true;
 
         if ( ImGui::Begin( "Log", &isLogWindowOpen ) )
         {
+            constexpr static float const filterButtonWidth = 30.0f;
+
+            // Draw filter
+            //-------------------------------------------------------------------------
+
             ImGui::AlignTextToFramePadding();
             ImGui::Text( "Filter:" );
             ImGui::SameLine();
-            ImGui::BeginDisabled();
-            if ( ImGui::InputText( "##Filter", m_logFilter.data(), 255 ) )
+            float const filterWidth = ImGui::GetContentRegionAvail().x - filterButtonWidth - ImGui::GetStyle().ItemSpacing.x;
+            if ( m_filterWidget.DrawAndUpdate( filterWidth ) )
             {
-                // TODO
+                UpdateFilteredList( context );
             }
-            ImGui::EndDisabled();
 
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
 
-            ImGuiX::Checkbox( "##Messages", &m_showLogMessages );
-            ImGui::SameLine();
-            ImGui::Text( "Errors" );
-            ImGui::SameLine();
+            float const buttonStartPosX = ImGui::GetCursorPosX();
+            ImGui::Button( EE_ICON_FILTER_COG"##FilterOptions", ImVec2( filterButtonWidth, 0 ) );
+            float const buttonEndPosY = ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y;
+            ImGui::SetNextWindowPos( ImGui::GetWindowPos() + ImVec2( buttonStartPosX, buttonEndPosY ) );
+            if ( ImGui::BeginPopupContextItem( "##FilterOptions", ImGuiPopupFlags_MouseButtonLeft ) )
+            {
+                bool shouldUpdateFilteredList = false;
+                shouldUpdateFilteredList |= ImGuiX::Checkbox( "Messages", &m_showLogMessages );
+                shouldUpdateFilteredList |= ImGuiX::Checkbox( "Warnings", &m_showLogWarnings );
+                shouldUpdateFilteredList |= ImGuiX::Checkbox( "Errors", &m_showLogErrors );
 
-            ImGuiX::Checkbox( "Warnings", &m_showLogWarnings );
-            ImGui::SameLine();
+                if ( shouldUpdateFilteredList )
+                {
+                    UpdateFilteredList( context );
+                }
 
-            ImGuiX::Checkbox( "##Errors", &m_showLogErrors );
-            ImGui::SameLine();
-            ImGui::Text( "Errors" );
+                ImGui::EndPopup();
+            }
 
+            // Check if there are more entries than we know about, if so updated the filtered list
+            //-------------------------------------------------------------------------
+
+            if ( m_numLogEntriesWhenFiltered != Log::System::GetLogEntries().size() )
+            {
+                UpdateFilteredList( context );
+            }
+
+            // Draw Entries
             //-------------------------------------------------------------------------
 
             ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
@@ -127,44 +142,13 @@ namespace EE
 
                 //-------------------------------------------------------------------------
 
-                auto const& logEntries = Log::System::GetLogEntries();
-
                 ImGuiListClipper clipper;
-                clipper.Begin( (int32_t) logEntries.size() );
+                clipper.Begin( (int32_t) m_filteredEntries.size() );
                 while ( clipper.Step() )
                 {
                     for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                     {
-                        auto const& entry = logEntries[i];
-
-                        switch ( entry.m_severity )
-                        {
-                            case Log::Severity::Warning:
-                            if ( !m_showLogWarnings )
-                            {
-                                continue;
-                            }
-                            break;
-
-                            case Log::Severity::Error:
-                            if ( !m_showLogErrors )
-                            {
-                                continue;
-                            }
-                            break;
-
-                            case Log::Severity::Message:
-                            if ( !m_showLogMessages )
-                            {
-                                continue;
-                            }
-                            break;
-
-                            default:
-                            break;
-                        }
-
-                        //-------------------------------------------------------------------------
+                        auto const& entry = m_filteredEntries[i];
 
                         ImGui::TableNextRow();
 
@@ -232,6 +216,64 @@ namespace EE
         //-------------------------------------------------------------------------
 
         return isLogWindowOpen;
+    }
+
+    void SystemLogView::UpdateFilteredList( UpdateContext const& context )
+    {
+        auto const& logEntries = Log::System::GetLogEntries();
+
+        m_filteredEntries.clear();
+        m_filteredEntries.reserve( logEntries.size() );
+
+        for ( auto const& entry : logEntries )
+        {
+            switch ( entry.m_severity )
+            {
+                case Log::Severity::Warning:
+                if ( !m_showLogWarnings )
+                {
+                    continue;
+                }
+                break;
+
+                case Log::Severity::Error:
+                if ( !m_showLogErrors )
+                {
+                    continue;
+                }
+                break;
+
+                case Log::Severity::Message:
+                if ( !m_showLogMessages )
+                {
+                    continue;
+                }
+                break;
+
+                default:
+                break;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( m_filterWidget.MatchesFilter( entry.m_category ) )
+            {
+                m_filteredEntries.emplace_back( entry );
+                continue;
+            }
+
+            if ( m_filterWidget.MatchesFilter( entry.m_message ) )
+            {
+                m_filteredEntries.emplace_back( entry );
+                continue;
+            }
+
+            if ( m_filterWidget.MatchesFilter( entry.m_sourceInfo ) )
+            {
+                m_filteredEntries.emplace_back( entry );
+                continue;
+            }
+        }
     }
 }
 #endif

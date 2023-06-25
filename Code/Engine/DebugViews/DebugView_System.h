@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Engine/Entity/EntityWorldDebugView.h"
+#include "System/Imgui/ImguiX.h"
+#include "System/Logging/LoggingSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -35,8 +37,11 @@ namespace EE
     {
     public:
 
-        SystemLogView();
         bool Draw( UpdateContext const& context );
+
+    private:
+
+        void UpdateFilteredList( UpdateContext const& context );
 
     public:
 
@@ -46,7 +51,9 @@ namespace EE
 
     private:
 
-        InlineString                                        m_logFilter = "TODO";
+        ImGuiX::FilterWidget                                m_filterWidget;
+        TVector<Log::LogEntry>                              m_filteredEntries;
+        size_t                                              m_numLogEntriesWhenFiltered = 0;
     };
 }
 #endif

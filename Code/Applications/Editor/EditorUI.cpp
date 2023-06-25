@@ -165,6 +165,19 @@ namespace EE
         }
     }
 
+    bool EditorUI::TryFindInResourceBrowser( ResourceID const& resourceID ) const
+    {
+        if ( const_cast<ResourceBrowser*>( m_pResourceBrowser )->FindAndSelectResource( resourceID ) )
+        {
+            if ( !m_isResourceBrowserWindowOpen )
+            {
+                const_cast<EditorUI*>( this )->m_isResourceBrowserWindowOpen = true;
+            }
+        }
+
+        return false;
+    }
+
     //-------------------------------------------------------------------------
     // Title bar
     //-------------------------------------------------------------------------

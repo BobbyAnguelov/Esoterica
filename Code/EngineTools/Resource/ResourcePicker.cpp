@@ -216,12 +216,10 @@ namespace EE::Resource
                     ImGui::SetClipboardText( m_resourceID.c_str() );
                 }
 
-                ImGui::BeginDisabled( true );
                 if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE " Show In Resource Browser" ) )
                 {
-                    // TODO
+                    m_toolsContext.TryFindInResourceBrowser( m_resourceID );
                 }
-                ImGui::EndDisabled();
 
                 ImGui::Separator();
 

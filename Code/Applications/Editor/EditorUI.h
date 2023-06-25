@@ -55,6 +55,7 @@ namespace EE
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
         virtual bool TryOpenResource( ResourceID const& resourceID ) const override;
         virtual bool TryOpenRawResource( FileSystem::Path const& resourcePath ) const override;
+        virtual bool TryFindInResourceBrowser( ResourceID const& resourceID ) const override;
 
         // Title bar
         //-------------------------------------------------------------------------

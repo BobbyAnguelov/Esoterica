@@ -11,6 +11,7 @@ namespace EE
     class UpdateContext;
     class ToolsContext;
     class ResourceDescriptorCreator;
+    class ResourceID;
     namespace Resource{ class RawFileInspector; }
     namespace TypeSystem { class TypeInfo; }
 
@@ -27,6 +28,12 @@ namespace EE
 
         // Returns true if the browser is still open
         bool UpdateAndDraw( UpdateContext const& context );
+
+        // Commands
+        //-------------------------------------------------------------------------
+
+        // Find, select and focus on a specified resource - returns true if successful
+        bool FindAndSelectResource( ResourceID const& resourceID );
 
     private:
 

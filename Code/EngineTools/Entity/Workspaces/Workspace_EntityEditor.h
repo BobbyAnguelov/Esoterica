@@ -195,6 +195,7 @@ namespace EE::EntityModel
 
         Operation                                       m_activeOperation = Operation::None;
         EntityComponent*                                m_pOperationTargetComponent = nullptr;
+        ImGuiX::FilterWidget                            m_operationFilterWidget;
         char                                            m_operationBuffer[256];
         TVector<TypeSystem::TypeInfo const*>            m_operationOptions;
         TVector<TypeSystem::TypeInfo const*>            m_filteredOptions;

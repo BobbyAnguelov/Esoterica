@@ -172,15 +172,18 @@ namespace EE
 
     void TreeListView::SetViewToSelection()
     {
-        for ( auto i = 0; i < m_visualTree.size(); i++ )
+        // Expand all parents
+        for ( auto pSelectedItem : m_selection )
         {
-            if ( m_visualTree[i].m_pItem->m_isSelected )
+            auto pParentItem = pSelectedItem->m_pParent;
+            while (pParentItem != nullptr)
             {
-                m_firstVisibleRowItemIdx = i;
-                m_maintainVisibleRowIdx = true;
-                break;
+                pParentItem->SetExpanded( true );
+                pParentItem = pParentItem->m_pParent;
             }
         }
+
+        m_visualTreeState = VisualTreeState::NeedsRebuildAndFocusSelection;
     }
 
     TreeListViewItem* TreeListView::FindItem( uint64_t uniqueID )
@@ -455,10 +458,18 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        // Reset view
-        if ( m_visualTreeState == VisualTreeState::NeedsRebuildAndResetView )
+        // Set view to selection
+        if ( m_visualTreeState == VisualTreeState::NeedsRebuildAndFocusSelection )
         {
-            m_firstVisibleRowItemIdx = 0;
+            for ( auto i = 0; i < m_visualTree.size(); i++ )
+            {
+                if ( m_visualTree[i].m_pItem->m_isSelected )
+                {
+                    m_firstVisibleRowItemIdx = i;
+                    m_maintainVisibleRowIdx = true;
+                    break;
+                }
+            }
         }
 
         m_visualTreeState = VisualTreeState::UpToDate;
@@ -729,7 +740,7 @@ namespace EE
 
         if ( pItem->IsHeader() )
         {
-            treeNodeflags |= ImGuiTreeNodeFlags_Framed;
+            treeNodeflags |= ( ImGuiTreeNodeFlags_Framed );
         }
 
         if ( m_flags.IsFlagSet( ExpandItemsOnlyViaArrow ) )
@@ -917,7 +928,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        ImGuiTableFlags tableFlags = ImGuiTableFlags_Resizable | ImGuiTableFlags_NoPadOuterX;
+        ImGuiTableFlags tableFlags = ImGuiTableFlags_Resizable | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_ScrollY;
 
         if ( m_flags.IsFlagSet( DrawRowBackground ) )
         {
@@ -932,108 +943,42 @@ namespace EE
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 1, 0 ) );
-        bool const drawTree = ImGui::BeginChild( "TVC", ImVec2( -1, listHeight ), false, ImGuiWindowFlags_AlwaysUseWindowPadding );
-        ImGui::PopStyleVar();
-        if( drawTree )
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 2, 2 ) );
+        if ( ImGui::BeginTable( "TreeViewTable", context.m_numExtraColumns + 1, tableFlags, ImVec2( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x / 2, -1 ) ) )
         {
-            float const totalVerticalSpaceAvailable = ImGui::GetContentRegionAvail().y;
-            float const maxVerticalScrollPosition = ImGui::GetScrollMaxY();
-            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 2, 2 ) );
-
-            //-------------------------------------------------------------------------
-
-            // Calculate the required height in pixels for all rows based on the height of the first row. 
-            // We only render a single row here (so we dont bust the imgui index buffer limits for a single tree) - At low frame rates this will flicker
-            if ( m_estimatedTreeHeight < 0 )
+            ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthStretch );
+            if ( context.m_setupExtraColumnHeadersFunction != nullptr )
             {
-                if ( ImGui::BeginTable( "TreeViewTable", context.m_numExtraColumns + 1, tableFlags, ImVec2( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x / 2, -1 ) ) )
-                {
-                    ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_NoHide );
-                    if ( context.m_setupExtraColumnHeadersFunction != nullptr )
-                    {
-                        context.m_setupExtraColumnHeadersFunction();
-                    }
-
-                    ImVec2 const prevCursorPos = ImGui::GetCursorPos();
-                    DrawVisualItem( context, m_visualTree[0] );
-                    ImGui::TableNextRow();
-                    ImVec2 const cursorPos = ImGui::GetCursorPos();
-                    m_estimatedRowHeight = cursorPos.y - prevCursorPos.y;
-
-                    ImGui::EndTable();
-                }
-
-                // Draw a dummy to fake the real size so as to not completely reset scrollbar position
-                //-------------------------------------------------------------------------
-
-                m_estimatedTreeHeight = float( m_visualTree.size() ) * m_estimatedRowHeight;
-                ImGui::Dummy( ImVec2( -1, m_estimatedTreeHeight - ImGui::GetCursorPos().y ) );
-
-                // Update scrollbar position
-                //-------------------------------------------------------------------------
-
-                m_firstVisibleRowItemIdx = Math::Clamp( m_firstVisibleRowItemIdx, 0, int32_t( m_visualTree.size() - 1 ) );
-                m_maintainVisibleRowIdx = true;
-            }
-            else // Draw clipped table
-            {
-                int32_t const maxNumDrawableRows = (int32_t) Math::Floor( totalVerticalSpaceAvailable / m_estimatedRowHeight );
-                float const numRowIndices = float( m_visualTree.size() ) - 1;
-                float currentVerticalScrollPosition = ImGui::GetScrollY();
-
-                // If we want to maintain the current visible set of data, update the scroll bar position to keep the same first visible item
-                if ( m_maintainVisibleRowIdx )
-                {
-                    currentVerticalScrollPosition = ( m_firstVisibleRowItemIdx / numRowIndices * maxVerticalScrollPosition );
-                    ImGui::SetScrollY( currentVerticalScrollPosition );
-                    m_maintainVisibleRowIdx = false;
-                }
-
-                // Update visible item based on scrollbar position
-                // Assumption is that when we are at max scrolling we should show the last item at the bottom of the visible area
-                float const scrollItemOffset = currentVerticalScrollPosition / m_estimatedRowHeight;
-                m_firstVisibleRowItemIdx = Math::CeilingToInt( ( scrollItemOffset == 0.0f ) ? 0.0f : scrollItemOffset + 1 ); // Ensure the last item is always fully visible
-                m_firstVisibleRowItemIdx = Math::Clamp( m_firstVisibleRowItemIdx, 0, (int32_t) m_visualTree.size() - 1 );
-
-                // Calculate draw range
-                int32_t const itemsToDrawStartIdx = m_firstVisibleRowItemIdx;
-                int32_t itemsToDrawEndIdx = Math::Min( itemsToDrawStartIdx + maxNumDrawableRows, (int32_t) m_visualTree.size() - 1 );
-
-                // Draw initial dummy to adjust scrollbar position
-                ImGui::Dummy( ImVec2( -1, currentVerticalScrollPosition ) );
-
-                // Draw table rows
-                ImGui::SetCursorPosY( ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y );
-                if ( ImGui::BeginTable( "TreeViewTable", context.m_numExtraColumns + 1, tableFlags, ImVec2(ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x / 2, -1 ) ) )
-                {
-                    ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthStretch );
-                    if ( context.m_setupExtraColumnHeadersFunction != nullptr )
-                    {
-                        context.m_setupExtraColumnHeadersFunction();
-                    }
-
-                    m_isDrawingTree = true;
-                    for ( int32_t i = itemsToDrawStartIdx; i <= itemsToDrawEndIdx; i++ )
-                    {
-                        DrawVisualItem( context, m_visualTree[i] );
-                    }
-                    m_isDrawingTree = false;
-
-                    ImGui::EndTable();
-                }
-
-                // Draw final dummy to maintain scrollbar position
-                float const dummyHeight = m_estimatedTreeHeight - ImGui::GetCursorPos().y;
-                if ( dummyHeight > 0 )
-                {
-                    ImGui::Dummy( ImVec2( -1, dummyHeight ) );
-                }
+                context.m_setupExtraColumnHeadersFunction();
             }
 
-            ImGui::PopStyleVar();
+            m_isDrawingTree = true;
+
+            ImGuiListClipper clipper;
+            clipper.Begin( (int32_t) m_visualTree.size() );
+
+            // If we want to maintain the current visible set of data, update the scroll bar position to keep the same first visible item
+            if ( m_maintainVisibleRowIdx && m_estimatedRowHeight > 0 )
+            {
+                ImGui::SetScrollY( m_firstVisibleRowItemIdx * m_estimatedRowHeight );
+                m_maintainVisibleRowIdx = false;
+            }
+
+            // Draw clipped list
+            while ( clipper.Step() )
+            {
+                for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i )
+                {
+                    float const cursorPosY = ImGui::GetCursorPosY();
+                    DrawVisualItem( context, m_visualTree[i] );
+                    m_estimatedRowHeight = ImGui::GetCursorPosY() - cursorPosY;
+                }
+            }
+            m_isDrawingTree = false;
+
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
+        ImGui::PopStyleVar();
         ImGui::PopID();
 
         // Handle input

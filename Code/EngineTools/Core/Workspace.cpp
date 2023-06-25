@@ -318,11 +318,22 @@ namespace EE
 
         if ( IsADescriptorWorkspace() )
         {
-            if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Resource Path" ) )
+            if ( ImGui::BeginMenu( EE_ICON_PACKAGE_VARIANT" Descriptor" ) )
             {
-                ImGui::SetClipboardText( m_descriptorID.c_str() );
+                if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Resource Path" ) )
+                {
+                    ImGui::SetClipboardText( m_descriptorID.c_str() );
+                }
+                ImGuiX::ItemTooltip( "Copy Resource Path" );
+
+                if( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE" Show in Resource Browser" ) )
+                {
+                    m_pToolsContext->TryFindInResourceBrowser( m_descriptorID.c_str() );
+                }
+                ImGuiX::ItemTooltip( "Copy Resource Path" );
+
+                ImGui::EndMenu();
             }
-            ImGuiX::ItemTooltip( "Copy Resource Path" );
         }
 
         //-------------------------------------------------------------------------

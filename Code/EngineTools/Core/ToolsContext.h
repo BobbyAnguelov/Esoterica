@@ -35,6 +35,8 @@ namespace EE
 
         virtual bool TryOpenRawResource( FileSystem::Path const& resourcePath ) const = 0;
 
+        virtual bool TryFindInResourceBrowser( ResourceID const& resourceID ) const = 0;
+
         // Debugging
         //-------------------------------------------------------------------------
 

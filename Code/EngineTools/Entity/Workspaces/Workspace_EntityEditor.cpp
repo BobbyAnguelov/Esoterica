@@ -710,8 +710,6 @@ namespace EE::EntityModel
         m_outlinerTreeView.SetFlag( TreeListView::Flags::ShowBranchesFirst, false );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::ExpandItemsOnlyViaArrow );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::MultiSelectionAllowed );
-        m_outlinerTreeView.SetFlag( TreeListView::Flags::DrawRowBackground );
-        m_outlinerTreeView.SetFlag( TreeListView::Flags::DrawBorders );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::SortTree );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::ViewTracksSelection );
 
@@ -724,8 +722,8 @@ namespace EE::EntityModel
         m_structureEditorTreeView.SetFlag( TreeListView::Flags::ShowBranchesFirst, false );
         m_structureEditorTreeView.SetFlag( TreeListView::Flags::ExpandItemsOnlyViaArrow );
         m_structureEditorTreeView.SetFlag( TreeListView::Flags::MultiSelectionAllowed, false );
-        m_structureEditorTreeView.SetFlag( TreeListView::Flags::DrawRowBackground );
-        m_structureEditorTreeView.SetFlag( TreeListView::Flags::DrawBorders );
+        m_structureEditorTreeView.SetFlag( TreeListView::Flags::DrawRowBackground, false );
+        m_structureEditorTreeView.SetFlag( TreeListView::Flags::DrawBorders, false );
         m_structureEditorTreeView.SetFlag( TreeListView::Flags::SortTree );
 
         // Split components
@@ -1922,8 +1920,9 @@ namespace EE::EntityModel
 
     public:
 
-        OutlinerItem( Entity* pEntity )
-            : m_pEntity( pEntity )
+        OutlinerItem( TreeListViewItem* pParent, Entity* pEntity )
+            : TreeListViewItem( pParent )
+            , m_pEntity( pEntity )
             , m_entityID( pEntity->GetID() )
         {
             EE_ASSERT( m_pEntity != nullptr );
@@ -2192,16 +2191,16 @@ namespace EE::EntityModel
 
     public:
 
-        StructureEditorItem( char const* const pLabel )
-            : TreeListViewItem()
+        StructureEditorItem( TreeListViewItem* pParent, char const* const pLabel )
+            : TreeListViewItem( pParent )
             , m_ID( pLabel )
             , m_tooltip( pLabel )
         {
             SetExpanded( true );
         }
 
-        explicit StructureEditorItem( SpatialEntityComponent* pComponent )
-            : TreeListViewItem()
+        explicit StructureEditorItem( TreeListViewItem* pParent, SpatialEntityComponent* pComponent )
+            : TreeListViewItem( pParent )
             , m_ID( pComponent->GetNameID() )
             , m_pComponent( pComponent )
             , m_pSpatialComponent( pComponent )
@@ -2211,8 +2210,8 @@ namespace EE::EntityModel
             SetExpanded( true );
         }
 
-        StructureEditorItem( EntityComponent* pComponent )
-            : TreeListViewItem()
+        StructureEditorItem( TreeListViewItem* pParent, EntityComponent* pComponent )
+            : TreeListViewItem( pParent )
             , m_ID( pComponent->GetNameID() )
             , m_pComponent( pComponent )
             , m_componentID( pComponent->GetID() )
@@ -2221,8 +2220,8 @@ namespace EE::EntityModel
             m_tooltip.sprintf( "Type: %s", m_pComponent->GetTypeInfo()->GetFriendlyTypeName() );
         }
 
-        StructureEditorItem( EntitySystem* pSystem )
-            : TreeListViewItem()
+        StructureEditorItem( TreeListViewItem* pParent, EntitySystem* pSystem )
+            : TreeListViewItem( pParent )
             , m_ID( pSystem->GetTypeInfo()->GetFriendlyTypeName() )
             , m_pSystem( pSystem )
         {
@@ -2330,6 +2329,11 @@ namespace EE::EntityModel
         }
         else
         {
+            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS" Add Component/System", ImVec2( -1, 0 ) ) )
+            {
+                StartEntityOperation( Operation::EntityAddSystemOrComponent );
+            }
+
             m_structureEditorTreeView.UpdateAndDraw( m_structureEditorContext );
         }
 
@@ -2918,77 +2922,22 @@ namespace EE::EntityModel
             // Draw Filter
             //-------------------------------------------------------------------------
 
-            bool filterUpdated = false;
-
-            ImGui::SetNextItemWidth( contentRegionAvailable.x - ImGui::GetStyle().WindowPadding.x - 26 );
-            InlineString filterCopy( m_operationBuffer );
-
-            if ( m_initializeFocus )
+            if ( m_operationFilterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
             {
-                ImGui::SetKeyboardFocusHere();
-                m_initializeFocus = false;
-            }
-
-            if ( ImGui::InputText( "##Filter", filterCopy.data(), 256 ) )
-            {
-                if ( strcmp( filterCopy.data(), m_operationBuffer ) != 0 )
-                {
-                    strcpy_s( m_operationBuffer, 256, filterCopy.data() );
-
-                    // Convert buffer to lower case
-                    int32_t i = 0;
-                    while ( i < 256 && m_operationBuffer[i] != 0 )
-                    {
-                        m_operationBuffer[i] = eastl::CharToLower( m_operationBuffer[i] );
-                        i++;
-                    }
-
-                    filterUpdated = true;
-                }
-            }
-
-            ImGui::SameLine();
-            if ( ImGui::Button( EE_ICON_CLOSE_CIRCLE "##Clear Filter", ImVec2( 26, 0 ) ) )
-            {
-                m_operationBuffer[0] = 0;
-                filterUpdated = true;
-            }
-
-            // Update filter options
-            //-------------------------------------------------------------------------
-
-            if ( filterUpdated )
-            {
-                if ( m_operationBuffer[0] == 0 )
-                {
-                    m_filteredOptions = m_operationOptions;
-                }
-                else
+                if ( m_operationFilterWidget.HasFilterSet() )
                 {
                     m_filteredOptions.clear();
                     for ( auto const& pTypeInfo : m_operationOptions )
                     {
-                        String lowercasePath( pTypeInfo->GetTypeName() );
-                        lowercasePath.make_lower();
-
-                        bool passesFilter = true;
-                        char* token = strtok( m_operationBuffer, " " );
-                        while ( token )
-                        {
-                            if ( lowercasePath.find( token ) == String::npos )
-                            {
-                                passesFilter = false;
-                                break;
-                            }
-
-                            token = strtok( NULL, " " );
-                        }
-
-                        if ( passesFilter )
+                        if ( m_operationFilterWidget.MatchesFilter( pTypeInfo->GetTypeName() ) )
                         {
                             m_filteredOptions.emplace_back( pTypeInfo );
                         }
                     }
+                }
+                else
+                {
+                    m_filteredOptions = m_operationOptions;
                 }
 
                 m_pOperationSelectedOption = m_filteredOptions.empty() ? nullptr : m_filteredOptions.front();

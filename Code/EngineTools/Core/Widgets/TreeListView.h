@@ -32,7 +32,7 @@ namespace EE
 
     public:
 
-        TreeListViewItem() = default;
+        TreeListViewItem( TreeListViewItem* pParent ) : m_pParent( pParent ) {}
         virtual ~TreeListViewItem() = default;
 
         //-------------------------------------------------------------------------
@@ -143,7 +143,7 @@ namespace EE
         T* CreateChild( ConstructorParams&&... params )
         {
             static_assert( std::is_base_of<TreeListViewItem, T>::value, "T must derive from TreeViewItem" );
-            TreeListViewItem* pAddedItem = m_children.emplace_back( EE::New<T>( std::forward<ConstructorParams>( params )... ) );
+            TreeListViewItem* pAddedItem = m_children.emplace_back( EE::New<T>( this, std::forward<ConstructorParams>( params )... ) );
             EE_ASSERT( pAddedItem->GetUniqueID() != 0 );
             return static_cast<T*>( pAddedItem );
         }
@@ -197,6 +197,7 @@ namespace EE
 
     protected:
 
+        TreeListViewItem*                       m_pParent = nullptr;
         TVector<TreeListViewItem*>              m_children;
         bool                                    m_isVisible = true;
         bool                                    m_isExpanded = false;
@@ -240,6 +241,7 @@ namespace EE
         public:
 
             TreeRootItem()
+                : TreeListViewItem( nullptr )
             {
                 m_isExpanded = true;
             }
@@ -256,7 +258,7 @@ namespace EE
         {
             UpToDate,
             NeedsRebuild,
-            NeedsRebuildAndResetView
+            NeedsRebuildAndFocusSelection
         };
 
         struct VisualTreeItem

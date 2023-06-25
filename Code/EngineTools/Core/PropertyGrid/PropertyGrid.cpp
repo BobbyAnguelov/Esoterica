@@ -206,8 +206,8 @@ namespace EE
 
         if ( m_isControlBarVisible )
         {
-            constexpr float const buttonWidth = 26;
-            float const filterWidth = ImGui::GetContentRegionAvail().x - ( 3 * ( buttonWidth + 4 ) );
+            constexpr float const buttonWidth = 30;
+            float const filterWidth = ImGui::GetContentRegionAvail().x - ( 3 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
             if ( m_filterWidget.DrawAndUpdate( filterWidth ) )
             {
                 ApplyFilter();
