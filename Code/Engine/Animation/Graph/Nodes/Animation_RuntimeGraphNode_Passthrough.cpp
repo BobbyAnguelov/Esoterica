@@ -46,10 +46,8 @@ namespace EE::Animation::GraphNodes
         else
         {
             m_previousTime = m_currentTime = 0.0f;
-            m_duration = s_oneFrameDuration;
+            m_duration = 0;
         }
-
-        EE_ASSERT( m_duration != 0.0f );
     }
 
     void PassthroughNode::ShutdownInternal( GraphContext& context )
@@ -77,8 +75,6 @@ namespace EE::Animation::GraphNodes
         {
             result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
-
-        EE_ASSERT( m_duration != 0.0f );
 
         return result;
     }

@@ -71,6 +71,14 @@ namespace EE::Animation
 
     class EE_ENGINE_API BoneMask
     {
+    public:
+
+        enum class WeightInfo : uint8_t
+        {
+            Zero, // All weights are set to 0.0f
+            Mixed, // Mixed weights
+            One, // All weights are set to 1.0f
+        };
 
     public:
 
@@ -85,6 +93,7 @@ namespace EE::Animation
         BoneMask& operator=( BoneMask const& rhs );
         BoneMask& operator=( BoneMask&& rhs );
 
+        // Only copies the mask value but not the ID!
         inline void CopyFrom( BoneMask const& rhs ) { *this = rhs; }
 
         //-------------------------------------------------------------------------
@@ -97,8 +106,21 @@ namespace EE::Animation
         inline float operator[]( uint32_t i ) const { return GetWeight( i ); }
         BoneMask& operator*=( BoneMask const& rhs );
 
+        //-------------------------------------------------------------------------
+
+        // Is this a zero mask? i.e. all the weights are set to 1.0f and therefore no masking will occur
+        inline bool IsZeroWeightMask() const { return m_weightInfo == WeightInfo::Zero; }
+
+        // Is this a full mask? i.e. all the weights are set to 0.0f and therefore this will completely mask out all bones
+        inline bool IsFullWeightMask() const { return m_weightInfo == WeightInfo::One; }
+
+        // Is this a mixed mask? i.e. mixed set of mask weights
+        inline bool IsMixedWeightMask() const { return m_weightInfo == WeightInfo::Mixed; }
+
+        //-------------------------------------------------------------------------
+
         // Set all weights to zero
-        void ResetWeights() { Memory::MemsetZero( m_weights.data(), m_weights.size() ); }
+        void ResetWeights() { Memory::MemsetZero( m_weights.data(), m_weights.size() ); m_weightInfo = WeightInfo::Zero; }
 
         // Set all weights to a fixed weight
         void ResetWeights( float fixedWeight );
@@ -113,15 +135,34 @@ namespace EE::Animation
         // Multiple the supplied bone mask into the current bone mask
         inline void CombineWith( BoneMask const& rhs ) { operator*=( rhs ); }
 
-        // Blend from the supplied mask weight towards our weights with the supplied blend weight
+        // Blend from the supplied mask weight towards our weights with the supplied blend weight [0:1] (where 0 = fully in the source, and 1 = fully in the target)
         void BlendFrom( BoneMask const& source, float blendWeight );
 
-        // Blend towards the supplied mask weights from our current weights with the supplied blend weight
+        // Blend towards the supplied mask weights from our current weights with the supplied blend weight [0:1] (where 0 = fully in the source, and 1 = fully in the target)
         void BlendTo( BoneMask const& target, float blendWeight );
 
     private:
 
+        EE_FORCE_INLINE void SetWeightInfo( float fixedWeight )
+        {
+            if ( fixedWeight == 0.0f )
+            {
+                m_weightInfo = WeightInfo::Zero;
+            }
+            else if ( fixedWeight == 1.0f )
+            {
+                m_weightInfo = WeightInfo::One;
+            }
+            else
+            {
+                m_weightInfo = WeightInfo::Mixed;
+            }
+        }
+
+    private:
+
         StringID                    m_ID;
+        WeightInfo                  m_weightInfo = WeightInfo::Zero;
         Skeleton const*             m_pSkeleton = nullptr;
         TVector<float>              m_weights;
     };
@@ -238,7 +279,7 @@ namespace EE::Animation
             }
             else if ( m_type == Type::Blend )
             {
-                return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx != InvalidIndex && m_weight > 0 && m_weight < 1.0f;
+                return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx != InvalidIndex && m_weight >= 0.0f && m_weight <= 1.0f;
             }
             else // Mask Idx
             {
@@ -275,7 +316,13 @@ namespace EE::Animation
 
         constexpr static int32_t s_maxTasks = 32;
 
+        // A default mask list with a single zero mask task (generate task with weights set to 1.0f)
+        static BoneMaskTaskList const s_defaultMaskList;
+
     public:
+
+        BoneMaskTaskList() = default;
+        BoneMaskTaskList( BoneMaskTask const& task ) { m_tasks.emplace_back( task ); }
 
         // Do we have any tasks
         inline bool HasTasks() const { return !m_tasks.empty(); }

@@ -1,6 +1,7 @@
 #include "Animation_Task_Ragdoll.h"
 #include "Engine/Animation/AnimationBlender.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,6 +18,7 @@ namespace EE::Animation::Tasks
 
     void RagdollSetPoseTask::Execute( TaskContext const& context )
     {
+        EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         pSourceBuffer->m_pose.CalculateGlobalTransforms();
         m_pRagdoll->Update( context.m_deltaTime, context.m_worldTransform, &pSourceBuffer->m_pose, m_initOption == InitializeBodies );
@@ -43,6 +45,7 @@ namespace EE::Animation::Tasks
 
     void RagdollGetPoseTask::Execute( TaskContext const& context )
     {
+        EE_PROFILE_FUNCTION_ANIMATION();
         if ( context.m_dependencies.empty() )
         {
             auto pResultBuffer = GetNewPoseBuffer( context );

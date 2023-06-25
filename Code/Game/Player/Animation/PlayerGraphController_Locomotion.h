@@ -33,8 +33,8 @@ namespace EE::Player
 
         void RequestIdle();
         void RequestTurnOnSpot( Vector const& directionWS );
-        void RequestStart( Vector const& headingVelocityWS );
-        void RequestMove( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS );
+        void RequestStart( Vector const& movementVelocityWS );
+        void RequestMove( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS );
         void RequestPlantedTurn( Vector const& directionWS );
         void RequestStop( Transform const& target );
 
@@ -59,7 +59,7 @@ namespace EE::Player
         ControlParameter<bool>                              m_isCrouchParam = ControlParameter<bool>( "Locomotion_IsCrouched" );
         ControlParameter<bool>                              m_isSlidingParam = ControlParameter<bool>( "Locomotion_IsSliding" );
         ControlParameter<float>                             m_speedParam = ControlParameter<float>( "Locomotion_Speed" );
-        ControlParameter<Vector>                            m_headingParam = ControlParameter<Vector>( "Locomotion_Heading" );
+        ControlParameter<Vector>                            m_movementVelocityParam = ControlParameter<Vector>( "Locomotion_MovementVelocity" );
         ControlParameter<Vector>                            m_facingParam = ControlParameter<Vector>( "Locomotion_Facing" );
 
         States                                              m_graphState = States::Unknown;

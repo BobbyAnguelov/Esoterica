@@ -1322,7 +1322,7 @@ namespace EE::CPP
 
             file << "                propertyInfo.m_ID = StringID( \"" << prop.m_name.c_str() << "\" );\n";
             file << "                propertyInfo.m_typeID = TypeSystem::TypeID( \"" << prop.m_typeName.c_str() << "\" );\n";
-            file << "                propertyInfo.m_parentTypeID = " << type.m_ID << ";\n";
+            file << "                propertyInfo.m_parentTypeID = " << type.m_ID.ToUint() << ";\n";
             file << "                propertyInfo.m_templateArgumentTypeID = TypeSystem::TypeID( \"" << prop.m_templateArgTypeName.c_str() << "\" );\n\n";
 
             // Create dev tools info
@@ -1497,7 +1497,7 @@ namespace EE::CPP
         file << "        class " << exportMacro.c_str() << " TTypeInfo<" << type.m_namespace.c_str() << type.m_name.c_str() << "> final : public TypeInfo\n";
         file << "        {\n";
 
-        file << "           static " << type.m_namespace.c_str() << type.m_name.c_str() <<" const* s_pDefaultInstance_" << type.m_ID.GetID() << ";\n\n";
+        file << "           static " << type.m_namespace.c_str() << type.m_name.c_str() <<" const* s_pDefaultInstance_" << type.m_ID.ToUint() << ";\n\n";
 
         file << "        public:\n\n";
 
@@ -1529,7 +1529,7 @@ namespace EE::CPP
 
         file << "        };\n\n";
 
-        file << "        " << type.m_namespace.c_str() << type.m_name.c_str() << " const*" << " TTypeInfo<" << type.m_namespace.c_str() << type.m_name.c_str() << ">::s_pDefaultInstance_" << type.m_ID.GetID() << " = nullptr; \n";
+        file << "        " << type.m_namespace.c_str() << type.m_name.c_str() << " const*" << " TTypeInfo<" << type.m_namespace.c_str() << type.m_name.c_str() << ">::s_pDefaultInstance_" << type.m_ID.ToUint() << " = nullptr; \n";
 
         file << "    }\n";
 

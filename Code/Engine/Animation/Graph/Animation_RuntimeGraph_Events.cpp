@@ -4,6 +4,23 @@
 
 namespace EE::Animation
 {
+    #if EE_DEVELOPMENT_TOOLS
+    char const* GetNameForStateEventType( StateEventType type )
+    {
+        constexpr static char const* const names[] =
+        {
+            "Entry",
+            "FullyInState",
+            "Exit",
+            "Timed",
+        };
+
+        return names[(uint8_t) type];
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
     void SampledEventsBuffer::Clear()
     {
         m_sampledEvents.clear();

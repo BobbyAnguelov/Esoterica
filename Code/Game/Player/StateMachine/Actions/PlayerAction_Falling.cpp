@@ -65,10 +65,10 @@ namespace EE::Player
 
         Vector const forward = camFwd * movementInputs.GetY();
         Vector const right = camRight * movementInputs.GetX();
-        Vector const desiredHeadingVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
-        Vector const facing = desiredHeadingVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredHeadingVelocity2D.GetNormalized2();
+        Vector const desiredMovementVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
+        Vector const facing = desiredMovementVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredMovementVelocity2D.GetNormalized2();
 
-        Vector resultingVelocity = currentVelocity2D + desiredHeadingVelocity2D;
+        Vector resultingVelocity = currentVelocity2D + desiredMovementVelocity2D;
         float const speed2D = resultingVelocity.GetLength2();
         if( speed2D > g_maxAirControlSpeed )
         {

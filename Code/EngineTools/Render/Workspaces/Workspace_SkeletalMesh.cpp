@@ -219,7 +219,6 @@ namespace EE::Render
                     ImGui::Text( section.m_ID.c_str() );
                 }
 
-
                 ImGui::EndTable();
             }
             ImGui::PopStyleVar();
@@ -335,14 +334,18 @@ namespace EE::Render
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
         }
 
+        ImColor rowColor = ImGuiX::Style::s_colorText;
         if ( currentBoneID == m_selectedBoneID )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
+            rowColor = ImGuiX::Style::s_colorAccent0;
         }
 
         InlineString boneLabel;
         boneLabel.sprintf( "%d. %s", pBone->m_boneIdx, m_workspaceResource->GetBoneID( pBone->m_boneIdx ).c_str() );
+        ImGui::PushStyleColor( ImGuiCol_Text, rowColor.Value );
         pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
+        ImGui::PopStyleColor();
 
         // Handle bone selection
         if ( ImGui::IsItemClicked() )
@@ -352,16 +355,29 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+        InlineString const contextMenuID( InlineString::CtorSprintf(), "##%s_ctx", currentBoneID.c_str() );
+        if ( ImGui::BeginPopupContextItem( contextMenuID.c_str() ) )
+        {
+            if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy Bone ID" ) )
+            {
+                ImGui::SetClipboardText( currentBoneID.c_str() );
+            }
+
+            ImGui::EndPopup();
+        }
+
+        //-------------------------------------------------------------------------
+
         ImRect const nodeRect = ImRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
 
         if ( pBone->m_isExpanded )
         {
-            ImColor const TreeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
-            float const SmallOffsetX = 2;
+            ImColor const treeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
+            float const smallOffsetX = 2;
             ImDrawList* drawList = ImGui::GetWindowDrawList();
 
             ImVec2 verticalLineStart = ImGui::GetCursorScreenPos();
-            verticalLineStart.x += SmallOffsetX;
+            verticalLineStart.x += smallOffsetX;
             ImVec2 verticalLineEnd = verticalLineStart;
 
             for ( BoneInfo* pChild : pBone->m_children )
@@ -369,11 +385,11 @@ namespace EE::Render
                 const float HorizontalTreeLineSize = 4.0f;
                 const ImRect childRect = RenderSkeletonTree( pChild );
                 const float midpoint = ( childRect.Min.y + childRect.Max.y ) / 2.0f;
-                drawList->AddLine( ImVec2( verticalLineStart.x, midpoint ), ImVec2( verticalLineStart.x + HorizontalTreeLineSize, midpoint ), TreeLineColor );
+                drawList->AddLine( ImVec2( verticalLineStart.x, midpoint ), ImVec2( verticalLineStart.x + HorizontalTreeLineSize, midpoint ), treeLineColor );
                 verticalLineEnd.y = midpoint;
             }
 
-            drawList->AddLine( verticalLineStart, verticalLineEnd, TreeLineColor );
+            drawList->AddLine( verticalLineStart, verticalLineEnd, treeLineColor );
             ImGui::TreePop();
         }
 

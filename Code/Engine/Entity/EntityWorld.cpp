@@ -66,8 +66,8 @@ namespace EE
         for ( auto pTypeInfo : worldSystemTypeInfos )
         {
             // Create and initialize world system
-            auto pWorldSystem = Cast<IEntityWorldSystem>( pTypeInfo->CreateType() );
-            pWorldSystem->m_worldType = m_worldType;
+            auto pWorldSystem = Cast<EntityWorldSystem>( pTypeInfo->CreateType() );
+            pWorldSystem->m_pWorld = this;
             pWorldSystem->InitializeSystem( systemsRegistry );
             m_worldSystems.push_back( pWorldSystem );
 
@@ -80,7 +80,7 @@ namespace EE
                 }
 
                 // Sort update list
-                auto comparator = [i] ( IEntityWorldSystem* const& pSystemA, IEntityWorldSystem* const& pSystemB )
+                auto comparator = [i] ( EntityWorldSystem* const& pSystemA, EntityWorldSystem* const& pSystemB )
                 {
                     uint8_t const A = pSystemA->GetRequiredUpdatePriorities().GetPriorityForStage( (UpdateStage) i );
                     uint8_t const B = pSystemB->GetRequiredUpdatePriorities().GetPriorityForStage( (UpdateStage) i );
@@ -181,9 +181,9 @@ namespace EE
     // Misc
     //-------------------------------------------------------------------------
 
-    IEntityWorldSystem* EntityWorld::GetWorldSystem( uint32_t worldSystemID ) const
+    EntityWorldSystem* EntityWorld::GetWorldSystem( uint32_t worldSystemID ) const
     {
-        for ( IEntityWorldSystem* pWorldSystem : m_worldSystems )
+        for ( EntityWorldSystem* pWorldSystem : m_worldSystems )
         {
             if ( pWorldSystem->GetSystemID() == worldSystemID )
             {

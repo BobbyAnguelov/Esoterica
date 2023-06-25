@@ -429,7 +429,9 @@ namespace EE::Animation
         Skeleton const* pSkeleton = m_workspaceResource.GetPtr();
         int32_t const boneIdx = pBone->m_boneIdx;
         StringID const currentBoneID = pSkeleton->GetBoneID( boneIdx );
-        ImColor const rowColor = IsEditingBoneMask() ? ImGuiX::ToIm( GetColorForWeight( m_editedBoneWeights[boneIdx] ) ) : ImGuiX::Style::s_colorText;
+        bool const isSelected = m_selectedBoneID == currentBoneID;
+
+        ImColor const rowColor = IsEditingBoneMask() ? ImGuiX::ToIm( GetColorForWeight( m_editedBoneWeights[boneIdx] ) ) : isSelected ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText;
 
         //-------------------------------------------------------------------------
 
@@ -447,6 +449,11 @@ namespace EE::Animation
         if ( pBone->m_children.empty() )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+        }
+
+        if ( !IsEditingBoneMask() && isSelected )
+        {
+            treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
         }
 
         ImGui::SetNextItemOpen( pBone->m_isExpanded );

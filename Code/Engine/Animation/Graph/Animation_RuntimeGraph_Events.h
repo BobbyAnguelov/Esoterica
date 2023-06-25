@@ -35,6 +35,10 @@ namespace EE::Animation
         Any                // Any kind of state event
     };
 
+    #if EE_DEVELOPMENT_TOOLS
+    EE_ENGINE_API char const* GetNameForStateEventType( StateEventType type );
+    #endif
+
     EE_FORCE_INLINE bool DoesStateEventTypesMatchCondition( StateEventTypeCondition condition, StateEventType eventType )
     {
         if ( condition == StateEventTypeCondition::Any ) 

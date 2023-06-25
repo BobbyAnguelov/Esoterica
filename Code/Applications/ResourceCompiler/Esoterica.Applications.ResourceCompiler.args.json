@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "daf1c588-32c9-4fe9-bd28-de4aae719214",
+      "Command": "-compile data://citadel/npc/trooper_melee/animation/aim_c.anim"
+    },
+    {
       "Id": "3c5f0b19-f9fb-47b8-a480-99683ee1f021",
       "Command": "-compile data://citadel/animation/trooper_melee_attack.anim"
     },

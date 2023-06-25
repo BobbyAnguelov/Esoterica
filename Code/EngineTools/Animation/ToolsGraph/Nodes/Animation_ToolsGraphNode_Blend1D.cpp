@@ -64,11 +64,6 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        // Common Settings
-        //-------------------------------------------------------------------------
-
-        pSettings->m_isSynchronized = m_isSynchronized;
-
         return true;
     }
 
@@ -115,7 +110,7 @@ namespace EE::Animation::GraphNodes
         ParameterizedBlendToolsNode::DrawPinControls( pUserContext, pin );
 
         // Add parameter value input field
-        if ( pin.IsInputPin() && pin.m_type == (uint32_t) GraphValueType::Pose )
+        if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Pose ) )
         {
             int32_t const pinIdx = GetInputPinIndex( pin.m_ID );
             int32_t const parameterIdx = pinIdx - 1;

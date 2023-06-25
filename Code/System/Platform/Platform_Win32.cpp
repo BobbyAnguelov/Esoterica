@@ -34,15 +34,26 @@ namespace EE::Platform
 
     TVector<Symbol> WalkStack( PCONTEXT pExceptionContext )
     {
-        HANDLE process = OpenProcess( PROCESS_QUERY_LIMITED_INFORMATION, false, GetCurrentProcessId() );
+        TVector<Symbol> callstack;
+
+        HANDLE process = GetCurrentProcess();
+
+        // Initialize the symbol handler
+        //-------------------------------------------------------------------------
+
+        SymSetOptions( SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME );
+        if ( !SymInitializeW( process, nullptr, true) )
+        {
+            EE_TRACE_MSG( Win32::GetLastErrorMessage().c_str() );
+            return callstack;
+        }
 
         // Walk the stack
         //-------------------------------------------------------------------------
 
-        HANDLE thread = OpenThread( READ_CONTROL, false, GetCurrentThreadId() );
-
         // Copy the context because StackWalk64 modifies it
         CONTEXT context = *pExceptionContext;
+        context.ContextFlags = CONTEXT_FULL;
 
         // Grab the exception callstack
         STACKFRAME64 stackFrame = {};
@@ -55,67 +66,52 @@ namespace EE::Platform
 
         // Process each frame of the stack
         TInlineVector<uint64_t, 256> callstackAddresses;
-        while ( StackWalk64( IMAGE_FILE_MACHINE_AMD64, process, thread, &stackFrame, &context, nullptr, &SymFunctionTableAccess64, &SymGetModuleBase64, nullptr ) )
+        while ( StackWalk64( IMAGE_FILE_MACHINE_AMD64, process, GetCurrentThread(), &stackFrame, &context, nullptr, &SymFunctionTableAccess64, &SymGetModuleBase64, nullptr) )
         {
             uint64_t const address = stackFrame.AddrPC.Offset;
             callstackAddresses.emplace_back( address );
         }
 
-        CloseHandle( thread );
-
         // Symbolificate the stack addresses
         //-------------------------------------------------------------------------
 
-        TVector<Symbol> callstack;
-
-        // For local processes, we let DbgHelp invade the process and figure out which modules and symbol files to load automatically
-        SymSetOptions( SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME );
-        if ( SymInitializeW( process, nullptr, true ) )
+        callstack.reserve( callstackAddresses.size() );
+        for ( uint64_t const address : callstackAddresses )
         {
-            callstack.reserve( callstackAddresses.size() );
-            for ( uint64_t const address : callstackAddresses )
+            // retrieve module information
+            IMAGEHLP_MODULE64 module = {};
+            module.SizeOfStruct = sizeof( IMAGEHLP_MODULE64 );
+            BOOL const successfulModule = SymGetModuleInfo64( process, address, &module );
+
+            // retrieve filename and line number
+            DWORD displacement = 0u;
+            IMAGEHLP_LINE64 line = {};
+            line.SizeOfStruct = sizeof( IMAGEHLP_LINE64 );
+            BOOL const successfulLine = SymGetLineFromAddr64( process, address, &displacement, &line );
+
+            // retrieve function
+            DWORD64 displacement64 = 0u;
+            ULONG64 buffer[( sizeof( SYMBOL_INFO ) + MAX_SYM_NAME * sizeof( char ) + sizeof( ULONG64 ) - 1u ) / sizeof( ULONG64 )] = {};
+            SYMBOL_INFO* symbolInfo = reinterpret_cast<SYMBOL_INFO*>( buffer );
+            symbolInfo->SizeOfStruct = sizeof( SYMBOL_INFO );
+            symbolInfo->MaxNameLen = MAX_SYM_NAME;
+            BOOL const successfulSymbol = SymFromAddr( process, address, &displacement64, symbolInfo );
+
+            callstack.emplace_back( Symbol
             {
-                // retrieve module information
-                IMAGEHLP_MODULE64 module = {};
-                module.SizeOfStruct = sizeof( IMAGEHLP_MODULE64 );
-                BOOL const successfulModule = SymGetModuleInfo64( process, address, &module );
-
-                // retrieve filename and line number
-                DWORD displacement = 0u;
-                IMAGEHLP_LINE64 line = {};
-                line.SizeOfStruct = sizeof( IMAGEHLP_LINE64 );
-                BOOL const successfulLine = SymGetLineFromAddr64( process, address, &displacement, &line );
-
-                // retrieve function
-                DWORD64 displacement64 = 0u;
-                ULONG64 buffer[( sizeof( SYMBOL_INFO ) + MAX_SYM_NAME * sizeof( char ) + sizeof( ULONG64 ) - 1u ) / sizeof( ULONG64 )] = {};
-                SYMBOL_INFO* symbolInfo = reinterpret_cast<SYMBOL_INFO*>( buffer );
-                symbolInfo->SizeOfStruct = sizeof( SYMBOL_INFO );
-                symbolInfo->MaxNameLen = MAX_SYM_NAME;
-                BOOL const successfulSymbol = SymFromAddr( process, address, &displacement64, symbolInfo );
-
-                callstack.emplace_back( Symbol
-                {
-                    address,
-                    successfulModule ? module.BaseOfImage : 0ull,
-                    successfulModule ? module.ImageName : String(),
-                    successfulLine ? line.FileName : String(),
-                    successfulSymbol ? symbolInfo->Name : String(),
-                    successfulLine ? line.LineNumber : 0u
-                } );
-            }
-
-            if ( !SymCleanup( process ) )
-            {
-                EE_TRACE_MSG( Win32::GetLastErrorMessage().c_str() );
-            }
+                address,
+                successfulModule ? module.BaseOfImage : 0ull,
+                successfulModule ? module.ImageName : String(),
+                successfulLine ? line.FileName : String(),
+                successfulSymbol ? symbolInfo->Name : String(),
+                successfulLine ? line.LineNumber : 0u
+            } );
         }
-        else
+
+        if ( !SymCleanup( process ) )
         {
             EE_TRACE_MSG( Win32::GetLastErrorMessage().c_str() );
         }
-
-        CloseHandle( process );
 
         //-------------------------------------------------------------------------
 
@@ -197,7 +193,7 @@ namespace EE::Platform
 
             for ( auto const& stackEntry : stack )
             {
-                stackFileData.append_sprintf( "%s (%s:%d)", stackEntry.m_symbol.c_str(), stackEntry.m_file.c_str(), stackEntry.m_lineNumber );
+                stackFileData.append_sprintf( "%s (%s:%d)\r\n", stackEntry.m_symbol.c_str(), stackEntry.m_file.c_str(), stackEntry.m_lineNumber );
             }
 
             HANDLE hStackTraceFile = CreateFile( stackTraceFilePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0 );

@@ -150,9 +150,15 @@ namespace EE::EntityModel
         #endif
     }
 
-    void EntityMap::AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform )
+    void EntityMap::AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform, TVector<Entity*>* pOutCreatedEntities )
     {
-        TVector<Entity*> const createdEntities = Serializer::CreateEntities( pTaskSystem, typeRegistry, entityCollectionDesc );
+        TVector<Entity*> scratchVector;
+        TVector<Entity*>& createdEntities = ( pOutCreatedEntities != nullptr ) ? *pOutCreatedEntities : scratchVector;
+
+        //-------------------------------------------------------------------------
+
+        createdEntities.clear();
+        createdEntities = Serializer::CreateEntities( pTaskSystem, typeRegistry, entityCollectionDesc );
         AddEntities( createdEntities, offsetTransform );
     }
 
@@ -632,7 +638,7 @@ namespace EE::EntityModel
         // Create a task that splits per-system registration across multiple threads
         struct ComponentRegistrationTask : public ITaskSet
         {
-            ComponentRegistrationTask( TVector<IEntityWorldSystem*> const& worldSystems, TVector<EntityModel::EntityComponentPair> const& componentsToRegister, TVector<EntityModel::EntityComponentPair> const& componentsToUnregister )
+            ComponentRegistrationTask( TVector<EntityWorldSystem*> const& worldSystems, TVector<EntityModel::EntityComponentPair> const& componentsToRegister, TVector<EntityModel::EntityComponentPair> const& componentsToUnregister )
                 : m_worldSystems( worldSystems )
                 , m_componentsToRegister( componentsToRegister )
                 , m_componentsToUnregister( componentsToUnregister )
@@ -681,7 +687,7 @@ namespace EE::EntityModel
 
         private:
 
-            TVector<IEntityWorldSystem*> const&                         m_worldSystems;
+            TVector<EntityWorldSystem*> const&                         m_worldSystems;
             TVector<EntityModel::EntityComponentPair> const&            m_componentsToRegister;
             TVector<EntityModel::EntityComponentPair> const&            m_componentsToUnregister;
         };

@@ -1,5 +1,6 @@
 #include "AnimationBoneMask.h"
 #include "Engine/Animation/AnimationSkeleton.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -8,17 +9,32 @@ namespace EE::Animation
     BoneMask::BoneMask( Skeleton const* pSkeleton )
         : m_pSkeleton( pSkeleton )
     {
-        EE_ASSERT( pSkeleton != nullptr );
-        m_weights.resize( pSkeleton->GetNumBones(), 0.0f );
+        EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
+        m_weights.resize( m_pSkeleton->GetNumBones(), 0.0f );
+        m_weightInfo = WeightInfo::Zero;
     }
 
     BoneMask::BoneMask( Skeleton const* pSkeleton, float fixedWeight )
         : m_pSkeleton( pSkeleton )
     {
-        EE_ASSERT( pSkeleton != nullptr );
-
+        EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
         EE_ASSERT( fixedWeight >= 0.0f && fixedWeight <= 1.0f );
-        m_weights.resize( pSkeleton->GetNumBones(), fixedWeight );
+        m_weights.resize( m_pSkeleton->GetNumBones(), fixedWeight );
+
+        if ( fixedWeight == 0.0f )
+        {
+            m_weightInfo = WeightInfo::Zero;
+        }
+        else if ( fixedWeight == 1.0f )
+        {
+            m_weightInfo = WeightInfo::One;
+        }
+        else
+        {
+            m_weightInfo = WeightInfo::Mixed;
+        }
     }
 
     BoneMask::BoneMask( BoneMask const& rhs )
@@ -26,21 +42,25 @@ namespace EE::Animation
         EE_ASSERT( rhs.IsValid() );
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights = rhs.m_weights;
+        m_weightInfo = m_weightInfo;
     }
 
     BoneMask::BoneMask( BoneMask&& rhs )
     {
         EE_ASSERT( rhs.IsValid() );
+        EE_ASSERT( rhs.m_pSkeleton != nullptr && rhs.m_pSkeleton->GetNumBones() > 0 );
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights.swap( rhs.m_weights );
+        m_weightInfo = m_weightInfo;
     }
 
     BoneMask::BoneMask( Skeleton const* pSkeleton, BoneMaskDefinition const& definition )
         : m_ID( definition.m_ID )
         , m_pSkeleton( pSkeleton )
     {
-        EE_ASSERT( pSkeleton != nullptr );
-        m_weights.resize( pSkeleton->GetNumBones() );
+        EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
+        m_weights.resize( m_pSkeleton->GetNumBones() );
         ResetWeights( definition );
     }
 
@@ -55,6 +75,7 @@ namespace EE::Animation
     {
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights = rhs.m_weights;
+        m_weightInfo = rhs.m_weightInfo;
         return *this;
     }
 
@@ -62,6 +83,7 @@ namespace EE::Animation
     {
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights.swap( rhs.m_weights );
+        m_weightInfo = rhs.m_weightInfo;
         return *this;
     }
 
@@ -74,14 +96,32 @@ namespace EE::Animation
         {
             weight = fixedWeight;
         }
+
+        SetWeightInfo( fixedWeight );
     }
 
     void BoneMask::ResetWeights( TVector<float> const& weights )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
-
+        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
         EE_ASSERT( weights.size() == m_pSkeleton->GetNumBones() );
         m_weights = weights;
+        m_weightInfo = WeightInfo::Zero;
+
+        //-------------------------------------------------------------------------
+
+        float fixedWeight = m_weights[0];
+        for ( float weight : weights )
+        {
+            if ( weight != fixedWeight )
+            {
+                m_weightInfo = WeightInfo::Mixed;
+                return;
+            }
+        }
+
+        // If we get here then all weights are equal
+        SetWeightInfo( fixedWeight );
     }
 
     void BoneMask::ResetWeights( BoneMaskDefinition const& definition, bool shouldFeatherIntermediateBones )
@@ -105,13 +145,30 @@ namespace EE::Animation
         }
 
         // Relatively expensive remap
+        m_weightInfo = WeightInfo::Zero;
+        float fixedWeight = definition.m_weights.empty() ? 0.0f : definition.m_weights[0].m_weight;
         for ( auto const& boneWeight : definition.m_weights )
         {
             EE_ASSERT( boneWeight.m_weight >= 0.0f && boneWeight.m_weight <= 1.0f );
             int32_t const boneIdx = m_pSkeleton->GetBoneIndex( boneWeight.m_boneID );
             EE_ASSERT( boneIdx != InvalidIndex );
             m_weights[boneIdx] = boneWeight.m_weight;
+
+            if ( boneWeight.m_weight != fixedWeight )
+            {
+                m_weightInfo = WeightInfo::Mixed;
+            }
         }
+
+        //-------------------------------------------------------------------------
+
+        // Set weight info
+        if ( m_weightInfo != WeightInfo::Mixed )
+        {
+            SetWeightInfo( fixedWeight );
+        }
+
+        //-------------------------------------------------------------------------
 
         // Feather intermediate weights
         if ( shouldFeatherIntermediateBones )
@@ -196,22 +253,70 @@ namespace EE::Animation
     {
         EE_ASSERT( source.m_pSkeleton == m_pSkeleton && m_weights.size() == source.m_weights.size() && blendWeight >= 0.0f && blendWeight <= 1.0f );
 
+        // If this the mask types are the same and not mixed weight, then this is a no-op
+        if ( source.m_weightInfo != WeightInfo::Mixed && source.m_weightInfo == m_weightInfo )
+        {
+            return;
+        }
+
+        // We are asking to be fully in this mask
+        if ( Math::IsNearEqual( blendWeight, 1.0f ) )
+        {
+            return;
+        }
+
+        // We are asking to be fully in the source mask
+        if ( Math::IsNearEqual( blendWeight, 0.0f ) )
+        {
+            m_weights = source.m_weights;
+            m_weightInfo = source.m_weightInfo;
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
         auto const numWeights = m_weights.size();
         for ( auto i = 0; i < numWeights; i++ )
         {
             m_weights[i] = Math::Lerp( source.m_weights[i], m_weights[i], blendWeight );
         }
+
+        m_weightInfo = WeightInfo::Mixed;
     }
 
     void BoneMask::BlendTo( BoneMask const& target, float blendWeight )
     {
         EE_ASSERT( target.m_pSkeleton == m_pSkeleton && m_weights.size() == target.m_weights.size() && blendWeight >= 0.0f && blendWeight <= 1.0f );
 
+        // If this the mask weights are the same and not mixed weight, then this is a no-op
+        if ( target.m_weightInfo != WeightInfo::Mixed && target.m_weightInfo == m_weightInfo )
+        {
+            return;
+        }
+
+        // We are asking to be fully in this mask
+        if ( Math::IsNearEqual( blendWeight, 0.0f ) )
+        {
+            return;
+        }
+
+        // We are asking to be fully in the source mask
+        if ( Math::IsNearEqual( blendWeight, 1.0f ) )
+        {
+            m_weights = target.m_weights;
+            m_weightInfo = target.m_weightInfo;
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
         auto const numWeights = m_weights.size();
         for ( auto i = 0; i < numWeights; i++ )
         {
             m_weights[i] = Math::Lerp( m_weights[i], target[i], blendWeight );
         }
+
+        m_weightInfo = WeightInfo::Mixed;
     }
 
     //-------------------------------------------------------------------------
@@ -319,6 +424,10 @@ namespace EE::Animation
     // Task List
     //-------------------------------------------------------------------------
 
+    BoneMaskTaskList const BoneMaskTaskList::s_defaultMaskList( BoneMaskTask( 1.0f ) );
+
+    //-------------------------------------------------------------------------
+
     int8_t BoneMaskTaskList::AppendTaskListAndFixDependencies( BoneMaskTaskList const& taskList )
     {
         int8_t const dependencyOffset = GetLastTaskIdx() + 1;
@@ -419,6 +528,8 @@ namespace EE::Animation
 
     BoneMaskTaskList::Result BoneMaskTaskList::GenerateBoneMask( BoneMaskPool& pool ) const
     {
+        EE_PROFILE_FUNCTION_ANIMATION();
+
         Skeleton const* pSkeleton = pool.GetSkeleton();
 
         // If we only have a single task, just get the mask from it
@@ -529,7 +640,6 @@ namespace EE::Animation
                             {
                                 pool[targetMaskIdx]->BlendFrom( *pSourceMask, m_tasks[i].m_weight );
                             }
-                            
                         }
                         else // Use the result of the source operation
                         {
@@ -546,20 +656,22 @@ namespace EE::Animation
                             }
                         }
                     }
-                    else // Neither are operations, request a new mask from the pool
+                    else // Both are pool buffers, so release the source and use the target as the result
                     {
-                        maskIndices.emplace_back( pool.AcquireMask() );
-                        BoneMask* pResultMask = pool[maskIndices[i]];
-                        *pResultMask = *pSourceMask;
+                        EE_ASSERT( targetMaskIdx != InvalidIndex );
+                        maskIndices.emplace_back( targetMaskIdx );
 
                         if ( m_tasks[i].m_type == BoneMaskTask::Type::Combine )
                         {
-                            pResultMask->CombineWith( *pTargetMask );
+                            pool[targetMaskIdx]->CombineWith( *pSourceMask );
                         }
                         else
                         {
-                            pResultMask->BlendTo( *pTargetMask, m_tasks[i].m_weight );
+                            pool[targetMaskIdx]->BlendFrom( *pSourceMask, m_tasks[i].m_weight );
                         }
+
+                        EE_ASSERT( sourceMaskIdx != InvalidIndex );
+                        pool.ReleaseMask( sourceMaskIdx );
                     }
                 }
             }

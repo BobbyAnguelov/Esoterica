@@ -23,6 +23,8 @@ namespace EE
     public:
 
         virtual ~EntitySystem() {}
+
+        // Get the name for this system
         virtual char const* GetName() const = 0;
 
         // Called just before we register all the components with this system

@@ -539,7 +539,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 24 );
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 28 );
             if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
             {
                 GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
@@ -1033,11 +1033,14 @@ namespace EE::Animation
         // Global Go-To
         //-------------------------------------------------------------------------
 
-        if ( m_activeOperation == GraphOperationType::None )
+        if ( isFocused )
         {
-            if ( ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) ) || ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_F ) ) )
+            if ( m_activeOperation == GraphOperationType::None )
             {
-                StartNavigationOperation();
+                if ( ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) ) || ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_F ) ) )
+                {
+                    StartNavigationOperation();
+                }
             }
         }
     }
@@ -1058,6 +1061,16 @@ namespace EE::Animation
             if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename IDs and EventIDs" ) )
             {
                 StartRenameIDs();
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_ALPHA_C_BOX" Copy all parameter names to Clipboard" ) )
+            {
+                CopyAllParameterNamesToClipboard();
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy all IDs to Clipboard" ) )
+            {
+                CopyAllGraphIDsToClipboard();
             }
 
             ImGui::EndMenu();
@@ -1477,7 +1490,7 @@ namespace EE::Animation
 
             case GraphOperationType::RenameIDs:
             {
-                if ( ImGuiX::BeginViewportPopupModal( "Rename IDs", &isDialogOpen, ImVec2( 800, 600 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
+                if ( ImGuiX::BeginViewportPopupModal( "Rename IDs", &isDialogOpen, ImVec2( 400, 0 ), ImGuiCond_Always, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize ) )
                 {
                     DrawRenameIDsDialog();
                     isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
@@ -2250,27 +2263,25 @@ namespace EE::Animation
             m_previewGraphVariationPtr.Clear();
         }
 
-        // Reset debug mode
+        // Reset camera
         //-------------------------------------------------------------------------
 
-        if ( IsLiveDebugging() )
+        if ( IsLiveDebugging() || m_isCameraTrackingEnabled )
         {
-            SetCameraTransform( m_cameraOffsetTransform );
             m_previousCameraTransform = m_cameraOffsetTransform;
-            ResetCameraView();
+            SetCameraTransform( m_cameraOffsetTransform );
         }
 
+        // Update graph views
         //-------------------------------------------------------------------------
 
         m_primaryGraphView.RefreshNodeSizes();
         m_secondaryGraphView.RefreshNodeSizes();
 
+        // Clear debug mode
         //-------------------------------------------------------------------------
 
         m_debugMode = DebugMode::None;
-
-        //-------------------------------------------------------------------------
-
         ClearGraphStackDebugData();
         UpdateUserContext();
     }
@@ -2344,6 +2355,11 @@ namespace EE::Animation
         auto const debugWorlds = m_pToolsContext->GetAllWorlds();
         for ( auto pWorld : m_pToolsContext->GetAllWorlds() )
         {
+            if ( pWorld->GetWorldType() == EntityWorldType::Tools )
+            {
+                continue;
+            }
+
             auto pWorldSystem = pWorld->GetWorldSystem<AnimationWorldSystem>();
             auto const& graphComponents = pWorldSystem->GetRegisteredGraphComponents();
 
@@ -3007,7 +3023,6 @@ namespace EE::Animation
     int32_t AnimationGraphWorkspace::GetStackIndexForGraph( VisualGraph::BaseGraph* pGraph ) const
     {
         EE_ASSERT( pGraph != nullptr );
-        EE_ASSERT( pGraph->GetParentNode() == nullptr || pGraph->GetParentNode()->GetSecondaryGraph() != pGraph );
 
         for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
         {
@@ -3354,28 +3369,31 @@ namespace EE::Animation
         // Filter
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 27 - ImGui::GetStyle().ItemSpacing.x );
-        m_navigationFilter.DrawAndUpdate( ImGuiX::FilterWidget::TakeInitialFocus );
+        m_navigationFilter.DrawAndUpdate( ImGui::GetContentRegionAvail().x - 130, ImGuiX::FilterWidget::TakeInitialFocus );
+
+        ImGui::SameLine();
+
+        ImGuiX::Checkbox( "Include Paths", &m_navigationDialogSearchesPaths );
 
         auto ApplyFilter = [this] ( NavigationTarget const& target )
         {
             if ( m_navigationFilter.HasFilterSet() )
             {
-                bool nameFailedFilter = false;
+                // Check node name
                 if ( !m_navigationFilter.MatchesFilter( target.m_label ) )
                 {
-                    nameFailedFilter = true;
-                }
-
-                bool pathFailedFilter = false;
-                if ( !m_navigationFilter.MatchesFilter( target.m_path ) )
-                {
-                    pathFailedFilter = true;
-                }
-
-                if ( pathFailedFilter && nameFailedFilter )
-                {
-                    return false;
+                    // Check path
+                    if ( m_navigationDialogSearchesPaths )
+                    {
+                        if ( !m_navigationFilter.MatchesFilter( target.m_path ) )
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -4830,7 +4848,7 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID )
     {
-        ImGui::PushID( variationID.GetID() );
+        ImGui::PushID( variationID.ToUint() );
 
         auto const childVariations = variationHierarchy.GetChildVariations( variationID );
         bool const isSelected = GetEditedGraphData()->m_selectedVariationID == variationID;
@@ -5331,7 +5349,7 @@ namespace EE::Animation
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Recorder" ) )
         {
-            ImVec2 const buttonSize( 26, 0 );
+            ImVec2 const buttonSize( 30, 0 );
 
             // Review / Stop
             //-------------------------------------------------------------------------
@@ -5669,15 +5687,18 @@ namespace EE::Animation
     {
         EE_ASSERT( m_activeOperation == GraphOperationType::RenameIDs );
 
+        constexpr float const comboWidth = 30;
+        float const inputWidth = ImGui::GetContentRegionAvail().x - comboWidth - ImGui::GetStyle().ItemSpacing.x;
+
         // Old Value
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( 200 );
+        ImGui::SetNextItemWidth( inputWidth );
         ImGui::InputText( "##oldid", m_oldIDBuffer, 255 );
 
         ImGui::SameLine();
 
-        if ( m_oldIDWidget.DrawAndUpdate( 30 ) )
+        if ( m_oldIDWidget.DrawAndUpdate( comboWidth ) )
         {
             auto pSelectedOption = m_oldIDWidget.GetSelectedOption();
             if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
@@ -5693,12 +5714,12 @@ namespace EE::Animation
         // New Value
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( 200 );
+        ImGui::SetNextItemWidth( inputWidth );
         ImGui::InputText( "##newid", m_newIDBuffer, 255 );
 
         ImGui::SameLine();
 
-        if ( m_newIDWidget.DrawAndUpdate( 30 ) )
+        if ( m_newIDWidget.DrawAndUpdate( comboWidth ) )
         {
             auto pSelectedOption = m_newIDWidget.GetSelectedOption();
             if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
@@ -5763,6 +5784,81 @@ namespace EE::Animation
             m_activeOperation = GraphOperationType::None;
         }
     }
+
+    void AnimationGraphWorkspace::CopyAllParameterNamesToClipboard()
+    {
+        TVector<String> foundParameterNames;
+
+        auto pRootGraph = GetEditedRootGraph();
+        auto const controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        for ( auto pControlParameter : controlParameters )
+        {
+            foundParameterNames.emplace_back( pControlParameter->GetParameterName() );
+        }
+
+        // Sort
+        auto Comparator = [] ( String const& a, String const& b ) { return strcmp( a.c_str(), b.c_str() ) < 0; };
+        eastl::sort( foundParameterNames.begin(), foundParameterNames.end(), Comparator );
+
+        String foundIDString;
+        for ( auto ID : foundParameterNames )
+        {
+            foundIDString.append_sprintf( "%s\r\n", ID.c_str() );
+        }
+
+        ImGui::SetClipboardText( foundIDString.c_str() );
+    }
+
+    void AnimationGraphWorkspace::CopyAllGraphIDsToClipboard()
+    {
+        TVector<StringID> foundIDs;
+
+        // Get all IDs in the graph
+        auto pRootGraph = GetEditedRootGraph();
+        auto const foundNodes = pRootGraph->FindAllNodesOfType<VisualGraph::BaseNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        for ( auto pNode : foundNodes )
+        {
+            if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+            {
+                pStateNode->GetLogicAndEventIDs( foundIDs );
+            }
+            else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+            {
+                pFlowNode->GetLogicAndEventIDs( foundIDs );
+            }
+        }
+
+        // De-duplicate and remove invalid IDs
+        TVector<StringID> sortedIDlist;
+        sortedIDlist.clear();
+
+        for ( auto ID : foundIDs )
+        {
+            if ( !ID.IsValid() )
+            {
+                continue;
+            }
+
+            if ( VectorContains( sortedIDlist, ID ) )
+            {
+                continue;
+            }
+
+            sortedIDlist.emplace_back( ID );
+        }
+
+        // Sort
+        auto Comparator = [] ( StringID const& a, StringID const& b ) { return strcmp( a.c_str(), b.c_str() ) < 0; };
+        eastl::sort( sortedIDlist.begin(), sortedIDlist.end(), Comparator );
+
+        String foundIDString;
+        for ( auto ID : sortedIDlist )
+        {
+            foundIDString.append_sprintf( "%s\r\n", ID.c_str() );
+        }
+
+        ImGui::SetClipboardText( foundIDString.c_str() );
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -5792,7 +5888,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 24 );
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
             if ( ImGui::InputText( "##agid", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
             {
                 valueUpdated = true;
@@ -5812,7 +5908,7 @@ namespace EE::Animation
 
             ImGui::SameLine( 0, 0 );
 
-            if ( m_picker.DrawAndUpdate() )
+            if ( m_picker.DrawAndUpdate( 30 ) )
             {
                 auto pSelectedOption = m_picker.GetSelectedOption();
                 if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )

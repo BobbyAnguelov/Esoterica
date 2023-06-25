@@ -27,11 +27,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PoseNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_playInReverseValueNodeIdx, m_sampleRootMotion, m_allowLooping, m_dataSlotIdx );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_playInReverseValueNodeIdx, m_resetTimeValueNodeIdx, m_sampleRootMotion, m_allowLooping, m_dataSlotIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                                     m_playInReverseValueNodeIdx = InvalidIndex;
+            int16_t                                     m_resetTimeValueNodeIdx = InvalidIndex;
             bool                                        m_sampleRootMotion = true;
             bool                                        m_allowLooping = false;
             int16_t                                     m_dataSlotIdx = InvalidIndex;
@@ -66,6 +67,7 @@ namespace EE::Animation::GraphNodes
 
         AnimationClip const*                            m_pAnimation = nullptr;
         BoolValueNode*                                  m_pPlayInReverseValueNode = nullptr;
+        BoolValueNode*                                  m_pResetTimeValueNode = nullptr;
         bool                                            m_shouldPlayInReverse = false;
         bool                                            m_shouldSampleRootMotion = true;
     };

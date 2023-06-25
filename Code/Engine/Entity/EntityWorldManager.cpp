@@ -26,7 +26,7 @@ namespace EE
 
         auto pTypeRegistry = systemsRegistry.GetSystem<TypeSystem::TypeRegistry>();
         EE_ASSERT( pTypeRegistry != nullptr );
-        m_worldSystemTypeInfos = pTypeRegistry->GetAllDerivedTypes( IEntityWorldSystem::GetStaticTypeID(), false, false, true );
+        m_worldSystemTypeInfos = pTypeRegistry->GetAllDerivedTypes( EntityWorldSystem::GetStaticTypeID(), false, false, true );
 
         //-------------------------------------------------------------------------
 

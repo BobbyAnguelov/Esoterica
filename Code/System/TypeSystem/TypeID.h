@@ -22,10 +22,16 @@ namespace EE::TypeSystem
 
         EE_FORCE_INLINE bool IsValid() const { return m_ID.IsValid(); }
 
-        EE_FORCE_INLINE operator uint32_t() const { return m_ID.GetID(); }
-        EE_FORCE_INLINE uint32_t GetID() const { return m_ID.GetID(); }
+        EE_FORCE_INLINE explicit operator uint32_t() const { return m_ID.ToUint(); }
+        EE_FORCE_INLINE uint32_t ToUint() const { return m_ID.ToUint(); }
         EE_FORCE_INLINE StringID ToStringID() const { return m_ID; }
         EE_FORCE_INLINE char const* c_str() const { return m_ID.c_str(); }
+
+        EE_FORCE_INLINE bool operator==( TypeID const& rhs ) const { return m_ID == rhs.m_ID; }
+        EE_FORCE_INLINE bool operator!=( TypeID const& rhs ) const { return m_ID != rhs.m_ID; }
+
+        EE_FORCE_INLINE bool operator==( StringID const& rhs ) const { return m_ID == rhs; }
+        EE_FORCE_INLINE bool operator!=( StringID const& rhs ) const { return m_ID != rhs; }
 
     private:
 
@@ -44,7 +50,7 @@ namespace eastl
     {
         size_t operator()( EE::TypeSystem::TypeID const& ID ) const 
         {
-            return ID.GetID();
+            return ID.ToUint();
         }
     };
 }

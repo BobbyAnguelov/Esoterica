@@ -1,5 +1,6 @@
 #include "Animation_Task_Blend.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -26,6 +27,7 @@ namespace EE::Animation::Tasks
 
     void BlendTask::Execute( TaskContext const& context )
     {
+        EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;

@@ -574,28 +574,34 @@ namespace EE::Animation
         // Draw Clips
         //-------------------------------------------------------------------------
 
-        if ( IsResourceLoaded() )
+        if ( ImGui::BeginChild( "Clips" ) )
         {
-            if ( ImGui::BeginTable( "ClipBrowser", 1, 0, ImVec2( -1, -1 ) ) )
+            if ( IsResourceLoaded() )
             {
-                ImGuiListClipper clipper;
-                clipper.Begin( (int32_t) m_filteredClips.size() );
-                while ( clipper.Step() )
+                ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 4 ) );
+                if ( ImGui::BeginTable( "ClipBrowser", 1, ImGuiTableFlags_RowBg, ImVec2( -1, -1 ) ) )
                 {
-                    for ( int32_t i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                    ImGuiListClipper clipper;
+                    clipper.Begin( (int32_t) m_filteredClips.size() );
+                    while ( clipper.Step() )
                     {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-                        if ( ImGuiX::FlatButton( m_filteredClips[i].c_str() ) )
+                        for ( int32_t i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                         {
-                            m_pToolsContext->TryOpenResource( m_filteredClips[i] );
+                            ImGui::TableNextRow();
+                            ImGui::TableNextColumn();
+                            if ( ImGuiX::FlatButton( m_filteredClips[i].c_str() ) )
+                            {
+                                m_pToolsContext->TryOpenResource( m_filteredClips[i] );
+                            }
                         }
                     }
-                }
 
-                ImGui::EndTable();
+                    ImGui::EndTable();
+                }
+                ImGui::PopStyleVar();
             }
         }
+        ImGui::EndChild();
     }
 
     //-------------------------------------------------------------------------

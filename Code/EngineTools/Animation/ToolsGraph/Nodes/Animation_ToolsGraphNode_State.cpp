@@ -19,6 +19,15 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    StateToolsNode::StateToolsNode( StateType type )
+        : m_type( type )
+    {
+        if ( m_type == StateType::OffState )
+        {
+            m_name = "Off";
+        }
+    }
+
     void StateToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         VisualGraph::SM::State::Initialize( pParent );
@@ -213,19 +222,32 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         InlineString string;
-        auto CreateEventString = [&] ( TVector<StringID> const& IDs )
+        auto CreateEventString = [&] ( TVector<StringID> const& stateIDs, TVector<StringID> const& specificIDs )
         {
-            string.clear();
-            for ( int32_t i = 0; i < (int32_t) IDs.size(); i++ )
+            TInlineVector<StringID, 10> finalIDs;
+            finalIDs.insert( finalIDs.end(), stateIDs.begin(), stateIDs.end() );
+
+            for ( StringID specificID : specificIDs )
             {
-                if ( !IDs[i].IsValid() )
+                if ( !VectorContains( finalIDs, specificID ) )
+                {
+                    finalIDs.emplace_back( specificID );
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            string.clear();
+            for ( int32_t i = 0; i < (int32_t) finalIDs.size(); i++ )
+            {
+                if ( !finalIDs[i].IsValid() )
                 {
                     continue;
                 }
 
-                string += IDs[i].c_str();
+                string += finalIDs[i].c_str();
 
-                if ( i != IDs.size() - 1 )
+                if ( i != finalIDs.size() - 1 )
                 {
                     string += ", ";
                 }
@@ -254,23 +276,23 @@ namespace EE::Animation::GraphNodes
 
         bool hasStateEvents = false;
 
-        if ( !m_entryEvents.empty() )
+        if ( !m_entryEvents.empty() || !m_events.empty() )
         {
-            CreateEventString( m_entryEvents );
+            CreateEventString( m_events, m_entryEvents );
             ImGui::Text( "Entry: %s", string.c_str() );
             hasStateEvents = true;
         }
 
-        if ( !m_executeEvents.empty() )
+        if ( !m_executeEvents.empty() || !m_events.empty() )
         {
-            CreateEventString( m_executeEvents );
+            CreateEventString( m_events, m_executeEvents );
             ImGui::Text( "Execute: %s", string.c_str() );
             hasStateEvents = true;
         }
 
-        if ( !m_exitEvents.empty() )
+        if ( !m_exitEvents.empty() || !m_events.empty() )
         {
-            CreateEventString( m_exitEvents );
+            CreateEventString( m_events, m_exitEvents );
             ImGui::Text( "Exit: %s", string.c_str() );
             hasStateEvents = true;
         }
@@ -463,7 +485,7 @@ namespace EE::Animation::GraphNodes
 
         TVector<StringID> IDs;
         GetLogicAndEventIDs( IDs );
-        for ( auto ID : IDs )
+        for ( auto const ID : IDs )
         {
             if ( ID == oldID )
             {

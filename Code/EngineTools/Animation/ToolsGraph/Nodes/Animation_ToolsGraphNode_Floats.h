@@ -220,4 +220,36 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT() FloatAngleMathNode::Operation m_operation = FloatAngleMathNode::Operation::ClampTo180;
     };
+
+    //-------------------------------------------------------------------------
+
+    class FloatSelectorToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( FloatSelectorToolsNode );
+
+    public:
+
+        FloatSelectorToolsNode();
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
+        virtual char const* GetTypeName() const override { return "Float Selector"; }
+        virtual char const* GetCategory() const override { return "Values/Float"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+        virtual bool DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
+        virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
+        virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Bool ); }
+        virtual void OnDynamicPinCreation( UUID pinID ) override;
+        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+
+    private:
+
+        EE_REFLECT();
+        TVector<float>      m_pinValues;
+
+        EE_REFLECT();
+        float               m_defaultValue = 0.0f;
+    };
 }

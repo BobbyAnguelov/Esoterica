@@ -30,6 +30,8 @@ namespace EE
         ~EntityWorld();
 
         inline EntityWorldID const& GetID() const { return m_worldID; }
+
+        inline EntityWorldType GetWorldType() const { return m_worldType; }
         inline bool IsGameWorld() const { return m_worldType == EntityWorldType::Game; }
 
         void Initialize( SystemRegistry const& systemsRegistry, TVector<TypeSystem::TypeInfo const*> worldSystemTypeInfos );
@@ -59,7 +61,7 @@ namespace EE
         // Systems
         //-------------------------------------------------------------------------
 
-        IEntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
+        EntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
 
         template<typename T>
         inline T* GetWorldSystem() const { return reinterpret_cast<T*>( GetWorldSystem( T::s_entitySystemID ) ); }
@@ -279,7 +281,7 @@ namespace EE
         Input::InputState                                                       m_inputState;
         EntityModel::LoadingContext                                             m_loadingContext;
         EntityModel::InitializationContext                                      m_initializationContext;
-        TVector<IEntityWorldSystem*>                                            m_worldSystems;
+        TVector<EntityWorldSystem*>                                             m_worldSystems;
         EntityWorldType                                                         m_worldType = EntityWorldType::Game;
         bool                                                                    m_initialized = false;
         bool                                                                    m_isSuspended = false;
@@ -290,7 +292,7 @@ namespace EE
 
         // Entities
         TVector<Entity*>                                                        m_entityUpdateList;
-        TVector<IEntityWorldSystem*>                                            m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
+        TVector<EntityWorldSystem*>                                            m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
 
         // Time Scaling + Pause
         float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused

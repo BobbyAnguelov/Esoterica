@@ -119,7 +119,7 @@ namespace EE
             // Instantiates and adds an entity collection to the map
             // Additionally allows you to offset all the entities via the supplied offset transform
             // Takes 1 frame to be fully added
-            void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity );
+            void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity, TVector<Entity*>* pOutCreatedEntities = nullptr );
 
             // Add a newly created entity to the map - Transfers ownership of the entity to the map
             void AddEntity( Entity* pEntity );

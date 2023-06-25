@@ -153,7 +153,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         bool BeginDrawCanvas( float childHeightOverride );
-        void EndDrawCanvas();
+        void EndDrawCanvas( DrawContext const& ctx );
     
         // Dragging
         //-------------------------------------------------------------------------
@@ -234,7 +234,8 @@ namespace EE::VisualGraph
         BaseGraph*                      m_pGraph = nullptr;
         BaseNode*                       m_pHoveredNode = nullptr;
 
-        Float2*                         m_pViewOffset = nullptr;
+        Float2                          m_defaultViewOffset = Float2::Zero;
+        Float2*                         m_pViewOffset = &m_defaultViewOffset; // This will be set to the view offset of any view graph
         ImVec2                          m_canvasSize = ImVec2( 0, 0 );
         TVector<SelectedNode>           m_selectedNodes;
         bool                            m_hasFocus = false;

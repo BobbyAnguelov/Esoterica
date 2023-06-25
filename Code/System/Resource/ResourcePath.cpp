@@ -145,7 +145,7 @@ namespace EE
         }
     }
 
-    EE::String ResourcePath::GetFileName() const
+    String ResourcePath::GetFileName() const
     {
         EE_ASSERT( IsValid() && IsFile() );
 
@@ -153,7 +153,7 @@ namespace EE
         EE_ASSERT( filenameStartIdx != String::npos );
         filenameStartIdx++;
 
-        return m_path.substr( filenameStartIdx, filenameStartIdx - 1 );
+        return m_path.substr( filenameStartIdx, m_path.length() - filenameStartIdx );
     }
 
     String ResourcePath::GetFileNameWithoutExtension() const

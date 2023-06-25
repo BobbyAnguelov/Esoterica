@@ -10,6 +10,8 @@ namespace EE::Animation::GraphNodes
     {
         CreateOutputPin( "Result", GraphValueType::Bool, true );
         CreateInputPin( "ID", GraphValueType::ID );
+
+        m_IDs.emplace_back();
     }
 
     int16_t IDComparisonToolsNode::Compile( GraphCompilationContext& context ) const
@@ -90,7 +92,7 @@ namespace EE::Animation::GraphNodes
     void IDComparisonToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
     {
         bool foundMatch = false;
-        for ( auto ID : m_IDs )
+        for ( auto const ID : m_IDs )
         {
             if ( ID == oldID )
             {
@@ -102,7 +104,7 @@ namespace EE::Animation::GraphNodes
         if ( foundMatch )
         {
             VisualGraph::ScopedNodeModification snm( this );
-            for ( auto ID : m_IDs )
+            for ( auto& ID : m_IDs )
             {
                 if ( ID == oldID )
                 {
@@ -212,7 +214,7 @@ namespace EE::Animation::GraphNodes
     void IDToFloatToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
     {
         bool foundMatch = false;
-        for ( auto mapping : m_mappings )
+        for ( auto const& mapping : m_mappings )
         {
             if ( mapping.m_ID == oldID )
             {
@@ -224,7 +226,7 @@ namespace EE::Animation::GraphNodes
         if ( foundMatch )
         {
             VisualGraph::ScopedNodeModification snm( this );
-            for ( auto mapping : m_mappings )
+            for ( auto& mapping : m_mappings )
             {
                 if ( mapping.m_ID == oldID )
                 {
@@ -233,5 +235,4 @@ namespace EE::Animation::GraphNodes
             }
         }
     }
-
 }

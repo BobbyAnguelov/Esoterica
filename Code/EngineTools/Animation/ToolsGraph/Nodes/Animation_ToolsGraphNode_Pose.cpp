@@ -68,6 +68,7 @@ namespace EE::Animation::GraphNodes
             pSettings->m_dataSlotIndex = context.RegisterDataSlotNode( GetID() );
             pSettings->m_inputTimeRemapRange = m_inputTimeRemapRange;
             pSettings->m_userSpecifiedTime = m_fixedTimeValue;
+            pSettings->m_useFramesAsInput = m_useFramesAsInput;
         }
         return pSettings->m_nodeIdx;
     }
@@ -77,7 +78,7 @@ namespace EE::Animation::GraphNodes
         DataSlotToolsNode::DrawPinControls( pUserContext, pin );
 
         // Add parameter value input field
-        if ( pin.IsInputPin() && pin.m_type == (uint32_t) GraphValueType::Float )
+        if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Float ) )
         {
             int32_t const pinIdx = GetInputPinIndex( pin.m_ID );
 

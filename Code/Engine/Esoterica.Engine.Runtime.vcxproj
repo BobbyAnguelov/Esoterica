@@ -135,6 +135,7 @@
     <ClCompile Include="Entity\EntityLog.cpp" />
     <ClCompile Include="Entity\EntitySerialization.cpp" />
     <ClCompile Include="Entity\EntityIDs.cpp" />
+    <ClCompile Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.cpp" />
     <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp" />
     <ClCompile Include="Physics\Physics.cpp" />
     <ClCompile Include="Physics\PhysicsMaterial.cpp" />
@@ -282,9 +283,11 @@
     <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h" />
     <ClInclude Include="Component_SerializationTest.h" />
     <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
+    <ClInclude Include="Entity\Components\Component_EntityCollection.h" />
     <ClInclude Include="Entity\EntityLog.h" />
     <ClInclude Include="Entity\EntitySerialization.h" />
     <ClInclude Include="Entity\EntityWorldType.h" />
+    <ClInclude Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.h" />
     <ClInclude Include="ModuleContext.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsTest.h" />
     <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h" />

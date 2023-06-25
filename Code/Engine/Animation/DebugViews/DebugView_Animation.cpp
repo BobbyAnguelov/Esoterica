@@ -361,7 +361,7 @@ namespace EE::Animation
         if ( ImGui::BeginTable( "StateEventsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
             ImGui::TableSetupColumn( "Branch", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
-            ImGui::TableSetupColumn( "Ignored", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
+            ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
             ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
             ImGui::TableSetupColumn( "Event", ImGuiTableColumnFlags_WidthStretch, 0.5f );
             ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch, 0.5f );
@@ -414,8 +414,16 @@ namespace EE::Animation
                 ImGui::Text( "%.2f", sampledEvent.GetWeight() );
 
                 ImGui::TableNextColumn();
-                ImGui::Text( sampledEvent.GetStateEventID().c_str() );
-                ImGuiX::TextTooltip( sampledEvent.GetStateEventID().c_str() );
+                {
+                    static ImColor const stateEventTypeColors[] = { ImGuiX::ImColors::Gold, ImGuiX::ImColors::Lime, ImGuiX::ImColors::OrangeRed, ImGuiX::ImColors::DodgerBlue };
+
+                    ImGui::PushStyleColor( ImGuiCol_Text, stateEventTypeColors[ (uint8_t) sampledEvent.GetStateEventType()].Value );
+                    ImGui::Text( "[%s]", GetNameForStateEventType( sampledEvent.GetStateEventType() ) );
+                    ImGui::PopStyleColor();
+                    ImGui::SameLine();
+                    ImGui::Text( sampledEvent.GetStateEventID().c_str() );
+                    ImGuiX::TextTooltip( sampledEvent.GetStateEventID().c_str() );
+                }
 
                 ImGui::TableNextColumn();
                 String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );

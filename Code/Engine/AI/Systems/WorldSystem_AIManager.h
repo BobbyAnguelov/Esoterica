@@ -12,7 +12,7 @@ namespace EE::AI
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API AIManager : public IEntityWorldSystem
+    class EE_ENGINE_API AIManager : public EntityWorldSystem
     {
         friend class AIDebugView;
 

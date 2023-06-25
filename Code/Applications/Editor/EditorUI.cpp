@@ -774,12 +774,21 @@ namespace EE
             windowFlags |= ImGuiWindowFlags_UnsavedDocument;
         }
 
+        //-------------------------------------------------------------------------
+
+        ImGuiWindow* pCurrentWindow = ImGui::FindWindowByName( pWorkspace->m_windowName.c_str() );
+        bool const isVisible = pCurrentWindow != nullptr && !pCurrentWindow->Hidden;
+
         // Create top level editor tab/window
+        ImGui::PushStyleColor( ImGuiCol_Text, isVisible ? ImGuiX::Style::s_colorAccent0.Value : ImGuiX::Style::s_colorText.Value );
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
         ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 1.0f );
         ImGui::Begin( pWorkspace->m_windowName.c_str(), pIsWorkspaceOpen, windowFlags );
         ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        //-------------------------------------------------------------------------
 
         // Store last focused document
         bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
@@ -887,7 +896,10 @@ namespace EE
             ImGui::End();
 
             // Suspend world updates for hidden windows
-            pWorld->SuspendUpdates();
+            if ( pWorkspace != m_pGamePreviewer )
+            {
+                pWorld->SuspendUpdates();
+            }
 
             return;
         }

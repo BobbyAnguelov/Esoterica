@@ -64,16 +64,19 @@ namespace EE::Animation::GraphNodes
 
         if ( IsValid() )
         {
+            m_pInputParameterNode0->Initialize( context );
+            m_pInputParameterNode1->Initialize( context );
+
             for ( auto pSourceNode : m_sourceNodes )
             {
                 pSourceNode->Initialize( context, initialTime );
             }
 
-            m_pInputParameterNode0->Initialize( context );
-            m_pInputParameterNode1->Initialize( context );
+            //-------------------------------------------------------------------------
 
-            m_currentTime = m_previousTime = 0.0f;
-            m_duration = s_oneFrameDuration;
+            EvaluateBlendSpace( context );
+
+            m_previousTime = m_currentTime = m_blendedSyncTrack.GetPercentageThrough( initialTime );
         }
     }
 
@@ -83,14 +86,16 @@ namespace EE::Animation::GraphNodes
 
         if ( IsValid() )
         {
-            m_pInputParameterNode1->Shutdown( context );
-            m_pInputParameterNode0->Shutdown( context );
-
             for ( auto Source : m_sourceNodes )
             {
                 Source->Shutdown( context );
             }
+
+            m_pInputParameterNode1->Shutdown( context );
+            m_pInputParameterNode0->Shutdown( context );
         }
+
+        m_bsr.Reset();
 
         PoseNode::ShutdownInternal( context );
     }
@@ -99,6 +104,18 @@ namespace EE::Animation::GraphNodes
 
     void Blend2DNode::EvaluateBlendSpace( GraphContext& context )
     {
+        // Ensure we only update the blend space once per update
+        //-------------------------------------------------------------------------
+
+        if ( context.m_updateID == m_bsr.m_updateID )
+        {
+            return;
+        }
+
+        m_bsr.m_updateID = context.m_updateID;
+
+        //-------------------------------------------------------------------------
+
         auto pSettings = GetSettings<Blend2DNode>();
 
         Float2 const point( m_pInputParameterNode0->GetValue<float>( context ), m_pInputParameterNode1->GetValue<float>( context ) );
@@ -254,6 +271,33 @@ namespace EE::Animation::GraphNodes
                 }
             }
         }
+
+        // Calculate blended sync-track and duration
+        //-------------------------------------------------------------------------
+
+        // 1-way blend
+        if ( m_bsr.m_pSource1 == nullptr )
+        {
+            m_blendedSyncTrack = m_bsr.m_pSource0->GetSyncTrack();
+            m_duration = m_bsr.m_pSource0->GetDuration();
+        }
+        else // 2-way blend
+        {
+            SyncTrack const& syncTrack0 = m_bsr.m_pSource0->GetSyncTrack();
+            SyncTrack const& syncTrack1 = m_bsr.m_pSource1->GetSyncTrack();
+            m_blendedSyncTrack = SyncTrack( syncTrack0, syncTrack1, m_bsr.m_blendWeightBetween0And1 );
+            m_duration = SyncTrack::CalculateDurationSynchronized( m_bsr.m_pSource0->GetDuration(), m_bsr.m_pSource1->GetDuration(), syncTrack0.GetNumEvents(), syncTrack1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween0And1 );
+        }
+
+        // 3-way blend
+        if ( m_bsr.m_pSource2 != nullptr )
+        {
+            SyncTrack const& syncTrack2 = m_bsr.m_pSource2->GetSyncTrack();
+            Seconds const durationOf2WayBlend = m_duration;
+            int32_t const numEventsIn2WayBlendedSyncTrack = m_blendedSyncTrack.GetNumEvents(); // Cache this since it might change when we calculate the new blended result
+            m_blendedSyncTrack = SyncTrack( m_blendedSyncTrack, syncTrack2, m_bsr.m_blendWeightBetween1And2 );
+            m_duration = SyncTrack::CalculateDurationSynchronized( durationOf2WayBlend, m_bsr.m_pSource2->GetDuration(), numEventsIn2WayBlendedSyncTrack, syncTrack2.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween1And2 );
+        }
     }
 
     GraphPoseNodeResult Blend2DNode::Update( GraphContext& context )
@@ -269,42 +313,18 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        // If this node is synchronized, call the synchronize update
-        auto pSettings = GetSettings<Blend2DNode>();
-        if ( pSettings->m_isSynchronized )
-        {
-            Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
-            Percentage const fromTime = m_currentTime;
-            Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage );
+        EvaluateBlendSpace( context );
 
-            SyncTrackTimeRange UpdateRange;
-            UpdateRange.m_startTime = m_blendedSyncTrack.GetTime( fromTime );
-            UpdateRange.m_endTime = m_blendedSyncTrack.GetTime( toTime );
-            return Update( context, UpdateRange );
-        }
-        else // Update in a asynchronous manner
-        {
-            MarkNodeActive( context );
-            result = SharedUpdate( context, nullptr );
+        Percentage const deltaPercentage = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : 0.0f;
+        Percentage const fromTime = m_currentTime;
+        Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage );
 
-            // Update time / duration for the remaining source nodes
-            // For unsynchronized update, we unfortunately need to update all nodes but we ensure that no unnecessary tasks are registered
-            // Ensure that all event weights from the inactive nodes are also set to 0
-            //-------------------------------------------------------------------------
+        SyncTrackTimeRange updateRange;
+        updateRange.m_startTime = m_blendedSyncTrack.GetTime( fromTime );
+        updateRange.m_endTime = m_blendedSyncTrack.GetTime( toTime );
+        result = Update( context, updateRange );
 
-            for ( auto pSourceNode : m_sourceNodes )
-            {
-                if ( pSourceNode == m_bsr.m_pSource0 || pSourceNode == m_bsr.m_pSource1 || pSourceNode == m_bsr.m_pSource2 )
-                {
-                    continue;
-                }
-
-                auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
-                GraphPoseNodeResult const transientUpdateResult = pSourceNode->Update( context );
-                context.m_sampledEventsBuffer.MarkEventsAsIgnoredAndClearWeights( transientUpdateResult.m_sampledEventRange );
-                context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
-            }
-        }
+        //-------------------------------------------------------------------------
 
         return result;
     }
@@ -323,22 +343,6 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         MarkNodeActive( context );
-        result = SharedUpdate( context, &updateRange );
-        return result;
-    }
-
-    GraphPoseNodeResult Blend2DNode::SharedUpdate( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
-    {
-        EE_ASSERT( IsValid() );
-
-        auto UpdateSourceNode = [&] ( PoseNode* pNode )
-        {
-            return ( pUpdateRange == nullptr ) ? pNode->Update( context ) : pNode->Update( context, *pUpdateRange );
-        };
-
-        //-------------------------------------------------------------------------
-
-        GraphPoseNodeResult result;
         EvaluateBlendSpace( context );
 
         #if EE_DEVELOPMENT_TOOLS
@@ -350,7 +354,7 @@ namespace EE::Animation::GraphNodes
 
         if ( m_bsr.m_pSource1 == nullptr )
         {
-            result = UpdateSourceNode( m_bsr.m_pSource0 );
+            result = m_bsr.m_pSource0->Update( context, updateRange );
 
             m_duration = m_bsr.m_pSource0->GetDuration();
             m_previousTime = m_bsr.m_pSource0->GetPreviousTime();
@@ -364,13 +368,13 @@ namespace EE::Animation::GraphNodes
         else
         {
             // Update Source 0
-            GraphPoseNodeResult const sourceResult0 = UpdateSourceNode( m_bsr.m_pSource0 );
+            GraphPoseNodeResult const sourceResult0 = m_bsr.m_pSource0->Update( context, updateRange );
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update Source 1
-            GraphPoseNodeResult const sourceResult1 = UpdateSourceNode( m_bsr.m_pSource1 );
+            GraphPoseNodeResult const sourceResult1 = m_bsr.m_pSource1->Update( context, updateRange );
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
@@ -397,33 +401,19 @@ namespace EE::Animation::GraphNodes
             // Update internal time and events
             //-------------------------------------------------------------------------
 
-            // Unsynchronized
-            if ( pUpdateRange == nullptr )
-            {
-                auto const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
-                m_previousTime = m_currentTime;
-                m_currentTime = ( m_currentTime + deltaPercentage ).GetNormalizedTime();
-            }
-            else // Synchronized Blend
-            {
-                SyncTrack const& syncTrack0 = m_bsr.m_pSource0->GetSyncTrack();
-                SyncTrack const& syncTrack1 = m_bsr.m_pSource1->GetSyncTrack();
-                m_blendedSyncTrack = SyncTrack( syncTrack0, syncTrack1, m_bsr.m_blendWeightBetween0And1 );
-                m_duration = SyncTrack::CalculateDurationSynchronized( m_bsr.m_pSource0->GetDuration(), m_bsr.m_pSource1->GetDuration(), syncTrack0.GetNumEvents(), syncTrack1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween0And1 );
-                m_previousTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_startTime );
-                m_currentTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_endTime );
-            }
+            m_previousTime = m_blendedSyncTrack.GetPercentageThrough( updateRange.m_startTime );
+            m_currentTime = m_blendedSyncTrack.GetPercentageThrough( updateRange.m_endTime );
         }
 
         // 3-Way Blend
         //-------------------------------------------------------------------------
 
-        if( m_bsr.m_pSource2 != nullptr )
+        if ( m_bsr.m_pSource2 != nullptr )
         {
             GraphPoseNodeResult const baseResult = result;
 
             // Update Source 2
-            GraphPoseNodeResult const sourceResult2 = UpdateSourceNode( m_bsr.m_pSource2 );
+            GraphPoseNodeResult const sourceResult2 = m_bsr.m_pSource2->Update( context, updateRange );
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource2 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
@@ -446,9 +436,12 @@ namespace EE::Animation::GraphNodes
             }
 
             result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( baseResult.m_sampledEventRange, sourceResult2.m_sampledEventRange, m_bsr.m_blendWeightBetween1And2 );
-        }
 
-        //-------------------------------------------------------------------------
+            // Update internal time and events
+            //-------------------------------------------------------------------------
+
+            // Nothing to do as we've already set the correct time as part of the 2-way blend
+        }
 
         return result;
     }

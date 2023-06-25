@@ -68,7 +68,7 @@ namespace EE::Animation::GraphNodes
             if ( Math::IsNearZero( speedScale ) )
             {
                 context.m_deltaTime = 0.0f;
-                actualDuration = s_oneFrameDuration;
+                actualDuration = 0.0f;
             }
             else // Apply scale
             {
@@ -173,7 +173,7 @@ namespace EE::Animation::GraphNodes
             if ( Math::IsNearZero( desiredDuration ) )
             {
                 context.m_deltaTime = 0.0f;
-                actualDuration = s_oneFrameDuration;
+                actualDuration = 0.0f;
             }
             else // Apply scale
             {
@@ -234,7 +234,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         m_previousTime = m_currentTime = 0.0f;
-        m_duration = s_oneFrameDuration;
+        m_duration = 0.0f;
 
         //-------------------------------------------------------------------------
 
@@ -315,7 +315,7 @@ namespace EE::Animation::GraphNodes
             if ( Math::IsNearZero( speedMultiplier ) )
             {
                 context.m_deltaTime = 0.0f;
-                actualDuration = s_oneFrameDuration;
+                actualDuration = 0.0f;
             }
             else // Apply scale
             {

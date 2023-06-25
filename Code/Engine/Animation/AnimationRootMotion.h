@@ -68,17 +68,17 @@ namespace EE::Animation
         // Get the rotation delta for this animation
         inline Quaternion const& GetRotationDelta() const { return m_totalDelta.GetRotation(); }
 
-        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
-        Vector GetIncomingHeadingDirection2DAtFrame( int32_t frameIdx ) const;
+        // Will return the direction of movement for that given frame towards the next frame. If there is no movement (or no next frame) it will return the facing!
+        Vector GetIncomingMovementDirection2DAtFrame( int32_t frameIdx ) const;
 
-        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
-        Quaternion GetIncomingHeadingOrientation2DAtFrame( int32_t frameIdx ) const;
+        // Will return the direction of movement for that given frame towards the next frame. If there is no movement (or no next frame) it will return the facing!
+        Quaternion GetIncomingMovementOrientation2DAtFrame( int32_t frameIdx ) const;
 
-        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
-        Vector GetOutgoingHeadingDirection2DAtFrame( int32_t frameIdx ) const;
+        // Will return the direction of movement for that given frame towards the next frame. If there is no movement (or no next frame) it will return the facing!
+        Vector GetOutgoingMovementDirection2DAtFrame( int32_t frameIdx ) const;
 
-        // Will return the heading (direction of movement for that given frame towards the next frame). If there is no movement (or no next frame) it will return the facing!
-        Quaternion GetOutgoingHeadingOrientation2DAtFrame( int32_t frameIdx ) const;
+        // Will return the direction of movement for that given frame towards the next frame. If there is no movement (or no next frame) it will return the facing!
+        Quaternion GetOutgoingMovementOrientation2DAtFrame( int32_t frameIdx ) const;
 
         //-------------------------------------------------------------------------
 

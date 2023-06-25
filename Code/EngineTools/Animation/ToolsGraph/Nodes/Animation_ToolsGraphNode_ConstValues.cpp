@@ -51,7 +51,7 @@ namespace EE::Animation::GraphNodes
     void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
-        ImGui::Text( m_value.c_str() );
+        ImGui::Text( m_value.IsValid() ? m_value.c_str() : "" );
         EndDrawInternalRegion( ctx );
     }
 

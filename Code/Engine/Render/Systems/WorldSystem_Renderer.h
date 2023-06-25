@@ -23,7 +23,7 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API RendererWorldSystem final : public IEntityWorldSystem
+    class EE_ENGINE_API RendererWorldSystem final : public EntityWorldSystem
     {
         friend class WorldRenderer;
         friend class RenderDebugView;

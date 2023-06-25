@@ -53,10 +53,6 @@ namespace EE::Animation
         friend class PoseNode;
         friend class ValueNode;
 
-    protected:
-
-        constexpr static float const s_oneFrameDuration = 1.0f / 30.0f;
-
     public:
 
         // This is the base for each node's individual settings

@@ -157,7 +157,9 @@ namespace EE::Animation::GraphNodes
             case GraphValueType::Bool:
             {
                 auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
-                ImGui::Text( value ? "Value: True" : "Value: False" );
+                ImGui::Text( "Value: " );
+                ImGui::SameLine();
+                ImGui::TextColored( value ? ImGuiX::ImColors::LimeGreen : ImGuiX::ImColors::IndianRed, value ? "True" : "False" );
             }
             break;
 

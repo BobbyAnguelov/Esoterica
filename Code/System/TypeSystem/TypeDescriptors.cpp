@@ -56,7 +56,7 @@ namespace EE::TypeSystem
                 // Calculate the address of the resolved property
                 if ( pFoundPropertyInfo->IsArrayProperty() )
                 {
-                    resolvedPathElement.m_pAddress = pResolvedTypeInfo->GetArrayElementDataPtr( reinterpret_cast<IReflectedType*>( pResolvedTypeInstance ), path[i].m_propertyID, path[i].m_arrayElementIdx );
+                    resolvedPathElement.m_pAddress = pResolvedTypeInfo->GetArrayElementDataPtr( reinterpret_cast<IReflectedType*>( pResolvedTypeInstance ), path[i].m_propertyID.ToUint(), path[i].m_arrayElementIdx);
                 }
                 else // Structure/Type
                 {
@@ -98,10 +98,10 @@ namespace EE::TypeSystem
                     if ( propInfo.IsArrayProperty() )
                     {
                         size_t const elementByteSize = propInfo.m_arrayElementSize;
-                        size_t const numArrayElements = propInfo.IsStaticArrayProperty() ? propInfo.m_arraySize : pTypeInfo->GetArraySize( pTypeInstance, propInfo.m_ID );
+                        size_t const numArrayElements = propInfo.IsStaticArrayProperty() ? propInfo.m_arraySize : pTypeInfo->GetArraySize( pTypeInstance, propInfo.m_ID.ToUint() );
                         if ( numArrayElements > 0 )
                         {
-                            uint8_t const* pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( const_cast<IReflectedType*>( pTypeInstance ), propInfo.m_ID, 0 );
+                            uint8_t const* pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( const_cast<IReflectedType*>( pTypeInstance ), propInfo.m_ID.ToUint(), 0 );
 
                             // Write array elements
                             for ( auto i = 0u; i < numArrayElements; i++ )
@@ -128,7 +128,7 @@ namespace EE::TypeSystem
                 if ( IsCoreType( propertyInfo.m_typeID ) || propertyInfo.IsEnumProperty() )
                 {
                     // Only describe non-default properties
-                    if ( !pParentTypeInfo->IsPropertyValueSetToDefault( pParentInstance, propertyInfo.m_ID, arrayElementIdx ) )
+                    if ( !pParentTypeInfo->IsPropertyValueSetToDefault( pParentInstance, propertyInfo.m_ID.ToUint(), arrayElementIdx ) )
                     {
                         PropertyDescriptor& propertyDesc = typeDesc.m_properties.emplace_back( PropertyDescriptor() );
                         propertyDesc.m_path = path;

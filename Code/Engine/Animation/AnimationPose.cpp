@@ -99,6 +99,7 @@ namespace EE::Animation
     void Pose::SetToZeroPose( bool setGlobalPose )
     {
         auto const numBones = m_pSkeleton->GetNumBones();
+        m_localTransforms.clear();
         m_localTransforms.resize( numBones, Transform::Identity );
 
         if ( setGlobalPose )

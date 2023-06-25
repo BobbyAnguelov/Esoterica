@@ -1153,7 +1153,10 @@ namespace EE::EntityModel
         else // No modifier so just set selection
         {
             uint64_t const itemID = pEntity->GetID().m_value;
-            m_outlinerTreeView.SetSelection( itemID );
+            if ( auto pItem = m_outlinerTreeView.FindItem( itemID ) )
+            {
+                m_outlinerTreeView.SetSelection( pItem );
+            }
         }
 
         m_structureEditorState = TreeState::NeedsRebuild;
@@ -2237,7 +2240,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         virtual StringID GetNameID() const override { return m_ID; }
-        virtual uint64_t GetUniqueID() const override { return IsComponent() ? m_componentID.m_value : m_ID.GetID(); }
+        virtual uint64_t GetUniqueID() const override { return IsComponent() ? m_componentID.m_value : m_ID.ToUint(); }
         virtual bool HasContextMenu() const override { return true; }
         virtual char const* GetTooltipText() const override { return m_tooltip.c_str(); }
         virtual bool IsDragAndDropSource() const override { return IsSpatialComponent() && !m_pSpatialComponent->IsRootComponent(); }
@@ -2877,9 +2880,38 @@ namespace EE::EntityModel
         bool isDialogOpen = true;
         bool shouldExecuteOperation = false;
 
-        constexpr static const char* const dialogTitles[4] = { "Add Item##ASC", "Add System##ASC", "Add Spatial Component##ASC", "Add Component##ASC" };
+        //-------------------------------------------------------------------------
+
+        char const* pDialogTitle = nullptr;
+
+        switch ( m_activeOperation )
+        {
+            case Operation::EntityAddSystemOrComponent:
+                pDialogTitle = "Add System Or Component##ASC";
+            break;
+
+            case Operation::EntityAddSystem:
+                pDialogTitle = "Add System##ASC";
+            break;
+
+            case Operation::EntityAddSpatialComponent:
+                pDialogTitle = "Add Spatial Component##ASC";
+            break;
+
+            case Operation::EntityAddComponent:
+                pDialogTitle = "Add Component##ASC";
+            break;
+
+            default:
+            break;
+        }
+
+        EE_ASSERT( pDialogTitle != nullptr );
+
+        //-------------------------------------------------------------------------
+
         ImGui::SetNextWindowSizeConstraints( ImVec2( 400, 400 ), ImVec2( FLT_MAX, FLT_MAX ) );
-        if ( ImGuiX::BeginViewportPopupModal( dialogTitles[(int32_t) m_activeOperation], &isDialogOpen, ImVec2( 1000, 400 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs ) )
+        if ( ImGuiX::BeginViewportPopupModal( pDialogTitle, &isDialogOpen, ImVec2( 1000, 400 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs ) )
         {
             ImVec2 const contentRegionAvailable = ImGui::GetContentRegionAvail();
 

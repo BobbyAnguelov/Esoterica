@@ -34,7 +34,7 @@ namespace EE
         EE_ASSERT( m_deltaTime >= 0.0f );
     }
 
-    IEntityWorldSystem* EntityWorldUpdateContext::GetWorldSystem( uint32_t worldSystemID ) const
+    EntityWorldSystem* EntityWorldUpdateContext::GetWorldSystem( uint32_t worldSystemID ) const
     {
         return m_pWorld->GetWorldSystem( worldSystemID );
     }

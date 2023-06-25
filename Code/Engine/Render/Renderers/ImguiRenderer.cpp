@@ -419,6 +419,10 @@ namespace EE::Render
 
                     // Bind texture
                     ViewSRVHandle const* pSRV = reinterpret_cast<ViewSRVHandle const*>( pCmd->TextureId );
+                    if( pSRV == nullptr )
+                    { 
+                        continue;
+                    }
                     renderContext.SetShaderResource( PipelineStage::Pixel, 0, *pSRV );
 
                     // Draw

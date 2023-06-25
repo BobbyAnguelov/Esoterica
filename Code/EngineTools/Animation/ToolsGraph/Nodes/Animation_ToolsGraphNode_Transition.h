@@ -75,6 +75,9 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT();
         float                                         m_syncEventOffset = 0.0f; // Sync event offset to apply to target node start time - with no time match mode it will start the target node at the specified offset
+
+        EE_REFLECT();
+        Percentage                                    m_boneMaskBlendInTimePercentage = 0.33f; // How long do we take to blend to the masked target before blending out the bone mask (a percentage of the transition duration)
     };
 
     //-------------------------------------------------------------------------

@@ -112,9 +112,9 @@ namespace EE::Player
 
             Vector const forward = camFwd * movementInputs.GetSplatY();
             Vector const right = camRight * movementInputs.GetSplatX();
-            Vector const desiredHeadingVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
+            Vector const desiredMovementVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
 
-            Vector resultingVelocity = currentVelocity2D + desiredHeadingVelocity2D;
+            Vector resultingVelocity = currentVelocity2D + desiredMovementVelocity2D;
             float const length = resultingVelocity.GetLength2();
             if( length > g_maxAirControlSpeed )
             {
@@ -122,7 +122,7 @@ namespace EE::Player
             }
             resultingVelocity.SetZ( verticalVelocity );
 
-            Vector const facing = desiredHeadingVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredHeadingVelocity2D.GetNormalized2();
+            Vector const facing = desiredMovementVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredMovementVelocity2D.GetNormalized2();
 
             // Update animation controller
             //-------------------------------------------------------------------------

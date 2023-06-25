@@ -38,7 +38,7 @@ namespace EE::Animation::GraphNodes
         m_elapsedTimeInState = 0.0f;
         m_sampledEventRange = SampledEventRange();
         m_previousTime = m_currentTime = 0.0f;
-        m_duration = s_oneFrameDuration; // Ensure that we always have a valid duration
+        m_duration = 0.0f;
 
         if ( m_pChildNode != nullptr )
         {
@@ -51,8 +51,6 @@ namespace EE::Animation::GraphNodes
                 m_currentTime = m_pChildNode->GetCurrentTime();
             }
         }
-
-        EE_ASSERT( m_duration != 0.0f );
 
         if ( m_pBoneMaskNode != nullptr )
         {

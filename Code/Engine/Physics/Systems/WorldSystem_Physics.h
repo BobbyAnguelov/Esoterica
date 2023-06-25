@@ -28,7 +28,7 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API PhysicsWorldSystem final : public IEntityWorldSystem
+    class EE_ENGINE_API PhysicsWorldSystem final : public EntityWorldSystem
     {
         friend class PhysicsDebugView;
 

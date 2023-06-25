@@ -38,10 +38,10 @@ namespace EE
         GetYawPitchDeltas( currentForwardDir, m_yaw, m_pitch );
     }
 
-    void FreeLookCameraComponent::AdjustPitchAndYaw( Radians headingDelta, Radians pitchDelta )
+    void FreeLookCameraComponent::AdjustPitchAndYaw( Radians yawDelta, Radians pitchDelta )
     {
-        // Adjust heading and pitch based on input
-        m_yaw += headingDelta;
+        // Adjust yaw and pitch based on input
+        m_yaw += yawDelta;
         m_yaw.ClampPositive360();
 
         m_pitch += pitchDelta;

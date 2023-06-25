@@ -85,7 +85,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             m_previousTime = m_currentTime = 0.0f;
-            m_duration = s_oneFrameDuration;
+            m_duration = 0;
         }
 
         EE_ASSERT( m_duration != 0.0f );
@@ -842,7 +842,7 @@ namespace EE::Animation::GraphNodes
 
                 Vector alignmentDir;
 
-                // Align all the section post T to the incoming heading dir for T's start frame
+                // Align all the section post T to the incoming movement dir for T's start frame
                 Vector const startToTarget = targetTransform.GetTranslation() - startTransformT.GetTranslation();
                 if ( startToTarget.IsNearZero2() )
                 {
@@ -867,9 +867,9 @@ namespace EE::Animation::GraphNodes
                 Vector const deltaDistance = unwarpedDeltaPostT.GetTranslation().Length2();
                 sectionStartTransform.SetTranslation( Vector::NegativeMultiplySubtract( alignmentDir, deltaDistance, targetTransform.GetTranslation() ) );
 
-                Quaternion const unwarpedHeadingOrientation = originalRM.GetOutgoingHeadingOrientation2DAtFrame( m_warpSections[tIdx].m_endFrame );
+                Quaternion const unwarpedMovementOrientation = originalRM.GetOutgoingMovementOrientation2DAtFrame( m_warpSections[tIdx].m_endFrame );
                 Quaternion const originalFacingOrientation = originalRM.m_transforms[m_warpSections[tIdx].m_endFrame].GetRotation();
-                Quaternion const offset = Quaternion::Delta( unwarpedHeadingOrientation, originalFacingOrientation );
+                Quaternion const offset = Quaternion::Delta( unwarpedMovementOrientation, originalFacingOrientation );
                 sectionStartTransform.SetRotation( offset * Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, alignmentDir ) );
 
                 // Calculate the start transform for this section by applying the delta for each section
@@ -884,7 +884,7 @@ namespace EE::Animation::GraphNodes
 
                 #if EE_DEVELOPMENT_TOOLS
                 warpSection.m_debugPoints[0] = targetTransform.GetTranslation();
-                warpSection.m_debugPoints[1] = targetTransform.GetTranslation() + unwarpedHeadingOrientation.RotateVector( Vector::WorldForward );
+                warpSection.m_debugPoints[1] = targetTransform.GetTranslation() + unwarpedMovementOrientation.RotateVector( Vector::WorldForward );
                 warpSection.m_debugPoints[2] = targetTransform.GetTranslation() + estimatedSectionEndTransform.GetRotation().RotateVector( Vector::WorldForward );
                 #endif
 
@@ -931,21 +931,21 @@ namespace EE::Animation::GraphNodes
                 }
                 else
                 {
-                    // Calculate estimated unwarped heading
+                    // Calculate estimated unwarped movement
                     Transform const endFramePlusOne = m_deltaTransforms[warpSection.m_endFrame + 1] * sectionEndTransform;
-                    Vector outgoingHeading = endFramePlusOne.GetTranslation() - sectionEndTransform.GetTranslation();
-                    if ( outgoingHeading.IsNearZero2() )
+                    Vector outgoingMovement = endFramePlusOne.GetTranslation() - sectionEndTransform.GetTranslation();
+                    if ( outgoingMovement.IsNearZero2() )
                     {
-                        outgoingHeading = sectionEndTransform.GetRotation().RotateVector( Vector::WorldForward );
+                        outgoingMovement = sectionEndTransform.GetRotation().RotateVector( Vector::WorldForward );
                     }
 
                     #if EE_DEVELOPMENT_TOOLS
                     warpSection.m_debugPoints[0] = sectionEndTransform.GetTranslation();
-                    warpSection.m_debugPoints[1] = sectionEndTransform.GetTranslation() + outgoingHeading.GetNormalized2();
+                    warpSection.m_debugPoints[1] = sectionEndTransform.GetTranslation() + outgoingMovement.GetNormalized2();
                     warpSection.m_debugPoints[2] = sectionEndTransform.GetTranslation() + toTarget.GetNormalized2();
                     #endif
 
-                    requiredCorrection = Quaternion::FromRotationBetweenNormalizedVectors( outgoingHeading.GetNormalized2(), toTarget.GetNormalized2() );
+                    requiredCorrection = Quaternion::FromRotationBetweenNormalizedVectors( outgoingMovement.GetNormalized2(), toTarget.GetNormalized2() );
                 }
 
                 SolveRotationSection( context, warpSection, sectionStartTransform, requiredCorrection );

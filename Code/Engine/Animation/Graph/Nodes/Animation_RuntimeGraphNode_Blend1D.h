@@ -14,13 +14,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_sourceNodeIndices, m_inputParameterValueNodeIdx, m_isSynchronized );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_sourceNodeIndices, m_inputParameterValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>               m_sourceNodeIndices;
             int16_t                                 m_inputParameterValueNodeIdx = InvalidIndex;
-            bool                                    m_isSynchronized = false;
         };
 
     public:
@@ -59,9 +58,12 @@ namespace EE::Animation::GraphNodes
 
         struct BlendSpaceResult
         {
+            void Reset() { *this = BlendSpaceResult(); }
+
             PoseNode*                               m_pSource0 = nullptr;
             PoseNode*                               m_pSource1 = nullptr;
             float                                   m_blendWeight = 0.0f;
+            uint32_t                                m_updateID = 0;
         };
 
     public:
@@ -77,11 +79,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context ) override final;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override final;
 
-        // Parameterization
-        //-------------------------------------------------------------------------
-
         void EvaluateBlendSpace( GraphContext& context );
-        GraphPoseNodeResult SharedUpdate( GraphContext& context, SyncTrackTimeRange const* pUpdateRange );
 
         // Debugging
         //-------------------------------------------------------------------------

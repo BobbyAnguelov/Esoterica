@@ -51,6 +51,33 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    FixedWeightBoneMaskToolsNode::FixedWeightBoneMaskToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Bone Mask", GraphValueType::BoneMask, true );
+    }
+
+    int16_t FixedWeightBoneMaskToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        FixedWeightBoneMaskNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<FixedWeightBoneMaskNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            pSettings->m_boneWeight = m_boneWeight;
+        }
+
+        return pSettings->m_nodeIdx;
+    }
+
+    void FixedWeightBoneMaskToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        DrawInternalSeparator( ctx );
+
+        ImGui::Text( "Mask Weight: %.2f", Math::Clamp( m_boneWeight, 0.0f, 1.0f ) );
+    }
+
+    //-------------------------------------------------------------------------
+
     BoneMaskBlendToolsNode::BoneMaskBlendToolsNode()
         : FlowToolsNode()
     {
@@ -188,11 +215,6 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
-            else
-            {
-                context.LogError( this, "Disconnected default  input pin on selector node!" );
-                return InvalidIndex;
-            }
 
             // Dynamic Options
             //-------------------------------------------------------------------------
@@ -302,6 +324,39 @@ namespace EE::Animation::GraphNodes
             newPinName.sprintf( "Mask %d", newPinIdx );
             GetInputPin( i )->m_name = newPinName;
             newPinIdx++;
+        }
+    }
+
+    void BoneMaskSelectorToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        for ( auto const& ID : m_parameterValues )
+        {
+            outIDs.emplace_back( ID );
+        }
+    }
+
+    void BoneMaskSelectorToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = false;
+        for ( auto const& ID : m_parameterValues )
+        {
+            if ( ID == oldID )
+            {
+                foundMatch = true;
+                break;
+            }
+        }
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+            for ( auto& ID : m_parameterValues )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
         }
     }
 }

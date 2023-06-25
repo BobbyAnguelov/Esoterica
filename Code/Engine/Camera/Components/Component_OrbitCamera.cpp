@@ -29,7 +29,7 @@ namespace EE
             return;
         }
 
-        // Adjust heading and pitch based on input
+        // Adjust yaw and pitch based on input
         m_yaw -= deltaHorizontalAngle;
         m_yaw.ClampPositive360();
 

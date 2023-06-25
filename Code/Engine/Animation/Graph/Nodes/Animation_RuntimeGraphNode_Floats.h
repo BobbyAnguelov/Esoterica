@@ -357,4 +357,34 @@ namespace EE::Animation::GraphNodes
         FloatValueNode*                 m_pInputValueNode = nullptr;
         float                           m_value = 0.0f;
     };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API FloatSelectorNode final : public FloatValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        {
+            EE_REFLECT_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_conditionNodeIndices, m_values, m_defaultValue );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            TInlineVector<int16_t, 5>   m_conditionNodeIndices;
+            TInlineVector<float, 5>     m_values;
+            float                       m_defaultValue = 0.0f;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        TInlineVector<BoolValueNode*,5> m_conditionNodes;
+        float                           m_result;
+    };
 }

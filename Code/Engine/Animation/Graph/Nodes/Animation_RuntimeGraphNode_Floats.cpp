@@ -576,4 +576,60 @@ namespace EE::Animation::GraphNodes
 
         *reinterpret_cast<float*>( pOutValue ) = m_value;
     }
+
+    //-------------------------------------------------------------------------
+
+    void FloatSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<FloatSelectorNode>( context, options );
+        for ( auto nodeIdx : m_conditionNodeIndices )
+        {
+            BoolValueNode*& pConditionNode = pNode->m_conditionNodes.emplace_back( nullptr );
+            context.SetNodePtrFromIndex( nodeIdx, pConditionNode );
+        }
+    }
+
+    void FloatSelectorNode::InitializeInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() );
+        FloatValueNode::InitializeInternal( context );
+        for ( auto pConditionNode : m_conditionNodes )
+        {
+            pConditionNode->Initialize( context );
+        }
+    }
+
+    void FloatSelectorNode::ShutdownInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() );
+        for ( auto pConditionNode : m_conditionNodes )
+        {
+            pConditionNode->Shutdown( context );
+        }
+        FloatValueNode::ShutdownInternal( context );
+    }
+
+    void FloatSelectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() );
+        auto pSettings = GetSettings<FloatSelectorNode>();
+
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            m_result = pSettings->m_defaultValue;
+            int32_t const numConditions = (int32_t) m_conditionNodes.size();
+            for ( int32_t i = 0; i < numConditions; i++ )
+            {
+                if ( m_conditionNodes[i]->GetValue<bool>(context) )
+                {
+                    m_result = pSettings->m_values[i];
+                    break;
+                }
+            }
+        }
+
+        *( (float*) pOutValue ) = m_result;
+    }
 }

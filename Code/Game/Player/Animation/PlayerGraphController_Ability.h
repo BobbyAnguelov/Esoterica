@@ -19,13 +19,13 @@ namespace EE::Player
         void StartDash();
         void StartSlide();
 
-        void SetDesiredMovement( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS );
+        void SetDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS );
 
     private:
 
         ControlParameter<StringID>      m_abilityID = ControlParameter<StringID>( "Ability_ID" );
         ControlParameter<float>         m_speedParam = ControlParameter<float>( "Ability_Speed" );
-        ControlParameter<Vector>        m_headingParam = ControlParameter<Vector>( "Ability_Heading" );
+        ControlParameter<Vector>        m_movementVelocityParam = ControlParameter<Vector>( "Ability_MovementVelocity" );
         ControlParameter<Vector>        m_facingParam = ControlParameter<Vector>( "Ability_Facing" );
     };
 }

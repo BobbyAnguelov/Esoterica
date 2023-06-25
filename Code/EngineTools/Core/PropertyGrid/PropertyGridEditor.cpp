@@ -47,7 +47,7 @@ namespace EE::PG
 
 namespace EE::PG
 {
-    constexpr static float const g_iconButtonWidth = 26;
+    constexpr static float const g_iconButtonWidth = 30;
 
     //-------------------------------------------------------------------------
     // Core Editors
@@ -947,7 +947,7 @@ namespace EE::PG
 
             //-------------------------------------------------------------------------
 
-            ImGui::SameLine( 0, ImGui::GetStyle().ItemSpacing.x );
+            ImGui::SameLine();
             if ( ImGui::Button( EE_ICON_PERCENT_BOX_OUTLINE"##ClampPercentage", ImVec2( g_iconButtonWidth, 0 ) ) )
             {
                 m_value_imgui = ( Percentage( m_value_imgui / 100 ).GetClamped( true ) ).ToFloat() * 100;
@@ -1631,7 +1631,7 @@ namespace EE::PG
             {
                 m_buffer_cached = m_buffer_imgui;
                 *pValue = StringID( m_buffer_imgui );
-                m_IDString.sprintf( "%u", pValue->GetID() );
+                m_IDString.sprintf( "%u", pValue->ToUint() );
             }
             else
             {
@@ -1648,7 +1648,7 @@ namespace EE::PG
             {
                 strcpy_s( m_buffer_imgui, 256, pValue->c_str() );
                 m_buffer_cached = pValue->c_str();
-                m_IDString.sprintf( "%u", pValue->GetID() );
+                m_IDString.sprintf( "%u", pValue->ToUint() );
             }
             else
             {

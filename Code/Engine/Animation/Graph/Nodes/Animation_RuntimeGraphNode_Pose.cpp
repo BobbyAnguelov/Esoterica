@@ -17,8 +17,8 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::InitializeInternal( context, initialTime );
 
-        m_previousTime = m_currentTime;
-        m_duration = s_oneFrameDuration;
+        m_previousTime = m_currentTime = 1.0f;
+        m_duration = 0;
     }
 
     GraphPoseNodeResult ZeroPoseNode::Update( GraphContext& context )
@@ -43,8 +43,8 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::InitializeInternal( context, initialTime );
 
-        m_previousTime = m_currentTime;
-        m_duration = s_oneFrameDuration;
+        m_previousTime = m_currentTime = 1.0f;
+        m_duration = 0;
     }
 
     GraphPoseNodeResult ReferencePoseNode::Update( GraphContext& context )
@@ -65,6 +65,13 @@ namespace EE::Animation::GraphNodes
         auto pNode = CreateNode<AnimationPoseNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
         pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIndex );
+
+        //-------------------------------------------------------------------------
+
+        if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+        {
+            pNode->m_pAnimation = nullptr;
+        }
     }
 
     bool AnimationPoseNode::IsValid() const
@@ -82,8 +89,8 @@ namespace EE::Animation::GraphNodes
             m_pPoseTimeValue->Initialize( context );
         }
 
-        m_previousTime = m_currentTime;
-        m_duration = s_oneFrameDuration;
+        m_previousTime = m_currentTime = 1.0f;
+        m_duration = 0;
     }
 
     void AnimationPoseNode::ShutdownInternal( GraphContext& context )
@@ -122,6 +129,12 @@ namespace EE::Animation::GraphNodes
         if ( pSettings->m_inputTimeRemapRange.IsSet() )
         {
             timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
+        }
+
+        // Convert to percentage
+        if ( pSettings->m_useFramesAsInput )
+        {
+            timeValue = timeValue / m_pAnimation->GetNumFrames();
         }
 
         // Ensure valid time value

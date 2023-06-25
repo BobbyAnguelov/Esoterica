@@ -102,7 +102,7 @@ namespace EE::Resource
                 ImGui::SetNextWindowSizeConstraints( ImVec2( comboDropDownSize.x, 0 ), comboDropDownSize );
 
                 bool const wasComboOpen = m_isComboOpen;
-                m_isComboOpen = ImGui::BeginCombo( "##DataPath", "", ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_CustomPreview);
+                m_isComboOpen = ImGui::BeginCombo( "##DataPath", "", ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_CustomPreview );
 
                 // Regenerate options and clear filter each time we open the combo
                 if ( m_isComboOpen && !wasComboOpen )
@@ -114,16 +114,21 @@ namespace EE::Resource
                 // Draw combo if open
                 if ( m_isComboOpen )
                 {
+                    float const cursorPosYPreFilter = ImGui::GetCursorPosY();
                     if ( m_filterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
                     {
                         GenerateFilteredOptionList();
                     }
+                    float const cursorPosYPostFilter = ImGui::GetCursorPosY();
+                    float const filterHeight = cursorPosYPostFilter;
 
                     //-------------------------------------------------------------------------
 
-                    ImVec2 const childSize = comboDropDownSize - ImGui::GetStyle().WindowPadding - ImVec2( 0, ImGui::GetFrameHeightWithSpacing() + style.ItemSpacing.y );
+                    ImVec2 const childSize( ImGui::GetContentRegionAvail().x, comboDropDownSize.y - filterHeight - style.ItemSpacing.y - style.WindowPadding.y );
                     if ( ImGui::BeginChild( "##ResList", childSize ) )
                     {
+                        ImGuiX::ScopedFont const sfo( ImGuiX::Font::Medium );
+
                         ImGuiListClipper clipper;
                         clipper.Begin( (int32_t) m_filteredResourceIDs.size() );
                         while ( clipper.Step() )
@@ -139,6 +144,7 @@ namespace EE::Resource
                                 ImGuiX::ItemTooltip( m_filteredResourceIDs[i].c_str() );
                             }
                         }
+                        clipper.End();
                     }
                     ImGui::EndChild();
 

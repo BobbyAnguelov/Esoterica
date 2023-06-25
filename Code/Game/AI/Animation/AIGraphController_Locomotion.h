@@ -19,12 +19,12 @@ namespace EE::AI
         void SetIdle();
 
         // Set movement parameters - facing direction will be converted to 2D
-        void SetLocomotionDesires( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS );
+        void SetLocomotionDesires( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS );
 
     private:
 
         ControlParameter<float>     m_speedParam = ControlParameter<float>( "Locomotion_Speed" );
-        ControlParameter<Vector>    m_headingParam = ControlParameter<Vector>( "Locomotion_Heading" );
+        ControlParameter<Vector>    m_movementVelocityParam = ControlParameter<Vector>( "Locomotion_MovementVelocity" );
         ControlParameter<Vector>    m_facingParam = ControlParameter<Vector>( "Locomotion_Facing" );
     };
 }

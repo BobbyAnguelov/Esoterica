@@ -106,7 +106,7 @@ namespace EE::Animation::GraphNodes
     void IDEventConditionToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
     {
         bool foundMatch = false;
-        for ( auto ID : m_eventIDs )
+        for ( auto const ID : m_eventIDs )
         {
             if ( ID == oldID )
             {
@@ -118,7 +118,7 @@ namespace EE::Animation::GraphNodes
         if ( foundMatch )
         {
             VisualGraph::ScopedNodeModification snm( this );
-            for ( auto ID : m_eventIDs )
+            for ( auto& ID : m_eventIDs )
             {
                 if ( ID == oldID )
                 {
@@ -134,6 +134,8 @@ namespace EE::Animation::GraphNodes
         : FlowToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Bool, true );
+
+        m_conditions.emplace_back();
     }
 
     int16_t StateEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
@@ -212,7 +214,7 @@ namespace EE::Animation::GraphNodes
     void StateEventConditionToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
     {
         bool foundMatch = false;
-        for ( auto condition : m_conditions )
+        for ( auto const& condition : m_conditions )
         {
             if ( condition.m_eventID == oldID )
             {
@@ -224,7 +226,7 @@ namespace EE::Animation::GraphNodes
         if ( foundMatch )
         {
             VisualGraph::ScopedNodeModification snm( this );
-            for ( auto condition : m_conditions )
+            for ( auto& condition : m_conditions )
             {
                 if ( condition.m_eventID == oldID )
                 {

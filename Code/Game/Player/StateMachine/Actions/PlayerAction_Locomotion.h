@@ -57,7 +57,7 @@ namespace EE::Player
         ManualCountdownTimer        m_startDetectionTimer;
         ManualCountdownTimer        m_stopDetectionTimer;
 
-        Vector                      m_desiredHeading = Vector::Zero;
+        Vector                      m_desiredMovementVelocity = Vector::Zero;
         Vector                      m_desiredFacing = Vector::WorldForward;
         Vector                      m_cachedFacing = Vector::Zero;
         Vector                      m_desiredTurnDirection = Vector::Zero;

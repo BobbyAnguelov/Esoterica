@@ -13,7 +13,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API CameraManager : public IEntityWorldSystem
+    class EE_ENGINE_API CameraManager : public EntityWorldSystem
     {
 
     public:

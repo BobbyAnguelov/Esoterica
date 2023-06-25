@@ -145,11 +145,11 @@ namespace EE::AI
         //-------------------------------------------------------------------------
 
         Vector const desiredDelta = ( goalPosition - currentPosition );
-        Vector const headingVelocity = desiredDelta / ctx.GetDeltaTime();
+        Vector const movementVelocity = desiredDelta / ctx.GetDeltaTime();
         facingDir = facingDir.GetNormalized2();
 
         auto pLocomotionController = ctx.m_pAnimationController->GetSubGraphController<LocomotionGraphController>();
-        pLocomotionController->SetLocomotionDesires( ctx.GetDeltaTime(), headingVelocity, facingDir );
+        pLocomotionController->SetLocomotionDesires( ctx.GetDeltaTime(), movementVelocity, facingDir );
 
         // Check if we are at the end of the path
         //-------------------------------------------------------------------------

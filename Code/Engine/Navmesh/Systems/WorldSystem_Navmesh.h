@@ -24,7 +24,7 @@ namespace EE::Navmesh
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API NavmeshWorldSystem : public IEntityWorldSystem
+    class EE_ENGINE_API NavmeshWorldSystem : public EntityWorldSystem
     {
         friend class NavmeshDebugView;
         friend class NavmeshDebugRenderer;

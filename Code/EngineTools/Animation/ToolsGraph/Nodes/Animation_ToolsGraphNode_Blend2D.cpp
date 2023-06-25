@@ -312,8 +312,6 @@ namespace EE::Animation::GraphNodes
             // Common Settings
             //-------------------------------------------------------------------------
 
-            pSettings->m_isSynchronized = m_isSynchronized;
-            
             for ( auto const& point : m_blendSpace.m_inputValues )
             {
                 pSettings->m_values.emplace_back( point );

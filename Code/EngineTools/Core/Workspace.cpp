@@ -96,7 +96,7 @@ namespace EE
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
         : m_pWorld( pWorld )
         , m_pToolsContext( pToolsContext )
-        , m_windowName( resourceID.GetFileNameWithoutExtension() )
+        , m_windowName( String::CtorSprintf(), "%s##%s", resourceID.GetResourcePath().GetFileName().c_str(), resourceID.GetResourcePath().c_str())
         , m_descriptorID( resourceID )
         , m_descriptorPath( GetFileSystemPath( resourceID ) )
     {
@@ -424,17 +424,20 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        constexpr float const buttonWidth = 28;
+        constexpr float const totalWidth = 180;
+        constexpr float const sliderWidth = totalWidth - ( 3 * buttonWidth );
 
-        if ( BeginViewportToolbarGroup( "TimeControls", ImVec2( 170, 0 ), ImVec2( 2, 1 ) ) )
+        if ( BeginViewportToolbarGroup( "TimeControls", ImVec2( totalWidth, 0 ), ImVec2( 2, 1 ) ) )
         {
             ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
 
-            ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, 3 ) );
+            //ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, 3 ) );
 
             // Play/Pause
             if ( m_pWorld->IsPaused() )
             {
-                if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", ImVec2( 20, 0 ) ) )
+                if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", ImVec2( buttonWidth, -1 ) ) )
                 {
                     SetWorldPaused( false );
                 }
@@ -442,7 +445,7 @@ namespace EE
             }
             else
             {
-                if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", ImVec2( 20, 0 ) ) )
+                if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", ImVec2( buttonWidth, -1 ) ) )
                 {
                     SetWorldPaused( true );
                 }
@@ -452,7 +455,7 @@ namespace EE
             // Step
             ImGui::SameLine( 0, 0 );
             ImGui::BeginDisabled( !m_pWorld->IsPaused() );
-            if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", ImVec2( 20, 0 ) ) )
+            if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", ImVec2( buttonWidth, -1 ) ) )
             {
                 m_pWorld->RequestTimeStep();
             }
@@ -461,7 +464,7 @@ namespace EE
 
             // Slider
             ImGui::SameLine( 0, 0 );
-            ImGui::SetNextItemWidth( 106 );
+            ImGui::SetNextItemWidth( sliderWidth );
             float newTimeScale = m_worldTimeScale;
             if ( ImGui::SliderFloat( "##TimeScale", &newTimeScale, 0.1f, 3.5f, "%.2f" ) )
             {
@@ -471,13 +474,13 @@ namespace EE
 
             // Reset
             ImGui::SameLine( 0, 0 );
-            if ( ImGui::Button( EE_ICON_UPDATE"##ResetTimeScale", ImVec2( 20, 0 ) ) )
+            if ( ImGui::Button( EE_ICON_UPDATE"##ResetTimeScale", ImVec2( buttonWidth, -1 ) ) )
             {
                 ResetWorldTimeScale();
             }
             ImGuiX::ItemTooltip( "Reset TimeScale" );
 
-            ImGui::PopStyleVar();
+            //ImGui::PopStyleVar();
         }
         EndViewportToolbarGroup();
     }

@@ -11,7 +11,7 @@ namespace EE::Animation::GraphNodes
     {
         CreateOutputPin( "Result", GraphValueType::Pose, true );
         CreateInputPin( "Input", GraphValueType::Pose );
-        CreateInputPin( "Desired Heading Velocity (Character)", GraphValueType::Vector );
+        CreateInputPin( "Desired Moving Velocity (Character)", GraphValueType::Vector );
         CreateInputPin( "Desired Facing Direction (Character)", GraphValueType::Vector );
         CreateInputPin( "Linear Velocity Limit (Optional)", GraphValueType::Float );
         CreateInputPin( "Angular Velocity Limit (Optional)", GraphValueType::Float );
@@ -44,23 +44,23 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            auto pHeadingNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            auto pMovingVelocityNode = GetConnectedInputNode<FlowToolsNode>( 1 );
             auto pFacingNode = GetConnectedInputNode<FlowToolsNode>( 2 );
 
-            if ( pHeadingNode == nullptr && pFacingNode == nullptr )
+            if ( pMovingVelocityNode == nullptr && pFacingNode == nullptr )
             {
-                context.LogError( this, "You need to connect at least one of the heading/facing input pins!" );
+                context.LogError( this, "You need to connect at least one of the movement/facing input pins!" );
                 return InvalidIndex;
             }
 
             //-------------------------------------------------------------------------
 
-            if ( pHeadingNode != nullptr )
+            if ( pMovingVelocityNode != nullptr )
             {
-                int16_t const compiledNodeIdx = pHeadingNode->Compile( context );
+                int16_t const compiledNodeIdx = pMovingVelocityNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_desiredHeadingVelocityNodeIdx = compiledNodeIdx;
+                    pSettings->m_desiredMovingVelocityNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -120,9 +120,9 @@ namespace EE::Animation::GraphNodes
             pSettings->m_maxLinearVelocity = m_maxLinearVelocity;
             pSettings->m_maxAngularVelocity = m_maxAngularVelocity;
 
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingX, m_overrideHeadingX );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingY, m_overrideHeadingY );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowHeadingZ, m_overrideHeadingZ );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveX, m_overrideMoveDirX );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveY, m_overrideMoveDirY );
+            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveZ, m_overrideMoveDirZ );
             pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowFacingPitch, m_allowPitchForFacing );
             pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::ListenForEvents, m_listenForRootMotionEvents );
         }

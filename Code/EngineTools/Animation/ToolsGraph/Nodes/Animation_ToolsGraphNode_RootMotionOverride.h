@@ -22,18 +22,31 @@ namespace EE::Animation::GraphNodes
     private:
 
         // Set to negative to disable the velocity limiter
-        EE_REFLECT() float                m_maxLinearVelocity = -1.0f;
+        EE_REFLECT();
+        float                m_maxLinearVelocity = -1.0f;
 
         // Set to negative to disable the velocity limiter
-        EE_REFLECT() float                m_maxAngularVelocity = -1.0f;
+        EE_REFLECT();
+        float                m_maxAngularVelocity = -1.0f;
 
-        // Limits
-        EE_REFLECT() bool                 m_overrideHeadingX = true;
-        EE_REFLECT() bool                 m_overrideHeadingY = true;
-        EE_REFLECT() bool                 m_overrideHeadingZ = true;
-        EE_REFLECT() bool                 m_allowPitchForFacing = false;
+        // Allow movement along the x axis
+        EE_REFLECT();
+        bool                 m_overrideMoveDirX = true;
+
+        // Allow movement along the y axis
+        EE_REFLECT();
+        bool                 m_overrideMoveDirY = true;
+
+        // Allow movement along the z axis
+        EE_REFLECT();
+        bool                 m_overrideMoveDirZ = true;
+
+        // Allow us to pitch the character facing (i.e. 3D facing)
+        EE_REFLECT();
+        bool                 m_allowPitchForFacing = false;
 
         // Events
-        EE_REFLECT() bool                 m_listenForRootMotionEvents = false;
+        EE_REFLECT();
+        bool                 m_listenForRootMotionEvents = false;
     };
 }

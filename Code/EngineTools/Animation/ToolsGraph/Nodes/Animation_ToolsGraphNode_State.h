@@ -57,7 +57,7 @@ namespace EE::Animation::GraphNodes
     public:
 
         StateToolsNode() = default;
-        StateToolsNode( StateType type ) : m_type( type ) {}
+        StateToolsNode( StateType type );
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
@@ -95,23 +95,38 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT( "IsToolsReadOnly" : true );
         String                          m_name = "State";
-        
-        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
-        TVector<StringID>               m_entryEvents;
 
-        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
-        TVector<StringID>               m_executeEvents;
-
-        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
-        TVector<StringID>               m_exitEvents;
-
-        EE_REFLECT();
-        TVector<TimedStateEvent>        m_timeRemainingEvents;
-
-        EE_REFLECT();
-        TVector<TimedStateEvent>        m_timeElapsedEvents;
-        
         EE_REFLECT( "IsToolsReadOnly" : true );
         StateType                       m_type = StateType::BlendTreeState;
+
+        //-------------------------------------------------------------------------
+
+        // These events are emitted in all cases (entry/execute/exit)
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        TVector<StringID>               m_events;
+
+        //-------------------------------------------------------------------------
+
+        // Only emitted when entering the state
+        EE_REFLECT( "Category" : "Specific Events", "CustomEditor" : "AnimGraph_ID" );
+        TVector<StringID>               m_entryEvents;
+
+        // Only emitted when fully in (no transition occuring) the state
+        EE_REFLECT( "Category" : "Specific Events", "CustomEditor" : "AnimGraph_ID" );
+        TVector<StringID>               m_executeEvents;
+
+        // Only emitted when exiting the state
+        EE_REFLECT( "Category" : "Specific Events", "CustomEditor" : "AnimGraph_ID" );
+        TVector<StringID>               m_exitEvents;
+
+        //-------------------------------------------------------------------------
+
+        // Only emitted when a time remaining condition is met
+        EE_REFLECT( "Category" : "Timed Events" );
+        TVector<TimedStateEvent>        m_timeRemainingEvents;
+
+        // Only emitted when a time elapsed condition is met
+        EE_REFLECT( "Category" : "Timed Events" );
+        TVector<TimedStateEvent>        m_timeElapsedEvents;
     };
 }

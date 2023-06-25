@@ -8,26 +8,26 @@ namespace EE::AI
         : Animation::SubGraphController( pGraphInstance, pMeshComponent )
     {
         m_speedParam.TryBind( this );
-        m_headingParam.TryBind( this );
+        m_movementVelocityParam.TryBind( this );
         m_facingParam.TryBind( this );
     }
 
     void LocomotionGraphController::SetIdle()
     {
-        m_speedParam.Set( this, 0.0f );
-        m_headingParam.Set( this, Vector::Zero );
-        m_facingParam.Set( this, Vector::WorldForward );
+        m_speedParam.Set( 0.0f );
+        m_movementVelocityParam.Set( Vector::Zero );
+        m_facingParam.Set( Vector::WorldForward );
     }
 
-    void LocomotionGraphController::SetLocomotionDesires( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
+    void LocomotionGraphController::SetLocomotionDesires( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
         EE_ASSERT( Math::IsNearZero( facingDirectionWS.GetZ() ) );
 
-        Vector const characterSpaceHeading = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
-        float const speed = characterSpaceHeading.GetLength3();
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+        float const speed = movementVelocityCS.GetLength3();
 
-        m_headingParam.Set( this, characterSpaceHeading );
-        m_speedParam.Set( this, speed );
+        m_movementVelocityParam.Set( movementVelocityCS );
+        m_speedParam.Set( speed );
 
         //-------------------------------------------------------------------------
 
@@ -35,13 +35,13 @@ namespace EE::AI
 
         if ( facingDirectionWS.IsZero3() )
         {
-            m_facingParam.Set( this, Vector::WorldForward );
+            m_facingParam.Set( Vector::WorldForward );
         }
         else
         {
             EE_ASSERT( facingDirectionWS.IsNormalized3() );
             Vector const facingDirCS = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
-            m_facingParam.Set( this, facingDirCS );
+            m_facingParam.Set( facingDirCS );
         }
     }
 }

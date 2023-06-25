@@ -192,7 +192,7 @@ namespace EE::Player
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
-        m_desiredHeading = Vector::Zero;
+        m_desiredMovementVelocity = Vector::Zero;
         m_cachedFacing = Vector::Zero;
         m_desiredTurnDirection = Vector::Zero;
         m_desiredFacing = characterWorldTransform.GetForwardVector();
@@ -221,7 +221,7 @@ namespace EE::Player
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
         Vector const characterForward = characterWorldTransform.GetForwardVector();
 
-        m_desiredHeading = Vector::Zero;
+        m_desiredMovementVelocity = Vector::Zero;
 
         // If the stick direction is in the same direction the character is facing, go directly to start
         if ( stickAmplitude < g_idle_minimumStickAmplitudeThreshold )
@@ -247,7 +247,7 @@ namespace EE::Player
 
     void LocomotionAction::RequestTurnOnSpot( ActionContext const& ctx, Vector const& desiredFacingDirection )
     {
-        m_desiredHeading = Vector::Zero;
+        m_desiredMovementVelocity = Vector::Zero;
         m_cachedFacing = ctx.m_pCharacterComponent->GetForwardVector();
         m_desiredFacing = m_desiredTurnDirection = desiredFacingDirection.GetNormalized2();
         m_cachedFacing = Vector::Zero;
@@ -314,7 +314,7 @@ namespace EE::Player
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
-        m_desiredHeading = stickInputVector;
+        m_desiredMovementVelocity = stickInputVector;
         m_cachedFacing = stickInputVector;
         m_desiredTurnDirection = Vector::Zero;
         m_desiredFacing = stickInputVector;
@@ -353,13 +353,13 @@ namespace EE::Player
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
-        m_desiredHeading = initialVelocity;
+        m_desiredMovementVelocity = initialVelocity;
         m_cachedFacing = Vector::Zero;
         m_desiredTurnDirection = Vector::Zero;
-        m_desiredFacing = m_desiredHeading.GetNormalized3();
+        m_desiredFacing = m_desiredMovementVelocity.GetNormalized3();
 
         auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredHeading, m_desiredFacing );
+        pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
 
         m_state = LocomotionState::Moving;
     }
@@ -393,7 +393,7 @@ namespace EE::Player
             }
 
             // Keep existing locomotion parameters when we have no input
-            pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredHeading, m_desiredFacing );
+            pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
         }
         else
         {
@@ -425,7 +425,7 @@ namespace EE::Player
                 }
             }
 
-            // Calculate desired heading and facing
+            // Calculate desired movement and facing
             //-------------------------------------------------------------------------
 
             float const speed = ConvertStickAmplitudeToSpeed( ctx, stickAmplitude );
@@ -448,16 +448,16 @@ namespace EE::Player
                 }
 
                 Quaternion const rotation( AxisAngle( Vector::WorldUp, rotationAngle ) );
-                m_desiredHeading = rotation.RotateVector( characterForward ) * speed;
+                m_desiredMovementVelocity = rotation.RotateVector( characterForward ) * speed;
             }
             else
             {
-                m_desiredHeading = stickInputVectorWS * speed;
+                m_desiredMovementVelocity = stickInputVectorWS * speed;
             }
 
-            m_desiredFacing = m_desiredHeading.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : m_desiredHeading.GetNormalized2();
+            m_desiredFacing = m_desiredMovementVelocity.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : m_desiredMovementVelocity.GetNormalized2();
 
-            pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredHeading, m_desiredFacing );
+            pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
         }
     }
 
@@ -467,7 +467,7 @@ namespace EE::Player
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
-        m_desiredHeading = Vector::Zero;
+        m_desiredMovementVelocity = Vector::Zero;
         m_cachedFacing = Vector::Zero;
         m_desiredTurnDirection = Vector::Zero;
         m_desiredFacing = characterWorldTransform.GetForwardVector();

@@ -10,29 +10,29 @@ namespace EE::Player
     {
         m_stateParam.TryBind( this );
         m_speedParam.TryBind( this );
-        m_headingParam.TryBind( this );
+        m_movementVelocityParam.TryBind( this );
         m_facingParam.TryBind( this );
     }
 
-    void InAirGraphController::SetDesiredMovement( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
+    void InAirGraphController::SetDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
-        Vector const characterSpaceHeading = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
-        float const speed = characterSpaceHeading.GetLength3();
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+        float const speed = movementVelocityCS.GetLength3();
 
-        m_headingParam.Set( this, characterSpaceHeading );
-        m_speedParam.Set( this, speed );
+        m_movementVelocityParam.Set( movementVelocityCS );
+        m_speedParam.Set( speed );
 
         //-------------------------------------------------------------------------
 
         if ( facingDirectionWS.IsZero3() )
         {
-            m_facingParam.Set( this, Vector::WorldForward );
+            m_facingParam.Set( Vector::WorldForward );
         }
         else
         {
             EE_ASSERT( facingDirectionWS.IsNormalized3() );
             Vector const characterSpaceFacing = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
-            m_facingParam.Set( this, characterSpaceFacing );
+            m_facingParam.Set( characterSpaceFacing );
         }
     }
 }

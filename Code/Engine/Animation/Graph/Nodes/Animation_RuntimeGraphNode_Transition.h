@@ -46,7 +46,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
 
         public:
 
@@ -65,13 +65,13 @@ namespace EE::Animation::GraphNodes
             int16_t                             m_targetStateNodeIdx = InvalidIndex;
             int16_t                             m_durationOverrideNodeIdx = InvalidIndex;
             int16_t                             m_syncEventOffsetOverrideNodeIdx = InvalidIndex;
+            int16_t                             m_startBoneMaskNodeIdx = InvalidIndex;
+            Seconds                             m_duration = 0;
+            Percentage                          m_boneMaskBlendInTimePercentage = 0.33f;
+            float                               m_syncEventOffset = 0;
+            TBitFlags<TransitionOptions>        m_transitionOptions;
             Math::Easing::Type                  m_blendWeightEasingType = Math::Easing::Type::Linear;
             RootMotionBlendMode                 m_rootMotionBlend = RootMotionBlendMode::Blend;
-
-            Seconds                             m_duration = 0;
-            float                               m_syncEventOffset = 0;
-
-            TBitFlags<TransitionOptions>        m_transitionOptions;
         };
 
     public:
@@ -150,6 +150,7 @@ namespace EE::Animation::GraphNodes
         StateNode*                              m_pTargetNode = nullptr;
         FloatValueNode*                         m_pDurationOverrideNode = nullptr;
         FloatValueNode*                         m_pEventOffsetOverrideNode = nullptr;
+        BoneMaskValueNode*                      m_pStartBoneMaskNode = nullptr;
         BoneMask                                m_boneMask;
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
@@ -159,6 +160,7 @@ namespace EE::Animation::GraphNodes
 
         UUID                                    m_cachedPoseBufferID;
         SourceType                              m_sourceType = SourceType::State;
+        BoneMaskTaskList                        m_boneMaskTaskList;
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;

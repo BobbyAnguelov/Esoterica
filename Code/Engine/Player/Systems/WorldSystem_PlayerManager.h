@@ -19,7 +19,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API PlayerManager : public IEntityWorldSystem
+    class EE_ENGINE_API PlayerManager : public EntityWorldSystem
     {
         struct RegisteredPlayer
         {

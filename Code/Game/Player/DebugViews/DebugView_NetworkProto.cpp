@@ -11,6 +11,7 @@
 #include "System/Math/MathUtils.h"
 #include "System/Resource/ResourceSystem.h"
 #include "System/ThirdParty/implot/implot.h"
+#include "Engine/Render/Components/Component_RenderMesh.h"
 
 //-------------------------------------------------------------------------
 
@@ -48,18 +49,20 @@ namespace EE::Player
         EE_ASSERT( m_pWorld != nullptr );
 
         PlayerController* pPlayerController = nullptr;
-        if ( m_isActionDebugWindowOpen || m_isCharacterControllerDebugWindowOpen )
+        if ( m_pPlayerManager->GetPlayerEntityID().IsValid() )
         {
-            if ( m_pPlayerManager->HasPlayer() )
+            auto pPlayerEntity = m_pWorld->GetPersistentMap()->FindEntity( m_pPlayerManager->GetPlayerEntityID() );
+            for ( auto pComponent : pPlayerEntity->GetComponents() )
             {
-                auto pPlayerEntity = m_pWorld->GetPersistentMap()->FindEntity( m_pPlayerManager->GetPlayerEntityID() );
-                for ( auto pComponent : pPlayerEntity->GetComponents() )
+                m_pPlayerGraphComponent = TryCast<Animation::GraphComponent>( pComponent );
+                if ( m_pPlayerGraphComponent != nullptr )
                 {
-                    m_pPlayerGraphComponent = TryCast<Animation::GraphComponent>( pComponent );
-                    if ( m_pPlayerGraphComponent != nullptr )
-                    {
-                        break;
-                    }
+                    break;
+                }
+
+                if ( auto pMeshComponent = TryCast<Render::MeshComponent>( pComponent ) )
+                {
+                    pMeshComponent->SetVisible( !m_isMeshHidden );
                 }
             }
         }
@@ -108,6 +111,12 @@ namespace EE::Player
                     m_isRecording = true;
                 }
             }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SameLine();
+
+            ImGuiX::Checkbox( "Hide Mesh", &m_isMeshHidden );
 
             //-------------------------------------------------------------------------
 

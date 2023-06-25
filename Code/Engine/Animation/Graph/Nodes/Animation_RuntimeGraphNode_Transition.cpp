@@ -16,6 +16,7 @@ namespace EE::Animation::GraphNodes
         context.SetNodePtrFromIndex( m_targetStateNodeIdx, pNode->m_pTargetNode );
         context.SetOptionalNodePtrFromIndex( m_durationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
         context.SetOptionalNodePtrFromIndex( m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
+        context.SetOptionalNodePtrFromIndex( m_startBoneMaskNodeIdx, pNode->m_pStartBoneMaskNode );
     }
 
     GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, GraphPoseNodeResult const& sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
@@ -178,7 +179,6 @@ namespace EE::Animation::GraphNodes
             // Set time and duration for this node
             m_currentTime = 0.0f;
             m_duration = m_pTargetNode->GetDuration();
-            EE_ASSERT( m_duration != 0.0f );
 
             #if EE_DEVELOPMENT_TOOLS
             m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
@@ -187,8 +187,12 @@ namespace EE::Animation::GraphNodes
             // Should we clamp how long the transition is active for?
             if ( pSettings->ShouldClampTransitionLength() )
             {
-                float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * m_pSourceNode->GetDuration();
-                m_transitionLength = Math::Min( m_transitionLength, remainingNodeTime );
+                Seconds const sourceDuration = m_pSourceNode->GetDuration();
+                if ( sourceDuration > 0.0f )
+                {
+                    float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
+                    m_transitionLength = Math::Min( m_transitionLength, remainingNodeTime );
+                }
             }
         }
 
@@ -264,25 +268,29 @@ namespace EE::Animation::GraphNodes
                 }
 
                 // If the end of the source occurs before the transition completes, then we need to clamp the transition duration
-                Percentage const sourceTransitionDuration = Percentage( pSettings->m_duration / m_pSourceNode->GetDuration() );
-                bool const shouldClamp = deltaBetweenCurrentTimeAndRealEndTime < sourceTransitionDuration;
-
-                // Calculate the target end position for this transition
-                SyncTrackTime transitionEndSyncTime;
-                if ( shouldClamp )
+                Seconds const sourceDuration = m_pSourceNode->GetDuration();
+                if ( sourceDuration > 0.0f )
                 {
-                    // Clamp to the last sync event in the source
-                    transitionEndSyncTime = sourceRealEndSyncTime;
-                }
-                else
-                {
-                    // Clamp to the estimated end position after the transition time
-                    Percentage const sourceEndTimeAfterTransition = ( sourceCurrentTime + sourceTransitionDuration ).GetNormalizedTime();
-                    transitionEndSyncTime = sourceSyncTrack.GetTime( sourceEndTimeAfterTransition );
-                }
+                    Percentage const sourceTransitionDuration = Percentage( pSettings->m_duration / m_pSourceNode->GetDuration() );
+                    bool const shouldClamp = deltaBetweenCurrentTimeAndRealEndTime < sourceTransitionDuration;
 
-                // Calculate the transition duration in terms of event distance and update the progress for this transition
-                m_transitionLength = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
+                    // Calculate the target end position for this transition
+                    SyncTrackTime transitionEndSyncTime;
+                    if ( shouldClamp )
+                    {
+                        // Clamp to the last sync event in the source
+                        transitionEndSyncTime = sourceRealEndSyncTime;
+                    }
+                    else
+                    {
+                        // Clamp to the estimated end position after the transition time
+                        Percentage const sourceEndTimeAfterTransition = ( sourceCurrentTime + sourceTransitionDuration ).GetNormalizedTime();
+                        transitionEndSyncTime = sourceSyncTrack.GetTime( sourceEndTimeAfterTransition );
+                    }
+
+                    // Calculate the transition duration in terms of event distance and update the progress for this transition
+                    m_transitionLength = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
+                }
             }
         }
 
@@ -523,7 +531,46 @@ namespace EE::Animation::GraphNodes
         if ( sourceResult.HasRegisteredTasks() && targetResult.HasRegisteredTasks() )
         {
             outResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult.m_rootMotionDelta, targetResult.m_rootMotionDelta, m_blendWeight, pSettings->m_rootMotionBlend );
-            outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, m_blendWeight );
+
+            float poseBlendWeight = m_blendWeight;
+            BoneMaskTaskList* pBoneMaskTaskList = nullptr;
+
+            if ( m_pStartBoneMaskNode != nullptr )
+            {
+                EE_ASSERT( pSettings->m_boneMaskBlendInTimePercentage > 0.0f && pSettings->m_boneMaskBlendInTimePercentage <= 1.0f );
+
+                // Blend weights
+                //-------------------------------------------------------------------------
+
+                float boneMaskBlendWeight = 0.0f;
+                if ( m_transitionProgress >= pSettings->m_boneMaskBlendInTimePercentage )
+                {
+                    poseBlendWeight = 1.0f;
+                    boneMaskBlendWeight = ( m_transitionProgress - pSettings->m_boneMaskBlendInTimePercentage ) / ( 1.0f - pSettings->m_boneMaskBlendInTimePercentage );
+                }
+                else
+                {
+                    poseBlendWeight = m_transitionProgress / pSettings->m_boneMaskBlendInTimePercentage;
+                    boneMaskBlendWeight = 0.0f;
+                }
+
+                // Create bone mask task list
+                //-------------------------------------------------------------------------
+
+                m_boneMaskTaskList.Reset();
+                auto pSourceBoneMaskTaskList = m_pStartBoneMaskNode->GetValue<BoneMaskTaskList const*>( context );
+                EE_ASSERT( pSourceBoneMaskTaskList != nullptr );
+                m_boneMaskTaskList.CopyFrom( *pSourceBoneMaskTaskList );
+                int8_t sourceTaskIdx = m_boneMaskTaskList.GetLastTaskIdx();
+                m_boneMaskTaskList.EmplaceTask( 1.0f );
+                m_boneMaskTaskList.EmplaceTask( BoneMaskTask( sourceTaskIdx, sourceTaskIdx + 1, boneMaskBlendWeight ) );
+
+                //-------------------------------------------------------------------------
+
+                pBoneMaskTaskList = &m_boneMaskTaskList;
+            }
+
+            outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, poseBlendWeight, PoseBlendMode::Interpolative, pBoneMaskTaskList );
 
             //-------------------------------------------------------------------------
 
@@ -621,7 +668,7 @@ namespace EE::Animation::GraphNodes
             // Update transition progress
             if ( pSettings->ShouldClampTransitionLength() )
             {
-                auto const percentageTimeDeltaOnOldDuration = Percentage( context.m_deltaTime / m_duration );
+                auto const percentageTimeDeltaOnOldDuration = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : 0.0f;;
                 auto const estimatedToTime = Percentage::Clamp( m_currentTime + percentageTimeDeltaOnOldDuration, true );
                 updateRange.m_endTime = m_syncTrack.GetTime( estimatedToTime );
                 UpdateProgressClampedSynchronized( context, updateRange );
@@ -632,7 +679,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Calculate the update range for this frame
-            auto const percentageTimeDelta = Percentage( context.m_deltaTime / m_duration );
+            auto const percentageTimeDelta = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : 0.0f;
             auto const toTime = Percentage::Clamp( m_currentTime + percentageTimeDelta, true );
             updateRange.m_endTime = m_syncTrack.GetTime( toTime );
 
@@ -657,7 +704,6 @@ namespace EE::Animation::GraphNodes
             // Calculate the blend weight and set the duration of the transition to the target to ensure that any "state completed" nodes trigger correctly
             CalculateBlendWeight();
             m_duration = m_pTargetNode->GetDuration();
-            EE_ASSERT( m_duration != 0.0f );
 
             // Update source and target nodes and update internal state
             return UpdateUnsynchronized( context );
@@ -727,8 +773,17 @@ namespace EE::Animation::GraphNodes
         // Update internal time and events
         //-------------------------------------------------------------------------
 
-        m_previousTime = m_currentTime;
-        m_currentTime = m_currentTime + Percentage( context.m_deltaTime / m_duration );
+        if ( m_duration > 0.0f )
+        {
+            Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
+            m_previousTime = m_currentTime;
+            m_currentTime = m_currentTime + deltaPercentage;
+        }
+        else
+        {
+            m_previousTime = m_currentTime = 1.0f;
+        }
+
         result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
 
         return result;

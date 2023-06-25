@@ -51,7 +51,7 @@ namespace EE
         explicit StringID( String const& str );
 
         inline bool IsValid() const { return m_ID != 0; }
-        inline uint32_t GetID() const { return m_ID; }
+        inline uint32_t ToUint() const { return m_ID; }
         inline operator uint32_t() const { return m_ID; }
 
         inline void Clear() { m_ID = 0; }

@@ -604,7 +604,7 @@ namespace EE::TypeSystem::Reflection
                         HeaderInfo const* pExistingRecord = m_database.GetHeaderDesc( header.m_ID );
                         if ( pExistingRecord != nullptr )
                         {
-                            EE_ASSERT( pExistingRecord->m_ID != 0 );
+                            EE_ASSERT( pExistingRecord->m_ID.IsValid() );
 
                             // Check timestamp
                             if ( header.m_timestamp > pExistingRecord->m_timestamp )

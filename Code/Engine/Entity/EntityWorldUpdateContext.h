@@ -7,7 +7,7 @@
 
 namespace EE
 {
-    class IEntityWorldSystem;
+    class EntityWorldSystem;
     class EntityWorld;
     namespace Input { class InputState; }
     namespace Render { class Viewport; }
@@ -34,7 +34,7 @@ namespace EE
         // Get an entity world system - threadsafe since these never changed during the lifetime of a world
         template<typename T> inline T* GetWorldSystem() const
         {
-            static_assert( std::is_base_of<EE::IEntityWorldSystem, T>::value, "T is not derived from IEntityWorldSystem" );
+            static_assert( std::is_base_of<EE::EntityWorldSystem, T>::value, "T is not derived from IEntityWorldSystem" );
             return Cast<T>( GetWorldSystem( T::s_entitySystemID ) );
         }
 
@@ -62,7 +62,7 @@ namespace EE
     private:
 
         // Threadsafe since these never changed during the lifetime of a world
-        IEntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
+        EntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
 
         // Delete any ability to copy this struct
         explicit EntityWorldUpdateContext( EntityWorldUpdateContext const& ) = delete;

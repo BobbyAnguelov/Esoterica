@@ -32,6 +32,32 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    class EE_ENGINE_API FixedWeightBoneMaskNode final : public BoneMaskValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings final : public BoneMaskValueNode::Settings
+        {
+            EE_REFLECT_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoneMaskValueNode::Settings, m_boneWeight );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            float                                           m_boneWeight = 0.0f;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        BoneMaskTaskList                                    m_taskList;
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API BoneMaskBlendNode final : public BoneMaskValueNode
     {
     public:

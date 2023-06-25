@@ -231,17 +231,15 @@ namespace EE::ImGuiX
 
     bool Checkbox( char const* pLabel, bool* pValue )
     {
-        float const originalCursorPosY = ImGui::GetCursorPosY();
+        auto pWindow = ImGui::GetCurrentWindow();
 
         ImVec2 const newFramePadding( 2, 2 );
         float const offsetY = ImGui::GetStyle().FramePadding.y - newFramePadding.y;
-        ImGui::SetCursorPosY( offsetY * 2 );
+        ImGui::SetCursorPosY( Math::Min( pWindow->Size.y, ImGui::GetCursorPosY() + offsetY ) );
 
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, newFramePadding );
         bool result = ImGui::Checkbox( pLabel, pValue );
         ImGui::PopStyleVar();
-
-        ImGui::SetCursorPosY( originalCursorPosY );
 
         return result;
     }

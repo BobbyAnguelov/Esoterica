@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             m_previousTime = m_currentTime = 0.0f;
-            m_duration = s_oneFrameDuration;
+            m_duration = 0;
             m_shouldUpdateWarp = false;
         }
 

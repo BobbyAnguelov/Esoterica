@@ -8,6 +8,7 @@
 #include "System/Types/Arrays.h"
 #include "System/Encoding/Hash.h"
 
+
 //-------------------------------------------------------------------------
 // World Entity System
 //-------------------------------------------------------------------------
@@ -23,9 +24,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API IEntityWorldSystem : public IReflectedType
+    class EE_ENGINE_API EntityWorldSystem : public IReflectedType
     {
-        EE_REFLECT_TYPE( IEntityWorldSystem );
+        EE_REFLECT_TYPE( EntityWorldSystem );
 
         friend class EntityWorld;
         friend EntityModel::EntityMap;
@@ -35,10 +36,10 @@ namespace EE
         virtual uint32_t GetSystemID() const = 0;
 
         // Is this world system in a game world
-        EE_FORCE_INLINE bool IsInAGameWorld() const { return m_worldType == EntityWorldType::Game; }
+        bool IsInAGameWorld() const;
 
         // Is this world system in a tools-only world
-        EE_FORCE_INLINE bool IsInAToolsWorld() const { return m_worldType == EntityWorldType::Tools; }
+        bool IsInAToolsWorld() const;
 
     protected:
 
@@ -62,7 +63,7 @@ namespace EE
 
     private:
 
-        EntityWorldType     m_worldType = EntityWorldType::Game;
+        EntityWorld*     m_pWorld = nullptr;
     };
 }
 

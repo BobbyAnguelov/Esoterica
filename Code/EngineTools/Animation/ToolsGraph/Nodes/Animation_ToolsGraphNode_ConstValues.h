@@ -46,7 +46,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() StringID m_value;
+        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        StringID m_value;
     };
 
     //-------------------------------------------------------------------------

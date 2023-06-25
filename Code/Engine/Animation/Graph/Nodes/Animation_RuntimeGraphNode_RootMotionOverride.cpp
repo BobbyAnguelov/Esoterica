@@ -9,7 +9,7 @@ namespace EE::Animation::GraphNodes
     void RootMotionOverrideNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<RootMotionOverrideNode>( context, options );
-        context.SetOptionalNodePtrFromIndex( m_desiredHeadingVelocityNodeIdx, pNode->m_pDesiredHeadingVelocityNode );
+        context.SetOptionalNodePtrFromIndex( m_desiredMovingVelocityNodeIdx, pNode->m_pDesiredMovingVelocityNode );
         context.SetOptionalNodePtrFromIndex( m_desiredFacingDirectionNodeIdx, pNode->m_pDesiredFacingDirectionNode );
         context.SetOptionalNodePtrFromIndex( m_linearVelocityLimitNodeIdx, pNode->m_pLinearVelocityLimitNode );
         context.SetOptionalNodePtrFromIndex( m_angularVelocityLimitNodeIdx, pNode->m_pAngularVelocityLimitNode );
@@ -18,13 +18,13 @@ namespace EE::Animation::GraphNodes
 
     void RootMotionOverrideNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
-        EE_ASSERT( context.IsValid() && ( m_pDesiredHeadingVelocityNode != nullptr || m_pDesiredFacingDirectionNode != nullptr ) );
+        EE_ASSERT( context.IsValid() && ( m_pDesiredMovingVelocityNode != nullptr || m_pDesiredFacingDirectionNode != nullptr ) );
 
         PassthroughNode::InitializeInternal( context, initialTime );
 
-        if ( m_pDesiredHeadingVelocityNode != nullptr )
+        if ( m_pDesiredMovingVelocityNode != nullptr )
         {
-            m_pDesiredHeadingVelocityNode->Initialize( context );
+            m_pDesiredMovingVelocityNode->Initialize( context );
         }
 
         if ( m_pDesiredFacingDirectionNode != nullptr )
@@ -50,11 +50,11 @@ namespace EE::Animation::GraphNodes
 
     void RootMotionOverrideNode::ShutdownInternal( GraphContext& context )
     {
-        EE_ASSERT( context.IsValid() && ( m_pDesiredHeadingVelocityNode != nullptr || m_pDesiredFacingDirectionNode != nullptr ) );
+        EE_ASSERT( context.IsValid() && ( m_pDesiredMovingVelocityNode != nullptr || m_pDesiredFacingDirectionNode != nullptr ) );
 
-        if ( m_pDesiredHeadingVelocityNode != nullptr )
+        if ( m_pDesiredMovingVelocityNode != nullptr )
         {
-            m_pDesiredHeadingVelocityNode->Shutdown( context );
+            m_pDesiredMovingVelocityNode->Shutdown( context );
         }
 
         if ( m_pDesiredFacingDirectionNode != nullptr )
@@ -222,19 +222,19 @@ namespace EE::Animation::GraphNodes
 
         Transform adjustedDisplacementDelta = nodeResult.m_rootMotionDelta;
 
-        // Heading
+        // Move
         //-------------------------------------------------------------------------
 
-        bool isHeadingModificationAllowed = m_pDesiredHeadingVelocityNode != nullptr && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowHeadingX, OverrideFlags::AllowHeadingX, OverrideFlags::AllowHeadingX );
-        if ( isHeadingModificationAllowed )
+        bool isMoveModificationAllowed = m_pDesiredMovingVelocityNode != nullptr && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX );
+        if ( isMoveModificationAllowed )
         {
-            Float3 const desiredHeadingVelocity = m_pDesiredHeadingVelocityNode->GetValue<Vector>( context ).ToFloat3();
+            Float3 const DesiredMovingVelocity = m_pDesiredMovingVelocityNode->GetValue<Vector>( context ).ToFloat3();
 
-            // Override the request axes with the desired heading
+            // Override the request axes with the desired Move
             Float3 translation = nodeResult.m_rootMotionDelta.GetTranslation();
-            translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingX ) ? desiredHeadingVelocity.m_x * context.m_deltaTime : translation.m_x;
-            translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingY ) ? desiredHeadingVelocity.m_y * context.m_deltaTime : translation.m_y;
-            translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowHeadingZ ) ? desiredHeadingVelocity.m_z * context.m_deltaTime : translation.m_z;
+            translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveX ) ? DesiredMovingVelocity.m_x * context.m_deltaTime : translation.m_x;
+            translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveY ) ? DesiredMovingVelocity.m_y * context.m_deltaTime : translation.m_y;
+            translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveZ ) ? DesiredMovingVelocity.m_z * context.m_deltaTime : translation.m_z;
 
             Vector vTranslation( translation );
 

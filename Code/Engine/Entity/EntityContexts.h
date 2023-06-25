@@ -10,7 +10,7 @@ namespace EE
     class EntityMap;
     class EntityComponent;
     class TaskSystem;
-    class IEntityWorldSystem;
+    class EntityWorldSystem;
     namespace Resource { class ResourceSystem; }
     namespace TypeSystem { class TypeRegistry; }
 }
@@ -64,7 +64,7 @@ namespace EE::EntityModel
 
     public:
 
-        InitializationContext( TVector<IEntityWorldSystem*> const& worldSystems, TVector<Entity*>& entityUpdateList )
+        InitializationContext( TVector<EntityWorldSystem*> const& worldSystems, TVector<Entity*>& entityUpdateList )
             : m_worldSystems( worldSystems )
             , m_entityUpdateList( entityUpdateList )
         {}
@@ -97,7 +97,7 @@ namespace EE::EntityModel
 
     private:
 
-        TVector<IEntityWorldSystem*> const&                         m_worldSystems;
+        TVector<EntityWorldSystem*> const&                         m_worldSystems;
         TVector<Entity*>&                                           m_entityUpdateList;
 
         #if EE_DEVELOPMENT_TOOLS

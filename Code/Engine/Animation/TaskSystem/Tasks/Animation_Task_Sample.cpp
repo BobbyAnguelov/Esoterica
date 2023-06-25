@@ -1,5 +1,6 @@
 #include "Animation_Task_Sample.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,6 +16,7 @@ namespace EE::Animation::Tasks
 
     void SampleTask::Execute( TaskContext const& context )
     {
+        EE_PROFILE_FUNCTION_ANIMATION();
         EE_ASSERT( m_pAnimation != nullptr );
 
         auto pResultBuffer = GetNewPoseBuffer( context );
@@ -39,11 +41,11 @@ namespace EE::Animation::Tasks
     {
         if ( m_pAnimation->IsAdditive() )
         {
-            return String( String::CtorSprintf(), "Sample (Additive): %s, %.2f%%, %.2fF", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
+            return String( String::CtorSprintf(), "Sample (Additive): %s, %.2f%%, Fr: %.2f", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
         }
         else
         {
-            return String( String::CtorSprintf(), "Sample: %s, %.2f%%, %.2fF", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
+            return String( String::CtorSprintf(), "Sample: %s, %.2f%%, Fr: %.2f", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
         }
     }
     #endif

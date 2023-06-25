@@ -9,47 +9,47 @@ namespace EE::Player
     {
         m_abilityID.TryBind( this );
         m_facingParam.TryBind( this );
-        m_headingParam.TryBind( this );
+        m_movementVelocityParam.TryBind( this );
         m_speedParam.TryBind( this );
     }
 
     void AbilityGraphController::StartJump()
     {
         static StringID const jumpID( "Jump" );
-        m_abilityID.Set( this, jumpID );
+        m_abilityID.Set( jumpID );
     }
 
     void AbilityGraphController::StartDash()
     {
         static StringID const dashID( "Dash" );
-        m_abilityID.Set( this, dashID );
+        m_abilityID.Set( dashID );
     }
 
     void AbilityGraphController::StartSlide()
     {
         static StringID const dashID( "Slide" );
-        m_abilityID.Set( this, dashID );
+        m_abilityID.Set( dashID );
     }
 
-    void AbilityGraphController::SetDesiredMovement( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
+    void AbilityGraphController::SetDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
-        Vector const characterSpaceHeading = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
-        float const speed = characterSpaceHeading.GetLength3();
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+        float const speed = movementVelocityCS.GetLength3();
 
-        m_headingParam.Set( this, characterSpaceHeading );
-        m_speedParam.Set( this, speed );
+        m_movementVelocityParam.Set( movementVelocityCS );
+        m_speedParam.Set( speed );
 
         //-------------------------------------------------------------------------
 
         if ( facingDirectionWS.IsZero3() )
         {
-            m_facingParam.Set( this, Vector::WorldForward );
+            m_facingParam.Set( Vector::WorldForward );
         }
         else
         {
             EE_ASSERT( facingDirectionWS.IsNormalized3() );
             Vector const characterSpaceFacing = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
-            m_facingParam.Set( this, characterSpaceFacing );
+            m_facingParam.Set( characterSpaceFacing );
         }
     }
 }

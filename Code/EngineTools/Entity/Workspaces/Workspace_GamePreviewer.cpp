@@ -29,7 +29,7 @@ namespace EE
             // Load map
             m_loadedMap = mapResourceID;
             m_pWorld->LoadMap( m_loadedMap );
-            String const displayName( String::CtorSprintf(), "Game Preview: %s", m_loadedMap.GetResourcePath().GetFileName().c_str() );
+            String const displayName( String::CtorSprintf(), "Preview: %s", m_loadedMap.GetResourcePath().GetFileName().c_str() );
             SetDisplayName( displayName );
         }
     }

@@ -23,6 +23,6 @@ namespace EE::AI
         };
 
         EE_ASSERT( state < CharacterAnimationState::NumStates );
-        m_characterStateParam.Set( this, characterStates[(uint8_t) state] );
+        m_characterStateParam.Set( characterStates[(uint8_t) state] );
     }
 }

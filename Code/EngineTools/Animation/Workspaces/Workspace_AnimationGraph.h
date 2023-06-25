@@ -271,6 +271,12 @@ namespace EE::Animation
         // Draw the rename dialog
         void DrawRenameIDsDialog();
 
+        // Copy all the found parameter names to the clipboard
+        void CopyAllParameterNamesToClipboard();
+
+        // Copy all the found graph IDs to the clipboard
+        void CopyAllGraphIDsToClipboard();
+
         // Variations
         //-------------------------------------------------------------------------
 
@@ -517,6 +523,7 @@ namespace EE::Animation
         TVector<NavigationTarget>                                       m_navigationTargetNodes;
         TVector<NavigationTarget>                                       m_navigationActiveTargetNodes;
         ImGuiX::FilterWidget                                            m_navigationFilter;
+        bool                                                            m_navigationDialogSearchesPaths = false;
 
         // Rename Dialog State
         IDComboWidget                                                   m_oldIDWidget;

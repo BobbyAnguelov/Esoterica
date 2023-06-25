@@ -24,11 +24,6 @@ namespace EE::Animation::GraphNodes
     protected:
 
         bool CompileParameterAndSourceNodes( GraphCompilationContext& context, ParameterizedBlendNode::Settings* pSettings ) const;
-
-    protected:
-
-        EE_REFLECT()
-        bool                 m_isSynchronized = false;
     };
 
     //-------------------------------------------------------------------------

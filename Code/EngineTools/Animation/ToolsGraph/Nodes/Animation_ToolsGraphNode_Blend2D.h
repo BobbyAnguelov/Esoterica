@@ -59,8 +59,5 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT();
         BlendSpace                  m_blendSpace;
-
-        EE_REFLECT()
-        bool                        m_isSynchronized = true;
     };
 }

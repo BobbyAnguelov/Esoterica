@@ -11,9 +11,9 @@ namespace EE::Animation
         {
             Colors::GhostWhite,
             Colors::PaleGreen,
-            Colors::LightSkyBlue,
-            Colors::CornflowerBlue,
-            Colors::DeepSkyBlue,
+            Colors::MediumOrchid,
+            Colors::DodgerBlue,
+            Colors::SandyBrown,
             Colors::Aqua,
             Colors::YellowGreen,
             Colors::GreenYellow,

@@ -15,11 +15,6 @@
 //      
 //      TIDVector<uint32_t, Foo> m_foos;
 
-struct Foo
-{
-    uint32_t GetID() const { return 0; }
-};
-
 namespace EE
 {
     template<typename IDType, typename ItemType>

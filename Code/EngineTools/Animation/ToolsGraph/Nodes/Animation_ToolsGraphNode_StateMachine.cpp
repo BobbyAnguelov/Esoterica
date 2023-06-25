@@ -251,7 +251,10 @@ namespace EE::Animation::GraphNodes
             {
                 if ( ID.IsValid() )
                 {
-                    outEvents.emplace_back( ID );
+                    if ( !VectorContains( outEvents, ID ) )
+                    {
+                        outEvents.emplace_back( ID );
+                    }
                 }
                 else
                 {
@@ -260,8 +263,13 @@ namespace EE::Animation::GraphNodes
             }
         };
 
+        ReflectStateEvents( pStateNode->m_events, pSettings->m_entryEvents );
         ReflectStateEvents( pStateNode->m_entryEvents, pSettings->m_entryEvents );
+
+        ReflectStateEvents( pStateNode->m_events, pSettings->m_executeEvents );
         ReflectStateEvents( pStateNode->m_executeEvents, pSettings->m_executeEvents );
+
+        ReflectStateEvents( pStateNode->m_events, pSettings->m_exitEvents );
         ReflectStateEvents( pStateNode->m_exitEvents, pSettings->m_exitEvents );
 
         //-------------------------------------------------------------------------
@@ -388,13 +396,30 @@ namespace EE::Animation::GraphNodes
             }
         }
 
+        auto pStartBoneMaskNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 3 );
+        if ( pStartBoneMaskNode != nullptr )
+        {
+            pSettings->m_startBoneMaskNodeIdx = pStartBoneMaskNode->Compile( context );
+            if ( pSettings->m_startBoneMaskNodeIdx == InvalidIndex )
+            {
+                return InvalidIndex;
+            }
+
+            if ( pTransitionNode->m_boneMaskBlendInTimePercentage <= 0.0f )
+            {
+                context.LogError( "Bone mask blend time needs to be greater than zero!" );
+                return InvalidIndex;
+            }
+        }
+
         //-------------------------------------------------------------------------
 
         pSettings->m_targetStateNodeIdx = targetStateNodeIdx;
         pSettings->m_blendWeightEasingType = pTransitionNode->m_blendWeightEasingType;
         pSettings->m_rootMotionBlend = pTransitionNode->m_rootMotionBlend;
-        pSettings->m_duration = pTransitionNode->m_duration;
+        pSettings->m_duration = Math::Max( pTransitionNode->m_duration.ToFloat(), 0.0f );
         pSettings->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
+        pSettings->m_boneMaskBlendInTimePercentage = pTransitionNode->m_boneMaskBlendInTimePercentage.GetClamped( false );
 
         //-------------------------------------------------------------------------
 

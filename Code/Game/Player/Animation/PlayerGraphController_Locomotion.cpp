@@ -32,7 +32,7 @@ namespace EE::Player
     {
         m_stateParam.TryBind( this );
         m_speedParam.TryBind( this );
-        m_headingParam.TryBind( this );
+        m_movementVelocityParam.TryBind( this );
         m_facingParam.TryBind( this );
         m_isCrouchParam.TryBind( this );
         m_isSlidingParam.TryBind( this );
@@ -40,37 +40,37 @@ namespace EE::Player
 
     void LocomotionGraphController::RequestIdle()
     {
-        m_stateParam.Set( this, s_locomotionStateIDs[States::Idle] );
-        m_headingParam.Set( this, Vector::Zero );
-        m_facingParam.Set( this, Vector::WorldForward );
-        m_speedParam.Set( this, 0.0f );
+        m_stateParam.Set( s_locomotionStateIDs[States::Idle] );
+        m_movementVelocityParam.Set( Vector::Zero );
+        m_facingParam.Set( Vector::WorldForward );
+        m_speedParam.Set( 0.0f );
     }
 
     void LocomotionGraphController::RequestTurnOnSpot( Vector const& directionWS )
     {
-        m_stateParam.Set( this, s_locomotionStateIDs[States::TurnOnSpot] );
-        m_headingParam.Set( this, Vector::Zero );
-        m_facingParam.Set( this, ConvertWorldSpaceVectorToCharacterSpace( directionWS ) );
-        m_speedParam.Set( this, 0.0f );
+        m_stateParam.Set( s_locomotionStateIDs[States::TurnOnSpot] );
+        m_movementVelocityParam.Set( Vector::Zero );
+        m_facingParam.Set( ConvertWorldSpaceVectorToCharacterSpace( directionWS ) );
+        m_speedParam.Set( 0.0f );
     }
 
-    void LocomotionGraphController::RequestStart( Vector const& headingVelocityWS )
+    void LocomotionGraphController::RequestStart( Vector const& movementVelocityWS )
     {
-        Vector const headingCS = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
-        float const speed = headingCS.GetLength3();
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+        float const speed = movementVelocityCS.GetLength3();
 
         //-------------------------------------------------------------------------
 
-        m_stateParam.Set( this, s_locomotionStateIDs[States::Start] );
-        m_headingParam.Set( this, headingCS );
-        m_facingParam.Set( this, Vector::WorldForward );
-        m_speedParam.Set( this, speed );
+        m_stateParam.Set( s_locomotionStateIDs[States::Start] );
+        m_movementVelocityParam.Set( movementVelocityCS );
+        m_facingParam.Set( Vector::WorldForward );
+        m_speedParam.Set( speed );
     }
 
-    void LocomotionGraphController::RequestMove( Seconds const deltaTime, Vector const& headingVelocityWS, Vector const& facingDirectionWS )
+    void LocomotionGraphController::RequestMove( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
-        Vector const headingCS = ConvertWorldSpaceVectorToCharacterSpace( headingVelocityWS );
-        float const speed = headingCS.GetLength3();
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+        float const speed = movementVelocityCS.GetLength3();
 
         //-------------------------------------------------------------------------
 
@@ -83,35 +83,35 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        m_stateParam.Set( this, s_locomotionStateIDs[States::Move] );
-        m_headingParam.Set( this, headingCS );
-        m_facingParam.Set( this, facingCS );
-        m_speedParam.Set( this, speed );
+        m_stateParam.Set( s_locomotionStateIDs[States::Move] );
+        m_movementVelocityParam.Set( movementVelocityCS );
+        m_facingParam.Set( facingCS );
+        m_speedParam.Set( speed );
     }
 
     void LocomotionGraphController::RequestPlantedTurn( Vector const& directionWS )
     {
-        m_stateParam.Set( this, s_locomotionStateIDs[States::PlantedTurn] );
+        m_stateParam.Set( s_locomotionStateIDs[States::PlantedTurn] );
     }
 
     void LocomotionGraphController::RequestStop( Transform const& target )
     {
-        m_stateParam.Set( this, s_locomotionStateIDs[States::Stop] );
-        m_headingParam.Set( this, Vector::Zero );
-        m_facingParam.Set( this, Vector::WorldForward );
-        m_speedParam.Set( this, 0.0f );
+        m_stateParam.Set( s_locomotionStateIDs[States::Stop] );
+        m_movementVelocityParam.Set( Vector::Zero );
+        m_facingParam.Set( Vector::WorldForward );
+        m_speedParam.Set( 0.0f );
     }
 
     //-------------------------------------------------------------------------
 
     void LocomotionGraphController::SetCrouch( bool isCrouch )
     {
-        m_isCrouchParam.Set( this, isCrouch );
+        m_isCrouchParam.Set( isCrouch );
     }
 
     void LocomotionGraphController::SetSliding( bool isSliding )
     {
-        m_isSlidingParam.Set( this, isSliding );
+        m_isSlidingParam.Set( isSliding );
     }
 
     //-------------------------------------------------------------------------

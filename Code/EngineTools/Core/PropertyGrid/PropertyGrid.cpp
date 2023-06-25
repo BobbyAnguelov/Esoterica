@@ -21,7 +21,7 @@ namespace EE
 {
     static InlineString GetFriendlyTypename( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeID typeID )
     {
-        EE_ASSERT( typeID );
+        EE_ASSERT( typeID.IsValid() );
         InlineString friendlyTypeName;
 
         // Get core type friendly name

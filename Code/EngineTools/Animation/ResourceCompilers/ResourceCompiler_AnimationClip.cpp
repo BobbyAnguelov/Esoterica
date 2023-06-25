@@ -56,17 +56,12 @@ namespace EE::Animation
                 return Error( "Having a frame limit range on a single frame animation doesnt make sense!" );
             }
 
-            resourceDescriptor.m_limitFrameRange.m_begin = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_begin, 0, (int32_t) pRawAnimation->GetNumFrames() );
-            resourceDescriptor.m_limitFrameRange.m_end = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_end + 1, 0, (int32_t) pRawAnimation->GetNumFrames() ); // Inclusive range so we need to increment the index
+            resourceDescriptor.m_limitFrameRange.m_begin = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_begin, 0, (int32_t) pRawAnimation->GetNumFrames() - 1 );
+            resourceDescriptor.m_limitFrameRange.m_end = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_end, 0, (int32_t) pRawAnimation->GetNumFrames() - 1 ); // Inclusive range so we need to increment the index
 
             if ( !resourceDescriptor.m_limitFrameRange.IsValid() )
             {
                 return Error( "Invalid frame limit range set!" );
-            }
-
-            if ( resourceDescriptor.m_limitFrameRange.GetLength() == 0 )
-            {
-                return Error( "Zero frame limit range set!" );
             }
         }
 
@@ -316,6 +311,7 @@ namespace EE::Animation
 
         // Calculate frame limits
         //-------------------------------------------------------------------------
+        // The limit range is an inclusive range that specifies the exact start and frame index to include
 
         int32_t frameIdxStart = 0;
         int32_t frameIdxEnd = numOriginalFrames;
@@ -328,10 +324,10 @@ namespace EE::Animation
             }
 
             frameIdxStart = Math::Max( limitRange.m_begin, 0 );
-            frameIdxEnd = Math::Min( limitRange.m_end, numOriginalFrames );
+            frameIdxEnd = Math::Min( limitRange.m_end + 1, numOriginalFrames );
         }
 
-        animClip.m_numFrames = frameIdxEnd - frameIdxStart;
+        animClip.m_numFrames = ( frameIdxEnd == frameIdxStart ) ? 1 : frameIdxEnd - frameIdxStart;
 
         // Transfer basic animation data
         //-------------------------------------------------------------------------
@@ -356,27 +352,36 @@ namespace EE::Animation
         // Calculate root motion extra data
         //-------------------------------------------------------------------------
 
-        float totalDistance = 0.0f;
-        float totalRotation = 0.0f;
-
-        for ( uint32_t i = 1u; i < animClip.m_numFrames; i++ )
+        if ( animClip.IsSingleFrameAnimation() )
         {
-            // Track deltas
-            Transform const deltaRoot = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms[i - 1], animClip.m_rootMotion.m_transforms[i] );
-            totalDistance += deltaRoot.GetTranslation().GetLength3();
-
-            // If we have a rotation delta, accumulate the yaw value
-            if ( !deltaRoot.GetRotation().IsIdentity() )
-            {
-                Vector const deltaForward2D = deltaRoot.GetForwardVector().GetNormalized2();
-                Radians const deltaAngle = Math::GetYawAngleBetweenVectors( deltaForward2D, Vector::WorldBackward ).GetClamped360();
-                totalRotation += Math::Abs( (float) deltaAngle );
-            }
+            animClip.m_rootMotion.m_totalDelta = Transform::Identity;
+            animClip.m_rootMotion.m_averageLinearVelocity = 0.0f;
+            animClip.m_rootMotion.m_averageAngularVelocity = 0.0f;
         }
+        else
+        {
+            float totalDistance = 0.0f;
+            float totalRotation = 0.0f;
 
-        animClip.m_rootMotion.m_totalDelta = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms.front(), animClip.m_rootMotion.m_transforms.back() );
-        animClip.m_rootMotion.m_averageLinearVelocity = totalDistance / animClip.GetDuration();
-        animClip.m_rootMotion.m_averageAngularVelocity = totalRotation / animClip.GetDuration();
+            for ( uint32_t i = 1u; i < animClip.m_numFrames; i++ )
+            {
+                // Track deltas
+                Transform const deltaRoot = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms[i - 1], animClip.m_rootMotion.m_transforms[i] );
+                totalDistance += deltaRoot.GetTranslation().GetLength3();
+
+                // If we have a rotation delta, accumulate the yaw value
+                if ( !deltaRoot.GetRotation().IsIdentity() )
+                {
+                    Vector const deltaForward2D = deltaRoot.GetForwardVector().GetNormalized2();
+                    Radians const deltaAngle = Math::GetYawAngleBetweenVectors( deltaForward2D, Vector::WorldBackward ).GetClamped360();
+                    totalRotation += Math::Abs( (float) deltaAngle );
+                }
+            }
+
+            animClip.m_rootMotion.m_totalDelta = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms.front(), animClip.m_rootMotion.m_transforms.back() );
+            animClip.m_rootMotion.m_averageLinearVelocity = totalDistance / animClip.GetDuration();
+            animClip.m_rootMotion.m_averageAngularVelocity = totalRotation / animClip.GetDuration();
+        }
 
         // Compress raw data
         //-------------------------------------------------------------------------

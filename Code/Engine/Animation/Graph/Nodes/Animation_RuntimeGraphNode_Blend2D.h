@@ -14,14 +14,13 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_sourceNodeIndices, m_inputParameterNodeIdx0, m_inputParameterNodeIdx1, m_isSynchronized, m_values, m_indices, m_hullIndices );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_sourceNodeIndices, m_inputParameterNodeIdx0, m_inputParameterNodeIdx1, m_values, m_indices, m_hullIndices );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>               m_sourceNodeIndices;
             int16_t                                 m_inputParameterNodeIdx0 = InvalidIndex;
             int16_t                                 m_inputParameterNodeIdx1 = InvalidIndex;
-            bool                                    m_isSynchronized = false;
             TInlineVector<Float2, 10>               m_values;
             TInlineVector<uint8_t, 30>              m_indices;
             TInlineVector<uint8_t, 10>              m_hullIndices;
@@ -31,12 +30,15 @@ namespace EE::Animation::GraphNodes
 
         struct BlendSpaceResult
         {
+            void Reset() { *this = BlendSpaceResult(); }
+
             Float2                                  m_parameter;
             PoseNode*                               m_pSource0 = nullptr;
             PoseNode*                               m_pSource1 = nullptr;
             PoseNode*                               m_pSource2 = nullptr;
             float                                   m_blendWeightBetween0And1 = 0.0f;
             float                                   m_blendWeightBetween1And2 = 0.0f;
+            uint32_t                                m_updateID = 0;
         };
 
     public:
@@ -57,8 +59,6 @@ namespace EE::Animation::GraphNodes
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override final;
 
         void EvaluateBlendSpace( GraphContext& context );
-
-        GraphPoseNodeResult SharedUpdate( GraphContext& context, SyncTrackTimeRange const* pUpdateRange );
 
         // Debugging
         //-------------------------------------------------------------------------

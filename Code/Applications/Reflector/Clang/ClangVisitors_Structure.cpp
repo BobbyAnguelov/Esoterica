@@ -206,7 +206,7 @@ namespace EE::TypeSystem::Reflection
                     // Additional processing for special types
                     //-------------------------------------------------------------------------
 
-                    if ( fieldTypeID == GetCoreTypeID( CoreTypeID::TVector ) )
+                    if ( GetCoreTypeID( CoreTypeID::TVector ) == fieldTypeID )
                     {
                         // We need to flag this in advance as we are about to change the field type ID
                         propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsDynamicArray );
@@ -222,7 +222,7 @@ namespace EE::TypeSystem::Reflection
                             return CXChildVisit_Break;
                         }
                     }
-                    else if ( fieldTypeID == GetCoreTypeID( CoreTypeID::String ) )
+                    else if ( GetCoreTypeID( CoreTypeID::String ) == fieldTypeID )
                     {
                         // We need to clear the template args since we have a type alias and clang is detected the template args for eastl::basic_string
                         fieldTypeInfo.m_templateArgs.clear();

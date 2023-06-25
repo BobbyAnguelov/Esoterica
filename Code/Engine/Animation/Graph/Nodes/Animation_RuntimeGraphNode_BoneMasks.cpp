@@ -41,6 +41,29 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    void FixedWeightBoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<FixedWeightBoneMaskNode>( context, options );
+        pNode->m_taskList = BoneMaskTaskList( BoneMaskTask( m_boneWeight ) );
+    }
+
+    void FixedWeightBoneMaskNode::InitializeInternal( GraphContext& context )
+    {
+        BoneMaskValueNode::InitializeInternal( context );
+    }
+
+    void FixedWeightBoneMaskNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
+        *reinterpret_cast<BoneMaskTaskList const**>( pOutValue ) = &m_taskList;
+    }
+
+    //-------------------------------------------------------------------------
+
     void BoneMaskBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskBlendNode>( context, options );
@@ -103,13 +126,13 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<BoneMaskSelectorNode>( context, options );
 
+        context.SetOptionalNodePtrFromIndex( m_defaultMaskNodeIdx, pNode->m_pDefaultMaskValueNode );
+        context.SetNodePtrFromIndex( m_parameterValueNodeIdx, pNode->m_pParameterValueNode );
+
         for ( int16_t const maskNodeIdx : m_maskNodeIndices )
         {
             context.SetNodePtrFromIndex( maskNodeIdx, pNode->m_boneMaskOptionNodes.emplace_back() );
         }
-
-        context.SetNodePtrFromIndex( m_defaultMaskNodeIdx, pNode->m_pDefaultMaskValueNode );
-        context.SetNodePtrFromIndex( m_parameterValueNodeIdx, pNode->m_pParameterValueNode );
     }
 
     void BoneMaskSelectorNode::InitializeInternal( GraphContext& context )
@@ -118,7 +141,10 @@ namespace EE::Animation::GraphNodes
         BoneMaskValueNode::InitializeInternal( context );
         m_pParameterValueNode->Initialize( context );
 
-        m_pDefaultMaskValueNode->Initialize( context );
+        if ( m_pDefaultMaskValueNode != nullptr )
+        {
+            m_pDefaultMaskValueNode->Initialize( context );
+        }
 
         size_t const numMasks = m_boneMaskOptionNodes.size();
         for ( auto i = 0u; i < numMasks; i++ )
@@ -148,7 +174,10 @@ namespace EE::Animation::GraphNodes
             m_boneMaskOptionNodes[i]->Shutdown( context );
         }
 
-        m_pDefaultMaskValueNode->Shutdown( context );
+        if ( m_pDefaultMaskValueNode != nullptr )
+        {
+            m_pDefaultMaskValueNode->Shutdown( context );
+        }
 
         m_pParameterValueNode->Shutdown( context );
         BoneMaskValueNode::ShutdownInternal( context );
@@ -164,7 +193,14 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            return m_pDefaultMaskValueNode->GetValue<BoneMaskTaskList const*>( context );
+            if ( m_pDefaultMaskValueNode )
+            {
+                return m_pDefaultMaskValueNode->GetValue<BoneMaskTaskList const*>( context );
+            }
+            else
+            {
+                return &BoneMaskTaskList::s_defaultMaskList;
+            }
         }
     }
 

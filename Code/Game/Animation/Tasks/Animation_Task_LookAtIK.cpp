@@ -1,5 +1,6 @@
 #include "Animation_Task_LookAtIK.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
+#include "System/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,6 +15,7 @@ namespace EE::Animation::Tasks
 
     void LookAtIKTask::Execute( TaskContext const& context )
     {
+        EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
 
         // Generate Effector Data

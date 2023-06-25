@@ -12,7 +12,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class AnimationWorldSystem : public IEntityWorldSystem
+    class AnimationWorldSystem : public EntityWorldSystem
     {
         friend class AnimationDebugView;
 

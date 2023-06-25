@@ -362,16 +362,16 @@ namespace EE::Serialization
                     else // Dynamic array
                     {
                         // If we have less elements in the json array than in the current type, clear the array as we will resize the array appropriately as part of reading the values
-                        size_t const currentArraySize = pTypeInfo->GetArraySize( pTypeData, propInfo.m_ID );
+                        size_t const currentArraySize = pTypeInfo->GetArraySize( pTypeData, propInfo.m_ID.ToUint() );
                         if ( numJSONArrayElements < currentArraySize )
                         {
-                            pTypeInfo->ClearArray( pTypeData, propInfo.m_ID );
+                            pTypeInfo->ClearArray( pTypeData, propInfo.m_ID.ToUint() );
                         }
 
                         // Do the traversal backwards to only allocate once
                         for ( int32_t i = (int32_t) ( numJSONArrayElements - 1 ); i >= 0; i-- )
                         {
-                            auto pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( pTypeData, propInfo.m_ID, i );
+                            auto pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( pTypeData, propInfo.m_ID.ToUint(), i );
                             if ( !ReadProperty( typeRegistry, jsonArrayValue[i], propInfo, pArrayElementAddress ) )
                             {
                                 return false;

@@ -5,7 +5,6 @@
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Sample.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 
-
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
@@ -14,6 +13,8 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<AnimationClipNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
+        context.SetOptionalNodePtrFromIndex( m_resetTimeValueNodeIdx, pNode->m_pResetTimeValueNode );
+        
         pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
 
         //-------------------------------------------------------------------------
@@ -43,7 +44,7 @@ namespace EE::Animation::GraphNodes
         // Initialize state data
         if ( m_pAnimation != nullptr )
         {
-            m_duration = m_pAnimation->IsSingleFrameAnimation() ? s_oneFrameDuration : m_pAnimation->GetDuration();
+            m_duration = m_pAnimation->GetDuration();
             m_currentTime = m_previousTime = m_pAnimation->GetSyncTrack().GetPercentageThrough( initialTime );
             EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
         }
@@ -95,25 +96,43 @@ namespace EE::Animation::GraphNodes
             }
         }
 
+        // Should we reset the node time
+        if ( m_pResetTimeValueNode != nullptr )
+        {
+            bool const resetTime = m_pResetTimeValueNode->GetValue<bool>( context );
+            if ( resetTime )
+            {
+                m_previousTime = m_currentTime = 0.0f;
+            }
+        }
+
         //-------------------------------------------------------------------------
 
-        Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
-
-        auto pSettings = GetSettings<AnimationClipNode>();
-        if ( !pSettings->m_allowLooping )
+        if ( m_pAnimation->IsSingleFrameAnimation() )
         {
-            // We might have come from a sync update so ensure the previous time is set to the normalized current time
-            m_previousTime = m_currentTime;
-            m_currentTime = ( m_previousTime + deltaPercentage ).GetClamped( false );
+            m_previousTime = 1.0f;
+            m_currentTime = 1.0f;
         }
-        else // Regular update
+        else
         {
-            m_previousTime = m_currentTime;
-            m_currentTime += deltaPercentage;
-            if ( m_currentTime > 1 )
+            Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
+
+            auto pSettings = GetSettings<AnimationClipNode>();
+            if ( !pSettings->m_allowLooping )
             {
-                m_currentTime = m_currentTime.GetNormalizedTime();
-                m_loopCount++;
+                // We might have come from a sync update so ensure the previous time is set to the normalized current time
+                m_previousTime = m_currentTime;
+                m_currentTime = ( m_previousTime + deltaPercentage ).GetClamped( false );
+            }
+            else // Regular update
+            {
+                m_previousTime = m_currentTime;
+                m_currentTime += deltaPercentage;
+                if ( m_currentTime > 1 )
+                {
+                    m_currentTime = m_currentTime.GetNormalizedTime();
+                    m_loopCount++;
+                }
             }
         }
 
@@ -146,8 +165,8 @@ namespace EE::Animation::GraphNodes
         // Handle single frame animations
         if ( m_pAnimation->IsSingleFrameAnimation() )
         {
-            m_previousTime = 0.0f;
-            m_currentTime = 0.0f;
+            m_previousTime = 1.0f;
+            m_currentTime = 1.0f;
         }
         else // Regular time update
         {

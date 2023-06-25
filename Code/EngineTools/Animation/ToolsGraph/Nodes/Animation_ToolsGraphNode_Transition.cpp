@@ -12,6 +12,7 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Condition", GraphValueType::Bool );
         CreateInputPin( "Duration Override", GraphValueType::Float );
         CreateInputPin( "Sync Event Override", GraphValueType::Float );
+        CreateInputPin( "Start Bone Mask", GraphValueType::BoneMask );
     }
 
     void TransitionToolsNode::SetName( String const& newName )

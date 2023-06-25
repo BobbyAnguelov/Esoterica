@@ -41,7 +41,7 @@ namespace EE::Player
         EntityWorld const*                          m_pWorld = nullptr;
         PlayerManager*                              m_pPlayerManager = nullptr;
         bool                                        m_isActionDebugWindowOpen = false;
-        bool                                        m_isCharacterControllerDebugWindowOpen = true;
+        bool                                        m_isCharacterControllerDebugWindowOpen = false;
     };
 }
 #endif

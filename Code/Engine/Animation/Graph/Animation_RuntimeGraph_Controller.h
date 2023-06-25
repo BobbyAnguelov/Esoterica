@@ -38,7 +38,7 @@ namespace EE::Animation
                 inline bool IsBound() const { return m_index != InvalidIndex; }
 
                 // Bind a control Parameter to a graph instance
-                bool TryBind( GraphControllerBase * pController )
+                bool TryBind( GraphControllerBase* pController )
                 {
                     EE_ASSERT( m_ID.IsValid() );
                     EE_ASSERT( pController != nullptr && pController->m_pGraphInstance != nullptr );
@@ -65,20 +65,27 @@ namespace EE::Animation
                         return false;
                     }
 
+                    //-------------------------------------------------------------------------
+
+                    m_pBoundGraphInstance = pController->m_pGraphInstance;
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_controllerName = pController->GetName();
+                    #endif
+
                     return true;
                 }
 
                 // Set Control Parameter Value
-                void Set( GraphControllerBase* pController, ParameterType const& value )
+                void Set( ParameterType const& value )
                 {
                     if ( m_index != InvalidIndex )
                     {
-                        pController->m_pGraphInstance->SetControlParameterValue<ParameterType>( m_index, value );
+                        m_pBoundGraphInstance->SetControlParameterValue<ParameterType>( m_index, value );
                     }
                     else
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Trying to use unbound control parameter: %s", m_ID.c_str() );
+                        EE_LOG_WARNING( "Animation", m_controllerName.c_str(), "Trying to use unbound control parameter: %s", m_ID.c_str() );
                         #endif
                     }
                 }
@@ -87,6 +94,11 @@ namespace EE::Animation
 
                 StringID                        m_ID;
                 int16_t                         m_index = InvalidIndex;
+                GraphInstance*                  m_pBoundGraphInstance = nullptr;
+
+                #if EE_DEVELOPMENT_TOOLS
+                String                          m_controllerName;
+                #endif
             };
 
         protected:

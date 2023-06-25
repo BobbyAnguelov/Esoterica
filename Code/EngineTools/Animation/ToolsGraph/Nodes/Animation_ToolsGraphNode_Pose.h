@@ -63,10 +63,14 @@ namespace EE::Animation::GraphNodes
 
         // Use this to remap an input value into a valid 0~1 range.
         EE_REFLECT();
-        FloatRange              m_inputTimeRemapRange = FloatRange( 0, 1 );
+        FloatRange              m_inputTimeRemapRange;
 
         // User specified fixed time
         EE_REFLECT();
         float                   m_fixedTimeValue = 0.0f;
+
+        // Whether the input is in frames or percentage
+        EE_REFLECT();
+        bool                    m_useFramesAsInput = false;
     };
 }
