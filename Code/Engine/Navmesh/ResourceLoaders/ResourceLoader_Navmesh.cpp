@@ -1,6 +1,6 @@
 #include "ResourceLoader_Navmesh.h"
 #include "Engine/Navmesh/NavmeshData.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

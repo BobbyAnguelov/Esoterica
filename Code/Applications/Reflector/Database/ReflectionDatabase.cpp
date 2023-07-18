@@ -1,7 +1,7 @@
 #include "ReflectionDatabase.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 #include <eastl/sort.h>
 #include <sqlite3.h>

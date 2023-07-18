@@ -14,6 +14,7 @@ namespace EE::Player
         CreateSubGraphController<AbilityGraphController>();
         CreateSubGraphController<InAirGraphController>();
         m_characterStateParam.TryBind( this );
+        m_weaponAimParam.TryBind( this );
     }
 
     void AnimationController::SetCharacterState( CharacterAnimationState state )

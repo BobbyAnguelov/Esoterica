@@ -6,6 +6,26 @@
 
 namespace EE::Animation::GraphNodes
 {
+    inline static SampledEventRange CalculateSearchRange( StateNode const* pSourceStateNode, SampledEventsBuffer const& sampledEvents, TBitFlags<EventConditionRules> rules )
+    {
+        bool const restrictSearch = ( pSourceStateNode != nullptr && rules.IsFlagSet( EventConditionRules::LimitSearchToSourceState ) );
+
+        SampledEventRange searchRange( 0, 0 );
+        if ( restrictSearch )
+        {
+            // Only search the sampled event range for the child node
+            searchRange = pSourceStateNode->GetSampledEventRange();
+        }
+        else // Search all events
+        {
+            searchRange.m_endIdx = sampledEvents.GetNumSampledEvents();
+        }
+
+        return searchRange;
+    }
+
+    //-------------------------------------------------------------------------
+
     void IDEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<IDEventConditionNode>( context, options );
@@ -50,24 +70,14 @@ namespace EE::Animation::GraphNodes
         auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numEventIDs );
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numEventIDs );
 
-        // Calculate event search range
-        //-------------------------------------------------------------------------
-
-        bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
-
-        SampledEventRange searchRange( 0, 0 );
-        if ( shouldSearchAllEvents || context.IsInLayer() )
-        {
-            // If we dont have a child node set, search all sampled events for the event
-            searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-        }
-        else // Only search the sampled event range for the child node
-        {
-            searchRange = m_pSourceStateNode->GetSampledEventRange();
-        }
-
         // Perform search
         //-------------------------------------------------------------------------
+
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pNodeSettings->m_rules );
+        bool const ignoreInactiveEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+        bool const searchAnimEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
+        bool const searchStateEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchOnlyStateEvents );
+        bool const operatorOr = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
 
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
@@ -81,7 +91,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Skip events from inactive branch if so requested
-            if ( pNodeSettings->m_onlyCheckEventsFromActiveBranch && !sampledEvent.IsFromActiveBranch() )
+            if ( ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch() )
             {
                 continue;
             }
@@ -89,7 +99,7 @@ namespace EE::Animation::GraphNodes
             // Animation Event
             if ( sampledEvent.IsAnimationEvent() )
             {
-                if ( pNodeSettings->m_searchRule != SearchRule::OnlySearchStateEvents )
+                if ( searchAnimEvents )
                 {
                     if ( auto pIDEvent = sampledEvent.TryGetEvent<IDEvent>() )
                     {
@@ -99,7 +109,7 @@ namespace EE::Animation::GraphNodes
             }
             else // State event
             {
-                if ( pNodeSettings->m_searchRule != SearchRule::OnlySearchAnimEvents )
+                if ( searchStateEvents )
                 {
                     foundID = sampledEvent.GetStateEventID();
                 }
@@ -115,7 +125,7 @@ namespace EE::Animation::GraphNodes
                     if ( pNodeSettings->m_eventIDs[t] == foundID )
                     {
                         // If we are using an 'or' operator, we can early out here
-                        if ( pNodeSettings->m_operator == EventConditionOperator::Or )
+                        if ( operatorOr )
                         {
                             return true;
                         }
@@ -160,11 +170,6 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void StateEventConditionNode::ShutdownInternal( GraphContext& context )
-    {
-        BoolValueNode::ShutdownInternal( context );
-    }
-
     void StateEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
@@ -187,24 +192,12 @@ namespace EE::Animation::GraphNodes
         auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numConditions );
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numConditions );
 
-        // Calculate event search range
-        //-------------------------------------------------------------------------
-
-        bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
-
-        SampledEventRange searchRange( 0, 0 );
-        if ( shouldSearchAllEvents || context.IsInLayer() )
-        {
-            // If we dont have a child node set, search all sampled events for the event
-            searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-        }
-        else // Only search the sampled event range for the child node
-        {
-            searchRange = m_pSourceStateNode->GetSampledEventRange();
-        }
-
         // Perform search
         //-------------------------------------------------------------------------
+
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pNodeSettings->m_rules );
+        bool const ignoreInactiveEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+        bool const operatorOr = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
 
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
@@ -216,7 +209,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Skip events from inactive branch if so requested
-            if ( pNodeSettings->m_onlyCheckEventsFromActiveBranch && !sampledEvent.IsFromActiveBranch() )
+            if ( ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch() )
             {
                 continue;
             }
@@ -239,7 +232,7 @@ namespace EE::Animation::GraphNodes
                     if ( condition.m_eventID == foundID && DoesStateEventTypesMatchCondition( condition.m_eventTypeCondition, sampledEvent.GetStateEventType() ) )
                     {
                         // If we have an 'or' operator we can early out here
-                        if ( pNodeSettings->m_operator == EventConditionOperator::Or )
+                        if ( operatorOr )
                         {
                             return true;
                         }
@@ -284,11 +277,6 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void GenericEventPercentageThroughNode::ShutdownInternal( GraphContext& context )
-    {
-        FloatValueNode::ShutdownInternal( context );
-    }
-
     void GenericEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
@@ -299,22 +287,6 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            // Calculate event search range
-            //-------------------------------------------------------------------------
-
-            bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
-
-            SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.IsInLayer() )
-            {
-                // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-            }
-            else // Only search the sampled event range for the source state node
-            {
-                searchRange = m_pSourceStateNode->GetSampledEventRange();
-            }
-
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
@@ -322,10 +294,20 @@ namespace EE::Animation::GraphNodes
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
                 {
                     continue;
                 }
@@ -346,7 +328,7 @@ namespace EE::Animation::GraphNodes
                     // If we already have a found event then apply priority rule
                     if ( eventFound )
                     {
-                        if ( pSettings->m_priorityRule == EventPriorityRule::HighestWeight )
+                        if ( preferHigherWeight )
                         {
                             if ( pSampledEvent->GetWeight() >= highestWeightFound )
                             {
@@ -410,11 +392,6 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void FootEventConditionNode::ShutdownInternal( GraphContext& context )
-    {
-        BoolValueNode::ShutdownInternal( context );
-    }
-
     void FootEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
@@ -425,32 +402,24 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            // Calculate event search range
-            //-------------------------------------------------------------------------
-
-            bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
-
-            SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.IsInLayer() )
-            {
-                // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-            }
-            else // Only search the sampled event range for the child node
-            {
-                searchRange = m_pSourceStateNode->GetSampledEventRange();
-            }
-
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
             bool eventFound = false;
             m_result = false;
 
+            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
                 {
                     continue;
                 }
@@ -537,11 +506,6 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void FootstepEventPercentageThroughNode::ShutdownInternal( GraphContext& context )
-    {
-        FloatValueNode::ShutdownInternal( context );
-    }
-
     void FootstepEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
@@ -552,33 +516,27 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            // Calculate event search range
-            //-------------------------------------------------------------------------
-
-            bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
-
-            SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.IsInLayer() )
-            {
-                // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-            }
-            else // Only search the sampled event range for the source state node
-            {
-                searchRange = m_pSourceStateNode->GetSampledEventRange();
-            }
-
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
+
+            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             float foundPercentageThrough = 0.0f;
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
                 {
                     continue;
                 }
@@ -652,7 +610,7 @@ namespace EE::Animation::GraphNodes
                     // If we already have a found event then apply priority rule
                     if ( eventFound )
                     {
-                        if ( pSettings->m_priorityRule == EventPriorityRule::HighestWeight )
+                        if ( preferHigherWeight )
                         {
                             if ( pSampledEvent->GetWeight() >= highestWeightFound )
                             {
@@ -712,12 +670,6 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void SyncEventIndexConditionNode::ShutdownInternal( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        BoolValueNode::ShutdownInternal( context );
-    }
-
     void SyncEventIndexConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
@@ -766,12 +718,6 @@ namespace EE::Animation::GraphNodes
         m_result = 0.0f;
     }
 
-    void CurrentSyncEventNode::ShutdownInternal( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        FloatValueNode::ShutdownInternal( context );
-    }
-
     void CurrentSyncEventNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
@@ -808,11 +754,6 @@ namespace EE::Animation::GraphNodes
         m_result = false;
     }
 
-    void TransitionEventConditionNode::ShutdownInternal( GraphContext& context )
-    {
-        BoolValueNode::ShutdownInternal( context );
-    }
-
     void TransitionEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
@@ -823,32 +764,26 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            // Calculate event search range
-            //-------------------------------------------------------------------------
-
-            bool const shouldSearchAllEvents = ( m_pSourceStateNode == nullptr );
-
-            SampledEventRange searchRange( 0, 0 );
-            if ( shouldSearchAllEvents || context.IsInLayer() )
-            {
-                // If we dont have a child node set, search all sampled events for the event
-                searchRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-            }
-            else // Only search the sampled event range for the child node
-            {
-                searchRange = m_pSourceStateNode->GetSampledEventRange();
-            }
-
             // Search sampled events for all events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
             bool eventFound = false;
             TransitionMarker markerFound = TransitionMarker::AllowTransition;
 
+            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_sampledEventsBuffer[i];
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() || ( pSettings->m_onlyCheckEventsFromActiveBranch && !pSampledEvent->IsFromActiveBranch() ) )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
                 {
                     continue;
                 }

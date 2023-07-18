@@ -2,9 +2,9 @@
 
 #include "Engine/_Module/API.h"
 #include "AnimationBoneMask.h"
-#include "System/Resource/IResource.h"
-#include "System/Math/Transform.h"
-#include "System/Types/BitFlags.h"
+#include "Base/Resource/IResource.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/BitFlags.h"
 
 //-------------------------------------------------------------------------
 

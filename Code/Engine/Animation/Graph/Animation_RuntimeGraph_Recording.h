@@ -2,10 +2,10 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
-#include "System/Time/Time.h"
-#include "System/Serialization/BinarySerialization.h"
-#include "System/Types/Containers_ForwardDecl.h"
-#include "System/Resource/ResourceID.h"
+#include "Base/Time/Time.h"
+#include "Base/Serialization/BinarySerialization.h"
+#include "Base/Types/Containers_ForwardDecl.h"
+#include "Base/Resource/ResourceID.h"
 
 //-------------------------------------------------------------------------
 
@@ -105,10 +105,15 @@ namespace EE::Animation
 
             bool                                            m_bool;
             StringID                                        m_ID;
-            int32_t                                         m_int;
             float                                           m_float;
             Vector                                          m_vector;
             Target                                          m_target;
+        };
+
+        struct LayerState
+        {
+            int16_t                                         m_nodeIdx;
+            TVector<TPair<int8_t, SyncTrackTimeRange>>      m_layerUpdateRanges;
         };
 
     public:
@@ -118,6 +123,7 @@ namespace EE::Animation
         TVector<ParameterData>                              m_parameterData;
         Seconds                                             m_deltaTime;
         Blob                                                m_serializedTaskData;
+        TVector<LayerState>                                 m_layerStates;
     };
 
     // Records information about each update for the recorded graph instance

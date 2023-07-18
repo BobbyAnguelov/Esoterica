@@ -4,13 +4,13 @@
 #include "ResourceServerUI.h"
 #include "Engine/Render/Renderers/ImguiRenderer.h"
 #include "Engine/UpdateContext.h"
-#include "System/Application/Platform/Application_Win32.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Resource/ResourceSettings.h"
-#include "System/Imgui/ImguiSystem.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Types/String.h"
-#include "System/Esoterica.h"
+#include "Base/Application/Platform/Application_Win32.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Resource/ResourceSettings.h"
+#include "Base/Imgui/ImguiSystem.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Types/String.h"
+#include "Base/Esoterica.h"
 #include <shellapi.h>
 
 //-------------------------------------------------------------------------

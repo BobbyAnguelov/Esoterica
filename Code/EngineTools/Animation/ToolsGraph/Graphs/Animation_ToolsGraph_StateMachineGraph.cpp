@@ -141,7 +141,7 @@ namespace EE::Animation
             EntryStateOverrideConduitToolsNode const* pEntryOverrideConduit = GetEntryStateOverrideConduit();
             if ( pEntryOverrideConduit->HasEntryOverrideForState( pStateNode->GetID() ) )
             {
-                ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, ImGuiX::ImColors::LimeGreen, EE_ICON_ARROW_DOWN_CIRCLE );
+                ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, Colors::LimeGreen, EE_ICON_ARROW_DOWN_CIRCLE );
                 iconOffset.x -= iconSize.x + 4.0f;
             }
 
@@ -149,7 +149,7 @@ namespace EE::Animation
             GlobalTransitionConduitToolsNode const* pGlobalTransitionConduit = GetGlobalTransitionConduit();
             if ( pGlobalTransitionConduit->HasGlobalTransitionForState( pStateNode->GetID() ) )
             {
-                ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, ImGuiX::ImColors::OrangeRed, EE_ICON_LIGHTNING_BOLT_CIRCLE );
+                ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, Colors::OrangeRed, EE_ICON_LIGHTNING_BOLT_CIRCLE );
             }
         }
     }

@@ -1,12 +1,12 @@
 #pragma once
 #include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
-#include "System/Resource/ResourceID.h"
-#include "System/Types/StringID.h"
-#include "System/Types/Event.h"
-#include "System/Types/HashMap.h"
-#include "System/Threading/TaskSystem.h"
-#include "System/Threading/Threading.h"
-#include "System/Types/Function.h"
+#include "Base/Resource/ResourceID.h"
+#include "Base/Types/StringID.h"
+#include "Base/Types/Event.h"
+#include "Base/Types/HashMap.h"
+#include "Base/Threading/TaskSystem.h"
+#include "Base/Threading/Threading.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 

@@ -7,10 +7,10 @@
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Render/Components/Component_EnvironmentMaps.h"
 #include "Engine/Render/Shaders/EngineShaders.h"
-#include "System/Render/RenderCoreResources.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Profiling.h"
+#include "Base/Render/RenderCoreResources.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Profiling.h"
 
 
 //-------------------------------------------------------------------------

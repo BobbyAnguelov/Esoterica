@@ -51,14 +51,14 @@ namespace EE::VisualGraph
             inline UUID const GetEndStateID() const { return m_endStateID; }
 
             // Get the conduit arrow color
-            virtual ImColor GetColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
+            virtual Color GetColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
 
             // Conduit specific draw extra controls function, that provides the start and end points of the conduit
             virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, ImVec2 const& startPoint, ImVec2 const& endPoint ) {}
 
         private:
 
-            virtual ImColor GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const override final { return Node::GetNodeBorderColor( ctx, pUserContext, visualState ); }
+            virtual Color GetNodeBorderColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const override final { return Node::GetNodeBorderColor( ctx, pUserContext, visualState ); }
             virtual void DrawExtraControls( DrawContext const& ctx, UserContext* pUserContext ) override final {}
 
         protected:

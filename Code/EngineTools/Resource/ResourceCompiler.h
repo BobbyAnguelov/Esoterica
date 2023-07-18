@@ -1,10 +1,10 @@
 #pragma once
 
 #include "ResourceDescriptor.h"
-#include "System/Resource/ResourceHeader.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/Resource/ResourceHeader.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
-#include "System/Types/Function.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 

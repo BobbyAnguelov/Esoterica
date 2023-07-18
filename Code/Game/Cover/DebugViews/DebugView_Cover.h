@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,28 +11,23 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class CoverDebugView : public EntityWorldDebugView
+    class CoverDebugView : public DebugView
     {
         EE_REFLECT_TYPE( CoverDebugView );
 
     public:
 
-        CoverDebugView();
+        CoverDebugView() : DebugView( "Game/Covers" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-
-        void DrawMenu( EntityWorldUpdateContext const& context );
-        void DrawOverviewWindow( EntityWorldUpdateContext const& context );
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
 
     private:
 
-        EntityWorld const*              m_pWorld = nullptr;
         CoverManager*                   m_pCoverManager = nullptr;
-        bool                            m_isOverviewWindowOpen = false;
     };
 }
 #endif

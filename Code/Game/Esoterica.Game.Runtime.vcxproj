@@ -79,6 +79,7 @@
     <ClInclude Include="Player\StateMachine\Actions\PlayerAction_Interact.h" />
     <ClInclude Include="Player\Components\Component_PlayerInteractible.h" />
     <ClInclude Include="Player\DebugViews\DebugView_NetworkProto.h" />
+    <ClInclude Include="Player\StateMachine\OverlayActions\PlayerOverlayAction_Aim.h" />
     <ClInclude Include="Player\Systems\WorldSystem_PlayerInteractions.h" />
     <ClInclude Include="Player\Camera\PlayerCameraController.h" />
     <ClInclude Include="Player\StateMachine\PlayerActionStateMachine.h" />
@@ -119,6 +120,7 @@
     <ClCompile Include="Cover\Systems\WorldSystem_CoverManager.cpp" />
     <ClCompile Include="Player\Animation\PlayerGraphController_InAir.cpp" />
     <ClCompile Include="Player\DebugViews\DebugView_NetworkProto.cpp" />
+    <ClCompile Include="Player\StateMachine\OverlayActions\PlayerOverlayAction_Aim.cpp" />
     <ClCompile Include="Player\StateMachine\PlayerAction.cpp" />
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Dash.cpp" />
     <ClCompile Include="Player\StateMachine\Actions\PlayerAction_Ghost.cpp" />
@@ -147,7 +149,7 @@
     <ProjectReference Include="..\Engine\Esoterica.Engine.Runtime.vcxproj">
       <Project>{2cfadbdc-ee40-4484-94d0-62a90206209e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\System\Esoterica.System.vcxproj">
+    <ProjectReference Include="..\Base\Esoterica.Base.vcxproj">
       <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
     </ProjectReference>
   </ItemGroup>

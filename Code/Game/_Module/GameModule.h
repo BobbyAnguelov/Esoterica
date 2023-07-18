@@ -3,13 +3,13 @@
 #include "API.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/ModuleContext.h"
-#include "System/Resource/ResourceID.h"
-#include "System/Input/InputSystem.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Systems.h"
+#include "Base/Resource/ResourceID.h"
+#include "Base/Input/InputSystem.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/Render/RendererRegistry.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Systems.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 // EE Renderer System

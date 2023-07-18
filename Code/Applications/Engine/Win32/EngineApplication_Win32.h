@@ -1,9 +1,9 @@
 #ifdef _WIN32
 #pragma once
 
-#include "System/Application/Platform/Application_Win32.h"
+#include "Base/Application/Platform/Application_Win32.h"
 #include "Applications/EngineShared/Engine.h"
-#include "Engine/ToolsUI/EngineToolsUI.h"
+#include "Engine/ToolsUI/EngineDebugUI.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,7 +18,7 @@ namespace EE
         using Engine::Engine;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void CreateToolsUI() { m_pToolsUI = EE::New<EngineToolsUI>(); }
+        virtual void CreateToolsUI() { m_pToolsUI = EE::New<EngineDebugUI>(); }
         #endif
     };
 

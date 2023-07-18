@@ -5,9 +5,9 @@
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntitySerialization.h"
-#include "System/Serialization/TypeSerialization.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/FileSystem/FileSystem.h"
+#include "Base/Serialization/TypeSerialization.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/FileSystem/FileSystem.h"
 
 #include <eastl/sort.h>
 

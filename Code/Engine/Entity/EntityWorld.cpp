@@ -1,9 +1,8 @@
 #include "EntityWorld.h"
 #include "EntityWorldUpdateContext.h"
-#include "EntityWorldDebugView.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/Profiling.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/Profiling.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 #include <eastl/sort.h>
 
 //-------------------------------------------------------------------------
@@ -29,8 +28,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( m_debugViews.empty() );
-
         for ( auto& v : m_componentTypeLookup )
         {
             EE_ASSERT( v.second.empty() );
@@ -148,34 +145,6 @@ namespace EE
         m_pTaskSystem = nullptr;
         m_initialized = false;
     }
-
-    //-------------------------------------------------------------------------
-    // Debug Views
-    //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    void EntityWorld::InitializeDebugViews( SystemRegistry const& systemsRegistry, TVector<TypeSystem::TypeInfo const*> debugViewTypeInfos )
-    {
-        for ( auto pTypeInfo : debugViewTypeInfos )
-        {
-            auto pDebugView = Cast<EntityWorldDebugView>( pTypeInfo->CreateType() );
-            pDebugView->Initialize( systemsRegistry, this );
-            m_debugViews.push_back( pDebugView );
-        }
-    }
-
-    void EntityWorld::ShutdownDebugViews()
-    {
-        for ( auto pDebugView : m_debugViews )
-        {
-            // Shutdown and destroy world system
-            pDebugView->Shutdown();
-            EE::Delete( pDebugView );
-        }
-
-        m_debugViews.clear();
-    }
-    #endif
 
     //-------------------------------------------------------------------------
     // Misc

@@ -1,16 +1,16 @@
 #include "CurveEditor.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Math/Curves.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Math/Curves.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    ImColor const CurveEditor::s_curveColor( 255, 255, 255, 255 );
-    ImColor const CurveEditor::s_curvePointHandleColor( 0xFFFFFFFF );
-    ImColor const CurveEditor::s_curveSelectedPointHandleColor( 0xFF00FFFF );
-    ImColor const CurveEditor::s_curveInTangentHandleColor( 0xFF90EE90 );
-    ImColor const CurveEditor::s_curveOutTangentHandleColor( 0xFF32CD32 );
+    Color const CurveEditor::s_curveColor( 255, 255, 255, 255 );
+    Color const CurveEditor::s_curvePointHandleColor = Colors::White;
+    Color const CurveEditor::s_curveSelectedPointHandleColor = Colors::Yellow;
+    Color const CurveEditor::s_curveInTangentHandleColor( 0xFF90EE90 );
+    Color const CurveEditor::s_curveOutTangentHandleColor( 0xFF32CD32 );
 
     //-------------------------------------------------------------------------
 

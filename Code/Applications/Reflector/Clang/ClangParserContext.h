@@ -3,8 +3,8 @@
 #include "ClangUtils.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "Applications/Reflector/Database/ReflectionProjectTypes.h"
-#include "System/Types/HashMap.h"
-#include "System/Types/StringID.h"
+#include "Base/Types/HashMap.h"
+#include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 

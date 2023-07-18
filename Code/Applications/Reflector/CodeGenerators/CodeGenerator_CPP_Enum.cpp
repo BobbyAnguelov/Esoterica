@@ -1,5 +1,5 @@
 #include "CodeGenerator_CPP_Enum.h"
-#include "System/TypeSystem/TypeID.h"
+#include "Base/TypeSystem/TypeID.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------

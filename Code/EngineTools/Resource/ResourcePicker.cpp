@@ -1,10 +1,10 @@
 #include "ResourcePicker.h"
 #include "ResourceDatabase.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Platform/PlatformUtils_Win32.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Platform/PlatformUtils_Win32.h"
 
 //-------------------------------------------------------------------------
 
@@ -163,7 +163,7 @@ namespace EE::Resource
                         ImGui::SameLine();
                     }
 
-                    ImVec4 const pathColor = validPath ? ImGuiX::Style::s_colorText.Value : Colors::Red.ToFloat4_ABGR();
+                    ImVec4 const pathColor = validPath ? ImGuiX::Style::s_colorText : Colors::Red.ToFloat4();
                     ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
                     ImGui::Text( m_resourceID.IsValid() ? m_resourceID.c_str() + 7 : "" );
                     ImGui::PopStyleColor();
@@ -356,7 +356,7 @@ namespace EE::Resource
                 // Resource path
                 ImGui::SetNextItemWidth( contentRegionAvailableX - usedWidth );
                 String const& resourcePathStr = m_resourcePath.GetString();
-                ImGui::PushStyleColor( ImGuiCol_Text, validPath ? ImGuiX::Style::s_colorText.Value : ImGuiX::ImColors::Red );
+                ImGui::PushStyleColor( ImGuiCol_Text, validPath ? ImGuiX::Style::s_colorText : Colors::Red );
                 ImGui::InputText( "##DataPath", const_cast<char*>( resourcePathStr.c_str() ), resourcePathStr.length(), ImGuiInputTextFlags_ReadOnly );
                 ImGui::PopStyleColor();
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API CameraDebugView : public EntityWorldDebugView
+    class EE_ENGINE_API CameraDebugView : public DebugView
     {
         EE_REFLECT_TYPE( CameraDebugView );
 
@@ -21,21 +21,20 @@ namespace EE
 
     public:
 
-        CameraDebugView();
+        CameraDebugView() : DebugView( "Engine/Camera" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
 
-        void DrawMenu( EntityWorldUpdateContext const& context );
+        void DrawMenu( EntityWorldUpdateContext const& context ) override;
+        
         void DrawCameraWindow( EntityWorldUpdateContext const& context );
 
     private:
 
         CameraManager const*            m_pCameraManager = nullptr;
-        bool                            m_isCameraDebugWindowOpen = false;
     };
 }
 #endif

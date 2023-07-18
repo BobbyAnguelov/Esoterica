@@ -61,7 +61,7 @@ namespace EE::Animation::GraphNodes
         for ( auto const& evt : debugInfo.m_pSyncTrack->GetEvents() )
         {
             eventBottomRight.x = eventTopLeft.x + Math::Floor( playbackBarSize.x * evt.m_duration );
-            ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? ImGuiX::ImColors::White : ImGuiX::ImColors::DarkGray );
+            ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? Colors::White : Colors::DarkGray );
             eventTopLeft.x = eventBottomRight.x;
             useAlternateColor = !useAlternateColor;
         }
@@ -69,14 +69,14 @@ namespace EE::Animation::GraphNodes
         // Draw progress bar
         ImVec2 progressBarTopLeft = playbackBarTopLeft;
         ImVec2 progressBarBottomRight = playbackBarTopLeft + ImVec2( pixelOffsetForPercentageThrough, playbackBarSize.y );
-        ctx.m_pDrawList->AddRectFilled( progressBarTopLeft, progressBarBottomRight, ImGuiX::ToIm( Colors::LimeGreen.GetAlphaVersion( 0.65f ) ) );
+        ctx.m_pDrawList->AddRectFilled( progressBarTopLeft, progressBarBottomRight, Colors::LimeGreen.GetAlphaVersion( 0.65f ) );
 
         // Draw Marker
         ImVec2 t0( progressBarTopLeft.x + pixelOffsetForPercentageThrough, playbackBarBottomRight.y );
         ImVec2 t1( t0.x - g_playbackBarMarkerSize, playbackBarBottomRight.y + g_playbackBarMarkerSize );
         ImVec2 t2( t0.x + g_playbackBarMarkerSize, playbackBarBottomRight.y + g_playbackBarMarkerSize );
-        ctx.m_pDrawList->AddLine( t0, t0 - ImVec2( 0, playbackBarSize.y ), ImGuiX::ImColors::LimeGreen );
-        ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, ImGuiX::ImColors::LimeGreen );
+        ctx.m_pDrawList->AddLine( t0, t0 - ImVec2( 0, playbackBarSize.y ), Colors::LimeGreen );
+        ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, Colors::LimeGreen );
 
         // Draw text info
         ImGui::Text( "Time: %.2f/%.2fs", debugInfo.m_currentTime.ToFloat() * debugInfo.m_duration, debugInfo.m_duration.ToFloat() );
@@ -98,7 +98,7 @@ namespace EE::Animation::GraphNodes
         ImGui::InvisibleButton( "Spacer", playbackBarRegion );
 
         // Draw empty playback visualization bar
-        ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, ImGuiX::ImColors::DarkGray );
+        ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, Colors::DarkGray );
 
         // Draw text placeholders
         ImGui::Text( "Time: N/A" );
@@ -159,7 +159,7 @@ namespace EE::Animation::GraphNodes
                 auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
                 ImGui::Text( "Value: " );
                 ImGui::SameLine();
-                ImGui::TextColored( value ? ImGuiX::ImColors::LimeGreen : ImGuiX::ImColors::IndianRed, value ? "True" : "False" );
+                ImGui::TextColored( ( value ? Colors::LimeGreen : Colors::IndianRed ).ToFloat4(), value ? "True" : "False" );
             }
             break;
 
@@ -243,10 +243,10 @@ namespace EE::Animation::GraphNodes
             ImVec2 const endRect( startRect.x + bubbleWidth, startRect.y + bubbleHeight );
             ImVec2 const canvasStartRect = ctx.CanvasPositionToScreenPosition( startRect );
 
-            ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), ImGuiX::ImColors::MediumRed, 3 );
+            ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), Colors::MediumRed, 3 );
 
             auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-            ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), ImGuiX::ImColors::White, idxStr.c_str());
+            ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), Colors::White, idxStr.c_str());
         }
 
         //-------------------------------------------------------------------------
@@ -314,14 +314,14 @@ namespace EE::Animation::GraphNodes
         return false;
     }
 
-    ImColor FlowToolsNode::GetTitleBarColor() const
+    Color FlowToolsNode::GetTitleBarColor() const
     {
-        return ImGuiX::ToIm( GetColorForValueType( GetValueType() ) );
+        return GetColorForValueType( GetValueType() );
     }
 
-    ImColor FlowToolsNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
+    Color FlowToolsNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
     {
-        return ImGuiX::ToIm( GetColorForValueType( GetValueTypeForPinType( pin.m_type ) ) );
+        return GetColorForValueType( GetValueTypeForPinType( pin.m_type ) );
     }
 
     void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )

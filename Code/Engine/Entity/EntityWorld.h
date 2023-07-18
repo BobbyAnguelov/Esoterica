@@ -4,10 +4,10 @@
 #include "EntityContexts.h"
 #include "Entity.h"
 #include "EntityMap.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Types/Arrays.h"
-#include "System/Drawing/DebugDrawingSystem.h"
-#include "System/Input/InputSystem.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Drawing/DebugDrawingSystem.h"
+#include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,7 +15,7 @@ namespace EE
 {
     class TaskSystem;
     class UpdateContext;
-    class EntityWorldDebugView;
+    class DebugView;
 
     //-------------------------------------------------------------------------
 
@@ -250,10 +250,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        inline TVector<EntityWorldDebugView*> const& GetDebugViews() const { return m_debugViews; }
-        void InitializeDebugViews( SystemRegistry const& systemsRegistry, TVector<TypeSystem::TypeInfo const*> debugViewTypeInfos );
-        void ShutdownDebugViews();
-
         inline String const& GetDebugName() const { return m_debugName; }
         inline void SetDebugName( String const& newName ) { m_debugName = newName; }
         inline void SetDebugName( char const* pName ) { EE_ASSERT( pName != nullptr ); m_debugName = pName; }
@@ -292,7 +288,7 @@ namespace EE
 
         // Entities
         TVector<Entity*>                                                        m_entityUpdateList;
-        TVector<EntityWorldSystem*>                                            m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
+        TVector<EntityWorldSystem*>                                             m_systemUpdateLists[(int8_t) UpdateStage::NumStages];
 
         // Time Scaling + Pause
         float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused
@@ -302,7 +298,6 @@ namespace EE
         #if EE_DEVELOPMENT_TOOLS
         EntityModel::EntityComponentTypeMap                                     m_componentTypeLookup;
         Drawing::DrawingSystem                                                  m_debugDrawingSystem;
-        TVector<EntityWorldDebugView*>                                          m_debugViews;
         String                                                                  m_debugName;
         #endif
     };

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "ReflectionDataTypes.h"
-#include "System/Resource/ResourceTypeID.h"
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/TypeSystem/PropertyPath.h"
+#include "Base/Resource/ResourceTypeID.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/TypeSystem/PropertyPath.h"
 #include <sqlite3.h>
 
 //-------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Math/Math.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/Math/Math.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 // Easing utility functions 
@@ -44,6 +44,8 @@ namespace EE::Math::Easing
         OutCirc,
         InOutCirc,
         OutInCirc,
+
+        None
     };
 
     typedef float( *EasingFuncPtr )( float t );
@@ -242,5 +244,12 @@ namespace EE::Math::Easing
     inline float EaseOutInCirc( float t )
     {
         return EaseInOut<EaseOutCirc, EaseInCirc>( t );
+    }
+
+    //-------------------------------------------------------------------------
+
+    inline float NoEasing( float t )
+    {
+        return t;
     }
 }

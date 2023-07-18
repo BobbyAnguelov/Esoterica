@@ -3,11 +3,11 @@
 #include "ResourceServerContext.h"
 #include "ResourceCompilationRequest.h"
 #include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
-#include "System/Network/IPC/IPCMessageServer.h"
-#include "System/Resource/ResourceSettings.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Threading/TaskSystem.h"
-#include "System/Threading/Threading.h"
+#include "Base/Network/IPC/IPCMessageServer.h"
+#include "Base/Resource/ResourceSettings.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Threading/TaskSystem.h"
+#include "Base/Threading/Threading.h"
 
 //-------------------------------------------------------------------------
 // The network resource server
@@ -140,7 +140,7 @@ namespace EE::Resource
 
         // Compilation Requests
         TVector<CompilationRequest*>                                m_requests;
-        Threading::LockFreeQueue<CompilationTask*>                  m_completedTasks;
+        TVector<CompilationTask*>                                   m_activeTasks;
         std::atomic<int64_t>                                        m_numScheduledTasks = 0;
 
         // Workers

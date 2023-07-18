@@ -50,35 +50,26 @@ namespace EE::Animation::GraphNodes
 
     void IDComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        InlineString infoText;
-
         if ( m_comparison == IDComparisonNode::Comparison::Matches )
         {
-            infoText = "is: ";
+            ImGui::Text( "One of these:" );
         }
         else
         {
-            infoText = "is not: ";
+            ImGui::Text( "NOT any of these:" );
         }
 
         for ( auto i = 0; i < m_IDs.size(); i++ )
         {
             if ( m_IDs[i].IsValid() )
             {
-                infoText.append( m_IDs[i].c_str() );
+                ImGui::BulletText( m_IDs[i].c_str() );
             }
             else
             {
-                infoText.append( "INVALID ID" );
-            }
-
-            if ( i != m_IDs.size() - 1 )
-            {
-                infoText.append( ", " );
+                ImGui::BulletText( "INVALID ID" );
             }
         }
-
-        ImGui::Text( infoText.c_str() );
     }
 
     void IDComparisonToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
@@ -186,7 +177,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            ImGui::TextColored( ImColor( 0xFF0000FF ), "Invalid Mappings" );
+            ImGui::TextColored( Colors::Red.ToFloat4(), "Invalid Mappings" );
         }
     }
 

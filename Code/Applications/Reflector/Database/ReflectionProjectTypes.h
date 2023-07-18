@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "System/Types/StringID.h"
-#include "System/FileSystem/FileSystemPath.h"
+#include "Base/Types/StringID.h"
+#include "Base/FileSystem/FileSystemPath.h"
 
 //-------------------------------------------------------------------------
 

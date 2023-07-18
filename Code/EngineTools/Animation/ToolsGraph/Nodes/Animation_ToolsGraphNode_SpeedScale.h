@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Animation_ToolsGraphNode.h"
-#include "System/Math/NumericRange.h"
+#include "Base/Math/NumericRange.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EngineTools/Core/Workspace.h"
-#include "System/Render/RenderTexture.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Render/RenderTexture.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ namespace EE::Render
 
     private:
 
-        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Texture"; }
+        virtual char const* GetDockingUniqueTypeName() const override { return "Texture"; }
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_IMAGE_OUTLINE; }
         virtual bool HasViewportWindow() const { return false; }

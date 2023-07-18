@@ -2,7 +2,7 @@
 
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "Engine/Entity/EntityDescriptors.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

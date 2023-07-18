@@ -1,9 +1,9 @@
 #include "EntityDescriptors.h"
 
 #include "Entity.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Profiling.h"
-#include "System/Threading/TaskSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Profiling.h"
+#include "Base/Threading/TaskSystem.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------

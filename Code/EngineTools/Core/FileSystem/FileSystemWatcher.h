@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/Time/Time.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 // Basic Win32 File System Watcher

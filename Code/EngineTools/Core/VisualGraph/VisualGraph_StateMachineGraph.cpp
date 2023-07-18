@@ -5,7 +5,7 @@
 
 namespace EE::VisualGraph
 {
-    ImColor SM::TransitionConduit::GetColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
+    Color SM::TransitionConduit::GetColor( VisualGraph::DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
     {
         if ( visualState == NodeVisualState::Hovered )
         {
@@ -13,7 +13,7 @@ namespace EE::VisualGraph
         }
         else if ( visualState == NodeVisualState::Selected )
         {
-            return s_defaultSelectedColor;
+            return s_connectionColorSelected;
         }
         else
         {

@@ -10,8 +10,8 @@
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityLog.h"
-#include "System/Profiling.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Profiling.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

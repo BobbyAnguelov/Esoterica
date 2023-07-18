@@ -87,119 +87,13 @@ namespace EE::Animation::GraphNodes
         // Cache source node pose
         RegisterSourceCachePoseTask( context, sourceNodeResult );
 
-        // Unsynchronized update
+        // Use sync events to initialize the target state
         //-------------------------------------------------------------------------
 
         GraphPoseNodeResult targetNodeResult;
 
         auto pSettings = GetSettings<TransitionNode>();
-        if ( !pSettings->IsSynchronized() )
-        {
-            if ( m_pEventOffsetOverrideNode != nullptr )
-            {
-                m_pEventOffsetOverrideNode->Initialize( context );
-                m_syncEventOffset = m_pEventOffsetOverrideNode->GetValue<float>( context );
-                m_pEventOffsetOverrideNode->Shutdown( context );
-            }
-            else
-            {
-                m_syncEventOffset = pSettings->m_syncEventOffset;
-            }
-
-            // If we have a sync offset or we need to match the source state time, we need to create a target state initial time
-            bool const shouldMatchSourceTime = pSettings->ShouldMatchSourceTime();
-            if ( shouldMatchSourceTime || !Math::IsNearZero( m_syncEventOffset ) )
-            {
-                SyncTrackTime targetStartEventSyncTime;
-
-                // Calculate the target start position (if we need to match the source)
-                if ( shouldMatchSourceTime )
-                {
-                    SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
-                    SyncTrackTime sourceFromSyncTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
-
-                    // Set the matching event index if required
-                    if ( pSettings->ShouldMatchSyncEventIndex() )
-                    {
-                        targetStartEventSyncTime.m_eventIdx = sourceFromSyncTime.m_eventIdx;
-                    }
-                    else if ( pSettings->ShouldMatchSyncEventID() )
-                    {
-                        // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
-                        // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
-                        m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-                        SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
-                        StringID const sourceSyncEventID = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
-                        targetStartEventSyncTime.m_eventIdx = targetSyncTrack.GetEventIndexForID( sourceSyncEventID );
-                        m_pTargetNode->Shutdown( context );
-                    }
-
-                    // Should we keep the source "From" percentage through
-                    if ( pSettings->ShouldMatchSyncEventPercentage() )
-                    {
-                        targetStartEventSyncTime.m_percentageThrough = sourceFromSyncTime.m_percentageThrough;
-                    }
-                }
-
-                // Apply the sync event offset
-                float eventIdxOffset;
-                float percentageThroughOffset = Math::ModF( m_syncEventOffset, &eventIdxOffset );
-                targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
-
-                // Ensure we handle looping past the current event with the percentage offset
-                targetStartEventSyncTime.m_percentageThrough = Math::ModF( targetStartEventSyncTime.m_percentageThrough + percentageThroughOffset, &eventIdxOffset );
-                targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
-
-                // Initialize the target node
-                m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-
-                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
-                StartTransitionOutForSource();
-
-                // Start transition in and update target node
-                // Use a zero time-step as we dont want to update the target on this update but we do want the target pose to be created!
-                m_pTargetNode->StartTransitionIn( context );
-                float const oldDeltaTime = context.m_deltaTime;
-                context.m_deltaTime = 0.0f;
-                targetNodeResult = m_pTargetNode->Update( context );
-                context.m_deltaTime = oldDeltaTime;
-            }
-            else // Regular time update (not matched or has sync offset)
-            {
-                m_pTargetNode->Initialize( context, SyncTrackTime() );
-
-                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
-                StartTransitionOutForSource();
-
-                // Start transition in and update target
-                m_pTargetNode->StartTransitionIn( context );
-                targetNodeResult = m_pTargetNode->Update( context );
-            }
-
-            // Set time and duration for this node
-            m_currentTime = 0.0f;
-            m_duration = m_pTargetNode->GetDuration();
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
-            #endif
-
-            // Should we clamp how long the transition is active for?
-            if ( pSettings->ShouldClampTransitionLength() )
-            {
-                Seconds const sourceDuration = m_pSourceNode->GetDuration();
-                if ( sourceDuration > 0.0f )
-                {
-                    float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
-                    m_transitionLength = Math::Min( m_transitionLength, remainingNodeTime );
-                }
-            }
-        }
-
-        // Use sync events to initialize the target state
-        //-------------------------------------------------------------------------
-
-        else // Synchronized transition
+        if ( pSettings->IsSynchronized() )
         {
             EE_ASSERT( m_pSourceNode != nullptr );
             SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
@@ -290,6 +184,113 @@ namespace EE::Animation::GraphNodes
 
                     // Calculate the transition duration in terms of event distance and update the progress for this transition
                     m_transitionLength = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
+                }
+            }
+        }
+
+        // Unsynchronized Transition
+        //-------------------------------------------------------------------------
+
+        else
+        {
+            // Try get sync event offset
+            if ( m_pEventOffsetOverrideNode != nullptr )
+            {
+                m_pEventOffsetOverrideNode->Initialize( context );
+                m_syncEventOffset = m_pEventOffsetOverrideNode->GetValue<float>( context );
+                m_pEventOffsetOverrideNode->Shutdown( context );
+            }
+            else
+            {
+                m_syncEventOffset = pSettings->m_syncEventOffset;
+            }
+
+            // If we have a sync offset or we need to match the source state time, we need to create a target state initial time
+            bool const shouldMatchSourceTime = pSettings->ShouldMatchSourceTime();
+            if ( shouldMatchSourceTime || !Math::IsNearZero( m_syncEventOffset ) )
+            {
+                SyncTrackTime targetStartEventSyncTime;
+
+                // Calculate the target start position (if we need to match the source)
+                if ( shouldMatchSourceTime )
+                {
+                    SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
+                    SyncTrackTime sourceFromSyncTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
+
+                    // Set the matching event index if required
+                    if ( pSettings->ShouldMatchSyncEventIndex() )
+                    {
+                        targetStartEventSyncTime.m_eventIdx = sourceFromSyncTime.m_eventIdx;
+                    }
+                    else if ( pSettings->ShouldMatchSyncEventID() )
+                    {
+                        // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
+                        // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
+                        m_pTargetNode->Initialize( context, targetStartEventSyncTime );
+                        SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
+                        StringID const sourceSyncEventID = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
+                        targetStartEventSyncTime.m_eventIdx = pSettings->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, sourceSyncEventID ) : targetSyncTrack.GetEventIndexForID( sourceSyncEventID );
+                        m_pTargetNode->Shutdown( context );
+                    }
+
+                    // Should we keep the source "From" percentage through
+                    if ( pSettings->ShouldMatchSyncEventPercentage() )
+                    {
+                        targetStartEventSyncTime.m_percentageThrough = sourceFromSyncTime.m_percentageThrough;
+                    }
+                }
+
+                // Apply the sync event offset
+                float eventIdxOffset;
+                float percentageThroughOffset = Math::ModF( m_syncEventOffset, &eventIdxOffset );
+                targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
+
+                // Ensure we handle looping past the current event with the percentage offset
+                targetStartEventSyncTime.m_percentageThrough = Math::ModF( targetStartEventSyncTime.m_percentageThrough + percentageThroughOffset, &eventIdxOffset );
+                targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
+
+                // Initialize the target node
+                m_pTargetNode->Initialize( context, targetStartEventSyncTime );
+
+                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
+                StartTransitionOutForSource();
+
+                // Start transition in and update target node
+                // Use a zero time-step as we dont want to update the target on this update but we do want the target pose to be created!
+                m_pTargetNode->StartTransitionIn( context );
+                float const oldDeltaTime = context.m_deltaTime;
+                context.m_deltaTime = 0.0f;
+                targetNodeResult = m_pTargetNode->Update( context );
+                context.m_deltaTime = oldDeltaTime;
+            }
+            else // Regular time update (not matched or has sync offset)
+            {
+                m_pTargetNode->Initialize( context, SyncTrackTime() );
+
+                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
+                StartTransitionOutForSource();
+
+                // Start transition in and update target
+                m_pTargetNode->StartTransitionIn( context );
+                targetNodeResult = m_pTargetNode->Update( context );
+            }
+
+            // Set time and duration for this node
+            m_currentTime = 0.0f;
+            m_duration = m_pTargetNode->GetDuration();
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
+            #endif
+
+            // Should we clamp how long the transition is active for?
+            if ( pSettings->ShouldClampTransitionLength() )
+            {
+                Seconds const sourceDuration = m_pSourceNode->GetDuration();
+                if ( sourceDuration > 0.0f )
+                {
+                    float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
+                    m_transitionLength = Math::Min( m_transitionLength, remainingNodeTime );
                 }
             }
         }
@@ -570,7 +571,7 @@ namespace EE::Animation::GraphNodes
                 pBoneMaskTaskList = &m_boneMaskTaskList;
             }
 
-            outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, poseBlendWeight, PoseBlendMode::Interpolative, pBoneMaskTaskList );
+            outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, poseBlendWeight, pBoneMaskTaskList );
 
             //-------------------------------------------------------------------------
 
@@ -623,7 +624,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( sourceLayerContext.m_layerMaskTaskList.HasTasks() )
             {
-                // Keep the source mask unchanged till we are fully off
+                // Keep the source mask from the source state while blending out
                 if ( m_pTargetNode->IsOffState() )
                 {
                     context.m_layerContext.m_layerMaskTaskList = sourceLayerContext.m_layerMaskTaskList;
@@ -635,7 +636,7 @@ namespace EE::Animation::GraphNodes
             }
             else if ( targetLayerContext.m_layerMaskTaskList.HasTasks() )
             {
-                // Keep the target bone mask if the source is an off state
+                // Keep the target bone mask on the whole way through the blend
                 if ( IsSourceAState() && GetSourceStateNode()->IsOffState() )
                 {
                     context.m_layerContext.m_layerMaskTaskList = targetLayerContext.m_layerMaskTaskList;
@@ -927,18 +928,21 @@ namespace EE::Animation::GraphNodes
     void TransitionNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
+
         outState.WriteValue( m_transitionProgress );
         outState.WriteValue( m_transitionLength );
         outState.WriteValue( m_syncEventOffset );
         outState.WriteValue( m_blendWeight );
         outState.WriteValue( m_cachedPoseBufferID );
         outState.WriteValue( m_sourceType );
+
         outState.WriteValue( m_pSourceNode->GetNodeIndex() );
     }
 
     void TransitionNode::RestoreGraphState( RecordedGraphState const& inState )
     {
         PoseNode::RestoreGraphState( inState );
+
         inState.ReadValue( m_transitionProgress );
         inState.ReadValue( m_transitionLength );
         inState.ReadValue( m_syncEventOffset );

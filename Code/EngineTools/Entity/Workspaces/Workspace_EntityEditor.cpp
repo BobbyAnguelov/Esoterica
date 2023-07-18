@@ -13,10 +13,10 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/Entity/EntitySerialization.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Math/Math.h"
-#include "System/Math/MathUtils.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Math/Math.h"
+#include "Base/Math/MathUtils.h"
 
 
 //-------------------------------------------------------------------------
@@ -780,9 +780,9 @@ namespace EE::EntityModel
         // Dock windows
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Outliner" ).c_str(), bottomLeftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Properties" ).c_str(), bottomCenterDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Entity" ).c_str(), bottomCenterDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Entity" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Properties" ).c_str(), bottomRightDockID );
     }
 
     void EntityEditorWorkspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
@@ -840,7 +840,7 @@ namespace EE::EntityModel
             //-------------------------------------------------------------------------
 
             bool t = m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Translation;
-            ImGui::PushStyleColor( ImGuiCol_Text, t ? ImGuiX::Style::s_colorAccent1.Value : ImGuiX::Style::s_colorText.Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, t ? ImGuiX::Style::s_colorAccent1 : ImGuiX::Style::s_colorText );
             if ( ImGuiX::FlatButton( EE_ICON_AXIS_ARROW, ImVec2( widthButton1, ImGui::GetContentRegionAvail().y ) ) )
             {
                 m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
@@ -851,7 +851,7 @@ namespace EE::EntityModel
             ImGui::SameLine( 0, 0 );
 
             bool r = m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Rotation;
-            ImGui::PushStyleColor( ImGuiCol_Text, r ? ImGuiX::Style::s_colorAccent1.Value : ImGuiX::Style::s_colorText.Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, r ? ImGuiX::Style::s_colorAccent1 : ImGuiX::Style::s_colorText );
             if ( ImGuiX::FlatButton( EE_ICON_ROTATE_ORBIT, ImVec2( widthButton2, ImGui::GetContentRegionAvail().y ) ) )
             {
                 m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Rotation );
@@ -862,7 +862,7 @@ namespace EE::EntityModel
             ImGui::SameLine( 0, 0 );
 
             bool s = m_gizmo.GetMode() == ImGuiX::Gizmo::GizmoMode::Scale;
-            ImGui::PushStyleColor( ImGuiCol_Text, s ? ImGuiX::Style::s_colorAccent1.Value : ImGuiX::Style::s_colorText.Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, s ? ImGuiX::Style::s_colorAccent1 : ImGuiX::Style::s_colorText );
             if ( ImGuiX::FlatButton( EE_ICON_ARROW_TOP_RIGHT_BOTTOM_LEFT, ImVec2( widthButton3, ImGui::GetContentRegionAvail().y ) ) )
             {
                 m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Scale );
@@ -885,7 +885,7 @@ namespace EE::EntityModel
         //    if ( pViewport->IsWorldSpacePointVisible( pComponent->GetPosition() ) )
         //    {
         //        ImVec2 const positionScreenSpace = pViewport->WorldSpaceToScreenSpace( pComponent->GetPosition() );
-        //        if ( ImGuiX::DrawOverlayIcon( positionScreenSpace, icon, pComponent, isSelected, ImColor( Colors::Yellow.ToFloat4() ) ) )
+        //        if ( ImGuiX::DrawOverlayIcon( positionScreenSpace, icon, pComponent, isSelected, Colors::Yellow.ToFloat4() ) )
         //        {
         //            return true;
         //        }
@@ -2023,7 +2023,7 @@ namespace EE::EntityModel
             {
                 {
                     ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, "CREATE NEW ENTITY", ImVec2( -1, 0 ) ) )
+                    if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "CREATE NEW ENTITY", ImVec2( -1, 0 ) ) )
                     {
                         CreateEntity( pMap->GetID() );
                     }
@@ -2329,7 +2329,7 @@ namespace EE::EntityModel
         }
         else
         {
-            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS" Add Component/System", ImVec2( -1, 0 ) ) )
+            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS" Add Component/System", ImVec2( -1, 0 ) ) )
             {
                 StartEntityOperation( Operation::EntityAddSystemOrComponent );
             }
@@ -2408,36 +2408,41 @@ namespace EE::EntityModel
         // Spatial Components
         //-------------------------------------------------------------------------
 
-        auto pSpatialComponentsHeaderItem = pRootItem->CreateChild<StructureEditorItem>( StructureEditorItem::s_spatialComponentsHeaderID );
         if ( pEditedEntity->IsSpatialEntity() )
         {
+            auto pSpatialComponentsHeaderItem = pRootItem->CreateChild<StructureEditorItem>( StructureEditorItem::s_spatialComponentsHeaderID );
             auto pRootComponentItem = pSpatialComponentsHeaderItem->CreateChild<StructureEditorItem>( pEditedEntity->GetRootSpatialComponent() );
             StructureEditorItem::Create( pRootComponentItem, spatialComponents );
+            pSpatialComponentsHeaderItem->SortChildren();
         }
-
-        pSpatialComponentsHeaderItem->SortChildren();
 
         // Non-Spatial Components
         //-------------------------------------------------------------------------
 
-        auto pComponentsHeaderItem = pRootItem->CreateChild<StructureEditorItem>( StructureEditorItem::s_componentsHeaderID );
-        for ( auto pComponent : nonSpatialComponents )
+        if ( !nonSpatialComponents.empty() )
         {
-            pComponentsHeaderItem->CreateChild<StructureEditorItem>( pComponent );
-        }
+            auto pComponentsHeaderItem = pRootItem->CreateChild<StructureEditorItem>( StructureEditorItem::s_componentsHeaderID );
+            for ( auto pComponent : nonSpatialComponents )
+            {
+                pComponentsHeaderItem->CreateChild<StructureEditorItem>( pComponent );
+            }
 
-        pComponentsHeaderItem->SortChildren();
+            pComponentsHeaderItem->SortChildren();
+        }
 
         // Systems
         //-------------------------------------------------------------------------
 
-        auto pSystemsHeaderItem = pRootItem->CreateChild<StructureEditorItem>( StructureEditorItem::s_systemsHeaderID );
-        for ( auto pSystem : pEditedEntity->GetSystems() )
+        if ( !pEditedEntity->GetSystems().empty() )
         {
-            pSystemsHeaderItem->CreateChild<StructureEditorItem>( pSystem );
-        }
+            auto pSystemsHeaderItem = pRootItem->CreateChild<StructureEditorItem>( StructureEditorItem::s_systemsHeaderID );
+            for ( auto pSystem : pEditedEntity->GetSystems() )
+            {
+                pSystemsHeaderItem->CreateChild<StructureEditorItem>( pSystem );
+            }
 
-        pSystemsHeaderItem->SortChildren();
+            pSystemsHeaderItem->SortChildren();
+        }
     }
 
     void EntityEditorWorkspace::DrawStructureEditorContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
@@ -2759,7 +2764,7 @@ namespace EE::EntityModel
             ImGui::SameLine();
 
             ImGui::SetNextItemWidth( -1 );
-            ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red.ToUInt32_ABGR() );
+            ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red );
             applyRename = ImGui::InputText( "##Name", m_operationBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
             isValidName = ValidateName();
             ImGui::PopStyleColor();
@@ -2838,7 +2843,7 @@ namespace EE::EntityModel
             ImGui::SameLine();
 
             ImGui::SetNextItemWidth( -1 );
-            ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red.ToUInt32_ABGR() );
+            ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red );
             applyRename = ImGui::InputText( "##Name", m_operationBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
             isValidName = ValidateName();
             ImGui::PopStyleColor();
@@ -2947,7 +2952,7 @@ namespace EE::EntityModel
             //-------------------------------------------------------------------------
 
             float const tableHeight = contentRegionAvailable.y - ImGui::GetFrameHeightWithSpacing() - ImGui::GetStyle().ItemSpacing.y;
-            ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray1.Value );
+            ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray1 );
             if ( ImGui::BeginTable( "Options List", 1, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( contentRegionAvailable.x, tableHeight ) ) )
             {
                 ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthStretch, 1.0f );
@@ -2966,7 +2971,7 @@ namespace EE::EntityModel
                         bool const wasSelected = ( m_pOperationSelectedOption == m_filteredOptions[i] );
                         if ( wasSelected )
                         {
-                            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent0.Value );
+                            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent0 );
                         }
 
                         bool isSelected = wasSelected;
@@ -3195,7 +3200,7 @@ namespace EE::EntityModel
     // Update
     //-------------------------------------------------------------------------
 
-    void EntityEditorWorkspace::Update( UpdateContext const& context, bool isFocused )
+    void EntityEditorWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         // Process deletions
         //-------------------------------------------------------------------------

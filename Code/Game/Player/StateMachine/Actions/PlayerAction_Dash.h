@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Game/Player/StateMachine/PlayerAction.h"
-#include "System/Time/Timers.h"
-#include "System/Math/Vector.h"
+#include "Base/Time/Timers.h"
+#include "Base/Math/Vector.h"
 
 //-------------------------------------------------------------------------
 

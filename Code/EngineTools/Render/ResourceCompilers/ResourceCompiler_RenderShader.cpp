@@ -1,7 +1,7 @@
 #include "ResourceCompiler_RenderShader.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderShader.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 #include <d3dcompiler.h>
 

@@ -2,7 +2,7 @@
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -97,19 +97,16 @@ namespace EE::Navmesh
 
     //-------------------------------------------------------------------------
 
-    NavmeshDebugView::NavmeshDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Engine/Navmesh", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
-    }
-
     void NavmeshDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pNavmeshWorldSystem = pWorld->GetWorldSystem<NavmeshWorldSystem>();
     }
 
     void NavmeshDebugView::Shutdown()
     {
         m_pNavmeshWorldSystem = nullptr;
+        DebugView::Shutdown();
     }
 
     //-------------------------------------------------------------------------
@@ -118,8 +115,5 @@ namespace EE::Navmesh
     {
         DrawNavmeshRuntimeSettings( m_pNavmeshWorldSystem );
     }
-
-    void NavmeshDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {}
 }
 #endif

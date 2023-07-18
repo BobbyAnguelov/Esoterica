@@ -1,10 +1,10 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "AnimationFrameTime.h"
-#include "System/Math/Transform.h"
-#include "System/Types/Arrays.h"
-#include "System/Types/Color.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Types/Color.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 

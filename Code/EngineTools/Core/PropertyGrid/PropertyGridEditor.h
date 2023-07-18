@@ -2,8 +2,8 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "System/TypeSystem/CoreTypeIDs.h"
-#include "System/Utils/GlobalRegistryBase.h"
+#include "Base/TypeSystem/CoreTypeIDs.h"
+#include "Base/Utils/GlobalRegistryBase.h"
 
 //-------------------------------------------------------------------------
 

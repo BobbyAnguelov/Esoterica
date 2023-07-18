@@ -5,7 +5,7 @@
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityDescriptors.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ namespace EE::Navmesh
             else // Build Settings
             {
                 #if EE_ENABLE_NAVPOWER
-                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, "Generate", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Generate", ImVec2( -1, 0 ) ) )
                 {
                     m_pGenerator = EE::New<NavmeshGenerator>( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(), m_navmeshOutputPath, m_entityCollection, m_buildSettings );
                     m_pGenerator->GenerateAsync( *ctx.GetSystem<TaskSystem>() );

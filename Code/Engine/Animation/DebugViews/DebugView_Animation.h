@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 #include "Engine/Entity/EntityIDs.h"
 
 //-------------------------------------------------------------------------
@@ -17,7 +17,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API AnimationDebugView : public EntityWorldDebugView
+    class EE_ENGINE_API AnimationDebugView : public DebugView
     {
         EE_REFLECT_TYPE( AnimationDebugView );
 
@@ -27,10 +27,10 @@ namespace EE::Animation
                 : m_ID( ID )
             {}
 
-            ComponentID             m_ID;
-            bool                    m_drawControlParameters = false;
-            bool                    m_drawActiveTasks = false;
-            bool                    m_drawSampledEvents = false;
+            ComponentID                         m_ID;
+            bool                                m_drawControlParameters = false;
+            bool                                m_drawActiveTasks = false;
+            bool                                m_drawSampledEvents = false;
         };
 
     public:
@@ -50,21 +50,24 @@ namespace EE::Animation
 
     public:
 
-        AnimationDebugView();
+        AnimationDebugView() : DebugView( "Engine/Animation" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-        void DrawMenu( EntityWorldUpdateContext const& context );
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
+        virtual void Update( EntityWorldUpdateContext const& context ) override;
 
         ComponentDebugState* GetDebugState( ComponentID ID );
         void DestroyDebugState( ComponentID ID );
 
+        void DrawControlParameterWindow( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData );
+        void DrawTasksWindow( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData );
+        void DrawEventsWindow( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData );
+
     private:
 
-        EntityWorld const*                      m_pWorld = nullptr;
         AnimationWorldSystem*                   m_pAnimationWorldSystem = nullptr;
         TVector<ComponentDebugState>            m_componentRuntimeSettings;
     };

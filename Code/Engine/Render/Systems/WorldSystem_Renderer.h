@@ -4,11 +4,11 @@
 #include "Engine/Entity/EntityWorldSystem.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Math/AABBTree.h"
-#include "System/Types/Event.h"
-#include "System/Systems.h"
-#include "System/Types/IDVector.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Math/AABBTree.h"
+#include "Base/Types/Event.h"
+#include "Base/Systems.h"
+#include "Base/Types/IDVector.h"
 
 //-------------------------------------------------------------------------
 

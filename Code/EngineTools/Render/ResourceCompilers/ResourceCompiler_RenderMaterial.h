@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EngineTools/Resource/ResourceCompiler.h"
-#include "System/Render/RenderTexture.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Render/RenderTexture.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

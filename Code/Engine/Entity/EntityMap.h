@@ -2,10 +2,10 @@
 
 #include "Engine/_Module/API.h"
 #include "EntityDescriptors.h"
-#include "System/Types/Event.h"
-#include "System/Threading/Threading.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/Math/Transform.h"
+#include "Base/Types/Event.h"
+#include "Base/Threading/Threading.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/Math/Transform.h"
 
 //-------------------------------------------------------------------------
 // Entity Map

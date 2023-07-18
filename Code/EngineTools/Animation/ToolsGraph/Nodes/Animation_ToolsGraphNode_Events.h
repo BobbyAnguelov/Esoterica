@@ -7,16 +7,43 @@
 
 namespace EE::Animation::GraphNodes
 {
+    enum class EventPriorityRule : uint8_t
+    {
+        EE_REFLECT_ENUM
+
+        HighestWeight, // Prefer events that have a higher weight (if there are multiple events with the same weight the latest sampled will be chosen)
+        HighestPercentageThrough, // Prefer events that have a higher percentage through (if there are multiple events with the same percentage through the latest sampled will be chosen)
+    };
+
+    enum class EventConditionOperator : uint8_t
+    {
+        EE_REFLECT_ENUM
+
+        Or = 0,
+        And,
+    };
+
+    //-------------------------------------------------------------------------
+
     class IDEventConditionToolsNode final : public FlowToolsNode
     {
         EE_REFLECT_TYPE( IDEventConditionToolsNode );
+
+        enum class SearchRule : uint8_t
+        {
+            EE_REFLECT_ENUM
+
+            SearchAll = 0,
+            OnlySearchStateEvents,
+            OnlySearchAnimEvents,
+        };
 
     public:
 
         IDEventConditionToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
-        virtual char const* GetTypeName() const override { return "Generic Event Condition"; }
+        virtual char const* GetTypeName() const override { return "ID Event Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
@@ -30,10 +57,15 @@ namespace EE::Animation::GraphNodes
         EventConditionOperator                          m_operator = EventConditionOperator::Or;
 
         EE_REFLECT();
-        IDEventConditionNode::SearchRule                m_searchRule = IDEventConditionNode::SearchRule::SearchAll;
+        SearchRule                                      m_searchRule = SearchRule::SearchAll;
 
-        EE_REFLECT();
-        bool                                            m_onlyCheckEventsFromActiveBranch = false;
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
 
         EE_REFLECT( "Category" : "Conditions", "CustomEditor" : "AnimGraph_ID");
         TVector<StringID>                               m_eventIDs;
@@ -74,8 +106,13 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT();
         EventConditionOperator                          m_operator = EventConditionOperator::Or;
 
-        EE_REFLECT();
-        bool                                            m_onlyCheckEventsFromActiveBranch = false;
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
 
         EE_REFLECT( "Category" : "Conditions" );
         TVector<Condition>                              m_conditions;
@@ -102,14 +139,19 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT();
-        EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
 
-        EE_REFLECT();
-        bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
 
         EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
-        StringID                                      m_eventID;
+        StringID                                        m_eventID;
     };
 
     //-------------------------------------------------------------------------
@@ -132,10 +174,15 @@ namespace EE::Animation::GraphNodes
     private:
 
         EE_REFLECT();
-        FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+        FootEvent::PhaseCondition                       m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
 
-        EE_REFLECT();
-        bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
     };
 
     //-------------------------------------------------------------------------
@@ -151,20 +198,25 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Footstep Percentage Through"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT();
-        FootEvent::PhaseCondition                     m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
+        FootEvent::PhaseCondition                       m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
 
-        EE_REFLECT();
-        EventPriorityRule                             m_priorityRule = EventPriorityRule::HighestWeight;
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
 
-        EE_REFLECT();
-        bool                                          m_onlyCheckEventsFromActiveBranch = false;
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
     };
 
     //-------------------------------------------------------------------------
@@ -180,7 +232,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Sync Event Index Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
@@ -232,15 +284,20 @@ namespace EE::Animation::GraphNodes
     private:
 
         EE_REFLECT();
-        TransitionMarkerCondition                     m_markerCondition = TransitionMarkerCondition::AnyAllowed;
+        TransitionMarkerCondition                       m_markerCondition = TransitionMarkerCondition::AnyAllowed;
 
         EE_REFLECT();
-        bool                                          m_onlyCheckEventsFromActiveBranch = false;
-
-        EE_REFLECT();
-        bool                                          m_matchOnlySpecificMarkerID = false;
+        bool                                            m_matchOnlySpecificMarkerID = false;
 
         EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
-        StringID                                      m_markerIDToMatch;
+        StringID                                        m_markerIDToMatch;
+
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
     };
 }

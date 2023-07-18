@@ -7,10 +7,10 @@
 #include "EngineTools/Core/TimelineEditor/TimelineTrackContainer.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationClip.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
+#include "Base/Math/MathUtils.h"
 #include <eastl/sort.h>
 
 //-------------------------------------------------------------------------
@@ -174,7 +174,7 @@ namespace EE::Animation
             return false;
         }
 
-        pOutAnimation = RawAssets::ReadAnimation( readerCtx, animationFilePath, *pRawSkeleton, resourceDescriptor.m_animationName );
+        pOutAnimation = RawAssets::ReadAnimation( readerCtx, animationFilePath, *pRawSkeleton, resourceDescriptor.m_animationName, resourceDescriptor.m_rootMotionBoneID );
         if ( pOutAnimation == nullptr )
         {
             Error( "Failed to read animation from source file" );
@@ -296,7 +296,7 @@ namespace EE::Animation
 
         // Regenerate the local transforms taking into account the new root position
         pRawAnimation->RegenerateLocalTransforms();
-        pRawAnimation->Finalize();
+        pRawAnimation->Finalize( resourceDescriptor.m_rootMotionBoneID );
 
         //-------------------------------------------------------------------------
 
@@ -383,7 +383,8 @@ namespace EE::Animation
             animClip.m_rootMotion.m_averageAngularVelocity = totalRotation / animClip.GetDuration();
         }
 
-        // Compress raw data
+        //-------------------------------------------------------------------------
+        // Create track settings
         //-------------------------------------------------------------------------
 
         static constexpr float const defaultQuantizationRangeLength = 0.1f;
@@ -392,26 +393,11 @@ namespace EE::Animation
         {
             TrackCompressionSettings trackSettings;
 
-            // Record offset into data for this track
-            trackSettings.m_trackStartIndex = (uint32_t) animClip.m_compressedPoseData.size();
-
-            //-------------------------------------------------------------------------
-            // Rotation
             //-------------------------------------------------------------------------
 
-            for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
-            {
-                Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
-                Quaternion const rotation = rawBoneTransform.GetRotation();
+            trackSettings.m_isRotationStatic = rawTrackData[boneIdx].m_isRotationConstant;
+            trackSettings.m_constantRotation = trackSettings.m_isRotationStatic ? rawTrackData[boneIdx].m_localTransforms.front().GetRotation() : Quaternion::Identity;
 
-                Quantization::EncodedQuaternion const encodedQuat( rotation );
-                animClip.m_compressedPoseData.push_back( encodedQuat.GetData0() );
-                animClip.m_compressedPoseData.push_back( encodedQuat.GetData1() );
-                animClip.m_compressedPoseData.push_back( encodedQuat.GetData2() );
-            }
-
-            //-------------------------------------------------------------------------
-            // Translation
             //-------------------------------------------------------------------------
 
             auto const& rawTranslationValueRangeX = rawTrackData[boneIdx].m_translationValueRangeX;
@@ -443,40 +429,6 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            if ( trackSettings.IsTranslationTrackStatic() )
-            {
-                Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[0];
-                Vector const& translation = rawBoneTransform.GetTranslation();
-
-                uint16_t const m_x = Quantization::EncodeFloat( translation.GetX(), trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
-                uint16_t const m_y = Quantization::EncodeFloat( translation.GetY(), trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
-                uint16_t const m_z = Quantization::EncodeFloat( translation.GetZ(), trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
-
-                animClip.m_compressedPoseData.push_back( m_x );
-                animClip.m_compressedPoseData.push_back( m_y );
-                animClip.m_compressedPoseData.push_back( m_z );
-            }
-            else // Store frames
-            {
-                for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
-                {
-                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
-                    Vector const& translation = rawBoneTransform.GetTranslation();
-
-                    uint16_t const m_x = Quantization::EncodeFloat( translation.GetX(), trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
-                    uint16_t const m_y = Quantization::EncodeFloat( translation.GetY(), trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
-                    uint16_t const m_z = Quantization::EncodeFloat( translation.GetZ(), trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
-
-                    animClip.m_compressedPoseData.push_back( m_x );
-                    animClip.m_compressedPoseData.push_back( m_y );
-                    animClip.m_compressedPoseData.push_back( m_z );
-                }
-            }
-
-            //-------------------------------------------------------------------------
-            // Scale
-            //-------------------------------------------------------------------------
-
             FloatRange const& rawScaleValueRange = rawTrackData[boneIdx].m_scaleValueRange;
             float const rawScaleValueRangeLengthX = rawScaleValueRange.GetLength();
 
@@ -495,25 +447,60 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            if ( trackSettings.IsScaleTrackStatic() )
+            animClip.m_trackCompressionSettings.emplace_back( trackSettings );
+        }
+
+        //-------------------------------------------------------------------------
+        // Create 'pose wise' compressed data
+        //-------------------------------------------------------------------------
+
+        for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
+        {
+            animClip.m_compressedPoseOffsets.emplace_back( (int32_t) animClip.m_compressedPoseData2.size() );
+
+            // Record all bone rotations
+            for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
-                Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[0];
-                uint16_t const m_x = Quantization::EncodeFloat( rawBoneTransform.GetScale(), trackSettings.m_scaleRange.m_rangeStart, trackSettings.m_scaleRange.m_rangeLength );
-                animClip.m_compressedPoseData.push_back( m_x );
-            }
-            else // Store frames
-            {
-                for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
+                TrackCompressionSettings const& trackSettings = animClip.m_trackCompressionSettings[boneIdx];
+
+                if ( !trackSettings.IsRotationTrackStatic() )
                 {
                     Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
-                    uint16_t const m_x = Quantization::EncodeFloat( rawBoneTransform.GetScale(), trackSettings.m_scaleRange.m_rangeStart, trackSettings.m_scaleRange.m_rangeLength );
-                    animClip.m_compressedPoseData.push_back( m_x );
+                    Quaternion const rotation = rawBoneTransform.GetRotation();
+
+                    Quantization::EncodedQuaternion const encodedQuat( rotation );
+                    animClip.m_compressedPoseData2.push_back( encodedQuat.GetData0() );
+                    animClip.m_compressedPoseData2.push_back( encodedQuat.GetData1() );
+                    animClip.m_compressedPoseData2.push_back( encodedQuat.GetData2() );
                 }
             }
 
-            //-------------------------------------------------------------------------
+            // Record all bone translation and scale
+            for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            {
+                TrackCompressionSettings const& trackSettings = animClip.m_trackCompressionSettings[boneIdx];
 
-            animClip.m_trackCompressionSettings.emplace_back( trackSettings );
+                if ( !trackSettings.IsTranslationTrackStatic() )
+                {
+                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
+                    Vector const& translation = rawBoneTransform.GetTranslation();
+
+                    uint16_t const m_x = Quantization::EncodeFloat( translation.GetX(), trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
+                    uint16_t const m_y = Quantization::EncodeFloat( translation.GetY(), trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
+                    uint16_t const m_z = Quantization::EncodeFloat( translation.GetZ(), trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
+
+                    animClip.m_compressedPoseData2.push_back( m_x );
+                    animClip.m_compressedPoseData2.push_back( m_y );
+                    animClip.m_compressedPoseData2.push_back( m_z );
+                }
+
+                if ( !trackSettings.IsScaleTrackStatic() )
+                {
+                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
+                    uint16_t const m_x = Quantization::EncodeFloat( rawBoneTransform.GetScale(), trackSettings.m_scaleRange.m_rangeStart, trackSettings.m_scaleRange.m_rangeLength );
+                    animClip.m_compressedPoseData2.push_back( m_x );
+                }
+            }
         }
     }
 

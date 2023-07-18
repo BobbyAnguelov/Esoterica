@@ -4,7 +4,7 @@
 #include "Engine/Physics/PhysicsSettings.h"
 #include "Engine/Physics/PhysicsMaterial.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
-#include "System/Types/Event.h"
+#include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 

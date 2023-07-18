@@ -2,8 +2,8 @@
 
 #include "EntitySpatialComponent.h"
 #include "Engine/UpdateStage.h"
-#include "System/Threading/Threading.h"
-#include "System/Types/Event.h"
+#include "Base/Threading/Threading.h"
+#include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 // Entity

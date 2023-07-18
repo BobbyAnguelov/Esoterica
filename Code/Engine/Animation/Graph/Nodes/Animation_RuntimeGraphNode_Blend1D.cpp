@@ -330,14 +330,15 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::RecordGraphState( outState );
 
-        auto FindSourceIndex = [&] ( PoseNode* pNode )
+        auto FindSourceIndex = [&] ( PoseNode* pNode ) -> int32_t
         {
             if ( pNode == nullptr )
             {
                 return InvalidIndex;
             }
 
-            for ( int32_t i = 0; i < (int32_t) m_sourceNodes.size(); i++ )
+            int32_t const numSourceNodes = (int32_t) m_sourceNodes.size();
+            for ( int32_t i = 0; i < numSourceNodes; i++ )
             {
                 if ( m_sourceNodes[i] == pNode )
                 {
@@ -352,12 +353,13 @@ namespace EE::Animation::GraphNodes
         outState.WriteValue( FindSourceIndex( m_bsr.m_pSource1 ) );
         outState.WriteValue( m_bsr.m_blendWeight );
         outState.WriteValue( m_blendedSyncTrack );
-        outState.WriteValue( m_parameterization );
     }
 
     void ParameterizedBlendNode::RestoreGraphState( RecordedGraphState const& inState )
     {
         PoseNode::RestoreGraphState( inState );
+
+        //-------------------------------------------------------------------------
 
         int32_t idx = InvalidIndex;
 
@@ -369,7 +371,6 @@ namespace EE::Animation::GraphNodes
 
         inState.ReadValue( m_bsr.m_blendWeight );
         inState.ReadValue( m_blendedSyncTrack );
-        inState.ReadValue( m_parameterization );
     }
     #endif
 
@@ -396,24 +397,56 @@ namespace EE::Animation::GraphNodes
 
         if ( !m_lazyInitializationPerformed )
         {
-            // Get source node speeds
-            //-------------------------------------------------------------------------
-
-            TInlineVector<float, 5> values;
-            int32_t const numSources = (int32_t) m_sourceNodes.size();
-            for ( int16_t i = 0; i < numSources; i++ )
-            {
-                // The editor tooling guarantees that the source nodes are actually clip references!
-                AnimationClip const* pAnimation = reinterpret_cast<AnimationClipReferenceNode const*>( m_sourceNodes[i] )->GetAnimation();
-                EE_ASSERT( pAnimation != nullptr );
-                values.emplace_back( pAnimation->GetAverageLinearVelocity() );
-            }
-
-            // Create parameterization
-            //-------------------------------------------------------------------------
-
-            m_parameterization = Parameterization::CreateParameterization( values );
+            CreateParameterizationFromSpeeds();
             m_lazyInitializationPerformed = true;
         }
     }
+
+    void VelocityBlendNode::CreateParameterizationFromSpeeds()
+    {
+        // Get source node speeds
+        //-------------------------------------------------------------------------
+
+        TInlineVector<float, 5> values;
+        int32_t const numSources = (int32_t) m_sourceNodes.size();
+        for ( int16_t i = 0; i < numSources; i++ )
+        {
+            // The editor tooling guarantees that the source nodes are actually clip references!
+            AnimationClip const* pAnimation = reinterpret_cast<AnimationClipReferenceNode const*>( m_sourceNodes[i] )->GetAnimation();
+            EE_ASSERT( pAnimation != nullptr );
+            values.emplace_back( pAnimation->GetAverageLinearVelocity() );
+        }
+
+        // Create parameterization
+        //-------------------------------------------------------------------------
+
+        m_parameterization = Parameterization::CreateParameterization( values );
+    }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void VelocityBlendNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        PoseNode::RestoreGraphState( inState );
+
+        //-------------------------------------------------------------------------
+
+        if ( !m_lazyInitializationPerformed )
+        {
+            CreateParameterizationFromSpeeds();
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t idx = InvalidIndex;
+
+        inState.ReadValue( idx );
+        m_bsr.m_pSource0 = ( idx != InvalidIndex ) ? m_sourceNodes[idx] : nullptr;
+
+        inState.ReadValue( idx );
+        m_bsr.m_pSource0 = ( idx != InvalidIndex ) ? m_sourceNodes[idx] : nullptr;
+
+        inState.ReadValue( m_bsr.m_blendWeight );
+        inState.ReadValue( m_blendedSyncTrack );
+    }
+    #endif
 }

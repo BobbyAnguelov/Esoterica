@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@ namespace EE::Navmesh
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API NavmeshDebugView : public EntityWorldDebugView
+    class EE_ENGINE_API NavmeshDebugView : public DebugView
     {
         EE_REFLECT_TYPE( NavmeshDebugView );
 
@@ -22,15 +22,13 @@ namespace EE::Navmesh
 
     public:
 
-        NavmeshDebugView();
+        NavmeshDebugView() : DebugView( "Engine/Navmesh" ) {};
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-
-        void DrawMenu( EntityWorldUpdateContext const& context );
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
 
     private:
 

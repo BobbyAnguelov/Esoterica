@@ -3,7 +3,7 @@
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "System/Profiling.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 

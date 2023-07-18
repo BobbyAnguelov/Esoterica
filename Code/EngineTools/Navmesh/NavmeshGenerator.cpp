@@ -12,9 +12,9 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityDescriptors.h"
-#include "System/Resource/ResourceHeader.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Resource/ResourceHeader.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Serialization/BinarySerialization.h"
 #include <bfxSystem.h>
 
 //-------------------------------------------------------------------------

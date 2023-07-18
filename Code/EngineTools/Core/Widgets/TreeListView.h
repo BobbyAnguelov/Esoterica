@@ -1,13 +1,13 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Types/Function.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Types/StringID.h"
-#include "System/Types/Event.h"
-#include "System/Types/HashMap.h"
-#include "System/Types/BitFlags.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Types/Function.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Types/StringID.h"
+#include "Base/Types/Event.h"
+#include "Base/Types/HashMap.h"
+#include "Base/Types/BitFlags.h"
 
 //-------------------------------------------------------------------------
 
@@ -80,7 +80,7 @@ namespace EE
         }
 
         // The color that the display name should be printed in
-        virtual ImVec4 GetDisplayColor( ItemState state ) const;
+        virtual Color GetDisplayColor( ItemState state ) const;
 
         // Is this a header item (i.e. should be framed)
         virtual bool IsHeader() const { return false; }
@@ -143,7 +143,7 @@ namespace EE
         T* CreateChild( ConstructorParams&&... params )
         {
             static_assert( std::is_base_of<TreeListViewItem, T>::value, "T must derive from TreeViewItem" );
-            TreeListViewItem* pAddedItem = m_children.emplace_back( EE::New<T>( this, std::forward<ConstructorParams>( params )... ) );
+            TreeListViewItem* pAddedItem = m_children.emplace_back( EE::New<T>( this, eastl::forward<ConstructorParams>( params )... ) );
             EE_ASSERT( pAddedItem->GetUniqueID() != 0 );
             return static_cast<T*>( pAddedItem );
         }

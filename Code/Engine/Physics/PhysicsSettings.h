@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 // Simulation Settings

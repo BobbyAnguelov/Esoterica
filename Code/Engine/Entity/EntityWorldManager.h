@@ -2,8 +2,8 @@
 
 #include "Engine/_Module/API.h"
 #include "EntityWorldType.h"
-#include "System/Resource/ResourceRequesterID.h"
-#include "System/Systems.h"
+#include "Base/Resource/ResourceRequesterID.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 
@@ -80,9 +80,5 @@ namespace EE
         SystemRegistry const*                               m_pSystemsRegistry = nullptr;
         TInlineVector<EntityWorld*, 5>                      m_worlds;
         TVector<TypeSystem::TypeInfo const*>                m_worldSystemTypeInfos;
-
-        #if EE_DEVELOPMENT_TOOLS
-        TVector<TypeSystem::TypeInfo const*>                m_debugViewTypeInfos;
-        #endif
     };
 }

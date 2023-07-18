@@ -1,6 +1,6 @@
 #include "Animation_ToolsGraph_UserContext.h"
 #include "Nodes/Animation_ToolsGraphNode.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 

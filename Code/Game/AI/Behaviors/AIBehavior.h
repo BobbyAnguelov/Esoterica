@@ -1,5 +1,5 @@
 #pragma once
-#include "System/Encoding/Hash.h"
+#include "Base/Encoding/Hash.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 
 #if EE_DEVELOPMENT_TOOLS

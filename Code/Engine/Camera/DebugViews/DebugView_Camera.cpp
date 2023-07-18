@@ -1,5 +1,5 @@
 #include "DebugView_Camera.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Camera/Components/Component_OrbitCamera.h"
@@ -7,7 +7,7 @@
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -48,43 +48,24 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    CameraDebugView::CameraDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Engine/Camera", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
-    }
-
     void CameraDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
-        EntityWorldDebugView::Initialize( systemRegistry, pWorld );
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pCameraManager = pWorld->GetWorldSystem<CameraManager>();
+        m_windows.emplace_back( "Camera Debug", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawCameraWindow( context ); } );
     }
 
     void CameraDebugView::Shutdown()
     {
         m_pCameraManager = nullptr;
-        EntityWorldDebugView::Shutdown();
-    }
-
-    void CameraDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        EE_ASSERT( m_pWorld != nullptr );
-
-        if ( m_isCameraDebugWindowOpen )
-        {
-            if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-            if ( ImGui::Begin( "Camera Debug", &m_isCameraDebugWindowOpen ) )
-            {
-                DrawCameraWindow( context );
-            }
-            ImGui::End();
-        }
+        DebugView::Shutdown();
     }
 
     void CameraDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
         if ( ImGui::MenuItem( "Camera" ) )
         {
-            m_isCameraDebugWindowOpen = true;
+            m_windows[0].m_isOpen = true;
         }
     }
    

@@ -2,12 +2,12 @@
 #include "ReflectorSettingsAndUtils.h"
 #include "Clang/ClangParser.h"
 #include "CodeGenerators/CodeGenerator_CPP.h"
-#include "System/Application/ApplicationGlobalState.h"
-#include "System/ThirdParty/cmdParser/cmdParser.h"
+#include "Base/Application/ApplicationGlobalState.h"
+#include "Base/ThirdParty/cmdParser/cmdParser.h"
 
-#include "System/FileSystem/FileSystemUtils.h"
-#include "System/Time/Timers.h"
-#include "System/Utils/TopologicalSort.h"
+#include "Base/FileSystem/FileSystemUtils.h"
+#include "Base/Time/Timers.h"
+#include "Base/Utils/TopologicalSort.h"
 
 #include <eastl/sort.h>
 #include <fstream>

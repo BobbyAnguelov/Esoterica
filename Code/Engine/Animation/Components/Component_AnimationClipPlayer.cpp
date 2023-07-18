@@ -3,7 +3,7 @@
 #include "Engine/Animation/AnimationBlender.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityLog.h"
-#include "System/Profiling.h"
+#include "Base/Profiling.h"
 
 
 //-------------------------------------------------------------------------
@@ -133,7 +133,7 @@ namespace EE::Animation
             if ( m_pPose->IsAdditivePose() )
             {
                 Pose const refPose( m_pPose->GetSkeleton(), Pose::Type::ReferencePose );
-                Blender::BlendAdditive( &refPose, m_pPose, 1.0f, nullptr, m_pPose );
+                Blender::AdditiveBlend( &refPose, m_pPose, 1.0f, nullptr, m_pPose );
             }
 
             m_pPose->CalculateGlobalTransforms();

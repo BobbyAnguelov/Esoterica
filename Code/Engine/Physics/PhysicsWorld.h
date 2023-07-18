@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/Physics/PhysicsQuery.h"
-#include "System/Time/Time.h"
-#include "System/Math/Transform.h"
+#include "Base/Time/Time.h"
+#include "Base/Math/Transform.h"
 #include <atomic>
 
 //-------------------------------------------------------------------------

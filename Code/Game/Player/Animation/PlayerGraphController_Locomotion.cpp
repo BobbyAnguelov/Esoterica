@@ -119,6 +119,7 @@ namespace EE::Player
     void LocomotionGraphController::PostGraphUpdate( Seconds deltaTime )
     {
         m_graphState = States::Unknown;
+        m_isAllowedToTransition = false;
 
         //-------------------------------------------------------------------------
 
@@ -160,6 +161,13 @@ namespace EE::Player
                     {
                         m_graphState = States::Stop;
                     }
+                }
+            }
+            else // Check for transition allowed
+            {
+                if ( auto pTransitionEvent = sampledEvent.TryGetEvent<Animation::TransitionEvent>() )
+                {
+                    m_isAllowedToTransition = pTransitionEvent->IsTransitioningAllowed();
                 }
             }
         }

@@ -2,7 +2,7 @@
 
 #include "Game/_Module/API.h"
 #include "Engine/Player/Components/Component_Player.h"
-#include "System/Math/FloatCurve.h"
+#include "Base/Math/FloatCurve.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,28 +11,25 @@ namespace EE::AI
 
     //-------------------------------------------------------------------------
 
-    class AIDebugView : public EntityWorldDebugView
+    class AIDebugView : public DebugView
     {
         EE_REFLECT_TYPE( AIDebugView );
 
     public:
 
-        AIDebugView();
+        AIDebugView() : DebugView( "Game/AI" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
 
-        void DrawMenu( EntityWorldUpdateContext const& context );
         void DrawOverviewWindow( EntityWorldUpdateContext const& context );
 
     private:
 
-        EntityWorld const*              m_pWorld = nullptr;
         AIManager*                      m_pAIManager = nullptr;
-        bool                            m_isOverviewWindowOpen = false;
     };
 }
 #endif

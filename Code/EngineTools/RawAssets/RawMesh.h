@@ -1,10 +1,10 @@
 #pragma once
 
 #include "RawSkeleton.h"
-#include "System/Types/Arrays.h"
-#include "System/Math/Matrix.h"
-#include "System/Types/String.h"
-#include "System/Types/StringID.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Math/Matrix.h"
+#include "Base/Types/String.h"
+#include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 

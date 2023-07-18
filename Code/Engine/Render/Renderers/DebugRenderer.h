@@ -2,8 +2,8 @@
 
 #include "DebugRenderStates.h"
 #include "Engine/Render/IRenderer.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

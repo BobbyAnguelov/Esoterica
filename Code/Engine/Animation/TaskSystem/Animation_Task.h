@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Animation_TaskPosePool.h"
-#include "System/Types/Color.h"
-#include "System/Utils/GlobalRegistryBase.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Types/Function.h"
+#include "Base/Types/Color.h"
+#include "Base/Utils/GlobalRegistryBase.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
@@ -95,6 +95,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const { return String(); }
         virtual Color GetDebugColor() const { return Colors::White; }
+        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const;
         #endif
 
     protected:

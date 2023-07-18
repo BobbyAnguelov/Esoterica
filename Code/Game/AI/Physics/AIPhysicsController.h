@@ -1,6 +1,6 @@
 #pragma once
-#include "System/Math/Quaternion.h"
-#include "System/Time/Time.h"
+#include "Base/Math/Quaternion.h"
+#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System/Memory/Memory.h"
+#include "Base/Memory/Memory.h"
 
 //-------------------------------------------------------------------------
 // Update Stages
@@ -72,7 +72,7 @@ namespace EE
         UpdatePriorityList( Args&&... args )
         {
             Reset();
-            ( ( *this << std::forward<Args>( args ) ), ... );
+            ( ( *this << eastl::forward<Args>( args ) ), ... );
         }
 
         inline void Reset()

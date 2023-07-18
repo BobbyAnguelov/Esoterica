@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "System/Render/RenderTexture.h"
+#include "Base/Render/RenderTexture.h"
 
 //-------------------------------------------------------------------------
 

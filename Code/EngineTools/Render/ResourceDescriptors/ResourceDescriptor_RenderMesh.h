@@ -5,7 +5,7 @@
 #include "Engine/Render/Material/RenderMaterial.h"
 #include "Engine/Render/Mesh/StaticMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

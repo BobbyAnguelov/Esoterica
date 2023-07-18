@@ -99,8 +99,8 @@ namespace EE::Animation
     private:
 
         Skeleton const*                             m_pSkeleton = nullptr;
-        TVector<PoseBuffer>                         m_poseBuffers;
-        TVector<CachedPoseBuffer>                   m_cachedBuffers;
+        TInlineVector<PoseBuffer, 10>               m_poseBuffers;
+        TInlineVector<CachedPoseBuffer, 10>         m_cachedBuffers;
         TInlineVector<UUID, 5>                      m_cachedPoseBuffersToDestroy;
         int8_t                                      m_firstFreeCachedBuffer = 0;
         int8_t                                      m_firstFreeBuffer = 0;

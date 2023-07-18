@@ -60,9 +60,9 @@ namespace EE::Render
         }
     }
 
-    void StaticMeshWorkspace::Update( UpdateContext const& context, bool isFocused )
+    void StaticMeshWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        TWorkspace::Update( context, isFocused );
+        TWorkspace::Update( context, isVisible, isFocused );
 
         //-------------------------------------------------------------------------
 

@@ -2,8 +2,8 @@
 
 #include "PhysicsSettings.h"
 #include "PhysicsMaterial.h"
-#include "System/Resource/IResource.h"
-#include "System/Math/BoundingVolumes.h"
+#include "Base/Resource/IResource.h"
+#include "Base/Math/BoundingVolumes.h"
 
 //-------------------------------------------------------------------------
 

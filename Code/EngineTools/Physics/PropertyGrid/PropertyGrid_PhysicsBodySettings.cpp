@@ -1,9 +1,9 @@
 #include "Engine/Physics/PhysicsSettings.h"
 #include "EngineTools/Core/PropertyGrid/PropertyGridEditor.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/TypeSystem/EnumInfo.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/TypeSystem/EnumInfo.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 

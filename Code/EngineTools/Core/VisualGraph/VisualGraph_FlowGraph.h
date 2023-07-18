@@ -1,8 +1,8 @@
 #pragma once
 
 #include "VisualGraph_BaseGraph.h"
-#include "System/Types/String.h"
-#include "System/Types/UUID.h"
+#include "Base/Types/String.h"
+#include "Base/Types/UUID.h"
 
 //-------------------------------------------------------------------------
 // Flow Graph
@@ -183,7 +183,7 @@ namespace EE::VisualGraph
             //-------------------------------------------------------------------------
 
             // What color should this pin and the connection for it be?
-            virtual ImColor GetPinColor( Pin const& pin ) const { return 0xFF888888; }
+            virtual Color GetPinColor( Pin const& pin ) const { return 0x888888FF; }
 
         protected:
 

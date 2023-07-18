@@ -1,5 +1,5 @@
 #include "ResourceLoader_EntityCollection.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

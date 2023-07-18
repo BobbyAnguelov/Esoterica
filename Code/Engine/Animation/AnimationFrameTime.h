@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Types/Percentage.h"
-#include "System/Time/Time.h"
+#include "Base/Types/Percentage.h"
+#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 

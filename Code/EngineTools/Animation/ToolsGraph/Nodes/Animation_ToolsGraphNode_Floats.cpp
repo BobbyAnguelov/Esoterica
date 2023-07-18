@@ -100,7 +100,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            ImGui::TextColored( ImColor( 0xFF0000FF ), "Invalid" );
+            ImGui::TextColored( Colors::Red.ToFloat4(), "Invalid" );
         }
     }
 
@@ -156,6 +156,14 @@ namespace EE::Animation::GraphNodes
         NodeCompilationState const state = context.GetSettings<FloatEaseNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
+            if ( m_easingType == Math::Easing::Type::None )
+            {
+                context.LogError( this, "No easing type selected!" );
+                return InvalidIndex;
+            }
+
+            //-------------------------------------------------------------------------
+
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
             {
@@ -642,6 +650,8 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         pSettings->m_defaultValue = m_defaultValue;
+        pSettings->m_easeTime = m_easeTime;
+        pSettings->m_easingType = m_easingType;
 
         return pSettings->m_nodeIdx;
     }

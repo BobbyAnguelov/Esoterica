@@ -2,9 +2,9 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/ThirdParty/cgltf/cgltf.h"
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/Math/Transform.h"
-#include "System/Memory/Pointers.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/Math/Transform.h"
+#include "Base/Memory/Pointers.h"
 
 //-------------------------------------------------------------------------
 

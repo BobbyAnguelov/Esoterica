@@ -1,8 +1,8 @@
 #include "ResourceDatabase.h"
 #include "ResourceDescriptor.h"
-#include "System/FileSystem/FileSystemUtils.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Types/Function.h"
+#include "Base/FileSystem/FileSystemUtils.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 

@@ -2,11 +2,11 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Render/Material/RenderMaterial.h"
-#include "System/Render/RenderBuffer.h"
-#include "System/Render/RenderStates.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/Math/BoundingVolumes.h"
-#include "System/Types/StringID.h"
+#include "Base/Render/RenderBuffer.h"
+#include "Base/Render/RenderStates.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/Math/BoundingVolumes.h"
+#include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 

@@ -9,7 +9,7 @@
 #include "Components/Component_PhysicsCollisionMesh.h"
 #include "Components/Component_PhysicsCharacter.h"
 #include "Engine/Entity/EntityLog.h"
-#include "System/Profiling.h"
+#include "Base/Profiling.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------

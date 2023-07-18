@@ -4,7 +4,7 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
 #include "EngineTools/Core/CategoryTree.h"
 #include "EASTL/sort.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 

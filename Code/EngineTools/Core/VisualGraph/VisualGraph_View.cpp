@@ -15,13 +15,12 @@ namespace EE::VisualGraph
     constexpr static float const        g_pinSelectionExtraRadius = 10.0f;
     constexpr static float const        g_spacingBetweenInputOutputPins = 16.0f;
 
-    static ImColor const                g_gridBackgroundColor( 40, 40, 40, 200 );
-    static ImColor const                g_gridLineColor( 200, 200, 200, 40 );
-    constexpr static uint32_t const     g_graphTitleColor = IM_COL32( 255, 255, 255, 255 );
-    constexpr static uint32_t const     g_graphTitleReadOnlyColor = IM_COL32( 196, 196, 196, 255 );
-
-    static ImColor const                g_selectionBoxOutlineColor( 61, 224, 133, 150 );
-    static ImColor const                g_selectionBoxFillColor( 61, 224, 133, 30 );
+    static Color const                  g_gridBackgroundColor( 40, 40, 40, 200 );
+    static Color const                  g_gridLineColor( 200, 200, 200, 40 );
+    static Color const                  g_graphTitleColor( 255, 255, 255, 255 );
+    static Color const                  g_graphTitleReadOnlyColor( 196, 196, 196, 255 );
+    static Color const                  g_selectionBoxOutlineColor( 61, 224, 133, 150 );
+    static Color const                  g_selectionBoxFillColor( 61, 224, 133, 30 );
 
     //-------------------------------------------------------------------------
 
@@ -171,7 +170,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, g_gridBackgroundColor.Value );
+        ImGui::PushStyleColor( ImGuiCol_ChildBg, g_gridBackgroundColor );
         bool const childVisible = ImGui::BeginChild( "GraphCanvas", ImVec2( 0.f, childHeightOverride ), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse );
         if ( childVisible )
         {
@@ -218,7 +217,7 @@ namespace EE::VisualGraph
                 static constexpr float const rectThickness = 8.0f;
                 static constexpr float const rectMargin = 2.0f;
                 static ImVec2 const offset( ( rectThickness / 2.f ) + rectMargin, ( rectThickness / 2.f ) + rectMargin );
-                ctx.m_pDrawList->AddRect( ctx.m_windowRect.Min + offset, ctx.m_windowRect.Max - offset, ImGuiX::Style::s_colorGray0, 8.0f, 0, rectThickness );
+                ctx.m_pDrawList->AddRect( ctx.m_windowRect.Min + offset, ctx.m_windowRect.Max - offset, Colors::LightCoral, 8.0f, 0, rectThickness );
             }
 
             // Title Block
@@ -304,20 +303,20 @@ namespace EE::VisualGraph
         // Colors
         //-------------------------------------------------------------------------
 
-        ImColor nodeTitleColor( pNode->GetTitleBarColor() );
+        Color nodeTitleColor( pNode->GetTitleBarColor() );
         if ( pNode->m_ID == pStateMachineGraph->m_entryStateID )
         {
-            nodeTitleColor = ImGuiX::ImColors::Green;
+            nodeTitleColor = Colors::Green;
         }
 
-        ImColor nodeBackgroundColor( BaseNode::s_defaultBackgroundColor );
+        Color nodeBackgroundColor( BaseNode::s_defaultBackgroundColor );
         if ( visualState == NodeVisualState::Selected )
         {
-            nodeBackgroundColor = ImGuiX::ToIm( ImGuiX::FromIm( nodeBackgroundColor ).GetScaledColor( 1.5f ) );
+            nodeBackgroundColor = nodeBackgroundColor.GetScaledColor( 1.5f );
         }
         else if ( visualState == NodeVisualState::Hovered )
         {
-            nodeBackgroundColor = ImGuiX::ToIm( ImGuiX::FromIm( nodeBackgroundColor ).GetScaledColor( 1.15f ) );
+            nodeBackgroundColor = nodeBackgroundColor.GetScaledColor( 1.15f );
         }
 
         // Draw
@@ -452,17 +451,24 @@ namespace EE::VisualGraph
 
         float const transitionProgress = pTransition->m_transitionProgress.GetNormalizedTime().ToFloat();
         bool const hasTransitionProgress = transitionProgress > 0.0f;
-        ImColor const transitionColor = pTransition->GetColor( ctx, m_pUserContext, visualState );
+        Color const transitionColor = pTransition->GetColor( ctx, m_pUserContext, visualState );
 
         if ( hasTransitionProgress )
         {
-            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), ImGuiX::ImColors::DimGray, g_transitionArrowWidth );
+            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), Colors::DimGray, g_transitionArrowWidth );
             ImVec2 const progressEndPoint = Math::Lerp( startPoint, endPoint, transitionProgress );
             ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( progressEndPoint ), transitionColor, g_transitionArrowWidth );
         }
         else
         {
-            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), transitionColor, g_transitionArrowWidth );
+            if ( visualState == NodeVisualState::Selected )
+            {
+                ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), transitionColor, g_transitionArrowWidth * 1.5f, 7.5f );
+            }
+            else
+            {
+                ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( startPoint ), ctx.CanvasPositionToScreenPosition( endPoint ), transitionColor, g_transitionArrowWidth );
+            }
         }
 
         // Update transition position and size
@@ -481,7 +487,7 @@ namespace EE::VisualGraph
         EE_ASSERT( pNode != nullptr );
 
         ImGui::BeginGroup();
-        ImGuiX::ScopedFont fontOverride( ImGuiX::Font::Medium, ImColor( BaseNode::s_defaultTitleColor ) );
+        ImGuiX::ScopedFont fontOverride( ImGuiX::Font::Medium, Color( BaseNode::s_defaultTitleColor ) );
         if ( pNode->GetIcon() != nullptr )
         {
             ImGui::Text( pNode->GetIcon() );
@@ -535,13 +541,13 @@ namespace EE::VisualGraph
 
                 // Check hover state
                 ImRect const rect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
-                ImColor pinColor = pNode->GetPinColor( pNode->m_inputPins[i] );
+                Color pinColor = pNode->GetPinColor( pNode->m_inputPins[i] );
                 pNode->m_inputPins[i].m_screenPosition = rect.Min + ImVec2( -nodeMargin.x, rect.GetHeight() / 2 );
                 bool const isPinHovered = Vector( pNode->m_inputPins[i].m_screenPosition ).GetDistance2( ImGui::GetMousePos() ) < ( g_pinRadius + g_pinSelectionExtraRadius );
                 if ( isPinHovered )
                 {
                     pNode->m_pHoveredPin = &pNode->m_inputPins[i];
-                    pinColor = ImGuiX::AdjustColorBrightness( pinColor, 1.55f );
+                    pinColor.ScaleColor( 1.55f );
                 }
 
                 // Draw pin
@@ -584,13 +590,13 @@ namespace EE::VisualGraph
 
                 // Check hover state
                 ImRect const rect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
-                ImColor pinColor = pNode->GetPinColor( pNode->m_outputPins[i] );
+                Color pinColor = pNode->GetPinColor( pNode->m_outputPins[i] );
                 pNode->m_outputPins[i].m_screenPosition = rect.Max + ImVec2( nodeMargin.x, -rect.GetHeight() / 2 );
                 bool const isPinHovered = Vector( pNode->m_outputPins[i].m_screenPosition ).GetDistance2( ImGui::GetMousePos() ) < ( g_pinRadius + g_pinSelectionExtraRadius );
                 if ( isPinHovered )
                 {
                     pNode->m_pHoveredPin = &pNode->m_outputPins[i];
-                    pinColor = ImGuiX::AdjustColorBrightness( pinColor, 1.25f );
+                    pinColor.ScaleColor( 1.25f );
                 }
 
                 ctx.m_pDrawList->AddCircleFilled( pNode->m_outputPins[i].m_screenPosition, g_pinRadius, pinColor );
@@ -649,14 +655,14 @@ namespace EE::VisualGraph
             visualState = NodeVisualState::Hovered;
         }
 
-        ImColor nodeBackgroundColor = BaseNode::s_defaultBackgroundColor;
+        Color nodeBackgroundColor = BaseNode::s_defaultBackgroundColor;
         if ( visualState == NodeVisualState::Selected )
         {
-            nodeBackgroundColor = ImGuiX::ToIm( ImGuiX::FromIm( nodeBackgroundColor ).GetScaledColor( 1.5f ) );
+            nodeBackgroundColor = nodeBackgroundColor.GetScaledColor( 1.5f );
         }
         else if ( visualState == NodeVisualState::Hovered )
         {
-            nodeBackgroundColor = ImGuiX::ToIm( ImGuiX::FromIm( nodeBackgroundColor ).GetScaledColor( 1.15f ) );
+            nodeBackgroundColor = nodeBackgroundColor.GetScaledColor( 1.15f );
         }
 
         ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, nodeBackgroundColor, 3, ImDrawFlags_RoundCornersAll );
@@ -838,7 +844,7 @@ namespace EE::VisualGraph
                         auto pStartPin = connection.m_pStartNode->GetOutputPin( connection.m_startPinID );
                         auto pEndPin = connection.m_pEndNode->GetInputPin( connection.m_endPinID );
 
-                        ImColor connectionColor = connection.m_pStartNode->GetPinColor( *pStartPin );
+                        Color connectionColor = connection.m_pStartNode->GetPinColor( *pStartPin );
 
                         bool const invertOrder = pStartPin->m_screenPosition.m_x > pEndPin->m_screenPosition.m_x;
                         ImVec2 const& p1 = invertOrder ? pEndPin->m_screenPosition : pStartPin->m_screenPosition;
@@ -849,7 +855,7 @@ namespace EE::VisualGraph
                         if ( m_hasFocus && IsHoveredOverCurve( p1, p2, p3, p4, drawingContext.m_mouseScreenPos, g_connectionSelectionExtraRadius ) )
                         {
                             m_hoveredConnectionID = connection.m_ID;
-                            connectionColor = ImColor( BaseNode::s_connectionColorHovered );
+                            connectionColor = Color( BaseNode::s_connectionColorHovered );
                         }
 
                         drawingContext.m_pDrawList->AddBezierCubic( p1, p2, p3, p4, connectionColor, 3.0f );
@@ -1492,14 +1498,14 @@ namespace EE::VisualGraph
             auto pEndState = TryCast<SM::State>( m_pHoveredNode );
 
             bool const isValidConnection = pEndState != nullptr && pStateMachineGraph->CanCreateTransitionConduit( Cast<SM::State>( m_dragState.m_pNode ), pEndState );
-            ImColor const connectionColor = isValidConnection ? BaseNode::s_connectionColorValid : BaseNode::s_connectionColorInvalid;
+            Color const connectionColor = isValidConnection ? BaseNode::s_connectionColorValid : BaseNode::s_connectionColorInvalid;
             ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasPositionToScreenPosition( m_dragState.m_pNode->GetCanvasRect().GetCenter() ), ctx.m_mouseScreenPos, connectionColor, g_transitionArrowWidth );
         }
         else
         {
             auto pFlowGraph = GetFlowGraph();
             auto pDraggedFlowNode = m_dragState.GetAsFlowNode();
-            ImColor connectionColor = pDraggedFlowNode->GetPinColor( *m_dragState.m_pPin );
+            Color connectionColor = pDraggedFlowNode->GetPinColor( *m_dragState.m_pPin );
 
             if ( m_pHoveredPin != nullptr )
             {

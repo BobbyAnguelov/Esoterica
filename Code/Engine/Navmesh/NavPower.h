@@ -1,8 +1,8 @@
 #pragma once
 #if EE_ENABLE_NAVPOWER
-#include "System/Math/Transform.h"
-#include "System/Types/Color.h"
-#include "System/Memory/Memory.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/Color.h"
+#include "Base/Memory/Memory.h"
 
 #include <bfxSystemSpace.h>
 #include <bfxPlannerSpace.h>

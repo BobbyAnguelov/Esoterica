@@ -1,11 +1,11 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Math/Transform.h"
-#include "System/Types/String.h"
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/Types/StringID.h"
-#include "System/Memory/Pointers.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/String.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/Types/StringID.h"
+#include "Base/Memory/Pointers.h"
 #include <fbxsdk.h>
 
 //-------------------------------------------------------------------------

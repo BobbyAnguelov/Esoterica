@@ -181,7 +181,7 @@
     <ResourceCompile Include="Resources\Esoterica.Applications.Reflector.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\System\Esoterica.System.vcxproj">
+    <ProjectReference Include="..\..\Base\Esoterica.Base.vcxproj">
       <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
     </ProjectReference>
   </ItemGroup>

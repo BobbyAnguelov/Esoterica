@@ -3,7 +3,7 @@
 #include "Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -53,25 +53,25 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    ImColor StateToolsNode::GetTitleBarColor() const
+    Color StateToolsNode::GetTitleBarColor() const
     {
         switch ( m_type )
         {
             case StateType::OffState:
             {
-                return ImGuiX::ImColors::DarkRed;
+                return Colors::DarkRed;
             }
             break;
 
             case StateType::BlendTreeState:
             {
-                return ImGuiX::ImColors::DarkSlateBlue;
+                return Colors::DarkSlateBlue;
             }
             break;
 
             case StateType::StateMachineState:
             {
-                return ImGuiX::ImColors::DarkCyan;
+                return Colors::DarkCyan;
             }
             break;
         }
@@ -354,10 +354,10 @@ namespace EE::Animation::GraphNodes
                 ImVec2 const endRect( startRect.x + bubbleWidth, startRect.y + bubbleHeight );
                 ImVec2 const canvasStartRect = ctx.CanvasPositionToScreenPosition( startRect );
 
-                ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), ImGuiX::ImColors::MediumRed, 3 );
+                ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), Colors::MediumRed, 3 );
 
                 auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-                ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), ImGuiX::ImColors::White, idxStr.c_str() );
+                ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), Colors::White, idxStr.c_str() );
             }
         }
 

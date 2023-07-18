@@ -1,6 +1,6 @@
 #include "ResourceLoader_PhysicsMaterialDatabase.h"
 #include "Engine/Physics/PhysicsMaterial.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

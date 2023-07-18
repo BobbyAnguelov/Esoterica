@@ -1,11 +1,11 @@
 #pragma once
 #include "Engine/_Module/API.h"
-#include "System/Math/Transform.h"
-#include "System/Math/Plane.h"
-#include "System/Math/BoundingVolumes.h"
-#include "System/Types/Color.h"
-#include "System/Time/Time.h"
-#include "System/Memory/Memory.h"
+#include "Base/Math/Transform.h"
+#include "Base/Math/Plane.h"
+#include "Base/Math/BoundingVolumes.h"
+#include "Base/Types/Color.h"
+#include "Base/Time/Time.h"
+#include "Base/Memory/Memory.h"
 
 //-------------------------------------------------------------------------
 // WARNING!
@@ -272,7 +272,7 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class EE_SYSTEM_API [[nodiscard]] ScopedWriteLock
+    class EE_BASE_API [[nodiscard]] ScopedWriteLock
     {
     public:
 
@@ -286,7 +286,7 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class EE_SYSTEM_API [[nodiscard]] ScopedReadLock
+    class EE_BASE_API [[nodiscard]] ScopedReadLock
     {
     public:
 

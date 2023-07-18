@@ -3,9 +3,9 @@
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Math/Curves.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Math/Curves.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

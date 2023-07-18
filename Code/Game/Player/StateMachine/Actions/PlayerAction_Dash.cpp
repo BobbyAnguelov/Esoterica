@@ -4,8 +4,8 @@
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Game/Player/Animation/PlayerGraphController_Ability.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
-#include "System/Input/InputSystem.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Input/InputSystem.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 // hack for now
 #include "Game/Player/Animation/PlayerGraphController_Locomotion.h"

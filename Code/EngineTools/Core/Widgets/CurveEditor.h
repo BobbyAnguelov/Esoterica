@@ -1,10 +1,10 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Math/FloatCurve.h"
-#include "System/Time/Timers.h"
-#include "System/Types/UUID.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Math/FloatCurve.h"
+#include "Base/Time/Timers.h"
+#include "Base/Types/UUID.h"
 
 //-------------------------------------------------------------------------
 // Curve Editor
@@ -35,11 +35,11 @@ namespace EE
         constexpr static char const* const s_pointContextMenuName = "PointCtxMenu";
         constexpr static char const* const s_gridContextMenuName = "GridCtxMenu";
 
-        static ImColor const s_curveColor;
-        static ImColor const s_curvePointHandleColor;
-        static ImColor const s_curveSelectedPointHandleColor;
-        static ImColor const s_curveInTangentHandleColor;
-        static ImColor const s_curveOutTangentHandleColor;
+        static Color const s_curveColor;
+        static Color const s_curvePointHandleColor;
+        static Color const s_curveSelectedPointHandleColor;
+        static Color const s_curveInTangentHandleColor;
+        static Color const s_curveOutTangentHandleColor;
 
     public:
 

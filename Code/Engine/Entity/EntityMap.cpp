@@ -4,9 +4,9 @@
 #include "EntitySerialization.h"
 #include "EntityWorldSystem.h"
 #include "Entity.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Profiling.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 

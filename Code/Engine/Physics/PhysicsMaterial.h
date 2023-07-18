@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Resource/IResource.h"
-#include "System/Systems.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Resource/IResource.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 

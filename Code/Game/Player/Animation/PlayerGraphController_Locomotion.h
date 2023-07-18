@@ -42,6 +42,7 @@ namespace EE::Player
         void SetSliding( bool isSliding );
 
         // State check
+        inline bool IsTransitionAllowed() const { return m_isAllowedToTransition; }
         inline bool IsIdle() const { return m_graphState == States::Idle; }
         inline bool IsTurningOnSpot() const { return m_graphState == States::TurnOnSpot; }
         inline bool IsStarting() const { return m_graphState == States::Start; }
@@ -63,5 +64,6 @@ namespace EE::Player
         ControlParameter<Vector>                            m_facingParam = ControlParameter<Vector>( "Locomotion_Facing" );
 
         States                                              m_graphState = States::Unknown;
+        bool                                                m_isAllowedToTransition = false;
     };
 }

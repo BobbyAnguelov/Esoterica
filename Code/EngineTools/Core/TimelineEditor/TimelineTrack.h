@@ -1,11 +1,11 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Serialization/JsonSerialization.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Types/Arrays.h"
-#include "System/Math/NumericRange.h"
-#include "System/Types/Color.h"
+#include "Base/Serialization/JsonSerialization.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Math/NumericRange.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
@@ -184,7 +184,7 @@ namespace EE::Timeline
         virtual InlineString GetItemLabel( TrackItem const* pItem ) const { return ""; }
 
         // Get the color for a given item
-        virtual Color GetItemColor( TrackItem const* pItem ) const { return Color( 0xAAAAAAFF ); }
+        virtual Color GetItemColor( TrackItem const* pItem ) const { return Color( 0xFFAAAAAA ); }
 
         // Does this item have any custom context menu options
         virtual bool HasItemContextMenu( TrackItem const* pItem ) const { return false; }
@@ -205,7 +205,7 @@ namespace EE::Timeline
 
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) {}
 
-        static uint32_t GetItemBackgroundColor( ItemState itemState, bool isHovered );
+        static Color GetItemBackgroundColor( ItemState itemState, bool isHovered );
 
         void ResetStatusMessage() const { m_statusMessage = "Track is Valid"; }
 

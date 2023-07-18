@@ -3,16 +3,16 @@
 #include "ToolsContext.h"
 #include "PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Imgui/ImguiGizmo.h"
-#include "System/Render/RenderTarget.h"
-#include "System/Resource/ResourceRequesterID.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/Utils/GlobalRegistryBase.h"
-#include "System/Serialization/JsonSerialization.h"
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Types/Function.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiGizmo.h"
+#include "Base/Render/RenderTarget.h"
+#include "Base/Resource/ResourceRequesterID.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/Utils/GlobalRegistryBase.h"
+#include "Base/Serialization/JsonSerialization.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
@@ -31,7 +31,8 @@ namespace EE
 //-------------------------------------------------------------------------
 // Editor Workspace
 //-------------------------------------------------------------------------
-// This is a base class to create a workspace within the editor
+// A workspace is a set of tools used to create/edit an engine resource
+// Assumes you will have some file that you read/write to and an entity world for preview.
 // Provides a lot of utility functions for loading resource/creating entities that must be used!
 
 namespace EE
@@ -103,11 +104,8 @@ namespace EE
         // Workspace
         //-------------------------------------------------------------------------
 
-        // Get the unique typename for this workspace
-        virtual char const* GetWorkspaceUniqueTypeName() const = 0;
-
         // Get the display name for this workspace (shown on tab, dialogs, etc...)
-        virtual char const* GetDisplayName() const { return m_windowName.c_str(); }
+        inline char const* GetDisplayName() const { return m_windowName.c_str(); }
 
         // Does this workspace have a title bar icon
         virtual bool HasTitlebarIcon() const { return false; }
@@ -154,6 +152,9 @@ namespace EE
         // Docking
         //-------------------------------------------------------------------------
 
+        // Get the unique typename for this workspace to be used for docking
+        virtual char const* GetDockingUniqueTypeName() const = 0;
+
         // Set up initial docking layout
         virtual void InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const;
 
@@ -182,10 +183,10 @@ namespace EE
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) {}
 
         // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
-        void SharedUpdate( UpdateContext const& context, bool isFocused );
+        void SharedUpdate( UpdateContext const& context, bool isVisible, bool isFocused );
 
         // Frame update and draw any tool windows needed for the workspace
-        virtual void Update( UpdateContext const& context, bool isFocused ) {}
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) {}
 
         // Preview World
         //-------------------------------------------------------------------------
@@ -268,7 +269,7 @@ namespace EE
         Drawing::DrawContext GetDrawingContext();
 
         // Set the workspace tab-title
-        void SetDisplayName( String const& name );
+        void SetDisplayName( String name );
 
         // Tool Windows
         //-------------------------------------------------------------------------
@@ -308,7 +309,7 @@ namespace EE
         void DrawViewportToolbarComboIcon( char const* pID, char const* pIcon, char const* pTooltip, TFunction<void()> const& function );
 
         // Draw the common viewport toolbar items (rendering/camera/etc...)
-        void DrawViewportToolBar_Common();
+        void DrawViewportToolBarCommon();
 
         // Draw the viewport time controls toolbar
         void DrawViewportToolBar_TimeControls();
@@ -412,8 +413,8 @@ private:
         inline ImGuiID CalculateDockspaceID()
         {
             int32_t dockspaceID = m_currentLocationID;
-            char const* const pWorkspaceTypeName = GetWorkspaceUniqueTypeName();
-            dockspaceID = ImHashData( pWorkspaceTypeName, strlen( pWorkspaceTypeName ), dockspaceID);
+            char const* const pWorkspaceTypeName = GetDockingUniqueTypeName();
+            dockspaceID = ImHashData( pWorkspaceTypeName, strlen( pWorkspaceTypeName ), dockspaceID );
             return dockspaceID;
         }
 
@@ -443,14 +444,14 @@ private:
 
     private:
 
-        ImGuiID                                     m_currentDockID = 0;  // The doc we are currently in
-        ImGuiID                                     m_desiredDockID = 0; // The dock we wish to be in
-        ImGuiID                                     m_currentLocationID = 0;     // Current Dock node we are docked into _OR_ window ID if floating window
-        ImGuiID                                     m_previousLocationID = 0;     // Previous dock node we are docked into _OR_ window ID if floating window
-        ImGuiID                                     m_currentDockspaceID = 0;    // Dockspace ID ~~ Hash of LocationID + WorkspaceType
+        ImGuiID                                     m_currentDockID = 0;        // The doc we are currently in
+        ImGuiID                                     m_desiredDockID = 0;        // The dock we wish to be in
+        ImGuiID                                     m_currentLocationID = 0;    // Current Dock node we are docked into _OR_ window ID if floating window
+        ImGuiID                                     m_previousLocationID = 0;   // Previous dock node we are docked into _OR_ window ID if floating window
+        ImGuiID                                     m_currentDockspaceID = 0;   // Dockspace ID ~~ Hash of LocationID + WorkspaceType
         ImGuiID                                     m_previousDockspaceID = 0;
         TVector<ToolWindow>                         m_toolWindows;
-        ImGuiWindowClass                            m_toolWindowClass;  // All our tools windows will share the same WindowClass (based on ID) to avoid mixing tools from different top-level window
+        ImGuiWindowClass                            m_toolWindowClass;          // All our tools windows will share the same WindowClass (based on ID) to avoid mixing tools from different top-level window
 
         Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         bool                                        m_isDirty = false;
@@ -578,11 +579,11 @@ private:
     public:
 
         using Workspace::Workspace;
-        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Descriptor"; }
+        virtual char const* GetDockingUniqueTypeName() const override { return "Descriptor"; }
     };
 
     //-------------------------------------------------------------------------
-    // Resource Workspace Factory
+    // Workspace Factory
     //-------------------------------------------------------------------------
     // Used to spawn the appropriate workspace
 
@@ -600,7 +601,7 @@ private:
     protected:
 
         // Get the resource type this factory supports
-        virtual ResourceTypeID GetSupportedResourceTypeID() const = 0;
+        virtual ResourceTypeID GetSupportedResourceTypeID() const { return ResourceTypeID(); }
 
         // Virtual method that will create a workspace if the resource ID matches the appropriate types
         virtual Workspace* CreateWorkspaceInternal( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID ) const = 0;

@@ -1,9 +1,9 @@
 #include "ResourceCompiler_PhysicsRagdoll.h"
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsRagdoll.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
-#include "System/Serialization/TypeSerialization.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/TypeSerialization.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

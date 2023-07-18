@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Navmesh/NavmeshData.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
 
 //-------------------------------------------------------------------------

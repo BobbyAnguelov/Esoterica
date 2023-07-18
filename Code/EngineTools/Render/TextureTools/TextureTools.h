@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderTexture.h"
-#include "System/FileSystem/FileSystemPath.h"
+#include "Base/FileSystem/FileSystemPath.h"
 
 //-------------------------------------------------------------------------
 

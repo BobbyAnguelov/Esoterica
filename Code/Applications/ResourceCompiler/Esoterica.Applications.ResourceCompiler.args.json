@@ -8,7 +8,7 @@
     },
     {
       "Id": "3c5f0b19-f9fb-47b8-a480-99683ee1f021",
-      "Command": "-compile data://citadel/animation/trooper_melee_attack.anim"
+      "Command": "-compile data://citadel/npc/trooper_melee/animation/trooper_melee_attack.anim"
     },
     {
       "Id": "d7a9d283-cdce-4c6c-9d08-5eef8b77712b",

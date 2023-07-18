@@ -3,8 +3,8 @@
 #include "EngineTools/RawAssets/RawSkeleton.h"
 #include "EngineTools/RawAssets/RawAssetReader.h"
 #include "Engine/Animation/AnimationSkeleton.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 #include "Animation_RuntimeGraphNode_Floats.h"
 
-#include "System/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -618,18 +618,74 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            m_result = pSettings->m_defaultValue;
+            // Select value
+            //-------------------------------------------------------------------------
+
+            float inputTargetValue = pSettings->m_defaultValue;
             int32_t const numConditions = (int32_t) m_conditionNodes.size();
             for ( int32_t i = 0; i < numConditions; i++ )
             {
                 if ( m_conditionNodes[i]->GetValue<bool>(context) )
                 {
-                    m_result = pSettings->m_values[i];
+                    inputTargetValue = pSettings->m_values[i];
                     break;
                 }
             }
+
+            // Perform easing
+            //-------------------------------------------------------------------------
+
+            if ( pSettings->m_easingType != Math::Easing::Type::None )
+            {
+                if ( Math::IsNearEqual( m_currentValue, inputTargetValue, 0.01f ) )
+                {
+                    m_easeRange = FloatRange( inputTargetValue );
+                    m_currentValue = inputTargetValue;
+                    m_currentEaseTime = 0;
+                }
+                else
+                {
+                    // If the target has changed
+                    if ( inputTargetValue != m_easeRange.m_end )
+                    {
+                        m_easeRange.m_end = inputTargetValue;
+                        m_easeRange.m_begin = m_currentValue;
+                        m_currentEaseTime = 0;
+                    }
+
+                    // Increment the time through the blend
+                    m_currentEaseTime += context.m_deltaTime;
+
+                    // Calculate the new value, based on the percentage through the blend calculated by the easing function
+                    float const T = Math::Clamp( m_currentEaseTime / pSettings->m_easeTime, 0.0f, 1.0f );
+                    float const blendValue = Math::Easing::EvaluateEasingFunction( pSettings->m_easingType, T ) * m_easeRange.GetLength();
+                    m_currentValue = m_easeRange.m_begin + blendValue;
+                }
+            }
+            else // Just use the input value
+            {
+                m_currentValue = inputTargetValue;
+            }
         }
 
-        *( (float*) pOutValue ) = m_result;
+        *( (float*) pOutValue ) = m_currentValue;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void FloatSelectorNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        FloatValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_easeRange );
+        outState.WriteValue( m_currentValue );
+        outState.WriteValue( m_currentEaseTime );
+    }
+
+    void FloatSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        FloatValueNode::RestoreGraphState( inState );
+        inState.ReadValue( m_easeRange );
+        inState.ReadValue( m_currentValue );
+        inState.ReadValue( m_currentEaseTime );
+    }
+    #endif
 }

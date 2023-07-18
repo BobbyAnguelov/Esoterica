@@ -1,8 +1,8 @@
 #pragma once
 
 #include "IRenderer.h"
-#include "System/Types/Arrays.h"
-#include "System/Systems.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 

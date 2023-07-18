@@ -1,5 +1,5 @@
 #include "RawAnimation.h"
-#include "System/FileSystem/FileSystemPath.h"
+#include "Base/FileSystem/FileSystemPath.h"
 #include "Formats/FBX.h"
 #include "Formats/GLTF.h"
 
@@ -7,7 +7,7 @@
 
 namespace EE::RawAssets
 {
-    void RawAnimation::Finalize()
+    void RawAnimation::Finalize( StringID hackRootID )
     {
         EE_ASSERT( m_numFrames > 0 );
 
@@ -41,25 +41,58 @@ namespace EE::RawAssets
 
         m_rootTransforms.resize( m_numFrames );
 
-        TrackData& rootTrackData = m_tracks[0];
-        Vector rootMotionOriginOffset = rootTrackData.m_localTransforms[0].GetTranslation(); // Ensure that the root motion always starts at the origin
-
-        for ( int32_t i = 0; i < m_numFrames; i++ )
+        if ( hackRootID.IsValid() )
         {
-            // If we detect scaling on the root, log an error and exit
-            if ( rootTrackData.m_localTransforms[i].HasScale() )
+            int32_t rootIdx = m_skeleton.GetBoneIndex( hackRootID );
+            if ( rootIdx == InvalidIndex )
             {
-                LogError( "Root scaling detected! This is not allowed, please remove all scaling from the root bone!" );
+                LogError( "Failed to find root motion bone" );
                 return;
             }
 
-            // Extract root position and remove the origin offset from it
-            m_rootTransforms[i] = rootTrackData.m_localTransforms[i];
-            m_rootTransforms[i].SetTranslation( m_rootTransforms[i].GetTranslation() - rootMotionOriginOffset );
+            TrackData& rootTrackData = ( m_tracks[rootIdx] );
+            Vector rootMotionOriginOffset = rootTrackData.m_localTransforms[rootIdx].GetTranslation(); // Ensure that the root motion always starts at the origin
 
-            // Set the root tracks transform to Identity
-            rootTrackData.m_localTransforms[i] = Transform::Identity;
-            rootTrackData.m_globalTransforms[i] = Transform::Identity;
+            for ( int32_t i = 0; i < m_numFrames; i++ )
+            {
+                // If we detect scaling on the root, log an error and exit
+                if ( rootTrackData.m_localTransforms[i].HasScale() )
+                {
+                    LogError( "Root scaling detected! This is not allowed, please remove all scaling from the root bone!" );
+                    return;
+                }
+
+                // Extract root position and remove the origin offset from it
+                m_rootTransforms[i] = rootTrackData.m_localTransforms[i];
+                m_rootTransforms[i].SetTranslation( m_rootTransforms[i].GetTranslation() - rootMotionOriginOffset );
+
+                // Set the root tracks transform to Identity
+                rootTrackData.m_localTransforms[i] = Transform::Identity;
+                rootTrackData.m_globalTransforms[i] = Transform::Identity;
+            }
+        }
+        else
+        {
+            TrackData& rootTrackData = m_tracks[0];
+            Vector rootMotionOriginOffset = rootTrackData.m_localTransforms[0].GetTranslation(); // Ensure that the root motion always starts at the origin
+
+            for ( int32_t i = 0; i < m_numFrames; i++ )
+            {
+                // If we detect scaling on the root, log an error and exit
+                if ( rootTrackData.m_localTransforms[i].HasScale() )
+                {
+                    LogError( "Root scaling detected! This is not allowed, please remove all scaling from the root bone!" );
+                    return;
+                }
+
+                // Extract root position and remove the origin offset from it
+                m_rootTransforms[i] = rootTrackData.m_localTransforms[i];
+                m_rootTransforms[i].SetTranslation( m_rootTransforms[i].GetTranslation() - rootMotionOriginOffset );
+
+                // Set the root tracks transform to Identity
+                rootTrackData.m_localTransforms[i] = Transform::Identity;
+                rootTrackData.m_globalTransforms[i] = Transform::Identity;
+            }
         }
 
         // Calculate component ranges
@@ -203,9 +236,16 @@ namespace EE::RawAssets
             track.m_translationValueRangeY = FloatRange();
             track.m_translationValueRangeZ = FloatRange();
             track.m_scaleValueRange = FloatRange();
+            track.m_isRotationConstant = true;
 
+            Quaternion previousRotation = track.m_localTransforms.front().GetRotation();
             for ( auto const& transform : track.m_localTransforms )
             {
+                if ( Quaternion::Distance( previousRotation, transform.GetRotation() ) > Math::LargeEpsilon )
+                {
+                    track.m_isRotationConstant = false;
+                }
+
                 Float3 const& translation = transform.GetTranslation().ToFloat3();
                 track.m_translationValueRangeX.GrowRange( translation.m_x );
                 track.m_translationValueRangeY.GrowRange( translation.m_y );

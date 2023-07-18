@@ -2,11 +2,11 @@
 #include "Resources/Resource.h"
 #include "Applications/Shared/LivePP/LivePP.h"
 
-#include "System/Time/Timers.h"
-#include "System/FileSystem/FileSystemUtils.h"
-#include "System/Imgui/Platform/ImguiPlatform_win32.h"
-#include "System/Platform/PlatformUtils_Win32.h"
-#include "System/IniFile.h"
+#include "Base/Time/Timers.h"
+#include "Base/FileSystem/FileSystemUtils.h"
+#include "Base/Imgui/Platform/ImguiPlatform_win32.h"
+#include "Base/Platform/PlatformUtils_Win32.h"
+#include "Base/IniFile.h"
 #include <tchar.h>
 #include <shobjidl_core.h>
 

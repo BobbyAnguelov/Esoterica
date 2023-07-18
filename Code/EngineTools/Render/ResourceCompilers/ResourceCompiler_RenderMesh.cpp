@@ -4,8 +4,8 @@
 #include "EngineTools/RawAssets/RawAssetReader.h"
 #include "Engine/Render/Mesh/StaticMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 #include <MeshOptimizer.h>
 

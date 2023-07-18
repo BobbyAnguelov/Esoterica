@@ -6,7 +6,7 @@
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/UpdateContext.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 // HACK
 #include "Game/Player/StateMachine/Actions/PlayerAction_Jump.h"
@@ -20,92 +20,19 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Player
 {
-    PlayerDebugView::PlayerDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Game/Player", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
-    }
-
     void PlayerDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
-        m_pWorld = pWorld;
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pPlayerManager = pWorld->GetWorldSystem<PlayerManager>();
+
+        m_windows.emplace_back( "Player Actions", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawActionDebugger( context, isFocused ); } );
+        m_windows.emplace_back( "Player Character Controller", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawCharacterControllerState( context, isFocused ); } );
     }
 
     void PlayerDebugView::Shutdown()
     {
         m_pPlayerManager = nullptr;
-        m_pWorld = nullptr;
-    }
-
-    void PlayerDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        EE_ASSERT( m_pWorld != nullptr );
-
-        // HACK
-        //m_isActionDebugWindowOpen = true;
-        //m_isCharacterControllerDebugWindowOpen = true;
-
-        PlayerController* pPlayerController = nullptr;
-        if ( m_isActionDebugWindowOpen || m_isCharacterControllerDebugWindowOpen )
-        {
-            if ( m_pPlayerManager->HasPlayer() )
-            {
-                auto pPlayerEntity = m_pWorld->GetPersistentMap()->FindEntity( m_pPlayerManager->GetPlayerEntityID() );
-                for ( auto pSystem : pPlayerEntity->GetSystems() )
-                {
-                    pPlayerController = TryCast<PlayerController>( pSystem );
-                    if ( pPlayerController != nullptr )
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( pPlayerController != nullptr )
-        {
-            if ( m_isActionDebugWindowOpen )
-            {
-                if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-                
-                ImGui::SetNextWindowBgAlpha( 0.9f );
-                if ( ImGui::Begin( "Player Actions", &m_isActionDebugWindowOpen ) )
-                {
-                    if ( pPlayerController == nullptr )
-                    {
-                        ImGui::Text( "No Player Controller Found" );
-                    }
-                    else
-                    {
-                        ActionStateMachine const* pStateMachine = &pPlayerController->m_actionStateMachine;
-                        pStateMachine->DrawDebugUI();
-                    }
-                }
-                ImGui::End();
-            }
-
-            if ( m_isCharacterControllerDebugWindowOpen )
-            {
-                if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-
-                ImGui::SetNextWindowBgAlpha( 0.9f );
-                if ( ImGui::Begin( "Player Character Controller", &m_isCharacterControllerDebugWindowOpen ) )
-                {
-                    auto pCharacterController = pPlayerController->m_actionContext.m_pCharacterComponent;
-                    if ( pCharacterController != nullptr )
-                    {
-                        pCharacterController->DrawDebugUI();
-                    }
-                    else
-                    {
-                        ImGui::Text( "No valid physics controller on player!" );
-                    }
-                }
-                ImGui::End();
-            }
-        }
+        DebugView::Shutdown();
     }
 
     void PlayerDebugView::DrawMenu( EntityWorldUpdateContext const& context )
@@ -133,12 +60,60 @@ namespace EE::Player
 
         if ( ImGui::MenuItem( "Action Debugger" ) )
         {
-            m_isActionDebugWindowOpen = true;
+            m_windows[0].m_isOpen = true;
         }
 
         if ( ImGui::MenuItem( "Physics State Debugger" ) )
         {
-            m_isCharacterControllerDebugWindowOpen = true;
+            m_windows[1].m_isOpen = true;
+        }
+    }
+
+    void PlayerDebugView::Update( EntityWorldUpdateContext const& context )
+    {
+        EE_ASSERT( m_pWorld != nullptr );
+
+        m_pPlayerController = nullptr;
+        if ( m_windows[0].m_isOpen || m_windows[1].m_isOpen )
+        {
+            if ( m_pPlayerManager->HasPlayer() )
+            {
+                auto pPlayerEntity = m_pWorld->GetPersistentMap()->FindEntity( m_pPlayerManager->GetPlayerEntityID() );
+                for ( auto pSystem : pPlayerEntity->GetSystems() )
+                {
+                    m_pPlayerController = TryCast<PlayerController>( pSystem );
+                    if ( m_pPlayerController != nullptr )
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    void PlayerDebugView::DrawActionDebugger( EntityWorldUpdateContext const& context, bool isFocused )
+    {
+        if ( m_pPlayerController == nullptr )
+        {
+            ImGui::Text( "No Player Controller Found" );
+        }
+        else
+        {
+            ActionStateMachine const* pStateMachine = &m_pPlayerController->m_actionStateMachine;
+            pStateMachine->DrawDebugUI();
+        }
+    }
+
+    void PlayerDebugView::DrawCharacterControllerState( EntityWorldUpdateContext const& context, bool isFocused )
+    {
+        auto pCharacterController = m_pPlayerController->m_actionContext.m_pCharacterComponent;
+        if ( pCharacterController != nullptr )
+        {
+            pCharacterController->DrawDebugUI();
+        }
+        else
+        {
+            ImGui::Text( "No valid physics controller on player!" );
         }
     }
 
@@ -220,7 +195,7 @@ namespace EE::Player
             ImVec2 const statusTextSize = ImGui::CalcTextSize( statusString.c_str() );
             ImVec2 const statusTextCursorPos( windowCenter.x - ( statusTextSize.x / 2 ), windowCenter.y + 8 );
             ImGui::SetCursorPos( statusTextCursorPos );
-            ImGui::TextColored( ImGuiX::ImColors::Red, statusString.c_str() );
+            ImGui::TextColored( Colors::Red.ToFloat4(), statusString.c_str() );
         }
 
         {
@@ -289,5 +264,7 @@ namespace EE::Player
             }
         }
     }
+
+   
 }
 #endif

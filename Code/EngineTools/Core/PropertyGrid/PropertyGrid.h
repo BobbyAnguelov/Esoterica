@@ -1,10 +1,10 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/TypeSystem/TypeInfo.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Types/Event.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/TypeSystem/TypeInfo.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 // Property grid

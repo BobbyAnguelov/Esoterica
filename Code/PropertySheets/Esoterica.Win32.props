@@ -8,4 +8,10 @@
       <AdditionalDependencies>Xinput.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+    <Target Name="DbgHelp_CopyDLL" BeforeTargets="Build">
+        <Copy SkipUnchangedFiles="True" SourceFiles="$(SolutionDir)External\DbgHelp\dbghelp.dll" DestinationFolder="$(OutDir)" />
+    </Target>
+    <Target Name="DbgHelp_CleanDLL" BeforeTargets="Clean">
+        <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)dbghelp.dll" />
+    </Target>
 </Project>

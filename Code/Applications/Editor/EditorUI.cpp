@@ -3,20 +3,22 @@
 #include "EngineTools/Resource/RawFileInspector.h"
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
+#include "EngineTools/Resource/EditorTools/EditorTool_ResourceBrowser.h"
+#include "EngineTools/Resource/EditorTools/EditorTool_ResourceSystem.h"
+#include "EngineTools/Core/EditorTools/EditorTool_SystemLog.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
-#include "Engine/Physics/Debug/DebugView_Physics.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "Engine/DebugViews/DebugView_Resource.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
-#include "System/Imgui/ImguiImageCache.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/Resource/ResourceSettings.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/ThirdParty/implot/implot.h"
-#include "System/Logging/LoggingSystem.h"
+#include "Base/Imgui/ImguiImageCache.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/Resource/ResourceSettings.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/ThirdParty/implot/implot.h"
+#include "Base/Logging/LoggingSystem.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -33,7 +35,6 @@ namespace EE
         EE_ASSERT( m_pMapEditor == nullptr );
         EE_ASSERT( m_pGamePreviewer == nullptr );
 
-        EE_ASSERT( m_pResourceBrowser == nullptr );
         EE_ASSERT( m_pRenderingSystem == nullptr );
         EE_ASSERT( m_pWorldManager == nullptr );
     }
@@ -81,7 +82,6 @@ namespace EE
         m_resourceDB.Initialize( m_pTypeRegistry, pTaskSystem, pResourceSystem->GetSettings().m_rawResourcePath, pResourceSystem->GetSettings().m_compiledResourcePath );
         m_resourceDeletedEventID = m_resourceDB.OnResourceDeleted().Bind( [this] ( ResourceID const& resourceID ) { OnResourceDeleted( resourceID ); } );
         m_pResourceDatabase = &m_resourceDB;
-        m_pResourceBrowser = EE::New<ResourceBrowser>( *this );
 
         // Icons/Images
         //-------------------------------------------------------------------------
@@ -95,6 +95,12 @@ namespace EE
 
         auto& request = m_workspaceCreationRequests.emplace_back();
         request.m_type = WorkspaceCreationRequest::MapEditor;
+
+        // Create default editor tools
+        //-------------------------------------------------------------------------
+
+        CreateEditorTool<SystemLogEditorTool>( this );
+        CreateEditorTool<Resource::ResourceBrowserEditorTool>( this );
     }
 
     void EditorUI::Shutdown( UpdateContext const& context )
@@ -117,7 +123,18 @@ namespace EE
             DestroyWorkspace( context, m_workspaces[0], true );
         }
 
-        m_workspaces.clear();
+        // Editor Tools
+        //-------------------------------------------------------------------------
+
+        for ( auto& pEditorTool : m_editorToolCreationRequests )
+        {
+            EE::Delete( pEditorTool );
+        }
+
+        while ( !m_editorTools.empty() )
+        {
+            DestroyEditorTool( context, m_editorTools[0], true );
+        }
 
         // Misc
         //-------------------------------------------------------------------------
@@ -127,7 +144,6 @@ namespace EE
         // Resources
         //-------------------------------------------------------------------------
 
-        EE::Delete( m_pResourceBrowser );
         m_pResourceDatabase = nullptr;
         m_resourceDB.OnResourceDeleted().Unbind( m_resourceDeletedEventID );
         m_resourceDB.Shutdown();
@@ -167,15 +183,16 @@ namespace EE
 
     bool EditorUI::TryFindInResourceBrowser( ResourceID const& resourceID ) const
     {
-        if ( const_cast<ResourceBrowser*>( m_pResourceBrowser )->FindAndSelectResource( resourceID ) )
+        auto pResourceBrowser = GetEditorTool<Resource::ResourceBrowserEditorTool>();
+        if ( pResourceBrowser == nullptr )
         {
-            if ( !m_isResourceBrowserWindowOpen )
-            {
-                const_cast<EditorUI*>( this )->m_isResourceBrowserWindowOpen = true;
-            }
+            pResourceBrowser = const_cast<EditorUI*>( this )->CreateEditorTool<Resource::ResourceBrowserEditorTool>( this );
         }
 
-        return false;
+        //-------------------------------------------------------------------------
+
+        pResourceBrowser->TryFindAndSelectResource( resourceID );
+        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -196,23 +213,46 @@ namespace EE
 
         ImGui::SameLine();
 
-        if ( ImGui::BeginMenu( "Resource" ) )
+        if ( ImGui::BeginMenu( "Tools" ) )
         {
-            ImGui::MenuItem( "Resource Browser", nullptr, &m_isResourceBrowserWindowOpen );
-            ImGui::MenuItem( "Resource System Overview", nullptr, &m_isResourceOverviewWindowOpen );
-            ImGui::MenuItem( "Resource Log", nullptr, &m_isResourceLogWindowOpen );
-            ImGui::EndMenu();
-        }
+            ImGuiX::TextSeparator( "Resource" );
 
-        ImGui::SameLine();
-        if ( ImGui::BeginMenu( "System" ) )
-        {
-            ImGui::MenuItem( "System Log", nullptr, &m_isSystemLogWindowOpen );
+            bool isResourceBrowserOpen = GetEditorTool<Resource::ResourceBrowserEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Resource Browser", nullptr, &isResourceBrowserOpen, !isResourceBrowserOpen ) )
+            {
+                CreateEditorTool<Resource::ResourceBrowserEditorTool>( this );
+            }
 
-            ImGui::Separator();
+            bool isResourceSystemOpen = GetEditorTool<Resource::ResourceSystemEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Resource System", nullptr, &isResourceSystemOpen, !isResourceSystemOpen ) )
+            {
+                CreateEditorTool<Resource::ResourceSystemEditorTool>( this );
+            }
 
-            ImGui::MenuItem( "Imgui UI Test Window", nullptr, &m_isUITestWindowOpen );
-            ImGui::MenuItem( "Imgui Demo Window", nullptr, &m_isImguiDemoWindowOpen );
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "System" );
+
+            bool isLogOpen = GetEditorTool<SystemLogEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "System Log", nullptr, &isLogOpen, !isLogOpen ) )
+            {
+                CreateEditorTool<SystemLogEditorTool>( this );
+            }
+
+            if ( ImGui::MenuItem( "Open Profiler" ) )
+            {
+                Profiling::OpenProfiler();
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "Editor" );
+
+            ImGui::MenuItem( "UI Test Window", nullptr, &m_isUITestWindowOpen, !m_isUITestWindowOpen );
+            ImGui::MenuItem( "ImGui Demo Window", nullptr, &m_isImguiDemoWindowOpen, !m_isImguiDemoWindowOpen );
+            ImGui::MenuItem( "ImGui Plot Demo Window", nullptr, &m_isImguiPlotDemoWindowOpen, !m_isImguiPlotDemoWindowOpen );
+
+            //-------------------------------------------------------------------------
 
             ImGui::EndMenu();
         }
@@ -249,6 +289,42 @@ namespace EE
         m_resourceDB.Update();
 
         //-------------------------------------------------------------------------
+        // Handle Warnings/Errors
+        //-------------------------------------------------------------------------
+
+        auto const unhandledWarningsAndErrors = Log::System::GetUnhandledWarningsAndErrors();
+        if ( !unhandledWarningsAndErrors.empty() )
+        {
+            CreateEditorTool<SystemLogEditorTool>( this );
+        }
+
+        //-------------------------------------------------------------------------
+        // Editor Tool Management
+        //-------------------------------------------------------------------------
+
+        // Destroy all required editor tools
+        // We needed to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
+        for ( auto pEditorToolToDestroy : m_editorToolDestructionRequests )
+        {
+            if ( m_pLastActiveWorkspaceOrEditorTool == pEditorToolToDestroy )
+            {
+                m_pLastActiveWorkspaceOrEditorTool = nullptr;
+            }
+
+            DestroyEditorTool( context, pEditorToolToDestroy );
+        }
+        m_editorToolDestructionRequests.clear();
+
+        // Initialize and add all newly created tools
+        for ( auto pNewEditorTool : m_editorToolCreationRequests )
+        {
+            pNewEditorTool->Initialize( context );
+            m_editorTools.emplace_back( pNewEditorTool );
+        }
+
+        m_editorToolCreationRequests.clear();
+
+        //-------------------------------------------------------------------------
         // Workspace Management
         //-------------------------------------------------------------------------
 
@@ -256,9 +332,9 @@ namespace EE
         // We needed to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
         for ( auto pWorkspaceToDestroy : m_workspaceDestructionRequests )
         {
-            if ( m_pLastActiveWorkspace == pWorkspaceToDestroy )
+            if ( m_pLastActiveWorkspaceOrEditorTool == pWorkspaceToDestroy )
             {
-                m_pLastActiveWorkspace = nullptr;
+                m_pLastActiveWorkspaceOrEditorTool = nullptr;
             }
 
             DestroyWorkspace( context, pWorkspaceToDestroy );
@@ -312,11 +388,20 @@ namespace EE
             {
                 ImGui::DockBuilderAddNode( dockspaceID, ImGuiDockNodeFlags_DockSpace );
                 ImGui::DockBuilderSetNodeSize( dockspaceID, ImGui::GetContentRegionAvail() );
-                ImGuiID leftDockID = 0, rightDockID = 0;
-                ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.25f, &leftDockID, &rightDockID );
+
+                ImGuiID leftDockID = 0, rightDockID = 0, bottomDockID = 0;
+                ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.1f, &bottomDockID, &leftDockID );
+                ImGui::DockBuilderSplitNode( leftDockID, ImGuiDir_Left, 0.25f, &leftDockID, &rightDockID );
                 ImGui::DockBuilderFinish( dockspaceID );
 
-                ImGui::DockBuilderDockWindow( m_pResourceBrowser->GetWindowName(), leftDockID );
+                //-------------------------------------------------------------------------
+
+                auto pSystemLog = GetEditorTool<SystemLogEditorTool>();
+                ImGui::DockBuilderDockWindow( pSystemLog->GetDisplayName(), bottomDockID );
+
+                auto pResourceBrowser = GetEditorTool<Resource::ResourceBrowserEditorTool>();
+                ImGui::DockBuilderDockWindow( pResourceBrowser->GetDisplayName(), leftDockID );
+
                 ImGui::DockBuilderDockWindow( m_pMapEditor->m_windowName.c_str(), rightDockID );
             }
 
@@ -331,12 +416,6 @@ namespace EE
         // Draw editor windows
         //-------------------------------------------------------------------------
 
-        if ( m_isResourceBrowserWindowOpen )
-        {
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            m_isResourceBrowserWindowOpen = m_pResourceBrowser->UpdateAndDraw( context );
-        }
-
         if ( m_pRawResourceInspector != nullptr )
         {
             if ( !m_pRawResourceInspector->DrawDialog() )
@@ -345,30 +424,14 @@ namespace EE
             }
         }
 
-        if ( m_isResourceOverviewWindowOpen )
-        {
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            auto pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
-            Resource::ResourceDebugView::DrawOverviewWindow( pResourceSystem, &m_isResourceOverviewWindowOpen );
-        }
-
-        if ( m_isResourceLogWindowOpen )
-        {
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            auto pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
-            Resource::ResourceDebugView::DrawLogWindow( pResourceSystem, &m_isResourceLogWindowOpen );
-        }
-
-        if ( m_isSystemLogWindowOpen )
-        {
-            ImGui::SetNextWindowClass( &m_editorWindowClass );
-            m_isSystemLogWindowOpen = m_systemLogView.Draw( context );
-        }
-
         if ( m_isImguiDemoWindowOpen )
         {
             ImGui::ShowDemoWindow( &m_isImguiDemoWindowOpen );
-            ImPlot::ShowDemoWindow( &m_isImguiDemoWindowOpen );
+        }
+
+        if ( m_isImguiPlotDemoWindowOpen )
+        {
+            ImPlot::ShowDemoWindow( &m_isImguiPlotDemoWindowOpen );
         }
 
         if ( m_isUITestWindowOpen )
@@ -377,10 +440,49 @@ namespace EE
         }
 
         //-------------------------------------------------------------------------
+        // Draw open editor tools
+        //-------------------------------------------------------------------------
+
+        EditorTool* pEditorToolToClose = nullptr;
+
+        // Update the location for all editor tools
+        for ( auto pEditorTool : m_editorTools )
+        {
+            if ( !SubmitEditorToolWindow( context, pEditorTool, dockspaceID ) )
+            {
+                pEditorToolToClose = pEditorTool;
+            }
+        }
+
+        // Draw all editor tools
+        for ( auto pEditorTool : m_editorTools )
+        {
+            // If we've been asked to close, no point drawing
+            if ( pEditorTool == pEditorToolToClose )
+            {
+                continue;
+            }
+
+            // Dont draw any editor tools queued for destructor
+            if ( VectorContains( m_editorToolDestructionRequests, pEditorTool ) )
+            {
+                continue;
+            }
+
+            DrawEditorToolContents( context, pEditorTool );
+        }
+
+        // Did we get a close request?
+        if ( pEditorToolToClose != nullptr )
+        {
+            // We need to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
+            QueueDestroyEditorTool( pEditorToolToClose );
+        }
+
+        //-------------------------------------------------------------------------
         // Draw open workspaces
         //-------------------------------------------------------------------------
 
-        // Reset mouse state, this is updated via the workspaces
         Workspace* pWorkspaceToClose = nullptr;
 
         // Update the location for all workspaces
@@ -422,16 +524,6 @@ namespace EE
             // We need to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
             QueueDestroyWorkspace( pWorkspaceToClose );
         }
-
-        //-------------------------------------------------------------------------
-        // Handle Warnings/Errors
-        //-------------------------------------------------------------------------
-
-        auto const unhandledWarningsAndErrors = Log::System::GetUnhandledWarningsAndErrors();
-        if ( !unhandledWarningsAndErrors.empty() )
-        {
-            m_isSystemLogWindowOpen = true;
-        }
     }
 
     void EditorUI::EndFrame( UpdateContext const& context )
@@ -440,6 +532,7 @@ namespace EE
         if ( m_pGamePreviewer != nullptr && !VectorContains( m_workspaceDestructionRequests, m_pGamePreviewer ) )
         {
             DrawWorkspaceContents( context, m_pGamePreviewer );
+            m_pGamePreviewer->DrawEngineDebugUI( context );
         }
     }
 
@@ -697,6 +790,7 @@ namespace EE
 
     void EditorUI::QueueDestroyWorkspace( Workspace* pWorkspace )
     {
+        EE_ASSERT( pWorkspace != nullptr );
         EE_ASSERT( m_pMapEditor != pWorkspace );
         m_workspaceDestructionRequests.emplace_back( pWorkspace );
     }
@@ -756,7 +850,7 @@ namespace EE
 
     bool EditorUI::SubmitWorkspaceWindow( UpdateContext const& context, Workspace* pWorkspace, ImGuiID editorDockspaceID )
     {
-        EE_ASSERT( pWorkspace != nullptr );
+        EE_ASSERT( pWorkspace != nullptr && pWorkspace->IsInitialized() );
         IM_ASSERT( editorDockspaceID != 0 );
 
         bool isWorkspaceStillOpen = true;
@@ -793,7 +887,7 @@ namespace EE
         bool const isVisible = pCurrentWindow != nullptr && !pCurrentWindow->Hidden;
 
         // Create top level editor tab/window
-        ImGui::PushStyleColor( ImGuiCol_Text, isVisible ? ImGuiX::Style::s_colorAccent0.Value : ImGuiX::Style::s_colorText.Value );
+        ImGui::PushStyleColor( ImGuiCol_Text, isVisible ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText );
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
         ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 1.0f );
@@ -807,7 +901,7 @@ namespace EE
         bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
         if ( isFocused )
         {
-           m_pLastActiveWorkspace = pWorkspace;
+           m_pLastActiveWorkspaceOrEditorTool = pWorkspace;
         }
 
         // Set WindowClass based on per-document ID, so tabs from Document A are not dockable in Document B etc. We could be using any ID suiting us, e.g. &pWorkspace
@@ -839,12 +933,12 @@ namespace EE
 
     void EditorUI::DrawWorkspaceContents( UpdateContext const& context, Workspace* pWorkspace )
     {
-        EE_ASSERT( pWorkspace != nullptr );
+        EE_ASSERT( pWorkspace != nullptr && pWorkspace->IsInitialized() );
         auto pWorld = pWorkspace->GetWorld();
 
         //-------------------------------------------------------------------------
 
-        // This is the second Begin(), as MyEditor_UpdateDocLocationAndLayout() has already done one
+        // This is the second Begin(), as SubmitWorkspaceWindow() has already done one
         // (Therefore only the p_open and flags of the first call to Begin() applies)
         ImGui::Begin( pWorkspace->m_windowName.c_str() );
         int32_t const beginCount = ImGui::GetCurrentWindow()->BeginCount;
@@ -877,14 +971,35 @@ namespace EE
             // Fork or overwrite settings
             // FIXME: should be able to do a "move window but keep layout" if curr_dockspace_ref_count > 1.
             // FIXME: when moving, delete settings of old windows
-            //IMGUI_DEBUG_LOG( "LayoutCopy DockID %08X -> DockID %08X requested by pWorkspace '%s'\n", pWorkspace->m_previousDockspaceID, pWorkspace->m_currentDockspaceID, pWorkspace->Name );
-            //IMGUI_DEBUG_LOG( "--> prev_dockspace_ref_count = %d --> %s\n", prev_dockspace_ref_count, ( prev_dockspace_ref_count == 0 ) ? "Remove" : "Keep" );
-            //IMGUI_DEBUG_LOG( "--> curr_dockspace_ref_count = %d\n", curr_dockspace_ref_count );
             WorkspaceLayoutCopy( pWorkspace );
 
             if ( previousDockspaceRefCount == 0 )
             {
                 ImGui::DockBuilderRemoveNode( pWorkspace->m_previousDockspaceID );
+
+                // Delete settings of old windows
+                // Rely on window name to ditch their .ini settings forever..
+                char windowSuffix[16];
+                ImFormatString( windowSuffix, IM_ARRAYSIZE( windowSuffix ), "##%08X", pWorkspace->m_previousDockspaceID );
+                size_t windowSuffixLength = strlen( windowSuffix );
+                ImGuiContext& g = *GImGui;
+                for ( ImGuiWindowSettings* settings = g.SettingsWindows.begin(); settings != NULL; settings = g.SettingsWindows.next_chunk( settings ) )
+                {
+                    if ( settings->ID == 0 )
+                    {
+                        continue;
+                    }
+                    
+                    char const* pWindowName = settings->GetName();
+                    size_t windowNameLength = strlen( pWindowName );
+                    if ( windowNameLength >= windowSuffixLength )
+                    {
+                        if ( strcmp( pWindowName + windowNameLength - windowSuffixLength, windowSuffix ) == 0 ) // Compare suffix
+                        {
+                            ImGui::ClearWindowSettings( pWindowName );
+                        }
+                    }
+                }
             }
         }
         else if ( ImGui::DockBuilderGetNode( pWorkspace->m_currentDockspaceID ) == nullptr )
@@ -896,13 +1011,25 @@ namespace EE
         }
 
         // FIXME-DOCK: This is a little tricky to explain but we currently need this to use the pattern of sharing a same dockspace between tabs of a same tab bar
-        bool visible = true;
+        bool isVisible = true;
         if ( ImGui::GetCurrentWindow()->Hidden )
         {
-            visible = false;
+            isVisible = false;
         }
 
-        if ( !visible )
+        // Update workspace
+        //-------------------------------------------------------------------------
+
+        bool const isLastFocusedWorkspace = ( m_pLastActiveWorkspaceOrEditorTool == pWorkspace );
+        pWorkspace->SharedUpdate( context, isVisible, isLastFocusedWorkspace );
+        pWorkspace->Update( context, isVisible, isLastFocusedWorkspace );
+        pWorkspace->m_isViewportFocused = false;
+        pWorkspace->m_isViewportHovered = false;
+
+        // Check Visibility
+        //-------------------------------------------------------------------------
+
+        if ( !isVisible )
         {
             // Keep alive document dockspace so windows that are docked into it but which visibility are not linked to the dockspace visibility won't get undocked.
             ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_KeepAliveOnly, &pWorkspace->m_toolWindowClass );
@@ -937,8 +1064,6 @@ namespace EE
         ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_None, &pWorkspace->m_toolWindowClass );
         ImGui::End();
 
-        bool const isLastFocusedWorkspace = ( m_pLastActiveWorkspace == pWorkspace );
-
         // Manage World state
         //-------------------------------------------------------------------------
 
@@ -946,14 +1071,6 @@ namespace EE
         {
             pWorld->ResumeUpdates();
         }
-
-        // Update workspace
-        //-------------------------------------------------------------------------
-
-        pWorkspace->SharedUpdate( context, isLastFocusedWorkspace );
-        pWorkspace->Update( context, isLastFocusedWorkspace );
-        pWorkspace->m_isViewportFocused = false;
-        pWorkspace->m_isViewportHovered = false;
 
         // Draw workspace tool windows
         //-------------------------------------------------------------------------
@@ -1045,6 +1162,321 @@ namespace EE
     }
 
     //-------------------------------------------------------------------------
+    // Editor Tool Management
+    //-------------------------------------------------------------------------
+
+    void EditorUI::DestroyEditorTool( UpdateContext const& context, EditorTool* pEditorTool, bool isEditorShutdown )
+    {
+        m_editorTools.erase_first( pEditorTool );
+
+        if ( pEditorTool->IsInitialized() )
+        {
+            pEditorTool->Shutdown( context );
+        }
+
+        EE::Delete( pEditorTool );
+    }
+
+    void EditorUI::QueueDestroyEditorTool( EditorTool* pEditorTool )
+    {
+        EE_ASSERT( pEditorTool != nullptr );
+        m_editorToolDestructionRequests.emplace_back( pEditorTool );
+    }
+
+    void EditorUI::EditorToolLayoutCopy( EditorTool* pEditorTool )
+    {
+        ImGuiID sourceEditorToolID = pEditorTool->m_previousDockspaceID;
+        ImGuiID destinationEditorToolID = pEditorTool->m_currentDockspaceID;
+        IM_ASSERT( sourceEditorToolID != 0 );
+        IM_ASSERT( destinationEditorToolID != 0 );
+
+        // Helper to build an array of strings pointer into the same contiguous memory buffer.
+        struct ContiguousStringArrayBuilder
+        {
+            void AddEntry( const char* data, size_t dataLength )
+            {
+                int32_t const bufferSize = (int32_t) m_buffer.size();
+                m_offsets.push_back( bufferSize );
+                int32_t const offset = bufferSize;
+                m_buffer.resize( bufferSize + (int32_t) dataLength );
+                memcpy( m_buffer.data() + offset, data, dataLength );
+            }
+
+            void BuildPointerArray( ImVector<const char*>& outArray )
+            {
+                outArray.resize( (int32_t) m_offsets.size() );
+                for ( int32_t n = 0; n < (int32_t) m_offsets.size(); n++ )
+                {
+                    outArray[n] = m_buffer.data() + m_offsets[n];
+                }
+            }
+
+            TVector<char>       m_buffer;
+            TVector<int32_t>    m_offsets;
+        };
+
+        // Build an array of remapped names
+        ContiguousStringArrayBuilder namePairsBuilder;
+
+        // Iterate tool windows
+        for ( auto& toolWindow : pEditorTool->m_toolWindows )
+        {
+            InlineString const sourceToolWindowName = EditorTool::GetToolWindowName( toolWindow.m_name.c_str(), sourceEditorToolID );
+            InlineString const destinationToolWindowName = EditorTool::GetToolWindowName( toolWindow.m_name.c_str(), destinationEditorToolID );
+            namePairsBuilder.AddEntry( sourceToolWindowName.c_str(), sourceToolWindowName.length() + 1 );
+            namePairsBuilder.AddEntry( destinationToolWindowName.c_str(), destinationToolWindowName.length() + 1 );
+        }
+
+        // Build the same array with char* pointers at it is the input of DockBuilderCopyDockspace() (may change its signature?)
+        ImVector<const char*> windowRemapPairs;
+        namePairsBuilder.BuildPointerArray( windowRemapPairs );
+
+        // Perform the cloning
+        ImGui::DockBuilderCopyDockSpace( sourceEditorToolID, destinationEditorToolID, &windowRemapPairs );
+        ImGui::DockBuilderFinish( destinationEditorToolID );
+    }
+
+    bool EditorUI::SubmitEditorToolWindow( UpdateContext const& context, EditorTool* pEditorTool, ImGuiID editorDockspaceID )
+    {
+        EE_ASSERT( pEditorTool != nullptr && pEditorTool->IsInitialized() );
+        IM_ASSERT( editorDockspaceID != 0 );
+
+        bool isEditorToolStillOpen = true;
+
+        // Top level editors can only be docked with each others
+        ImGui::SetNextWindowClass( &m_editorWindowClass );
+        if ( pEditorTool->m_desiredDockID != 0 )
+        {
+            ImGui::SetNextWindowDockID( pEditorTool->m_desiredDockID );
+            pEditorTool->m_desiredDockID = 0;
+        }
+        else
+        {
+            ImGui::SetNextWindowDockID( editorDockspaceID, ImGuiCond_FirstUseEver );
+        }
+
+        // Window flags
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse;
+
+        if ( pEditorTool->HasMenu() )
+        {
+            windowFlags |= ImGuiWindowFlags_MenuBar;
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGuiWindow* pCurrentWindow = ImGui::FindWindowByName( pEditorTool->m_windowName.c_str() );
+        bool const isVisible = pCurrentWindow != nullptr && !pCurrentWindow->Hidden;
+
+        // Create top level editor tab/window
+        ImGui::PushStyleColor( ImGuiCol_Text, isVisible ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText );
+        ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
+        ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 1.0f );
+        ImGui::Begin( pEditorTool->m_windowName.c_str(), &isEditorToolStillOpen, windowFlags );
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        //-------------------------------------------------------------------------
+
+        // Store last focused document
+        bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
+        if ( isFocused )
+        {
+            m_pLastActiveWorkspaceOrEditorTool = pEditorTool;
+        }
+
+        // Set WindowClass based on per-document ID, so tabs from Document A are not dockable in Document B etc. We could be using any ID suiting us, e.g. &pWorkspace
+        // We also set ParentViewportId to request the platform back-end to set parent/child relationship at the windowing level.
+        pEditorTool->m_toolWindowClass.ClassId = pEditorTool->m_ID;
+        pEditorTool->m_toolWindowClass.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoTaskBarIcon | ImGuiViewportFlags_NoDecoration;
+        pEditorTool->m_toolWindowClass.ParentViewportId = ImGui::GetWindowViewport()->ID; // Make child of the top-level editor window
+        pEditorTool->m_toolWindowClass.DockingAllowUnclassed = true;
+
+        // Track LocationID change so we can fork/copy the layout data according to where the window is going + reference count
+        // LocationID ~~ (DockId != 0 ? DockId : DocumentID) // When we are in a loose floating window we use our own document id instead of the dock id
+        pEditorTool->m_currentDockID = ImGui::GetWindowDockID();
+        pEditorTool->m_previousLocationID = pEditorTool->m_currentLocationID;
+        pEditorTool->m_currentLocationID = pEditorTool->m_currentDockID != 0 ? pEditorTool->m_currentDockID : pEditorTool->m_ID;
+
+        // Dockspace ID ~~ Hash of LocationID + DocType
+        // So all editors of a same type inside a same tab-bar will share the same layout.
+        // We will also use this value as a suffix to create window titles, but we could perfectly have an indirection to allocate and use nicer names for window names (e.g. 0001, 0002).
+        pEditorTool->m_previousDockspaceID = pEditorTool->m_currentDockspaceID;
+        pEditorTool->m_currentDockspaceID = pEditorTool->CalculateDockspaceID();
+        EE_ASSERT( pEditorTool->m_currentDockspaceID != 0 );
+
+        ImGui::End();
+
+        //-------------------------------------------------------------------------
+
+        return isEditorToolStillOpen;
+    }
+
+    void EditorUI::DrawEditorToolContents( UpdateContext const& context, EditorTool* pEditorTool )
+    {
+        EE_ASSERT( pEditorTool != nullptr && pEditorTool->IsInitialized() );
+
+        // This is the second Begin(), as SubmitEditorToolWindow() has already done one
+        // (Therefore only the p_open and flags of the first call to Begin() applies)
+        ImGui::Begin( pEditorTool->m_windowName.c_str() );
+        int32_t const beginCount = ImGui::GetCurrentWindow()->BeginCount;
+        IM_ASSERT( beginCount == 2 );
+
+        ImGuiID const dockspaceID = pEditorTool->m_currentDockspaceID;
+        ImVec2 const dockspaceSize = ImGui::GetContentRegionAvail();
+
+        // Fork settings when extracting to a new location, or Overwrite settings when docking back into an existing location
+        if ( pEditorTool->m_previousLocationID != 0 && pEditorTool->m_previousLocationID != pEditorTool->m_currentLocationID )
+        {
+            // Count references to tell if we should Copy or Move the layout.
+            int32_t previousDockspaceRefCount = 0;
+            int32_t currentDockspaceRefCount = 0;
+            for ( int32_t i = 0; i < (int32_t) m_editorTools.size(); i++ )
+            {
+                EditorTool* pOtherEditorTool = m_editorTools[i];
+
+                if ( pOtherEditorTool->m_currentDockspaceID == pEditorTool->m_previousDockspaceID )
+                {
+                    previousDockspaceRefCount++;
+                }
+
+                if ( pOtherEditorTool->m_currentDockspaceID == pEditorTool->m_currentDockspaceID )
+                {
+                    currentDockspaceRefCount++;
+                }
+            }
+
+            // Fork or overwrite settings
+            // FIXME: should be able to do a "move window but keep layout" if curr_dockspace_ref_count > 1.
+            // FIXME: when moving, delete settings of old windows
+            EditorToolLayoutCopy( pEditorTool );
+
+            if ( previousDockspaceRefCount == 0 )
+            {
+                ImGui::DockBuilderRemoveNode( pEditorTool->m_previousDockspaceID );
+            }
+        }
+        else if ( ImGui::DockBuilderGetNode( pEditorTool->m_currentDockspaceID ) == nullptr )
+        {
+            ImGui::DockBuilderAddNode( pEditorTool->m_currentDockspaceID, ImGuiDockNodeFlags_DockSpace );
+            ImGui::DockBuilderSetNodeSize( pEditorTool->m_currentDockspaceID, dockspaceSize );
+            if ( !pEditorTool->IsSingleWindowTool() )
+            {
+                pEditorTool->InitializeDockingLayout( dockspaceID, dockspaceSize );
+            }
+            ImGui::DockBuilderFinish( dockspaceID );
+        }
+
+        // FIXME-DOCK: This is a little tricky to explain but we currently need this to use the pattern of sharing a same dockspace between tabs of a same tab bar
+        bool isVisible = true;
+        if ( ImGui::GetCurrentWindow()->Hidden )
+        {
+            isVisible = false;
+        }
+
+        // Update Editor Tool
+        //-------------------------------------------------------------------------
+
+        bool const isLastFocusedTool = ( m_pLastActiveWorkspaceOrEditorTool == pEditorTool );
+        pEditorTool->Update( context, isVisible, isLastFocusedTool );
+
+        // Check Visibility
+        //-------------------------------------------------------------------------
+
+        // If we're not visible early out
+        if ( !isVisible )
+        {
+            if ( !pEditorTool->IsSingleWindowTool() )
+            {
+                // Keep alive document dockspace so windows that are docked into it but which visibility are not linked to the dockspace visibility won't get undocked.
+                ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_KeepAliveOnly, &pEditorTool->m_toolWindowClass );
+            }
+
+            ImGui::End();
+            return;
+        }
+
+        // Draw Editor Tool Menu
+        //-------------------------------------------------------------------------
+
+        if ( pEditorTool->HasMenu() )
+        {
+            ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 8, 16 ) );
+            if ( ImGui::BeginMenuBar() )
+            {
+                pEditorTool->DrawMenu( context );
+                ImGui::EndMenuBar();
+            }
+            ImGui::PopStyleVar( 1 );
+        }
+
+        // Submit the dockspace node and end window
+        //-------------------------------------------------------------------------
+
+        if ( pEditorTool->IsSingleWindowTool() )
+        {
+            EE_ASSERT( pEditorTool->m_toolWindows.size() == 1 );
+            pEditorTool->m_toolWindows[0].m_drawFunction(context, isLastFocusedTool);
+        }
+        else
+        {
+            ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_None, &pEditorTool->m_toolWindowClass );
+        }
+        ImGui::End();
+
+        // Update Editor Tool and draw tool windows
+        //-------------------------------------------------------------------------
+
+        if ( !pEditorTool->IsSingleWindowTool() )
+        {
+            for ( auto& toolWindow : pEditorTool->m_toolWindows )
+            {
+                if ( !toolWindow.m_isOpen )
+                {
+                    continue;
+                }
+
+                InlineString const toolWindowName = Workspace::GetToolWindowName( toolWindow.m_name.c_str(), pEditorTool->m_currentDockspaceID );
+
+                // When multiple documents are open, floating tools only appear for focused one
+                if ( !isLastFocusedTool )
+                {
+                    if ( ImGuiWindow* pWindow = ImGui::FindWindowByName( toolWindowName.c_str() ) )
+                    {
+                        if ( pWindow->DockNode == nullptr || ImGui::DockNodeGetRootNode( pWindow->DockNode )->ID != dockspaceID )
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGuiWindowFlags const toolWindowFlags = ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                ImGui::SetNextWindowClass( &pEditorTool->m_toolWindowClass );
+
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, toolWindow.HasUserSpecifiedWindowPadding() ? toolWindow.m_windowPadding : ImGui::GetStyle().WindowPadding );
+                bool const drawToolWindow = ImGui::Begin( toolWindowName.c_str(), &toolWindow.m_isOpen, toolWindowFlags );
+                ImGui::PopStyleVar();
+
+                if ( drawToolWindow )
+                {
+                    bool const isToolWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
+                    toolWindow.m_drawFunction( context, isToolWindowFocused );
+                }
+
+                ImGui::End();
+            }
+        }
+
+        // Draw any open dialogs
+        //-------------------------------------------------------------------------
+
+        pEditorTool->DrawDialogs( context );
+    }
+
+    //-------------------------------------------------------------------------
     // Misc
     //-------------------------------------------------------------------------
 
@@ -1093,27 +1525,27 @@ namespace EE
 
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
-                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
-                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold );
-                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_PLUS"ADD" );
+                ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"ADD" );
             }
 
             //-------------------------------------------------------------------------
@@ -1157,15 +1589,15 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::IconButton( EE_ICON_KANGAROO, "Test", ImGuiX::ImColors::PaleGreen, ImVec2( 100, 0 ) );
+            ImGuiX::IconButton( EE_ICON_KANGAROO, "Test", Colors::PaleGreen, ImVec2( 100, 0 ) );
 
-            ImGuiX::IconButton( EE_ICON_HOME, "Home", ImGuiX::ImColors::RoyalBlue, ImVec2( 100, 0 ) );
+            ImGuiX::IconButton( EE_ICON_HOME, "Home", Colors::RoyalBlue, ImVec2( 100, 0 ) );
 
-            ImGuiX::IconButton( EE_ICON_MOVIE_PLAY, "Play", ImGuiX::ImColors::LightPink, ImVec2( 100, 0 ) );
+            ImGuiX::IconButton( EE_ICON_MOVIE_PLAY, "Play", Colors::LightPink, ImVec2( 100, 0 ) );
 
-            ImGuiX::ColoredIconButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, ImGuiX::ImColors::Yellow, EE_ICON_KANGAROO, "Test", ImVec2( 100, 0 ) );
+            ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::Yellow, EE_ICON_KANGAROO, "Test", ImVec2( 100, 0 ) );
 
-            ImGuiX::FlatIconButton( EE_ICON_HOME, "Home", ImGuiX::ImColors::RoyalBlue, ImVec2( 100, 0 ) );
+            ImGuiX::FlatIconButton( EE_ICON_HOME, "Home", Colors::RoyalBlue, ImVec2( 100, 0 ) );
 
             //-------------------------------------------------------------------------
 

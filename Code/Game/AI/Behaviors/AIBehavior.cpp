@@ -1,7 +1,7 @@
 #include "AIBehavior.h"
 #include "Game/AI/Animation/AIAnimationController.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

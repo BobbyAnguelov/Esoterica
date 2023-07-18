@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Types/Percentage.h"
-#include "System/Types/StringID.h"
-#include "System/Types/BitFlags.h"
-#include "System/Types/Arrays.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/Types/Percentage.h"
+#include "Base/Types/StringID.h"
+#include "Base/Types/BitFlags.h"
+#include "Base/Types/Arrays.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 

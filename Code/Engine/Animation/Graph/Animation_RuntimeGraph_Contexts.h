@@ -2,9 +2,12 @@
 
 #include "Animation_RuntimeGraph_Events.h"
 #include "Engine/Animation/AnimationBoneMask.h"
-#include "System/Math/Transform.h"
-#include "System/Time/Time.h"
-#include "System/Types/Arrays.h"
+#include "Base/Math/Transform.h"
+#include "Base/Time/Time.h"
+#include "Base/Types/Arrays.h"
+
+// HACK
+#include "Engine/Animation/AnimationSyncTrack.h"
 
 //-------------------------------------------------------------------------
 
@@ -121,6 +124,12 @@ namespace EE::Animation
     // Layer Context
     //-------------------------------------------------------------------------
 
+    struct GraphLayerInitInfo
+    {
+        int16_t                                                     m_layerNodeIdx;
+        TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>         m_layerInitTimes;
+    };
+
     struct GraphLayerContext final
     {
         EE_FORCE_INLINE bool IsSet() const { return m_isCurrentlyInLayer; }
@@ -224,6 +233,9 @@ namespace EE::Animation
         // Set at initialization time
         TaskSystem*                             m_pTaskSystem = nullptr;
         Pose const*                             m_pPreviousPose = nullptr;
+
+        // Initialization data
+        TInlineVector<GraphLayerInitInfo, 10>   m_layerInitInfo;
 
         // Runtime Values
         Transform                               m_worldTransform = Transform::Identity;

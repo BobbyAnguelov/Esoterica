@@ -133,7 +133,7 @@ namespace EE::RawAssets
         return pRawSkeleton;
     }
 
-    TUniquePtr<RawAnimation> ReadAnimation( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, RawSkeleton const& rawSkeleton, String const& animationName )
+    TUniquePtr<RawAnimation> ReadAnimation( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, RawSkeleton const& rawSkeleton, String const& animationName, StringID const& rootMotionBoneID )
     {
         EE_ASSERT( ctx.IsValid() && sourceFilePath.IsValid() && rawSkeleton.IsValid() );
 
@@ -159,7 +159,7 @@ namespace EE::RawAssets
 
         if ( !pRawAnimation->HasErrors() )
         {
-            pRawAnimation->Finalize();
+            pRawAnimation->Finalize( rootMotionBoneID );
         }
 
         //-------------------------------------------------------------------------

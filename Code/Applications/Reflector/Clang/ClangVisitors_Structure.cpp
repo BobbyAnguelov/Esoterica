@@ -2,7 +2,7 @@
 #include "ClangVisitors_Enum.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "Applications/Reflector/Database/ReflectionDatabase.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 #include "ClangVisitors_Macro.h"
 
 //-------------------------------------------------------------------------

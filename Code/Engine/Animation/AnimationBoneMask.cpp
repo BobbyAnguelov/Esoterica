@@ -1,17 +1,24 @@
 #include "AnimationBoneMask.h"
 #include "Engine/Animation/AnimationSkeleton.h"
-#include "System/Profiling.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
+    EE_FORCE_INLINE int32_t CalculateNumWeightsToSet( int32_t numBones )
+    {
+        return Math::CeilingToInt( float( numBones ) / 4.0f ) * 4;
+    }
+
     BoneMask::BoneMask( Skeleton const* pSkeleton )
         : m_pSkeleton( pSkeleton )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
-        m_weights.resize( m_pSkeleton->GetNumBones(), 0.0f );
+
+        int32_t const numWeightToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightToAllocate, 0.0f );
         m_weightInfo = WeightInfo::Zero;
     }
 
@@ -21,7 +28,9 @@ namespace EE::Animation
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
         EE_ASSERT( fixedWeight >= 0.0f && fixedWeight <= 1.0f );
-        m_weights.resize( m_pSkeleton->GetNumBones(), fixedWeight );
+
+        int32_t const numWeightToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightToAllocate, fixedWeight );
 
         if ( fixedWeight == 0.0f )
         {
@@ -60,15 +69,62 @@ namespace EE::Animation
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
-        m_weights.resize( m_pSkeleton->GetNumBones() );
+
+        int32_t const numWeightToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightToAllocate );
         ResetWeights( definition );
     }
 
     //-------------------------------------------------------------------------
 
+    #if EE_DEVELOPMENT_TOOLS
+    Color BoneMask::GetColorForWeight( float w )
+    {
+        EE_ASSERT( ( w >= 0.0f && w <= 1.0f ) || w == -1.0f );
+
+        // 0%
+        if ( w <= 0.0f )
+        {
+            return Colors::Gray;
+        }
+        // 1~20%
+        else if ( w > 0.0f && w < 0.2f )
+        {
+            return Color( 0xFF0D0DFF );
+        }
+        // 20~40%
+        else if ( w >= 0.2f && w < 0.4f )
+        {
+            return Color( 0xFF114EFF );
+        }
+        // 40~60%
+        else if ( w >= 0.4f && w < 0.6f )
+        {
+            return Color( 0xFF158EFF );
+        }
+        // 60~80%
+        else if ( w >= 0.6f && w < 0.8f )
+        {
+            return Color( 0xFF33B7FA );
+        }
+        // 80~99%
+        else if ( w >= 0.08f && w < 1.0f )
+        {
+            return Color( 0xFF34B3AC );
+        }
+        // 100%
+        else if ( w == 1.0f )
+        {
+            return Color( 0xFF4CB369 );
+        }
+
+        return Colors::White;
+    }
+    #endif
+
     bool BoneMask::IsValid() const
     {
-        return m_pSkeleton != nullptr && !m_weights.empty() && m_weights.size() == m_pSkeleton->GetNumBones();
+        return m_pSkeleton != nullptr && !m_weights.empty() && m_weights.size() == CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
     }
 
     BoneMask& BoneMask::operator=( BoneMask const& rhs )
@@ -275,11 +331,19 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto const numWeights = m_weights.size();
-        for ( auto i = 0; i < numWeights; i++ )
+        EE_ASSERT( m_weights.size() % 4 == 0 );
+
+        Vector const vBlendWeight( blendWeight );
+        size_t const numWeights = m_weights.size();
+        for ( size_t i = 0; i < numWeights; i += 4 )
         {
-            m_weights[i] = Math::Lerp( source.m_weights[i], m_weights[i], blendWeight );
+            Vector const vSource( &source.m_weights[i] );
+            Vector const vTarget( &m_weights[i] );
+            Vector const vResult = Vector::Lerp( vSource, vTarget, blendWeight );
+            vResult.Store( &m_weights[i] );
         }
+
+        //-------------------------------------------------------------------------
 
         m_weightInfo = WeightInfo::Mixed;
     }
@@ -310,13 +374,46 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto const numWeights = m_weights.size();
-        for ( auto i = 0; i < numWeights; i++ )
+        EE_ASSERT( m_weights.size() % 4 == 0 );
+
+        Vector const vBlendWeight( blendWeight );
+        size_t const numWeights = m_weights.size();
+        for ( size_t i = 0; i < numWeights; i += 4 )
         {
-            m_weights[i] = Math::Lerp( m_weights[i], target[i], blendWeight );
+            Vector const vSource( &m_weights[i]  );
+            Vector const vTarget( &target.m_weights[i] );
+            Vector const vResult = Vector::Lerp( vSource, vTarget, blendWeight );
+            vResult.Store( &m_weights[i] );
         }
 
         m_weightInfo = WeightInfo::Mixed;
+    }
+
+    void BoneMask::ScaleWeights( float scale )
+    {
+        EE_ASSERT( IsValid() && scale >= 0.0f && scale <= 1.0f );
+
+        if ( scale == 1.0f )
+        {
+            return;
+        }
+
+        if ( scale == 0.0f )
+        {
+            ResetWeights();
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        Vector vScale( scale );
+        size_t const numWeights = m_weights.size();
+        for ( size_t i = 0; i < numWeights; i += 4 )
+        {
+            Vector const vWeights( &m_weights[i] );
+            Vector const vScaledWeights = vWeights * vScale;
+            vScaledWeights.Store( &m_weights[i] );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -590,6 +687,32 @@ namespace EE::Animation
                     pool[maskIndices[i]]->ResetWeights( m_tasks[i].m_weight );
                 }
 
+                // Scale
+                //-------------------------------------------------------------------------
+
+                else if ( m_tasks[i].m_type == BoneMaskTask::Type::Scale )
+                {
+                    BoneMaskTask const& sourceTask = m_tasks[m_tasks[i].m_sourceTaskIdx];
+                    int8_t const sourceMaskIdx = maskIndices[m_tasks[i].m_sourceTaskIdx];
+                    bool const isSourceAPtr = sourceTask.IsMask();
+
+                    BoneMask* pMaskToScale = nullptr;
+                    if ( isSourceAPtr )
+                    {
+                        maskIndices.emplace_back( pool.AcquireMask() );
+                        pool[maskIndices[i]]->CopyFrom( *pSkeleton->GetBoneMask( sourceTask.m_maskIdx ) );
+                        pMaskToScale = pool[maskIndices[i]];
+                    }
+                    else
+                    {
+                        maskIndices.emplace_back( sourceMaskIdx );
+                        pMaskToScale = pool[sourceMaskIdx];
+                    }
+
+                    EE_ASSERT( pMaskToScale != nullptr );
+                    pMaskToScale->ScaleWeights( m_tasks[i].m_weight );
+                }
+
                 // Combine/Blend tasks
                 //-------------------------------------------------------------------------
 
@@ -718,6 +841,13 @@ namespace EE::Animation
                 }
                 break;
 
+                case BoneMaskTask::Type::Scale:
+                {
+                    archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
+                    archive.WriteNormalizedFloat( task.m_weight );
+                }
+                break;
+
                 case BoneMaskTask::Type::Combine:
                 {
                     archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
@@ -759,6 +889,16 @@ namespace EE::Animation
                     task.m_type = type;
                     task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
                     task.m_targetTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
+                    task.m_weight = archive.ReadNormalizedFloat();
+                }
+                break;
+
+                case BoneMaskTask::Type::Scale:
+                {
+                    auto& task = m_tasks.emplace_back();
+                    task.m_type = type;
+                    task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
+                    task.m_targetTaskIdx = InvalidIndex;
                     task.m_weight = archive.ReadNormalizedFloat();
                 }
                 break;

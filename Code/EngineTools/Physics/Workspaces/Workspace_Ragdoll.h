@@ -68,14 +68,14 @@ namespace EE::Physics
 
     private:
 
-        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Ragdoll"; }
+        virtual char const* GetDockingUniqueTypeName() const override { return "Ragdoll"; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
         virtual void OnHotReloadComplete() override;
         virtual bool Save() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
-        virtual void Update( UpdateContext const& context, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 

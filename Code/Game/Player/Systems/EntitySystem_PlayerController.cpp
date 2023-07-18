@@ -7,10 +7,10 @@
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Camera/Components/Component_OrbitCamera.h"
 #include "Engine/Player/Components/Component_Player.h"
-#include "System/Input/InputSystem.h"
-#include "System/Types/ScopedValue.h"
-#include "System/Profiling.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Input/InputSystem.h"
+#include "Base/Types/ScopedValue.h"
+#include "Base/Profiling.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

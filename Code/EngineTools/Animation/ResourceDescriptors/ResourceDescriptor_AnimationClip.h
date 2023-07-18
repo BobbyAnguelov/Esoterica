@@ -54,6 +54,10 @@ namespace EE::Animation
         EE_REFLECT();
         String                      m_animationName;
 
+        // HACK: use this when the root motion bone is not the root of the hierarchy
+        EE_REFLECT();
+        StringID                    m_rootMotionBoneID;
+
         EE_REFLECT();
         IntRange                    m_limitFrameRange;
 

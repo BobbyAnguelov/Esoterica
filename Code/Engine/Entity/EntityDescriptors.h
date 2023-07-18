@@ -1,8 +1,8 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "EntityIDs.h"
-#include "System/Resource/IResource.h"
-#include "System/TypeSystem/TypeDescriptors.h"
+#include "Base/Resource/IResource.h"
+#include "Base/TypeSystem/TypeDescriptors.h"
 
 namespace EE
 {

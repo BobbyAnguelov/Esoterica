@@ -247,9 +247,15 @@ namespace EE::Animation::GraphNodes
     private:
 
         EE_REFLECT();
-        TVector<float>      m_pinValues;
+        TVector<float>              m_pinValues;
 
         EE_REFLECT();
-        float               m_defaultValue = 0.0f;
+        float                       m_defaultValue = 0.0f;
+
+        EE_REFLECT( "Category" : "Easing" );
+        Math::Easing::Type          m_easingType = Math::Easing::Type::None;
+
+        EE_REFLECT( "Category" : "Easing" );
+        float                       m_easeTime = 0.3f;
     };
 }

@@ -4,10 +4,10 @@
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
-#include "System/Drawing/DebugDrawingSystem.h"
-#include "System/Input/InputSystem.h"
-#include "System/Math/MathUtils.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Drawing/DebugDrawingSystem.h"
+#include "Base/Input/InputSystem.h"
+#include "Base/Math/MathUtils.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -331,10 +331,17 @@ namespace EE::Player
         EE_ASSERT( m_state == LocomotionState::Starting );
 
         auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pAnimController->IsMoving() )
+        if ( pAnimController->IsStarting() && pAnimController->IsTransitionAllowed() )
         {
             float const speed = ConvertStickAmplitudeToSpeed( ctx, stickAmplitude );
-            RequestMoving( ctx, stickInputVector * speed );
+            if ( speed > 0.0f )
+            {
+                RequestMoving( ctx, stickInputVector * speed );
+            }
+            else
+            {
+                RequestStop( ctx );
+            }
         }
 
         #if EE_DEVELOPMENT_TOOLS
@@ -517,11 +524,11 @@ namespace EE::Player
 
             case LocomotionState::TurningOnSpot:
             {
-                ImGui::TextColored( ImGuiX::ImColors::Yellow, "Turn On Spot" );
+                ImGui::TextColored( Colors::Yellow.ToFloat4(), "Turn On Spot" );
 
                 if ( m_startDetectionTimer.IsRunning() )
                 {
-                    ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Has Input!" );
+                    ImGui::TextColored( Colors::LimeGreen.ToFloat4(), "Has Input!" );
                     ImGui::AlignTextToFramePadding();
                     ImGui::Text( "Start Detection Timer: " );
                     ImGui::SameLine();
@@ -546,7 +553,7 @@ namespace EE::Player
 
             case LocomotionState::Moving:
             {
-                ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Move" );
+                ImGui::TextColored( Colors::LimeGreen.ToFloat4(), "Move" );
 
                 if ( m_stopDetectionTimer.IsRunning() )
                 {
@@ -572,13 +579,13 @@ namespace EE::Player
 
             case LocomotionState::PlantingAndTurning:
             {
-                ImGui::TextColored( ImGuiX::ImColors::Orange, "Planted Turn" );
+                ImGui::TextColored( Colors::Orange.ToFloat4(), "Planted Turn" );
             }
             break;
 
             case LocomotionState::Stopping:
             {
-                ImGui::TextColored( ImGuiX::ImColors::Red, "Stop" );
+                ImGui::TextColored( Colors::Red.ToFloat4(), "Stop" );
             }
             break;
         };

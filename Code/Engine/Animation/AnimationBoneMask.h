@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Types/Arrays.h"
-#include "System/Types/StringID.h"
-#include "System/Serialization/BinarySerialization.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Serialization/BitSerialization.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Types/StringID.h"
+#include "Base/Serialization/BinarySerialization.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Serialization/BitSerialization.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
@@ -80,6 +81,10 @@ namespace EE::Animation
             One, // All weights are set to 1.0f
         };
 
+        #if EE_DEVELOPMENT_TOOLS
+        static Color GetColorForWeight( float weight );
+        #endif
+
     public:
 
         BoneMask() : m_pSkeleton( nullptr ) {}
@@ -131,6 +136,9 @@ namespace EE::Animation
         // Calculate bone weights based on a set of supplied bone IDs and weights, user can specify whether we should feather any weights between set bones
         // i.e. if head is set to 1.0f and pelvis is set to 0.2f, the intermediate spine bone weights will be gradually increased till they match the head weight
         void ResetWeights( BoneMaskDefinition const& definition, bool shouldFeatherIntermediateBones = true );
+
+        // Apply this scaling factor to all weights
+        void ScaleWeights( float scale );
 
         // Multiple the supplied bone mask into the current bone mask
         inline void CombineWith( BoneMask const& rhs ) { operator*=( rhs ); }
@@ -223,6 +231,7 @@ namespace EE::Animation
             Mask = 0,
             GenerateMask,
             Blend,
+            Scale,
             Combine
         };
 
@@ -244,6 +253,16 @@ namespace EE::Animation
         {
             EE_ASSERT( maskIdx != 0xFF );
             m_maskIdx = maskIdx;
+            EE_ASSERT( IsValid() );
+        }
+
+        // Create a bone mask ptr task
+        explicit BoneMaskTask( int8_t sourceIdx, float scale )
+            : m_type( Type::Scale )
+        {
+            m_sourceTaskIdx = sourceIdx;
+            m_targetTaskIdx = InvalidIndex;
+            m_weight = scale;
             EE_ASSERT( IsValid() );
         }
 
@@ -272,6 +291,10 @@ namespace EE::Animation
             if ( m_type == Type::Combine )
             {
                 return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx != InvalidIndex && m_weight == -1.0f;
+            }
+            else if ( m_type == Type::Scale )
+            {
+                return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx == InvalidIndex && m_weight >= 0.0f && m_weight <= 1.0f;
             }
             else if ( m_type == Type::GenerateMask )
             {

@@ -4,8 +4,8 @@
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
-#include "System/Math/MathUtils.h"
-#include "System/Math/Line.h"
+#include "Base/Math/MathUtils.h"
+#include "Base/Math/Line.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
@@ -453,14 +453,15 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::RecordGraphState( outState );
 
-        auto FindSourceIndex = [&] ( PoseNode* pNode )
+        auto FindSourceIndex = [&] ( PoseNode* pNode ) -> int32_t
         {
             if ( pNode == nullptr )
             {
                 return InvalidIndex;
             }
 
-            for ( int32_t i = 0; i < (int32_t) m_sourceNodes.size(); i++ )
+            int32_t const numSourceNodes = (int32_t) m_sourceNodes.size();
+            for ( int32_t i = 0; i < numSourceNodes; i++ )
             {
                 if ( m_sourceNodes[i] == pNode )
                 {
@@ -488,10 +489,10 @@ namespace EE::Animation::GraphNodes
         m_bsr.m_pSource0 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
 
         inState.ReadValue( idx );
-        m_bsr.m_pSource0 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
+        m_bsr.m_pSource1 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
 
         inState.ReadValue( idx );
-        m_bsr.m_pSource0 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
+        m_bsr.m_pSource2 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
 
         inState.ReadValue( m_bsr.m_blendWeightBetween0And1 );
         inState.ReadValue( m_bsr.m_blendWeightBetween1And2 );

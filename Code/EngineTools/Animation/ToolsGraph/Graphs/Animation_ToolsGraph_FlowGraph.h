@@ -33,7 +33,7 @@ namespace EE::Animation
             VisualGraph::ScopedGraphModification sgm( this );
 
             static_assert( std::is_base_of<GraphNodes::FlowToolsNode, T>::value );
-            auto pNode = EE::New<T>( std::forward<ConstructorParams>( params )... );
+            auto pNode = EE::New<T>( eastl::forward<ConstructorParams>( params )... );
             EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
             pNode->Initialize( this );
 

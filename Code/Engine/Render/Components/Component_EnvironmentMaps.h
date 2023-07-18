@@ -2,8 +2,8 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
-#include "System/Render/RenderTexture.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Render/RenderTexture.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 namespace EE::Render

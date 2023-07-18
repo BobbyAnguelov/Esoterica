@@ -1,8 +1,8 @@
 #include "Workspace_GamePreviewer.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
-#include "Engine/ToolsUI/EngineToolsUI.h"
-#include "System/IniFile.h"
+#include "Engine/ToolsUI/EngineDebugUI.h"
+#include "Base/IniFile.h"
 
 //-------------------------------------------------------------------------
 
@@ -37,9 +37,8 @@ namespace EE
     void GamePreviewer::Initialize( UpdateContext const& context )
     {
         Workspace::Initialize( context );
-        m_pEngineToolsUI = EE::New<EngineToolsUI>();
-        m_pEngineToolsUI->Initialize( context, nullptr );
-        m_pEngineToolsUI->LockToWindow( "Viewport" );
+        m_pDebugUI = EE::New<EngineDebugUI>();
+        m_pDebugUI->Initialize( context, nullptr );
     }
 
     void GamePreviewer::Shutdown( UpdateContext const& context )
@@ -49,57 +48,44 @@ namespace EE
             m_pWorld->UnloadMap( m_loadedMap );
         }
 
-        m_pEngineToolsUI->Shutdown( context );
-        EE::Delete( m_pEngineToolsUI );
+        m_pDebugUI->Shutdown( context );
+        EE::Delete( m_pDebugUI );
 
         Workspace::Shutdown( context );
     }
 
-    //-------------------------------------------------------------------------
-
     void GamePreviewer::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
-        ImGuiID topDockID = 0;
-        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
-
-        // Dock viewport
-        ImGuiDockNode* pTopNode = ImGui::DockBuilderGetNode( topDockID );
-        pTopNode->LocalFlags |= ImGuiDockNodeFlags_NoDockingSplitMe | ImGuiDockNodeFlags_NoDockingOverMe;
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), dockspaceID );
     }
 
     void GamePreviewer::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_pEngineToolsUI->DrawOverlayElements( context, pViewport );
+        m_pDebugUI->DrawOverlayElements( context, pViewport );
     }
 
     void GamePreviewer::DrawMenu( UpdateContext const& context )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        if ( m_pEngineToolsUI->m_debugOverlayEnabled )
-        {
-            m_pEngineToolsUI->DrawMenu( context, m_pWorld );
-        }
+        m_pDebugUI->DrawMenu( context );
     }
 
-    void GamePreviewer::Update( UpdateContext const& context, bool isFocused )
+    void GamePreviewer::DrawEngineDebugUI( UpdateContext const& context )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
-        m_pEngineToolsUI->m_debugOverlayEnabled = true;
-        m_pEngineToolsUI->HandleUserInput( context, m_pWorld );
-        m_pEngineToolsUI->DrawWindows( context, m_pWorld, GetToolWindowClass() );
+        m_pDebugUI->EditorPreviewUpdate( context, GetToolWindowClass() );
     }
 
     void GamePreviewer::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         Workspace::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
-        m_pEngineToolsUI->BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+        m_pDebugUI->BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
     }
 
     void GamePreviewer::EndHotReload()
     {
-        m_pEngineToolsUI->EndHotReload();
+        m_pDebugUI->EndHotReload();
         Workspace::EndHotReload();
     }
 }

@@ -248,6 +248,10 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
 
+        #if EE_DEVELOPMENT_TOOLS
+        int16_t const startSampledEventIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        #endif
+
         // Check active transition
         if ( m_pActiveTransition != nullptr )
         {
@@ -288,6 +292,10 @@ namespace EE::Animation::GraphNodes
             EvaluateTransitions( context, result );
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        EE_ASSERT( result.m_sampledEventRange.m_startIdx == startSampledEventIdx );
+        #endif
+
         return result;
     }
 
@@ -295,6 +303,10 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
+
+        #if EE_DEVELOPMENT_TOOLS
+        int16_t const startSampledEventIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        #endif
 
         // Check active transition
         if ( m_pActiveTransition != nullptr )
@@ -310,12 +322,13 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult result;
         if ( m_pActiveTransition == nullptr )
         {
-            result = m_states[m_activeStateIndex].m_pStateNode->Update( context, updateRange );
+            auto pActiveState = m_states[m_activeStateIndex].m_pStateNode;
+            result = pActiveState->Update( context, updateRange );
 
             // Update node time
-            m_duration = m_states[m_activeStateIndex].m_pStateNode->GetDuration();
-            m_previousTime = m_states[m_activeStateIndex].m_pStateNode->GetPreviousTime();
-            m_currentTime = m_states[m_activeStateIndex].m_pStateNode->GetCurrentTime();
+            m_duration = pActiveState->GetDuration();
+            m_previousTime = pActiveState->GetPreviousTime();
+            m_currentTime = pActiveState->GetCurrentTime();
         }
         else // Update the transition
         {
@@ -335,6 +348,10 @@ namespace EE::Animation::GraphNodes
             EvaluateTransitions( context, result );
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        EE_ASSERT( result.m_sampledEventRange.m_startIdx == startSampledEventIdx );
+        #endif
+
         return result;
     }
 
@@ -349,6 +366,9 @@ namespace EE::Animation::GraphNodes
 
         if ( hasActiveTransition )
         {
+            bool transitionSerialized = false;
+
+            // NOTE: global transitions are shared across multiple states, you absolutely need to early out so that you dont write the transition indices multiple times
             for ( uint16_t stateIdx = 0; stateIdx < m_states.size(); stateIdx++ )
             {
                 for ( uint16_t transitionIdx = 0; transitionIdx < m_states[stateIdx].m_transitions.size(); transitionIdx++ )
@@ -357,9 +377,18 @@ namespace EE::Animation::GraphNodes
                     {
                         outState.WriteValue( stateIdx );
                         outState.WriteValue( transitionIdx );
+                        transitionSerialized = true;
+                        break;
                     }
                 }
+
+                if ( transitionSerialized )
+                {
+                    break;
+                }
             }
+
+            EE_ASSERT( transitionSerialized );
         }
     }
 
@@ -374,8 +403,8 @@ namespace EE::Animation::GraphNodes
         if ( hasActiveTransition )
         {
             uint16_t stateIdx;
-            uint16_t transitionIdx;
             inState.ReadValue( stateIdx );
+            uint16_t transitionIdx;
             inState.ReadValue( transitionIdx );
             m_pActiveTransition = m_states[stateIdx].m_transitions[transitionIdx].m_pTransitionNode;
         }

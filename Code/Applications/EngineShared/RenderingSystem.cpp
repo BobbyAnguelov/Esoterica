@@ -3,10 +3,10 @@
 #include "Engine/Render/Renderers/DebugRenderer.h"
 #include "Engine/Render/Renderers/ImguiRenderer.h"
 #include "Engine/Entity/EntityWorldManager.h"
-#include "System/Render/RenderDevice.h"
+#include "Base/Render/RenderDevice.h"
 #include "Engine/UpdateContext.h"
-#include "System/Profiling.h"
-#include "System/Math/ViewVolume.h"
+#include "Base/Profiling.h"
+#include "Base/Math/ViewVolume.h"
 #include "Engine/Entity/EntityWorld.h"
 #include <eastl/sort.h>
 

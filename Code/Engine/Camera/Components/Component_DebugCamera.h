@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Component_FreeLookCamera.h"
-#include "System/Time/Time.h"
+#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 

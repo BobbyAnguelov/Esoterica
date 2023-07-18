@@ -1,7 +1,7 @@
 #include "AnimationEventEditor.h"
 #include "AnimationEventTrack.h"
 #include "Engine/Animation/AnimationEvent.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 
 //-------------------------------------------------------------------------

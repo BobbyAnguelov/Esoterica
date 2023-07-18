@@ -1,6 +1,6 @@
 #pragma once
-#include "System/Time/Timers.h"
-#include "System/Math/Vector.h"
+#include "Base/Time/Timers.h"
+#include "Base/Math/Vector.h"
 
 //-------------------------------------------------------------------------
 

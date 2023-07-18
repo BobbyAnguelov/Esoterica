@@ -1,8 +1,8 @@
 #pragma once
 
 #include "RawAsset.h"
-#include "System/Math/Transform.h"
-#include "System/Types/StringID.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 

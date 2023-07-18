@@ -2,8 +2,8 @@
 
 #include "EngineTools/Resource/ResourceDescriptor.h"
 #include "Engine/Render/Material/RenderMaterial.h"
-#include "System/Render/RenderTexture.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Render/RenderTexture.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

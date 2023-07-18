@@ -2,10 +2,10 @@
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Serialization/BinarySerialization.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Time/Timers.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Serialization/BinarySerialization.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 

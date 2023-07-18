@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Resource/IResource.h"
+#include "Base/Resource/IResource.h"
 
 //-------------------------------------------------------------------------
 

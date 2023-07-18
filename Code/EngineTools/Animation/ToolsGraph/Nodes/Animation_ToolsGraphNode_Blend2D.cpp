@@ -11,7 +11,7 @@ namespace EE::Animation::GraphNodes
 {
     void DrawBlendSpaceVisualization( Blend2DToolsNode::BlendSpace const& blendSpace, ImVec2 const& size, Float2* pDebugPoint = nullptr )
     {
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray8.Value );
+        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray8 );
         if ( ImGui::BeginChild( "Triangulation", size ) )
         {
             auto pDrawList = ImGui::GetWindowDrawList();
@@ -41,7 +41,7 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             bool const validTriangulation = !blendSpace.m_indices.empty();
-            ImColor const color = validTriangulation ? ImGuiX::ImColors::Green : ImGuiX::ImColors::Red;
+            Color const color = validTriangulation ? Colors::Green : Colors::Red;
 
             InlineString str;
             TInlineVector<ImVec2, 20> screenPoints;
@@ -59,7 +59,7 @@ namespace EE::Animation::GraphNodes
                 screenPos.y = windowPos.y + ( ( 1.0f - verticalViewRange.GetPercentageThrough( point.m_y ) ) * windowSize.y );
 
                 pDrawList->AddCircleFilled( screenPos, 5.0f, color );
-                pDrawList->AddText( pFont, pFont->FontSize, screenPos + ImVec2( labelSize.x / -2.0f, 2.5f ), ImGuiX::ImColors::White, str.c_str() );
+                pDrawList->AddText( pFont, pFont->FontSize, screenPos + ImVec2( labelSize.x / -2.0f, 2.5f ), Colors::White, str.c_str() );
                 screenPoints.emplace_back( screenPos );
             }
 
@@ -83,7 +83,7 @@ namespace EE::Animation::GraphNodes
                 {
                     uint8_t const i0 = blendSpace.m_hullIndices[i - 1];
                     uint8_t const i1 = blendSpace.m_hullIndices[i];
-                    pDrawList->AddLine( screenPoints[i0], screenPoints[i1], ImGuiX::ImColors::GreenYellow );
+                    pDrawList->AddLine( screenPoints[i0], screenPoints[i1], Colors::GreenYellow );
                 }
             }
 
@@ -94,7 +94,7 @@ namespace EE::Animation::GraphNodes
                 ImVec2 screenPos;
                 screenPos.x = windowPos.x + ( horizontalViewRange.GetPercentageThrough( pDebugPoint->m_x ) * windowSize.x );
                 screenPos.y = windowPos.y + ( ( 1.0f - verticalViewRange.GetPercentageThrough( pDebugPoint->m_y ) ) * windowSize.y );
-                pDrawList->AddCircleFilled( screenPos, 3.0f, ImGuiX::ImColors::Gold );
+                pDrawList->AddCircleFilled( screenPos, 3.0f, Colors::Gold );
             }
         }
         ImGui::EndChild();

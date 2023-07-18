@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/Resource/ResourceCompiler.h"
-#include "System/Render/RenderShader.h"
+#include "Base/Render/RenderShader.h"
 
 //-------------------------------------------------------------------------
 

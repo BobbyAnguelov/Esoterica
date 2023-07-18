@@ -113,6 +113,8 @@
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationClip.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationGraph.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_Skeleton.cpp" />
+    <ClCompile Include="Core\EditorTool.cpp" />
+    <ClCompile Include="Core\EditorTools\EditorTool_SystemLog.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGridTypeEditingRules.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_UserContext.cpp" />
@@ -151,6 +153,8 @@
     <ClCompile Include="Render\Workspaces\Workspace_SkeletalMesh.cpp" />
     <ClCompile Include="Render\Workspaces\Workspace_StaticMesh.cpp" />
     <ClCompile Include="Render\Workspaces\Workspace_Texture.cpp" />
+    <ClCompile Include="Resource\EditorTools\EditorTool_ResourceBrowser.cpp" />
+    <ClCompile Include="Resource\EditorTools\EditorTool_ResourceSystem.cpp" />
     <ClCompile Include="Resource\ResourceCompiler.cpp" />
     <ClCompile Include="Resource\ResourceCompilerRegistry.cpp" />
     <ClCompile Include="Resource\ResourceDescriptor.cpp" />
@@ -162,8 +166,7 @@
     <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_FBX.cpp" />
     <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_GLTF.cpp" />
     <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_Images.cpp" />
-    <ClCompile Include="Resource\ResourceBrowser\ResourceBrowser.cpp" />
-    <ClCompile Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.cpp" />
+    <ClCompile Include="Resource\ResourceDescriptorCreator.cpp" />
     <ClCompile Include="Resource\ResourceDatabase.cpp" />
     <ClCompile Include="Resource\ResourcePicker.cpp" />
     <ClCompile Include="Core\TimelineEditor\TimelineTrack.cpp" />
@@ -230,6 +233,8 @@
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationClip.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationGraph.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_Skeleton.h" />
+    <ClInclude Include="Core\EditorTool.h" />
+    <ClInclude Include="Core\EditorTools\EditorTool_SystemLog.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h" />
     <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
@@ -273,6 +278,8 @@
     <ClInclude Include="Render\Workspaces\Workspace_SkeletalMesh.h" />
     <ClInclude Include="Render\Workspaces\Workspace_StaticMesh.h" />
     <ClInclude Include="Render\Workspaces\Workspace_Texture.h" />
+    <ClInclude Include="Resource\EditorTools\EditorTool_ResourceBrowser.h" />
+    <ClInclude Include="Resource\EditorTools\EditorTool_ResourceSystem.h" />
     <ClInclude Include="Resource\ResourceCompiler.h" />
     <ClInclude Include="Resource\ResourceCompilerRegistry.h" />
     <ClInclude Include="Resource\ResourceDescriptor.h" />
@@ -285,8 +292,7 @@
     <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_FBX.h" />
     <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_GLTF.h" />
     <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_Images.h" />
-    <ClInclude Include="Resource\ResourceBrowser\ResourceBrowser.h" />
-    <ClInclude Include="Resource\ResourceBrowser\ResourceBrowser_DescriptorCreator.h" />
+    <ClInclude Include="Resource\ResourceDescriptorCreator.h" />
     <ClInclude Include="Resource\ResourceDatabase.h" />
     <ClInclude Include="Resource\ResourcePicker.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf.h" />
@@ -314,7 +320,7 @@
     <ProjectReference Include="..\Engine\Esoterica.Engine.Runtime.vcxproj">
       <Project>{2cfadbdc-ee40-4484-94d0-62a90206209e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\System\Esoterica.System.vcxproj">
+    <ProjectReference Include="..\Base\Esoterica.Base.vcxproj">
       <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
     </ProjectReference>
   </ItemGroup>

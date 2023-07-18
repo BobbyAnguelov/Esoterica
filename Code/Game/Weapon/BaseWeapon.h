@@ -1,6 +1,6 @@
 #pragma once
 #include "DamageInfoTypes.h"
-#include "System/Math/Vector.h"
+#include "Base/Math/Vector.h"
 
 //-------------------------------------------------------------------------
 

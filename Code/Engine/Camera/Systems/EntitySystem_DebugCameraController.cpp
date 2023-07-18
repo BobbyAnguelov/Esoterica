@@ -1,7 +1,7 @@
 #include "EntitySystem_DebugCameraController.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Input/InputSystem.h"
+#include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 

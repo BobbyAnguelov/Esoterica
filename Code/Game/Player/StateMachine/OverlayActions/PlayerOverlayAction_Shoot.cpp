@@ -4,7 +4,7 @@
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Weapon/Ammo.h"
 #include "Game/Weapon/BaseWeapon.h"
-#include "System/Input/InputSystem.h"
+#include "Base/Input/InputSystem.h"
 //-------------------------------------------------------------------------
 
 namespace EE::Player

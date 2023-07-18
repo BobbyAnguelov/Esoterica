@@ -1,61 +1,14 @@
 #include "DebugView_Resource.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/Systems.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/Systems.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Resource
 {
-    ResourceDebugView::ResourceDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "System/Resource", [this] ( EntityWorldUpdateContext const& context ) { DrawResourceMenu( context ); } ) );
-    }
-
-    void ResourceDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
-    {
-        EntityWorldDebugView::Initialize( systemRegistry, pWorld );
-        m_pResourceSystem = systemRegistry.GetSystem<ResourceSystem>();
-    }
-
-    void ResourceDebugView::Shutdown()
-    {
-        m_pResourceSystem = nullptr;
-        EntityWorldDebugView::Shutdown();
-    }
-
-    void ResourceDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        if ( m_isHistoryWindowOpen )
-        {
-            ImGui::SetNextWindowBgAlpha( 0.75f );
-            DrawLogWindow( m_pResourceSystem, &m_isHistoryWindowOpen );
-        }
-
-        if ( m_isOverviewWindowOpen )
-        {
-            ImGui::SetNextWindowBgAlpha( 0.75f );
-            DrawOverviewWindow( m_pResourceSystem, &m_isOverviewWindowOpen );
-        }
-    }
-
-    void ResourceDebugView::DrawResourceMenu( EntityWorldUpdateContext const& context )
-    {
-        if ( ImGui::MenuItem( "Show Resource System Overview" ) )
-        {
-            m_isOverviewWindowOpen = true;
-        }
-
-        if ( ImGui::MenuItem( "Show Request History" ) )
-        {
-            m_isHistoryWindowOpen = true;
-        }
-    }
-
-    //-------------------------------------------------------------------------
-
-    void ResourceDebugView::DrawOverviewWindow( ResourceSystem* pResourceSystem, bool* pIsOpen )
+    void ResourceDebugView::DrawResourceSystemOverview( ResourceSystem* pResourceSystem )
     {
         EE_ASSERT( pResourceSystem != nullptr );
 
@@ -165,117 +118,139 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::Begin( "Resource System Overview", pIsOpen ) )
+        ImGui::Text( "Num Resources Loaded: %d", pResourceSystem->m_resourceRecords.size() );
+
+        ImGui::Separator();
+
+        if ( ImGui::BeginTable( "Resource Reference Tracker Table", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
-            ImGui::Text( "Num Resources Loaded: %d", pResourceSystem->m_resourceRecords.size() );
+            ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
+            ImGui::TableSetupColumn( "Refs", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 24 );
+            ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 60 );
+            ImGui::TableSetupColumn( "ID", ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "FRT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
+            ImGui::TableSetupColumn( "LT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
+            ImGui::TableSetupColumn( "DWT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
+            ImGui::TableSetupColumn( "IT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
 
-            ImGui::Separator();
+            //-------------------------------------------------------------------------
 
-            if ( ImGui::BeginTable( "Resource Reference Tracker Table", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            auto const& resourceRecords = pResourceSystem->m_resourceRecords;
+            for ( auto const& recordTuple : resourceRecords )
             {
-                ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
-                ImGui::TableSetupColumn( "Refs", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 24 );
-                ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 60 );
-                ImGui::TableSetupColumn( "ID", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupColumn( "FRT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
-                ImGui::TableSetupColumn( "LT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
-                ImGui::TableSetupColumn( "DWT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
-                ImGui::TableSetupColumn( "IT", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0 );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableHeadersRow();
-
-                //-------------------------------------------------------------------------
-
-                auto const& resourceRecords = pResourceSystem->m_resourceRecords;
-                for ( auto const& recordTuple : resourceRecords )
-                {
-                    ResourceRecord const* pRecord = recordTuple.second;
-                    DrawRow( pRecord );
-                }
-
-                ImGui::EndTable();
+                ResourceRecord const* pRecord = recordTuple.second;
+                DrawRow( pRecord );
             }
+
+            ImGui::EndTable();
         }
-        ImGui::End();
     }
 
-    void ResourceDebugView::DrawLogWindow( ResourceSystem* pResourceSystem, bool* pIsOpen )
+    void ResourceDebugView::DrawRequestHistory( ResourceSystem* pResourceSystem )
     {
-        if ( ImGui::Begin( "Resource Request History", pIsOpen ) )
+        if ( ImGui::BeginTable( "Resource Request History Table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
-            if ( ImGui::BeginTable( "Resource Request History Table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+            ImGui::TableSetupColumn( "Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 50 );
+            ImGui::TableSetupColumn( "Request", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 45 );
+            ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
+            ImGui::TableSetupColumn( "ID", ImGuiTableColumnFlags_WidthStretch );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            int32_t const numEntries = (int32_t) pResourceSystem->m_history.size();
+            int32_t const lastEntryIdx = numEntries - 1;
+
+            ImGuiListClipper clipper;
+            clipper.Begin( numEntries );
+            while ( clipper.Step() )
             {
-                ImGui::TableSetupColumn( "Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 50 );
-                ImGui::TableSetupColumn( "Request", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 45 );
-                ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
-                ImGui::TableSetupColumn( "ID", ImGuiTableColumnFlags_WidthStretch );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableHeadersRow();
-
-                //-------------------------------------------------------------------------
-
-                int32_t const numEntries = (int32_t) pResourceSystem->m_history.size();
-                int32_t const lastEntryIdx = numEntries - 1;
-
-                ImGuiListClipper clipper;
-                clipper.Begin( numEntries );
-                while ( clipper.Step() )
+                for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                 {
-                    for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                    auto const& entry = pResourceSystem->m_history[lastEntryIdx - i];
+
+                    ImGui::TableNextRow();
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableSetColumnIndex( 0 );
+                    ImGui::Text( entry.m_time.GetTimeDetailed().c_str() );
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableSetColumnIndex( 1 );
+                    switch ( entry.m_type )
                     {
-                        auto const& entry = pResourceSystem->m_history[lastEntryIdx - i];
-
-                        ImGui::TableNextRow();
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableSetColumnIndex( 0 );
-                        ImGui::Text( entry.m_time.GetTimeDetailed().c_str() );
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableSetColumnIndex( 1 );
-                        switch ( entry.m_type )
+                        case ResourceSystem::PendingRequest::Type::Load:
                         {
-                            case ResourceSystem::PendingRequest::Type::Load:
-                            {
-                                ImGui::TextColored( Colors::LimeGreen.ToFloat4(), "Load" );
-                            }
-                            break;
-
-                            case ResourceSystem::PendingRequest::Type::Unload:
-                            {
-                                ImGui::TextColored( Colors::OrangeRed.ToFloat4(), "Unload" );
-                            }
-                            break;
+                            ImGui::TextColored( Colors::LimeGreen.ToFloat4(), "Load" );
                         }
+                        break;
 
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableSetColumnIndex( 2 );
-                        ImGui::Text( entry.m_ID.GetResourceTypeID().ToString().c_str() );
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableSetColumnIndex( 3 );
-                        ImGui::Text( entry.m_ID.c_str() );
+                        case ResourceSystem::PendingRequest::Type::Unload:
+                        {
+                            ImGui::TextColored( Colors::OrangeRed.ToFloat4(), "Unload" );
+                        }
+                        break;
                     }
-                }
 
-                // Auto scroll the table
-                if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
-                {
-                    ImGui::SetScrollHereY( 1.0f );
-                }
+                    //-------------------------------------------------------------------------
 
-                ImGui::EndTable();
+                    ImGui::TableSetColumnIndex( 2 );
+                    ImGui::Text( entry.m_ID.GetResourceTypeID().ToString().c_str() );
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableSetColumnIndex( 3 );
+                    ImGui::Text( entry.m_ID.c_str() );
+                }
             }
+
+            // Auto scroll the table
+            if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
+            {
+                ImGui::SetScrollHereY( 1.0f );
+            }
+
+            ImGui::EndTable();
         }
-        ImGui::End();
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ResourceDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
+    {
+        DebugView::Initialize( systemRegistry, pWorld );
+        m_pResourceSystem = systemRegistry.GetSystem<ResourceSystem>();
+
+        m_windows.emplace_back( "Resource Request History", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawRequestHistory( m_pResourceSystem ); } );
+        m_windows.emplace_back( "Resource System Overview", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawResourceSystemOverview( m_pResourceSystem ); } );
+    }
+
+    void ResourceDebugView::Shutdown()
+    {
+        m_pResourceSystem = nullptr;
+        DebugView::Shutdown();
+    }
+
+    void ResourceDebugView::DrawMenu( EntityWorldUpdateContext const& context )
+    {
+        if ( ImGui::MenuItem( "Show Request History" ) )
+        {
+            m_windows[0].m_isOpen = true;
+        }
+
+        if ( ImGui::MenuItem( "Show Resource System Overview" ) )
+        {
+            m_windows[1].m_isOpen = true;
+        }
     }
 }
 #endif

@@ -1,7 +1,7 @@
 #include "AIBehavior_Wander.h"
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
-#include "System/Math/MathRandom.h"
-#include "System/Math/BoundingVolumes.h"
+#include "Base/Math/MathRandom.h"
+#include "Base/Math/BoundingVolumes.h"
 
 //-------------------------------------------------------------------------
 

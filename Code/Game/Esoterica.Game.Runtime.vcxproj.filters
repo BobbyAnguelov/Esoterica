@@ -116,6 +116,7 @@
     <ClCompile Include="Player\DebugViews\DebugView_NetworkProto.cpp" />
     <ClCompile Include="Animation\Tasks\Animation_Task_LookAtIK.cpp" />
     <ClCompile Include="Animation\GraphNodes\Animation_RuntimeGraphNode_LookAtIK.cpp" />
+    <ClCompile Include="Player\StateMachine\OverlayActions\PlayerOverlayAction_Aim.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Player\Components\Component_PlayerInteractible.h">
@@ -236,6 +237,7 @@
     <ClInclude Include="Player\DebugViews\DebugView_NetworkProto.h" />
     <ClInclude Include="Animation\Tasks\Animation_Task_LookAtIK.h" />
     <ClInclude Include="Animation\GraphNodes\Animation_RuntimeGraphNode_LookAtIK.h" />
+    <ClInclude Include="Player\StateMachine\OverlayActions\PlayerOverlayAction_Aim.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Player">

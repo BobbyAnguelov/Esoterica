@@ -1,7 +1,7 @@
 #include "PlayerAction_Interact.h"
 #include "Game/Player/Components/Component_MainPlayer.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "System/Input/InputSystem.h"
+#include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 

@@ -78,7 +78,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual char const* GetTypeName() const override { return "State"; }
-        virtual ImColor GetTitleBarColor() const override;
+        virtual Color GetTitleBarColor() const override;
         virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;

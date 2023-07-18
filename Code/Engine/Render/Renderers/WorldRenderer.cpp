@@ -8,9 +8,9 @@
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "System/Render/RenderCoreResources.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Profiling.h"
+#include "Base/Render/RenderCoreResources.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 

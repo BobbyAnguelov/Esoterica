@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/_Module/API.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/Serialization/BitSerialization.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/Serialization/BitSerialization.h"
 
 //-------------------------------------------------------------------------
 

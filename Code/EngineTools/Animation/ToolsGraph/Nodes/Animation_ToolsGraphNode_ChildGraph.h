@@ -19,7 +19,7 @@ namespace EE::Animation::GraphNodes
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::Gold; }
+        virtual Color GetTitleBarColor() const override { return Colors::Gold; }
         virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
 
         virtual char const* GetDefaultSlotName() const override { return "Graph"; }

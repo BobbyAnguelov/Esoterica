@@ -24,8 +24,9 @@ namespace EE::Animation::GraphNodes
             }
 
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_operator = m_operator;
-            pSettings->m_searchRule = m_searchRule;
+
+            // IDs
+            //-------------------------------------------------------------------------
 
             pSettings->m_eventIDs.clear();
             for ( auto const& ID : m_eventIDs )
@@ -40,6 +41,49 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_operator )
+            {
+                case EventConditionOperator::Or : 
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorOr );
+                }
+                break;
+
+                case EventConditionOperator::And :
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorAnd );
+                }
+                break;
+            }
+
+            switch ( m_searchRule )
+            {
+                case SearchRule::OnlySearchAnimEvents:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::SearchOnlyAnimEvents, true );
+                }
+                break;
+
+                case SearchRule::OnlySearchStateEvents:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::SearchOnlyStateEvents, true );
+                }
+                break;
+
+                case SearchRule::SearchAll:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::SearchBothStateAndAnimEvents, true );
+                }
+                break;
+            }
         }
         return pSettings->m_nodeIdx;
     }
@@ -48,19 +92,19 @@ namespace EE::Animation::GraphNodes
     {
         switch ( m_searchRule )
         {
-            case IDEventConditionNode::SearchRule::OnlySearchStateEvents:
+            case SearchRule::OnlySearchStateEvents:
             {
                 ImGui::Text( "Search: State Events" );
             }
             break;
 
-            case IDEventConditionNode::SearchRule::OnlySearchAnimEvents:
+            case SearchRule::OnlySearchAnimEvents:
             {
                 ImGui::Text( "Search: Anim Events" );
             }
             break;
 
-            case IDEventConditionNode::SearchRule::SearchAll:
+            case SearchRule::SearchAll:
             {
                 ImGui::Text( "Search: All Events" );
             }
@@ -69,30 +113,38 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        InlineString infoText;
-
         if ( m_operator == EventConditionOperator::Or )
         {
-            infoText = "Any of These: \n";
+            ImGui::Text( "Any of These: " );
         }
         else
         {
-            infoText = "All of these: \n";
+            ImGui::Text( "All of these: " );
         }
 
         for ( auto i = 0; i < m_eventIDs.size(); i++ )
         {
             if ( m_eventIDs[i].IsValid() )
             {
-                infoText.append( m_eventIDs[i].c_str() );
-                if ( i != m_eventIDs.size() - 1 )
-                {
-                    infoText.append( "\n" );
-                }
+                ImGui::BulletText( m_eventIDs[i].c_str() );
+            }
+            else
+            {
+                ImGui::BulletText( "INVALID ID" );
             }
         }
 
-        ImGui::Text( infoText.c_str() );
+        //-------------------------------------------------------------------------
+
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
     }
 
     void IDEventConditionToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
@@ -151,7 +203,9 @@ namespace EE::Animation::GraphNodes
             }
 
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_operator = m_operator;
+
+            // Conditions
+            //-------------------------------------------------------------------------
 
             pSettings->m_conditions.clear();
             for ( auto const& condition : m_conditions )
@@ -169,21 +223,40 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_operator )
+            {
+                case EventConditionOperator::Or:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorOr );
+                }
+                break;
+
+                case EventConditionOperator::And:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorAnd );
+                }
+                break;
+            }
         }
         return pSettings->m_nodeIdx;
     }
 
     void StateEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        InlineString infoText;
-
         if ( m_operator == EventConditionOperator::Or )
         {
-            infoText = "Any of these: \n";
+            ImGui::Text( "Any of these:" );
         }
         else
         {
-            infoText = "All of these: \n";
+            ImGui::Text( "All of these:" );
         }
 
         constexpr static char const* const typeLabels[] = { "Entry", "FullyInState","Exit", "Timed", "All" };
@@ -192,15 +265,21 @@ namespace EE::Animation::GraphNodes
         {
             if ( m_conditions[i].m_eventID.IsValid() )
             {
-                infoText.append_sprintf( "[%s] %s", typeLabels[(uint8_t) m_conditions[i].m_type], m_conditions[i].m_eventID.c_str() );
-                if ( i != m_conditions.size() - 1 )
-                {
-                    infoText.append( "\n" );
-                }
+                ImGui::BulletText( "[%s] %s", typeLabels[(uint8_t) m_conditions[i].m_type], m_conditions[i].m_eventID.c_str() );
             }
         }
 
-        ImGui::Text( infoText.c_str() );
+        //-------------------------------------------------------------------------
+
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
     }
 
     void StateEventConditionToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
@@ -251,9 +330,29 @@ namespace EE::Animation::GraphNodes
         if ( state == NodeCompilationState::NeedCompilation )
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
-            pSettings->m_priorityRule = m_priorityRule;
             pSettings->m_eventID = m_eventID;
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_priorityRule )
+            {
+                case EventPriorityRule::HighestWeight:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                }
+                break;
+
+                case EventPriorityRule::HighestPercentageThrough:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                }
+                break;
+            }
         }
         return pSettings->m_nodeIdx;
     }
@@ -266,10 +365,20 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            ImGui::TextColored( ImColor( 0xFF0000FF ), "Event ID: Invalid" );
+            ImGui::TextColored( Colors::Red.ToFloat4(), "Event ID: Invalid" );
         }
 
-        if ( m_onlyCheckEventsFromActiveBranch )
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
+
+        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
         {
             ImGui::Text( "Prefer Highest Event %" );
         }
@@ -295,7 +404,13 @@ namespace EE::Animation::GraphNodes
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_phaseCondition = m_phaseCondition;
-            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
         }
         return pSettings->m_nodeIdx;
     }
@@ -304,13 +419,14 @@ namespace EE::Animation::GraphNodes
     {
         ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
 
-        if ( m_onlyCheckEventsFromActiveBranch )
+        if ( m_limitSearchToSourceState )
         {
-            ImGui::Text( "Prefer Highest Event %" );
+            ImGui::Text( "Only checks source state" );
         }
-        else
+
+        if ( m_ignoreInactiveBranchEvents )
         {
-            ImGui::Text( "Prefer Highest Event Weight" );
+            ImGui::Text( "Inactive events ignored" );
         }
     }
 
@@ -330,8 +446,28 @@ namespace EE::Animation::GraphNodes
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_phaseCondition = m_phaseCondition;
-            pSettings->m_priorityRule = m_priorityRule;
-            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_priorityRule )
+            {
+                case EventPriorityRule::HighestWeight:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                }
+                break;
+
+                case EventPriorityRule::HighestPercentageThrough:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                }
+                break;
+            }
         }
         return pSettings->m_nodeIdx;
     }
@@ -340,7 +476,17 @@ namespace EE::Animation::GraphNodes
     {
         ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
 
-        if ( m_onlyCheckEventsFromActiveBranch )
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
+
+        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
         {
             ImGui::Text( "Prefer Highest Event %" );
         }
@@ -370,7 +516,9 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
 
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            EE_ASSERT( context.IsCompilingConduit() );
+
+            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
             pSettings->m_triggerMode = m_triggerMode;
             pSettings->m_syncEventIdx = m_syncEventIdx;
         }
@@ -403,7 +551,9 @@ namespace EE::Animation::GraphNodes
         NodeCompilationState const state = context.GetSettings<CurrentSyncEventNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            EE_ASSERT( context.IsCompilingConduit() );
+
+            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
         }
         return pSettings->m_nodeIdx;
     }
@@ -424,8 +574,7 @@ namespace EE::Animation::GraphNodes
         {
             pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
             pSettings->m_markerCondition = m_markerCondition;
-            pSettings->m_onlyCheckEventsFromActiveBranch = m_onlyCheckEventsFromActiveBranch;
-
+            
             if ( m_matchOnlySpecificMarkerID )
             {
                 if ( m_markerIDToMatch.IsValid() )
@@ -442,6 +591,13 @@ namespace EE::Animation::GraphNodes
             {
                 pSettings->m_markerIDToMatch = StringID();
             }
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
         }
         return pSettings->m_nodeIdx;
     }
@@ -450,13 +606,14 @@ namespace EE::Animation::GraphNodes
     {
         ImGui::Text( GetTransitionMarkerConditionName( m_markerCondition ) );
 
-        if ( m_onlyCheckEventsFromActiveBranch )
+        if ( m_limitSearchToSourceState )
         {
-            ImGui::Text( "Prefer Highest Event %" );
+            ImGui::Text( "Only checks source state" );
         }
-        else
+
+        if ( m_ignoreInactiveBranchEvents )
         {
-            ImGui::Text( "Prefer Highest Event Weight" );
+            ImGui::Text( "Inactive events ignored" );
         }
     }
 }

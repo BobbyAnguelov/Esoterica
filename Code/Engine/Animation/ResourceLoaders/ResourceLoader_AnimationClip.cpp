@@ -1,7 +1,7 @@
 #include "ResourceLoader_AnimationClip.h"
 #include "Engine/Animation/AnimationClip.h"
-#include "System/TypeSystem/TypeDescriptors.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/TypeSystem/TypeDescriptors.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

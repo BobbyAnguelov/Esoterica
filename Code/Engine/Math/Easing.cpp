@@ -35,6 +35,7 @@ namespace EE::Math::Easing
         EaseOutCirc,
         EaseInOutCirc,
         EaseOutInCirc,
+        NoEasing
     };
 
     //-------------------------------------------------------------------------
@@ -78,6 +79,7 @@ namespace EE::Math::Easing
         "EaseOutCirc",
         "EaseInOutCirc",
         "EaseOutInCirc",
+        "No Easing"
     };
 
     char const* GetName( Type type )

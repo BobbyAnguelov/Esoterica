@@ -1,5 +1,5 @@
 #include "Component_CoverVolume.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

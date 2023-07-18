@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Resource/ResourceLoader.h"
+#include "Base/Resource/ResourceLoader.h"
 
 //-------------------------------------------------------------------------
 

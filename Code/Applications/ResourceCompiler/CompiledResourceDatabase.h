@@ -1,7 +1,7 @@
 #pragma once
 
-#include "System/Resource/ResourceID.h"
-#include "System/FileSystem/FileSystemPath.h"
+#include "Base/Resource/ResourceID.h"
+#include "Base/FileSystem/FileSystemPath.h"
 
 //-------------------------------------------------------------------------
 

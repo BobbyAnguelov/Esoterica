@@ -7,7 +7,7 @@
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Types/ScopedValue.h"
+#include "Base/Types/ScopedValue.h"
 
 //-------------------------------------------------------------------------
 

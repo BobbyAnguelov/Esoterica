@@ -1,5 +1,5 @@
 #include "Component_FreeLookCamera.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 

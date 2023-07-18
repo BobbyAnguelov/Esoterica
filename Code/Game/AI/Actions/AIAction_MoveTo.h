@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Navmesh/NavPower.h"
-#include "System/Math/Vector.h"
-#include "System/Types/Percentage.h"
+#include "Base/Math/Vector.h"
+#include "Base/Types/Percentage.h"
 
 //-------------------------------------------------------------------------
 

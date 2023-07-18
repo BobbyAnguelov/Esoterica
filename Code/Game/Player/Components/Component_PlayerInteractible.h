@@ -3,7 +3,7 @@
 #include "Game/_Module/API.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

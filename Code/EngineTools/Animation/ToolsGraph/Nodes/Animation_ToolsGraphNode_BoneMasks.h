@@ -46,7 +46,7 @@ namespace EE::Animation::GraphNodes
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
         EE_REFLECT();
-        float                                   m_boneWeight;
+        float                                   m_boneWeight = 0.0f;
     };
 
     //-------------------------------------------------------------------------

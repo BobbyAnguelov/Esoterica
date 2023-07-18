@@ -1,9 +1,9 @@
 #pragma once
 
 #include "ReflectionProjectTypes.h"
-#include "System/TypeSystem/TypeInfo.h"
-#include "System/TypeSystem/CoreTypeIDs.h"
-#include "System/Resource/ResourceTypeID.h"
+#include "Base/TypeSystem/TypeInfo.h"
+#include "Base/TypeSystem/CoreTypeIDs.h"
+#include "Base/Resource/ResourceTypeID.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,8 +1,8 @@
 #include "DebugView_Input.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Input/InputSystem.h"
+#include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,6 +23,8 @@ namespace EE::Input
 
         static Float2 const g_buttonBorderOffset( g_buttonBorderThickness );
         static Float2 const g_buttonDimensions( g_buttonWidth, g_buttonWidth );
+
+        static StringID const g_controllerWindowTypeID( "ControllerWindow" );
     }
 
     static void DrawButton( ImDrawList* pDrawList, Float2 const& position, Float2 const& dimensions, char const* const pLabel, bool IsHeldDown, uint32_t buttonColor = g_controlOutlineColor, uint32_t pressedColor = g_controlFillColor )
@@ -224,82 +226,46 @@ namespace EE::Input
 
     //-------------------------------------------------------------------------
 
-    InputDebugView::InputDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Engine/Input", [this] ( EntityWorldUpdateContext const& context ) { DrawControllerMenu( context ); } ) );
-    }
-
     void InputDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
-        EntityWorldDebugView::Initialize( systemRegistry, pWorld );
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pInputSystem = systemRegistry.GetSystem<InputSystem>();
     }
 
     void InputDebugView::Shutdown()
     {
         m_pInputSystem = nullptr;
-        EntityWorldDebugView::Shutdown();
+        DebugView::Shutdown();
     }
 
-    void InputDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        auto pInputSystem = context.GetSystem<InputSystem>();
-        EE_ASSERT( pInputSystem != nullptr );
-
-        char buffer[256];
-
-        // Draw the open controller windows
-        int32_t const numControllers = (int32_t) m_openControllerWindows.size();
-        for ( int32_t i = numControllers - 1; i >= 0; i-- )
-        {
-            // Draw the window
-            Printf( buffer, 256, "Controller State: Controller %d", i );
-
-            bool isWindowOpen = true;
-            ImGui::SetNextWindowSize( ImVec2( 300, 210 ) );
-            if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-            if ( ImGui::Begin( buffer, &isWindowOpen, ImGuiWindowFlags_NoResize ) )
-            {
-                DrawControllerState( *m_openControllerWindows[i] );
-            }
-            ImGui::End();
-
-            // Should we close the window?
-            if ( !isWindowOpen )
-            {
-                m_openControllerWindows.erase_unsorted( m_openControllerWindows.begin() + i );
-            }
-        }
-    }
-
-    void InputDebugView::DrawControllerMenu( EntityWorldUpdateContext const& context )
+    void InputDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
         EE_ASSERT( m_pInputSystem != nullptr );
 
         //-------------------------------------------------------------------------
 
-        ImGui::MenuItem( "Mouse State" );
+        ImGui::MenuItem( "Mouse State (TODO)" );
 
-        ImGui::MenuItem( "Keyboard State" );
+        ImGui::MenuItem( "Keyboard State (TODO)" );
 
         //-------------------------------------------------------------------------
 
         ImGui::Separator();
 
-        uint32_t const numControllers = m_pInputSystem->GetNumConnectedControllers();
-        if ( numControllers > 0 )
+        if ( m_numControllers > 0 )
         {
             TInlineString<100> str;
-            for ( uint32_t i = 0u; i < numControllers; i++ )
+            for ( int32_t i = 0; i < m_numControllers; i++ )
             {
                 str.sprintf( "Show Controller State: %d", i );
                 if ( ImGui::MenuItem( str.c_str() ) )
                 {
-                    auto pController = m_pInputSystem->GetControllerDevice( i );
-                    bool isWindowAlreadyOpen = VectorContains( m_openControllerWindows, pController );
-                    if ( !isWindowAlreadyOpen )
+                    for ( auto& window : m_windows )
                     {
-                        m_openControllerWindows.emplace_back( pController );
+                        if ( m_windows[i].m_typeID == g_controllerWindowTypeID && m_windows[i].m_userData == i )
+                        {
+                            m_windows[i].m_isOpen = true;
+                        }
                     }
                 }
             }
@@ -307,6 +273,40 @@ namespace EE::Input
         else
         {
             ImGui::Text( "No Controllers Connected" );
+        }
+    }
+
+    void InputDebugView::Update( EntityWorldUpdateContext const& context )
+    {
+        int32_t const numControllers = m_pInputSystem->GetNumConnectedControllers();
+        if ( numControllers != m_numControllers )
+        {
+            m_numControllers = numControllers;
+
+            // Remove all controller windows
+            for ( int32_t i = (int32_t) m_windows.size() - 1; i >= 0; i-- )
+            {
+                if ( m_windows[i].m_typeID == g_controllerWindowTypeID )
+                {
+                    m_windows.erase_unsorted( m_windows.begin() + i );
+                }
+            }
+
+            // Create controller windows
+            TInlineString<100> str;
+            for ( int32_t i = 0; i < numControllers; i++ )
+            {
+                auto DrawControllerStateLambda = [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData )
+                {
+                    auto pControllerDevice = m_pInputSystem->GetControllerDevice( (uint32_t) userData );
+                    DrawControllerState( *pControllerDevice );
+                };
+
+                str.sprintf( "Controller State: Controller %d", i );
+                m_windows.emplace_back( str.c_str(), DrawControllerStateLambda );
+                m_windows.back().m_typeID = g_controllerWindowTypeID;
+                m_windows.back().m_userData = i;
+            }
         }
     }
 }

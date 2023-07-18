@@ -8,9 +8,9 @@
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "Engine/Animation/AnimationClip.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Math/MathUtils.h"
-#include "System/FileSystem/FileSystem.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Math/MathUtils.h"
+#include "Base/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 #include "TimelineTrack.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Serialization/TypeSerialization.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Serialization/TypeSerialization.h"
 
 //-------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ namespace EE::Timeline
         auto const status = GetValidationStatus( timelineRange.m_end );
 
         float const iconWidth = ImGui::CalcTextSize( statusIcons[(int32_t) status] ).x + 2;
-        ImGui::PushStyleColor( ImGuiCol_Text, statusColors[(int32_t) status].ToUInt32_ABGR() );
+        ImGui::PushStyleColor( ImGuiCol_Text, statusColors[(int32_t) status] );
         ImGui::SameLine( headerRect.GetWidth() - iconWidth );
         ImGui::Text( statusIcons[(int32_t) status] );
         ImGui::PopStyleColor();
@@ -139,24 +139,20 @@ namespace EE::Timeline
 
     //-------------------------------------------------------------------------
 
-    uint32_t Track::GetItemBackgroundColor( ItemState itemState, bool isHovered )
+    Color Track::GetItemBackgroundColor( ItemState itemState, bool isHovered )
     {
-        Float4 baseItemColor = ImGuiX::Style::s_colorGray0.Value;
-
-        float originalAlpha = baseItemColor.m_w;
-
+        Color baseItemColor = ImGuiX::Style::s_colorGray0;
+     
         if ( itemState == Track::ItemState::Selected || itemState == Track::ItemState::Edited )
         {
-            baseItemColor = baseItemColor * 1.45f;
+            baseItemColor.ScaleColor( 1.45f );
         }
         else if ( isHovered )
         {
-            baseItemColor = baseItemColor * 1.15f;
+            baseItemColor.ScaleColor( 1.15f );
         }
 
-        baseItemColor.m_w = originalAlpha;
-
-        return (uint32_t) ImColor( baseItemColor );
+        return baseItemColor;
     }
 
     ImRect Track::DrawImmediateItem( ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemPos, ItemState itemState )
@@ -182,13 +178,13 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         Color const itemColor = GetItemColor( pItem );
-        pDrawList->AddRectFilled( capTopLeft, capBottomRight, itemColor.ToUInt32_ABGR() );
+        pDrawList->AddRectFilled( capTopLeft, capBottomRight, itemColor );
         pDrawList->AddTriangleFilled( topLeft, topRight, base, GetItemBackgroundColor( itemState, itemRect.Contains( ImGui::GetMousePos() ) ) );
 
         ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
         InlineString const itemLabel = GetItemLabel( pItem );
         pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 4, 0 ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
 
         //-------------------------------------------------------------------------
 
@@ -221,13 +217,13 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         Color const itemColor = GetItemColor( pItem );
-        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos, itemColor.ToUInt32_ABGR(), 4.0f, ImDrawFlags_RoundCornersBottom );
+        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos, itemColor, 4.0f, ImDrawFlags_RoundCornersBottom );
         pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState, itemRect.Contains( ImGui::GetMousePos() ) ), 4.0f, ImDrawFlags_RoundCornersBottom );
 
         ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
         InlineString const itemLabel = GetItemLabel( pItem );
         pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 5, textMarginY + 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 4, textMarginY ), ImColor( ImGuiX::Style::s_colorText ), itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 4, textMarginY ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
 
         //-------------------------------------------------------------------------
 

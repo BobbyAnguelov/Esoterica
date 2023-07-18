@@ -118,6 +118,64 @@ namespace EE::Animation
         return m_startEventOffset;
     }
 
+    int32_t SyncTrack::GetClosestEventIndexForID( SyncTrackTime const& time, StringID ID ) const
+    {
+        int32_t const specifiedIdx = ClampIndexToTrack( time.m_eventIdx );
+
+        // Do we match?
+        if ( m_syncEvents[specifiedIdx].m_ID == ID )
+        {
+            return ClampIndexToTrack( specifiedIdx - m_startEventOffset );
+        }
+
+        // Search events lower than us
+        int32_t lowerFoundIdx = InvalidIndex;
+        int32_t lowerDistance = 0;
+        for ( int32_t i = specifiedIdx - 1; i > 0; i-- )
+        {
+            if ( m_syncEvents[i].m_ID == ID )
+            {
+                lowerFoundIdx = i;
+                lowerDistance = specifiedIdx - i;
+                break;
+            }
+        }
+
+        // Search events higher than us
+        int32_t upperFoundIdx = InvalidIndex;
+        int32_t upperDistance = 0;
+        int32_t const numEvents = (int32_t) m_syncEvents.size();
+        for ( int32_t i = specifiedIdx + 1; i < numEvents; i++ )
+        {
+            if ( m_syncEvents[i].m_ID == ID )
+            {
+                upperFoundIdx = i;
+                upperDistance = i - specifiedIdx;
+                break;
+            }
+        }
+
+        // Return the found index
+        //-------------------------------------------------------------------------
+
+        if ( lowerFoundIdx != InvalidIndex && upperFoundIdx != InvalidIndex )
+        {
+            int32_t foundIdx = ( lowerDistance < upperDistance ) ? lowerFoundIdx : upperFoundIdx;
+            return ClampIndexToTrack( foundIdx - m_startEventOffset );
+        }
+        else if ( lowerFoundIdx != InvalidIndex )
+        {
+            return ClampIndexToTrack( lowerFoundIdx - m_startEventOffset );
+        }
+        else if ( upperFoundIdx != InvalidIndex )
+        {
+            return ClampIndexToTrack( upperFoundIdx - m_startEventOffset );
+        }
+        
+        // Nothing found
+        return m_startEventOffset;
+    }
+
     int32_t SyncTrack::GetEventIndexForIDWithoutOffset( StringID ID ) const
     {
         int32_t const numEvents = (int32_t) m_syncEvents.size();

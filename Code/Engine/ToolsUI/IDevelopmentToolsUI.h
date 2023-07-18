@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/_Module/API.h"
-#include "System/Resource/ResourceRequesterID.h"
-#include "System/Types/Arrays.h"
+#include "Base/Resource/ResourceRequesterID.h"
+#include "Base/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
 

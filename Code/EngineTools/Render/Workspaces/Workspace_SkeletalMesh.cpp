@@ -2,7 +2,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -83,9 +83,9 @@ namespace EE::Render
         }
     }
 
-    void SkeletalMeshWorkspace::Update( UpdateContext const& context, bool isFocused )
+    void SkeletalMeshWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        TWorkspace::Update( context, isFocused );
+        TWorkspace::Update( context, isVisible, isFocused );
 
         if ( IsResourceLoaded() )
         {
@@ -334,7 +334,7 @@ namespace EE::Render
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
         }
 
-        ImColor rowColor = ImGuiX::Style::s_colorText;
+        Color rowColor = ImGuiX::Style::s_colorText;
         if ( currentBoneID == m_selectedBoneID )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
@@ -343,7 +343,7 @@ namespace EE::Render
 
         InlineString boneLabel;
         boneLabel.sprintf( "%d. %s", pBone->m_boneIdx, m_workspaceResource->GetBoneID( pBone->m_boneIdx ).c_str() );
-        ImGui::PushStyleColor( ImGuiCol_Text, rowColor.Value );
+        ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
         pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
         ImGui::PopStyleColor();
 
@@ -372,7 +372,7 @@ namespace EE::Render
 
         if ( pBone->m_isExpanded )
         {
-            ImColor const treeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
+            Color const treeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
             float const smallOffsetX = 2;
             ImDrawList* drawList = ImGui::GetWindowDrawList();
 

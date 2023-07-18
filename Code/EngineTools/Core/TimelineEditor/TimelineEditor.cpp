@@ -1,64 +1,51 @@
 #include "TimelineEditor.h"
 #include "Engine/UpdateContext.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Timeline
 {
-    constexpr static float g_headerHeight = 24;
-    constexpr static float g_trackHeaderWidth = 200;
-    constexpr static float g_timelineMinimumWidthForLargeInterval = 100;
-    constexpr static float g_timelineLabelLeftPadding = 4.0f;
-    constexpr static float g_timelineLargeLineOffset = 4;
-    constexpr static float g_timelineMediumLineOffset = 10;
-    constexpr static float g_timelineSmallLineOffset = 16;
-
-    static ImColor const g_headerBackgroundColor( 0xFF3D3837 );
-    static ImColor const g_headerLabelColor( 0xFFBBBBBB );
-    static ImColor const g_timelineLargeLineColor( 0xFF606060 );
-    static ImColor const g_timelineMediumLineColor( 0xFF606060 );
-    static ImColor const g_timelineSmallLineColor( 0xFF333333 );
-    static ImColor const g_timelineRangeEndLineColor( 0x990000FF );
-
-    //-------------------------------------------------------------------------
-
+    constexpr static float const g_headerHeight = 24;
+    constexpr static float const g_trackHeaderWidth = 200;
+    constexpr static float const g_timelineMinimumWidthForLargeInterval = 100;
+    constexpr static float const g_timelineLabelLeftPadding = 4.0f;
+    constexpr static float const g_timelineLargeLineOffset = 4;
+    constexpr static float const g_timelineMediumLineOffset = 10;
+    constexpr static float const g_timelineSmallLineOffset = 16;
     constexpr static float const g_playheadHalfWidth = 7.0f;
-    static ImVec4 const g_playheadDefaultColor = ImColor( 0xFF32CD32 );
-    static ImVec4 const g_playheadHoveredColor = Float4( g_playheadDefaultColor ) * 1.20f;
-    static ImVec4 const g_playheadShadowColor = ImColor( 0x44000000 );
-    static ImVec4 const g_playheadBorderColor = Float4( g_playheadDefaultColor ) * 1.25f;
-
-    //-------------------------------------------------------------------------
-
-    constexpr static float g_horizontalScrollbarHeight = 16;
-    constexpr static float g_verticalScrollbarHeight = 16;
-
-    //-------------------------------------------------------------------------
-
+    constexpr static float const g_horizontalScrollbarHeight = 16;
+    constexpr static float const g_verticalScrollbarHeight = 16;
     constexpr static float const g_itemHandleWidth = 4;
-    static ImColor const g_trackSeparatorColor( 0xFF808080 );
+
+    static Color const g_headerBackgroundColor( 0xFF3D3837 );
+    static Color const g_headerLabelColor( 0xFFBBBBBB );
+    static Color const g_timelineLargeLineColor( 0xFF606060 );
+    static Color const g_timelineMediumLineColor( 0xFF606060 );
+    static Color const g_timelineSmallLineColor( 0xFF333333 );
+    static Color const g_timelineRangeEndLineColor( 0x990000FF );
+    static Color const g_playheadDefaultColor = 0xFF32CD32;
+    static Color const g_playheadHoveredColor = g_playheadDefaultColor.GetScaledColor( 1.20f );
+    static Color const g_playheadShadowColor = 0x44000000;
+    static Color const g_playheadBorderColor = g_playheadDefaultColor.GetScaledColor( 1.25f );
+    static Color const g_trackSeparatorColor( 0xFF808080 );
 
     //-------------------------------------------------------------------------
 
-    static uint32_t GetItemBaseColor( bool isSelected, bool isItemHovered )
+    static Color GetItemBaseColor( bool isSelected, bool isItemHovered )
     {
-        Float4 baseItemColor = ImGuiX::Style::s_colorGray0.Value;
-
-        float originalAlpha = baseItemColor.m_w;
+        Color baseItemColor = ImGuiX::Style::s_colorGray0;
 
         if ( isSelected )
         {
-            baseItemColor = baseItemColor * 1.45f;
+            baseItemColor.ScaleColor( 1.45f );
         }
         else if ( isItemHovered )
         {
-            baseItemColor = baseItemColor * 1.15f;
+            baseItemColor.ScaleColor( 1.15f );
         }
 
-        baseItemColor.m_w = originalAlpha;
-
-        return (uint32_t) ImColor( baseItemColor );
+        return baseItemColor;
     }
 
     //-------------------------------------------------------------------------
@@ -392,7 +379,7 @@ namespace EE::Timeline
 
             ImGuiX::SameLineSeparator( 9 );
 
-            if ( ImGuiX::ColoredButton( ImVec4( 0, 0, 0, 0 ), m_isFrameSnappingEnabled ? ImGuiX::Style::s_colorText : ImGuiX::Style::s_colorTextDisabled, EE_ICON_CURSOR_DEFAULT_CLICK"##Snap", buttonSize ) )
+            if ( ImGuiX::ColoredButton( Colors::Transparent, m_isFrameSnappingEnabled ? ImGuiX::Style::s_colorText : ImGuiX::Style::s_colorTextDisabled, EE_ICON_CURSOR_DEFAULT_CLICK"##Snap", buttonSize ) )
             {
                 m_isFrameSnappingEnabled = !m_isFrameSnappingEnabled;
             }
@@ -443,7 +430,7 @@ namespace EE::Timeline
             float const spacerWidth = ImGui::GetContentRegionAvail().x - addTracksButtonSize.x;
             ImGui::SameLine( 0, spacerWidth );
 
-            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::ImColors::LimeGreen.Value );
+            ImGui::PushStyleColor( ImGuiCol_Text, Colors::LimeGreen );
             bool const showAddTracksMenu = ImGuiX::FlatButton( EE_ICON_MOVIE_PLUS"##AddTrack", addTracksButtonSize );
             ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Add Track" );
@@ -581,8 +568,8 @@ namespace EE::Timeline
         m_playheadRect = ImRect( playheadPosition - ImVec2{ g_playheadHalfWidth, playheadHeight }, playheadPosition + ImVec2{ g_playheadHalfWidth, 0 } );
         bool const isHovered = ImGui::IsWindowHovered( ImGuiHoveredFlags_ChildWindows ) && m_playheadRect.Contains( ImGui::GetMousePos() );
 
-        ImColor const playheadColor = isHovered ? g_playheadHoveredColor : g_playheadDefaultColor;
-        pDrawList->AddConvexPolyFilled( points, 5, ImColor( playheadColor ) );
+        Color const playheadColor = isHovered ? g_playheadHoveredColor : g_playheadDefaultColor;
+        pDrawList->AddConvexPolyFilled( points, 5, playheadColor );
 
         // Draw marker lines
         //-------------------------------------------------------------------------
@@ -668,9 +655,7 @@ namespace EE::Timeline
                 // Draw track highlight
                 if ( IsSelected( pTrack ) )
                 {
-                    ImColor selectedTrackColor = ImGuiX::Style::s_colorGray2;
-                    selectedTrackColor.Value.w = 0.2f;
-                    pDrawList->AddRectFilled( trackAreaRect.GetTL(), trackAreaRect.GetBR(), selectedTrackColor);
+                    pDrawList->AddRectFilled( trackAreaRect.GetTL(), trackAreaRect.GetBR(), ImGuiX::Style::s_colorGray2.GetAlphaVersion( 0.2f ) );
                 }
 
                 // Draw items
@@ -814,7 +799,7 @@ namespace EE::Timeline
 
                         if ( m_isFrameSnappingEnabled )
                         {
-                            itemStartTime = Math::Floor( itemStartTime );
+                            itemStartTime = Math::Round( itemStartTime );
                         }
 
                         m_trackContainer.CreateItem( m_contextMenuState.m_pTrack, itemStartTime );
@@ -977,6 +962,13 @@ namespace EE::Timeline
                     m_contextMenuState.m_pItem = m_mouseState.m_pHoveredItem;
                     m_contextMenuState.m_pTrack = m_mouseState.m_pHoveredTrack;
                     m_contextMenuState.m_playheadTimeForMouse = m_mouseState.m_playheadTimeForMouse;
+
+                    // Shift playhead if we are right clicking on a track
+                    if ( m_contextMenuState.m_pItem == nullptr && m_contextMenuState.m_pTrack != nullptr )
+                    {
+                        SetCurrentTime( m_contextMenuState.m_playheadTimeForMouse );
+                    }
+
                     m_isContextMenuRequested = true;
                 }
             }

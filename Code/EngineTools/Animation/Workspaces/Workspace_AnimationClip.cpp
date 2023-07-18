@@ -8,7 +8,7 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 
 //-------------------------------------------------------------------------
@@ -237,7 +237,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipWorkspace::Update( UpdateContext const& context, bool isFocused )
+    void AnimationClipWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         if ( IsResourceLoaded() )
         {
@@ -359,14 +359,14 @@ namespace EE::Animation
 
         if ( m_eventEditor.IsPlaying() )
         {
-            if ( ImGuiX::IconButton( EE_ICON_PAUSE, "Pause", ImGuiX::ImColors::Yellow, ImVec2( 70, 0 ) ) )
+            if ( ImGuiX::IconButton( EE_ICON_PAUSE, "Pause", Colors::Yellow, ImVec2( 70, 0 ) ) )
             {
                 m_eventEditor.Pause();
             }
         }
         else
         {
-            if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play", ImGuiX::ImColors::Lime, ImVec2( 70, 0 ) ) )
+            if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play", Colors::Lime, ImVec2( 70, 0 ) ) )
             {
                 m_eventEditor.Play();
             }

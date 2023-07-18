@@ -1,9 +1,9 @@
 #pragma once
 #include "Engine/Animation/AnimationSkeleton.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Types/StringID.h"
-#include "System/Serialization/JsonSerialization.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Types/StringID.h"
+#include "Base/Serialization/JsonSerialization.h"
 
 //-------------------------------------------------------------------------
 

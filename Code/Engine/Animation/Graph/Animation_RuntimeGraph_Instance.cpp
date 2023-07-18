@@ -1,8 +1,9 @@
 #include "Animation_RuntimeGraph_Instance.h"
 #include "Animation_RuntimeGraph_Node.h"
 #include "Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
+#include "Nodes/Animation_RuntimeGraphNode_Layers.h"
 
-#include "System/Profiling.h"
+#include "Base/Profiling.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
 
@@ -338,6 +339,19 @@ namespace EE::Animation
         m_pRootNode->Initialize( m_graphContext, initTime );
     }
 
+
+    void GraphInstance::ResetGraphState_HACK( SyncTrackTime initTime, TInlineVector<GraphLayerInitInfo, 10> layerInitInfo )
+    {
+        if ( m_pRootNode->IsInitialized() )
+        {
+            m_pRootNode->Shutdown( m_graphContext );
+        }
+
+        m_graphContext.m_layerInitInfo = layerInitInfo;
+        m_pRootNode->Initialize( m_graphContext, initTime );
+        m_graphContext.m_layerInitInfo.clear();
+    }
+
     GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
@@ -368,7 +382,7 @@ namespace EE::Animation
         auto result = m_pRootNode->Update( m_graphContext );
         
         #if EE_DEVELOPMENT_TOOLS
-        RecordPostGraphEvaluateState();
+        RecordPostGraphEvaluateState( nullptr );
         #endif
 
         return result;
@@ -405,7 +419,7 @@ namespace EE::Animation
         auto result = m_pRootNode->Update( m_graphContext, updateRange );
 
         #if EE_DEVELOPMENT_TOOLS
-        RecordPostGraphEvaluateState( updateRange );
+        RecordPostGraphEvaluateState( &updateRange );
         #endif
 
         return result;
@@ -681,28 +695,40 @@ namespace EE::Animation
         frameData.m_updateRange.m_startTime = m_pRootNode->GetSyncTrack().GetTime( m_pRootNode->GetCurrentTime() );
     }
 
-    void GraphInstance::RecordPostGraphEvaluateState()
+    void GraphInstance::RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange )
     {
         if ( m_pRecorder == nullptr )
         {
             return;
         }
 
-        // Calculate sync end time
         auto& frameData = m_pRecorder->m_recordedData.back();
-        frameData.m_updateRange.m_endTime = m_pRootNode->GetSyncTrack().GetTime( m_pRootNode->GetCurrentTime() );
-    }
 
-    void GraphInstance::RecordPostGraphEvaluateState( SyncTrackTimeRange const& range )
-    {
-        if ( m_pRecorder == nullptr )
+        // Record the global update range info
+        //-------------------------------------------------------------------------
+
+        if ( pRange == nullptr )
         {
-            return;
+            frameData.m_updateRange.m_endTime = m_pRootNode->GetSyncTrack().GetTime( m_pRootNode->GetCurrentTime() );
+        }
+        else // Directly overwrite the sync update
+        {
+            frameData.m_updateRange = *pRange;
         }
 
-        // Directly overwrite the sync update
-        auto& frameData = m_pRecorder->m_recordedData.back();
-        frameData.m_updateRange = range;
+        // Record the layer state
+        for ( auto activeNodeIdx : m_activeNodes )
+        {
+            auto pNodeSettings = m_pGraphVariation->GetDefinition()->m_nodeSettings[activeNodeIdx];
+            if ( IsOfType<GraphNodes::LayerBlendNode::Settings>( pNodeSettings ) )
+            {
+                auto& layerData = frameData.m_layerStates.emplace_back();
+                layerData.m_nodeIdx = activeNodeIdx;
+
+                auto pNode = static_cast<GraphNodes::LayerBlendNode*>( m_nodes[activeNodeIdx] );
+                pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerData.m_layerUpdateRanges );
+            }
+        }
     }
 
     void GraphInstance::SetToRecordedState( RecordedGraphState const& recordedState )

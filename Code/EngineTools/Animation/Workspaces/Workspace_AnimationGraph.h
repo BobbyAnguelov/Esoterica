@@ -8,8 +8,8 @@
 #include "EngineTools/Core/CategoryTree.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "System/Time/Timers.h"
-#include "System/Imgui/ImguiFilteredCombo.h"
+#include "Base/Time/Timers.h"
+#include "Base/Imgui/ImguiFilteredCombo.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ namespace EE::Animation
     class VariationHierarchy;
     struct GraphRecorder;
 
-    namespace GraphNodes { class VirtualParameterToolsNode; class ControlParameterToolsNode; }
+    namespace GraphNodes { class VirtualParameterToolsNode; class ControlParameterToolsNode; class ParameterReferenceToolsNode; }
 
     //-------------------------------------------------------------------------
 
@@ -33,6 +33,7 @@ namespace EE::Animation
         friend class BoneMaskIDEditor;
         friend class IDComboWidget;
         friend class IDEditor;
+
     private:
 
         struct LoadedGraphData
@@ -58,6 +59,19 @@ namespace EE::Animation
             GraphInstance*                          m_pGraphInstance = nullptr;
             THashMap<UUID, int16_t>                 m_nodeIDtoIndexMap;
             THashMap<int16_t, UUID>                 m_nodeIndexToIDMap;
+        };
+
+        //-------------------------------------------------------------------------
+
+        struct RecordedSelectionForUndoRedo
+        {
+            void Clear() { m_primaryViewSelectedNode = VisualGraph::SelectedNode(); m_selectedNodes.clear(); m_isSecondaryViewSelection = false; }
+
+        public:
+
+            TVector<VisualGraph::SelectedNode>      m_selectedNodes;
+            VisualGraph::SelectedNode               m_primaryViewSelectedNode;
+            bool                                    m_isSecondaryViewSelection = false;
         };
 
         //-------------------------------------------------------------------------
@@ -218,7 +232,7 @@ namespace EE::Animation
 
     private:
 
-        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Animation Graph"; }
+        virtual char const* GetDockingUniqueTypeName() const override { return "Animation Graph"; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
@@ -230,7 +244,7 @@ namespace EE::Animation
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void Update( UpdateContext const& context, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual void PreUndoRedo( UndoStack::Operation operation ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual bool AlwaysAllowSaving() const override { return true; }
@@ -375,6 +389,7 @@ namespace EE::Animation
         void RefreshControlParameterCache();
         void RefreshParameterCategoryTree();
         void DrawParameterList();
+        void DrawParameterListRow( GraphNodes::FlowToolsNode* pParameter );
         void DrawPreviewParameterList( UpdateContext const& context );
 
         void DrawCreateOrRenameParameterDialogWindow();
@@ -477,116 +492,116 @@ namespace EE::Animation
 
     private:
 
-        PropertyGrid                                                    m_propertyGrid;
+        PropertyGrid                                                        m_propertyGrid;
 
-        EventBindingID                                                  m_globalGraphEditEventBindingID;
-        EventBindingID                                                  m_rootGraphBeginModificationBindingID;
-        EventBindingID                                                  m_rootGraphEndModificationBindingID;
-        EventBindingID                                                  m_preEditEventBindingID;
-        EventBindingID                                                  m_postEditEventBindingID;
+        EventBindingID                                                      m_globalGraphEditEventBindingID;
+        EventBindingID                                                      m_rootGraphBeginModificationBindingID;
+        EventBindingID                                                      m_rootGraphEndModificationBindingID;
+        EventBindingID                                                      m_preEditEventBindingID;
+        EventBindingID                                                      m_postEditEventBindingID;
 
         // Graph Type Data
-        TVector<TypeSystem::TypeInfo const*>                            m_registeredNodeTypes;
-        CategoryTree<TypeSystem::TypeInfo const*>                       m_categorizedNodeTypes;
+        TVector<TypeSystem::TypeInfo const*>                                m_registeredNodeTypes;
+        CategoryTree<TypeSystem::TypeInfo const*>                           m_categorizedNodeTypes;
 
         // Loaded Graph
-        FileSystem::Path                                                m_graphFilePath;
-        TVector<LoadedGraphData*>                                       m_loadedGraphStack;
-        TVector<VisualGraph::SelectedNode>                              m_selectedNodes;
+        FileSystem::Path                                                    m_graphFilePath;
+        TVector<LoadedGraphData*>                                           m_loadedGraphStack;
+        TVector<VisualGraph::SelectedNode>                                  m_selectedNodes;
 
         // Undo/Redo
-        TVector<UUID>                                                   m_viewedGraphPathPreUndoRedo;
-        TVector<VisualGraph::SelectedNode>                              m_selectedNodesPreUndoRedo;
+        TVector<UUID>                                                       m_viewedGraphPathPreUndoRedo;
+        RecordedSelectionForUndoRedo                                        m_selectedNodesPreUndoRedo;
 
         // User Context
-        ToolsGraphUserContext                                           m_userContext;
-        EventBindingID                                                  m_navigateToNodeEventBindingID;
-        EventBindingID                                                  m_navigateToGraphEventBindingID;
-        EventBindingID                                                  m_resourceOpenRequestEventBindingID;
-        EventBindingID                                                  m_graphDoubleClickedEventBindingID;
-        EventBindingID                                                  m_postPasteNodesEventBindingID;
-        EventBindingID                                                  m_advancedCommandEventBindingID;
+        ToolsGraphUserContext                                               m_userContext;
+        EventBindingID                                                      m_navigateToNodeEventBindingID;
+        EventBindingID                                                      m_navigateToGraphEventBindingID;
+        EventBindingID                                                      m_resourceOpenRequestEventBindingID;
+        EventBindingID                                                      m_graphDoubleClickedEventBindingID;
+        EventBindingID                                                      m_postPasteNodesEventBindingID;
+        EventBindingID                                                      m_advancedCommandEventBindingID;
 
         // Operations/Dialogs
-        GraphOperationType                                              m_activeOperation = GraphOperationType::None;
-        String                                                          m_notifyDialogTitle;
-        String                                                          m_notifyDialogText;
+        GraphOperationType                                                  m_activeOperation = GraphOperationType::None;
+        String                                                              m_notifyDialogTitle;
+        String                                                              m_notifyDialogText;
 
         // Graph view
-        float                                                           m_primaryGraphViewProportionalHeight = 0.6f;
-        VisualGraph::GraphView                                          m_primaryGraphView;
-        VisualGraph::GraphView                                          m_secondaryGraphView;
-        VisualGraph::GraphView*                                         m_pFocusedGraphView = nullptr;
-        VisualGraph::BaseNode*                                          m_pBreadcrumbPopupContext = nullptr;
+        float                                                               m_primaryGraphViewProportionalHeight = 0.6f;
+        VisualGraph::GraphView                                              m_primaryGraphView;
+        VisualGraph::GraphView                                              m_secondaryGraphView;
+        VisualGraph::GraphView*                                             m_pFocusedGraphView = nullptr;
+        VisualGraph::BaseNode*                                              m_pBreadcrumbPopupContext = nullptr;
 
         // Navigation
-        TVector<NavigationTarget>                                       m_navigationTargetNodes;
-        TVector<NavigationTarget>                                       m_navigationActiveTargetNodes;
-        ImGuiX::FilterWidget                                            m_navigationFilter;
-        bool                                                            m_navigationDialogSearchesPaths = false;
+        TVector<NavigationTarget>                                           m_navigationTargetNodes;
+        TVector<NavigationTarget>                                           m_navigationActiveTargetNodes;
+        ImGuiX::FilterWidget                                                m_navigationFilter;
+        bool                                                                m_navigationDialogSearchesPaths = false;
 
         // Rename Dialog State
-        IDComboWidget                                                   m_oldIDWidget;
-        char                                                            m_oldIDBuffer[256] = { 0 };
-        IDComboWidget                                                   m_newIDWidget;
-        char                                                            m_newIDBuffer[256] = { 0 };
+        IDComboWidget                                                       m_oldIDWidget;
+        char                                                                m_oldIDBuffer[256] = { 0 };
+        IDComboWidget                                                       m_newIDWidget;
+        char                                                                m_newIDBuffer[256] = { 0 };
 
         // Compilation Log
-        TVector<NodeCompilationLogEntry>                                m_compilationLog;
+        TVector<NodeCompilationLogEntry>                                    m_compilationLog;
 
         // Control Parameter Editor
-        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>       m_controlParameters;
-        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>       m_virtualParameters;
-        UUID                                                            m_currentOperationParameterID;
-        ParameterType                                                   m_currentOperationParameterType;
-        GraphValueType                                                  m_currentOperationParameterValueType = GraphValueType::Unknown;
-        char                                                            m_parameterNameBuffer[255];
-        char                                                            m_parameterCategoryBuffer[255];
-        THashMap<UUID, int32_t>                                         m_cachedNumUses;
-        CategoryTree<GraphNodes::FlowToolsNode*>                        m_parameterCategoryTree;
-        TVector<ControlParameterPreviewState*>                          m_previewParameterStates;
-        CategoryTree<ControlParameterPreviewState*>                     m_previewParameterCategoryTree;
+        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20>           m_controlParameters;
+        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20>           m_virtualParameters;
+        UUID                                                                m_currentOperationParameterID;
+        ParameterType                                                       m_currentOperationParameterType;
+        GraphValueType                                                      m_currentOperationParameterValueType = GraphValueType::Unknown;
+        char                                                                m_parameterNameBuffer[255];
+        char                                                                m_parameterCategoryBuffer[255];
+        THashMap<UUID, TVector<UUID>>                                       m_cachedUses;
+        CategoryTree<GraphNodes::FlowToolsNode*>                            m_parameterCategoryTree;
+        TVector<ControlParameterPreviewState*>                              m_previewParameterStates;
+        CategoryTree<ControlParameterPreviewState*>                         m_previewParameterCategoryTree;
 
         // Variation Editor
-        StringID                                                        m_activeOperationVariationID;
-        char                                                            m_nameBuffer[255] = { 0 };
-        ImGuiX::FilterWidget                                            m_variationFilter;
-        Resource::ResourcePicker                                        m_variationSkeletonPicker;
-        TVector<Resource::ResourcePicker>                               m_variationResourcePickers;
-        bool                                                            m_refreshPickers = false;
+        StringID                                                            m_activeOperationVariationID;
+        char                                                                m_nameBuffer[255] = { 0 };
+        ImGuiX::FilterWidget                                                m_variationFilter;
+        Resource::ResourcePicker                                            m_variationSkeletonPicker;
+        TVector<Resource::ResourcePicker>                                   m_variationResourcePickers;
+        bool                                                                m_refreshPickers = false;
 
         // Preview/Debug
-        DebugMode                                                       m_debugMode = DebugMode::None;
-        EntityID                                                        m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
-        ComponentID                                                     m_debuggedComponentID;
-        GraphComponent*                                                 m_pDebugGraphComponent = nullptr;
-        Render::SkeletalMeshComponent*                                  m_pDebugMeshComponent = nullptr;
-        GraphInstance*                                                  m_pDebugGraphInstance = nullptr;
-        StringID                                                        m_debugExternalGraphSlotID = StringID();
-        GraphDebugMode                                                  m_graphDebugMode = GraphDebugMode::On;
-        RootMotionDebugMode                                             m_rootMotionDebugMode = RootMotionDebugMode::Off;
-        TaskSystemDebugMode                                             m_taskSystemDebugMode = TaskSystemDebugMode::Off;
-        bool                                                            m_showPreviewCapsule = false;
-        float                                                           m_previewCapsuleHalfHeight = 0.65f;
-        float                                                           m_previewCapsuleRadius = 0.35f;
-        TResourcePtr<GraphVariation>                                    m_previewGraphVariationPtr;
-        Entity*                                                         m_pPreviewEntity = nullptr;
-        Transform                                                       m_previewStartTransform = Transform::Identity;
-        Transform                                                       m_characterTransform = Transform::Identity;
-        Transform                                                       m_cameraOffsetTransform = Transform::Identity;
-        Transform                                                       m_previousCameraTransform = Transform::Identity;
-        SyncTrackTime                                                   m_previewStartSyncTime;
-        bool                                                            m_startPaused = false;
-        bool                                                            m_isFirstPreviewFrame = false;
-        bool                                                            m_isCameraTrackingEnabled = true;
-        bool                                                            m_initializeGraphToSpecifiedSyncTime = false;
+        DebugMode                                                           m_debugMode = DebugMode::None;
+        EntityID                                                            m_debuggedEntityID; // This is needed to ensure that we dont try to debug a destroyed entity
+        ComponentID                                                         m_debuggedComponentID;
+        GraphComponent*                                                     m_pDebugGraphComponent = nullptr;
+        Render::SkeletalMeshComponent*                                      m_pDebugMeshComponent = nullptr;
+        GraphInstance*                                                      m_pDebugGraphInstance = nullptr;
+        StringID                                                            m_debugExternalGraphSlotID = StringID();
+        GraphDebugMode                                                      m_graphDebugMode = GraphDebugMode::On;
+        RootMotionDebugMode                                                 m_rootMotionDebugMode = RootMotionDebugMode::Off;
+        TaskSystemDebugMode                                                 m_taskSystemDebugMode = TaskSystemDebugMode::Off;
+        bool                                                                m_showPreviewCapsule = false;
+        float                                                               m_previewCapsuleHalfHeight = 0.65f;
+        float                                                               m_previewCapsuleRadius = 0.35f;
+        TResourcePtr<GraphVariation>                                        m_previewGraphVariationPtr;
+        Entity*                                                             m_pPreviewEntity = nullptr;
+        Transform                                                           m_previewStartTransform = Transform::Identity;
+        Transform                                                           m_characterTransform = Transform::Identity;
+        Transform                                                           m_cameraOffsetTransform = Transform::Identity;
+        Transform                                                           m_previousCameraTransform = Transform::Identity;
+        SyncTrackTime                                                       m_previewStartSyncTime;
+        bool                                                                m_startPaused = false;
+        bool                                                                m_isFirstPreviewFrame = false;
+        bool                                                                m_isCameraTrackingEnabled = true;
+        bool                                                                m_initializeGraphToSpecifiedSyncTime = false;
 
         // Recording
-        GraphRecorder                                                   m_graphRecorder;
-        int32_t                                                         m_currentReviewFrameIdx = InvalidIndex;
-        bool                                                            m_isRecording = false;
-        bool                                                            m_reviewStarted = false;
-        bool                                                            m_drawExtraRecordingInfo = false;
+        GraphRecorder                                                       m_graphRecorder;
+        int32_t                                                             m_currentReviewFrameIdx = InvalidIndex;
+        bool                                                                m_isRecording = false;
+        bool                                                                m_reviewStarted = false;
+        bool                                                                m_drawExtraRecordingInfo = false;
     };
 
     //-------------------------------------------------------------------------

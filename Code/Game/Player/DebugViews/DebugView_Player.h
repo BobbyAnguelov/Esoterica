@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,33 +15,32 @@ namespace EE::Player
 
     //-------------------------------------------------------------------------
 
-    class PlayerDebugView : public EntityWorldDebugView
+    class PlayerDebugView : public DebugView
     {
         EE_REFLECT_TYPE( PlayerDebugView );
 
     public:
 
-        PlayerDebugView();
+        PlayerDebugView() : DebugView( "Game/Player" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-
-        void DrawMenu( EntityWorldUpdateContext const& context );
-
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
         virtual void DrawOverlayElements( EntityWorldUpdateContext const& context ) override;
+        virtual void Update( EntityWorldUpdateContext const& context ) override;
+
+        void DrawActionDebugger( EntityWorldUpdateContext const& context, bool isFocused );
+        void DrawCharacterControllerState( EntityWorldUpdateContext const& context, bool isFocused );
 
         // HACK since we dont have a UI system yet
         void HACK_DrawPlayerHUD( EntityWorldUpdateContext const& context, PlayerController* pController );
 
     private:
 
-        EntityWorld const*                          m_pWorld = nullptr;
         PlayerManager*                              m_pPlayerManager = nullptr;
-        bool                                        m_isActionDebugWindowOpen = false;
-        bool                                        m_isCharacterControllerDebugWindowOpen = false;
+        PlayerController*                           m_pPlayerController = nullptr;
     };
 }
 #endif

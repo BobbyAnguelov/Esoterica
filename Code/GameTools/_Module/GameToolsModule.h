@@ -1,7 +1,7 @@
 #pragma once
 
 #include "API.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/TypeSystem/ReflectedType.h"
 #include "Engine/ModuleContext.h"
 
 //-------------------------------------------------------------------------

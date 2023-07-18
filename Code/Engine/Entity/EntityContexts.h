@@ -1,6 +1,6 @@
 #pragma once
-#include "System/Threading/Threading.h"
-#include "System/TypeSystem/TypeID.h"
+#include "Base/Threading/Threading.h"
+#include "Base/TypeSystem/TypeID.h"
 
 //-------------------------------------------------------------------------
 

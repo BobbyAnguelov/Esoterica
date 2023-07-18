@@ -1,8 +1,8 @@
 #include "ResourceLoader_RenderMesh.h"
 #include "Engine/Render/Mesh/StaticMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 
 //-------------------------------------------------------------------------

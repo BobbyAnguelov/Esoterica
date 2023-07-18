@@ -1,9 +1,7 @@
 #include "DebugView_Render.h"
 #include "Engine/Render/Systems/WorldSystem_Renderer.h"
-#include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -33,24 +31,19 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    RenderDebugView::RenderDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Engine/Render", [this] ( EntityWorldUpdateContext const& context ) { DrawRenderMenu( context ); } ) );
-    }
-
     void RenderDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
-        EntityWorldDebugView::Initialize( systemRegistry, pWorld );
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pWorldRendererSystem = pWorld->GetWorldSystem<RendererWorldSystem>();
     }
 
     void RenderDebugView::Shutdown()
     {
         m_pWorldRendererSystem = nullptr;
-        EntityWorldDebugView::Shutdown();
+        DebugView::Shutdown();
     }
 
-    void RenderDebugView::DrawRenderMenu( EntityWorldUpdateContext const& context )
+    void RenderDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
         ImGuiX::TextSeparator( "Visualization" );
 
@@ -65,14 +58,6 @@ namespace EE::Render
         ImGui::Checkbox( "Show Skeletal Mesh Bounds", &m_pWorldRendererSystem->m_showSkeletalMeshBounds );
         ImGui::Checkbox( "Show Skeletal Mesh Bones", &m_pWorldRendererSystem->m_showSkeletalMeshBones );
         ImGui::Checkbox( "Show Skeletal Bind Poses", &m_pWorldRendererSystem->m_showSkeletalMeshBindPoses );
-    }
-
-    void RenderDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-    }
-
-    void RenderDebugView::DrawOverlayElements( EntityWorldUpdateContext const& context )
-    {
     }
 }
 #endif

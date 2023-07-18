@@ -1,6 +1,6 @@
 #include "ResourceLoader_PhysicsRagdoll.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 #include "ImguiRenderer.h"
 #include "Engine/Render/Shaders/ImguiShaders.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Profiling.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 

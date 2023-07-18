@@ -2,8 +2,8 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
-#include "System/Math/Math.h"
-#include "System/Math/ViewVolume.h"
+#include "Base/Math/Math.h"
+#include "Base/Math/ViewVolume.h"
 
 //-------------------------------------------------------------------------
 // Camera

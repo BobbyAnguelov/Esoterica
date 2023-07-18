@@ -4,8 +4,8 @@
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityMap.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Threading/TaskSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Threading/TaskSystem.h"
 
 //-------------------------------------------------------------------------
 

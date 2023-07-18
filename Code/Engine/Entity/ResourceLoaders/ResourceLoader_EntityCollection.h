@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntityDescriptors.h"
-#include "System/Resource/ResourceLoader.h"
+#include "Base/Resource/ResourceLoader.h"
 
 //-------------------------------------------------------------------------
 

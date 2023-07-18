@@ -48,6 +48,18 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
+        GraphLayerInitInfo const* pLayerInitInfo = nullptr;
+        for ( auto const& li : context.m_layerInitInfo )
+        {
+            if ( li.m_layerNodeIdx == GetNodeIndex() )
+            {
+                pLayerInitInfo = &li;
+                break;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         auto pSettings = GetSettings<LayerBlendNode>();
         int32_t const numLayers = (int32_t) m_layers.size();
         for ( auto i = 0; i < numLayers; i++ )
@@ -62,7 +74,21 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                m_layers[i].m_pInputNode->Initialize( context, SyncTrackTime() );
+                SyncTrackTime initTime;
+
+                if( pLayerInitInfo != nullptr )
+                {
+                    for ( auto const& layerInfo : pLayerInitInfo->m_layerInitTimes )
+                    {
+                        if ( layerInfo.first == i )
+                        {
+                            initTime = layerInfo.second.m_startTime;
+                            break;
+                        }
+                    }
+                }
+
+                m_layers[i].m_pInputNode->Initialize( context, initTime );
             }
 
             // Optional Nodes
@@ -76,12 +102,6 @@ namespace EE::Animation::GraphNodes
                 m_layers[i].m_pBoneMaskValueNode->Initialize( context );
             }
         }
-
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        m_debugLayerWeights.resize( numLayers );
-        #endif
     }
 
     void LayerBlendNode::ShutdownInternal( GraphContext& context )
@@ -254,6 +274,7 @@ namespace EE::Animation::GraphNodes
 
             // Update input node
             // Always update SM layers as the transitions need to be evaluated
+            // SM layers will calculate the final layer weight and store it in the layer context
             GraphPoseNodeResult layerResult;
             if ( pSettings->m_layerSettings[i].m_isStateMachineLayer || context.m_layerContext.m_layerWeight > 0.0f )
             {
@@ -267,12 +288,15 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
+            // We're done with the layer weight calculation at this stage
+            m_layers[i].m_weight = context.m_layerContext.m_layerWeight;
+
             // Register the blend tasks
             // If we registered a task for this layer, then we need to blend
             if ( layerResult.HasRegisteredTasks() )
             {
                 // Create a blend task if the layer is enabled
-                if ( context.m_layerContext.m_layerWeight > 0 )
+                if ( m_layers[i].m_weight > 0 )
                 {
                     PoseBlendMode poseBlendMode = pSettings->m_layerSettings[i].m_blendMode;
 
@@ -286,13 +310,33 @@ namespace EE::Animation::GraphNodes
                         poseBlendMode = PoseBlendMode::Interpolative;
                     }
 
-                    nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, context.m_layerContext.m_layerWeight, poseBlendMode, &context.m_layerContext.m_layerMaskTaskList );
+                    // Register blend tasks
+                    switch ( poseBlendMode )
+                    {
+                        case PoseBlendMode::Interpolative:
+                        {
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_layerContext.m_layerMaskTaskList );
+                        }
+                        break;
+
+                        case PoseBlendMode::Additive:
+                        {
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::AdditiveBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_layerContext.m_layerMaskTaskList );
+                        }
+                        break;
+
+                        case PoseBlendMode::InterpolativeGlobalSpace:
+                        {
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::GlobalBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, context.m_layerContext.m_layerMaskTaskList );
+                        }
+                        break;
+                    }
 
                     // Blend root motion
                     if ( !pSettings->m_onlySampleBaseRootMotion )
                     {
                         RootMotionBlendMode const rootMotionBlendMode = ( poseBlendMode == PoseBlendMode::Additive ) ? RootMotionBlendMode::Additive : RootMotionBlendMode::Blend;
-                        float const rootMotionWeight = context.m_layerContext.m_layerWeight * context.m_layerContext.m_rootMotionLayerWeight;
+                        float const rootMotionWeight = m_layers[i].m_weight * context.m_layerContext.m_rootMotionLayerWeight;
                         nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, layerResult.m_rootMotionDelta, rootMotionWeight, rootMotionBlendMode );
 
                         #if EE_DEVELOPMENT_TOOLS
@@ -333,7 +377,7 @@ namespace EE::Animation::GraphNodes
             if ( numLayerEvents > 0 )
             {
                 // Update events
-                context.m_sampledEventsBuffer.UpdateWeights( layerEventRange, context.m_layerContext.m_layerWeight );
+                context.m_sampledEventsBuffer.UpdateWeights( layerEventRange, m_layers[i].m_weight );
 
                 // Mark events as ignored if requested
                 if ( pSettings->m_layerSettings[i].m_ignoreEvents )
@@ -358,11 +402,6 @@ namespace EE::Animation::GraphNodes
             // End Layer
             //-------------------------------------------------------------------------
 
-            #if EE_DEVELOPMENT_TOOLS
-            EE_ASSERT( i < m_debugLayerWeights.size() );
-            m_debugLayerWeights[0] = context.m_layerContext.m_layerWeight;
-            #endif
-
             context.m_layerContext.EndLayer();
 
             // Restore previous context if it existed;
@@ -376,10 +415,33 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void LayerBlendNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        PoseNode::RecordGraphState( outState );
+    }
+
     void LayerBlendNode::RestoreGraphState( RecordedGraphState const& inState )
     {
         PoseNode::RestoreGraphState( inState );
-        m_debugLayerWeights.resize( m_layers.size() );
+    }
+
+    void LayerBlendNode::GetSyncUpdateRangesForUnsynchronizedLayers( TVector<TPair<int8_t, SyncTrackTimeRange>>& outRanges ) const
+    {
+        auto pSettings = GetSettings<LayerBlendNode>();
+        int8_t const numLayers = (int8_t) m_layers.size();
+        for ( int8_t i = 0; i < numLayers; i++ )
+        {
+            if ( m_layers[i].m_weight > 0.0f && !pSettings->m_layerSettings[i].m_isSynchronized )
+            {
+                auto const& layerSyncTrack = m_layers[i].m_pInputNode->GetSyncTrack();
+                Percentage const prevTime = m_layers[i].m_pInputNode->GetPreviousTime();
+                Percentage const currentTime = m_layers[i].m_pInputNode->GetCurrentTime();
+                if ( prevTime != 0.0f && currentTime != 0.0f )
+                {
+                    outRanges.emplace_back( i, SyncTrackTimeRange( layerSyncTrack.GetTime( prevTime ), layerSyncTrack.GetTime( currentTime ) ) );
+                }
+            }
+        }
     }
     #endif
 }

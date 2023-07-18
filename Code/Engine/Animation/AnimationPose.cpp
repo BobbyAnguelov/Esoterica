@@ -1,5 +1,5 @@
 #include "AnimationPose.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
@@ -177,7 +177,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color, float lineThickness ) const
+    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color, float lineThickness, BoneMask const* pBoneMask, bool detailedView ) const
     {
         auto const& parentIndices = m_pSkeleton->GetParentBoneIndices();
 
@@ -203,14 +203,28 @@ namespace EE::Animation
             // Draw bones
             //-------------------------------------------------------------------------
 
+            InlineString detailsStr;
+
             for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
             {
                 auto const& parentIdx = parentIndices[boneIdx];
                 auto const& parentTransform = worldTransforms[parentIdx];
                 auto const& boneTransform = worldTransforms[boneIdx];
 
-                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), color, lineThickness );
-                ctx.DrawAxis( boneTransform, 0.03f, 3.0f );
+                Color const boneColor = ( pBoneMask != nullptr ) ? BoneMask::GetColorForWeight( pBoneMask->GetWeight( boneIdx ) ) : color;
+
+                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, lineThickness );
+                ctx.DrawAxis( boneTransform, 0.01f, 3.0f );
+
+                if ( detailedView )
+                {
+                    if ( pBoneMask != nullptr )
+                    {
+                        float const boneWeight = pBoneMask->GetWeight( boneIdx );
+                        detailsStr.sprintf( "%.2f", boneWeight );
+                        ctx.DrawTextBox3D( boneTransform.GetTranslation(), detailsStr.c_str(), boneColor );
+                    }
+                }
             }
 
             Skeleton::DrawRootBone( ctx, worldTransforms[0] );

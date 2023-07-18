@@ -78,11 +78,11 @@ namespace EE::EntityModel
 
     protected:
 
-        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Entity Editor"; }
+        virtual char const* GetDockingUniqueTypeName() const override { return "Entity Editor"; }
         virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
         virtual bool HasViewportWindow() const override { return true; }
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
-        virtual void Update( UpdateContext const& context, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual bool AlwaysAllowSaving() const override { return true; }

@@ -1,12 +1,12 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Render/RenderShader.h"
-#include "System/Render/RenderStates.h"
-#include "System/Render/RenderPipelineState.h"
-#include "System/Render/RenderTexture.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/Types/Color.h"
+#include "Base/Render/RenderShader.h"
+#include "Base/Render/RenderStates.h"
+#include "Base/Render/RenderPipelineState.h"
+#include "Base/Render/RenderTexture.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 

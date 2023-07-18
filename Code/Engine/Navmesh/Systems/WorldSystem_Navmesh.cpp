@@ -3,10 +3,10 @@
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Render/RenderViewport.h"
-#include "System/Profiling.h"
-#include "System/Math/BoundingVolumes.h"
-#include "System/Drawing/DebugDrawingSystem.h"
+#include "Base/Render/RenderViewport.h"
+#include "Base/Profiling.h"
+#include "Base/Math/BoundingVolumes.h"
+#include "Base/Drawing/DebugDrawingSystem.h"
 
 //-------------------------------------------------------------------------
 

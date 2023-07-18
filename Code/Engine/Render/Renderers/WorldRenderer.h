@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/Render/IRenderer.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Math/Matrix.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Math/Matrix.h"
 
 //-------------------------------------------------------------------------
 

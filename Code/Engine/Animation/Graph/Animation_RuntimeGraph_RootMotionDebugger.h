@@ -1,9 +1,9 @@
 #pragma once
 
-#include "System/Math/Transform.h"
-#include "System/Time/Time.h"
-#include "System/Types/Arrays.h"
-#include "System/Types/Pool.h"
+#include "Base/Math/Transform.h"
+#include "Base/Time/Time.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Types/Pool.h"
 
 //-------------------------------------------------------------------------
 

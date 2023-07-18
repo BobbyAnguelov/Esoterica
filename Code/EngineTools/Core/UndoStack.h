@@ -1,8 +1,8 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Types/Arrays.h"
-#include "System/Types/Event.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 

@@ -11,20 +11,18 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    enum class EventPriorityRule : uint8_t
+    // Combined set of rules flags used in the event condition nodes
+    enum class EventConditionRules
     {
-        EE_REFLECT_ENUM
-
-        HighestWeight, // Prefer events that have a higher weight (if there are multiple events with the same weight the latest sampled will be chosen)
-        HighestPercentageThrough, // Prefer events that have a higher percentage through (if there are multiple events with the same percentage through the latest sampled will be chosen)
-    };
-
-    enum class EventConditionOperator : uint8_t
-    {
-        EE_REFLECT_ENUM
-
-        Or = 0,
-        And,
+        LimitSearchToSourceState = 0,
+        IgnoreInactiveEvents,
+        PreferHighestWeight,
+        PreferHighestProgress,
+        OperatorOr,
+        OperatorAnd,
+        SearchOnlyStateEvents,
+        SearchOnlyAnimEvents,
+        SearchBothStateAndAnimEvents,
     };
 
     //-------------------------------------------------------------------------
@@ -32,32 +30,20 @@ namespace EE::Animation::GraphNodes
     // Check for a given ID - coming either from a state event or generic event
     class EE_ENGINE_API IDEventConditionNode : public BoolValueNode
     {
-    public:
-
-        enum class SearchRule : uint8_t
-        {
-            EE_REFLECT_ENUM
-
-            SearchAll = 0,
-            OnlySearchStateEvents,
-            OnlySearchAnimEvents,
-        };
 
     public:
 
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_operator, m_searchRule, m_onlyCheckEventsFromActiveBranch, m_eventIDs );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_rules, m_eventIDs );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
-            EventConditionOperator                      m_operator = EventConditionOperator::Or;
-            SearchRule                                  m_searchRule = SearchRule::SearchAll;
-            bool                                        m_onlyCheckEventsFromActiveBranch = false;
+            TBitFlags<EventConditionRules>              m_rules;
             TInlineVector<StringID, 5>                  m_eventIDs;
         };
 
@@ -82,14 +68,6 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        enum class Operator : uint8_t
-        {
-            EE_REFLECT_ENUM
-
-            Or = 0,
-            And,
-        };
-
         struct Condition
         {
             EE_SERIALIZE( m_eventID, m_eventTypeCondition );
@@ -103,22 +81,20 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_operator, m_onlyCheckEventsFromActiveBranch, m_conditions );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_rules, m_conditions );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
-            EventConditionOperator                      m_operator = EventConditionOperator::Or;
-            bool                                        m_onlyCheckEventsFromActiveBranch = false;
+            TBitFlags<EventConditionRules>              m_rules;
             TInlineVector<Condition, 5>                 m_conditions;
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
         bool TryMatchTags( GraphContext& context ) const;
@@ -139,22 +115,20 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_priorityRule, m_onlyCheckEventsFromActiveBranch, m_eventID );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_rules, m_eventID );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
-            EventPriorityRule                           m_priorityRule = EventPriorityRule::HighestWeight;
-            bool                                        m_onlyCheckEventsFromActiveBranch = false;
+            TBitFlags<EventConditionRules>              m_rules;
             StringID                                    m_eventID;
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
     private:
@@ -172,7 +146,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_onlyCheckEventsFromActiveBranch );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -180,13 +154,12 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-            bool                                        m_onlyCheckEventsFromActiveBranch = false;
+            TBitFlags<EventConditionRules>              m_rules;
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
     private:
@@ -204,7 +177,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public FloatValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_priorityRule, m_onlyCheckEventsFromActiveBranch );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -212,14 +185,12 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             FootEvent::PhaseCondition                   m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
-            EventPriorityRule                           m_priorityRule = EventPriorityRule::HighestWeight;
-            bool                                        m_onlyCheckEventsFromActiveBranch = false;
+            TBitFlags<EventConditionRules>              m_rules;
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
     private:
@@ -259,7 +230,6 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
 
     private:
 
@@ -292,7 +262,6 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
 
     private:
 
@@ -313,22 +282,21 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public BoolValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_markerCondition, m_onlyCheckEventsFromActiveBranch, m_markerIDToMatch );
+            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_markerCondition, m_markerIDToMatch, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
+            StringID                                    m_markerIDToMatch = StringID();
+            TBitFlags<EventConditionRules>              m_rules;
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
             TransitionMarkerCondition                   m_markerCondition = TransitionMarkerCondition::AnyAllowed;
-            bool                                        m_onlyCheckEventsFromActiveBranch = false;
-            StringID                                    m_markerIDToMatch = StringID();
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
     private:

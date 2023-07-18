@@ -50,8 +50,8 @@ namespace EE::Animation::GraphNodes
         using VisualGraph::Flow::Node::Node;
 
         virtual GraphValueType GetValueType() const = 0;
-        virtual ImColor GetTitleBarColor() const override;
-        virtual ImColor GetPinColor( VisualGraph::Flow::Pin const& pin ) const override;
+        virtual Color GetTitleBarColor() const override;
+        virtual Color GetPinColor( VisualGraph::Flow::Pin const& pin ) const override;
 
         // Get the types of graphs that this node is allowed to be placed in
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const = 0;

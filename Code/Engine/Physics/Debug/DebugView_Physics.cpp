@@ -5,119 +5,88 @@
 #include "Engine/Physics/Physics.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Physics
 {
-    bool PhysicsDebugView::DrawMaterialDatabaseView( UpdateContext const& context )
+    void PhysicsDebugView::DrawMaterialDatabaseView( UpdateContext const& context )
     {
         auto pMaterialRegistry = context.GetSystem<MaterialRegistry>();
 
         //-------------------------------------------------------------------------
 
-        bool isMaterialDatabaseWindowOpen = true;
-
-        ImGui::SetNextWindowBgAlpha( 0.75f );
-        if ( ImGui::Begin( "Physics Material Database", &isMaterialDatabaseWindowOpen ) )
+        if ( ImGui::BeginTable( "Resource Request History Table", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
-            if ( ImGui::BeginTable( "Resource Request History Table", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+            ImGui::TableSetupColumn( "Material ID", ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Static Friction", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 96 );
+            ImGui::TableSetupColumn( "Dynamic Friction", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 96 );
+            ImGui::TableSetupColumn( "Restitution", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 96 );
+            ImGui::TableSetupColumn( "Friction Combine", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 128 );
+            ImGui::TableSetupColumn( "Restitution Combine", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 128 );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            for ( auto const& materialPair : pMaterialRegistry->m_materials )
             {
-                ImGui::TableSetupColumn( "Material ID", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupColumn( "Static Friction", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 96 );
-                ImGui::TableSetupColumn( "Dynamic Friction", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 96 );
-                ImGui::TableSetupColumn( "Restitution", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 96 );
-                ImGui::TableSetupColumn( "Friction Combine", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 128 );
-                ImGui::TableSetupColumn( "Restitution Combine", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 128 );
+                physx::PxMaterial const* pMaterial = materialPair.second.m_pMaterial;
+
+                ImGui::TableNextRow();
 
                 //-------------------------------------------------------------------------
 
-                ImGui::TableHeadersRow();
-
-                //-------------------------------------------------------------------------
-
-                for ( auto const& materialPair : pMaterialRegistry->m_materials )
+                static char const* const combineText[] = { "Average", "Min", "Multiply", "Max" };
+                auto GetCombineText = [] ( physx::PxCombineMode::Enum combineMode )
                 {
-                    physx::PxMaterial const* pMaterial = materialPair.second.m_pMaterial;
-
-                    ImGui::TableNextRow();
-
-                    //-------------------------------------------------------------------------
-
-                    static char const* const combineText[] = { "Average", "Min", "Multiply", "Max" };
-                    auto GetCombineText = [] ( physx::PxCombineMode::Enum combineMode )
-                    {
-                        return combineText[(uint8_t) combineMode];
-                    };
-
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableSetColumnIndex( 0 );
-                    ImGui::Text( materialPair.second.m_ID.c_str() );
-
-                    ImGui::TableSetColumnIndex( 1 );
-                    ImGui::Text( "%.3f", pMaterial->getStaticFriction() );
-
-                    ImGui::TableSetColumnIndex( 2 );
-                    ImGui::Text( "%.3f", pMaterial->getDynamicFriction() );
-
-                    ImGui::TableSetColumnIndex( 3 );
-                    ImGui::Text( "%.3f", pMaterial->getRestitution() );
-
-                    ImGui::TableSetColumnIndex( 4 );
-                    ImGui::Text( GetCombineText( pMaterial->getFrictionCombineMode() ) );
-
-                    ImGui::TableSetColumnIndex( 5 );
-                    ImGui::Text( GetCombineText( pMaterial->getRestitutionCombineMode() ) );
-                }
+                    return combineText[(uint8_t) combineMode];
+                };
 
                 //-------------------------------------------------------------------------
 
-                ImGui::EndTable();
+                ImGui::TableSetColumnIndex( 0 );
+                ImGui::Text( materialPair.second.m_ID.c_str() );
+
+                ImGui::TableSetColumnIndex( 1 );
+                ImGui::Text( "%.3f", pMaterial->getStaticFriction() );
+
+                ImGui::TableSetColumnIndex( 2 );
+                ImGui::Text( "%.3f", pMaterial->getDynamicFriction() );
+
+                ImGui::TableSetColumnIndex( 3 );
+                ImGui::Text( "%.3f", pMaterial->getRestitution() );
+
+                ImGui::TableSetColumnIndex( 4 );
+                ImGui::Text( GetCombineText( pMaterial->getFrictionCombineMode() ) );
+
+                ImGui::TableSetColumnIndex( 5 );
+                ImGui::Text( GetCombineText( pMaterial->getRestitutionCombineMode() ) );
             }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::EndTable();
         }
-        ImGui::End();
-
-        //-------------------------------------------------------------------------
-
-        return isMaterialDatabaseWindowOpen;
     }
 
     //-------------------------------------------------------------------------
 
-    PhysicsDebugView::PhysicsDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Engine/Physics", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
-    }
-
     void PhysicsDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pPhysicsWorldSystem = pWorld->GetWorldSystem<PhysicsWorldSystem>();
+        m_windows.emplace_back( "Physics Material Database", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawMaterialDatabaseView( context ); } );
     }
 
     void PhysicsDebugView::Shutdown()
     {
         m_pPhysicsWorldSystem = nullptr;
-    }
-
-    //-------------------------------------------------------------------------
-
-    void PhysicsDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        if ( m_isMaterialDatabaseWindowOpen )
-        {
-            if ( pWindowClass != nullptr )
-            {
-                ImGui::SetNextWindowClass( pWindowClass );
-            }
-
-            if ( m_isMaterialDatabaseWindowOpen )
-            {
-                m_isMaterialDatabaseWindowOpen = DrawMaterialDatabaseView( context );
-            }
-        }
+        DebugView::Shutdown();
     }
 
     void PhysicsDebugView::DrawMenu( EntityWorldUpdateContext const& context )
@@ -175,7 +144,7 @@ namespace EE::Physics
 
         if ( ImGui::Button( "Show Material Database", ImVec2( -1, 0 ) ) )
         {
-            m_isMaterialDatabaseWindowOpen = true;
+            m_windows[0].m_isOpen = true;
         }
     }
 }

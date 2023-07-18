@@ -8,6 +8,15 @@ namespace EE::Animation::GraphNodes
 {
     class StateMachineNode;
 
+    enum class PoseBlendMode : uint8_t
+    {
+        EE_REFLECT_ENUM
+
+        Interpolative = 0, // Regular blend
+        Additive,
+        InterpolativeGlobalSpace,
+    };
+
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API LayerBlendNode final : public PoseNode
@@ -49,6 +58,7 @@ namespace EE::Animation::GraphNodes
             FloatValueNode*                                 m_pWeightValueNode = nullptr;
             FloatValueNode*                                 m_pRootMotionWeightValueNode = nullptr;
             BoneMaskValueNode*                              m_pBoneMaskValueNode = nullptr;
+            float                                           m_weight = 0.0f;
         };
 
     public:
@@ -57,7 +67,8 @@ namespace EE::Animation::GraphNodes
         virtual bool IsValid() const override { return PoseNode::IsValid() && m_pBaseLayerNode->IsValid(); }
 
         #if EE_DEVELOPMENT_TOOLS
-        inline float GetLayerWeight( int32_t layerIdx ) const { return m_debugLayerWeights[layerIdx]; }
+        inline float GetLayerWeight( int32_t layerIdx ) const { return m_layers[layerIdx].m_weight; }
+        void GetSyncUpdateRangesForUnsynchronizedLayers( TVector<TPair<int8_t, SyncTrackTimeRange>>& outRanges ) const;
         #endif
 
     private:
@@ -74,6 +85,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
         virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
         #endif
 
@@ -85,7 +97,6 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                             m_rootMotionActionIdxBase = InvalidIndex;
-        TVector<float>                                      m_debugLayerWeights;
         #endif
     };
 }

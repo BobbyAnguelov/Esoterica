@@ -1,6 +1,6 @@
 #include "CodeGenerator_CPP_Type.h"
-#include "System/TypeSystem/TypeID.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeID.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 

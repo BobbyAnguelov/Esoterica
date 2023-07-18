@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceCompiler.h"
-#include "System/Memory/Pointers.h"
+#include "Base/Memory/Pointers.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ namespace EE::Animation
     class AnimationClipCompiler : public Resource::Compiler
     {
         EE_REFLECT_TYPE( AnimationClipCompiler );
-        static const int32_t s_version = 36;
+        static const int32_t s_version = 40;
 
     public:
 

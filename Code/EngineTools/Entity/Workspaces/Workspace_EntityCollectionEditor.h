@@ -19,7 +19,7 @@ namespace EE::EntityModel
     private:
 
         virtual bool Save() override;
-        virtual void Update( UpdateContext const& context, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
     private:
 

@@ -2,8 +2,8 @@
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Math/Transform.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Math/Transform.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

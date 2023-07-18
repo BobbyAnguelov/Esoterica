@@ -1,6 +1,6 @@
 #pragma once
 #include "Animation_ToolsGraphNode.h"
-#include "Engine/Animation/AnimationBlender.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,7 +19,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::Special; }
         virtual char const* GetTypeName() const override { return "Local Layer"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::Tomato; }
+        virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::Special; }
         virtual char const* GetTypeName() const override { return "State Machine Layer"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::Tomato; }
+        virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
         void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
@@ -78,7 +78,7 @@ namespace EE::Animation::GraphNodes
         virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Layer Blend"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
-        virtual ImColor GetTitleBarColor() const override { return ImGuiX::ImColors::Tomato; }
+        virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;

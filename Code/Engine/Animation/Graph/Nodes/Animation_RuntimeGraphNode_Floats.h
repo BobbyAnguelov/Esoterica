@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
 #include "Engine/Math/Easing.h"
-#include "System/Math/FloatCurve.h"
+#include "Base/Math/FloatCurve.h"
 
 //-------------------------------------------------------------------------
 
@@ -367,13 +367,15 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_conditionNodeIndices, m_values, m_defaultValue );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_conditionNodeIndices, m_values, m_defaultValue, m_easeTime, m_easingType );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>   m_conditionNodeIndices;
             TInlineVector<float, 5>     m_values;
             float                       m_defaultValue = 0.0f;
+            float                       m_easeTime = 0.2f;
+            Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
         };
 
     private:
@@ -382,9 +384,16 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        #endif
+
     private:
 
         TInlineVector<BoolValueNode*,5> m_conditionNodes;
-        float                           m_result;
+        FloatRange                      m_easeRange = FloatRange( 0.0f );
+        float                           m_currentValue = 0.0f;
+        float                           m_currentEaseTime = 0.0f;
     };
 }

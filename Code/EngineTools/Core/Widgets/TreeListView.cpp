@@ -1,6 +1,6 @@
 #include "TreeListView.h"
 #include "EASTL/sort.h"
-#include "System/Math/NumericRange.h"
+#include "Base/Math/NumericRange.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,9 +17,9 @@ namespace EE
         return result < 0;
     }
 
-    ImVec4 TreeListViewItem::GetDisplayColor( ItemState state ) const
+    Color TreeListViewItem::GetDisplayColor( ItemState state ) const
     {
-        ImVec4 color = (ImVec4) ImGuiX::Style::s_colorText;
+        Color color = ImGuiX::Style::s_colorText;
 
         switch ( state )
         {

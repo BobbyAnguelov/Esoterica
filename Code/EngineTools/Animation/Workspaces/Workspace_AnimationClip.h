@@ -4,7 +4,7 @@
 #include "EngineTools/Core/Workspace.h"
 #include "EngineTools/Animation/Events/AnimationEventEditor.h"
 #include "Engine/Animation/AnimationClip.h"
-#include "System/Time/Timers.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -29,13 +29,13 @@ namespace EE::Animation
 
     private:
 
-        virtual char const* GetWorkspaceUniqueTypeName() const override { return "Animation Clip"; }
+        virtual char const* GetDockingUniqueTypeName() const override { return "Animation Clip"; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
         virtual void OnHotReloadComplete() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
-        virtual void Update( UpdateContext const& context, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;

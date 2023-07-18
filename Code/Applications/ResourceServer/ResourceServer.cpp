@@ -4,10 +4,10 @@
 #include "EngineTools/ThirdParty/subprocess/subprocess.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Entity/EntitySerialization.h"
-#include "System/Resource/ResourceProviders/ResourceNetworkMessages.h"
-#include "System/IniFile.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/FileSystem/FileSystemUtils.h"
+#include "Base/Resource/ResourceProviders/ResourceNetworkMessages.h"
+#include "Base/IniFile.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/FileSystem/FileSystemUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,10 +18,9 @@ namespace EE::Resource
 
     public:
 
-        CompilationTask( ResourceServerContext const& context, Threading::LockFreeQueue<CompilationTask*>& completedTaskQueue, CompilationRequest* pRequest )
+        CompilationTask( ResourceServerContext const& context, CompilationRequest* pRequest )
             : ITaskSet( 1 )
             , m_context( context )
-            , m_completedTaskQueue( completedTaskQueue )
             , m_pRequest( pRequest )
         {
             EE_ASSERT( m_context.IsValid() );
@@ -135,16 +134,11 @@ namespace EE::Resource
 
                 subprocess_destroy( &m_subProcess );
             }
-
-            //-------------------------------------------------------------------------
-
-            m_completedTaskQueue.enqueue( this );
         }
 
     private:
 
         ResourceServerContext const&                        m_context;
-        Threading::LockFreeQueue<CompilationTask*>&         m_completedTaskQueue;
         CompilationRequest*                                 m_pRequest = nullptr;
         subprocess_s                                        m_subProcess;
     };
@@ -495,8 +489,9 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_requests.emplace_back( pRequest );
-        auto pTask = EE::New<CompilationTask>( m_context, m_completedTasks, pRequest );
+        auto pTask = EE::New<CompilationTask>( m_context, pRequest );
         m_taskSystem.ScheduleTask( pTask );
+        m_activeTasks.emplace_back( pTask );
         m_numScheduledTasks++;
 
         //-------------------------------------------------------------------------
@@ -506,13 +501,13 @@ namespace EE::Resource
 
     void ResourceServer::ProcessCompletedRequests()
     {
-        CompilationTask* dequeuedTasks[100];
-        size_t numDequeuedTasks = m_completedTasks.try_dequeue_bulk( dequeuedTasks, 100 );
-        while ( numDequeuedTasks != 0 )
+        for ( int32_t i = (int32_t) m_activeTasks.size() - 1; i >= 0; i-- )
         {
-            for ( size_t i = 0; i < numDequeuedTasks; i++ )
+            CompilationTask* pActiveTask = m_activeTasks[i];
+
+            if ( pActiveTask->GetIsComplete() )
             {
-                auto pRequest = dequeuedTasks[i]->GetRequest();
+                auto pRequest = pActiveTask->GetRequest();
                 EE_ASSERT( pRequest->IsComplete() );
 
                 // Send network response
@@ -522,13 +517,12 @@ namespace EE::Resource
                 }
 
                 // Delete task
-                EE::Delete( dequeuedTasks[i] );
+                EE::Delete( pActiveTask );
+                m_activeTasks.erase_unsorted( m_activeTasks.begin() + i );
 
                 // Decrement task counter
                 m_numScheduledTasks--;
             }
-
-            numDequeuedTasks = m_completedTasks.try_dequeue_bulk( dequeuedTasks, 100 );
         }
     }
 

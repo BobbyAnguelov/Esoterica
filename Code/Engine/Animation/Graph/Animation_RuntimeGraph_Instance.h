@@ -2,7 +2,7 @@
 #include "Animation_RuntimeGraph_Definition.h"
 #include "Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Animation_RuntimeGraph_Contexts.h"
-#include "System/Types/PointerID.h"
+#include "Base/Types/PointerID.h"
 
 //-------------------------------------------------------------------------
 
@@ -112,6 +112,12 @@ namespace EE::Animation
         // Reset the graph state with an initial time
         void ResetGraphState( SyncTrackTime initTime = SyncTrackTime() );
 
+        // Reset the graph state with an initial time
+        void ResetGraphState_HACK( SyncTrackTime initTime, TInlineVector<GraphLayerInitInfo, 10> layerInitInfo );
+
+        // Get the current graph updateID
+        inline uint32_t GetUpdateID() const { return m_graphContext.m_updateID; }
+
         // Run the graph logic - returns the root motion delta for the update
         GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, bool resetGraphState = false );
 
@@ -163,13 +169,13 @@ namespace EE::Animation
             return InvalidIndex;
         }
 
-        inline StringID GetControlParameterID( int16_t parameterNodeIdx )
+        inline StringID GetControlParameterID( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
             return m_pGraphVariation->m_pGraphDefinition->m_controlParameterIDs[parameterNodeIdx];
         }
 
-        inline GraphValueType GetControlParameterType( int16_t parameterNodeIdx )
+        inline GraphValueType GetControlParameterType( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
             return reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValueType();
@@ -337,11 +343,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         void RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform );
 
-        // Calculate the sync update range for this update
-        void RecordPostGraphEvaluateState();
-
-        // Directly set the update range for this update
-        void RecordPostGraphEvaluateState( SyncTrackTimeRange const& range );
+        void RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange );
 
         // Record all the registered tasks for this update
         void RecordTasks();

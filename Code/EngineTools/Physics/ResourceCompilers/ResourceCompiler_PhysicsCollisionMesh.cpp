@@ -4,8 +4,8 @@
 #include "EngineTools/RawAssets/RawMesh.h"
 #include "Engine/Physics/PhysicsCollisionMesh.h"
 #include "Engine/Physics/Physics.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 #include "Animation_RuntimeGraphNode_State.h"
-#include "System/Types/ScopedValue.h"
+#include "Base/Types/ScopedValue.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 
 //-------------------------------------------------------------------------
@@ -70,12 +70,6 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
         auto pStateSettings = GetSettings<StateNode>();
-
-        // Ensure that we ALWAYS get the exit events when we destroy the state
-        for ( auto const& exitEventID : pStateSettings->m_exitEvents )
-        {
-            context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), StateEventType::Exit, exitEventID, false );
-        }
 
         //-------------------------------------------------------------------------
 

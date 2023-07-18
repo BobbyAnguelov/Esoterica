@@ -2,7 +2,7 @@
 
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Entity/EntityComponent.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

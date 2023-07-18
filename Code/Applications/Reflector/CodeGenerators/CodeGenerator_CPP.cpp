@@ -2,9 +2,9 @@
 #include "CodeGenerator_CPP_Type.h"
 #include "CodeGenerator_CPP_Enum.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "System/TypeSystem/TypeID.h"
-#include "System/FileSystem/FileSystemUtils.h"
-#include "System/Utils/TopologicalSort.h"
+#include "Base/TypeSystem/TypeID.h"
+#include "Base/FileSystem/FileSystemUtils.h"
+#include "Base/Utils/TopologicalSort.h"
 
 #include <eastl/sort.h>
 #include <fstream>
@@ -72,8 +72,8 @@ namespace EE::CPP
         typeRegistrationStr << "//-------------------------------------------------------------------------\n";
         typeRegistrationStr << "// This is an auto-generated file - DO NOT edit\n";
         typeRegistrationStr << "//-------------------------------------------------------------------------\n\n";
-        typeRegistrationStr << "#include \"System/TypeSystem/TypeRegistry.h\"\n\n";
-        typeRegistrationStr << "#include \"System/TypeSystem/EnumInfo.h\"\n\n";
+        typeRegistrationStr << "#include \"Base/TypeSystem/TypeRegistry.h\"\n\n";
+        typeRegistrationStr << "#include \"Base/TypeSystem/EnumInfo.h\"\n\n";
 
         // Get all modules from database
         TVector<ProjectInfo> modules = database.GetAllRegisteredProjects();
@@ -296,9 +296,9 @@ namespace EE::CPP
         m_moduleFile << "// This is an auto-generated file - DO NOT edit\n";
         m_moduleFile << "//-------------------------------------------------------------------------\n\n";
         m_moduleFile << "#include \"../API.h\"\n";
-        m_moduleFile << "#include \"System/TypeSystem/TypeRegistry.h\"\n";
-        m_moduleFile << "#include \"System/TypeSystem/EnumInfo.h\"\n";
-        m_moduleFile << "#include \"System/Resource/ResourceSystem.h\"\n";
+        m_moduleFile << "#include \"Base/TypeSystem/TypeRegistry.h\"\n";
+        m_moduleFile << "#include \"Base/TypeSystem/EnumInfo.h\"\n";
+        m_moduleFile << "#include \"Base/Resource/ResourceSystem.h\"\n";
         m_moduleFile << "#include \"" << prj.GetModuleHeaderDesc().m_filePath.c_str() << "\"\n\n";
         m_moduleFile << "//-------------------------------------------------------------------------\n\n";
 

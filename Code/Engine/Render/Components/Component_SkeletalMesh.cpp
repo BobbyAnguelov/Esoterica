@@ -1,7 +1,7 @@
 #include "Component_SkeletalMesh.h"
 #include "Engine/Animation/AnimationPose.h"
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Profiling.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 

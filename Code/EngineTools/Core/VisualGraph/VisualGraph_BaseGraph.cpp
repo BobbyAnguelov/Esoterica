@@ -1,7 +1,7 @@
 #include "VisualGraph_BaseGraph.h"
 #include "VisualGraph_UserContext.h"
-#include "System/Serialization/TypeSerialization.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/Serialization/TypeSerialization.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -277,7 +277,7 @@ namespace EE::VisualGraph
         return m_ID;
     }
 
-    ImColor BaseNode::GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
+    Color BaseNode::GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
     {
         if ( visualState == NodeVisualState::Active )
         {
@@ -293,7 +293,7 @@ namespace EE::VisualGraph
         }
         else
         {
-            return ImColor( 0 );
+            return Colors::Transparent;
         }
     }
 
@@ -330,7 +330,7 @@ namespace EE::VisualGraph
         float const separatorWidth = GetWidth() == 0 ? minimumNodeWidth : GetWidth();
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
         ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
-        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), ImGuiX::ToIm( color ) );
+        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), color );
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + postMarginY + 1 );
     }
 
@@ -357,7 +357,7 @@ namespace EE::VisualGraph
         
         int32_t const previousChannel = ctx.m_pDrawList->_Splitter._Current;
         ctx.SetDrawChannel( (uint8_t) DrawChannel::ContentBackground );
-        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, ImGuiX::ToIm( m_internalRegionColor ), 3.0f );
+        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, m_internalRegionColor, 3.0f );
         ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
 
         ImGui::Dummy( ImVec2( GetWidth(), framePadding.y + m_internalRegionMargins[1] ) );

@@ -4,39 +4,24 @@
 #include "Engine/Entity/EntitySystem.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/UpdateContext.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::AI
 {
-    AIDebugView::AIDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Game/AI", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
-    }
-
     void AIDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
-        m_pWorld = pWorld;
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pAIManager = pWorld->GetWorldSystem<AIManager>();
+        m_windows.emplace_back( "AI Overview", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawOverviewWindow( context ); } );
     }
 
     void AIDebugView::Shutdown()
     {
         m_pAIManager = nullptr;
-        m_pWorld = nullptr;
-    }
-
-    void AIDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        EE_ASSERT( m_pWorld != nullptr );
-
-        if ( m_isOverviewWindowOpen )
-        {
-            if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-            DrawOverviewWindow( context );
-        }
+        DebugView::Shutdown();
     }
 
     void AIDebugView::DrawMenu( EntityWorldUpdateContext const& context )
@@ -45,7 +30,7 @@ namespace EE::AI
 
         if ( ImGui::MenuItem( "Overview" ) )
         {
-            m_isOverviewWindowOpen = true;
+            m_windows[0].m_isOpen = true;
         }
 
         //-------------------------------------------------------------------------
@@ -68,11 +53,7 @@ namespace EE::AI
 
     void AIDebugView::DrawOverviewWindow( EntityWorldUpdateContext const& context )
     {
-        if ( ImGui::Begin( "AI Overview", &m_isOverviewWindowOpen ) )
-        {
-            ImGui::Text( "Num AI: %u", m_pAIManager->m_AIs.size() );
-        }
-        ImGui::End();
+        ImGui::Text( "Num AI: %u", m_pAIManager->m_AIs.size() );
     }
 }
 #endif

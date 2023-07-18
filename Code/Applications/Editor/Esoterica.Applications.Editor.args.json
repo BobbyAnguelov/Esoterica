@@ -8,7 +8,7 @@
     },
     {
       "Id": "b2f325a1-49f8-4b85-ab51-0c56a859bf7f",
-      "Command": "-map data://maps/Prototype_Combat_Minimal.map"
+      "Command": "-map data://maps/Prototype_3Cs.map"
     }
   ]
 }

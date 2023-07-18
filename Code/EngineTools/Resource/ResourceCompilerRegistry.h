@@ -1,5 +1,5 @@
 #pragma once
-#include "System/Types/Arrays.h"
+#include "Base/Types/Arrays.h"
 #include "ResourceCompiler.h"
 
 //-------------------------------------------------------------------------

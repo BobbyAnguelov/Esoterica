@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,30 +17,27 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API PhysicsDebugView : public EntityWorldDebugView
+    class EE_ENGINE_API PhysicsDebugView : public DebugView
     {
         EE_REFLECT_TYPE( PhysicsDebugView );
 
     public:
 
-        static bool DrawMaterialDatabaseView( UpdateContext const& context );
+        static void DrawMaterialDatabaseView( UpdateContext const& context );
 
     public:
 
-        PhysicsDebugView();
+        PhysicsDebugView() : DebugView( "Engine/Physics" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-
-        void DrawMenu( EntityWorldUpdateContext const& context );
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
 
     private:
 
         PhysicsWorldSystem*     m_pPhysicsWorldSystem = nullptr;
-        bool                    m_isMaterialDatabaseWindowOpen = false;
     };
 }
 #endif

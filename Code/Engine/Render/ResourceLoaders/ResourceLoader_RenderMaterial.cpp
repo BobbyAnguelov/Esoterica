@@ -1,6 +1,6 @@
 #include "ResourceLoader_RenderMaterial.h"
 #include "Engine/Render/Material/RenderMaterial.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 
 //-------------------------------------------------------------------------

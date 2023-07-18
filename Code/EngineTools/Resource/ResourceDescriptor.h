@@ -1,10 +1,10 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Serialization/TypeSerialization.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Resource/ResourceID.h"
-#include "System/Types/Function.h"
+#include "Base/Serialization/TypeSerialization.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Resource/ResourceID.h"
+#include "Base/Types/Function.h"
 
 
 //-------------------------------------------------------------------------

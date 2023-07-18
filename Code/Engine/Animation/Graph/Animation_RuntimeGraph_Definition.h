@@ -1,7 +1,7 @@
 #pragma once
 #include "Animation_RuntimeGraph_Node.h"
 #include "Animation_RuntimeGraph_DataSet.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "System/Esoterica.h"
+#include "Base/Esoterica.h"
 
 #if EE_DEVELOPMENT_TOOLS
 

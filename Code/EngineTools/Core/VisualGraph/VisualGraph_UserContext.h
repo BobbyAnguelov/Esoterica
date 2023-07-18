@@ -1,11 +1,11 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Types/Event.h"
-#include "System/Resource/ResourceID.h"
-#include "System/Memory/Pointers.h"
-#include "System/Types/StringID.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/Types/Event.h"
+#include "Base/Resource/ResourceID.h"
+#include "Base/Memory/Pointers.h"
+#include "Base/Types/StringID.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,6 +19,7 @@ namespace EE::VisualGraph
     // Helper to unsure we can maintain selection after a undo/redo
     struct EE_ENGINETOOLS_API SelectedNode
     {
+        SelectedNode() = default;
         SelectedNode( BaseNode* pNode );
         bool operator==( SelectedNode const& rhs ) const;
         bool operator==( BaseNode const* pNode ) const;

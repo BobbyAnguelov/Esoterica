@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Render/RenderShader.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Resource/ResourceLoader.h"
+#include "Base/Render/RenderShader.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Resource/ResourceLoader.h"
 
 //-------------------------------------------------------------------------
 

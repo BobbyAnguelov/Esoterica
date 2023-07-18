@@ -1,6 +1,7 @@
 #include "AnimationClip.h"
 #include "Engine/Animation/AnimationPose.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
@@ -16,128 +17,77 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        Transform boneTransform;
-        uint16_t const* pTrackData = m_compressedPoseData.data();
+        int32_t const numBones = m_skeleton->GetNumBones();
+        auto ReadCompressedPose = [&] ( int32_t poseIdx, Transform outTransforms[] )
+        {
+            uint16_t const* pReadPtr = m_compressedPoseData2.data() + m_compressedPoseOffsets[poseIdx];
 
-        // Read exact key frame
-        if ( frameTime.IsExactlyAtKeyFrame() )
-        {
-            auto const numBones = m_skeleton->GetNumBones();
-            for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            // Read rotations
+            for ( auto i = 0; i < numBones; i++ )
             {
-                pTrackData = ReadCompressedTrackKeyFrame( pTrackData, m_trackCompressionSettings[boneIdx], frameTime.GetFrameIndex(), boneTransform );
-                pOutPose->m_localTransforms[boneIdx] = boneTransform;
+                TrackCompressionSettings const& trackSettings = m_trackCompressionSettings[i];
+                if ( trackSettings.IsRotationTrackStatic() )
+                {
+                    Transform::DirectlySetRotation( outTransforms[i], trackSettings.GetStaticRotationValue() );
+                }
+                else
+                {
+                    Transform::DirectlySetRotation( outTransforms[i], DecodeRotation( pReadPtr ) );
+                    pReadPtr += 3; // Rotations are 48bits (3 x uint16_t)
+                }
             }
-        }
-        else // Read interpolated anim pose
-        {
-            auto const numBones = m_skeleton->GetNumBones();
-            for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
+
+            // Read translation/scale
+            for ( auto i = 0; i < numBones; i++ )
             {
-                pTrackData = ReadCompressedTrackTransform( pTrackData, m_trackCompressionSettings[boneIdx], frameTime, boneTransform );
-                pOutPose->m_localTransforms[boneIdx] = boneTransform;
+                TrackCompressionSettings const& trackSettings = m_trackCompressionSettings[i];
+
+                Float4 translationScale;
+
+                if ( trackSettings.IsTranslationTrackStatic() )
+                {
+                    translationScale = Float4( trackSettings.GetStaticTranslationValue() );
+                }
+                else
+                {
+                    translationScale = DecodeTranslation( pReadPtr, trackSettings );
+                    pReadPtr += 3; // Translations are 48bits (3 x uint16_t)
+                }
+
+                if ( trackSettings.IsScaleTrackStatic() )
+                {
+                    translationScale.m_w = trackSettings.GetStaticScaleValue();
+                }
+                else
+                {
+                    DecodeScale( pReadPtr, trackSettings );
+                    pReadPtr += 1; // Scales are 16bits (1 x uint16_t)
+                }
+
+                Transform::DirectlySetTranslationScale( outTransforms[i], translationScale );
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
+        // Read the lower frame pose into the output pose
+        ReadCompressedPose( frameTime.GetLowerBoundFrameIndex(), pOutPose->m_localTransforms.data() );
+
+        // If we're not exactly at a key frame we need to read the upper frame pose and blend
+        if ( !frameTime.IsExactlyAtKeyFrame() )
+        {
+            TInlineVector<Transform, 200> tmpPose;
+            tmpPose.resize( numBones );
+            ReadCompressedPose( frameTime.GetUpperBoundFrameIndex(), tmpPose.data() );
+
+            float const percentageThrough = frameTime.GetPercentageThrough().ToFloat();
+            for ( auto i = 0; i < numBones; i++ )
+            {
+                pOutPose->m_localTransforms[i] = Transform::FastSlerp( pOutPose->m_localTransforms[i], tmpPose[i], percentageThrough );
             }
         }
 
         // Flag the pose as being set
         pOutPose->m_state = m_isAdditive ? Pose::State::AdditivePose : Pose::State::Pose;
-    }
-
-    Transform AnimationClip::GetLocalSpaceTransform( int32_t boneIdx, FrameTime const& frameTime ) const
-    {
-        EE_ASSERT( IsValid() && m_skeleton->IsValidBoneIndex( boneIdx ) );
-
-        uint32_t frameIdx = frameTime.GetFrameIndex();
-        EE_ASSERT( frameIdx < m_numFrames );
-
-        //-------------------------------------------------------------------------
-
-        auto const& trackSettings = m_trackCompressionSettings[boneIdx];
-        uint16_t const* pTrackData = m_compressedPoseData.data() + trackSettings.m_trackStartIndex;
-
-        //-------------------------------------------------------------------------
-
-        Transform boneLocalTransform;
-
-        if ( frameTime.IsExactlyAtKeyFrame() )
-        {
-            ReadCompressedTrackKeyFrame( pTrackData, trackSettings, frameIdx, boneLocalTransform );
-        }
-        else
-        {
-            ReadCompressedTrackTransform( pTrackData, trackSettings, frameTime, boneLocalTransform );
-        }
-        return boneLocalTransform;
-    }
-
-    Transform AnimationClip::GetGlobalSpaceTransform( int32_t boneIdx, FrameTime const& frameTime ) const
-    {
-        EE_ASSERT( IsValid() && m_skeleton->IsValidBoneIndex( boneIdx ) );
-
-        uint32_t frameIdx = frameTime.GetFrameIndex();
-        EE_ASSERT( frameIdx < m_numFrames );
-
-        // Find all parent bones
-        //-------------------------------------------------------------------------
-
-        TInlineVector<int32_t, 20> boneHierarchy;
-        boneHierarchy.emplace_back( boneIdx );
-
-        int32_t parentBoneIdx = m_skeleton->GetParentBoneIndex( boneIdx );
-        while ( parentBoneIdx != InvalidIndex )
-        {
-            boneHierarchy.emplace_back( parentBoneIdx );
-            parentBoneIdx = m_skeleton->GetParentBoneIndex( parentBoneIdx );
-        }
-
-        // Calculate the global transform
-        //-------------------------------------------------------------------------
-
-        Transform globalTransform;
-
-        if ( frameTime.IsExactlyAtKeyFrame() )
-        {
-            // Read root transform
-            {
-                auto const& trackSettings = m_trackCompressionSettings[boneHierarchy.back()];
-                uint16_t const* pTrackData = m_compressedPoseData.data() + trackSettings.m_trackStartIndex;
-                ReadCompressedTrackKeyFrame( pTrackData, trackSettings, frameIdx, globalTransform );
-            }
-
-            // Read and multiply out all the transforms moving down the hierarchy
-            Transform localTransform;
-            for ( int32_t i = (int32_t) boneHierarchy.size() - 2; i >= 0; i-- )
-            {
-                int32_t const trackIdx = boneHierarchy[i];
-                auto const& trackSettings = m_trackCompressionSettings[trackIdx];
-                uint16_t const* pTrackData = m_compressedPoseData.data() + trackSettings.m_trackStartIndex;
-                ReadCompressedTrackKeyFrame( pTrackData, trackSettings, frameIdx, localTransform );
-
-                globalTransform = localTransform * globalTransform;
-            }
-        }
-        else // Interpolate key-frames
-        {
-            // Read root transform
-            {
-                auto const& trackSettings = m_trackCompressionSettings[boneHierarchy.back()];
-                uint16_t const* pTrackData = m_compressedPoseData.data() + trackSettings.m_trackStartIndex;
-                ReadCompressedTrackTransform( pTrackData, trackSettings, frameTime, globalTransform );
-            }
-
-            // Read and multiply out all the transforms moving down the hierarchy
-            Transform localTransform;
-            for ( int32_t i = (int32_t) boneHierarchy.size() - 2; i >= 0; i-- )
-            {
-                int32_t const trackIdx = boneHierarchy[i];
-                auto const& trackSettings = m_trackCompressionSettings[trackIdx];
-                uint16_t const* pTrackData = m_compressedPoseData.data() + trackSettings.m_trackStartIndex;
-                ReadCompressedTrackTransform( pTrackData, trackSettings, frameTime, localTransform );
-
-                globalTransform = localTransform * globalTransform;
-            }
-        }
-
-        return globalTransform;
     }
 }

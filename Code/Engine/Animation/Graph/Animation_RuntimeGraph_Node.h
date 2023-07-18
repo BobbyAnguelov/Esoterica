@@ -5,10 +5,10 @@
 #include "Animation_RuntimeGraph_Recording.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationTarget.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Serialization/BinarySerialization.h"
-#include "System/Types/Color.h"
-#include "System/Time/Time.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Serialization/BinarySerialization.h"
+#include "Base/Types/Color.h"
+#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 

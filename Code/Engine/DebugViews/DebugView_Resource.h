@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
+#include "DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,32 +11,28 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API ResourceDebugView : public EntityWorldDebugView
+    class EE_ENGINE_API ResourceDebugView : public DebugView
     {
         EE_REFLECT_TYPE( ResourceDebugView );
 
     public:
 
-        static void DrawLogWindow( ResourceSystem* pResourceSystem, bool* pIsOpen );
-        static void DrawOverviewWindow( ResourceSystem* pResourceSystem, bool* pIsOpen );
+        static void DrawRequestHistory( ResourceSystem* pResourceSystem );
+        static void DrawResourceSystemOverview( ResourceSystem* pResourceSystem );
 
     public:
 
-        ResourceDebugView();
+        ResourceDebugView() : DebugView( "System/Resource" ) {}
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
-
-        void DrawResourceMenu( EntityWorldUpdateContext const& context );
+        virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
 
     private:
 
         ResourceSystem*         m_pResourceSystem = nullptr;
-        bool                    m_isHistoryWindowOpen = false;
-        bool                    m_isOverviewWindowOpen = false;
     };
 }
 #endif

@@ -5,7 +5,7 @@
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Navmesh/NavPower.h"
-#include "System/Math/Line.h"
+#include "Base/Math/Line.h"
 
 //-------------------------------------------------------------------------
 

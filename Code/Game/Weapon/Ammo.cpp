@@ -2,8 +2,8 @@
 //-------------------------------------------------------------------------
 
 #include "Engine/Physics/PhysicsWorld.h"
-#include "System/Types/Color.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Types/Color.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

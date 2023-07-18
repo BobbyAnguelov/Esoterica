@@ -56,9 +56,6 @@
     <ClCompile Include="Physics\Systems\WorldSystem_Physics.cpp">
       <Filter>Physics\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\AnimationBlender.cpp">
-      <Filter>Animation</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\AnimationBoneMask.cpp">
       <Filter>Animation</Filter>
     </ClCompile>
@@ -281,9 +278,6 @@
     <ClCompile Include="Entity\EntityWorld.cpp">
       <Filter>Entity</Filter>
     </ClCompile>
-    <ClCompile Include="Entity\EntityWorldDebugger.cpp">
-      <Filter>Entity</Filter>
-    </ClCompile>
     <ClCompile Include="Entity\EntityWorldManager.cpp">
       <Filter>Entity</Filter>
     </ClCompile>
@@ -401,7 +395,7 @@
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp">
       <Filter>Volumes\Components</Filter>
     </ClCompile>
-    <ClCompile Include="ToolsUI\EngineToolsUI.cpp">
+    <ClCompile Include="ToolsUI\EngineDebugUI.cpp">
       <Filter>ToolsUI</Filter>
     </ClCompile>
     <ClCompile Include="_Module\EngineModule.cpp">
@@ -421,6 +415,8 @@
     </ClCompile>
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.cpp" />
     <ClCompile Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.cpp" />
+    <ClCompile Include="Animation\AnimationBlender.cpp" />
+    <ClCompile Include="DebugViews\DebugView.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -736,10 +732,7 @@
     <ClInclude Include="Entity\EntityWorld.h">
       <Filter>Entity</Filter>
     </ClInclude>
-    <ClInclude Include="Entity\EntityWorldDebugger.h">
-      <Filter>Entity</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity\EntityWorldDebugView.h">
+    <ClInclude Include="DebugViews\DebugView.h">
       <Filter>Entity</Filter>
     </ClInclude>
     <ClInclude Include="Entity\EntityWorldManager.h">
@@ -895,7 +888,7 @@
     <ClInclude Include="Volumes\Components\Component_Volumes.h">
       <Filter>Volumes\Components</Filter>
     </ClInclude>
-    <ClInclude Include="ToolsUI\EngineToolsUI.h">
+    <ClInclude Include="ToolsUI\EngineDebugUI.h">
       <Filter>ToolsUI</Filter>
     </ClInclude>
     <ClInclude Include="ToolsUI\IDevelopmentToolsUI.h">

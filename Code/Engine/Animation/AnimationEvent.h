@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Time/Time.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Math/NumericRange.h"
+#include "Base/Time/Time.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Math/NumericRange.h"
 
 //-------------------------------------------------------------------------
 // Animation Event

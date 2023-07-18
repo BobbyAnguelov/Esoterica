@@ -4,9 +4,9 @@
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "Engine/Physics/PhysicsSettings.h"
 #include "Engine/Physics/PhysicsQuery.h"
-#include "System/Time/Time.h"
-#include "System/Time/Timers.h"
-#include "System/Types/Color.h"
+#include "Base/Time/Time.h"
+#include "Base/Time/Timers.h"
+#include "Base/Types/Color.h"
 
 #include <characterkinematic/PxController.h>
 #include <characterkinematic/PxControllerBehavior.h>

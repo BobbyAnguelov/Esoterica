@@ -30,7 +30,9 @@ namespace EE::Animation::GraphNodes
             MatchSourceSyncEventIndexOnly,
             MatchSourceSyncEventIndexAndPercentage,
             MatchSourceSyncEventID,
+            MatchClosestSourceSyncEventID,
             MatchSourceSyncEventIDAndPercentage,
+            MatchClosestSourceSyncEventIDAndPercentage,
             MatchSourceSyncEventPercentage
         };
 
@@ -48,7 +50,7 @@ namespace EE::Animation::GraphNodes
         virtual bool IsUserCreatable() const override { return true; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
         virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
-        virtual ImColor GetTitleBarColor() const override;
+        virtual Color GetTitleBarColor() const override;
 
     protected:
 
@@ -92,7 +94,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
         virtual char const* GetTypeName() const override { return "Transition"; }
-        virtual ImColor GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const override;
+        virtual Color GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const override;
         virtual void PreDrawUpdate( VisualGraph::UserContext* pUserContext ) override;
 
     private:

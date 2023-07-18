@@ -1,9 +1,9 @@
 #include "ResourceCompiler_RenderTexture.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderTexture.h"
 #include "EngineTools/Render/TextureTools/TextureTools.h"
-#include "System/Render/RenderTexture.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Render/RenderTexture.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

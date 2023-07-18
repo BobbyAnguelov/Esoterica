@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EntityComponent.h"
-#include "System/Math/BoundingVolumes.h"
-#include "System/Math/Transform.h"
+#include "Base/Math/BoundingVolumes.h"
+#include "Base/Math/Transform.h"
 
 //-------------------------------------------------------------------------
 

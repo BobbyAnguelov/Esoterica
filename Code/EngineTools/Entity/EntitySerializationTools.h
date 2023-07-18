@@ -1,7 +1,7 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "System/Esoterica.h"
-#include "System/Serialization/JSONSerialization.h"
+#include "Base/Esoterica.h"
+#include "Base/Serialization/JSONSerialization.h"
 
 //-------------------------------------------------------------------------
 

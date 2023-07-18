@@ -1,5 +1,5 @@
 #include "PlayerActionStateMachine.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 
 // Actions
@@ -8,6 +8,7 @@
 #include "Game/Player/StateMachine/Actions/PlayerAction_Falling.h"
 #include "Game/Player/StateMachine/Actions/PlayerAction_Dash.h"
 #include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Shoot.h"
+#include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Aim.h"
 #include "Actions/PlayerAction_Slide.h"
 #include "Actions/PlayerAction_Ghost.h"
 #include "Actions/PlayerAction_Interact.h"
@@ -24,6 +25,7 @@ namespace EE::Player
         //-------------------------------------------------------------------------
 
         m_overlayActions.emplace_back( EE::New<ShootOverlayAction>() );
+        m_overlayActions.emplace_back( EE::New<AimOverlayAction>() );
 
         //-------------------------------------------------------------------------
         // Base Actions
@@ -345,19 +347,19 @@ namespace EE::Player
                         {
                             case ActionStateMachine::LoggedStatus::ActionStarted:
                             {
-                                ImGui::TextColored( ImGuiX::ImColors::LimeGreen, "Started" );
+                                ImGui::TextColored( Colors::LimeGreen.ToFloat4(), "Started" );
                             }
                             break;
 
                             case ActionStateMachine::LoggedStatus::ActionCompleted:
                             {
-                                ImGui::TextColored( ImGuiX::ImColors::White, "Completed" );
+                                ImGui::TextColored( Colors::White.ToFloat4(), "Completed" );
                             }
                             break;
 
                             case ActionStateMachine::LoggedStatus::ActionInterrupted:
                             {
-                                ImGui::TextColored( ImGuiX::ImColors::Red, "Interrupted" );
+                                ImGui::TextColored( Colors::Red.ToFloat4(), "Interrupted" );
                             }
                             break;
 

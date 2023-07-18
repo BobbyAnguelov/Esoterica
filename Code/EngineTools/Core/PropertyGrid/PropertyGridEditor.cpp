@@ -3,13 +3,13 @@
 #include "EngineTools/Resource/ResourcePicker.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/Widgets/CurveEditor.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/TypeSystem/PropertyInfo.h"
-#include "System/TypeSystem/EnumInfo.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Types/String.h"
-#include "System/Types/Tag.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/TypeSystem/PropertyInfo.h"
+#include "Base/TypeSystem/EnumInfo.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Types/String.h"
+#include "Base/Types/Tag.h"
 
 //-------------------------------------------------------------------------
 

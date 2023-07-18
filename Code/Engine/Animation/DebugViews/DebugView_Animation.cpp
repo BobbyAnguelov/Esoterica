@@ -5,14 +5,21 @@
 #include "Engine/Animation/AnimationEvent.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Animation
 {
+    namespace
+    {
+        static StringID const g_controlParameterWindowID( "ControlParam" );
+        static StringID const g_tasksWindowID( "Tasks" );
+        static StringID const g_eventsWindowID( "Events" );
+    }
+
     void AnimationDebugView::DrawGraphControlParameters( GraphInstance* pGraphInstance )
     {
         if ( ImGui::BeginTable( "ControlParametersTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
@@ -100,7 +107,7 @@ namespace EE::Animation
                 ImGui::TableNextRow();
 
                 ImGui::TableSetColumnIndex( 0 );
-                ImGui::TextColored( ImGuiX::ToIm( GetColorForValueType( valueType ) ), "%s", nodeID.c_str() );
+                ImGui::TextColored( ImVec4( GetColorForValueType( valueType ) ), "%s", nodeID.c_str() );
 
                 ImGui::TableSetColumnIndex( 1 );
                 ImGui::Text( stringValue.c_str() );
@@ -415,9 +422,9 @@ namespace EE::Animation
 
                 ImGui::TableNextColumn();
                 {
-                    static ImColor const stateEventTypeColors[] = { ImGuiX::ImColors::Gold, ImGuiX::ImColors::Lime, ImGuiX::ImColors::OrangeRed, ImGuiX::ImColors::DodgerBlue };
+                    static Color const stateEventTypeColors[] = { Colors::Gold, Colors::Lime, Colors::OrangeRed, Colors::DodgerBlue };
 
-                    ImGui::PushStyleColor( ImGuiCol_Text, stateEventTypeColors[ (uint8_t) sampledEvent.GetStateEventType()].Value );
+                    ImGui::PushStyleColor( ImGuiCol_Text, stateEventTypeColors[ (uint8_t) sampledEvent.GetStateEventType()] );
                     ImGui::Text( "[%s]", GetNameForStateEventType( sampledEvent.GetStateEventType() ) );
                     ImGui::PopStyleColor();
                     ImGui::SameLine();
@@ -456,21 +463,16 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    AnimationDebugView::AnimationDebugView()
-    {
-        m_menus.emplace_back( DebugMenu( "Engine/Animation", [this] ( EntityWorldUpdateContext const& context ) { DrawMenu( context ); } ) );
-    }
-
     void AnimationDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
-        m_pWorld = pWorld;
+        DebugView::Initialize( systemRegistry, pWorld );
         m_pAnimationWorldSystem = pWorld->GetWorldSystem<AnimationWorldSystem>();
     }
 
     void AnimationDebugView::Shutdown()
     {
         m_pAnimationWorldSystem = nullptr;
-        m_pWorld = nullptr;
+        DebugView::Shutdown();
     }
 
     //-------------------------------------------------------------------------
@@ -524,12 +526,36 @@ namespace EE::Animation
 
                 if ( ImGui::MenuItem( "Show Control Parameters" ) )
                 {
-                    pRuntimeSettings->m_drawControlParameters = true;
+                    auto pTaskWindowForComponent = GetDebugWindow( g_controlParameterWindowID, pGraphComponent->GetID().m_value );
+                    if ( pTaskWindowForComponent != nullptr )
+                    {
+                        pTaskWindowForComponent->m_isOpen = true;
+                    }
+                    else
+                    {
+                        InlineString windowName( InlineString::CtorSprintf(), "Control Parameters: %s", componentName.c_str() );
+                        m_windows.emplace_back( windowName.c_str(), [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData ) { DrawControlParameterWindow( context, isFocused, userData ); } );
+                        m_windows.back().m_typeID = g_controlParameterWindowID;
+                        m_windows.back().m_userData = pGraphComponent->GetID().m_value;
+                        m_windows.back().m_isOpen = true;
+                    }
                 }
 
                 if ( ImGui::MenuItem( "Show Sampled Events" ) )
                 {
-                    pRuntimeSettings->m_drawSampledEvents = true;
+                    auto pTaskWindowForComponent = GetDebugWindow( g_eventsWindowID, pGraphComponent->GetID().m_value );
+                    if ( pTaskWindowForComponent != nullptr )
+                    {
+                        pTaskWindowForComponent->m_isOpen = true;
+                    }
+                    else
+                    {
+                        InlineString windowName( InlineString::CtorSprintf(), "Sampled Events: %s", componentName.c_str() );
+                        m_windows.emplace_back( windowName.c_str(), [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData ) { DrawEventsWindow( context, isFocused, userData ); } );
+                        m_windows.back().m_typeID = g_eventsWindowID;
+                        m_windows.back().m_userData = pGraphComponent->GetID().m_value;
+                        m_windows.back().m_isOpen = true;
+                    }
                 }
 
                 //-------------------------------------------------------------------------
@@ -569,7 +595,19 @@ namespace EE::Animation
 
                 if ( ImGui::MenuItem( "Show Active Tasks" ) )
                 {
-                    pRuntimeSettings->m_drawActiveTasks = true;
+                    auto pTaskWindowForComponent = GetDebugWindow( g_tasksWindowID, pGraphComponent->GetID().m_value );
+                    if ( pTaskWindowForComponent != nullptr )
+                    {
+                        pTaskWindowForComponent->m_isOpen = true;
+                    }
+                    else
+                    {
+                        InlineString windowName( InlineString::CtorSprintf(), "Active Tasks: %s", componentName.c_str() );
+                        m_windows.emplace_back( windowName.c_str(), [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData ) { DrawTasksWindow( context, isFocused, userData ); } );
+                        m_windows.back().m_typeID = g_tasksWindowID;
+                        m_windows.back().m_userData = pGraphComponent->GetID().m_value;
+                        m_windows.back().m_isOpen = true;
+                    }
                 }
 
                 //-------------------------------------------------------------------------
@@ -608,96 +646,41 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass )
+    void AnimationDebugView::Update( EntityWorldUpdateContext const& context )
     {
-        InlineString title;
-
-        for ( int32_t i = (int32_t) m_componentRuntimeSettings.size() - 1; i >= 0; i-- )
+        // Delete windows for missing components
+        for ( int32_t i = (int32_t) m_windows.size() - 1; i >= 0; i-- )
         {
-            bool stopDebug = false;
-            auto ppFoundComponent = m_pAnimationWorldSystem->m_graphComponents.FindItem( m_componentRuntimeSettings[i].m_ID );
-            if ( ppFoundComponent != nullptr )
+            auto ppFoundComponent = m_pAnimationWorldSystem->m_graphComponents.FindItem( ComponentID( m_windows[i].m_userData ) );
+            if ( ppFoundComponent == nullptr )
             {
-                auto pGraphComponent = *ppFoundComponent;
-
-                //-------------------------------------------------------------------------
-
-                EntityID const entityID = pGraphComponent->GetEntityID();
-                auto pEntity = m_pWorld->FindEntity( entityID );
-                EE_ASSERT( pEntity != nullptr );
-
-                //-------------------------------------------------------------------------
-
-                if ( m_componentRuntimeSettings[i].m_drawControlParameters )
-                {
-                    bool keepOpen = true;
-                    title.sprintf( "Control Parameters: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
-                    if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-                    ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
-                    if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings) )
-                    {
-                        DrawGraphControlParameters( pGraphComponent->m_pGraphInstance );
-                    }
-                    ImGui::End();
-
-                    if ( !keepOpen )
-                    {
-                        m_componentRuntimeSettings[i].m_drawControlParameters = false;
-                    }
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( m_componentRuntimeSettings[i].m_drawActiveTasks )
-                {
-                    bool keepOpen = true;
-                    title.sprintf( "Active Tasks: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
-                    if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-                    ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
-                    if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
-                    {
-                        DrawGraphActiveTasksDebugView( pGraphComponent->m_pGraphInstance );
-                    }
-                    ImGui::End();
-
-                    if ( !keepOpen )
-                    {
-                        m_componentRuntimeSettings[i].m_drawActiveTasks = false;
-                    }
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( m_componentRuntimeSettings[i].m_drawSampledEvents )
-                {
-                    bool keepOpen = true;
-                    title.sprintf( "Sampled Events: %s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
-                    if ( pWindowClass != nullptr ) ImGui::SetNextWindowClass( pWindowClass );
-                    ImGui::SetNextWindowSize( ImVec2( 600, 700 ), ImGuiCond_FirstUseEver );
-                    if ( ImGui::Begin( title.c_str(), &keepOpen, ImGuiWindowFlags_NoSavedSettings ) )
-                    {
-                        DrawCombinedSampledEventsView( pGraphComponent->m_pGraphInstance );
-                    }
-                    ImGui::End();
-
-                    if ( !keepOpen )
-                    {
-                        m_componentRuntimeSettings[i].m_drawSampledEvents = false;
-                    }
-                }
-            }
-            else // Erase invalid component ID
-            {
-                stopDebug = true;
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( stopDebug )
-            {
-                m_componentRuntimeSettings.erase_unsorted( m_componentRuntimeSettings.begin() + i );
+                m_windows.erase_unsorted( m_windows.begin() + i );
             }
         }
+    }
+
+    void AnimationDebugView::DrawControlParameterWindow( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData )
+    {
+        auto ppFoundComponent = m_pAnimationWorldSystem->m_graphComponents.FindItem( ComponentID( userData ) );
+        EE_ASSERT( ppFoundComponent != nullptr );
+        auto pGraphComponent = *ppFoundComponent;
+        DrawGraphControlParameters( pGraphComponent->m_pGraphInstance );
+    }
+
+    void AnimationDebugView::DrawTasksWindow( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData )
+    {
+        auto ppFoundComponent = m_pAnimationWorldSystem->m_graphComponents.FindItem( ComponentID( userData ) );
+        EE_ASSERT( ppFoundComponent != nullptr );
+        auto pGraphComponent = *ppFoundComponent;
+        DrawGraphActiveTasksDebugView( pGraphComponent->m_pGraphInstance );
+    }
+
+    void AnimationDebugView::DrawEventsWindow( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData )
+    {
+        auto ppFoundComponent = m_pAnimationWorldSystem->m_graphComponents.FindItem( ComponentID( userData ) );
+        EE_ASSERT( ppFoundComponent != nullptr );
+        auto pGraphComponent = *ppFoundComponent;
+        DrawCombinedSampledEventsView( pGraphComponent->m_pGraphInstance );
     }
 }
 #endif

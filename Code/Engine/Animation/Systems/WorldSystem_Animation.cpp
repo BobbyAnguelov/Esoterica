@@ -1,7 +1,7 @@
 #include "WorldSystem_Animation.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Drawing/DebugDrawing.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 

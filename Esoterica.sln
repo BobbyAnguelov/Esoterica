@@ -70,7 +70,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "7. Misc", "7. Misc", "{8E9A
 		Code\Esoterica.natvis = Code\Esoterica.natvis
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Esoterica.System", "Code\System\Esoterica.System.vcxproj", "{07414BA8-87A7-449B-8AB7-551254B57FB3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Esoterica.Base", "Code\Base\Esoterica.Base.vcxproj", "{07414BA8-87A7-449B-8AB7-551254B57FB3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Platforms", "Platforms", "{C6737ED1-BFAF-4119-A0B6-92CEBC0FA505}"
 	ProjectSection(SolutionItems) = preProject
@@ -85,7 +85,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Esoterica.Engine.Tools", "C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Esoterica.Game.Tools", "Code\GameTools\Esoterica.Game.Tools.vcxproj", "{A9123702-50A2-42A7-BE0B-6468C298B509}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. System", "4. System", "{D235CCAC-5FC9-4ECF-8238-4A2849CBD4A0}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. Base", "4. Base", "{D235CCAC-5FC9-4ECF-8238-4A2849CBD4A0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

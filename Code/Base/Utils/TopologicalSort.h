@@ -1,0 +1,36 @@
+#pragma once
+
+#include "Base/_Module/API.h"
+#include "Base/Types/Arrays.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE
+{
+    class EE_BASE_API TopologicalSorter
+    {
+    public:
+
+        // This is a utility class to enable sorting of types in a topological manner
+        struct Node
+        {
+            enum class Mark
+            {
+                None,
+                Permanent,
+                Temporary,
+            };
+
+            Node() : m_ID( -1 ), m_mark( Mark::None ) {}
+            Node( int32_t ID ) : m_ID( ID ), m_mark( Mark::None ) {}
+
+            int32_t             m_ID;           // Some way to identify the actual data this refers to
+            TVector<Node*>      m_children;     // The children of this node
+            Mark                m_mark;         // Marking mechanism for algorithm
+        };
+
+        //-------------------------------------------------------------------------
+
+        static bool Sort( TVector<Node>& list );
+    };
+}

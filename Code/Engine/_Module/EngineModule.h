@@ -22,15 +22,15 @@
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderShader.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderTexture.h"
 
-#include "System/Imgui/ImguiX.h"
-#include "System/Input/InputSystem.h"
-#include "System/Imgui/ImguiSystem.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Resource/ResourceProvider.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Threading/TaskSystem.h"
-#include "System/Systems.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Input/InputSystem.h"
+#include "Base/Imgui/ImguiSystem.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Resource/ResourceProvider.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Threading/TaskSystem.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 

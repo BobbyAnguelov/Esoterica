@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "System/Utils/GlobalRegistryBase.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/Utils/GlobalRegistryBase.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 

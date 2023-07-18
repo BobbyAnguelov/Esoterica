@@ -3,8 +3,8 @@
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityLog.h"
-#include "System/Encoding/Hash.h"
-#include "System/Types/StringID.h"
+#include "Base/Encoding/Hash.h"
+#include "Base/Types/StringID.h"
 
 
 //-------------------------------------------------------------------------

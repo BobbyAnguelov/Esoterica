@@ -2,8 +2,8 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Animation/AnimationSkeleton.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/Types/HashMap.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/Types/HashMap.h"
 
 //-------------------------------------------------------------------------
 

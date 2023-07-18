@@ -444,6 +444,13 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventPercentage:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+            }
+            break;
+
             case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndexAndPercentage:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
@@ -467,10 +474,20 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventPercentage:
+            case TransitionToolsNode::TimeMatchMode::MatchClosestSourceSyncEventID:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchClosestSourceSyncEventIDAndPercentage:
+            {
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
             }
             break;
         }

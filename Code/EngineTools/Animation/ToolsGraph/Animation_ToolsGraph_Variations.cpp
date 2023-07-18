@@ -1,7 +1,7 @@
 #include "Animation_ToolsGraph_Variations.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
-#include "System/Serialization/TypeSerialization.h"
+#include "Base/Serialization/TypeSerialization.h"
 
 //-------------------------------------------------------------------------
 

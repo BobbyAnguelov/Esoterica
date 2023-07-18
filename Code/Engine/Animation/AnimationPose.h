@@ -1,8 +1,8 @@
 #pragma once
 
 #include "AnimationSkeleton.h"
-#include "System/Math/Math.h"
-#include "System/Types/Color.h"
+#include "Base/Math/Math.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
@@ -12,6 +12,10 @@ namespace EE::Drawing { class DrawContext; }
 
 namespace EE::Animation
 {
+    class BoneMask;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API Pose
     {
         friend class Blender;
@@ -115,7 +119,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink, float lineThickness = 2.0f ) const;
+        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink, float lineThickness = 2.0f, BoneMask const* pBoneMask = nullptr, bool detailedView = false ) const;
         #endif
 
     private:

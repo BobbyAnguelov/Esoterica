@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
 #include "Engine/Animation/AnimationBlender.h"
-#include "System/Math/NumericRange.h"
+#include "Base/Math/NumericRange.h"
 
 //-------------------------------------------------------------------------
 
@@ -131,6 +131,12 @@ namespace EE::Animation::GraphNodes
     private:
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
+
+        void CreateParameterizationFromSpeeds();
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        #endif
 
     private:
 

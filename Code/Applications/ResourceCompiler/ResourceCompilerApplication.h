@@ -1,7 +1,7 @@
 #pragma once
 #include "EngineTools/Resource/ResourceCompiler.h"
 #include "CompiledResourceDatabase.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 

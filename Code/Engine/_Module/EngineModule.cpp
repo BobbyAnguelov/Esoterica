@@ -2,14 +2,14 @@
 #include "Engine/Entity/EntityLog.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Physics/Physics.h"
-#include "System/Resource/ResourceProviders/NetworkResourceProvider.h"
-#include "System/Resource/ResourceProviders/PackagedResourceProvider.h"
-#include "System/Network/NetworkSystem.h"
+#include "Base/Resource/ResourceProviders/NetworkResourceProvider.h"
+#include "Base/Resource/ResourceProviders/PackagedResourceProvider.h"
+#include "Base/Network/NetworkSystem.h"
 
 //-------------------------------------------------------------------------
 
 #ifdef _WIN32
-#include "System/Platform/PlatformUtils_Win32.h"
+#include "Base/Platform/PlatformUtils_Win32.h"
 #endif
 
 //-------------------------------------------------------------------------

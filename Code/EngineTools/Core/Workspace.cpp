@@ -11,11 +11,11 @@
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/UpdateContext.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/Resource/ResourceSystem.h"
-#include "System/Serialization/TypeSerialization.h"
-#include "System/Resource/ResourceRequesterID.h"
-#include "System/Resource/ResourceSettings.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Resource/ResourceSystem.h"
+#include "Base/Serialization/TypeSerialization.h"
+#include "Base/Resource/ResourceRequesterID.h"
+#include "Base/Resource/ResourceSettings.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
@@ -96,7 +96,7 @@ namespace EE
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
         : m_pWorld( pWorld )
         , m_pToolsContext( pToolsContext )
-        , m_windowName( String::CtorSprintf(), "%s##%s", resourceID.GetResourcePath().GetFileName().c_str(), resourceID.GetResourcePath().c_str())
+        , m_windowName( String::CtorSprintf(), "%s##%s", resourceID.GetResourcePath().GetFileName().c_str(), resourceID.GetResourcePath().c_str() ) // Temp storage for display name since we cant call virtuals from CTOR
         , m_descriptorID( resourceID )
         , m_descriptorPath( GetFileSystemPath( resourceID ) )
     {
@@ -105,6 +105,9 @@ namespace EE
         EE_ASSERT( resourceID.IsValid() );
 
         m_ID = m_descriptorID.GetPathID();
+
+        // Camera
+        //-------------------------------------------------------------------------
 
         CreateCamera();
 
@@ -139,12 +142,15 @@ namespace EE
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
         : m_pWorld( pWorld )
         , m_pToolsContext( pToolsContext )
-        , m_windowName( displayName )
+        , m_windowName( displayName ) // Temp storage for display name since we cant call virtuals from CTOR
     {
         EE_ASSERT( m_pWorld != nullptr );
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
 
         m_ID = Hash::GetHash32( displayName );
+
+        // Camera
+        //-------------------------------------------------------------------------
 
         CreateCamera();
     }
@@ -184,6 +190,14 @@ namespace EE
 
     void Workspace::Initialize( UpdateContext const& context )
     {
+        // Set display name
+        //-------------------------------------------------------------------------
+
+        SetDisplayName( m_windowName );
+
+        // Load Resources
+        //-------------------------------------------------------------------------
+
         // Load the editor map
         if ( ShouldLoadDefaultEditorMap() )
         {
@@ -209,8 +223,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         m_pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
-
-        SetDisplayName( m_windowName );
 
         // Create Tool Windows
         //-------------------------------------------------------------------------
@@ -239,10 +251,26 @@ namespace EE
         m_isInitialized = false;
     }
 
-    void Workspace::SetDisplayName( String const& name )
+    void Workspace::SetDisplayName( String name )
     {
-        m_windowName = name;
-        m_pWorld->SetDebugName( m_windowName.c_str() );
+        EE_ASSERT( !name.empty() );
+
+        // Add in title bar icon
+        //-------------------------------------------------------------------------
+
+        if ( HasTitlebarIcon() )
+        {
+            m_windowName.sprintf( "%s %s", GetTitlebarIcon(), name.c_str() );
+        }
+        else
+        {
+            m_windowName = name;
+        }
+
+        // Set entity world name
+        //-------------------------------------------------------------------------
+
+        m_pWorld->SetDebugName( name.c_str() );
     }
 
     void Workspace::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding )
@@ -356,11 +384,11 @@ namespace EE
 
     bool Workspace::BeginViewportToolbarGroup( char const* pGroupID, ImVec2 groupSize, ImVec2 const& padding )
     {
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray5.Value );
-        ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray5.Value );
-        ImGui::PushStyleColor( ImGuiCol_FrameBg, ImGuiX::Style::s_colorGray5.Value );
-        ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGuiX::Style::s_colorGray4.Value );
-        ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGuiX::Style::s_colorGray3.Value );
+        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray5 );
+        ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray5 );
+        ImGui::PushStyleColor( ImGuiCol_FrameBg, ImGuiX::Style::s_colorGray5 );
+        ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGuiX::Style::s_colorGray4 );
+        ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGuiX::Style::s_colorGray3 );
 
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, padding );
         ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 4.0f );
@@ -403,7 +431,7 @@ namespace EE
         DrawViewportToolbarCombo( pID, pIcon, pTooltip, function, width );
     }
 
-    void Workspace::DrawViewportToolBar_Common()
+    void Workspace::DrawViewportToolBarCommon()
     {
         auto RenderingOptions = [this]()
         {
@@ -498,7 +526,7 @@ namespace EE
 
     void Workspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
     {
-        DrawViewportToolBar_Common();
+        DrawViewportToolBarCommon();
 
         ImGui::SameLine();
 
@@ -1055,7 +1083,7 @@ namespace EE
             ImGui::Text( "Descriptor: %s", m_descriptorID.c_str() );
 
             ImGui::BeginDisabled( !m_pDescriptorPropertyGrid->IsDirty() );
-            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::ForestGreen, ImGuiX::ImColors::White, EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
+            if ( ImGuiX::ColoredButton( Colors::ForestGreen, Colors::White, EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
             {
                 Save();
             }
@@ -1069,9 +1097,9 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Workspace::SharedUpdate( UpdateContext const& context, bool isFocused )
+    void Workspace::SharedUpdate( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        if ( isFocused )
+        if ( isVisible && isFocused )
         {
             auto& IO = ImGui::GetIO();
             if ( IO.KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_Z ) )

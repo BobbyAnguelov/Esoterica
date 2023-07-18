@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Esoterica.h"
-#include "System/Encoding/Hash.h"
-#include "System/Time/Time.h"
-#include "System/Types/UUID.h"
+#include "Base/Esoterica.h"
+#include "Base/Encoding/Hash.h"
+#include "Base/Time/Time.h"
+#include "Base/Types/UUID.h"
 
 //-------------------------------------------------------------------------
 

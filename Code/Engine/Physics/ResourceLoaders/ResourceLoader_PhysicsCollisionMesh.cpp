@@ -1,7 +1,7 @@
 #include "ResourceLoader_PhysicsCollisionMesh.h"
 #include "Engine/Physics/PhysicsCollisionMesh.h"
 #include "Engine/Physics/Physics.h"
-#include "System/Serialization/BinarySerialization.h"
+#include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
 

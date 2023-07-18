@@ -1,13 +1,12 @@
 #include "EntityWorldManager.h"
 #include "EntityWorld.h"
-#include "EntityWorldDebugView.h"
 #include "EntityLog.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_Camera.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 #include "Engine/UpdateContext.h"
-#include "System/Systems.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 
@@ -28,12 +27,6 @@ namespace EE
         EE_ASSERT( pTypeRegistry != nullptr );
         m_worldSystemTypeInfos = pTypeRegistry->GetAllDerivedTypes( EntityWorldSystem::GetStaticTypeID(), false, false, true );
 
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        m_debugViewTypeInfos = pTypeRegistry->GetAllDerivedTypes( EntityWorldDebugView::GetStaticTypeID(), false, false, true );
-        #endif
-
         // Create a game world
         //-------------------------------------------------------------------------
 
@@ -44,10 +37,6 @@ namespace EE
     {
         for ( auto& pWorld : m_worlds )
         {
-            #if EE_DEVELOPMENT_TOOLS
-            pWorld->ShutdownDebugViews();
-            #endif
-
             pWorld->Shutdown();
             EE::Delete( pWorld );
         }
@@ -116,8 +105,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        pNewWorld->InitializeDebugViews( *m_pSystemsRegistry, m_debugViewTypeInfos );
-
         if ( worldType == EntityWorldType::Game )
         {
             pNewWorld->SetDebugName( "Game" );
@@ -139,12 +126,6 @@ namespace EE
         auto foundWorldIter = eastl::find( m_worlds.begin(), m_worlds.end(), pWorld );
         EE_ASSERT( foundWorldIter != m_worlds.end() );
         m_worlds.erase( foundWorldIter );
-
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        pWorld->ShutdownDebugViews();
-        #endif
 
         // Shutdown and destroy world
         pWorld->Shutdown();

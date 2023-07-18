@@ -1,7 +1,7 @@
 #include "Animation_TaskSerializer.h"
 #include "Animation_Task.h"
 #include "Engine/Animation/AnimationSkeleton.h"
-#include "System/Encoding/Quantization.h"
+#include "Base/Encoding/Quantization.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,11 +1,11 @@
 #include "Component_PhysicsCharacter.h"
 #include "Engine/Entity/EntityLog.h"
 #include "Engine/Physics/Physics.h"
-#include "System/Profiling.h"
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Math/MathUtils.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Profiling.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -459,14 +459,14 @@ namespace EE::Physics
         {
             case ControllerFloorType::Floor:
             {
-                ImGuiX::ScopedFont sf( ImGuiX::ImColors::Lime );
+                ImGuiX::ScopedFont sf( Colors::Lime );
                 ImGui::Text( "Floor Type: Navigable" );
             }
             break;
 
             case ControllerFloorType::Slope:
             {
-                ImGuiX::ScopedFont sf( ImGuiX::ImColors::Red );
+                ImGuiX::ScopedFont sf( Colors::Red );
                 ImGui::Text( "Floor Type: Unnavigable" );
             }
             break;

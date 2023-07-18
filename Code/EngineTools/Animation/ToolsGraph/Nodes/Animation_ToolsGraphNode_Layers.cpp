@@ -1,7 +1,6 @@
 #include "Animation_ToolsGraphNode_Layers.h"
 #include "Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
 
 //-------------------------------------------------------------------------
 
@@ -241,7 +240,7 @@ namespace EE::Animation::GraphNodes
                     layerSettings.m_blendMode = pLocalLayerNode->m_blendMode;
                     layerSettings.m_isStateMachineLayer = false;
 
-                    // Compile layer state machine
+                    // Compile layer node
                     auto pInputNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 0 );
                     if ( pInputNode != nullptr )
                     {
@@ -304,7 +303,19 @@ namespace EE::Animation::GraphNodes
                             return InvalidIndex;
                         }
                     }
+                    else // No Mask
+                    {
+                        if ( layerSettings.m_blendMode == PoseBlendMode::InterpolativeGlobalSpace )
+                        {
+                            context.LogError( this, "Bone Masks are not optional for global blends!" );
+                            return InvalidIndex;
+                        }
+                    }
                 }
+
+                // State Machine Layer
+                //-------------------------------------------------------------------------
+
                 else if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
                 {
                     auto& layerSettings = pSettings->m_layerSettings.emplace_back();

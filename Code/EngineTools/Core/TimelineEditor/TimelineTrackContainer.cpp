@@ -1,5 +1,5 @@
 #include "TimelineTrackContainer.h"
-#include "System/Serialization/TypeSerialization.h"
+#include "Base/Serialization/TypeSerialization.h"
 
 //-------------------------------------------------------------------------
 

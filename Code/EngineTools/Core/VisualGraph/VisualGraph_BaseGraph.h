@@ -2,11 +2,11 @@
 
 #include "EngineTools/_Module/API.h"
 #include "VisualGraph_DrawingContext.h"
-#include "System/Serialization/JsonSerialization.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Esoterica.h"
-#include "System/Types/Event.h"
-#include "System/Types/Function.h"
+#include "Base/Serialization/JsonSerialization.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Esoterica.h"
+#include "Base/Types/Event.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
@@ -56,6 +56,7 @@ namespace EE::VisualGraph
         constexpr static uint32_t const     s_connectionColorValid = IM_COL32( 0, 255, 0, 255 );
         constexpr static uint32_t const     s_connectionColorInvalid = IM_COL32( 255, 0, 0, 255 );
         constexpr static uint32_t const     s_connectionColorHovered = IM_COL32( 255, 255, 255, 255 );
+        constexpr static uint32_t const     s_connectionColorSelected = IM_COL32( 255, 255, 0, 255 );
 
         static Color const                  s_genericNodeSeparatorColor;
         static Color const                  s_genericNodeInternalRegionDefaultColor;
@@ -156,13 +157,13 @@ namespace EE::VisualGraph
         void SetCanvasPosition( Float2 const& newPosition );
 
         // Get node title bar color
-        virtual ImColor GetTitleBarColor() const { return s_defaultTitleColor; }
+        virtual Color GetTitleBarColor() const { return s_defaultTitleColor; }
 
         // Optional function that can be overridden in derived classes to draw a border around the node to signify an active state
         virtual bool IsActive( UserContext* pUserContext ) const { return false; }
 
         // Get node highlight color
-        virtual ImColor GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
+        virtual Color GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
 
         // Get the margin between the node contents and the outer border
         virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }

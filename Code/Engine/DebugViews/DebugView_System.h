@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
-#include "System/Imgui/ImguiX.h"
-#include "System/Logging/LoggingSystem.h"
+#include "DebugView.h"
+#include "Base/Imgui/ImguiX.h"
+#include "Base/Logging/LoggingSystem.h"
+#include "Engine/_Module/API.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,31 +14,11 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API SystemDebugView final : public EntityWorldDebugView
-    {
-        EE_REFLECT_TYPE( SystemDebugView );
-
-    public:
-
-        static void DrawFrameLimiterCombo( UpdateContext& context );
-
-    public:
-
-        SystemDebugView();
-
-    private:
-
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override {};
-        void DrawMenu( EntityWorldUpdateContext const& context );
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API SystemLogView
     {
     public:
 
-        bool Draw( UpdateContext const& context );
+        void Draw( UpdateContext const& context );
 
     private:
 
@@ -54,6 +35,35 @@ namespace EE
         ImGuiX::FilterWidget                                m_filterWidget;
         TVector<Log::LogEntry>                              m_filteredEntries;
         size_t                                              m_numLogEntriesWhenFiltered = 0;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API SystemDebugView final : public DebugView
+    {
+        EE_REFLECT_TYPE( SystemDebugView );
+
+        friend class EngineDebugUI;
+
+    public:
+
+        static void DrawFrameLimiterCombo( UpdateContext& context );
+
+    public:
+
+        SystemDebugView() : DebugView( "System" ) {}
+
+    private:
+
+        virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
+
+        void DrawMenu( EntityWorldUpdateContext const& context ) override;
+
+        void DrawLogWindow( EntityWorldUpdateContext const& context, bool isFocused );
+
+    private:
+
+        SystemLogView m_logView;
     };
 }
 #endif

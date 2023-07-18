@@ -2,9 +2,9 @@
 #include "Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/AnimationBlender.h"
 
-#include "System/Drawing/DebugDrawing.h"
-#include "System/Profiling.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/Drawing/DebugDrawing.h"
+#include "Base/Profiling.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ namespace EE::Animation
 {
     namespace
     {
-        struct TaskOffsetData
+        struct TaskTreeOffsetData
         {
             void CalculateRelativeOffsets()
             {
@@ -65,15 +65,13 @@ namespace EE::Animation
             Float2                          m_relativeOffset;
             Float2                          m_offset;
             float                           m_width = 0;
-            TVector<TaskOffsetData*>        m_children;
+            TVector<TaskTreeOffsetData*>        m_children;
         };
 
-        
-
-        void CalculateTaskOffsets( TVector<Task*> const& tasks, Transform const& worldTransform, TInlineVector<Transform, 16>& taskTransforms )
+        void CalculateTaskTreeOffsets( TVector<Task*> const& tasks, Transform const& worldTransform, TInlineVector<Transform, 16>& taskTransforms )
         {
             int32_t const numTasks = (int32_t) tasks.size();
-            TInlineVector<TaskOffsetData, 16> taskOffsets;
+            TInlineVector<TaskTreeOffsetData, 16> taskOffsets;
             taskOffsets.resize( numTasks );
 
             for ( int32_t i = 0; i < numTasks; i++ )
@@ -290,7 +288,7 @@ namespace EE::Animation
             if ( pResultPose->IsAdditivePose() )
             {
                 m_finalPose.Reset( Pose::Type::ReferencePose );
-                Blender::BlendAdditive( &m_finalPose, pResultPose, 1.0f, nullptr, &m_finalPose );
+                Blender::AdditiveBlend( &m_finalPose, pResultPose, 1.0f, nullptr, &m_finalPose );
             }
             else // Just copy the pose
             {
@@ -463,7 +461,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         TInlineVector<Transform, 16> taskTransforms;
-        CalculateTaskOffsets( m_tasks, m_taskContext.m_worldTransform, taskTransforms );
+        CalculateTaskTreeOffsets( m_tasks, m_taskContext.m_worldTransform, taskTransforms );
 
         // Draw tree
         //-------------------------------------------------------------------------
@@ -476,13 +474,13 @@ namespace EE::Animation
             if ( pPose->IsAdditivePose() )
             {
                 Pose tempPose( pPose->GetSkeleton(), Pose::Type::ReferencePose );
-                Blender::BlendAdditive( &tempPose, pPose, 1.0f, nullptr, &tempPose );
+                Blender::AdditiveBlend( &tempPose, pPose, 1.0f, nullptr, &tempPose );
                 tempPose.CalculateGlobalTransforms();
-                tempPose.DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
+                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], &tempPose, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
             }
-            else // Just draw the recorded pose
+            else // Just use the recorded pose
             {
-                pPose->DrawDebug( drawingContext, taskTransforms[i], m_tasks[i]->GetDebugColor() );
+                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], pPose, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
             }
 
             drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );

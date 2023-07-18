@@ -3,7 +3,7 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Entity/EntityWorld.h"
-#include "System/Threading/TaskSystem.h"
+#include "Base/Threading/TaskSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -69,7 +69,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    void EntityCollectionEditor::Update( UpdateContext const& context, bool isFocused )
+    void EntityCollectionEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         if ( !m_collectionInstantiated )
         {
@@ -85,6 +85,6 @@ namespace EE::EntityModel
             }
         }
 
-        EntityEditorWorkspace::Update( context, isFocused );
+        EntityEditorWorkspace::Update( context, isVisible, isFocused );
     }
 }

@@ -21,7 +21,7 @@ namespace EE::Animation::Tasks
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual Color GetDebugColor() const override { return Colors::SpringGreen; }
+        virtual Color GetDebugColor() const override { return Colors::Yellow; }
         virtual String GetDebugText() const override;
         #endif
 

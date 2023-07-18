@@ -5,10 +5,10 @@
 #include "AnimationEvent.h"
 #include "AnimationRootMotion.h"
 #include "AnimationSkeleton.h"
-#include "System/Resource/ResourcePtr.h"
-#include "System/Math/NumericRange.h"
-#include "System/Time/Time.h"
-#include "System/Encoding/Quantization.h"
+#include "Base/Resource/ResourcePtr.h"
+#include "Base/Math/NumericRange.h"
+#include "Base/Time/Time.h"
+#include "Base/Encoding/Quantization.h"
 
 //-------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ namespace EE::Animation
 
     struct TrackCompressionSettings
     {
-        EE_SERIALIZE( m_translationRangeX, m_translationRangeY, m_translationRangeZ, m_scaleRange, m_trackStartIndex, m_isTranslationStatic, m_isScaleStatic );
+        EE_SERIALIZE( m_translationRangeX, m_translationRangeY, m_translationRangeZ, m_scaleRange, m_constantRotation, m_isRotationStatic, m_isTranslationStatic, m_isScaleStatic );
 
         friend class AnimationClipCompiler;
 
@@ -50,11 +50,20 @@ namespace EE::Animation
 
         TrackCompressionSettings() = default;
 
+        // Is the rotation for this track static i.e. a fixed value for the duration of the animation
+        inline bool IsRotationTrackStatic() const { return m_isRotationStatic; }
+
+        EE_FORCE_INLINE Quaternion GetStaticRotationValue() const { return m_constantRotation; }
+
         // Is the translation for this track static i.e. a fixed value for the duration of the animation
         inline bool IsTranslationTrackStatic() const { return m_isTranslationStatic; }
 
+        EE_FORCE_INLINE Float3 GetStaticTranslationValue() const { return Float3( m_translationRangeX.m_rangeStart, m_translationRangeY.m_rangeStart, m_translationRangeZ.m_rangeStart ); }
+
         // Is the scale for this track static i.e. a fixed value for the duration of the animation
         inline bool IsScaleTrackStatic() const { return m_isScaleStatic; }
+
+        EE_FORCE_INLINE float GetStaticScaleValue() const { return m_scaleRange.m_rangeStart; }
 
     public:
 
@@ -62,10 +71,11 @@ namespace EE::Animation
         QuantizationRange                       m_translationRangeY;
         QuantizationRange                       m_translationRangeZ;
         QuantizationRange                       m_scaleRange;
-        uint32_t                                m_trackStartIndex = 0; // The start offset for this track in the compressed data block (in number of uint16s)
 
     private:
 
+        Quaternion                              m_constantRotation;
+        bool                                    m_isRotationStatic = false;
         bool                                    m_isTranslationStatic = false;
         bool                                    m_isScaleStatic = false;
     };
@@ -75,20 +85,20 @@ namespace EE::Animation
     class EE_ENGINE_API AnimationClip : public Resource::IResource
     {
         EE_RESOURCE( 'anim', "Animation Clip" );
-        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
+        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData2, m_compressedPoseOffsets, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
 
         friend class AnimationClipCompiler;
         friend class AnimationClipLoader;
 
     private:
 
-        inline static Quaternion DecodeRotation( uint16_t const* pData )
+        EE_FORCE_INLINE static Quaternion DecodeRotation( uint16_t const* pData )
         {
             Quantization::EncodedQuaternion const encodedQuat( pData[0], pData[1], pData[2] );
             return encodedQuat.ToQuaternion();
         }
 
-        inline static Vector DecodeTranslation( uint16_t const* pData, TrackCompressionSettings const& settings )
+        EE_FORCE_INLINE static Vector DecodeTranslation( uint16_t const* pData, TrackCompressionSettings const& settings )
         {
             float const m_x = Quantization::DecodeFloat( pData[0], settings.m_translationRangeX.m_rangeStart, settings.m_translationRangeX.m_rangeLength );
             float const m_y = Quantization::DecodeFloat( pData[1], settings.m_translationRangeY.m_rangeStart, settings.m_translationRangeY.m_rangeLength );
@@ -96,10 +106,9 @@ namespace EE::Animation
             return Vector( m_x, m_y, m_z );
         }
 
-        inline static float DecodeScale( uint16_t const* pData, TrackCompressionSettings const& settings )
+        EE_FORCE_INLINE static float DecodeScale( uint16_t const* pData, TrackCompressionSettings const& settings )
         {
-            float const s = Quantization::DecodeFloat( pData[0], settings.m_scaleRange.m_rangeStart, settings.m_scaleRange.m_rangeLength );
-            return s;
+            return Quantization::DecodeFloat( pData[0], settings.m_scaleRange.m_rangeStart, settings.m_scaleRange.m_rangeLength );
         }
 
     public:
@@ -130,13 +139,6 @@ namespace EE::Animation
 
         void GetPose( FrameTime const& frameTime, Pose* pOutPose ) const;
         inline void GetPose( Percentage percentageThrough, Pose* pOutPose ) const { GetPose( GetFrameTime( percentageThrough ), pOutPose ); }
-
-        Transform GetLocalSpaceTransform( int32_t boneIdx, FrameTime const& frameTime ) const;
-        inline Transform GetLocalSpaceTransform( int32_t boneIdx, Percentage percentageThrough ) const{ return GetLocalSpaceTransform( boneIdx, GetFrameTime( percentageThrough ) ); }
-
-        // Warning: these are VERY expensive functions, use sparingly
-        Transform GetGlobalSpaceTransform( int32_t boneIdx, FrameTime const& frameTime ) const;
-        inline Transform GetGlobalSpaceTransform( int32_t boneIdx, Percentage percentageThrough ) const{ return GetGlobalSpaceTransform( boneIdx, GetFrameTime( percentageThrough ) ); }
 
         // Events
         //-------------------------------------------------------------------------
@@ -193,17 +195,12 @@ namespace EE::Animation
 
     private:
 
-        // Read a compressed transform from a track and return a pointer to the data for the next track
-        inline uint16_t const* ReadCompressedTrackTransform( uint16_t const* pTrackData, TrackCompressionSettings const& trackSettings, FrameTime const& frameTime, Transform& outTransform ) const;
-        inline uint16_t const* ReadCompressedTrackKeyFrame( uint16_t const* pTrackData, TrackCompressionSettings const& trackSettings, uint32_t frameIdx, Transform& outTransform ) const;
-
-    private:
-
         TResourcePtr<Skeleton>                  m_skeleton;
         uint32_t                                m_numFrames = 0;
         Seconds                                 m_duration = 0.0f;
-        TVector<uint16_t>                       m_compressedPoseData;
+        TVector<uint16_t>                       m_compressedPoseData2;
         TVector<TrackCompressionSettings>       m_trackCompressionSettings;
+        TVector<uint32_t>                       m_compressedPoseOffsets;
         TVector<Event*>                         m_events;
         SyncTrack                               m_syncTrack;
         RootMotionData                          m_rootMotion;
@@ -218,184 +215,6 @@ namespace EE::Animation
 
 namespace EE::Animation
 {
-    inline uint16_t const* AnimationClip::ReadCompressedTrackTransform( uint16_t const* pTrackData, TrackCompressionSettings const& trackSettings, FrameTime const& frameTime, Transform& outTransform ) const
-    {
-        EE_ASSERT( pTrackData != nullptr );
-
-        uint32_t const frameIdx = frameTime.GetFrameIndex();
-        Percentage const percentageThrough = frameTime.GetPercentageThrough();
-        EE_ASSERT( frameIdx < GetNumFrames() );
-
-        //-------------------------------------------------------------------------
-
-        Transform transform0;
-        Transform transform1;
-
-        //-------------------------------------------------------------------------
-        // Read rotation
-        //-------------------------------------------------------------------------
-
-        // Rotations are 48bits (3 x uint16_t)
-        static constexpr uint32_t const rotationStride = 3;
-
-        uint32_t PoseDataIdx0 = frameIdx * rotationStride;
-        uint32_t PoseDataIdx1 = PoseDataIdx0 + rotationStride;
-        EE_ASSERT( PoseDataIdx1 < ( m_numFrames * rotationStride ) );
-
-        transform0.SetRotation( DecodeRotation( &pTrackData[PoseDataIdx0] ) );
-        transform1.SetRotation( DecodeRotation( &pTrackData[PoseDataIdx1] ) );
-
-        // Shift the track data ptr to the translation data
-        pTrackData += ( m_numFrames * rotationStride );
-
-        //-------------------------------------------------------------------------
-        // Read translation
-        //-------------------------------------------------------------------------
-
-        // Translations are 48bits (3 x uint16_t)
-        static constexpr uint32_t const translationStride = 3;
-
-        if ( trackSettings.IsTranslationTrackStatic() )
-        {
-            Vector const translation = DecodeTranslation( pTrackData, trackSettings );
-            transform0.SetTranslation( translation );
-            transform1.SetTranslation( translation );
-
-            // Shift the track data ptr to the scale data
-            pTrackData += translationStride;
-        }
-        else // Read the translation key-frames
-        {
-            PoseDataIdx0 = frameIdx * translationStride;
-            PoseDataIdx1 = PoseDataIdx0 + translationStride;
-            EE_ASSERT( PoseDataIdx1 < ( m_numFrames * translationStride ) );
-
-            transform0.SetTranslation( DecodeTranslation( &pTrackData[PoseDataIdx0], trackSettings ) );
-            transform1.SetTranslation( DecodeTranslation( &pTrackData[PoseDataIdx1], trackSettings ) );
-
-            // Shift the track data ptr to the translation data
-            pTrackData += ( m_numFrames * rotationStride );
-        }
-
-        //-------------------------------------------------------------------------
-        // Read scale
-        //-------------------------------------------------------------------------
-
-        // Scales are 16bits (1 x uint16_t)
-        static constexpr uint32_t const scaleStride = 1;
-
-        if ( trackSettings.IsScaleTrackStatic() )
-        {
-            float const scale = DecodeScale( pTrackData, trackSettings );
-            transform0.SetScale( scale );
-            transform1.SetScale( scale );
-
-            // Shift the track data ptr to the next track's rotation data
-            pTrackData += scaleStride;
-        }
-        else // Read the scale key-frames
-        {
-            PoseDataIdx0 = frameIdx * scaleStride;
-            PoseDataIdx1 = PoseDataIdx0 + scaleStride;
-            EE_ASSERT( PoseDataIdx1 < ( m_numFrames * scaleStride ) );
-
-            transform0.SetScale( DecodeScale( &pTrackData[PoseDataIdx0], trackSettings ) );
-            transform1.SetScale( DecodeScale( &pTrackData[PoseDataIdx1], trackSettings ) );
-
-            // Shift the track data ptr to the next track's rotation data
-            pTrackData += ( m_numFrames * scaleStride );
-        }
-
-        //-------------------------------------------------------------------------
-
-        outTransform = Transform::Slerp( transform0, transform1, percentageThrough );
-
-        //-------------------------------------------------------------------------
-
-        return pTrackData;
-    }
-
-    //-------------------------------------------------------------------------
-
-    inline uint16_t const* AnimationClip::ReadCompressedTrackKeyFrame( uint16_t const* pTrackData, TrackCompressionSettings const& trackSettings, uint32_t frameIdx, Transform& outTransform ) const
-    {
-        EE_ASSERT( pTrackData != nullptr );
-        EE_ASSERT( frameIdx < GetNumFrames() );
-
-        //-------------------------------------------------------------------------
-        // Read rotation
-        //-------------------------------------------------------------------------
-
-        // Rotations are 48bits (3 x uint16_t)
-        static constexpr uint32_t const rotationStride = 3;
-
-        uint32_t PoseDataIdx = frameIdx * rotationStride;
-        EE_ASSERT( PoseDataIdx < ( m_numFrames * rotationStride ) );
-
-        outTransform.SetRotation( DecodeRotation( &pTrackData[PoseDataIdx] ) );
-
-        // Shift the track data ptr to the translation data
-        pTrackData += ( m_numFrames * rotationStride );
-
-        //-------------------------------------------------------------------------
-        // Read translation
-        //-------------------------------------------------------------------------
-
-        // Translations are 48bits (3 x uint16_t)
-        static constexpr uint32_t const translationStride = 3;
-
-        if ( trackSettings.IsTranslationTrackStatic() )
-        {
-            Vector const translation = DecodeTranslation( pTrackData, trackSettings );
-            outTransform.SetTranslation( translation );
-
-            // Shift the track data ptr to the scale data
-            pTrackData += translationStride;
-        }
-        else // Read the translation key-frames
-        {
-            PoseDataIdx = frameIdx * translationStride;
-            EE_ASSERT( PoseDataIdx < ( m_numFrames * translationStride ) );
-
-            outTransform.SetTranslation( DecodeTranslation( &pTrackData[PoseDataIdx], trackSettings ) );
-
-            // Shift the track data ptr to the translation data
-            pTrackData += ( m_numFrames * rotationStride );
-        }
-
-        //-------------------------------------------------------------------------
-        // Read scale
-        //-------------------------------------------------------------------------
-
-         // Scales are 16bits (1 x uint16_t)
-        static constexpr uint32_t const scaleStride = 1;
-
-        if ( trackSettings.IsScaleTrackStatic() )
-        {
-            float scale = DecodeScale( pTrackData, trackSettings );
-            outTransform.SetScale( scale );
-
-            // Shift the track data ptr to the next track's rotation data
-            pTrackData += scaleStride;
-        }
-        else // Read the scale key-frames
-        {
-            PoseDataIdx = frameIdx * scaleStride;
-            EE_ASSERT( PoseDataIdx < ( m_numFrames * scaleStride ) );
-
-            outTransform.SetScale( DecodeScale( &pTrackData[PoseDataIdx], trackSettings ) );
-
-            // Shift the track data ptr to the next track's rotation data
-            pTrackData += ( m_numFrames * scaleStride );
-        }
-
-        //-------------------------------------------------------------------------
-
-        return pTrackData;
-    }
-
-    //-------------------------------------------------------------------------
-
     inline void AnimationClip::GetEventsForRangeNoLooping( Seconds fromTime, Seconds toTime, TInlineVector<Event const*, 10>& outEvents ) const
     {
         EE_ASSERT( toTime >= fromTime );

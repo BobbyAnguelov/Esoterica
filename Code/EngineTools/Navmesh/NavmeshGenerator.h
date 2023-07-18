@@ -2,11 +2,11 @@
 #if EE_ENABLE_NAVPOWER
 
 #include "EngineTools/_Module/API.h"
-#include "System/Resource/ResourcePath.h"
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/Math/Transform.h"
-#include "System/Threading/TaskSystem.h"
-#include "System/Types/HashMap.h"
+#include "Base/Resource/ResourcePath.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/Math/Transform.h"
+#include "Base/Threading/TaskSystem.h"
+#include "Base/Types/HashMap.h"
 #include <bfxBuilder.h>
 
 //-------------------------------------------------------------------------

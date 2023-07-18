@@ -1,46 +1,46 @@
 #pragma once
 
-#include "Engine/Entity/EntityWorldDebugView.h"
+//#include "Engine/Entity/EntityWorldDebugView.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
-    class EntityWorldManager;
-    class Entity;
-    class EntityComponent;
-    class SpatialEntityComponent;
+    //class EntityWorldManager;
+    //class Entity;
+    //class EntityComponent;
+    //class SpatialEntityComponent;
 
-    //-------------------------------------------------------------------------
+    ////-------------------------------------------------------------------------
 
-    class EntityDebugView : public EntityWorldDebugView
-    {
-        EE_REFLECT_TYPE( EntityDebugView );
+    //class EntityDebugView : public DebugView
+    //{
+    //    EE_REFLECT_TYPE( EntityDebugView );
 
-    public:
+    //public:
 
-        EntityDebugView();
+    //    EntityDebugView();
 
-    private:
+    //private:
 
-        virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
+    //    virtual void DrawWindows( EntityWorldUpdateContext const& context, ImGuiWindowClass* pWindowClass ) override;
 
-        void DrawMenu( EntityWorldUpdateContext const& context );
-        void DrawWorldBrowser( EntityWorldUpdateContext const& context );
-        void DrawMapLoader( EntityWorldUpdateContext const& context );
+    //    void DrawMenu( EntityWorldUpdateContext const& context );
+    //    void DrawWorldBrowser( EntityWorldUpdateContext const& context );
+    //    void DrawMapLoader( EntityWorldUpdateContext const& context );
 
-        void DrawComponentEntry( EntityComponent const* pComponent );
-        void DrawSpatialComponentTree( SpatialEntityComponent const* pComponent );
+    //    void DrawComponentEntry( EntityComponent const* pComponent );
+    //    void DrawSpatialComponentTree( SpatialEntityComponent const* pComponent );
 
-    private:
+    //private:
 
-        bool                    m_isWorldBrowserOpen = false;
-        bool                    m_isMapLoaderOpen = false;
+    //    bool                    m_isWorldBrowserOpen = false;
+    //    bool                    m_isMapLoaderOpen = false;
 
-        // Browser Data
-        TVector<Entity*>        m_entities;
-        Entity*                 m_pSelectedEntity = nullptr;
-    };
+    //    // Browser Data
+    //    TVector<Entity*>        m_entities;
+    //    Entity*                 m_pSelectedEntity = nullptr;
+    //};
 }
 #endif

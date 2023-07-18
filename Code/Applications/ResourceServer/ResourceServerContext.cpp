@@ -1,5 +1,5 @@
 #include "ResourceServerContext.h"
-#include "System/Resource/ResourceSettings.h"
+#include "Base/Resource/ResourceSettings.h"
 
 //-------------------------------------------------------------------------
 

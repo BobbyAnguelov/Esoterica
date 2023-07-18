@@ -2,7 +2,7 @@
 #include "Game/AI/Behaviors/AIBehavior.h"
 #include "Game/AI/Animation/AIAnimationController.h"
 #include "Game/AI/Animation/AIGraphController_Locomotion.h"
-#include "System/Math/MathRandom.h"
+#include "Base/Math/MathRandom.h"
 
 //-------------------------------------------------------------------------
 

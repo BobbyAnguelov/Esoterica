@@ -4,8 +4,8 @@
   <Type Name="EE::StringID">
     <Expand>
       <CustomListItems>
-        <Variable Name="buckets" InitialValue="{,,Esoterica.System} EE::StringID::s_pDebuggerInfo->m_pBuckets" />
-        <Variable Name="num_buckets" InitialValue="{,,Esoterica.System} EE::StringID::s_pDebuggerInfo->m_numBuckets" />
+        <Variable Name="buckets" InitialValue="{,,Esoterica.Base} EE::StringID::s_pDebuggerInfo->m_pBuckets" />
+        <Variable Name="num_buckets" InitialValue="{,,Esoterica.Base} EE::StringID::s_pDebuggerInfo->m_numBuckets" />
         <Variable Name="start_bucket" InitialValue="m_ID % num_buckets" />
         <Variable Name="i" InitialValue="start_bucket" />
         <Variable Name="bucket_item" InitialValue="buckets[i]"/>

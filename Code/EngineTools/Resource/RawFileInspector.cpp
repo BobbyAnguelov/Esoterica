@@ -3,8 +3,8 @@
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "System/FileSystem/FileSystem.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/FileSystem/FileSystem.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 

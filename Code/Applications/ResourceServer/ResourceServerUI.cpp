@@ -1,7 +1,7 @@
 #include "ResourceServerUI.h"
 #include "ResourceServer.h"
-#include "System/Platform/PlatformUtils_Win32.h"
-#include "System/Imgui/ImguiSystem.h"
+#include "Base/Platform/PlatformUtils_Win32.h"
+#include "Base/Imgui/ImguiSystem.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
 #include <eastl/sort.h>
 
@@ -611,7 +611,7 @@ namespace EE::Resource
 
                 ImGui::SameLine();
                 ImGui::BeginDisabled( !m_resourceServer.CanStartPackaging() );
-                if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, "Start", ImVec2( 50, 0 ) ) )
+                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Start", ImVec2( 50, 0 ) ) )
                 {
                     m_resourceServer.StartPackaging();
                 }

@@ -8,7 +8,7 @@
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Navmesh/DebugViews/DebugView_Navmesh.h"
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
-#include "System/FileSystem/FileSystem.h"
+#include "Base/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -256,8 +256,8 @@ namespace EE::EntityModel
 
             ImGuiX::TextSeparator( EE_ICON_WALK" Navmesh" );
 
-            auto pNavmeshWorldSystem = m_pWorld->GetWorldSystem<Navmesh::NavmeshWorldSystem>();
-            Navmesh::NavmeshDebugView::DrawNavmeshRuntimeSettings( pNavmeshWorldSystem );
+            //auto pNavmeshWorldSystem = m_pWorld->GetWorldSystem<Navmesh::NavmeshWorldSystem>();
+            //Navmesh::NavmeshDebugView::DrawNavmeshRuntimeSettings( pNavmeshWorldSystem );
 
             //-------------------------------------------------------------------------
 
@@ -333,23 +333,23 @@ namespace EE::EntityModel
 
         if ( !m_isGamePreviewRunning )
         {
-            if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play Map", ImGuiX::ImColors::Lime, ImVec2( buttonWidth, 0 ) ) )
+            if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play Map", Colors::Lime, ImVec2( buttonWidth, 0 ) ) )
             {
                 m_requestStartGamePreview.Execute( context );
             }
         }
         else
         {
-            if ( ImGuiX::IconButton( EE_ICON_STOP, "Stop Playing", ImGuiX::ImColors::Red, ImVec2( buttonWidth, 0 ) ) )
+            if ( ImGuiX::IconButton( EE_ICON_STOP, "Stop Playing", Colors::Red, ImVec2( buttonWidth, 0 ) ) )
             {
                 m_requestStopGamePreview.Execute( context );
             }
         }
     }
 
-    void EntityMapEditor::Update( UpdateContext const& context, bool isFocused )
+    void EntityMapEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        EntityEditorWorkspace::Update( context, isFocused );
+        EntityEditorWorkspace::Update( context, isVisible, isFocused );
 
         if ( m_pNavmeshGeneratorDialog != nullptr )
         {

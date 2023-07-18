@@ -1,8 +1,8 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "UpdateStage.h"
-#include "System/Time/Time.h"
-#include "System/Systems.h"
+#include "Base/Time/Time.h"
+#include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 // The base update context for anything in the engine that needs to be updated
@@ -12,7 +12,6 @@ namespace EE
 {
     class EE_ENGINE_API UpdateContext
     {
-        friend class EngineToolsUI;
 
     public:
 

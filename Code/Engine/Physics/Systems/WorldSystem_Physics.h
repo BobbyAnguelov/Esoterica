@@ -2,12 +2,12 @@
 
 #include "Engine/Entity/EntityWorldSystem.h"
 #include "Engine/UpdateContext.h"
-#include "System/Threading/Threading.h"
-#include "System/Systems.h"
-#include "System/Math/Transform.h"
-#include "System/Types/IDVector.h"
-#include "System/Types/ScopedValue.h"
-#include "System/Types/Event.h"
+#include "Base/Threading/Threading.h"
+#include "Base/Systems.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/IDVector.h"
+#include "Base/Types/ScopedValue.h"
+#include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 

@@ -19,13 +19,33 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/FileSystem/FileSystemUtils.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/FileSystem/FileSystemUtils.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 // Widgets
 //-------------------------------------------------------------------------
+
+namespace EE::ImGuiX
+{
+    void DropDownButton( char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 size = ImVec2( 0, 0 ) )
+    {
+        EE_ASSERT( pLabel != nullptr );
+
+        float const buttonStartPosX = ImGui::GetCursorPosX();
+        ImGui::Button( pLabel, size );
+        float const buttonEndPosY = ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y;
+        ImGui::SetNextWindowPos( ImGui::GetWindowPos() + ImVec2( buttonStartPosX, buttonEndPosY ) );
+
+        InlineString const contextMenuLabel( InlineString::CtorSprintf(), "%s##ContextMenu", pLabel );
+        if ( ImGui::BeginPopupContextItem( contextMenuLabel.c_str(), ImGuiPopupFlags_MouseButtonLeft ) )
+        {
+            contextMenuCallback();
+            ImGui::EndPopup();
+        }
+    }
+}
 
 namespace EE::Animation
 {
@@ -135,15 +155,42 @@ namespace EE::Animation
 
         virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
         {
+            auto pGraphInstance = GetGraphInstance();
             int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
             EE_ASSERT( parameterIdx != InvalidIndex );
 
-            auto value = GetGraphInstance()->GetControlParameterValue<bool>( parameterIdx );
+            //-------------------------------------------------------------------------
+
+            if ( m_autoResetOnNextFrame && m_graphUpdateID != pGraphInstance->GetUpdateID() )
+            {
+                pGraphInstance->SetControlParameterValue( parameterIdx, false );
+                m_autoResetOnNextFrame = false;
+            }
+
+            //-------------------------------------------------------------------------
+
+            bool value = pGraphInstance->GetControlParameterValue<bool>( parameterIdx );
             if ( ImGui::Checkbox( "##bp", &value ) )
             {
-                GetGraphInstance()->SetControlParameterValue( parameterIdx, value );
+                pGraphInstance->SetControlParameterValue( parameterIdx, value );
             }
+
+            ImGui::SameLine();
+
+            ImGui::BeginDisabled( value );
+            if ( ImGui::Button( "Signal" ) )
+            {
+                pGraphInstance->SetControlParameterValue( parameterIdx, true );
+                m_autoResetOnNextFrame = true;
+                m_graphUpdateID = pGraphInstance->GetUpdateID();
+            }
+            ImGui::EndDisabled();
         }
+
+    private:
+
+        bool        m_autoResetOnNextFrame = false;
+        uint32_t    m_graphUpdateID = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -258,255 +305,329 @@ namespace EE::Animation
 
     class AnimationGraphWorkspace::VectorParameterState : public ControlParameterPreviewState
     {
+        enum class ControlMode : uint8_t
+        {
+            Mouse,
+            LeftStick,
+            RightStick
+        };
+
+        constexpr static float const s_circleRadius = 45.0f;
+
+    private:
+
         using ControlParameterPreviewState::ControlParameterPreviewState;
 
         virtual void DrawPreviewEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug ) override
         {
-            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
-            EE_ASSERT( parameterIdx != InvalidIndex );
+            DrawBasicEditor( context, characterWorldTransform, isLiveDebug );
 
-            Float4 basicEditorValue = GetGraphInstance()->GetControlParameterValue<Vector>( parameterIdx );
-
-            // Basic Editor
-            //-------------------------------------------------------------------------
-
-            ImGui::BeginDisabled( m_showAdvancedEditor );
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
-            if ( ImGui::InputFloat4( "##vp", &basicEditorValue.m_x ) )
+            if ( isLiveDebug )
             {
-                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( basicEditorValue ) );
+                m_showAdvancedEditor = false;
             }
-            ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            ImColor const buttonColor = m_showAdvancedEditor ? ImGuiX::ImColors::Green : ImGuiX::Style::s_colorGray1;
-            if ( ImGuiX::ColoredButton( buttonColor, ImGuiX::ImColors::White, EE_ICON_COG, ImVec2( 24, 0 ) ) )
-            {
-                m_showAdvancedEditor = !m_showAdvancedEditor;
-                m_maxLength = 1.0f;
-                m_selectedStickComboItem = 0;
-                m_convertToCharacterSpace = false;
-                m_isEditingValueWithMouse = false;
-                m_invertStickX = m_invertStickY = false;
-            }
-            ImGuiX::ItemTooltip( "Advanced Editor" );
 
             // Advanced Editor
             //-------------------------------------------------------------------------
 
             if ( m_showAdvancedEditor )
             {
-                Float4 advancedEditorValue = basicEditorValue;
+                DrawAdvancedEditor( context, characterWorldTransform );
+            }
+        }
 
-                if ( m_convertToCharacterSpace )
-                {
-                    advancedEditorValue = characterWorldTransform.RotateVector( advancedEditorValue );
-                }
+        void DrawBasicEditor( UpdateContext const& context, Transform const& characterWorldTransform, bool isLiveDebug )
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+            Float4 parameterValue = GetGraphInstance()->GetControlParameterValue<Vector>( parameterIdx );
 
+            // Basic Editor
+            //-------------------------------------------------------------------------
+
+            constexpr static float const buttonWidth = 28;
+
+            ImGui::BeginDisabled( m_showAdvancedEditor );
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x );
+            if ( ImGui::InputFloat4( "##vp", &parameterValue.m_x ) )
+            {
+                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( parameterValue ) );
+            }
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+
+            ImGui::BeginDisabled( isLiveDebug );
+            Color const buttonColor = m_showAdvancedEditor ? Colors::Green : ImGuiX::Style::s_colorGray1;
+            if ( ImGuiX::ColoredButton( buttonColor, Colors::White, EE_ICON_COG, ImVec2( buttonWidth, 0 ) ) )
+            {
+                m_showAdvancedEditor = !m_showAdvancedEditor;
+                m_maxLength = 1.0f;
+                m_controlMode = ControlMode::Mouse;
+                m_isEditingValueWithMouse = false;
+                m_invertAxisX = m_invertAxisY = true;
+            }
+            ImGuiX::ItemTooltip( "Show Advanced Editor" );
+            ImGui::EndDisabled();
+        }
+
+        void DrawAdvancedEditor( UpdateContext const& context, Transform const& characterWorldTransform )
+        {
+            int16_t const parameterIdx = GetRuntimeGraphNodeIndex( m_pParameter->GetID() );
+            EE_ASSERT( parameterIdx != InvalidIndex );
+            Float4 parameterValue = GetGraphInstance()->GetControlParameterValue<Vector>( parameterIdx );
+            bool shouldUpdateParameterValue = false;
+
+            // Get visual value
+            //-------------------------------------------------------------------------
+
+            ImVec2 visualValue = ConvertParameterValueToVisualValue( characterWorldTransform, parameterValue );
+
+            //-------------------------------------------------------------------------
+
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
+            ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 2, 2 ) );
+            if ( ImGui::BeginChild( "#CW", ImVec2( 0, 140 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+            {
+                constexpr float const labelOffset = 110.0f;
+                constexpr float const widgetOffset = 175;
+
+                // Length and Z-Value
                 //-------------------------------------------------------------------------
 
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 2, 2 ) );
-                if ( ImGui::BeginChild( "#CW", ImVec2( 0, 100 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding ) )
+                ImGui::SameLine( labelOffset );
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Max Length" );
+                ImGui::SameLine( widgetOffset );
+                ImGui::SetNextItemWidth( -1 );
+                if ( ImGui::InputFloat( "##L", &m_maxLength ) )
                 {
-                    char const* const comboOptions[] = { "Mouse", "Left Stick", "Right Stick" };
-                    constexpr float const labelOffset = 110.0f;
-                    constexpr float const widgetOffset = 175;
-
-                    Float2 const previousValueRatio( advancedEditorValue.m_x / m_maxLength, advancedEditorValue.m_y / m_maxLength );
-
-                    ImGui::SameLine( labelOffset );
-                    ImGui::AlignTextToFramePadding();
-                    ImGui::Text( "XY Radius" );
-                    ImGui::SameLine( widgetOffset );
-                    ImGui::SetNextItemWidth( -1 );
-                    if ( ImGui::InputFloat( "##L", &m_maxLength ) )
+                    if ( m_maxLength <= 0.0 )
                     {
-                        if ( m_maxLength <= 0.0 )
+                        m_maxLength = 0.01f;
+                    }
+
+                    shouldUpdateParameterValue = true;
+                }
+                ImGuiX::ItemTooltip( "Max Length" );
+
+                ImGui::NewLine();
+
+                ImGui::SameLine( labelOffset );
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Z" );
+                ImGui::SameLine( widgetOffset );
+                ImGui::SetNextItemWidth( -1 );
+                if ( ImGui::DragFloat( "##Z", &m_valueZ, 0.01f ) )
+                {
+                    shouldUpdateParameterValue = true;
+                }
+                ImGuiX::ItemTooltip( "Z-Value" );
+
+                // Control Mode
+                //-------------------------------------------------------------------------
+
+                char const* const controlModeComboOptions[] = { "Mouse", "Left Stick", "Right Stick" };
+                int32_t controlModeComboValue = (int32_t) m_controlMode;
+
+                ImGui::NewLine();
+
+                ImGui::SameLine( labelOffset );
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Control" );
+                ImGui::SameLine( widgetOffset );
+                ImGui::SetNextItemWidth( -1 );
+                if ( ImGui::Combo( "##SC", &controlModeComboValue, controlModeComboOptions, 3 ) )
+                {
+                    m_controlMode = (ControlMode) controlModeComboValue;
+                }
+                ImGuiX::ItemTooltip( "Control" );
+
+                // Options
+                //-------------------------------------------------------------------------
+
+                ImGui::NewLine();
+
+                ImGui::SameLine( widgetOffset );
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Invert X" );
+                ImGui::SameLine();
+                ImGui::Checkbox( "##ISX", &m_invertAxisX );
+                ImGuiX::ItemTooltip( "Invert the X axis" );
+
+                ImGui::SameLine( 0, 10 );
+                ImGui::Text( "Invert Y" );
+                ImGui::SameLine();
+                ImGui::Checkbox( "##ISY", &m_invertAxisY );
+                ImGuiX::ItemTooltip( "Invert the Y axis" );
+
+                if ( m_controlMode == ControlMode::Mouse )
+                {
+                    ImGui::SameLine( 0, 10 );
+                    if ( ImGui::Button( "Reset" ) )
+                    {
+                        visualValue = ImVec2( 0, 0 );
+                        shouldUpdateParameterValue = true;
+                    }
+                }
+
+                // Calculate circle origin
+                //-------------------------------------------------------------------------
+
+                ImVec2 const circleOrigin = ImGui::GetWindowPos() + ImVec2( s_circleRadius + 5, s_circleRadius + 5 );
+
+                // Controls
+                //-------------------------------------------------------------------------
+
+                if ( m_controlMode == ControlMode::Mouse )
+                {
+                    Vector const mousePos = ImGui::GetMousePos();
+
+                    constexpr float const editRegionRadius = 10.0f;
+                    float const distanceFromCircleOrigin = mousePos.GetDistance2( circleOrigin );
+
+                    // Manage edit state
+                    if ( !m_isEditingValueWithMouse )
+                    {
+                        // Should we start editing
+                        if ( ImGui::IsWindowFocused() && distanceFromCircleOrigin < ( s_circleRadius + editRegionRadius ) && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 2.0f ) )
                         {
-                            m_maxLength = 0.01f;
+                            m_isEditingValueWithMouse = true;
                         }
-
-                        advancedEditorValue.m_x = ( previousValueRatio.m_x * m_maxLength );
-                        advancedEditorValue.m_y = ( previousValueRatio.m_y * m_maxLength );
-
-                        if ( m_convertToCharacterSpace )
+                    }
+                    else // Check if we should stop editing
+                    {
+                        if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
                         {
-                            Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
-                            GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, paramValue );
+                            m_isEditingValueWithMouse = false;
+                        }
+                    }
+
+                    // Update the value
+                    if ( m_isEditingValueWithMouse )
+                    {
+                        if ( distanceFromCircleOrigin > s_circleRadius )
+                        {
+                            visualValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * s_circleRadius;
                         }
                         else
                         {
-                            GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( advancedEditorValue ) );
-                        }
-                    }
-                    ImGuiX::ItemTooltip( "Max Length" );
-
-                    ImGui::NewLine();
-
-                    ImGui::SameLine( labelOffset );
-                    ImGui::AlignTextToFramePadding();
-                    ImGui::Text( "Z" );
-                    ImGui::SameLine( widgetOffset );
-                    ImGui::SetNextItemWidth( -1 );
-                    if ( ImGui::DragFloat( "##Z", &advancedEditorValue.m_z, 0.01f ) )
-                    {
-                        GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( advancedEditorValue ) );
-                    }
-                    ImGuiX::ItemTooltip( "Z-Value" );
-
-                    ImGui::NewLine();
-
-                    ImGui::SameLine( labelOffset );
-                    ImGui::AlignTextToFramePadding();
-                    ImGui::Text( "Control" );
-                    ImGui::SameLine( widgetOffset );
-                    ImGui::SetNextItemWidth( -1 );
-                    ImGui::Combo( "##SC", &m_selectedStickComboItem, comboOptions, 3 );
-                    ImGuiX::ItemTooltip( "Control" );
-
-                    ImGui::NewLine();
-
-                    ImGui::SameLine( labelOffset );
-                    ImGui::AlignTextToFramePadding();
-                    ImGui::Text( "Convert CS" );
-                    ImGui::SameLine( widgetOffset );
-                    ImGui::Checkbox( "##WS", &m_convertToCharacterSpace );
-                    ImGuiX::ItemTooltip( "Convert this (world space) vector to character space" );
-
-                    ImGui::BeginDisabled( m_selectedStickComboItem == 0 );
-                    ImGui::SameLine( 0, 10 );
-                    ImGui::Text( "Inv. X" );
-                    ImGui::SameLine();
-                    ImGui::Checkbox( "##ISX", &m_invertStickX );
-                    ImGuiX::ItemTooltip( "Invert the stick X axis" );
-
-                    ImGui::SameLine( 0, 10 );
-                    ImGui::Text( "Inv. Y" );
-                    ImGui::SameLine();
-                    ImGui::Checkbox( "##ISY", &m_invertStickY );
-                    ImGuiX::ItemTooltip( "Invert the stick Y axis" );
-                    ImGui::EndDisabled();
-
-                    //-------------------------------------------------------------------------
-
-                    constexpr float const circleRadius = 45.0f;
-                    constexpr float const dotRadius = 5.0f;
-                    ImVec2 const circleOrigin = ImGui::GetWindowPos() + ImVec2( circleRadius + 5, circleRadius + 5 );
-
-                    auto pDrawList = ImGui::GetWindowDrawList();
-                    pDrawList->AddCircle( circleOrigin, circleRadius, 0xFFFFFFFF, 0, 2.0f );
-                    pDrawList->AddCircleFilled( circleOrigin, 1, 0xFFFFFFFF, 0 );
-
-                    // Stick Control
-                    //-------------------------------------------------------------------------
-
-                    if ( m_selectedStickComboItem != 0 )
-                    {
-                        Float2 scaledStickValue( 0, 0 );
-
-                        auto pInputState = context.GetSystem<Input::InputSystem>()->GetControllerState( 0 );
-                        if ( m_selectedStickComboItem == 1 )
-                        {
-                            scaledStickValue = pInputState->GetLeftAnalogStickValue() * m_maxLength;
-                        }
-                        else // Right stick
-                        {
-                            scaledStickValue = pInputState->GetRightAnalogStickValue() * m_maxLength;
+                            visualValue = ( mousePos - Vector( circleOrigin ) );
                         }
 
-                        advancedEditorValue.m_x = scaledStickValue.m_x;
-                        advancedEditorValue.m_y = scaledStickValue.m_y;
-
-                        Float4 paramValue = advancedEditorValue;
-                        if ( m_invertStickX )
-                        {
-                            paramValue.m_x = -paramValue.m_x;
-                        }
-
-                        if ( m_invertStickY )
-                        {
-                            paramValue.m_y = -paramValue.m_y;
-                        }
-
-                        if ( m_convertToCharacterSpace )
-                        {
-                            paramValue = characterWorldTransform.InverseRotateVector( paramValue );
-                        }
-
-                        GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( paramValue ) );
-
-                        //-------------------------------------------------------------------------
-
-                        float const scale = circleRadius / m_maxLength;
-                        ImVec2 const offset( advancedEditorValue.m_x * scale, -advancedEditorValue.m_y * scale );
-                        ImVec2 const dotOrigin = circleOrigin + offset;
-                        pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ImColors::LimeGreen );
-                    }
-                    else // Mouse Control
-                    {
-                        Vector const mousePos = ImGui::GetMousePos();
-
-                        constexpr float const editRegionRadius = 10.0f;
-                        float const distanceFromCircleOrigin = mousePos.GetDistance2( circleOrigin );
-
-                        // Manage edit state
-                        if ( !m_isEditingValueWithMouse )
-                        {
-                            // Should we start editing
-                            if ( ImGui::IsWindowFocused() && distanceFromCircleOrigin < ( circleRadius + editRegionRadius ) && ImGui::IsMouseDragging( ImGuiMouseButton_Left, 2.0f ) )
-                            {
-                                m_isEditingValueWithMouse = true;
-                            }
-                        }
-                        else // Check if we should stop editing
-                        {
-                            if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
-                            {
-                                m_isEditingValueWithMouse = false;
-                            }
-                        }
-
-                        // Update the value
-                        if ( m_isEditingValueWithMouse )
-                        {
-                            float const distanceFromCircleOriginPercentage = Math::Min( 1.0f, distanceFromCircleOrigin / circleRadius );
-                            Float4 const newValue = ( mousePos - Vector( circleOrigin ) ).GetNormalized2() * ( distanceFromCircleOriginPercentage * m_maxLength );
-                            advancedEditorValue.m_x = newValue.m_x;
-                            advancedEditorValue.m_y = -newValue.m_y;
-
-                            if ( m_convertToCharacterSpace )
-                            {
-                                Vector const paramValue = characterWorldTransform.InverseRotateVector( advancedEditorValue );
-                                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, paramValue );
-                            }
-                            else
-                            {
-                                GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, Vector( advancedEditorValue ) );
-                            }
-                        }
-
-                        // Calculate offset and dot position and draw dot
-                        ImVec2 const offset = Vector( advancedEditorValue.m_x, -advancedEditorValue.m_y, 0, 0 ) * ( circleRadius / m_maxLength );
-                        ImVec2 const dotOrigin = circleOrigin + offset;
-                        pDrawList->AddCircleFilled( circleOrigin + offset, dotRadius, ImGuiX::ToIm( m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen ) );
+                        shouldUpdateParameterValue = true;
                     }
                 }
-                ImGui::EndChild();
-                ImGui::PopStyleVar();
+                else // Stick Control
+                {
+                    auto pInputState = context.GetSystem<Input::InputSystem>()->GetControllerState( 0 );
+                    Vector const stickValue = ( m_controlMode == ControlMode::LeftStick ) ? pInputState->GetLeftAnalogStickValue() : pInputState->GetRightAnalogStickValue();
+
+                    if ( !stickValue.IsNearZero2() )
+                    {
+
+                        Vector direction;
+                        float length;
+                        stickValue.ToDirectionAndLength2( direction, length );
+                        
+                        // Invert y to match screen coords (+Y is down)
+                        direction.SetY( -direction.GetY() );
+
+                        // Clamp to control area if we are outside it
+                        if ( length > 1 )
+                        {
+                            visualValue = direction * s_circleRadius;
+                        }
+                        else // If we are within the control area
+                        {
+                            visualValue = direction * length * s_circleRadius;
+                        }
+                    }
+                    else
+                    {
+                        visualValue = ImVec2( 0, 0 );
+                    }
+
+                    shouldUpdateParameterValue = true;
+                }
+
+                // Draw Circle and Editing Dot
+                //-------------------------------------------------------------------------
+
+                auto pDrawList = ImGui::GetWindowDrawList();
+                pDrawList->AddCircle( circleOrigin, s_circleRadius, 0xFFFFFFFF, 0, 2.0f );
+                pDrawList->AddCircleFilled( circleOrigin, 1, 0xFFFFFFFF, 0 );
+
+                ImVec2 const fwdArrowEnd = circleOrigin - ImVec2( 0, s_circleRadius / 2 );
+                ImGuiX::DrawArrow( pDrawList, circleOrigin, fwdArrowEnd, Colors::LightGray, 2, 4 );
+
+                ImVec2 const textSize = ImGui::CalcTextSize( "fwd" );
+                pDrawList->AddText( fwdArrowEnd - ImVec2( textSize.x / 2, textSize.y ), Colors::LightGray, "fwd" );
+
+                constexpr float const dotRadius = 5.0f;
+                Color const dotColor = m_isEditingValueWithMouse ? Colors::Yellow : Colors::LimeGreen;
+                pDrawList->AddCircleFilled( circleOrigin + visualValue, dotRadius, dotColor );
+
+                // Update parameter value
+                //-------------------------------------------------------------------------
+
+                if ( shouldUpdateParameterValue )
+                {
+                    parameterValue = ConvertVisualValueToParameterValue( characterWorldTransform, visualValue );
+                    GetGraphInstance()->SetControlParameterValue<Vector>( parameterIdx, parameterValue );
+                }
             }
+            ImGui::EndChild();
+            ImGui::PopStyleVar();
+        }
+
+        ImVec2 ConvertParameterValueToVisualValue( Transform const& characterWorldTransform, Float4 parameterValue )
+        {
+            float const scaleFactor = s_circleRadius / m_maxLength;
+
+            ImVec2 visualValue( parameterValue.m_x * scaleFactor, -parameterValue.m_y * scaleFactor ); // +Y is downwards in screenspace
+
+            if ( m_invertAxisX )
+            {
+                visualValue.x = -visualValue.x;
+            }
+
+            if ( !m_invertAxisY )
+            {
+                visualValue.y = -visualValue.y;
+            }
+
+            return visualValue;
+        }
+
+        Float4 ConvertVisualValueToParameterValue( Transform const& characterWorldTransform, ImVec2 const& visualValue )
+        {
+            float const scaleFactor = m_maxLength / s_circleRadius;
+            Float4 parameterValue = Vector( visualValue ) * scaleFactor;
+            parameterValue.m_z = m_valueZ;
+
+            if ( m_invertAxisX )
+            {
+                parameterValue.m_x = -parameterValue.m_x;
+            }
+
+            if ( m_invertAxisY )
+            {
+                parameterValue.m_y = -parameterValue.m_y;
+            }
+
+            return parameterValue;
         }
 
     public:
 
-        bool        m_showAdvancedEditor = false;
-        float       m_maxLength = 1.0f;
-        int32_t     m_selectedStickComboItem = 0;
-        bool        m_convertToCharacterSpace = false;
-        bool        m_isEditingValueWithMouse = false;
-        bool        m_invertStickX = true;
-        bool        m_invertStickY = true;
+        bool            m_showAdvancedEditor = false;
+        float           m_maxLength = 1.0f;
+        float           m_valueZ = 0.0f;
+        ControlMode     m_controlMode = ControlMode::Mouse;
+        bool            m_isEditingValueWithMouse = false;
+        bool            m_invertAxisX = true;
+        bool            m_invertAxisY = true;
     };
 
     //-------------------------------------------------------------------------
@@ -1020,7 +1141,7 @@ namespace EE::Animation
         TWorkspace<GraphDefinition>::Shutdown( context );
     }
 
-    void AnimationGraphWorkspace::Update( UpdateContext const& context, bool isFocused )
+    void AnimationGraphWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         // Set read-only state
         //-------------------------------------------------------------------------
@@ -1080,7 +1201,7 @@ namespace EE::Animation
 
         if ( IsLiveDebugging() )
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_POWER_PLUG_OFF_OUTLINE, "Stop Live Debug", ImGuiX::ImColors::Red ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_POWER_PLUG_OFF_OUTLINE, "Stop Live Debug", Colors::Red ) )
             {
                 StopDebugging();
             }
@@ -1264,14 +1385,14 @@ namespace EE::Animation
 
         if ( IsDebugging() )
         {
-            if ( ImGuiX::IconButtonWithDropDown( "SD", EE_ICON_STOP, "Stop Debugging", ImGuiX::ImColors::Red,  buttonWidth, DrawPreviewOptions ) )
+            if ( ImGuiX::IconButtonWithDropDown( "SD", EE_ICON_STOP, "Stop Debugging", Colors::Red,  buttonWidth, DrawPreviewOptions ) )
             {
                 StopDebugging();
             }
         }
         else
         {
-            if ( ImGuiX::IconButtonWithDropDown( "PG", EE_ICON_PLAY, "Preview Graph", ImGuiX::ImColors::Lime,  buttonWidth, DrawPreviewOptions ) )
+            if ( ImGuiX::IconButtonWithDropDown( "PG", EE_ICON_PLAY, "Preview Graph", Colors::Lime,  buttonWidth, DrawPreviewOptions ) )
             {
                 StartDebugging( context, DebugTarget() );
             }
@@ -1676,7 +1797,21 @@ namespace EE::Animation
 
         if ( !m_selectedNodes.empty() )
         {
-            m_selectedNodesPreUndoRedo = m_selectedNodes;
+            // Secondary view selection
+            if ( m_secondaryGraphView.HasSelectedNodes() )
+            {
+                m_selectedNodesPreUndoRedo.m_selectedNodes = m_selectedNodes;
+                m_selectedNodesPreUndoRedo.m_isSecondaryViewSelection = true;
+                EE_ASSERT( m_primaryGraphView.GetSelectedNodes().size() == 1 );
+                m_selectedNodesPreUndoRedo.m_primaryViewSelectedNode = m_primaryGraphView.GetSelectedNodes().front();
+            }
+            else // Primary View Selection
+            {
+                m_selectedNodesPreUndoRedo.m_selectedNodes = m_selectedNodes;
+                m_selectedNodesPreUndoRedo.m_isSecondaryViewSelection = false;
+                m_selectedNodesPreUndoRedo.m_primaryViewSelectedNode.m_nodeID.Clear();
+            }
+
             m_selectedNodes.clear();
         }
 
@@ -1719,22 +1854,49 @@ namespace EE::Animation
         // Restore selection
         if ( viewRestoreResult == ViewRestoreResult::Success )
         {
-            auto pViewedGraph = m_primaryGraphView.GetViewedGraph();
             TVector<VisualGraph::BaseNode const*> validNodesToReselect;
 
             m_selectedNodes.clear();
-            for ( auto const& selectedNode : m_selectedNodesPreUndoRedo )
+
+            if ( m_selectedNodesPreUndoRedo.m_isSecondaryViewSelection )
             {
-                auto pSelectedNode = pViewedGraph->FindNode( selectedNode.m_nodeID );
-                if ( pSelectedNode != nullptr )
+                auto pPrimaryViewedGraph = m_primaryGraphView.GetViewedGraph();
+                auto pSelectedPrimaryNode = pPrimaryViewedGraph->FindNode( m_selectedNodesPreUndoRedo.m_primaryViewSelectedNode.m_nodeID );
+                if ( pSelectedPrimaryNode != nullptr )
                 {
-                    m_selectedNodes.emplace_back( VisualGraph::SelectedNode( pSelectedNode ) );
-                    validNodesToReselect.emplace_back( pSelectedNode );
+                    m_primaryGraphView.SelectNode( pSelectedPrimaryNode );
+                    UpdateSecondaryViewState();
+
+                    auto pSecondaryViewedGraph = m_secondaryGraphView.GetViewedGraph();
+                    for ( auto const& selectedNode : m_selectedNodesPreUndoRedo.m_selectedNodes )
+                    {
+                        auto pSelectedNode = pSecondaryViewedGraph->FindNode( selectedNode.m_nodeID );
+                        if ( pSelectedNode != nullptr )
+                        {
+                            m_selectedNodes.emplace_back( VisualGraph::SelectedNode( pSelectedNode ) );
+                            validNodesToReselect.emplace_back( pSelectedNode );
+                        }
+                    }
+
+                    m_secondaryGraphView.SelectNodes( validNodesToReselect );
                 }
             }
+            else
+            {
+                auto pPrimaryViewedGraph = m_primaryGraphView.GetViewedGraph();
+                for ( auto const& selectedNode : m_selectedNodesPreUndoRedo.m_selectedNodes )
+                {
+                    auto pSelectedNode = pPrimaryViewedGraph->FindNode( selectedNode.m_nodeID );
+                    if ( pSelectedNode != nullptr )
+                    {
+                        m_selectedNodes.emplace_back( VisualGraph::SelectedNode( pSelectedNode ) );
+                        validNodesToReselect.emplace_back( pSelectedNode );
+                    }
+                }
 
-            m_primaryGraphView.SelectNodes( validNodesToReselect );
-            UpdateSecondaryViewState();
+                m_primaryGraphView.SelectNodes( validNodesToReselect );
+                UpdateSecondaryViewState();
+            }
         }
         else if ( viewRestoreResult == ViewRestoreResult::Failed )
         {
@@ -1743,7 +1905,7 @@ namespace EE::Animation
 
         // Clear saved state and refresh variation editor data
         m_viewedGraphPathPreUndoRedo.clear();
-        m_selectedNodesPreUndoRedo.clear();
+        m_selectedNodesPreUndoRedo.Clear();
 
         //-------------------------------------------------------------------------
 
@@ -2518,7 +2680,7 @@ namespace EE::Animation
         if ( m_loadedGraphStack.size() > 1 )
         {
             m_userContext.SetExtraGraphTitleInfoText( "External Child Graph" );
-            m_userContext.SetExtraTitleInfoTextColor( Colors::HotPink.ToUInt32_ABGR() );
+            m_userContext.SetExtraTitleInfoTextColor( Colors::HotPink );
         }
         else // In main graph
         {
@@ -2621,7 +2783,7 @@ namespace EE::Animation
 
         ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
 
-        if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_HOME"##GoHome", ImVec2( homeButtonWidth, buttonHeight ) ) )
+        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_HOME"##GoHome", ImVec2( homeButtonWidth, buttonHeight ) ) )
         {
             NavigateTo( pRootGraph );
         }
@@ -2701,7 +2863,7 @@ namespace EE::Animation
                 bool const isExternalChildGraphItem = pathFromChildToRoot[i].m_stackIdx > 0;
                 if ( isExternalChildGraphItem )
                 {
-                    ImVec4 const color = ( Vector( 0.65f, 0.65f, 0.65f, 1.0f ) * Vector( ImGuiX::Style::s_colorText.Value ) ).ToFloat4();
+                    ImVec4 const color = ( Vector( 0.65f, 0.65f, 0.65f, 1.0f ) * Vector( ImGuiX::Style::s_colorText ) ).ToFloat4();
                     ImGui::PushStyleColor( ImGuiCol_Text, color );
                 }
 
@@ -2862,7 +3024,7 @@ namespace EE::Animation
         {
             ImGui::SameLine( navBarDimensions.x - statemachineNavRequiredSpace, 0 );
             ImGui::AlignTextToFramePadding();
-            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
+            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_DOOR_OPEN" Entry", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
             {
                 auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
                 NavigateTo( pSM->GetEntryStateOverrideConduit(), false );
@@ -2870,7 +3032,7 @@ namespace EE::Animation
             ImGuiX::ItemTooltip( "Entry State Overrides" );
 
             ImGui::SameLine( 0, -1 );
-            if ( ImGuiX::ColoredButton( ImGuiX::ImColors::OrangeRed, ImGuiX::ImColors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
+            if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_LIGHTNING_BOLT"Global", ImVec2( stateMachineNavButtonWidth, buttonHeight ) ) )
             {
                 auto pSM = Cast<StateMachineGraph>( m_primaryGraphView.GetViewedGraph() );
                 NavigateTo( pSM->GetGlobalTransitionConduit(), false );
@@ -3460,7 +3622,7 @@ namespace EE::Animation
 
                 ImGui::TableNextRow();
 
-                ImColor const colors[] = { ImGuiX::ImColors::Plum, ImGuiX::Style::s_colorText, ImGuiX::ImColors::LightSteelBlue, ImGuiX::ImColors::GoldenRod };
+                Color const colors[] = { Colors::Plum, ImGuiX::Style::s_colorText, Colors::LightSteelBlue, Colors::GoldenRod };
                 static char const* const icons[] = { EE_ICON_ARROW_RIGHT_BOLD, EE_ICON_WALK, EE_ICON_NUMERIC, EE_ICON_TAG_TEXT };
                 static char const* const tooltips[] = { "Parameter", "Pose", "Value", "ID" };
                 int32_t const typeIndex = ( int32_t ) pTarget->m_type;
@@ -3468,7 +3630,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                ImGui::PushStyleColor( ImGuiCol_Text, isActiveTarget ? ImGuiX::ImColors::Lime.Value : ImGuiX::Style::s_colorText.Value );
+                ImGui::PushStyleColor( ImGuiCol_Text, isActiveTarget ? Colors::Lime : ImGuiX::Style::s_colorText );
                 ImGui::Text( icons[typeIndex] );
                 ImGuiX::TextTooltip( tooltips[typeIndex] );
                 ImGui::PopStyleColor();
@@ -3476,7 +3638,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                ImGui::PushStyleColor( ImGuiCol_Text, colors[typeIndex].Value );
+                ImGui::PushStyleColor( ImGuiCol_Text, colors[typeIndex] );
 
                 if ( ImGui::Selectable( pTarget->m_label.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
                 {
@@ -3560,7 +3722,7 @@ namespace EE::Animation
     {
         if ( m_compilationLog.empty() )
         {
-            ImGui::TextColored( ImGuiX::ImColors::LimeGreen, EE_ICON_CHECK );
+            ImGui::TextColored( Colors::LimeGreen.ToFloat4(), EE_ICON_CHECK );
             ImGui::SameLine();
             ImGui::Text( "Graph Compiled Successfully" );
         }
@@ -3791,21 +3953,21 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        m_cachedNumUses.clear();
+        m_cachedUses.clear();
 
         auto pRootGraph = GetEditedRootGraph();
         auto referenceNodes = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pReferenceNode : referenceNodes )
         {
             auto const& ID = pReferenceNode->GetReferencedParameter()->GetID();
-            auto iter = m_cachedNumUses.find( ID );
-            if ( iter == m_cachedNumUses.end() )
+            auto iter = m_cachedUses.find( ID );
+            if ( iter == m_cachedUses.end() )
             {
-                m_cachedNumUses.insert( TPair<UUID, int32_t>( ID, 0 ) );
-                iter = m_cachedNumUses.find( ID );
+                m_cachedUses.insert( TPair<UUID, TVector<UUID>>( ID, {} ) );
+                iter = m_cachedUses.find( ID );
             }
 
-            iter->second++;
+            iter->second.emplace_back( pReferenceNode->GetID() );
         }
     }
 
@@ -3916,8 +4078,8 @@ namespace EE::Animation
     {
         EE_ASSERT( m_activeOperation == GraphOperationType::DeleteParameter );
 
-        auto iter = m_cachedNumUses.find( m_currentOperationParameterID );
-        ImGui::Text( "This parameter is used in %d places.", iter != m_cachedNumUses.end() ? iter->second : 0 );
+        auto iter = m_cachedUses.find( m_currentOperationParameterID );
+        ImGui::Text( "This parameter is used in %d places.", iter != m_cachedUses.end() ? (int32_t) iter->second.size() : 0 );
         ImGui::Text( "Are you sure you want to delete this parameter?" );
         ImGui::NewLine();
 
@@ -3950,8 +4112,8 @@ namespace EE::Animation
             TInlineVector<UUID, 100> unusedParameters;
             for ( auto CP : m_controlParameters )
             {
-                auto iter = m_cachedNumUses.find( CP->GetID() );
-                if ( iter == m_cachedNumUses.end() || iter->second == 0 )
+                auto iter = m_cachedUses.find( CP->GetID() );
+                if ( iter == m_cachedUses.end() || iter->second.empty() )
                 {
                     unusedParameters.emplace_back( CP->GetID() );
                 }
@@ -4027,12 +4189,111 @@ namespace EE::Animation
         }
     }
 
+    void AnimationGraphWorkspace::DrawParameterListRow( GraphNodes::FlowToolsNode* pParameterNode )
+    {
+        constexpr float const iconWidth = 20;
+
+        auto pCP = TryCast< GraphNodes::ControlParameterToolsNode>( pParameterNode );
+        auto pVP = TryCast< GraphNodes::VirtualParameterToolsNode>( pParameterNode );
+        InlineString const parameterName = ( pCP != nullptr ) ? pCP->GetParameterName().c_str() : pVP->GetParameterName().c_str();
+
+        //-------------------------------------------------------------------------
+
+        ImGui::PushID( pParameterNode );
+        ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Indent();
+
+        ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameterNode->GetTitleBarColor() );
+        ImGui::Text( ( pVP != nullptr ) ? EE_ICON_ALPHA_V_CIRCLE : EE_ICON_ALPHA_C_BOX);
+        ImGui::SameLine();
+        if ( ImGui::Selectable( parameterName.c_str() ) )
+        {
+            if ( pCP != nullptr )
+            {
+                SetSelectedNodes( { VisualGraph::SelectedNode( pCP ) } );
+            }
+        }
+        ImGui::PopStyleColor();
+
+        // Context menu
+        if ( ImGui::BeginPopupContextItem( "ParamOptions" ) )
+        {
+            if ( pVP != nullptr )
+            {
+                if ( ImGui::MenuItem( EE_ICON_PLAYLIST_EDIT" Edit Virtual Parameter" ) )
+                {
+                    NavigateTo( pParameterNode->GetChildGraph() );
+                }
+
+                ImGui::Separator();
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename" ) )
+            {
+                StartParameterRename( pParameterNode->GetID() );
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_DELETE" Delete" ) )
+            {
+                StartParameterDelete( pParameterNode->GetID() );
+            }
+
+            ImGui::EndPopup();
+        }
+
+        // Drag and drop
+        if ( ImGui::BeginDragDropSource() )
+        {
+            ImGui::SetDragDropPayload( "AnimGraphParameter", pParameterNode->GetName(), strlen( pParameterNode->GetName() ) + 1 );
+            ImGui::Text( pParameterNode->GetName() );
+            ImGui::EndDragDropSource();
+        }
+        ImGui::Unindent();
+
+        // Uses
+        //-------------------------------------------------------------------------
+
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameterNode->GetTitleBarColor() );
+        ImGui::Text( GetNameForValueType( pParameterNode->GetValueType() ) );
+        ImGui::PopStyleColor();
+
+        auto iter = m_cachedUses.find( pParameterNode->GetID() );
+        ImGui::TableNextColumn();
+
+        auto ParameterUsesContextMenu = [&] ()
+        {
+            auto pRootGraph = GetEditedRootGraph();
+            for ( auto const& nodeID : iter->second )
+            {
+                auto pNode = pRootGraph->FindNode( nodeID, true );
+                if ( ImGui::MenuItem( pNode->GetStringPathFromRoot().c_str() ) )
+                {
+                    NavigateTo( pNode );
+                }
+            }
+        };
+
+        InlineString const buttonLabel( InlineString::CtorSprintf(), "%d##%s", iter != m_cachedUses.end() ? (int32_t) iter->second.size() : 0, parameterName.c_str());
+        ImGuiX::DropDownButton( buttonLabel.c_str(), ParameterUsesContextMenu, ImVec2( 30, 0 ) );
+        ImGuiX::ItemTooltip( "Number of uses" );
+
+        ImGui::PopID();
+    }
+
     void AnimationGraphWorkspace::DrawParameterList()
     {
         // Draw Control Bar
         //-------------------------------------------------------------------------
 
-        if ( ImGui::Button( "Add New Parameter", ImVec2( ImGui::GetContentRegionAvail().x - 30 - ImGui::GetStyle().ItemSpacing.x, 0 ) ) )
+        constexpr static float const eraseButtonWidth = 30.0f;
+
+        if ( ImGui::Button( "Add New Parameter", ImVec2( ImGui::GetContentRegionAvail().x - eraseButtonWidth - ImGui::GetStyle().ItemSpacing.x, 0 ) ) )
         {
             ImGui::OpenPopup( "AddParameterPopup" );
         }
@@ -4040,7 +4301,7 @@ namespace EE::Animation
         ImGui::SameLine();
 
         ImGui::BeginDisabled( m_activeOperation != GraphOperationType::None );
-        if ( ImGui::Button( EE_ICON_TRASH_CAN"##EraseUnused", ImVec2( 30, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_TRASH_CAN"##EraseUnused", ImVec2( eraseButtonWidth, 0 ) ) )
         {
             m_currentOperationParameterID = UUID();
             m_activeOperation = GraphOperationType::DeleteUnusedParameters;
@@ -4119,139 +4380,7 @@ namespace EE::Animation
         // Draw Parameters
         //-------------------------------------------------------------------------
 
-        constexpr float const iconWidth = 20;
-
-        auto DrawControlParameterRow = [this, iconWidth] ( GraphNodes::ControlParameterToolsNode* pControlParameter )
-        {
-            ImGui::PushID( pControlParameter );
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Indent();
-
-            ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pControlParameter->GetTitleBarColor() );
-            ImGui::Text( EE_ICON_ALPHA_C_BOX );
-            ImGui::SameLine();
-            if ( ImGui::Selectable( pControlParameter->GetName() ) )
-            {
-                SetSelectedNodes( { VisualGraph::SelectedNode( pControlParameter ) } );
-            }
-            ImGui::PopStyleColor();
-
-            // Context menu
-            if ( ImGui::BeginPopupContextItem( "ParamOptions" ) )
-            {
-                if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy ID" ) )
-                {
-                    ImGui::SetClipboardText( pControlParameter->GetParameterID().c_str() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename" ) )
-                {
-                    StartParameterRename( pControlParameter->GetID() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_DELETE" Delete" ) )
-                {
-                    StartParameterDelete( pControlParameter->GetID() );
-                }
-
-                ImGui::EndPopup();
-            }
-
-            // Drag and drop
-            if ( ImGui::BeginDragDropSource() )
-            {
-                ImGui::SetDragDropPayload( "AnimGraphParameter", pControlParameter->GetName(), strlen( pControlParameter->GetName() ) + 1 );
-                ImGui::Text( pControlParameter->GetName() );
-                ImGui::EndDragDropSource();
-            }
-            ImGui::Unindent();
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pControlParameter->GetTitleBarColor() );
-            ImGui::Text( GetNameForValueType( pControlParameter->GetValueType() ) );
-            ImGui::PopStyleColor();
-
-            auto iter = m_cachedNumUses.find( pControlParameter->GetID() );
-            ImGui::TableNextColumn();
-            ImGui::Text( "%d", iter != m_cachedNumUses.end() ? iter->second : 0 );
-
-            ImGui::PopID();
-        };
-
-        auto DrawVirtualParameterRow = [this, iconWidth] ( GraphNodes::VirtualParameterToolsNode* pVirtualParameter )
-        {
-            ImGui::PushID( pVirtualParameter );
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Indent();
-
-            ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pVirtualParameter->GetTitleBarColor() );
-            ImGui::Text( EE_ICON_ALPHA_V_CIRCLE );
-            ImGui::SameLine();
-            ImGui::Selectable( pVirtualParameter->GetName() );
-            ImGui::PopStyleColor();
-
-            // Context menu
-            if ( ImGui::BeginPopupContextItem( "ParamOptions" ) )
-            {
-                if ( ImGui::MenuItem( EE_ICON_PLAYLIST_EDIT" Edit" ) )
-                {
-                    NavigateTo( pVirtualParameter->GetChildGraph() );
-                }
-
-                ImGui::Separator();
-
-                if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename" ) )
-                {
-                    StartParameterRename( pVirtualParameter->GetID() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_DELETE" Delete" ) )
-                {
-                    StartParameterDelete( pVirtualParameter->GetID() );
-                }
-
-                ImGui::EndPopup();
-            }
-
-            // Drag and drop
-            if ( ImGui::BeginDragDropSource() )
-            {
-                ImGui::SetDragDropPayload( "AnimGraphParameter", pVirtualParameter->GetName(), strlen( pVirtualParameter->GetName() ) + 1 );
-                ImGui::Text( pVirtualParameter->GetName() );
-                ImGui::EndDragDropSource();
-            }
-            ImGui::Unindent();
-
-            //-------------------------------------------------------------------------
-
-            ImGui::TableNextColumn();
-            ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pVirtualParameter->GetTitleBarColor() );
-            ImGui::Text( GetNameForValueType( pVirtualParameter->GetValueType() ) );
-            ImGui::PopStyleColor();
-
-            auto iter = m_cachedNumUses.find( pVirtualParameter->GetID() );
-            ImGui::TableNextColumn();
-            ImGui::Text( "%d", iter != m_cachedNumUses.end() ? iter->second : 0 );
-
-            ImGui::PopID();
-        };
-
-        // Uncategorized
-        //-------------------------------------------------------------------------
+        constexpr static float const usesColumnWidth = 30.0f;
 
         ImGui::SetNextItemOpen( !m_parameterCategoryTree.GetRootCategory().m_isCollapsed );
         if ( ImGui::CollapsingHeader( "General" ) )
@@ -4262,17 +4391,17 @@ namespace EE::Animation
                 {
                     ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
                     ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-                    ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+                    ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, usesColumnWidth );
 
                     for ( auto const& item : m_parameterCategoryTree.GetRootCategory().m_items )
                     {
                         if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
                         {
-                            DrawControlParameterRow( pCP );
+                            DrawParameterListRow( pCP );
                         }
                         else
                         {
-                            DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
+                            DrawParameterListRow( item.m_data );
                         }
                     }
 
@@ -4303,7 +4432,7 @@ namespace EE::Animation
                     {
                         ImGui::TableSetupColumn( "##Name", ImGuiTableColumnFlags_WidthStretch );
                         ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
-                        ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20 );
+                        ImGui::TableSetupColumn( "##Uses", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, usesColumnWidth );
 
                         //-------------------------------------------------------------------------
 
@@ -4311,11 +4440,11 @@ namespace EE::Animation
                         {
                             if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
                             {
-                                DrawControlParameterRow( pCP );
+                                DrawParameterListRow( pCP );
                             }
                             else
                             {
-                                DrawVirtualParameterRow( TryCast<GraphNodes::VirtualParameterToolsNode>( item.m_data ) );
+                                DrawParameterListRow( item.m_data );
                             }
                         }
 
@@ -4865,7 +4994,7 @@ namespace EE::Animation
         bool isTreeNodeOpen = false;
         ImGui::SetNextItemOpen( true );
         {
-            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? ImGuiX::ImColors::LimeGreen : ImGui::GetStyle().Colors[ImGuiCol_Text] );
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? Colors::LimeGreen : ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
             isTreeNodeOpen = ImGui::TreeNodeEx( variationID.c_str(), flags );
         }
         ImGuiX::TextTooltip( "Right click for options" );
@@ -5035,7 +5164,7 @@ namespace EE::Animation
 
                     if ( pDataSlotNode->HasOverride( currentVariationID ) )
                     {
-                        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
+                        if ( ImGuiX::FlatButtonColored( Colors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
                         {
                             pDataSlotNode->RemoveOverride( currentVariationID );
                         }
@@ -5043,7 +5172,7 @@ namespace EE::Animation
                     }
                     else // Create an override
                     {
-                        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
+                        if ( ImGuiX::FlatButtonColored( Colors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
                         {
                             pDataSlotNode->CreateOverride( currentVariationID );
                         }
@@ -5064,13 +5193,13 @@ namespace EE::Animation
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
 
-                ImColor labelColor = ImGuiX::Style::s_colorText;
+                Color labelColor = ImGuiX::Style::s_colorText;
                 if ( !isDefaultVariationSelected && hasOverrideForVariation )
                 {
-                    labelColor = ( pResourceID->IsValid() ) ? ImGuiX::ImColors::Lime : ImGuiX::ImColors::MediumRed;
+                    labelColor = ( pResourceID->IsValid() ) ? Colors::Lime : Colors::MediumRed;
                 }
 
-                ImGui::TextColored( labelColor, pDataSlotNode->GetName() );
+                ImGui::TextColored( labelColor.ToFloat4(), pDataSlotNode->GetName() );
 
                 // Node Path
                 //-------------------------------------------------------------------------
@@ -5208,7 +5337,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         bool isValidVariationName = ValidateVariationName();
-        ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImGuiX::ImColors::Red.Value );
+        ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : Colors::Red.ToFloat4() );
         if ( ImGui::InputText( "##VariationName", m_nameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars ) )
         {
             nameChangeConfirmed = true;
@@ -5357,7 +5486,7 @@ namespace EE::Animation
             // Stop the review for every workspace
             if ( IsReviewingRecording() )
             {
-                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopReview", ImGuiX::ImColors::Red, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopReview", Colors::Red, buttonSize ) )
                 {
                     StopDebugging();
                 }
@@ -5366,7 +5495,7 @@ namespace EE::Animation
             else // Show the start/join button
             {
                 ImGui::BeginDisabled( !m_graphRecorder.HasRecordedData() );
-                if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartReview", ImGuiX::ImColors::Lime, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartReview", Colors::Lime, buttonSize ) )
                 {
                     if ( IsDebugging() )
                     {
@@ -5389,7 +5518,7 @@ namespace EE::Animation
             ImGui::BeginDisabled( !IsLiveDebugging() );
             if ( m_isRecording )
             {
-                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopRecord", ImGuiX::ImColors::White, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopRecord", Colors::White, buttonSize ) )
                 {
                     StopRecording();
                 }
@@ -5397,7 +5526,7 @@ namespace EE::Animation
             }
             else // Show start recording button
             {
-                if ( ImGuiX::IconButton( EE_ICON_RECORD, "##Record", ImGuiX::ImColors::Red, buttonSize ) )
+                if ( ImGuiX::IconButton( EE_ICON_RECORD, "##Record", Colors::Red, buttonSize ) )
                 {
                     StartRecording();
                 }
@@ -5688,12 +5817,17 @@ namespace EE::Animation
         EE_ASSERT( m_activeOperation == GraphOperationType::RenameIDs );
 
         constexpr float const comboWidth = 30;
-        float const inputWidth = ImGui::GetContentRegionAvail().x - comboWidth - ImGui::GetStyle().ItemSpacing.x;
+        float const itemSpacingX = ImGui::GetStyle().ItemSpacing.x;
+        float const inputWidth = ImGui::GetContentRegionAvail().x - comboWidth - itemSpacingX;
 
         // Old Value
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( inputWidth );
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Old ID: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( inputWidth - itemSpacingX - ImGui::CalcTextSize("Old ID: " ).x );
         ImGui::InputText( "##oldid", m_oldIDBuffer, 255 );
 
         ImGui::SameLine();
@@ -5714,7 +5848,11 @@ namespace EE::Animation
         // New Value
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemWidth( inputWidth );
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "New ID: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( inputWidth - itemSpacingX - ImGui::CalcTextSize( "New ID: " ).x );
         ImGui::InputText( "##newid", m_newIDBuffer, 255 );
 
         ImGui::SameLine();

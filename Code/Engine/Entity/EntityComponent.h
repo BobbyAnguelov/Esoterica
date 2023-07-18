@@ -3,7 +3,7 @@
 #include "Engine/_Module/API.h"
 #include "EntityIDs.h"
 #include "EntityContexts.h"
-#include "System/TypeSystem/ReflectedType.h"
+#include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
 

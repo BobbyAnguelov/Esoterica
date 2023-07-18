@@ -1,5 +1,5 @@
 #include "ResourceCompilerRegistry.h"
-#include "System/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 

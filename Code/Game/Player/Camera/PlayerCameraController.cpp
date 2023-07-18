@@ -1,8 +1,8 @@
 #include "PlayerCameraController.h"
 #include "Engine/Camera/Components/Component_OrbitCamera.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "System/Input/InputSystem.h"
-#include "System/Profiling.h"
+#include "Base/Input/InputSystem.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 

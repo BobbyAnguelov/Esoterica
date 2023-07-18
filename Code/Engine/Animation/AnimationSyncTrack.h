@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Types/Percentage.h"
-#include "System/Types/Arrays.h"
-#include "System/Types/StringID.h"
+#include "Base/Types/Percentage.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 
@@ -164,8 +164,11 @@ namespace EE::Animation
             return m_syncEvents[adjustedIndex].m_ID;
         }
 
-        // Get the first event that matches this index, if no events match this ID, then we return the first event including offset
+        // Get the first event that matches this ID, if no events match this ID, then we return the first event including offset
         int32_t GetEventIndexForID( StringID ID ) const;
+
+        // Get the closest event to the specified time that matches this iD, if no events match this ID, then we return the first event including offset
+        int32_t GetClosestEventIndexForID( SyncTrackTime const& time, StringID ID ) const;
 
         // Get the event at the specified index, excludes offset
         inline Event const& GetEventWithoutOffset( int32_t i ) const
@@ -258,7 +261,7 @@ namespace EE::Animation
 
     private:
 
-        TInlineVector<Event, 10>        m_syncEvents;               // The number and position of the sync periods
-        int32_t                           m_startEventOffset = 0;     // The offset for which event signifies the track of the track
+        TInlineVector<Event, 10>        m_syncEvents;                   // The number and position of the sync periods
+        int32_t                           m_startEventOffset = 0;       // The offset for which event signifies the track of the track
     };
 }

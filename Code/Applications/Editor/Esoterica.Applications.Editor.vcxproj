@@ -124,7 +124,7 @@
     <ProjectReference Include="..\..\Game\Esoterica.Game.Runtime.vcxproj">
       <Project>{20c5d09a-3da8-4cea-9269-65dc6e6cd460}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\System\Esoterica.System.vcxproj">
+    <ProjectReference Include="..\..\Base\Esoterica.Base.vcxproj">
       <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
     </ProjectReference>
   </ItemGroup>

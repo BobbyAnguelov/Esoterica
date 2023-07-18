@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
 
     void TransitionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        DrawInternalSeparator( ctx );
+        BeginDrawInternalRegion( ctx );
 
         //-------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ namespace EE::Animation::GraphNodes
 
             case TimeMatchMode::MatchSourceSyncEventIndexAndPercentage:
             {
-                ImGui::Text( "Match Sync Idx and %" );
+                ImGui::Text( "Match Sync Idx and %%" );
             }
             break;
 
@@ -89,13 +89,25 @@ namespace EE::Animation::GraphNodes
 
             case TimeMatchMode::MatchSourceSyncEventIDAndPercentage:
             {
-                ImGui::Text( "Match Sync ID and %" );
+                ImGui::Text( "Match Sync ID and %%" );
+            }
+            break;
+
+            case TimeMatchMode::MatchClosestSourceSyncEventID:
+            {
+                ImGui::Text( "Match Closest Sync ID" );
+            }
+            break;
+
+            case TimeMatchMode::MatchClosestSourceSyncEventIDAndPercentage:
+            {
+                ImGui::Text( "Match Closest Sync ID and %%" );
             }
             break;
 
             case TimeMatchMode::MatchSourceSyncEventPercentage:
             {
-                ImGui::Text( "Match Sync % Only" );
+                ImGui::Text( "Match Sync %% Only" );
             }
             break;
         }
@@ -108,11 +120,13 @@ namespace EE::Animation::GraphNodes
         {
             ImGui::Text( "Forced" );
         }
+
+        EndDrawInternalRegion( ctx );
     }
 
-    ImColor TransitionToolsNode::GetTitleBarColor() const
+    Color TransitionToolsNode::GetTitleBarColor() const
     {
-        return m_canBeForced ? ImGuiX::ImColors::Salmon : FlowToolsNode::GetTitleBarColor();
+        return m_canBeForced ? Colors::Salmon : FlowToolsNode::GetTitleBarColor();
     }
 
     //-------------------------------------------------------------------------
@@ -128,7 +142,7 @@ namespace EE::Animation::GraphNodes
         return !GetSecondaryGraph()->FindAllNodesOfType<TransitionToolsNode>().empty();
     }
 
-    ImColor TransitionConduitToolsNode::GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const
+    Color TransitionConduitToolsNode::GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const
     {
         // Is this an blocked transition
         if ( visualState == VisualGraph::NodeVisualState::None && !HasTransitions() )

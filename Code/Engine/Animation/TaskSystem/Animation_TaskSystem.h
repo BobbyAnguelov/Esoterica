@@ -80,7 +80,7 @@ namespace EE::Animation
         inline TaskIndex RegisterTask( ConstructorParams&&... params )
         {
             EE_ASSERT( m_tasks.size() < 0xFF );
-            auto pNewTask = m_tasks.emplace_back( EE::New<T>( std::forward<ConstructorParams>( params )... ) );
+            auto pNewTask = m_tasks.emplace_back( EE::New<T>( eastl::forward<ConstructorParams>( params )... ) );
             m_hasPhysicsDependency |= pNewTask->HasPhysicsDependency();
             m_needsUpdate = true;
             return (TaskIndex) ( m_tasks.size() - 1 );

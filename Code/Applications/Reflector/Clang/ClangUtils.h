@@ -6,8 +6,8 @@
 #include <clang/AST/Type.h>
 #include <clang-c/Index.h>
 
-#include "System/FileSystem/FileSystemPath.h"
-#include "System/TypeSystem/TypeID.h"
+#include "Base/FileSystem/FileSystemPath.h"
+#include "Base/TypeSystem/TypeID.h"
 
 //-------------------------------------------------------------------------
 

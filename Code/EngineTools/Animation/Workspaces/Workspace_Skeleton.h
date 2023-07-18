@@ -2,7 +2,7 @@
 
 #include "EngineTools/Core/Workspace.h"
 #include "Engine/Animation/AnimationSkeleton.h"
-#include "System/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -49,13 +49,13 @@ namespace EE::Animation
 
     private:
 
-        virtual char const* GetWorkspaceUniqueTypeName() const { return "Animation Skeleton"; }
+        virtual char const* GetDockingUniqueTypeName() const { return "Animation Skeleton"; }
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_SKULL; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
-        virtual void Update( UpdateContext const& context, bool isFocused ) override;
+        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;

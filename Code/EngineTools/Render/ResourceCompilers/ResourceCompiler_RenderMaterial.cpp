@@ -1,8 +1,8 @@
 #include "ResourceCompiler_RenderMaterial.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderMaterial.h"
 #include "Engine/Render/Material/RenderMaterial.h"
-#include "System/Serialization/BinarySerialization.h"
-#include "System/FileSystem/FileSystem.h"
+#include "Base/Serialization/BinarySerialization.h"
+#include "Base/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
 

@@ -4,9 +4,9 @@
 #include "EntityWorldType.h"
 #include "Engine/UpdateStage.h"
 #include "Engine/Entity/EntityIDs.h"
-#include "System/TypeSystem/ReflectedType.h"
-#include "System/Types/Arrays.h"
-#include "System/Encoding/Hash.h"
+#include "Base/TypeSystem/ReflectedType.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Encoding/Hash.h"
 
 
 //-------------------------------------------------------------------------

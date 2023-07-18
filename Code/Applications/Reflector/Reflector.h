@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Applications/Reflector/Database/ReflectionDatabase.h"
-#include "System/Time/Time.h"
-#include "System/Types/String.h"
+#include "Base/Time/Time.h"
+#include "Base/Types/String.h"
 
 //-------------------------------------------------------------------------
 

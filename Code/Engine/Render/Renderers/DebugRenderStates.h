@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "System/Render/RenderDevice.h"
-#include "System/Render/RenderViewport.h"
+#include "Base/Render/RenderDevice.h"
+#include "Base/Render/RenderViewport.h"
 
 //-------------------------------------------------------------------------
 

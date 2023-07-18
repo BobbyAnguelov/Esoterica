@@ -1,7 +1,7 @@
 #include "PropertyGrid.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "System/TypeSystem/TypeRegistry.h"
-#include "System/TypeSystem/PropertyInfo.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/PropertyInfo.h"
 #include "PropertyGridEditor.h"
 #include "PropertyGridTypeEditingRules.h"
 
@@ -710,7 +710,7 @@ namespace EE::PG
         ImGui::BeginDisabled( IsReadOnly() );
 
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_controlButtonPadding );
-        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LightGreen, EE_ICON_PLUS, g_controlButtonSize ) )
+        if ( ImGuiX::FlatButtonColored( Colors::LightGreen, EE_ICON_PLUS, g_controlButtonSize ) )
         {
             ScopedChangeNotifier cn( m_context.m_pPropertyGrid, m_pParentTypeInstance, &m_propertyInfo, PropertyEditInfo::Action::AddArrayElement );
             m_pParentTypeInstance->GetTypeInfo()->AddArrayElement( m_pParentTypeInstance, m_propertyInfo.m_ID );
@@ -723,7 +723,7 @@ namespace EE::PG
 
         ImGui::SameLine();
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_controlButtonPadding );
-        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::PaleVioletRed, EE_ICON_TRASH_CAN, g_controlButtonSize ) )
+        if ( ImGuiX::FlatButtonColored( Colors::PaleVioletRed, EE_ICON_TRASH_CAN, g_controlButtonSize ) )
         {
             ScopedChangeNotifier cn( m_context.m_pPropertyGrid, m_pParentTypeInstance, &m_propertyInfo, PropertyEditInfo::Action::RemoveArrayElement );
             m_pParentTypeInstance->GetTypeInfo()->ClearArray( m_pParentTypeInstance, m_propertyInfo.m_ID );
@@ -746,7 +746,7 @@ namespace EE::PG
         ImGui::BeginDisabled( IsReadOnly() );
 
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_controlButtonPadding );
-        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LightGray, EE_ICON_UNDO_VARIANT, g_controlButtonSize ) )
+        if ( ImGuiX::FlatButtonColored( Colors::LightGray, EE_ICON_UNDO_VARIANT, g_controlButtonSize ) )
         {
             ScopedChangeNotifier cn( m_context.m_pPropertyGrid, m_pParentTypeInstance, &m_propertyInfo );
             m_pParentTypeInstance->GetTypeInfo()->ResetToDefault( m_pParentTypeInstance, m_propertyInfo.m_ID );
@@ -979,7 +979,7 @@ namespace EE::PG
         ImGui::BeginDisabled( IsReadOnly() );
 
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, g_controlButtonPadding );
-        if ( ImGuiX::FlatButtonColored( ImGuiX::ImColors::LightGray, EE_ICON_UNDO_VARIANT, g_controlButtonSize ) )
+        if ( ImGuiX::FlatButtonColored( Colors::LightGray, EE_ICON_UNDO_VARIANT, g_controlButtonSize ) )
         {
             ScopedChangeNotifier cn( m_context.m_pPropertyGrid, m_pParentTypeInstance, &m_propertyInfo );
             m_pParentTypeInstance->GetTypeInfo()->ResetToDefault( m_pParentTypeInstance, m_propertyInfo.m_ID );

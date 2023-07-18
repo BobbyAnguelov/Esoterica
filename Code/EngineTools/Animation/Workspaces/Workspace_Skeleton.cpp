@@ -4,7 +4,7 @@
 #include "Engine/Animation/AnimationPose.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
-#include "System/Math/MathUtils.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,49 +17,6 @@ namespace EE::Animation
     static bool IsValidWeight( float weight )
     {
         return ( weight >= 0.0f && weight <= 1.0f ) || weight == -1.0f;
-    }
-
-    static Color GetColorForWeight( float w )
-    {
-        EE_ASSERT( IsValidWeight( w ) );
-
-        // 0%
-        if ( w <= 0.0f )
-        {
-            return Colors::Gray;
-        }
-        // 1~20%
-        else if ( w > 0.0f && w < 0.2f )
-        {
-            return Color( 0xFF0D0DFF );
-        }
-        // 20~40%
-        else if ( w >= 0.2f && w < 0.4f )
-        {
-            return Color( 0xFF4E11FF );
-        }
-        // 40~60%
-        else if ( w >= 0.4f && w < 0.6f )
-        {
-            return Color( 0xFF8E15FF );
-        }
-        // 60~80%
-        else if ( w >= 0.6f && w < 0.8f )
-        {
-            return Color( 0xFAB733FF );
-        }
-        // 80~99%
-        else if ( w >= 0.08f && w < 1.0f )
-        {
-            return Color( 0xACB334FF );
-        }
-        // 100%
-        else if ( w == 1.0f )
-        {
-            return Color( 0x69B34CFF );
-        }
-
-        return Colors::White;
     }
 
     //-------------------------------------------------------------------------
@@ -176,9 +133,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void SkeletonWorkspace::Update( UpdateContext const& context, bool isFocused )
+    void SkeletonWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        TWorkspace::Update( context, isFocused );
+        TWorkspace::Update( context, isVisible, isFocused );
 
         // Wait for resource to load
         //-------------------------------------------------------------------------
@@ -268,7 +225,7 @@ namespace EE::Animation
                     bool renameRequested = false;
                     bool isValidName = ValidateName( StringID( m_renameBuffer ) );
 
-                    ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText.Value : ImGuiX::ImColors::Red.Value );
+                    ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText : Colors::Red );
 
                     if ( ImGui::InputText( "##MaskName", m_renameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter, FilterMaskNameChars ) )
                     {
@@ -431,7 +388,7 @@ namespace EE::Animation
         StringID const currentBoneID = pSkeleton->GetBoneID( boneIdx );
         bool const isSelected = m_selectedBoneID == currentBoneID;
 
-        ImColor const rowColor = IsEditingBoneMask() ? ImGuiX::ToIm( GetColorForWeight( m_editedBoneWeights[boneIdx] ) ) : isSelected ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText;
+        Color const rowColor = IsEditingBoneMask() ? BoneMask::GetColorForWeight( m_editedBoneWeights[boneIdx] ) : isSelected ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText;
 
         //-------------------------------------------------------------------------
 
@@ -458,7 +415,7 @@ namespace EE::Animation
 
         ImGui::SetNextItemOpen( pBone->m_isExpanded );
         ImGui::AlignTextToFramePadding();
-        ImGui::PushStyleColor( ImGuiCol_Text, rowColor.Value );
+        ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
         pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
 
         // Handle bone selection
@@ -574,7 +531,7 @@ namespace EE::Animation
                 {
                     ImGui::SameLine();
                     float const demoWeight = m_previewBoneMask.GetWeight( boneIdx );
-                    ImGui::PushStyleColor( ImGuiCol_Text, rowColor.Value );
+                    ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
                     ImGui::Text( "%.2f", demoWeight );
                     ImGui::PopStyleColor();
                 }
@@ -878,7 +835,7 @@ namespace EE::Animation
                 auto const& parentTransform = globalTransforms[parentIdx];
                 auto const& boneTransform = globalTransforms[boneIdx];
 
-                Color const boneColor = GetColorForWeight( m_previewBoneMask.GetWeight( boneIdx ) );
+                Color const boneColor = BoneMask::GetColorForWeight( m_previewBoneMask.GetWeight( boneIdx ) );
                 drawingCtx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, 5.0f );
             }
         }
@@ -893,7 +850,7 @@ namespace EE::Animation
         auto pDescriptor = TryCast<SkeletonResourceDescriptor>( m_pDescriptor );
 
         ImGui::BeginDisabled( !IsDescriptorLoaded() );
-        if ( ImGuiX::ColoredIconButton( ImGuiX::ImColors::Green, ImGuiX::ImColors::White, ImGuiX::ImColors::White, EE_ICON_PLUS, "Add New Mask", ImVec2( -1, 0 ) ) )
+        if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_PLUS, "Add New Mask", ImVec2( -1, 0 ) ) )
         {
             CreateBoneMask();
         }
@@ -925,7 +882,7 @@ namespace EE::Animation
                     ImGui::AlignTextToFramePadding();
 
                     bool const isSelected = ( m_editedMaskIdx != InvalidIndex ) ? ( m_editedMaskIdx == i ) : false;
-                    ImGui::PushStyleColor( ImGuiCol_Text, isSelected ? ImGuiX::ImColors::Lime.Value : ImGuiX::Style::s_colorText );
+                    ImGui::PushStyleColor( ImGuiCol_Text, isSelected ? Colors::Lime : ImGuiX::Style::s_colorText );
                     InlineString const label( InlineString::CtorSprintf(), EE_ICON_DRAMA_MASKS" %s", boneMaskDefinition.m_ID.c_str() );
                     if ( ImGui::Selectable( label.c_str(), isSelected ) )
                     {
@@ -972,7 +929,7 @@ namespace EE::Animation
 
                     if ( isSelected )
                     {
-                        if ( ImGuiX::IconButton( EE_ICON_CHECK, "##StopEdit", ImGuiX::ImColors::Lime, buttonSize ) )
+                        if ( ImGuiX::IconButton( EE_ICON_CHECK, "##StopEdit", Colors::Lime, buttonSize ) )
                         {
                             StopEditingMask();
                         }

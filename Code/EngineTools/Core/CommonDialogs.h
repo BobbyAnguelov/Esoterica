@@ -1,7 +1,7 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "System/Resource/ResourceTypeID.h"
-#include "System/FileSystem/FileSystemPath.h"
+#include "Base/Resource/ResourceTypeID.h"
+#include "Base/FileSystem/FileSystemPath.h"
 
 //-------------------------------------------------------------------------
 

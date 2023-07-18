@@ -41,6 +41,8 @@ namespace EE::Animation::GraphNodes
             MatchSyncEventIndex, // Only checked if MatchSourceTime is set
             MatchSyncEventID, // Only checked if MatchSourceTime is set
             MatchSyncEventPercentage, // Only checked if MatchSourceTime is set
+
+            PreferClosestSyncEventID, // Only checked if MatchSyncEventID is set, will prefer the closest matching sync event rather than the first found
         };
 
         struct EE_ENGINE_API Settings : public PoseNode::Settings
@@ -59,6 +61,8 @@ namespace EE::Animation::GraphNodes
             inline bool ShouldMatchSyncEventIndex() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSyncEventIndex ); }
             inline bool ShouldMatchSyncEventID() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSyncEventID ); }
             inline bool ShouldMatchSyncEventPercentage() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchSyncEventPercentage ); }
+
+            inline bool ShouldPreferClosestSyncEventID() const { return m_transitionOptions.IsFlagSet( TransitionOptions::PreferClosestSyncEventID ); }
 
         public:
 

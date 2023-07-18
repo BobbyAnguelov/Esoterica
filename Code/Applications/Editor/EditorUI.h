@@ -1,8 +1,8 @@
 #pragma once
 
-#include "EngineTools/Resource/ResourceBrowser/ResourceBrowser.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/ToolsContext.h"
+#include "EngineTools/Core/EditorTool.h"
 #include "Engine/ToolsUI/IDevelopmentToolsUI.h"
 #include "Engine/DebugViews/DebugView_System.h"
 
@@ -11,6 +11,7 @@
 namespace EE
 {
     class Workspace;
+    class EditorTool;
     class EntityWorldManager;
     class GamePreviewer;
     namespace EntityModel { class EntityMapEditor; }
@@ -27,7 +28,7 @@ namespace EE
             {
                 MapEditor,
                 GamePreview,
-                ResourceWorkspace
+                ResourceWorkspace,
             };
 
         public:
@@ -104,6 +105,62 @@ namespace EE
         // Copy the layout from one workspace to the other
         void WorkspaceLayoutCopy( Workspace* pSourceWorkspace );
 
+        // Editor Tool Management
+        //-------------------------------------------------------------------------
+
+        // Immediately destroy an editor tool
+        void DestroyEditorTool( UpdateContext const& context, EditorTool* pEditorTool, bool isEditorShutdown = false );
+
+        // Queues an editor tool destruction request till the next update
+        void QueueDestroyEditorTool( EditorTool* pEditorTool );
+
+        // Submit an Editor Tool window so we can retrieve/update its docking location
+        bool SubmitEditorToolWindow( UpdateContext const& context, EditorTool* pEditorTool, ImGuiID editorDockspaceID );
+
+        // Draw Editor Tool child windows
+        void DrawEditorToolContents( UpdateContext const& context, EditorTool* pEditorTool );
+
+        // Copy the layout from one workspace to the other
+        void EditorToolLayoutCopy( EditorTool* pEditorTool );
+
+        // Get the first created editor tool of a specified type
+        template<typename T>
+        inline T* GetEditorTool() const
+        {
+            static_assert( std::is_base_of<EE::EditorTool, T>::value, "T is not derived from EditorTool" );
+            for ( auto pEditorTool : m_editorTools )
+            {
+                if ( pEditorTool->GetToolTypeID() == T::s_toolTypeID )
+                {
+                    return static_cast<T*>( pEditorTool );
+                }
+            }
+
+            return nullptr;
+        }
+
+        // Create a new editor tool
+        template<typename T, typename... ConstructorParams>
+        inline T* CreateEditorTool( ConstructorParams&&... params )
+        {
+            static_assert( std::is_base_of<EE::EditorTool, T>::value, "T is not derived from EditorTool" );
+
+            if ( T::s_isSingleton )
+            {
+                auto pExistingTool = GetEditorTool<T>();
+                if( pExistingTool != nullptr )
+                {
+                    return pExistingTool;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            T* pEditorTool = EE::New<T>( eastl::forward<ConstructorParams>( params )... );
+            m_editorToolCreationRequests.emplace_back( pEditorTool );
+            return pEditorTool;
+        }
+
         // Misc
         //-------------------------------------------------------------------------
 
@@ -121,28 +178,24 @@ namespace EE
 
         // Window Management
         ImGuiWindowClass                    m_editorWindowClass;
-        bool                                m_isResourceBrowserWindowOpen = true;
-        bool                                m_isResourceLogWindowOpen = false;
-        bool                                m_isResourceOverviewWindowOpen = false;
         bool                                m_isImguiDemoWindowOpen = false;
+        bool                                m_isImguiPlotDemoWindowOpen = false;
         bool                                m_isUITestWindowOpen = false;
 
         // Resource Browser
         Resource::ResourceDatabase          m_resourceDB;
-        ResourceBrowser*                    m_pResourceBrowser = nullptr;
         EventBindingID                      m_resourceDeletedEventID;
         float                               m_resourceBrowserViewWidth = 150;
         Resource::RawFileInspector*         m_pRawResourceInspector = nullptr;
 
-        // System Log
-        SystemLogView                       m_systemLogView;
-        bool                                m_isSystemLogWindowOpen = false;
-
-        // Workspaces
+        // Editor Tools and Workspaces
+        TVector<EditorTool*>                m_editorTools;
+        TVector<EditorTool*>                m_editorToolCreationRequests;
+        TVector<EditorTool*>                m_editorToolDestructionRequests;
         TVector<Workspace*>                 m_workspaces;
         TVector<WorkspaceCreationRequest>   m_workspaceCreationRequests;
         TVector<Workspace*>                 m_workspaceDestructionRequests;
-        Workspace*                          m_pLastActiveWorkspace = nullptr;
+        void*                               m_pLastActiveWorkspaceOrEditorTool = nullptr;
 
         // Map Editor and Game Preview
         EntityModel::EntityMapEditor*       m_pMapEditor = nullptr;

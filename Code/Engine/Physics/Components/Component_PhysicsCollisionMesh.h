@@ -3,7 +3,7 @@
 #include "Component_PhysicsShape.h"
 #include "Engine/Physics/PhysicsMaterial.h"
 #include "Engine/Physics/PhysicsCollisionMesh.h"
-#include "System/Resource/ResourcePtr.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 
