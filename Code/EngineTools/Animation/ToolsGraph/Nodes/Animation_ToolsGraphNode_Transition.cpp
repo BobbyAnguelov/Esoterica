@@ -1,6 +1,7 @@
 #include "Animation_ToolsGraphNode_Transition.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
+#include "../../../Core/PropertyGrid/PropertyGridTypeEditingRules.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,6 +14,7 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Duration Override", GraphValueType::Float );
         CreateInputPin( "Sync Event Override", GraphValueType::Float );
         CreateInputPin( "Start Bone Mask", GraphValueType::BoneMask );
+        CreateInputPin( "Target Sync ID", GraphValueType::ID );
     }
 
     void TransitionToolsNode::SetName( String const& newName )
@@ -69,7 +71,7 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TimeMatchMode::MatchSourceSyncEventIndexOnly:
+            case TimeMatchMode::MatchSourceSyncEventIndex:
             {
                 ImGui::Text( "Match Sync Idx" );
             }
@@ -81,25 +83,25 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TimeMatchMode::MatchSourceSyncEventID:
+            case TimeMatchMode::MatchSyncEventID:
             {
                 ImGui::Text( "Match Sync ID" );
             }
             break;
 
-            case TimeMatchMode::MatchSourceSyncEventIDAndPercentage:
+            case TimeMatchMode::MatchSyncEventIDAndPercentage:
             {
                 ImGui::Text( "Match Sync ID and %%" );
             }
             break;
 
-            case TimeMatchMode::MatchClosestSourceSyncEventID:
+            case TimeMatchMode::MatchClosestSyncEventID:
             {
                 ImGui::Text( "Match Closest Sync ID" );
             }
             break;
 
-            case TimeMatchMode::MatchClosestSourceSyncEventIDAndPercentage:
+            case TimeMatchMode::MatchClosestSyncEventIDAndPercentage:
             {
                 ImGui::Text( "Match Closest Sync ID and %%" );
             }
@@ -128,6 +130,30 @@ namespace EE::Animation::GraphNodes
     {
         return m_canBeForced ? Colors::Salmon : FlowToolsNode::GetTitleBarColor();
     }
+
+    //-------------------------------------------------------------------------
+
+    class TransitionEditingRules : public PG::TTypeEditingRules<TransitionToolsNode>
+    {
+        using PG::TTypeEditingRules<TransitionToolsNode>::TTypeEditingRules;
+
+        virtual bool IsReadOnly( StringID const& propertyID ) override
+        {
+            return false;
+        }
+
+        virtual bool IsHidden( StringID const& propertyID ) override
+        {
+            if ( propertyID == EE_REFLECT_GET_PROPERTY_ID( TransitionToolsNode, m_boneMaskBlendInTimePercentage ) )
+            {
+                return m_pTypeInstance->GetConnectedInputNode<FlowToolsNode>( 3 ) == nullptr;
+            }
+
+            return false;
+        }
+    };
+
+    EE_PROPERTY_GRID_EDITING_RULES( TransitionEditingRulesFactory, TransitionToolsNode, TransitionEditingRules );
 
     //-------------------------------------------------------------------------
 

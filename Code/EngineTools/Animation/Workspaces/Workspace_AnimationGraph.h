@@ -4,6 +4,7 @@
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Resource/ResourcePicker.h"
 #include "EngineTools/Core/Workspace.h"
+#include "EngineTools/Core/Widgets/TreeListView.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_View.h"
 #include "EngineTools/Core/CategoryTree.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
@@ -23,7 +24,13 @@ namespace EE::Animation
     class VariationHierarchy;
     struct GraphRecorder;
 
-    namespace GraphNodes { class VirtualParameterToolsNode; class ControlParameterToolsNode; class ParameterReferenceToolsNode; }
+    namespace GraphNodes
+    {
+        class VirtualParameterToolsNode;
+        class ControlParameterToolsNode;
+        class ParameterReferenceToolsNode;
+        class IDControlParameterToolsNode;
+    }
 
     //-------------------------------------------------------------------------
 
@@ -33,6 +40,7 @@ namespace EE::Animation
         friend class BoneMaskIDEditor;
         friend class IDComboWidget;
         friend class IDEditor;
+        friend class GraphOutlinerItem;
 
     private:
 
@@ -82,6 +90,7 @@ namespace EE::Animation
         public:
 
             IDComboWidget( AnimationGraphWorkspace* pGraphWorkspace );
+            IDComboWidget( AnimationGraphWorkspace* pGraphWorkspace, GraphNodes::IDControlParameterToolsNode* pControlParameter );
 
         private:
 
@@ -89,7 +98,8 @@ namespace EE::Animation
 
         private:
 
-            AnimationGraphWorkspace* m_pGraphWorkspace = nullptr;
+            AnimationGraphWorkspace*                    m_pGraphWorkspace = nullptr;
+            GraphNodes::IDControlParameterToolsNode*    m_pControlParameter = nullptr;
         };
 
         //-------------------------------------------------------------------------
@@ -362,6 +372,13 @@ namespace EE::Animation
         void GenerateNavigationTargetList();
         void GenerateActiveTargetList();
 
+        // Graph Outliner
+        //-------------------------------------------------------------------------
+
+        void DrawOutliner( UpdateContext const& context, bool isFocused );
+        void RefreshOutliner();
+        void RebuildOutlinerTree( TreeListViewItem* pRootItem );
+
         // Property Grid
         //-------------------------------------------------------------------------
 
@@ -427,7 +444,6 @@ namespace EE::Animation
 
         void DrawVariationSelector( float width = -1 );
         void DrawVariationTreeNode( VariationHierarchy const& variationHierarchy, StringID variationID );
-        void DrawOverridesTable();
 
         void RefreshVariationEditor();
         void RefreshVariationSlotPickers();
@@ -562,13 +578,19 @@ namespace EE::Animation
         TVector<ControlParameterPreviewState*>                              m_previewParameterStates;
         CategoryTree<ControlParameterPreviewState*>                         m_previewParameterCategoryTree;
 
+        // Outliner
+        ImGuiX::FilterWidget                                                m_outlinerFilterWidget;
+        TreeListView                                                        m_outlinerTreeView;
+        TreeListViewContext                                                 m_outlinerTreeContext;
+
         // Variation Editor
         StringID                                                            m_activeOperationVariationID;
         char                                                                m_nameBuffer[255] = { 0 };
         ImGuiX::FilterWidget                                                m_variationFilter;
         Resource::ResourcePicker                                            m_variationSkeletonPicker;
         TVector<Resource::ResourcePicker>                                   m_variationResourcePickers;
-        bool                                                                m_refreshPickers = false;
+        bool                                                                m_refreshVariationEditorPickers = false;
+        bool                                                                m_variationEditorOnlyShowChildGraphs = false;
 
         // Preview/Debug
         DebugMode                                                           m_debugMode = DebugMode::None;

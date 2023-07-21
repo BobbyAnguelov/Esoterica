@@ -104,7 +104,20 @@ namespace EE::Animation::Tasks
 
     void BlendTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
     {
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, isDetailedViewEnabled );
+        TBitFlags<Pose::DrawFlags> drawFlags;
+        if ( isDetailedViewEnabled )
+        {
+            if ( m_debugBoneMask.IsValid() )
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
+            }
+            else
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+            }
+        }
+
+        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
     }
     #endif
 
@@ -207,7 +220,20 @@ namespace EE::Animation::Tasks
 
     void AdditiveBlendTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
     {
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, isDetailedViewEnabled );
+        TBitFlags<Pose::DrawFlags> drawFlags;
+        if ( isDetailedViewEnabled )
+        {
+            if ( m_debugBoneMask.IsValid() )
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
+            }
+            else
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+            }
+        }
+
+        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
     }
     #endif
 
@@ -286,7 +312,20 @@ namespace EE::Animation::Tasks
     #if EE_DEVELOPMENT_TOOLS
     void GlobalBlendTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
     {
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, isDetailedViewEnabled );
+        TBitFlags<Pose::DrawFlags> drawFlags;
+        if ( isDetailedViewEnabled )
+        {
+            if ( m_debugBoneMask.IsValid() )
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
+            }
+            else
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+            }
+        }
+
+        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
     }
     #endif
 }

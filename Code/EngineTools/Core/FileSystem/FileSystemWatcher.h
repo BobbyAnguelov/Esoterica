@@ -11,6 +11,9 @@
 // The OS level function (ReadDirectoryChangesW) will trigger a modification event for multiple operations that are part of a logical operation
 //-------------------------------------------------------------------------
 
+// TODO: change this to collect all events and provide them to the user in a batch, this will allow users to defer events to specific points in time
+// TODO: API to retrieve events can process and concatenate events together (i.e. a create, move, rename into a create with the final name) 
+
 #if _WIN32
 namespace EE::FileSystem
 {

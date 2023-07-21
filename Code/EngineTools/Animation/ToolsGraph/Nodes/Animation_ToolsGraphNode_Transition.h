@@ -26,14 +26,17 @@ namespace EE::Animation::GraphNodes
             EE_REFLECT_ENUM
 
             None,
+
             Synchronized,
-            MatchSourceSyncEventIndexOnly,
+
+            MatchSourceSyncEventIndex,
+            MatchSourceSyncEventPercentage,
             MatchSourceSyncEventIndexAndPercentage,
-            MatchSourceSyncEventID,
-            MatchClosestSourceSyncEventID,
-            MatchSourceSyncEventIDAndPercentage,
-            MatchClosestSourceSyncEventIDAndPercentage,
-            MatchSourceSyncEventPercentage
+
+            MatchSyncEventID,
+            MatchClosestSyncEventID,
+            MatchSyncEventIDAndPercentage,
+            MatchClosestSyncEventIDAndPercentage,
         };
 
     public:

@@ -23,6 +23,14 @@ namespace EE::Animation
 
     public:
 
+        #if EE_DEVELOPMENT_TOOLS
+        enum class DrawFlags
+        {
+            DrawBoneNames,
+            DrawBoneWeights,
+        };
+        #endif
+
         enum class Type : uint8_t
         {
             None = 0,
@@ -119,7 +127,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink, float lineThickness = 2.0f, BoneMask const* pBoneMask = nullptr, bool detailedView = false ) const;
+        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink, float lineThickness = 2.0f, BoneMask const* pBoneMask = nullptr, TBitFlags<DrawFlags> drawFlags = TBitFlags<DrawFlags>() ) const;
         #endif
 
     private:

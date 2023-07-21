@@ -1993,7 +1993,7 @@ namespace EE::VisualGraph
         {
             if ( pFlowGraph->HasContextMenuFilter() )
             {
-                m_contextMenuState.m_filterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::TakeInitialFocus );
+                m_contextMenuState.m_filterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::TakeInitialFocus );
             }
 
             //-------------------------------------------------------------------------
@@ -2071,7 +2071,7 @@ namespace EE::VisualGraph
         {
             if ( pStateMachineGraph->HasContextMenuFilter() )
             {
-                m_contextMenuState.m_filterWidget.DrawAndUpdate();
+                m_contextMenuState.m_filterWidget.UpdateAndDraw();
             }
 
             if ( ImGui::MenuItem( EE_ICON_IMAGE_FILTER_CENTER_FOCUS" Reset View" ) )

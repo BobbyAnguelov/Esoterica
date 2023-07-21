@@ -36,7 +36,8 @@ namespace EE
 
     namespace StringUtils
     {
-        inline bool EndsWith( String const& inStr, char const* pStringToMatch )
+        template<typename StringType>
+        inline bool EndsWith( StringType const& inStr, char const* pStringToMatch )
         {
             EE_ASSERT( pStringToMatch != nullptr );
             size_t const matchStrLen = strlen( pStringToMatch );
@@ -52,7 +53,8 @@ namespace EE
             return strcmp( pSubString, pStringToMatch ) == 0;
         }
 
-        inline String ReplaceAllOccurrences( String const& originalString, char const* pSearchString, char const* pReplacement )
+        template<typename StringType>
+        inline StringType ReplaceAllOccurrences( StringType const& originalString, char const* pSearchString, char const* pReplacement )
         {
             EE_ASSERT( pSearchString != nullptr );
             int32_t const searchLength = (int32_t) strlen( pSearchString );
@@ -63,9 +65,9 @@ namespace EE
 
             int32_t const replacementLength = ( pReplacement == nullptr ) ? 1 : (int32_t) strlen( pReplacement ) + 1;
 
-            String copiedString = originalString;
+            StringType copiedString = originalString;
             auto idx = originalString.find( pSearchString );
-            while ( idx != String::npos )
+            while ( idx != StringType::npos )
             {
                 copiedString.replace( idx, searchLength, pReplacement == nullptr ? "" : pReplacement );
                 idx = copiedString.find( pSearchString, idx + replacementLength );
@@ -74,7 +76,8 @@ namespace EE
             return copiedString;
         }
 
-        inline String& ReplaceAllOccurrencesInPlace( String& originalString, char const* pSearchString, char const* pReplacement )
+        template<typename StringType>
+        inline StringType& ReplaceAllOccurrencesInPlace( StringType& originalString, char const* pSearchString, char const* pReplacement )
         {
             EE_ASSERT( pSearchString != nullptr );
             int32_t const searchLength = (int32_t) strlen( pSearchString );
@@ -86,7 +89,7 @@ namespace EE
             int32_t const replacementLength = ( pReplacement == nullptr ) ? 1 : (int32_t) strlen( pReplacement ) + 1;
 
             auto idx = originalString.find( pSearchString );
-            while ( idx != String::npos )
+            while ( idx != StringType::npos )
             {
                 originalString.replace( idx, searchLength, pReplacement == nullptr ? "" : pReplacement );
                 idx = originalString.find( pSearchString, idx + replacementLength );
@@ -95,40 +98,23 @@ namespace EE
             return originalString;
         }
 
-        inline String RemoveAllOccurrences( String const& originalString, char const* searchString )
+        template<typename StringType>
+        inline StringType RemoveAllOccurrences( StringType const& originalString, char const* searchString )
         {
             return ReplaceAllOccurrences( originalString, searchString, "" );
         }
 
-        inline String& RemoveAllOccurrencesInPlace( String& originalString, char const* searchString )
+        template<typename StringType>
+        inline StringType& RemoveAllOccurrencesInPlace( StringType& originalString, char const* searchString )
         {
             return ReplaceAllOccurrencesInPlace( originalString, searchString, "" );
         }
 
-        inline String StripWhitespace( String const& originalString )
-        {
-            String strippedString = originalString;
-            strippedString.erase( eastl::remove( strippedString.begin(), strippedString.end(), ' ' ), strippedString.end() );
-            return strippedString;
-        }
-
         template<typename StringType>
-        inline StringType StripTrailingWhitespace( StringType const& originalString )
+        inline StringType StripAllWhitespace( StringType const& originalString )
         {
-            StringType strippedString;
-
-            auto const startIdx = originalString.find_first_not_of( ' ' );
-            if ( startIdx == StringType::npos )
-            {
-                strippedString = originalString.c_str();
-            }
-            else
-            {
-                auto const endIdx = originalString.find_last_not_of( ' ' );
-                auto const substrRange = endIdx - startIdx + 1;
-                strippedString = originalString.substr( startIdx, substrRange );
-            }
-
+            StringType strippedString = originalString;
+            strippedString.erase( eastl::remove( strippedString.begin(), strippedString.end(), ' ' ), strippedString.end() );
             return strippedString;
         }
 
@@ -136,26 +122,26 @@ namespace EE
         {
             size_t const origStringLength = strlen( string );
             InlineString tmp = string;
-            tmp = StripTrailingWhitespace( tmp );
+            tmp.rtrim();
             strncpy_s( string, origStringLength + 1, tmp.c_str(), tmp.length() );
         }
 
-        template<typename T>
-        inline void Split( String const& str, T& results, char const* pDelimiters = " ", bool ignoreEmptyStrings = true )
+        template<typename StringType, typename StringTypeVector>
+        inline void Split( StringType const& str, StringTypeVector& results, char const* pDelimiter = " ", bool ignoreEmptyStrings = true )
         {
             size_t idx, lastIdx = 0;
             results.clear();
 
             while ( true )
             {
-                idx = str.find_first_of( pDelimiters, lastIdx );
-                if ( idx == String::npos )
+                idx = str.find_first_of( pDelimiter, lastIdx );
+                if ( idx == StringType::npos )
                 {
                     idx = str.length();
 
                     if ( idx != lastIdx || !ignoreEmptyStrings )
                     {
-                        results.push_back( String( str.data() + lastIdx, idx - lastIdx ) );
+                        results.push_back( StringType( str.data() + lastIdx, idx - lastIdx ) );
                     }
                     break;
                 }
@@ -163,7 +149,7 @@ namespace EE
                 {
                     if ( idx != lastIdx || !ignoreEmptyStrings )
                     {
-                        results.push_back( String( str.data() + lastIdx, idx - lastIdx ) );
+                        results.push_back( StringType( str.data() + lastIdx, idx - lastIdx ) );
                     }
                 }
 

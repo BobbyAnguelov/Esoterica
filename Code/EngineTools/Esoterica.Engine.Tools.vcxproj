@@ -69,7 +69,6 @@
   <ItemGroup>
     <ClCompile Include="Animation\Events\AnimationEventTracks.cpp" />
     <ClCompile Include="Animation\Events\AnimationEventTrack.cpp" />
-    <ClCompile Include="Animation\Events\AnimationEventEditor.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.cpp" />
@@ -119,7 +118,6 @@
     <ClCompile Include="Core\PropertyGrid\PropertyGridTypeEditingRules.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_UserContext.cpp" />
     <ClCompile Include="Core\ToolsContext.cpp" />
-    <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp" />
     <ClCompile Include="Entity\Workspaces\Workspace_EntityEditor.cpp" />
     <ClCompile Include="Entity\EntitySerializationTools.cpp" />
     <ClCompile Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.cpp" />
@@ -169,8 +167,8 @@
     <ClCompile Include="Resource\ResourceDescriptorCreator.cpp" />
     <ClCompile Include="Resource\ResourceDatabase.cpp" />
     <ClCompile Include="Resource\ResourcePicker.cpp" />
-    <ClCompile Include="Core\TimelineEditor\TimelineTrack.cpp" />
-    <ClCompile Include="Core\TimelineEditor\TimelineEditor.cpp" />
+    <ClCompile Include="Core\Timeline\Timeline.cpp" />
+    <ClCompile Include="Core\Timeline\TimelineEditor.cpp" />
     <ClCompile Include="Core\UndoStack.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_BaseGraph.cpp" />
     <ClCompile Include="Core\VisualGraph\VisualGraph_FlowGraph.cpp" />
@@ -186,7 +184,6 @@
   <ItemGroup>
     <ClInclude Include="Animation\Events\AnimationEventTracks.h" />
     <ClInclude Include="Animation\Events\AnimationEventTrack.h" />
-    <ClInclude Include="Animation\Events\AnimationEventEditor.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.h" />
@@ -237,7 +234,6 @@
     <ClInclude Include="Core\EditorTools\EditorTool_SystemLog.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h" />
-    <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h" />
     <ClInclude Include="Core\VisualGraph\VisualGraph_UserContext.h" />
     <ClInclude Include="Entity\Workspaces\Workspace_EntityEditor.h" />
     <ClInclude Include="Entity\EntitySerializationTools.h" />
@@ -301,8 +297,8 @@
     <ClInclude Include="ThirdParty\delabella\predicates.h" />
     <ClInclude Include="ThirdParty\pfd\portable-file-dialogs.h" />
     <ClInclude Include="ThirdParty\subprocess\subprocess.h" />
-    <ClInclude Include="Core\TimelineEditor\TimelineTrack.h" />
-    <ClInclude Include="Core\TimelineEditor\TimelineEditor.h" />
+    <ClInclude Include="Core\Timeline\Timeline.h" />
+    <ClInclude Include="Core\Timeline\TimelineEditor.h" />
     <ClInclude Include="Core\ToolsContext.h" />
     <ClInclude Include="Core\UndoStack.h" />
     <ClInclude Include="Core\VisualGraph\VisualGraph_BaseGraph.h" />

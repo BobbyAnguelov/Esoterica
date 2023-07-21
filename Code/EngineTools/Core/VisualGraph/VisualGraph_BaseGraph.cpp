@@ -7,10 +7,11 @@
 
 namespace EE::VisualGraph
 {
-    static void TraverseHierarchy( BaseNode const* pNode, TVector<BaseNode const*>& nodePath )
+    template<typename T>
+    static void TraverseHierarchy( T* pNode, TVector<T*>& nodePath )
     {
         EE_ASSERT( pNode != nullptr );
-        nodePath.emplace_back( pNode );
+        nodePath.insert( nodePath.begin(), pNode );
 
         if ( pNode->HasParentGraph() && !pNode->GetParentGraph()->IsRootGraph() )
         {
@@ -108,6 +109,21 @@ namespace EE::VisualGraph
         return pRootGraph;
     }
 
+    bool BaseNode::HasParentNode() const
+    {
+        return m_pParentGraph->GetParentNode() != nullptr;
+    }
+
+    BaseNode* BaseNode::GetParentNode()
+    {
+        return m_pParentGraph->GetParentNode();
+    }
+
+    BaseNode const* BaseNode::GetParentNode() const
+    {
+        return m_pParentGraph->GetParentNode();
+    }
+
     String BaseNode::GetStringPathFromRoot() const
     {
         TVector<BaseNode const*> path;
@@ -116,10 +132,10 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         String pathString;
-        for ( auto iter = path.rbegin(); iter != path.rend(); ++iter )
+        for ( auto iter = path.begin(); iter != path.end(); ++iter )
         {
             pathString += ( *iter )->GetName();
-            if ( iter != ( path.rend() - 1 ) )
+            if ( iter != ( path.end() - 1 ) )
             {
                 pathString += "/";
             }
@@ -136,12 +152,19 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         TVector<UUID> pathFromRoot;
-        for ( auto iter = path.rbegin(); iter != path.rend(); ++iter )
+        for ( auto iter = path.begin(); iter != path.end(); ++iter )
         {
             pathFromRoot.emplace_back( ( *iter )->GetID() );
         }
 
         return pathFromRoot;
+    }
+
+    TVector<BaseNode*> BaseNode::GetNodePathFromRoot() const
+    {
+        TVector<BaseNode*> path;
+        TraverseHierarchy( const_cast<BaseNode*>( this ), path );
+        return path;
     }
 
     void BaseNode::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue )

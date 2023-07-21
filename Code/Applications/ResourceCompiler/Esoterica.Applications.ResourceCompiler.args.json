@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "f8148f1b-de13-43e7-ad59-c47f3bdd3421",
+      "Command": "-compile data://packs/amplify/idle.anim"
+    },
+    {
       "Id": "daf1c588-32c9-4fe9-bd28-de4aae719214",
       "Command": "-compile data://citadel/npc/trooper_melee/animation/aim_c.anim"
     },

@@ -498,6 +498,47 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    FootstepEventIDToolsNode::FootstepEventIDToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "ID", GraphValueType::ID, true );
+    }
+
+    int16_t FootstepEventIDToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        FootstepEventIDNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<FootstepEventIDNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pSettings->m_rules.ClearAllFlags();
+            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_priorityRule )
+            {
+                case EventPriorityRule::HighestWeight:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                }
+                break;
+
+                case EventPriorityRule::HighestPercentageThrough:
+                {
+                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                }
+                break;
+            }
+        }
+        return pSettings->m_nodeIdx;
+    }
+
+    //-------------------------------------------------------------------------
+
     SyncEventIndexConditionToolsNode::SyncEventIndexConditionToolsNode()
         : FlowToolsNode()
     {
@@ -539,16 +580,57 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    CurrentSyncEventToolsNode::CurrentSyncEventToolsNode()
+    CurrentSyncEventIDToolsNode::CurrentSyncEventIDToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Result", GraphValueType::ID, true );
+    }
+
+    int16_t CurrentSyncEventIDToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        CurrentSyncEventIDNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<CurrentSyncEventIDNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            EE_ASSERT( context.IsCompilingConduit() );
+            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+        }
+        return pSettings->m_nodeIdx;
+    }
+
+    //-------------------------------------------------------------------------
+
+    CurrentSyncEventIndexToolsNode::CurrentSyncEventIndexToolsNode()
         : FlowToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Float, true );
     }
 
-    int16_t CurrentSyncEventToolsNode::Compile( GraphCompilationContext& context ) const
+    int16_t CurrentSyncEventIndexToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CurrentSyncEventNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<CurrentSyncEventNode>( this, pSettings );
+        CurrentSyncEventIndexNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<CurrentSyncEventIndexNode>( this, pSettings );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            EE_ASSERT( context.IsCompilingConduit() );
+
+            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+        }
+        return pSettings->m_nodeIdx;
+    }
+
+    //-------------------------------------------------------------------------
+
+    CurrentSyncEventPercentageThroughToolsNode::CurrentSyncEventPercentageThroughToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Result", GraphValueType::Float, true );
+    }
+
+    int16_t CurrentSyncEventPercentageThroughToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        CurrentSyncEventPercentageThroughNode::Settings* pSettings = nullptr;
+        NodeCompilationState const state = context.GetSettings<CurrentSyncEventPercentageThroughNode>( this, pSettings );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             EE_ASSERT( context.IsCompilingConduit() );

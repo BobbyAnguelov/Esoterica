@@ -74,9 +74,9 @@ namespace EE::Resource
         virtual bool IsActivatable() const override { return false; }
         virtual bool IsLeaf() const override { return IsFile(); }
 
-        virtual String GetDisplayName() const override
+        virtual InlineString GetDisplayName() const override
         {
-            String displayName;
+            InlineString displayName;
 
             if ( IsDirectory() )
             {
@@ -174,7 +174,7 @@ namespace EE::Resource
     {
         m_treeview.SetFlag( TreeListView::ExpandItemsOnlyViaArrow, true );
 
-        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pResourceDatabase->OnDatabaseUpdated().Bind( [this] () { m_rebuildTree = true; } );
+        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pResourceDatabase->OnFileSystemCacheUpdated().Bind( [this] () { m_rebuildTree = true; } );
 
         // Create descriptor category tree
         //-------------------------------------------------------------------------
@@ -206,7 +206,7 @@ namespace EE::Resource
 
     ResourceBrowserEditorTool::~ResourceBrowserEditorTool()
     {
-        m_pToolsContext->m_pResourceDatabase->OnDatabaseUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
+        m_pToolsContext->m_pResourceDatabase->OnFileSystemCacheUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
         EE::Delete( m_pResourceDescriptorCreator );
     }
 
@@ -245,13 +245,17 @@ namespace EE::Resource
 
     void ResourceBrowserEditorTool::DrawBrowserWindow( UpdateContext const& context, bool isFocused )
     {
-        if ( m_pToolsContext->m_pResourceDatabase->IsRebuilding() )
+        // Draw progress bar
+        if ( m_pToolsContext->m_pResourceDatabase->IsBuildingCaches() )
         {
-            ImGui::Text( "Resource DB building: " );
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( m_pToolsContext->m_pResourceDatabase->IsFileSystemCacheBuilt() ? "Building Descriptor Cache: " : "Building File System Cache: " );
             ImGui::SameLine();
-            ImGui::ProgressBar( m_pToolsContext->m_pResourceDatabase->GetRebuildProgress() );
+            ImGui::ProgressBar( m_pToolsContext->m_pResourceDatabase->GetProgress() );
         }
-        else
+
+        // Draw file system tree
+        if( m_pToolsContext->m_pResourceDatabase->IsFileSystemCacheBuilt() )
         {
             DrawCreationControls( context );
             DrawFilterOptions( context );
@@ -268,7 +272,7 @@ namespace EE::Resource
 
     void ResourceBrowserEditorTool::RebuildTreeView( TreeListViewItem* pRootItem )
     {
-        EE_ASSERT( !m_pToolsContext->m_pResourceDatabase->IsRebuilding() );
+        EE_ASSERT( m_pToolsContext->m_pResourceDatabase->IsFileSystemCacheBuilt() );
         auto pDataDirectory = m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryEntry();
 
         //-------------------------------------------------------------------------
@@ -479,7 +483,7 @@ namespace EE::Resource
         // Text Filter
         //-------------------------------------------------------------------------
 
-        if ( m_filter.DrawAndUpdate() )
+        if ( m_filter.UpdateAndDraw() )
         {
             shouldUpdateVisibility = true;
 

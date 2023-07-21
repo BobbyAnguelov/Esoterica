@@ -73,7 +73,8 @@ namespace EE
 
         // The friendly display name printed in the UI (generally the same as the nameID)
         // This is separate from the name since we might want to add an icon or other decoration to the display name without changing the name
-        virtual String GetDisplayName() const
+        // The return by value is intentional and makes a bunch of operations easier/safer but should be changed if it becomes a perf issue
+        virtual InlineString GetDisplayName() const
         {
             StringID const nameID = GetNameID();
             return nameID.IsValid() ? nameID.c_str() : "!!! Invalid Name !!!";
@@ -289,8 +290,8 @@ namespace EE
             DrawBorders,
             UseSmallFont,
             ShowBulletsOnLeaves,
-            SortTree,
-            ViewTracksSelection,
+            SortTree, // Sort all items in the tree
+            TrackSelection, // Update the viewed items to match the current selection
         };
 
     public:
@@ -364,28 +365,28 @@ namespace EE
         inline bool IsItemSelected( uint64_t uniqueID ) const { auto pItem = FindItem( uniqueID ); return pItem == nullptr ? false : pItem->m_isSelected; }
 
         // Set the selection to a single item - Notification will only be fired if the selection actually changes
-        inline void SetSelection( TreeListViewItem* pItem ){ SetSelectionInternal( pItem, m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void SetSelection( TreeListViewItem* pItem ){ SetSelectionInternal( pItem, m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Add to the current selection - Notification will only be fired if the selection actually changes
-        inline void AddToSelection( TreeListViewItem* pItem ){ AddToSelectionInternal( pItem, m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void AddToSelection( TreeListViewItem* pItem ){ AddToSelectionInternal( pItem, m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Add an item range to the selection - Notification will only be fired if the selection actually changes
-        inline void AddToSelection( TVector<TreeListViewItem*> const& itemRange ){ AddToSelectionInternal( itemRange, m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void AddToSelection( TVector<TreeListViewItem*> const& itemRange ){ AddToSelectionInternal( itemRange, m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Add an item range to the selection - Notification will only be fired if the selection actually changes
-        inline void SetSelection( TVector<TreeListViewItem*> const& itemRange ){ SetSelectionInternal( itemRange, m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void SetSelection( TVector<TreeListViewItem*> const& itemRange ){ SetSelectionInternal( itemRange, m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Remove an item from the current selection - Notification will only be fired if the selection actually changes
-        inline void RemoveFromSelection( TreeListViewItem* pItem ) { RemoveFromSelectionInternal( pItem, m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void RemoveFromSelection( TreeListViewItem* pItem ) { RemoveFromSelectionInternal( pItem, m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Set the selection to a single item - Notification will only be fired if the selection actually changes
-        inline void SetSelection( uint64_t itemID ) { SetSelectionInternal( FindItem( itemID ), m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void SetSelection( uint64_t itemID ) { SetSelectionInternal( FindItem( itemID ), m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Add to the current selection - Notification will only be fired if the selection actually changes
-        inline void AddToSelection( uint64_t itemID ) { AddToSelectionInternal( FindItem( itemID ), m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void AddToSelection( uint64_t itemID ) { AddToSelectionInternal( FindItem( itemID ), m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Remove an item from the current selection - Notification will only be fired if the selection actually changes
-        inline void RemoveFromSelection( uint64_t itemID ) { RemoveFromSelectionInternal( FindItem( itemID ), m_flags.IsFlagSet( ViewTracksSelection ) ); }
+        inline void RemoveFromSelection( uint64_t itemID ) { RemoveFromSelectionInternal( FindItem( itemID ), m_flags.IsFlagSet( TrackSelection ) ); }
 
         // Bulk Item Operations
         //-------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "EngineTools/Core/TimelineEditor/TimelineTrack.h"
+#include "EngineTools/Core/Timeline/Timeline.h"
 #include "Engine/Animation/AnimationEvent.h"
 #include "Base/TypeSystem/ReflectedType.h"
 
@@ -11,20 +11,9 @@
 
 namespace EE::Animation
 {
-    enum class EventType
-    {
-        EE_REFLECT_ENUM
-
-        Immediate,
-        Duration,
-        Both
-    };
-
-    //-------------------------------------------------------------------------
-
     class EventTrack : public Timeline::Track
     {
-        friend class EventEditor;
+        friend class EventTimeline;
         EE_REFLECT_TYPE( EventTrack );
 
     protected:
@@ -46,20 +35,40 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const = 0;
-        virtual bool AllowMultipleTracks() const { return false; }
-        virtual EventType GetAllowedEventType() const { return EventType::Duration; }
 
     protected:
 
-        virtual Status GetValidationStatus( float timelineLength ) const override;
+        virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
         virtual bool HasContextMenu() const override { return true; }
-        virtual void DrawContextMenu( TVector<Track*>& tracks, float playheadPosition ) override;
-        virtual Timeline::TrackItem* CreateItemInternal( float itemStartTime ) override;
+        virtual void DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) override;
+        virtual Timeline::TrackItem* CreateItemInternal( Timeline::TrackContext const& context, float itemStartTime ) override;
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) override;
 
     protected:
 
-        EE_REFLECT() EventType                             m_eventType = EventType::Duration;
         EE_REFLECT() bool                                  m_isSyncTrack = false;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EventTimeline : public Timeline::TimelineData
+    {
+    public:
+
+        EventTimeline( TFunction<void()>&& onBeginModification, TFunction<void()>&& onEndModification, TypeSystem::TypeRegistry const& typeRegistry );
+
+        // Set the time info for the animation this event data is attached to, has to be done after the fact since we need to load the animation first
+        void SetAnimationInfo( uint32_t numFrames, float FPS );
+
+        // Custom serialization
+        virtual bool Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue ) override;
+
+    private:
+
+        virtual float ConvertSecondsToTimelineUnit( Seconds const inTime ) const override { return inTime.ToFloat() * m_FPS; }
+
+    private:
+
+        float                                       m_FPS = 0.0f;
     };
 }

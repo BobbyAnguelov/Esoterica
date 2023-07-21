@@ -221,6 +221,36 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    class FootstepEventIDToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( FootstepEventIDToolsNode );
+
+    public:
+
+        FootstepEventIDToolsNode();
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
+        virtual char const* GetTypeName() const override { return "Footstep Event ID"; }
+        virtual char const* GetCategory() const override { return "Events"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+    private:
+
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
+
+        // When used in a transition, should we limit the search to only the source state?
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_limitSearchToSourceState = false;
+
+        // Ignore any events from states that we are transitioning away from
+        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        bool                                            m_ignoreInactiveBranchEvents = false;
+    };
+
+    //-------------------------------------------------------------------------
+
     class SyncEventIndexConditionToolsNode final : public FlowToolsNode
     {
         EE_REFLECT_TYPE( SyncEventIndexConditionToolsNode );
@@ -247,16 +277,50 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class CurrentSyncEventToolsNode final : public FlowToolsNode
+    class CurrentSyncEventIDToolsNode final : public FlowToolsNode
     {
-        EE_REFLECT_TYPE( CurrentSyncEventToolsNode );
+        EE_REFLECT_TYPE( CurrentSyncEventIDToolsNode );
 
     public:
 
-        CurrentSyncEventToolsNode();
+        CurrentSyncEventIDToolsNode();
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
+        virtual char const* GetTypeName() const override { return "Current Sync Event ID"; }
+        virtual char const* GetCategory() const override { return "Events"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class CurrentSyncEventIndexToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( CurrentSyncEventIndexToolsNode );
+
+    public:
+
+        CurrentSyncEventIndexToolsNode();
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
-        virtual char const* GetTypeName() const override { return "Current Sync Event"; }
+        virtual char const* GetTypeName() const override { return "Current Sync Event Index"; }
+        virtual char const* GetCategory() const override { return "Events"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class CurrentSyncEventPercentageThroughToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( CurrentSyncEventPercentageThroughToolsNode );
+
+    public:
+
+        CurrentSyncEventPercentageThroughToolsNode();
+
+        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
+        virtual char const* GetTypeName() const override { return "Current Sync Event Percentage Through"; }
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

@@ -1,8 +1,9 @@
 #pragma once
 
+#include "EngineTools/Animation/Events/AnimationEventTrack.h"
+#include "EngineTools/Core/Timeline/TimelineEditor.h"
 #include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Core/Workspace.h"
-#include "EngineTools/Animation/Events/AnimationEventEditor.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Base/Time/Timers.h"
 
@@ -37,6 +38,8 @@ namespace EE::Animation
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
+        virtual void DrawMenu( UpdateContext const& context ) override;
+
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
 
@@ -44,6 +47,7 @@ namespace EE::Animation
 
         virtual void ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) override;
         virtual void WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) override;
+        virtual void PreUndoRedo( UndoStack::Operation operation ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_RUN_FAST; }
@@ -63,13 +67,13 @@ namespace EE::Animation
         Entity*                         m_pPreviewEntity = nullptr;
         AnimationClipPlayerComponent*   m_pAnimationComponent = nullptr;
         Render::SkeletalMeshComponent*  m_pMeshComponent = nullptr;
-        EventEditor                     m_eventEditor;
+
+        EventTimeline                   m_eventTimeline;
+        Timeline::TimelineEditor        m_timelineEditor;
+
         PropertyGrid                    m_propertyGrid;
         EventBindingID                  m_propertyGridPreEditEventBindingID;
         EventBindingID                  m_propertyGridPostEditEventBindingID;
-
-        EventBindingID                  m_beginModEventID;
-        EventBindingID                  m_endModEventID;
 
         ImGuiX::FilterWidget            m_clipBrowserFilter;
         TVector<ResourceID>             m_clipsWithSameSkeleton;
@@ -81,6 +85,7 @@ namespace EE::Animation
         Percentage                      m_currentAnimTime = 0.0f;
         bool                            m_isRootMotionEnabled = true;
         bool                            m_isPoseDrawingEnabled = true;
+        bool                            m_shouldDrawBoneNames = false;
         bool                            m_characterPoseUpdateRequested = false;
         bool                            m_isPreviewCapsuleDrawingEnabled = false;
         float                           m_previewCapsuleHalfHeight = 0.65f;

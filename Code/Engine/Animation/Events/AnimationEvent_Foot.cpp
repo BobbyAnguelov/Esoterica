@@ -18,10 +18,11 @@ namespace EE::Animation
     {
         "Left Foot Down",
         "Left Foot Passing",
-        "Left Phase",
 
         "Right Foot Down",
         "Right Foot Passing",
+
+        "Left Phase",
         "Right Phase"
     };
 

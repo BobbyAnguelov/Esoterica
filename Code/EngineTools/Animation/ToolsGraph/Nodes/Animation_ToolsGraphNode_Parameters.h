@@ -44,6 +44,8 @@ namespace EE::Animation::GraphNodes
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual bool IsPersistentNode() const override { return true; }
 
+        virtual void ReflectPreviewValues( ControlParameterToolsNode const* pOtherParameterNode ) {}
+
     private:
 
         EE_REFLECT( "IsToolsReadOnly" : true ) String                     m_name;
@@ -109,10 +111,20 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
 
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
+        virtual void ReflectPreviewValues( ControlParameterToolsNode const* pOtherParameterNode ) override;
+
+        // Get all the expected preview values for this parameter
+        TVector<StringID> const& GetExpectedPreviewValues() const { return m_expectedValues; }
+
     private:
 
         EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
-        StringID m_previewStartValue;
+        StringID                    m_previewStartValue;
+
+        EE_REFLECT();
+        TVector<StringID>           m_expectedValues;
     };
 
     //-------------------------------------------------------------------------

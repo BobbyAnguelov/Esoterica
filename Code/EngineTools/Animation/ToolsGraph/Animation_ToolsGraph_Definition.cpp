@@ -195,13 +195,15 @@ namespace EE::Animation
             return SearchResult::CanAdd;
         };
 
-        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory )
+        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory, GraphNodes::ControlParameterToolsNode* pOtherParameterNode = nullptr )
         {
             switch ( result )
             {
                 case SearchResult::CanAdd:
                 {
-                    GraphNodes::ControlParameterToolsNode::Create( pRootGraph, type, parameterName, parameterCategory );
+                    auto pCreatedParameterNode = GraphNodes::ControlParameterToolsNode::Create( pRootGraph, type, parameterName, parameterCategory );
+                    pCreatedParameterNode->ReflectPreviewValues( pOtherParameterNode );
+
                     if ( pOptionalOutputLog != nullptr )
                     {
                         pOptionalOutputLog->emplace_back( String::CtorSprintf(), "Parameter Added: %s", parameterName.c_str() );
@@ -227,6 +229,21 @@ namespace EE::Animation
                 }
                 break;
 
+                case SearchResult::AlreadyExists:
+                {
+                    pOptionalOutputLog->emplace_back( String::CtorSprintf(), "Parameter Exists, Reflecting preview values: %s\n", parameterName.c_str() );
+
+                    for ( auto pExistingControlParameter : controlParameters )
+                    {
+                        if ( pExistingControlParameter->GetParameterName().comparei( parameterName ) == 0 )
+                        {
+                            pExistingControlParameter->ReflectPreviewValues( pOtherParameterNode );
+                            break;
+                        }
+                    }
+                }
+                break;
+
                 default:
                 break;
             }
@@ -237,7 +254,7 @@ namespace EE::Animation
         for ( auto pParameterNode : otherControlParameters )
         {
             SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetValueType() );
-            ProcessResult( result, pParameterNode->GetValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterCategory() );
+            ProcessResult( result, pParameterNode->GetValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterCategory(), pParameterNode );
         }
 
         //-------------------------------------------------------------------------

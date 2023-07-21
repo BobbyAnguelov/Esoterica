@@ -657,6 +657,111 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    void FootstepEventIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<FootstepEventIDNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void FootstepEventIDNode::InitializeInternal( GraphContext& context )
+    {
+        IDValueNode::InitializeInternal( context );
+        if ( m_pSourceStateNode != nullptr )
+        {
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+        }
+
+        m_result = StringID();
+    }
+
+    void FootstepEventIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
+        auto pSettings = GetSettings<FootstepEventPercentageThroughNode>();
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
+            //-------------------------------------------------------------------------
+
+            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+
+            float foundPercentageThrough = 0.0f;
+            float highestWeightFound = -1.0f;
+            StringID foundID;
+            bool eventFound = false;
+
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
+            {
+                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( auto pEvent = pSampledEvent->TryGetEvent<FootEvent>() )
+                {
+                    bool updateEvent = false;
+
+                    // If we already have a found event then apply priority rule
+                    if ( eventFound )
+                    {
+                        if ( preferHigherWeight )
+                        {
+                            if ( pSampledEvent->GetWeight() >= highestWeightFound )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                        else // Prefer higher percentage through
+                        {
+                            if ( pSampledEvent->GetPercentageThrough().ToFloat() >= foundPercentageThrough )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                    }
+                    else // Just update the found data
+                    {
+                        updateEvent = true;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( updateEvent )
+                    {
+                        eventFound = true;
+                        foundPercentageThrough = pSampledEvent->GetPercentageThrough().ToFloat();
+                        highestWeightFound = pSampledEvent->GetWeight();
+                        foundID = pEvent->GetSyncEventID();
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            m_result = foundID;
+        }
+
+        *( (StringID*) pOutValue ) = m_result;
+    }
+
+
+    //-------------------------------------------------------------------------
+
     void SyncEventIndexConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<SyncEventIndexConditionNode>( context, options );
@@ -705,20 +810,52 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CurrentSyncEventIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CurrentSyncEventNode>( context, options );
+        auto pNode = CreateNode<CurrentSyncEventIDNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
-    void CurrentSyncEventNode::InitializeInternal( GraphContext& context )
+    void CurrentSyncEventIDNode::InitializeInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
+        IDValueNode::InitializeInternal( context );
+        m_result = StringID();
+    }
+
+    void CurrentSyncEventIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            auto const& sourceStateSyncTrack = m_pSourceStateNode->GetSyncTrack();
+            auto currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
+            m_result = sourceStateSyncTrack.GetEventID( currentSyncTime.m_eventIdx );
+            MarkNodeActive( context );
+        }
+
+        // Set Result
+        *( (StringID*) pOutValue ) = m_result;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void CurrentSyncEventIndexNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<CurrentSyncEventIndexNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void CurrentSyncEventIndexNode::InitializeInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
         FloatValueNode::InitializeInternal( context );
         m_result = 0.0f;
     }
 
-    void CurrentSyncEventNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void CurrentSyncEventIndexNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
 
@@ -728,6 +865,38 @@ namespace EE::Animation::GraphNodes
             auto const& sourceStateSyncTrack = m_pSourceStateNode->GetSyncTrack();
             auto currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
             m_result = (float) currentSyncTime.m_eventIdx;
+            MarkNodeActive( context );
+        }
+
+        // Set Result
+        *( (float*) pOutValue ) = m_result;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void CurrentSyncEventPercentageThroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<CurrentSyncEventPercentageThroughNode>( context, options );
+        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void CurrentSyncEventPercentageThroughNode::InitializeInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
+        FloatValueNode::InitializeInternal( context );
+        m_result = 0.0f;
+    }
+
+    void CurrentSyncEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            auto const& sourceStateSyncTrack = m_pSourceStateNode->GetSyncTrack();
+            auto currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
+            m_result = currentSyncTime.m_percentageThrough;
             MarkNodeActive( context );
         }
 

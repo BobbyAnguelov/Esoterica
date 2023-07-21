@@ -154,6 +154,70 @@ namespace EE::Animation::GraphNodes
         CreateOutputPin( "Value", GraphValueType::ID, true );
     }
 
+    void IDControlParameterToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        outIDs.emplace_back( m_previewStartValue );
+        for ( auto ID : m_expectedValues )
+        {
+            if ( ID.IsValid() )
+            {
+                outIDs.emplace_back( ID );
+            }
+        }
+    }
+
+    void IDControlParameterToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        bool foundMatch = ( m_previewStartValue == oldID );
+        if ( !foundMatch )
+        {
+            for ( auto const& ID : m_expectedValues )
+            {
+                if ( ID == oldID )
+                {
+                    foundMatch = true;
+                    break;
+                }
+            }
+        }
+
+        if ( foundMatch )
+        {
+            VisualGraph::ScopedNodeModification snm( this );
+
+            if ( m_previewStartValue == oldID )
+            {
+                m_previewStartValue = newID;
+            }
+
+            for ( auto& ID : m_expectedValues )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
+        }
+    }
+
+    void IDControlParameterToolsNode::ReflectPreviewValues( ControlParameterToolsNode const* pOtherParameterNode )
+    {
+        auto pRHS = Cast<IDControlParameterToolsNode>( pOtherParameterNode );
+
+        for ( auto otherID : pRHS->m_expectedValues )
+        {
+            if ( !otherID.IsValid() )
+            {
+                continue;
+            }
+
+            if ( !VectorContains( m_expectedValues, otherID ) )
+            {
+                m_expectedValues.emplace_back( otherID );
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     VectorControlParameterToolsNode::VectorControlParameterToolsNode()

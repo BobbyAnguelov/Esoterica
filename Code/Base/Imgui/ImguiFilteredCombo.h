@@ -23,6 +23,7 @@ namespace EE::ImGuiX
             String  m_label;
             String  m_filterComparator; // lowercase version of the label
             T       m_value;
+            bool    m_isSeparator = false; // Is this just a visual separator value
         };
 
     public:
@@ -127,7 +128,7 @@ namespace EE::ImGuiX
             // Draw combo if open
             if ( m_isComboOpen )
             {
-                if ( m_filterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
+                if ( m_filterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
                 {
                     ApplyFilterToOptions();
                 }
@@ -138,9 +139,12 @@ namespace EE::ImGuiX
                 {
                     if ( DrawOption( m_filteredOptions[i] ) )
                     {
-                        m_selectedIdx = i;
-                        valueUpdated = true;
-                        ImGui::CloseCurrentPopup();
+                        if ( !m_filteredOptions[i].m_isSeparator )
+                        {
+                            m_selectedIdx = i;
+                            valueUpdated = true;
+                            ImGui::CloseCurrentPopup();
+                        }
                     }
                 }
 
@@ -175,7 +179,23 @@ namespace EE::ImGuiX
     template<typename T>
     bool EE::ImGuiX::ComboWithFilterWidget<T>::DrawOption( Option const& option ) const
     {
-        return ImGui::MenuItem( option.m_label.c_str() );
+        if ( option.m_isSeparator )
+        {
+            if ( option.m_label.empty() )
+            {
+                ImGui::Separator();
+            }
+            else
+            {
+                ImGuiX::TextSeparator( option.m_label.c_str() );
+            }
+
+            return false;
+        }
+        else
+        {
+            return ImGui::MenuItem( option.m_label.c_str() );
+        }
     }
 
     template<typename T>
@@ -187,7 +207,7 @@ namespace EE::ImGuiX
 
             for ( auto const& option : m_options )
             {
-                if ( m_filterWidget.MatchesFilter( option.m_filterComparator ) )
+                if ( option.m_isSeparator || m_filterWidget.MatchesFilter( option.m_filterComparator ) )
                 {
                     m_filteredOptions.emplace_back( option );
                 }
@@ -209,7 +229,7 @@ namespace EE::ImGuiX
         {
             for ( auto i = 0u; i < m_filteredOptions.size(); i++ )
             {
-                if ( m_filteredOptions[i].m_value == selectedItem )
+                if ( !m_filteredOptions[i].m_isSeparator && m_filteredOptions[i].m_value == selectedItem )
                 {
                     m_selectedIdx = i;
                     break;

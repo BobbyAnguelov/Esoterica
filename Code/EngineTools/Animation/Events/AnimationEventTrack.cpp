@@ -1,5 +1,6 @@
 #include "AnimationEventTrack.h"
 #include "Base/Imgui/ImguiX.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -16,20 +17,22 @@ namespace EE::Animation
         }
     }
 
-    void EventTrack::DrawContextMenu( TVector<Track*>& tracks, float playheadPosition )
+    void EventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition )
     {
         if ( m_isSyncTrack )
         {
             if ( ImGui::MenuItem( EE_ICON_SYNC" Clear Sync Track" ) )
             {
+                Timeline::ScopedTimelineModification const stm( context );
                 m_isSyncTrack = false;
-                MarkDirty();
             }
         }
         else // Allow setting of sync track
         {
             if ( ImGui::MenuItem( EE_ICON_SYNC" Set As Sync Track" ) )
             {
+                Timeline::ScopedTimelineModification const stm( context );
+
                 // Clear sync track from any other track
                 for ( auto pTrack : tracks )
                 {
@@ -37,21 +40,46 @@ namespace EE::Animation
                 }
 
                 m_isSyncTrack = true;
-                MarkDirty();
+            }
+        }
+
+        if ( m_itemType == Timeline::ItemType::Duration )
+        {
+            if ( ImGui::MenuItem( EE_ICON_ARROW_LEFT_RIGHT" Expand events to fill gaps" ) )
+            {
+                Timeline::ScopedTimelineModification const stm( context );
+
+                int32_t const numEvents = GetNumItems();
+                for ( int32_t i = 0; i < numEvents; i++ )
+                {
+                    // Last event
+                    if ( i == numEvents - 1 )
+                    { 
+                        FloatRange newTimeRange = m_items[i]->GetTimeRange();
+                        newTimeRange.m_end = context.GetTimeRange().m_end;
+                        m_items[i]->SetTimeRange( newTimeRange );
+                    }
+                    else
+                    {
+                        FloatRange newTimeRange = m_items[i]->GetTimeRange();
+                        newTimeRange.m_end = m_items[i + 1]->GetTimeRange().m_begin;
+                        m_items[i]->SetTimeRange( newTimeRange );
+                    }
+                }
             }
         }
     }
 
-    Timeline::TrackItem* EventTrack::CreateItemInternal( float itemStartTime )
+    Timeline::TrackItem* EventTrack::CreateItemInternal( Timeline::TrackContext const& context, float itemStartTime )
     {
         auto pAnimEvent = Cast<Event>( GetEventTypeInfo()->CreateType() );
-        float const duration = ( m_eventType == EventType::Duration ) ? 1.0f : 0.0f;
+        float const duration = ( m_itemType == Timeline::ItemType::Duration ) ? 1.0f : 0.0f;
         FloatRange const itemRange( itemStartTime, itemStartTime + duration );
         auto pCreatedItem = m_items.emplace_back( EE::New<Timeline::TrackItem>( itemRange, pAnimEvent ) );
         return pCreatedItem;
     };
 
-    Timeline::Track::Status EventTrack::GetValidationStatus( float timelineLength ) const
+    Timeline::Track::Status EventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
         bool hasValidEvents = false;
         bool hasInvalidEvents = false;
@@ -74,16 +102,69 @@ namespace EE::Animation
         // Warning
         if ( hasInvalidEvents && hasValidEvents )
         {
-            m_statusMessage = "Track contains invalid events, these events will be ignored";
+            m_validationStatueMessage = "Track contains invalid events, these events will be ignored";
             return Status::HasWarnings;
         }
         // Error
         else if ( hasInvalidEvents && !hasValidEvents )
         {
-            m_statusMessage = "Track doesnt contain any valid events!";
+            m_validationStatueMessage = "Track doesnt contain any valid events!";
             return Status::HasErrors;
         }
 
         return Status::Valid;
     }
+
+    //-------------------------------------------------------------------------
+
+    EventTimeline::EventTimeline( TFunction<void()>&& onBeginModification, TFunction<void()>&& onEndModification, TypeSystem::TypeRegistry const& typeRegistry )
+        : TimelineData( onBeginModification, onEndModification )
+    {
+        m_allowedTrackTypes = typeRegistry.GetAllDerivedTypes( EventTrack::GetStaticTypeID(), false, false, true );
+    }
+
+    void EventTimeline::SetAnimationInfo( uint32_t numFrames, float FPS )
+    {
+        EE_ASSERT( numFrames > 0.0f );
+        if ( m_timeRange.m_end != (int32_t) numFrames - 1 )
+        {
+            SetTimeRange( FloatRange( 0, float( numFrames - 1 ) ) );
+        }
+
+        EE_ASSERT( FPS >= 0.0f );
+        if ( m_FPS != FPS )
+        {
+            m_FPS = FPS;
+        }
+    }
+
+    bool EventTimeline::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
+    {
+        if ( !Timeline::TimelineData::Serialize( typeRegistry, typeObjectValue ) )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t numSyncTracks = 0;
+        for ( auto pTrack : m_tracks )
+        {
+            auto pEventTrack = reinterpret_cast<EventTrack*>( pTrack );
+            if ( pEventTrack->m_isSyncTrack )
+            {
+                numSyncTracks++;
+
+                // If we have more than one sync track, clear the rest
+                if ( numSyncTracks > 1 )
+                {
+                    pEventTrack->m_isSyncTrack = false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    
 }

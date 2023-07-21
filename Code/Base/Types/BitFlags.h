@@ -31,6 +31,8 @@ namespace EE
         EE_FORCE_INLINE void Set( uint32_t flags ) { m_flags = flags; }
         inline operator uint32_t() const { return m_flags; }
 
+        EE_FORCE_INLINE bool IsAnyFlagSet() const { return m_flags != 0; }
+
         //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE bool IsFlagSet( uint8_t flag ) const

@@ -118,9 +118,6 @@
     <ClCompile Include="Animation\Events\AnimationEventTrack.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Events\AnimationEventEditor.cpp">
-      <Filter>Animation\Events</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationClip.cpp">
       <Filter>Animation\Workspaces</Filter>
     </ClCompile>
@@ -184,13 +181,10 @@
     <ClCompile Include="Core\VisualGraph\VisualGraph_View.cpp">
       <Filter>Core\VisualGraph</Filter>
     </ClCompile>
-    <ClCompile Include="Core\TimelineEditor\TimelineTrackContainer.cpp">
+    <ClCompile Include="Core\Timeline\Timeline.cpp">
       <Filter>Core\TimelineEditor</Filter>
     </ClCompile>
-    <ClCompile Include="Core\TimelineEditor\TimelineTrack.cpp">
-      <Filter>Core\TimelineEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\TimelineEditor\TimelineEditor.cpp">
+    <ClCompile Include="Core\Timeline\TimelineEditor.cpp">
       <Filter>Core\TimelineEditor</Filter>
     </ClCompile>
     <ClCompile Include="Physics\PropertyGrid\PropertyGrid_PhysicsBodySettings.cpp">
@@ -457,9 +451,6 @@
     <ClInclude Include="Animation\Events\AnimationEventTrack.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Events\AnimationEventEditor.h">
-      <Filter>Animation\Events</Filter>
-    </ClInclude>
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationClip.h">
       <Filter>Animation\Workspaces</Filter>
     </ClInclude>
@@ -538,13 +529,10 @@
     <ClInclude Include="Core\VisualGraph\VisualGraph_View.h">
       <Filter>Core\VisualGraph</Filter>
     </ClInclude>
-    <ClInclude Include="Core\TimelineEditor\TimelineTrackContainer.h">
+    <ClInclude Include="Core\Timeline\Timeline.h">
       <Filter>Core\TimelineEditor</Filter>
     </ClInclude>
-    <ClInclude Include="Core\TimelineEditor\TimelineTrack.h">
-      <Filter>Core\TimelineEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\TimelineEditor\TimelineEditor.h">
+    <ClInclude Include="Core\Timeline\TimelineEditor.h">
       <Filter>Core\TimelineEditor</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h">

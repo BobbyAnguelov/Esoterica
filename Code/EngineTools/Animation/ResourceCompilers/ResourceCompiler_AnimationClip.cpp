@@ -4,7 +4,7 @@
 #include "EngineTools/Animation/Events/AnimationEventTrack.h"
 #include "EngineTools/RawAssets/RawAssetReader.h"
 #include "EngineTools/RawAssets/RawAnimation.h"
-#include "EngineTools/Core/TimelineEditor/TimelineTrackContainer.h"
+#include "EngineTools/Core/Timeline/Timeline.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Base/Resource/ResourcePtr.h"
@@ -513,37 +513,26 @@ namespace EE::Animation
         // Read event track data
         //-------------------------------------------------------------------------
 
-        // Check if there is potential additional event data
-        auto trackDataIter = document.FindMember( Timeline::TrackContainer::s_trackContainerKey );
-        if ( trackDataIter == document.MemberEnd() )
-        {
-            return true;
-        }
-
-        auto const& eventDataValueObject = trackDataIter->value;
-        if ( !eventDataValueObject.IsArray() )
+        EventTimeline eventTimeline( nullptr, nullptr, *m_pTypeRegistry );
+        if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
         {
             Error( "Malformed event track data" );
             return false;
         }
 
-        Timeline::TrackContainer trackContainer;
-        if ( !trackContainer.Serialize( *m_pTypeRegistry, eventDataValueObject ) )
-        {
-            Error( "Malformed event track data" );
-            return false;
-        }
+        float const numIntervals = float( rawAnimData.GetNumFrames() - 1 );
+        eventTimeline.SetAnimationInfo( uint32_t( numIntervals ), rawAnimData.GetSamplingFrameRate() );
+        FloatRange const& animationTimeRange = eventTimeline.GetTimeRange();
 
         // Reflect into runtime events
         //-------------------------------------------------------------------------
 
         int32_t numSyncTracks = 0;
-        float const numIntervals = float( rawAnimData.GetNumFrames() - 1 );
+
         TVector<Event*> events;
-        FloatRange const animationTimeRange( 0, numIntervals ); // In Frames
-        for ( Timeline::Track* pTrack : trackContainer.m_tracks )
+        for ( Timeline::Track* pTrack : eventTimeline.GetTracks() )
         {
-            auto trackStatus = pTrack->GetValidationStatus( numIntervals );
+            auto trackStatus = pTrack->GetValidationStatus( eventTimeline.GetTrackContext() );
 
             //-------------------------------------------------------------------------
 
@@ -653,10 +642,7 @@ namespace EE::Animation
 
         eastl::sort( outEventData.m_syncEventMarkers.begin(), outEventData.m_syncEventMarkers.end() );
 
-        // Free allocated memory
         //-------------------------------------------------------------------------
-
-        trackContainer.Reset();
 
         return true;
     }
@@ -676,23 +662,8 @@ namespace EE::Animation
         }
 
         auto& document = typeReader.GetDocument();
-        auto trackDataIter = document.FindMember( Timeline::TrackContainer::s_trackContainerKey );
-
-        // If we have no events, then nothing is referenced
-        if ( trackDataIter == document.MemberEnd() )
-        {
-            return true;
-        }
-
-        auto const& eventDataValueObject = trackDataIter->value;
-        if ( !eventDataValueObject.IsArray() )
-        {
-            Error( "Malformed event track data" );
-            return false;
-        }
-
-        Timeline::TrackContainer trackContainer;
-        if ( !trackContainer.Serialize( *m_pTypeRegistry, eventDataValueObject ) )
+        EventTimeline eventTimeline( nullptr, nullptr, *m_pTypeRegistry );
+        if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
         {
             Error( "Malformed event track data" );
             return false;
@@ -700,7 +671,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        for ( Timeline::Track* pTrack : trackContainer.m_tracks )
+        for ( Timeline::Track* pTrack : eventTimeline.GetTracks() )
         {
             for ( auto const pItem : pTrack->GetItems() )
             {

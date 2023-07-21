@@ -56,6 +56,14 @@ namespace EE::Animation
         EE_ASSERT( m_pGraphWorkspace != nullptr );
     }
 
+    AnimationGraphWorkspace::IDComboWidget::IDComboWidget( AnimationGraphWorkspace* pGraphWorkspace, GraphNodes::IDControlParameterToolsNode* pControlParameter )
+        : ImGuiX::ComboWithFilterWidget<StringID>( Flags::HidePreview )
+        , m_pGraphWorkspace( pGraphWorkspace )
+        , m_pControlParameter( pControlParameter )
+    {
+        EE_ASSERT( m_pGraphWorkspace != nullptr && pControlParameter != nullptr );
+    }
+
     void AnimationGraphWorkspace::IDComboWidget::PopulateOptionsList()
     {
         TVector<StringID> foundIDs;
@@ -104,7 +112,33 @@ namespace EE::Animation
         emptyOpt.m_filterComparator = "";
         emptyOpt.m_value = StringID();
 
-        // Create options
+        // Add parameter options
+        if ( m_pControlParameter != nullptr && !m_pControlParameter->GetExpectedPreviewValues().empty() )
+        {
+            auto& expectedValueSeparator = m_options.emplace_back();
+            expectedValueSeparator.m_label = "Expected Values";
+            expectedValueSeparator.m_isSeparator = true;
+
+            for ( auto ID : m_pControlParameter->GetExpectedPreviewValues() )
+            {
+                if ( !ID.IsValid() )
+                {
+                    continue;
+                }
+
+                auto& opt = m_options.emplace_back();
+                opt.m_label = ID.c_str();
+                opt.m_filterComparator = ID.c_str();
+                opt.m_filterComparator.make_lower();
+                opt.m_value = ID;
+            }
+
+            auto& globalValueSeparator = m_options.emplace_back();
+            globalValueSeparator.m_label = "Global Values";
+            globalValueSeparator.m_isSeparator = true;
+        }
+
+        // Create global options
         for ( auto const& ID : sortedIDlist )
         {
             if ( !ID.IsValid() )
@@ -638,7 +672,7 @@ namespace EE::Animation
 
         IDParameterState( AnimationGraphWorkspace* pGraphWorkspace, GraphNodes::ControlParameterToolsNode* pParameter )
             : ControlParameterPreviewState( pGraphWorkspace, pParameter )
-            , m_comboWidget( pGraphWorkspace )
+            , m_comboWidget( pGraphWorkspace, Cast<GraphNodes::IDControlParameterToolsNode>( pParameter ) )
         {}
 
     private:
@@ -1018,6 +1052,17 @@ namespace EE::Animation
 
         RefreshVariationEditor();
 
+        // Setup graph Outliner
+        //-------------------------------------------------------------------------
+
+        m_outlinerTreeContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildOutlinerTree( pRootItem ); };
+
+        m_outlinerTreeView.SetFlag( TreeListView::Flags::ShowBranchesFirst, false );
+        m_outlinerTreeView.SetFlag( TreeListView::Flags::ExpandItemsOnlyViaArrow );
+        m_outlinerTreeView.SetFlag( TreeListView::Flags::SortTree );
+
+        RefreshOutliner();
+
         // Gizmo
         //-------------------------------------------------------------------------
 
@@ -1092,6 +1137,7 @@ namespace EE::Animation
         CreateToolWindow( "Control Parameters", [this] ( UpdateContext const& context, bool isFocused ) { DrawControlParameterEditor( context, isFocused ); } );
         CreateToolWindow( "Graph View", [this] ( UpdateContext const& context, bool isFocused ) { DrawGraphView( context, isFocused ); } );
         CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawPropertyGrid( context, isFocused ); } );
+        CreateToolWindow( "Outliner", [this] ( UpdateContext const& context, bool isFocused ) { DrawOutliner( context, isFocused ); } );
 
         HideDescriptorWindow();
     }
@@ -1108,6 +1154,7 @@ namespace EE::Animation
         // Dock windows
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), rightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Debugger" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Outliner" ).c_str(), topLeftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Control Parameters" ).c_str(), topLeftDockID);
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Graph View" ).c_str(), centerDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Variation Editor" ).c_str(), centerDockID );
@@ -2119,6 +2166,7 @@ namespace EE::Animation
         m_graphRecorder.Reset();
         RefreshControlParameterCache();
         RefreshVariationEditor();
+        RefreshOutliner();
         s_graphModifiedEvent.Execute( m_workspaceResource.GetResourceID() );
     }
 
@@ -3410,8 +3458,6 @@ namespace EE::Animation
         }
     }
 
-    //-------------------------------------------------------------------------
-
     void AnimationGraphWorkspace::NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode )
     {
         EE_ASSERT( pNode != nullptr );
@@ -3531,7 +3577,7 @@ namespace EE::Animation
         // Filter
         //-------------------------------------------------------------------------
 
-        m_navigationFilter.DrawAndUpdate( ImGui::GetContentRegionAvail().x - 130, ImGuiX::FilterWidget::TakeInitialFocus );
+        m_navigationFilter.UpdateAndDraw( ImGui::GetContentRegionAvail().x - 130, ImGuiX::FilterWidget::TakeInitialFocus );
 
         ImGui::SameLine();
 
@@ -3660,6 +3706,193 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             ImGui::EndTable();
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Outliner
+    //-------------------------------------------------------------------------
+
+    class GraphOutlinerItem final : public TreeListViewItem
+    {
+    public:
+
+        GraphOutlinerItem( TreeListViewItem* pParent, AnimationGraphWorkspace* pWorkspace, VisualGraph::BaseNode* pNode )
+            : TreeListViewItem( pParent )
+            , m_pWorkspace( pWorkspace )
+            , m_pNode( pNode )
+            , m_nameID( pNode->GetName() )
+        {
+            EE_ASSERT( m_pWorkspace != nullptr );
+            m_displayColor = ImGuiX::Style::s_colorText;
+        }
+
+        GraphOutlinerItem( TreeListViewItem* pParent, AnimationGraphWorkspace* pWorkspace, GraphNodes::DataSlotToolsNode* pDataSlotNode )
+            : TreeListViewItem( pParent )
+            , m_pWorkspace( pWorkspace )
+            , m_pNode( pDataSlotNode )
+            , m_nameID( pDataSlotNode->GetName() )
+        {
+            EE_ASSERT( m_pWorkspace != nullptr );
+            m_displayColor = pDataSlotNode->GetTitleBarColor();
+        }
+
+        virtual uint64_t GetUniqueID() const override { return (uint64_t) m_pNode; }
+        virtual StringID GetNameID() const override { return m_nameID; }
+        virtual InlineString GetDisplayName() const
+        {
+            InlineString displayName;
+
+            if ( IsOfType<GraphNodes::StateMachineToolsNode>( m_pNode ) )
+            {
+                displayName.sprintf( EE_ICON_STATE_MACHINE" %s", m_pNode->GetName() );
+            }
+            else if ( IsOfType<GraphNodes::ChildGraphToolsNode>( m_pNode ) )
+            {
+                displayName.sprintf( EE_ICON_GRAPH" %s", m_pNode->GetName() );
+            }
+            else if ( IsOfType<GraphNodes::DataSlotToolsNode>( m_pNode ) )
+            {
+                displayName.sprintf( EE_ICON_ARROW_BOTTOM_RIGHT" %s", m_pNode->GetName() );
+            }
+            else
+            {
+                displayName.sprintf( m_pNode->GetName() );
+            }
+
+            return displayName;
+        }
+        virtual Color GetDisplayColor( ItemState state ) const override { return m_displayColor; }
+        virtual bool OnDoubleClick() override { m_pWorkspace->NavigateTo( m_pNode ); return false; }
+
+    private:
+
+        AnimationGraphWorkspace*    m_pWorkspace = nullptr;
+        VisualGraph::BaseNode*      m_pNode = nullptr;
+        StringID                    m_nameID;
+        Color                       m_displayColor;
+    };
+
+    void AnimationGraphWorkspace::DrawOutliner( UpdateContext const& context, bool isFocused )
+    {
+        constexpr static float const buttonWidth = 30;
+        float const availableWidth = ImGui::GetContentRegionAvail().x;
+        float const filterWidth = availableWidth - ( 2 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
+
+        if ( m_outlinerFilterWidget.UpdateAndDraw( filterWidth ) )
+        {
+            m_outlinerTreeView.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( true ); } );
+            m_outlinerTreeView.UpdateItemVisibility( [this] ( TreeListViewItem const* pItem ) { return m_outlinerFilterWidget.MatchesFilter( pItem->GetDisplayName() ); } );
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine();
+        if ( ImGui::Button( EE_ICON_EXPAND_ALL "##Expand All", ImVec2( buttonWidth, 0 ) ) )
+        {
+            m_outlinerTreeView.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( true ); } );
+        }
+        ImGuiX::ItemTooltip( "Expand All" );
+
+        ImGui::SameLine();
+        if ( ImGui::Button( EE_ICON_COLLAPSE_ALL "##Collapse ALL", ImVec2( buttonWidth, 0 ) ) )
+        {
+            m_outlinerTreeView.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( false ); } );
+        }
+        ImGuiX::ItemTooltip( "Collapse All" );
+
+        //-------------------------------------------------------------------------
+
+        m_outlinerTreeView.UpdateAndDraw( m_outlinerTreeContext );
+    }
+
+    void AnimationGraphWorkspace::RefreshOutliner()
+    {
+        m_outlinerTreeView.RebuildTree( m_outlinerTreeContext );
+    }
+
+    void AnimationGraphWorkspace::RebuildOutlinerTree( TreeListViewItem* pRootItem )
+    {
+        auto pRootGraph = GetEditedRootGraph();
+
+        // Get all states
+        auto stateNodes = pRootGraph->FindAllNodesOfType<GraphNodes::StateToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+
+        // Get all slots
+        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+
+        // Construction Helper
+        //-------------------------------------------------------------------------
+
+        THashMap<UUID, TreeListViewItem*> constructionMap;
+
+        TVector<VisualGraph::BaseNode*> nodePath;
+
+        auto CreateParentItem = [&] ( TreeListViewItem* pRootItem, VisualGraph::BaseNode* pNode ) -> TreeListViewItem*
+        {
+            nodePath.clear();
+            nodePath = pNode->GetNodePathFromRoot();
+            nodePath.pop_back();
+
+            TreeListViewItem* pLastFoundParentItem = pRootItem;
+            for ( auto i = 0; i < nodePath.size(); i++ )
+            {
+                // Try to see if this item exists
+                auto foundParentIter = constructionMap.find( nodePath[i]->GetID());
+                if ( foundParentIter != constructionMap.end() )
+                {
+                    pLastFoundParentItem = foundParentIter->second;
+                    continue;
+                }
+                else // This item doesnt exist so we need to create all subsequent node path items
+                {
+                    for ( auto j = i; j < nodePath.size(); j++ )
+                    {
+                        pLastFoundParentItem = pLastFoundParentItem->CreateChild<GraphOutlinerItem>( this, nodePath[j] );
+                        constructionMap.insert( TPair<UUID, TreeListViewItem*>( nodePath[j]->GetID(), pLastFoundParentItem ) );
+                    }
+
+                    break;
+                }
+            }
+
+            return pLastFoundParentItem;
+        };
+
+        auto FindParentItem = [&] ( TreeListViewItem* pRootItem, VisualGraph::BaseNode* pNode ) -> TreeListViewItem*
+        {
+            auto pParentNode = pNode->GetParentNode();
+            if ( pParentNode == nullptr )
+            {
+                return pRootItem;
+            }
+
+            auto foundParentIter = constructionMap.find( pParentNode->GetID() );
+            if ( foundParentIter != constructionMap.end() )
+            {
+                return (TreeListViewItem*) foundParentIter->second;
+            }
+            else
+            {
+                return CreateParentItem( pRootItem, pNode );
+            }
+        };
+
+        // Create tree
+        //-------------------------------------------------------------------------
+
+        for ( auto pStateNode : stateNodes )
+        {
+            auto pParentItem = FindParentItem( pRootItem, pStateNode );
+            auto pCreatedItem = pParentItem->CreateChild<GraphOutlinerItem>( this, pStateNode );
+            constructionMap.insert( TPair<UUID, TreeListViewItem*>( pStateNode->GetID(), pCreatedItem ) );
+        }
+
+        for ( auto pSlotNode : dataSlotNodes )
+        {
+            auto pParentItem = FindParentItem( pRootItem, pSlotNode );
+            auto pCreatedItem = pParentItem->CreateChild<GraphOutlinerItem>( this, pSlotNode );
+            constructionMap.insert( TPair<UUID, TreeListViewItem*>( pSlotNode->GetID(), pCreatedItem ) );
         }
     }
 
@@ -4898,8 +5131,281 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::DrawVariationEditor( UpdateContext const& context, bool isFocused )
     {
+        auto pRootGraph = GetEditedRootGraph();
+
+        //-------------------------------------------------------------------------
+        // Variation Selector and Skeleton Picker
+        //-------------------------------------------------------------------------
+
+        constexpr static char const* const variationLabel = "Variation: ";
+        constexpr static char const* const skeletonLabel = "Skeleton: ";
+
+        ImVec2 const variationLabelSize = ImGui::CalcTextSize( variationLabel );
+        ImVec2 const skeletonLabelSize = ImGui::CalcTextSize( skeletonLabel );
+        float const offset = Math::Max( skeletonLabelSize.x, variationLabelSize.x ) + ( ImGui::GetStyle().ItemSpacing.x * 2 );
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( variationLabel );
+        ImGui::SameLine( offset );
         DrawVariationSelector();
-        DrawOverridesTable();
+
+        //-------------------------------------------------------------------------
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( skeletonLabel );
+        ImGui::SameLine( offset );
+        auto pVariation = GetEditedGraphData()->m_graphDefinition.GetVariation( GetEditedGraphData()->m_selectedVariationID );
+        if ( m_variationSkeletonPicker.UpdateAndDraw() )
+        {
+            VisualGraph::ScopedGraphModification sgm( pRootGraph );
+            pVariation->m_skeleton = m_variationSkeletonPicker.GetResourceID();
+        }
+
+        //-------------------------------------------------------------------------
+        // Overrides
+        //-------------------------------------------------------------------------
+
+        ImGui::BeginDisabled( IsInReadOnlyState() );
+        {
+            auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+            bool isDefaultVariationSelected = IsDefaultVariationSelected();
+
+            // Rebuild pickers
+            //-------------------------------------------------------------------------
+
+            if ( dataSlotNodes.size() != m_variationResourcePickers.size() || m_refreshVariationEditorPickers )
+            {
+                RefreshVariationSlotPickers();
+            }
+
+            // Filter
+            //-------------------------------------------------------------------------
+
+            ImGui::Checkbox( "Child Graphs Only", &m_variationEditorOnlyShowChildGraphs );
+            ImGui::SameLine();
+            m_variationFilter.UpdateAndDraw();
+
+            // Overrides
+            //-------------------------------------------------------------------------
+
+            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
+            if ( ImGui::BeginTable( "SourceTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY ) )
+            {
+                ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
+                ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 90 );
+                ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupScrollFreeze( 1, 1 );
+                ImGui::TableHeadersRow();
+
+                //-------------------------------------------------------------------------
+
+                StringID const currentVariationID = GetEditedGraphData()->m_selectedVariationID;
+
+                for ( size_t i = 0; i < dataSlotNodes.size(); i++ )
+                {
+                    auto pDataSlotNode = dataSlotNodes[i];
+                    String const nodePath = pDataSlotNode->GetParentGraph()->GetStringPathFromRoot();
+
+                    // Apply filter
+                    //-------------------------------------------------------------------------
+
+                    if ( m_variationEditorOnlyShowChildGraphs )
+                    {
+                        if ( !IsOfType<GraphNodes::ChildGraphToolsNode>( pDataSlotNode ) )
+                        {
+                            continue;
+                        }
+                    }
+
+                    if ( m_variationFilter.HasFilterSet() )
+                    {
+                        bool nameFailedFilter = false;
+                        if ( !m_variationFilter.MatchesFilter( pDataSlotNode->GetName() ) )
+                        {
+                            nameFailedFilter = true;
+                        }
+
+                        bool pathFailedFilter = false;
+                        if ( !m_variationFilter.MatchesFilter( nodePath ) )
+                        {
+                            pathFailedFilter = true;
+                        }
+
+                        if ( pathFailedFilter && nameFailedFilter )
+                        {
+                            continue;
+                        }
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::PushID( pDataSlotNode );
+                    ImGui::TableNextRow();
+
+                    // Override Controls
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+
+                    if ( !isDefaultVariationSelected )
+                    {
+                        ImVec2 const buttonSize( 26, 24 );
+
+                        if ( pDataSlotNode->HasOverride( currentVariationID ) )
+                        {
+                            if ( ImGuiX::FlatButtonColored( Colors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
+                            {
+                                pDataSlotNode->RemoveOverride( currentVariationID );
+                            }
+                            ImGuiX::ItemTooltip( "Remove Override" );
+                        }
+                        else // Create an override
+                        {
+                            if ( ImGuiX::FlatButtonColored( Colors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
+                            {
+                                pDataSlotNode->CreateOverride( currentVariationID );
+                            }
+                            ImGuiX::ItemTooltip( "Add Override" );
+                        }
+                    }
+
+                    // Get variation override value
+                    //-------------------------------------------------------------------------
+                    // This is done here since the controls above might add/remove an override
+
+                    bool const hasOverrideForVariation = isDefaultVariationSelected ? false : pDataSlotNode->HasOverride( currentVariationID );
+                    ResourceID const* pResourceID = hasOverrideForVariation ? pDataSlotNode->GetOverrideValue( currentVariationID ) : nullptr;
+
+                    // Type
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+                    {
+                        ImGuiX::ScopedFont sf( ImGuiX::Font::Small, pDataSlotNode->GetTitleBarColor() );
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( pDataSlotNode->GetTypeName() );
+                    }
+
+                    // Node Path
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+                    {
+                        ImGuiX::ScopedFont sf( ImGuiX::Font::Small, Colors::LightGray );
+                        ImGui::SetNextItemWidth( -1 );
+                        ImGui::InputText( "##NodePath", const_cast<char*>( nodePath.c_str() ), nodePath.size(), ImGuiInputTextFlags_ReadOnly );
+                        if ( ImGui::BeginPopupContextItem( "##FilterOptions" ) )
+                        {
+                            if ( ImGui::MenuItem( "Set filter to this path" ) )
+                            {
+                                m_variationFilter.SetFilter( nodePath );
+                            }
+
+                            ImGui::EndPopup();
+                        }
+                    }
+
+                    // Node Name
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+
+                    Color labelColor = ImGuiX::Style::s_colorText;
+                    if ( !isDefaultVariationSelected && hasOverrideForVariation )
+                    {
+                        labelColor = ( pResourceID->IsValid() ) ? Colors::Lime : Colors::MediumRed;
+                    }
+
+                    {
+                        ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold, labelColor );
+                        if ( ImGui::Selectable( pDataSlotNode->GetName(), false, ImGuiSelectableFlags_AllowDoubleClick ) )
+                        {
+                            if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                            {
+                                NavigateTo( pDataSlotNode );
+                            }
+                        }
+                        ImGuiX::ItemTooltip( "Double-click to navigate to node!" );
+                    }
+
+                    // Resource Picker
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextColumn();
+
+                    Resource::ResourcePicker& picker = m_variationResourcePickers[i];
+
+                    // Validate the chosen resource to prevent self-references
+                    auto ValidateResourceSelected = [this] ( ResourceID const& resourceID )
+                    {
+                        if ( resourceID.IsValid() )
+                        {
+                            if ( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() || resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
+                            {
+                                ResourceID const graphResourceID = Variation::GetGraphResourceID( resourceID );
+                                if ( graphResourceID == m_workspaceResource.GetResourceID() )
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+
+                        return true;
+                    };
+
+                    // Default variations always have values created
+                    if ( isDefaultVariationSelected )
+                    {
+                        if ( picker.UpdateAndDraw() )
+                        {
+                            ResourceID const& newResourceID = picker.GetResourceID();
+                            if ( ValidateResourceSelected( newResourceID ) )
+                            {
+                                VisualGraph::ScopedGraphModification sgm( pRootGraph );
+                                pDataSlotNode->SetDefaultValue( newResourceID.IsValid() ? newResourceID : ResourceID() );
+                            }
+                        }
+                    }
+                    else // Child Variation
+                    {
+                        // If we have an override for this variation
+                        if ( hasOverrideForVariation )
+                        {
+                            EE_ASSERT( pResourceID != nullptr );
+                            if ( picker.UpdateAndDraw() )
+                            {
+                                ResourceID const& newResourceID = picker.GetResourceID();
+                                if ( ValidateResourceSelected( newResourceID ) )
+                                {
+                                    VisualGraph::ScopedGraphModification sgm( pRootGraph );
+                                    pDataSlotNode->SetOverrideValue( currentVariationID, newResourceID );
+                                }
+                            }
+                        }
+                        else // Show inherited value
+                        {
+                            auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
+                            ResourceID const resolvedResourceID = pDataSlotNode->GetResourceID( variationHierarchy, currentVariationID );
+                            ImGui::Text( resolvedResourceID.c_str() );
+                            ImGuiX::TextTooltip( resolvedResourceID.c_str() );
+                        }
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::PopID();
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::EndTable();
+            }
+            ImGui::PopStyleVar();
+        }
+        ImGui::EndDisabled();
     }
 
     void AnimationGraphWorkspace::StartCreateVariation( StringID variationID )
@@ -5068,230 +5574,6 @@ namespace EE::Animation
         ImGui::EndDisabled();
     }
 
-    void AnimationGraphWorkspace::DrawOverridesTable()
-    {
-        ImGui::BeginDisabled( IsInReadOnlyState() );
-
-        //-------------------------------------------------------------------------
-
-        auto pRootGraph = GetEditedRootGraph();
-        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
-        bool isDefaultVariationSelected = IsDefaultVariationSelected();
-
-        // Rebuild pickers
-        //-------------------------------------------------------------------------
-
-        if ( dataSlotNodes.size() != m_variationResourcePickers.size() || m_refreshPickers )
-        {
-            RefreshVariationSlotPickers();
-        }
-
-        // Skeleton Picker
-        //-------------------------------------------------------------------------
-
-        ImGui::AlignTextToFramePadding();
-        auto pVariation = GetEditedGraphData()->m_graphDefinition.GetVariation( GetEditedGraphData()->m_selectedVariationID );
-        if ( m_variationSkeletonPicker.UpdateAndDraw() )
-        {
-            VisualGraph::ScopedGraphModification sgm( pRootGraph );
-            pVariation->m_skeleton = m_variationSkeletonPicker.GetResourceID();
-        }
-
-        // Filter
-        //-------------------------------------------------------------------------
-
-        ImGui::Separator();
-        m_variationFilter.DrawAndUpdate();
-
-        // Overrides
-        //-------------------------------------------------------------------------
-
-        ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
-        if ( ImGui::BeginTable( "SourceTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX ) )
-        {
-            ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
-            ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableHeadersRow();
-
-            //-------------------------------------------------------------------------
-
-            StringID const currentVariationID = GetEditedGraphData()->m_selectedVariationID;
-
-            for ( size_t i = 0; i < dataSlotNodes.size(); i++ )
-            {
-                auto pDataSlotNode = dataSlotNodes[i];
-                String const nodePath = pDataSlotNode->GetStringPathFromRoot();
-
-                // Apply filter
-                //-------------------------------------------------------------------------
-
-                if ( m_variationFilter.HasFilterSet() )
-                {
-                    bool nameFailedFilter = false;
-                    if ( !m_variationFilter.MatchesFilter( pDataSlotNode->GetName() ) )
-                    {
-                        nameFailedFilter = true;
-                    }
-
-                    bool pathFailedFilter = false;
-                    if ( !m_variationFilter.MatchesFilter( nodePath ) )
-                    {
-                        pathFailedFilter = true;
-                    }
-
-                    if ( pathFailedFilter && nameFailedFilter )
-                    {
-                        continue;
-                    }
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::PushID( pDataSlotNode );
-                ImGui::TableNextRow();
-
-                // Override Controls
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-
-                if ( !isDefaultVariationSelected )
-                {
-                    ImVec2 const buttonSize( 26, 24 );
-
-                    if ( pDataSlotNode->HasOverride( currentVariationID ) )
-                    {
-                        if ( ImGuiX::FlatButtonColored( Colors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
-                        {
-                            pDataSlotNode->RemoveOverride( currentVariationID );
-                        }
-                        ImGuiX::ItemTooltip( "Remove Override" );
-                    }
-                    else // Create an override
-                    {
-                        if ( ImGuiX::FlatButtonColored( Colors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
-                        {
-                            pDataSlotNode->CreateOverride( currentVariationID );
-                        }
-                        ImGuiX::ItemTooltip( "Add Override" );
-                    }
-                }
-
-                // Get variation override value
-                //-------------------------------------------------------------------------
-                // This is done here since the controls above might add/remove an override
-
-                bool const hasOverrideForVariation = isDefaultVariationSelected ? false : pDataSlotNode->HasOverride( currentVariationID );
-                ResourceID const* pResourceID = hasOverrideForVariation ? pDataSlotNode->GetOverrideValue( currentVariationID ) : nullptr;
-
-                // Node Name
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-
-                Color labelColor = ImGuiX::Style::s_colorText;
-                if ( !isDefaultVariationSelected && hasOverrideForVariation )
-                {
-                    labelColor = ( pResourceID->IsValid() ) ? Colors::Lime : Colors::MediumRed;
-                }
-
-                ImGui::TextColored( labelColor.ToFloat4(), pDataSlotNode->GetName() );
-
-                // Node Path
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN"##FN", ImVec2( 24, 24 ) ) )
-                {
-                    NavigateTo( pDataSlotNode );
-                }
-                ImGui::SameLine();
-                ImGui::Text( nodePath.c_str() );
-                ImGuiX::TextTooltip( nodePath.c_str() );
-
-                // Resource Picker
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-
-                Resource::ResourcePicker& picker = m_variationResourcePickers[i];
-
-                // Validate the chosen resource to prevent self-references
-                auto ValidateResourceSelected = [this] ( ResourceID const& resourceID )
-                {
-                    if ( resourceID.IsValid() )
-                    {
-                        if ( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() || resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
-                        {
-                            ResourceID const graphResourceID = Variation::GetGraphResourceID( resourceID );
-                            if ( graphResourceID == m_workspaceResource.GetResourceID() )
-                            {
-                                return false;
-                            }
-                        }
-                    }
-
-                    return true;
-                };
-
-                // Default variations always have values created
-                if ( isDefaultVariationSelected )
-                {
-                    if ( picker.UpdateAndDraw() )
-                    {
-                        ResourceID const& newResourceID = picker.GetResourceID();
-                        if ( ValidateResourceSelected( newResourceID ) )
-                        {
-                            VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                            pDataSlotNode->SetDefaultValue( newResourceID.IsValid() ? newResourceID : ResourceID() );
-                        }
-                    }
-                }
-                else // Child Variation
-                {
-                    // If we have an override for this variation
-                    if ( hasOverrideForVariation )
-                    {
-                        EE_ASSERT( pResourceID != nullptr );
-                        if ( picker.UpdateAndDraw() )
-                        {
-                            ResourceID const& newResourceID = picker.GetResourceID();
-                            if ( ValidateResourceSelected( newResourceID ) )
-                            {
-                                VisualGraph::ScopedGraphModification sgm( pRootGraph );
-                                pDataSlotNode->SetOverrideValue( currentVariationID, newResourceID );
-                            }
-                        }
-                    }
-                    else // Show inherited value
-                    {
-                        auto& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
-                        ResourceID const resolvedResourceID = pDataSlotNode->GetResourceID( variationHierarchy, currentVariationID );
-                        ImGui::Text( resolvedResourceID.c_str() );
-                        ImGuiX::TextTooltip( resolvedResourceID.c_str() );
-                    }
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::PopID();
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::EndTable();
-        }
-        ImGui::PopStyleVar();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::EndDisabled();
-    }
-
     bool AnimationGraphWorkspace::DrawVariationNameEditor()
     {
         bool const isRenameOp = ( m_activeOperation == GraphOperationType::RenameVariation );
@@ -5438,7 +5720,7 @@ namespace EE::Animation
     {
         auto pVariation = GetEditedGraphData()->m_graphDefinition.GetVariation( GetEditedGraphData()->m_selectedVariationID );
         m_variationSkeletonPicker.SetResourceID( pVariation->m_skeleton.GetResourceID() );
-        m_refreshPickers = true;
+        m_refreshVariationEditorPickers = true;
     }
 
     void AnimationGraphWorkspace::RefreshVariationSlotPickers()
@@ -5466,7 +5748,7 @@ namespace EE::Animation
             }
         }
 
-        m_refreshPickers = false;
+        m_refreshVariationEditorPickers = false;
     }
 
     //-------------------------------------------------------------------------

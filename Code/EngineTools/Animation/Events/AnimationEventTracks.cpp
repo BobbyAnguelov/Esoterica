@@ -65,13 +65,13 @@ namespace EE::Animation
         return m_items.empty();
     }
 
-    Timeline::Track::Status OrientationWarpEventTrack::GetValidationStatus( float timelineLength ) const
+    Timeline::Track::Status OrientationWarpEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
         for ( auto pItem : m_items )
         {
-            if ( pItem->GetStartTime() < 1.0f || pItem->GetEndTime() > ( timelineLength - 1 ) )
+            if ( pItem->GetStartTime() < 1.0f || pItem->GetEndTime() > ( context.GetTimeRange().m_end - 1 ) )
             {
-                m_statusMessage = "Warp event is not allowed to be within the first or last frame!";
+                m_validationStatueMessage = "Warp event is not allowed to be within the first or last frame!";
                 return Status::HasErrors;
             }
         }
@@ -92,7 +92,7 @@ namespace EE::Animation
         return pAnimEvent->GetDebugText();
     }
 
-    Timeline::Track::Status RootMotionEventTrack::GetValidationStatus( float timelineLength ) const
+    Timeline::Track::Status RootMotionEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
         int32_t const numItems = GetNumItems();
         for ( int32_t i = 0; i < numItems; i++ )
@@ -100,7 +100,7 @@ namespace EE::Animation
             auto pEvent = GetAnimEvent<RootMotionEvent>( m_items[i]);
             if ( pEvent->GetBlendTime() < 0.0f )
             {
-                m_statusMessage = String( String::CtorSprintf(), "Invalid blend time on event %d!", i );
+                m_validationStatueMessage = String( String::CtorSprintf(), "Invalid blend time on event %d!", i );
                 return Status::HasErrors;
             }
         }
@@ -121,7 +121,7 @@ namespace EE::Animation
         return pAnimEvent->GetDebugText();
     }
 
-    Timeline::Track::Status TargetWarpEventTrack::GetValidationStatus( float timelineLength ) const
+    Timeline::Track::Status TargetWarpEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
         int32_t numTransXY = 0;
         int32_t numTransZ = 0;
@@ -165,19 +165,19 @@ namespace EE::Animation
 
         if ( numTransXY == 0 )
         {
-            m_statusMessage = "Target warps required at least one translation XY event!";
+            m_validationStatueMessage = "Target warps required at least one translation XY event!";
             return Status::HasErrors;
         }
 
         if ( numTransXY > 1 )
         {
-            m_statusMessage = "More than one translation XY event detected! This is not supported!";
+            m_validationStatueMessage = "More than one translation XY event detected! This is not supported!";
             return Status::HasErrors;
         }
 
         if ( numRot > 1 )
         {
-            m_statusMessage = "More than one rotation event detected! This is not supported!";
+            m_validationStatueMessage = "More than one rotation event detected! This is not supported!";
             return Status::HasErrors;
         }
 
@@ -185,7 +185,7 @@ namespace EE::Animation
 
         if ( numTransZ == 0 )
         {
-            m_statusMessage = "Missing vertical warp translation event! Will only warp in XY!";
+            m_validationStatueMessage = "Missing vertical warp translation event! Will only warp in XY!";
             return Status::HasWarnings;
         }
 
@@ -215,7 +215,7 @@ namespace EE::Animation
         return GetNumItems() == 0;
     }
 
-    ImRect RagdollEventTrack::DrawDurationItem( ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState )
+    ImRect RagdollEventTrack::DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState )
     {
         constexpr static float const itemMarginY = 2;
 
@@ -295,7 +295,7 @@ namespace EE::Animation
         return itemRect;
     }
 
-    Timeline::Track::Status RagdollEventTrack::GetValidationStatus( float timelineLength ) const
+    Timeline::Track::Status RagdollEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
         int32_t const numItems = GetNumItems();
         if ( numItems == 1 )
@@ -305,14 +305,14 @@ namespace EE::Animation
             auto const& curve = pRagdollEvent->m_physicsWeightCurve;
             if ( curve.GetNumPoints() == 0 )
             {
-                m_statusMessage = "Curve has no data points!";
+                m_validationStatueMessage = "Curve has no data points!";
                 return Timeline::Track::Status::HasWarnings;
             }
             else if ( curve.GetNumPoints() == 1 )
             {
                 if ( !validRange.ContainsInclusive( curve.GetPoint( 0 ).m_value ) )
                 {
-                    m_statusMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
+                    m_validationStatueMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
                     return Timeline::Track::Status::HasErrors;
                 }
             }
@@ -321,14 +321,14 @@ namespace EE::Animation
                 FloatRange const valueRange = curve.GetValueRange();
                 if ( !validRange.ContainsInclusive( valueRange.m_begin ) || !validRange.ContainsInclusive( valueRange.m_end ) )
                 {
-                    m_statusMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
+                    m_validationStatueMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
                     return Timeline::Track::Status::HasErrors;
                 }
             }
         }
         else if( numItems > 1 )
         {
-            m_statusMessage = "More than one event detected! This is not allowed!";
+            m_validationStatueMessage = "More than one event detected! This is not allowed!";
             return Timeline::Track::Status::HasErrors;
         }
 

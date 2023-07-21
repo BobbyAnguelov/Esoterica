@@ -105,7 +105,6 @@ namespace EE::EntityModel
     {
         if ( mapToLoad.GetResourceID() != m_loadedMap )
         {
-           // m_outliner.ClearSelection();
 
             // Should we save the current map before unloading?
             if ( IsDirty() )
@@ -117,6 +116,12 @@ namespace EE::EntityModel
                 }
             }
 
+            // Clear all widget state
+            m_structureEditorTreeView.ClearSelection();
+            m_outlinerTreeView.ClearSelection();
+            m_propertyGrid.SetTypeToEdit( nullptr );
+            m_undoStack.Reset();
+
             // Unload current map
             if ( m_loadedMap.IsValid() && m_pWorld->HasMap( m_loadedMap ) )
             {
@@ -127,10 +132,6 @@ namespace EE::EntityModel
             m_loadedMap = mapToLoad.GetResourceID();
             m_editedMapID = m_pWorld->LoadMap( m_loadedMap );
             SetDisplayName( m_loadedMap.GetResourcePath().GetFileNameWithoutExtension() );
-
-            // Reset widget
-          //  m_entityStructureEditor.SetEntityToEdit( nullptr );
-            m_undoStack.Reset();
         }
     }
 

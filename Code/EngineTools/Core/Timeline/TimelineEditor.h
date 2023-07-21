@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "TimelineTrackContainer.h"
+#include "Timeline.h"
 #include "Base/Time/Time.h"
 #include "Base/ThirdParty/imgui/imgui_internal.h"
 
@@ -45,7 +45,7 @@ namespace EE::Timeline
             void Reset();
 
             Track*                  m_pHoveredTrack = nullptr;
-            TrackItem*              m_pHoveredItem = nullptr;
+            TrackItem*                   m_pHoveredItem = nullptr;
             float                   m_playheadTimeForMouse = -1.0f;
             float                   m_snappedPlayheadTimeForMouse = -1.0f;
             ItemEditMode            m_hoveredItemMode = ItemEditMode::None;
@@ -58,7 +58,7 @@ namespace EE::Timeline
 
             ItemEditMode            m_mode = ItemEditMode::None;
             Track const*            m_pTrackForEditedItem = nullptr;
-            TrackItem*              m_pEditedItem = nullptr;
+            TrackItem*                   m_pEditedItem = nullptr;
             FloatRange              m_originalTimeRange;
             bool                    m_isEditing = false;
         };
@@ -69,24 +69,23 @@ namespace EE::Timeline
             void Reset();
 
             Track*                  m_pTrack = nullptr;
-            TrackItem*              m_pItem = nullptr;
+            TrackItem*                   m_pItem = nullptr;
             float                   m_playheadTimeForMouse = -1.0f;
         };
 
     public:
 
-        TimelineEditor( FloatRange const& inTimeRange );
-        virtual ~TimelineEditor();
+        TimelineEditor( TimelineData* pTimelineData );
 
         inline bool IsFocused() const { return m_isFocused; }
 
         // Tracks
         //-------------------------------------------------------------------------
 
-        inline TrackContainer const* GetTrackContainer() const { return &m_trackContainer; }
+        inline TimelineData const* GetTrackContainer() const { return m_pTimeline; }
 
         // Get the overall status for the track container
-        inline Track::Status GetTrackContainerValidationStatus() const { return m_trackContainer.GetValidationStatus( m_timeRange.m_end ); }
+        inline Track::Status GetTrackContainerValidationStatus() const { return m_pTimeline->GetValidationStatus(); }
 
         // Update
         //-------------------------------------------------------------------------
@@ -118,11 +117,11 @@ namespace EE::Timeline
         // Get the current playhead time
         inline float GetCurrentTime() const { return m_playheadTime; }
 
-        // Get the current position as a percentage of the time line
-        inline Percentage GetCurrentTimeAsPercentage() const { return m_timeRange.GetPercentageThrough( m_playheadTime ); }
-
         // Get the current working time range
-        inline FloatRange GetTimeRange() const { return m_timeRange; }
+        EE_FORCE_INLINE FloatRange const& GetTimeRange() const { return m_pTimeline->GetTimeRange(); }
+
+        // Get the current position as a percentage of the time line
+        inline Percentage GetCurrentTimeAsPercentage() const { return GetTimeRange().GetPercentageThrough( m_playheadTime ); }
 
         // Selection
         //-------------------------------------------------------------------------
@@ -134,30 +133,21 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         // Has any modifications been made to the tracks/events?
-        virtual bool IsDirty() const { return m_trackContainer.IsDirty(); }
+        bool IsDirty() const { return m_isTimelineDirty; }
 
         // Flag the timeline as dirty
-        inline void MarkDirty() { m_trackContainer.MarkDirty(); }
-
-        // Serialization
-        //-------------------------------------------------------------------------
-
-        virtual bool Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& objectValue );
-        virtual void Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer );
+        inline void MarkDirty() { m_isTimelineDirty = true; }
 
     protected:
 
         // General conversion from seconds to the timeline units so we can update the play state
-        virtual float ConvertSecondsToTimelineUnit( Seconds const inTime ) const { return inTime.ToFloat(); }
+        float ConvertSecondsToTimelineUnit( Seconds const inTime ) const { return inTime.ToFloat(); }
 
-        inline void SetTimeRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_timeRange = inRange; }
+        inline void SetTimeRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_pTimeline->SetTimeRange( inRange ); }
         inline void SetViewRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_viewRange = inRange; }
 
-        // Called whenever the play state is switched
-        virtual void OnPlayStateChanged() {}
-
         // Set the playhead position from a percentage over the time range
-        inline void SetPlayheadPositionAsPercentage( Percentage inPercentage ) { m_playheadTime = inPercentage.GetClamped( m_isLoopingEnabled ).ToFloat() * m_timeRange.m_end; }
+        inline void SetPlayheadPositionAsPercentage( Percentage inPercentage ) { m_playheadTime = inPercentage.GetClamped( m_isLoopingEnabled ).ToFloat() * GetTimeRange().m_end; }
 
     private:
 
@@ -169,7 +159,7 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         // Delete specified track
-        inline void DeleteTrack( Track* pTrack ) { m_trackContainer.DeleteTrack( pTrack ); }
+        inline void DeleteTrack( Track* pTrack ) { m_pTimeline->DeleteTrack( pTrack ); }
 
         //-------------------------------------------------------------------------
 
@@ -190,8 +180,8 @@ namespace EE::Timeline
         // Provided rect defines the area available to draw multiple tracks (incl. headers and items)
         void DrawTracks( ImRect const& trackAreaRect );
 
-        // Draw the add track menu
-        virtual void DrawAddTracksMenu() = 0;
+        // Draw the list of available tracks to add
+        void DrawAddTracksMenu();
 
         // Draw the various context menus
         void DrawContextMenu();
@@ -233,10 +223,8 @@ namespace EE::Timeline
 
     protected:
 
-        TrackContainer              m_trackContainer;
-
-        // The total editable time range
-        FloatRange                  m_timeRange = FloatRange( 0, 0 );
+        // The timeline data
+        TimelineData*               m_pTimeline = nullptr;
 
         // The current visible time range
         FloatRange                  m_viewRange = FloatRange( 0, 0 );
@@ -256,10 +244,11 @@ namespace EE::Timeline
         ItemEditState               m_itemEditState;
         ContextMenuState            m_contextMenuState;
 
-        TVector<TrackItem*>         m_selectedItems;
+        TVector<TrackItem*>              m_selectedItems;
         TVector<Track*>             m_selectedTracks;
 
         bool                        m_isContextMenuRequested = false;
         bool                        m_isFocused = false;
+        bool                        m_isTimelineDirty = false;
     };
 }

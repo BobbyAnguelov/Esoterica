@@ -412,6 +412,23 @@ namespace EE::Animation::GraphNodes
             }
         }
 
+        auto pTargetSyncIDNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 4 );
+        if ( pTargetSyncIDNode != nullptr )
+        {
+            if ( pTransitionNode->m_timeMatchMode >= TransitionToolsNode::TimeMatchMode::MatchSyncEventID && pTransitionNode->m_timeMatchMode <= TransitionToolsNode::TimeMatchMode::MatchClosestSyncEventIDAndPercentage )
+            {
+                pSettings->m_targetSyncIDNodeIdx = pTargetSyncIDNode->Compile( context );
+                if ( pSettings->m_targetSyncIDNodeIdx == InvalidIndex )
+                {
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                context.LogWarning( "Target Sync Event ID set but we are not in a sync event ID time match mode - The supplied ID will be ignored!" );
+            }
+        }
+
         //-------------------------------------------------------------------------
 
         pSettings->m_targetStateNodeIdx = targetStateNodeIdx;
@@ -437,7 +454,7 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndexOnly:
+            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndex:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
@@ -459,14 +476,14 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventID:
+            case TransitionToolsNode::TimeMatchMode::MatchSyncEventID:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
             }
             break;
 
-            case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIDAndPercentage:
+            case TransitionToolsNode::TimeMatchMode::MatchSyncEventIDAndPercentage:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
@@ -474,7 +491,7 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TransitionToolsNode::TimeMatchMode::MatchClosestSourceSyncEventID:
+            case TransitionToolsNode::TimeMatchMode::MatchClosestSyncEventID:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
@@ -482,7 +499,7 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case TransitionToolsNode::TimeMatchMode::MatchClosestSourceSyncEventIDAndPercentage:
+            case TransitionToolsNode::TimeMatchMode::MatchClosestSyncEventIDAndPercentage:
             {
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
                 pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );

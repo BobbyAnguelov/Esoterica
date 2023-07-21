@@ -1,5 +1,4 @@
 #include "Workspace_AnimationClip.h"
-#include "EngineTools/Animation/Events/AnimationEventEditor.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
@@ -21,33 +20,11 @@ namespace EE::Animation
 
     AnimationClipWorkspace::AnimationClipWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
         : TWorkspace<AnimationClip>( pToolsContext, pWorld, resourceID )
-        , m_eventEditor( *pToolsContext->m_pTypeRegistry )
+        , m_eventTimeline( [this] () { BeginDescriptorModification(); }, [this] () { EndDescriptorModification(); }, *pToolsContext->m_pTypeRegistry )
+        , m_timelineEditor( &m_eventTimeline )
         , m_propertyGrid( m_pToolsContext )
     {
-        auto OnBeginMod = [this]( Timeline::TrackContainer* pContainer )
-        {
-            if ( pContainer != m_eventEditor.GetTrackContainer() )
-            {
-                return;
-            }
-
-            BeginDescriptorModification();
-        };
-
-        auto OnEndMod = [this]( Timeline::TrackContainer* pContainer )
-        {
-            if ( pContainer != m_eventEditor.GetTrackContainer() )
-            {
-                return;
-            }
-
-            EndDescriptorModification();
-        };
-
-        m_eventEditor.SetLooping( true );
-
-        m_beginModEventID = Timeline::TrackContainer::s_onBeginModification.Bind( OnBeginMod );
-        m_endModEventID = Timeline::TrackContainer::s_onEndModification.Bind( OnEndMod );
+        m_timelineEditor.SetLooping( true );
 
         //-------------------------------------------------------------------------
 
@@ -71,9 +48,6 @@ namespace EE::Animation
 
     AnimationClipWorkspace::~AnimationClipWorkspace()
     {
-        Timeline::TrackContainer::s_onBeginModification.Unbind( m_beginModEventID );
-        Timeline::TrackContainer::s_onEndModification.Unbind( m_endModEventID );
-
         m_propertyGrid.OnPreEdit().Unbind( m_propertyGridPreEditEventBindingID );
         m_propertyGrid.OnPostEdit().Unbind( m_propertyGridPostEditEventBindingID );
     }
@@ -241,10 +215,10 @@ namespace EE::Animation
     {
         if ( IsResourceLoaded() )
         {
-            m_eventEditor.SetAnimationInfo( m_workspaceResource->GetNumFrames(), m_workspaceResource->GetFPS() );
+            m_eventTimeline.SetAnimationInfo( m_workspaceResource->GetNumFrames(), m_workspaceResource->GetFPS() );
         }
 
-        if ( m_eventEditor.IsDirty() )
+        if ( m_timelineEditor.IsDirty() )
         {
             MarkDirty();
         }
@@ -252,7 +226,7 @@ namespace EE::Animation
         // Enable the global timeline keyboard shortcuts
         if ( isFocused && !m_isDescriptorWindowFocused && !m_isDetailsWindowFocused )
         {
-            m_eventEditor.HandleGlobalKeyboardInputs();
+            m_timelineEditor.HandleGlobalKeyboardInputs();
         }
 
         // Update
@@ -263,7 +237,7 @@ namespace EE::Animation
             // Update pose and position
             //-------------------------------------------------------------------------
 
-            Percentage const percentageThroughAnimation = m_eventEditor.GetCurrentTimeAsPercentage();
+            Percentage const percentageThroughAnimation = m_timelineEditor.GetCurrentTimeAsPercentage();
             if ( m_currentAnimTime != percentageThroughAnimation || m_characterPoseUpdateRequested )
             {
                 m_currentAnimTime = percentageThroughAnimation;
@@ -290,7 +264,13 @@ namespace EE::Animation
                 Pose const* pPose = m_pAnimationComponent->GetPose();
                 if ( pPose != nullptr )
                 {
-                    drawingCtx.Draw( *pPose, m_characterTransform );
+                    TBitFlags<Pose::DrawFlags> drawFlags;
+                    if ( m_shouldDrawBoneNames )
+                    {
+                        drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+                    }
+
+                    pPose->DrawDebug( drawingCtx, m_characterTransform, Colors::HotPink, 2.0f, nullptr, drawFlags );
                 }
             }
 
@@ -303,6 +283,56 @@ namespace EE::Animation
                 capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
                 drawingCtx.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
             }
+        }
+    }
+
+    void AnimationClipWorkspace::DrawMenu( UpdateContext const& context )
+    {
+        TWorkspace<AnimationClip>::DrawMenu( context );
+
+        // Options
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
+        {
+            ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
+
+            ImGui::EndMenu();
+        }
+
+        // Help
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginMenu( EE_ICON_HELP_CIRCLE_OUTLINE" Help" ) )
+        {
+            auto DrawHelpRow = [] ( char const* pLabel, char const* pHotkey )
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+                    ImGui::Text( pLabel );
+                }
+
+                ImGui::TableNextColumn();
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+                    ImGui::Text( pHotkey );
+                }
+            };
+
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::BeginTable( "HelpTable", 2 ) )
+            {
+                DrawHelpRow( "Navigate Timeline", "Left/Right arrows" );
+                DrawHelpRow( "Create Event", "Enter (with track selected)" );
+
+                ImGui::EndTable();
+            }
+
+            ImGui::EndMenu();
         }
     }
 
@@ -322,11 +352,9 @@ namespace EE::Animation
 
         auto DrawDebugOptions = [this] ()
         {
-            ImGuiX::TextSeparator( "Visualization" );
-
-            ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
-
             ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
+
+            ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
 
             //-------------------------------------------------------------------------
 
@@ -357,18 +385,18 @@ namespace EE::Animation
 
         ImGui::SameLine();
 
-        if ( m_eventEditor.IsPlaying() )
+        if ( m_timelineEditor.IsPlaying() )
         {
             if ( ImGuiX::IconButton( EE_ICON_PAUSE, "Pause", Colors::Yellow, ImVec2( 70, 0 ) ) )
             {
-                m_eventEditor.Pause();
+                m_timelineEditor.Pause();
             }
         }
         else
         {
             if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play", Colors::Lime, ImVec2( 70, 0 ) ) )
             {
-                m_eventEditor.Play();
+                m_timelineEditor.Play();
             }
         }
 
@@ -379,7 +407,7 @@ namespace EE::Animation
 
         auto PrintAnimDetails = [this] ( Color color )
         {
-            Percentage const currentTime = m_eventEditor.GetCurrentTimeAsPercentage();
+            Percentage const currentTime = m_timelineEditor.GetCurrentTimeAsPercentage();
             uint32_t const numFrames = m_workspaceResource->GetNumFrames();
             FrameTime const frameTime = m_workspaceResource->GetFrameTime( currentTime );
 
@@ -388,8 +416,8 @@ namespace EE::Animation
             ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_workspaceResource->GetAverageAngularVelocity().ToFloat() );
             ImGui::Text( "Distance Covered: %.2fm", m_workspaceResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
             ImGui::Text( "Frame: %.2f/%d (%.2f/%d)", frameTime.ToFloat(), numFrames - 1, frameTime.ToFloat() + 1.0f, numFrames ); // Draw offset time too to match DCC timelines that start at 1
-            ImGui::Text( "Time: %.2fs/%0.2fs", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * m_workspaceResource->GetDuration(), m_workspaceResource->GetDuration().ToFloat() );
-            ImGui::Text( "Percentage: %.2f%%", m_eventEditor.GetCurrentTimeAsPercentage().ToFloat() * 100 );
+            ImGui::Text( "Time: %.2fs/%0.2fs", m_timelineEditor.GetCurrentTimeAsPercentage().ToFloat() * m_workspaceResource->GetDuration(), m_workspaceResource->GetDuration().ToFloat() );
+            ImGui::Text( "Percentage: %.2f%%", m_timelineEditor.GetCurrentTimeAsPercentage().ToFloat() * 100 );
 
             if ( m_workspaceResource->IsAdditive() )
             {
@@ -425,16 +453,16 @@ namespace EE::Animation
             // Track editor and property grid
             //-------------------------------------------------------------------------
 
-            m_eventEditor.UpdateAndDraw( GetWorld()->GetTimeScale() * context.GetDeltaTime() );
+            m_timelineEditor.UpdateAndDraw( GetWorld()->GetTimeScale() * context.GetDeltaTime() );
 
             // Transfer dirty state from property grid
             if ( m_propertyGrid.IsDirty() )
             {
-                m_eventEditor.MarkDirty();
+                m_timelineEditor.MarkDirty();
             }
 
             // Handle selection changes
-            auto const& selectedItems = m_eventEditor.GetSelectedItems();
+            auto const& selectedItems = m_timelineEditor.GetSelectedItems();
             if ( !selectedItems.empty() )
             {
                 if ( selectedItems.back()->GetData() != m_propertyGrid.GetEditedType() )
@@ -566,7 +594,7 @@ namespace EE::Animation
         // Filter clips
         //-------------------------------------------------------------------------
 
-        if ( m_clipBrowserFilter.DrawAndUpdate() )
+        if ( m_clipBrowserFilter.UpdateAndDraw() )
         {
             ApplyClipFilter();
         }
@@ -608,7 +636,7 @@ namespace EE::Animation
 
     bool AnimationClipWorkspace::Save()
     {
-        auto const status = m_eventEditor.GetTrackContainerValidationStatus();
+        auto const status = m_timelineEditor.GetTrackContainerValidationStatus();
         if ( status == Timeline::Track::Status::HasErrors )
         {
             pfd::message( "Invalid Events", "This animation clip has one or more invalid event tracks. These events will not be available in the game!", pfd::choice::ok, pfd::icon::error ).result();
@@ -625,11 +653,17 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue )
     {
-        m_eventEditor.Serialize( typeRegistry, descriptorObjectValue );
+        m_eventTimeline.Serialize( typeRegistry, descriptorObjectValue );
     }
 
     void AnimationClipWorkspace::WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer )
     {
-        reinterpret_cast<Timeline::TimelineEditor&>( m_eventEditor ).Serialize( typeRegistry, writer );
+        static_cast<Timeline::TimelineData&>( m_eventTimeline ).Serialize( typeRegistry, writer );
+    }
+
+    void AnimationClipWorkspace::PreUndoRedo( UndoStack::Operation operation )
+    {
+        TWorkspace<AnimationClip>::PreUndoRedo( operation );
+        m_propertyGrid.SetTypeToEdit( nullptr );
     }
 }

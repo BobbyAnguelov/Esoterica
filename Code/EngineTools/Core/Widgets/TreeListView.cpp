@@ -273,7 +273,7 @@ namespace EE
         m_visualTreeState = VisualTreeState::NeedsRebuild;
         RebuildVisualTree();
 
-        if ( m_flags.IsFlagSet( ViewTracksSelection ) )
+        if ( m_flags.IsFlagSet( TrackSelection ) )
         {
             SetViewToSelection();
         }
@@ -769,7 +769,7 @@ namespace EE
         }
 
         // Draw label
-        String const displayName = pItem->GetDisplayName();
+        InlineString const displayName = pItem->GetDisplayName();
         bool newExpansionState = false;
         TreeListViewItem::ItemState const state = isActiveItem ? TreeListViewItem::Active : isSelectedItem ? TreeListViewItem::Selected : TreeListViewItem::None;
         

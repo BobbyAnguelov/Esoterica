@@ -22,7 +22,7 @@ namespace EE::Animation
 
         virtual const char* GetTypeName() const override { return "ID"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
-        virtual EventType GetAllowedEventType() const override { return EventType::Both; }
+        virtual Timeline::ItemType GetAllowedItemType() const override { return Timeline::ItemType::Both; }
         virtual bool AllowMultipleTracks() const override { return true; }
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
     };
@@ -63,7 +63,7 @@ namespace EE::Animation
 
     private:
 
-        virtual Status GetValidationStatus( float timelineLength ) const override;
+        virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
     };
 
     //-------------------------------------------------------------------------
@@ -78,7 +78,7 @@ namespace EE::Animation
 
     private:
 
-        virtual Status GetValidationStatus( float timelineLength ) const override;
+        virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
     };
 
     //-------------------------------------------------------------------------
@@ -94,7 +94,7 @@ namespace EE::Animation
 
     private:
 
-        virtual Status GetValidationStatus( float timelineLength ) const override;
+        virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
     };
 
     //-------------------------------------------------------------------------
@@ -105,15 +105,14 @@ namespace EE::Animation
 
         virtual const char* GetTypeName() const override { return "Ragdoll"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
-        virtual EventType GetAllowedEventType() const override { return EventType::Duration; }
         virtual bool AllowMultipleTracks() const override { return false; }
         virtual bool CanCreateNewItems() const override;
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
 
     private:
 
-        virtual Status GetValidationStatus( float timelineLength ) const override;
-        virtual ImRect DrawDurationItem( ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState ) override;
+        virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
+        virtual ImRect DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState ) override;
         virtual float GetTrackHeight() const override { return 70; }
     };
 }

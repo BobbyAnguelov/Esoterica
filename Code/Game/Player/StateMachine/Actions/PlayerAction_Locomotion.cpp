@@ -478,6 +478,7 @@ namespace EE::Player
         m_cachedFacing = Vector::Zero;
         m_desiredTurnDirection = Vector::Zero;
         m_desiredFacing = characterWorldTransform.GetForwardVector();
+        ctx.m_pPlayerComponent->m_sprintFlag = false;
 
         auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
         pAnimController->RequestStop( characterWorldTransform );

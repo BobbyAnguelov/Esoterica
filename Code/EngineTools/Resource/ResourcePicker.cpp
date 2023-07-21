@@ -10,7 +10,7 @@
 
 namespace EE::Resource
 {
-    static ImVec2 const g_buttonSize( 24, 24 );
+    static ImVec2 const g_buttonSize( 30, 0 );
 
     //-------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        if ( ImGui::BeginChild( "RP", ImVec2( -1, ImGui::GetFrameHeightWithSpacing() ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
+        if ( ImGui::BeginChild( "RP", ImVec2( -1, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
             auto const& style = ImGui::GetStyle();
             float const itemSpacingX = style.ItemSpacing.x;
@@ -85,10 +85,8 @@ namespace EE::Resource
             // Combo Selector
             //-------------------------------------------------------------------------
 
+            ImGui::BeginDisabled( m_toolsContext.m_pResourceDatabase->IsDescriptorCacheBuilt() );
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::TinyBold );
-                ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 6 ) );
-
                 // Path Widget
                 //-------------------------------------------------------------------------
 
@@ -97,7 +95,7 @@ namespace EE::Resource
                 float usedWidth = ( itemSpacingX * 2 ) + ( g_buttonSize.x * 2 );
                 float const pathWidgetWidth = contentRegionAvailableX - usedWidth;
 
-                ImVec2 const comboDropDownSize( Math::Max( pathWidgetWidth, 500.0f ), ImGui::GetFrameHeightWithSpacing() * 20 );
+                ImVec2 const comboDropDownSize( Math::Max( pathWidgetWidth, 500.0f ), ImGui::GetFrameHeight() * 20 );
                 ImGui::SetNextItemWidth( pathWidgetWidth );
                 ImGui::SetNextWindowSizeConstraints( ImVec2( comboDropDownSize.x, 0 ), comboDropDownSize );
 
@@ -115,7 +113,7 @@ namespace EE::Resource
                 if ( m_isComboOpen )
                 {
                     float const cursorPosYPreFilter = ImGui::GetCursorPosY();
-                    if ( m_filterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
+                    if ( m_filterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
                     {
                         GenerateFilteredOptionList();
                     }
@@ -176,15 +174,13 @@ namespace EE::Resource
                 {
                     ImGuiX::ItemTooltip( m_resourceID.c_str() );
                 }
-
-                ImGui::PopStyleVar();
             }
+            ImGui::EndDisabled();
 
             // Buttons
             //-------------------------------------------------------------------------
 
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
                 ImGui::BeginDisabled( !validPath );
 
                 // Open Resource
@@ -339,7 +335,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        if ( ImGui::BeginChild( "RP", ImVec2( -1, ImGui::GetFrameHeightWithSpacing() ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
+        if ( ImGui::BeginChild( "RP", ImVec2( -1, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
             float const itemSpacingX = ImGui::GetStyle().ItemSpacing.x;
 
@@ -347,8 +343,6 @@ namespace EE::Resource
             //-------------------------------------------------------------------------
 
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::TinyBold );
-
                 // Calculate size of resource path field
                 float const contentRegionAvailableX = ImGui::GetContentRegionAvail().x;
                 float usedWidth = ( itemSpacingX * 2 ) + ( g_buttonSize.x * 2 ) + 1;
@@ -393,8 +387,6 @@ namespace EE::Resource
             //-------------------------------------------------------------------------
 
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-
                 ImGui::SameLine( 0, itemSpacingX );
                 ImGui::BeginDisabled( !m_resourcePath.IsValid() );
                 if ( ImGui::Button( EE_ICON_COG "##Options", g_buttonSize ) )

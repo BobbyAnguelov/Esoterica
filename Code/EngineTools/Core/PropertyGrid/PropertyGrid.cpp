@@ -208,7 +208,7 @@ namespace EE
         {
             constexpr float const buttonWidth = 30;
             float const filterWidth = ImGui::GetContentRegionAvail().x - ( 3 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
-            if ( m_filterWidget.DrawAndUpdate( filterWidth ) )
+            if ( m_filterWidget.UpdateAndDraw( filterWidth ) )
             {
                 ApplyFilter();
             }

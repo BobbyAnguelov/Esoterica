@@ -123,11 +123,14 @@ namespace EE::VisualGraph
         // Can this node be destroyed via user input - this is generally tied to whether the user can create a node of this type
         virtual bool IsDestroyable() const { return IsUserCreatable(); }
 
-        // Returns the string path from the root graph
+        // Returns the string path from the root graph (including the current node)
         virtual String GetStringPathFromRoot() const;
 
-        // Returns the ID path from the root graph
+        // Returns the ID path from the root graph (including the current node)
         virtual TVector<UUID> GetIDPathFromRoot() const;
+
+        // Returns the node path from the root graph (including the current node)
+        virtual TVector<BaseNode*> GetNodePathFromRoot() const;
 
         // Regenerate UUIDs for this node and its sub-graphs, returns the original ID for the node.
         // The ID mapping will contain all the IDs changed: key = original ID, value = new ID
@@ -185,6 +188,15 @@ namespace EE::VisualGraph
 
         // Get the root graph
         inline BaseGraph const* GetRootGraph() const { return const_cast<BaseNode*>( this )->GetRootGraph(); }
+
+        // Get our parent node (the parent of our parent graph!)
+        bool HasParentNode() const;
+
+        // Get our parent node if we have one
+        BaseNode* GetParentNode();
+
+        // Get our parent node if we have one
+        BaseNode const* GetParentNode() const;
 
         // Get our parent graph (all valid nodes should have a parent graph!)
         inline bool HasParentGraph() const { return m_pParentGraph != nullptr; }

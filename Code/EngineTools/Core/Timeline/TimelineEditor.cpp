@@ -78,53 +78,10 @@ namespace EE::Timeline
 
     //-------------------------------------------------------------------------
 
-    TimelineEditor::TimelineEditor( FloatRange const& inTimeRange )
-        : m_timeRange( inTimeRange )
-        , m_viewRange( inTimeRange )
+    TimelineEditor::TimelineEditor( TimelineData* pTimelineData )
+        : m_pTimeline( pTimelineData )
     {
-        EE_ASSERT( inTimeRange.IsSetAndValid() );
-    }
-
-    TimelineEditor::~TimelineEditor()
-    {
-        m_trackContainer.Reset();
-    }
-
-    //-------------------------------------------------------------------------
-
-    bool TimelineEditor::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& objectValue )
-    {
-        ClearSelection();
-        m_trackContainer.Reset();
-
-        //-------------------------------------------------------------------------
-
-        auto trackDataIter = objectValue.FindMember( TrackContainer::s_trackContainerKey );
-        if ( trackDataIter == objectValue.MemberEnd() )
-        {
-            return false;
-        }
-
-        auto const& eventDataValueObject = trackDataIter->value;
-        if ( !eventDataValueObject.IsArray() )
-        {
-            EE_LOG_ERROR( "Tools", "Timeline Editor", "Malformed track data" );
-            return false;
-        }
-
-        if ( !m_trackContainer.Serialize( typeRegistry, eventDataValueObject ) )
-        {
-            EE_LOG_ERROR( "Tools", "Timeline Editor", "Failed to read track data" );
-            return false;
-        }
-
-        return true;
-    }
-
-    void TimelineEditor::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer )
-    {
-        writer.Key( TrackContainer::s_trackContainerKey );
-        m_trackContainer.Serialize( typeRegistry, writer );
+        EE_ASSERT( pTimelineData != nullptr && pTimelineData->GetTimeRange().IsSetAndValid() );
     }
 
     //-------------------------------------------------------------------------
@@ -140,9 +97,9 @@ namespace EE::Timeline
 
         if ( newPlayState == PlayState::Playing )
         {
-            if ( m_playheadTime >= m_timeRange.m_end )
+            if ( m_playheadTime >= m_pTimeline->GetTimeRange().m_end )
             {
-                m_playheadTime = (float) m_timeRange.m_begin;
+                m_playheadTime = (float) m_pTimeline->GetTimeRange().m_begin;
             }
 
             m_viewUpdateMode = ViewUpdateMode::TrackPlayhead;
@@ -153,8 +110,6 @@ namespace EE::Timeline
             m_viewUpdateMode = ViewUpdateMode::None;
             m_playState = PlayState::Paused;
         }
-
-        OnPlayStateChanged();
     }
 
     void TimelineEditor::UpdateViewRange()
@@ -172,13 +127,15 @@ namespace EE::Timeline
         // Process any update requests
         //-------------------------------------------------------------------------
 
+        FloatRange const& timelineRange = m_pTimeline->GetTimeRange();
+
         switch ( m_viewUpdateMode )
         {
             case ViewUpdateMode::ShowFullTimeRange:
             {
-                float const timeRangeLength = m_timeRange.GetLength() + 1;
+                float const timeRangeLength = timelineRange.GetLength() + 1;
                 m_pixelsPerFrame = Math::Max( 1.0f, Math::Floor( trackAreaWidth / timeRangeLength ) );
-                m_viewRange = m_timeRange;
+                m_viewRange = timelineRange;
                 m_viewRange.m_end += 1;
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
@@ -186,18 +143,18 @@ namespace EE::Timeline
 
             case ViewUpdateMode::GoToStart:
             {
-                m_viewRange.m_begin = m_timeRange.m_begin;
+                m_viewRange.m_begin = timelineRange.m_begin;
                 m_viewRange.m_end = maxVisibleUnits;
-                m_playheadTime = m_timeRange.m_begin;
+                m_playheadTime = timelineRange.m_begin;
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
             break;
 
             case ViewUpdateMode::GoToEnd:
             {
-                m_viewRange.m_begin = Math::Max( m_timeRange.m_begin, m_timeRange.m_end - maxVisibleUnits );
+                m_viewRange.m_begin = Math::Max( timelineRange.m_begin, timelineRange.m_end - maxVisibleUnits );
                 m_viewRange.m_end = m_viewRange.m_begin + maxVisibleUnits;
-                m_playheadTime = m_timeRange.m_end;
+                m_playheadTime = timelineRange.m_end;
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
             break;
@@ -207,10 +164,10 @@ namespace EE::Timeline
                 if ( !m_viewRange.ContainsInclusive( m_playheadTime ) )
                 {
                     // If the playhead is in the last visible range
-                    if ( m_playheadTime + maxVisibleUnits >= m_timeRange.m_end )
+                    if ( m_playheadTime + maxVisibleUnits >= timelineRange.m_end )
                     {
-                        m_viewRange.m_begin = m_timeRange.m_end - maxVisibleUnits;
-                        m_viewRange.m_end = m_timeRange.m_end;
+                        m_viewRange.m_begin = timelineRange.m_end - maxVisibleUnits;
+                        m_viewRange.m_end = timelineRange.m_end;
                     }
                     else
                     {
@@ -228,7 +185,7 @@ namespace EE::Timeline
 
     void TimelineEditor::SetCurrentTime( float inPosition )
     {
-        m_playheadTime = m_timeRange.GetClampedValue( inPosition );
+        m_playheadTime = m_pTimeline->GetTimeRange().GetClampedValue( inPosition );
 
         if ( m_isFrameSnappingEnabled )
         {
@@ -298,7 +255,7 @@ namespace EE::Timeline
     {
         for ( int32_t i = (int32_t) m_selectedItems.size() - 1; i >= 0; i-- )
         {
-            if ( !m_trackContainer.Contains( m_selectedItems[i] ) )
+            if ( !m_pTimeline->Contains( m_selectedItems[i] ) )
             {
                 m_selectedItems.erase_unsorted( m_selectedItems.begin() + i );
             }
@@ -308,7 +265,7 @@ namespace EE::Timeline
 
         for ( int32_t i = (int32_t) m_selectedTracks.size() - 1; i >= 0; i-- )
         {
-            if ( !m_trackContainer.Contains( m_selectedTracks[i] ) )
+            if ( !m_pTimeline->Contains( m_selectedTracks[i] ) )
             {
                 m_selectedTracks.erase_unsorted( m_selectedTracks.begin() + i );
             }
@@ -519,13 +476,13 @@ namespace EE::Timeline
         // Draw End Line
         //-------------------------------------------------------------------------
 
-        if ( m_viewRange.ContainsInclusive( m_timeRange.m_end ) )
+        if ( m_viewRange.ContainsInclusive( m_pTimeline->GetTimeRange().m_end ) )
         {
-            float const lineOffsetX = startPosX + Math::Round( m_timeRange.m_end * m_pixelsPerFrame );
+            float const lineOffsetX = startPosX + Math::Round( m_pTimeline->GetTimeRange().m_end * m_pixelsPerFrame );
             pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + g_timelineLargeLineOffset ), ImVec2( lineOffsetX, endPosY ), g_timelineRangeEndLineColor, 1 );
 
             // Draw text label
-            InlineString label( InlineString::CtorSprintf(), "%.0f", m_viewRange.m_begin + m_timeRange.m_end );
+            InlineString label( InlineString::CtorSprintf(), "%.0f", m_viewRange.m_begin + m_pTimeline->GetTimeRange().m_end );
             pDrawList->AddText( ImVec2( lineOffsetX + g_timelineLabelLeftPadding, startPosY ), g_timelineRangeEndLineColor, label.c_str() );
         }
     }
@@ -574,7 +531,7 @@ namespace EE::Timeline
         // Draw marker lines
         //-------------------------------------------------------------------------
 
-        pDrawList->AddLine( playheadPosition, ImVec2( playheadPosition.x, timelineRect.GetBR().y ), m_playheadTime != m_timeRange.m_end ? playheadColor : g_timelineRangeEndLineColor );
+        pDrawList->AddLine( playheadPosition, ImVec2( playheadPosition.x, timelineRect.GetBR().y ), m_playheadTime != m_pTimeline->GetTimeRange().m_end ? playheadColor : g_timelineRangeEndLineColor );
     }
 
     void TimelineEditor::DrawTracks( ImRect const& fullTrackAreaRect )
@@ -592,10 +549,10 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         float trackStartY = fullTrackAreaRect.GetTL().y;
-        int32_t const numTracks = m_trackContainer.GetNumTracks();
+        int32_t const numTracks = m_pTimeline->GetNumTracks();
         for ( int32_t i = 0; i < numTracks; i++ )
         {
-            auto pTrack = m_trackContainer.GetTrack( i );
+            auto pTrack = m_pTimeline->GetTrack( i );
 
             float const trackEndY = trackStartY + pTrack->GetTrackHeight();
 
@@ -620,7 +577,7 @@ namespace EE::Timeline
             // Calculate playhead position for the mouse pos
             if ( fullTrackAreaRect.Contains( mousePos ) )
             {
-                FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_timeRange.m_begin ), (float) Math::Min( m_viewRange.m_end, m_timeRange.m_end ) );
+                FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
                 m_mouseState.m_playheadTimeForMouse = m_viewRange.m_begin + ConvertPixelsToFrames( mousePos.x - trackAreaRect.Min.x );
                 m_mouseState.m_playheadTimeForMouse = playheadValidRange.GetClampedValue( m_mouseState.m_playheadTimeForMouse );
                 m_mouseState.m_snappedPlayheadTimeForMouse = m_mouseState.m_playheadTimeForMouse;
@@ -644,7 +601,7 @@ namespace EE::Timeline
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 0 ) );
                 if( ImGui::BeginChild( headerID, trackHeaderRect.GetSize(), false, headerFlags) )
                 {
-                    pTrack->DrawHeader( trackHeaderRect, m_timeRange );
+                    pTrack->DrawHeader( m_pTimeline->GetTrackContext(), trackHeaderRect );
                 }
                 ImGui::EndChild();
                 ImGui::PopStyleVar( 2 );
@@ -692,7 +649,7 @@ namespace EE::Timeline
                         itemPos.m_x = trackAreaRect.GetTL().x + ( itemTimeRange.m_begin - m_viewRange.m_begin ) * m_pixelsPerFrame;
                         itemPos.m_y = trackAreaRect.GetTL().y;
 
-                        ImRect const itemRect = pTrack->DrawImmediateItem( pDrawList, pItem, itemPos, itemState );
+                        ImRect const itemRect = pTrack->DrawImmediateItem( m_pTimeline->GetTrackContext(), pDrawList, pItem, itemPos, itemState );
                         if ( itemRect.Contains( mousePos ) )
                         {
                             m_mouseState.m_pHoveredItem = pItem;
@@ -709,7 +666,7 @@ namespace EE::Timeline
                         itemEndPos.m_x = trackAreaRect.GetTL().x + ( itemTimeRange.m_end - m_viewRange.m_begin ) * m_pixelsPerFrame;
                         itemEndPos.m_y = trackAreaRect.GetBR().y;
 
-                        ImRect const itemRect = pTrack->DrawDurationItem( pDrawList, pItem, itemStartPos, itemEndPos, itemState );
+                        ImRect const itemRect = pTrack->DrawDurationItem( m_pTimeline->GetTrackContext(), pDrawList, pItem, itemStartPos, itemEndPos, itemState );
                         if ( itemRect.Contains( mousePos ) )
                         {
                             ImVec2 const visualItemStart = itemRect.GetTL();
@@ -748,6 +705,71 @@ namespace EE::Timeline
         }
     }
 
+    void TimelineEditor::DrawAddTracksMenu()
+    {
+        int32_t numAvailableTracks = 0;
+        TVector<TypeSystem::TypeInfo const*> const& trackTypes = m_pTimeline->GetAllowedTrackTypes();
+        for ( auto pTypeInfo : trackTypes )
+        {
+            auto const pDefaultTrackInstance = Cast<Track>( pTypeInfo->m_pDefaultInstance );
+
+            bool isAllowedTrackType = true;
+            if ( !pDefaultTrackInstance->AllowMultipleTracks() )
+            {
+                // Check if a track of this type already exists
+                for ( auto pTrack : m_pTimeline->GetTracks() )
+                {
+                    auto pExistingTrack = reinterpret_cast<Track*>( pTrack );
+                    if ( pExistingTrack->GetTypeInfo() == pDefaultTrackInstance->GetTypeInfo() )
+                    {
+                        isAllowedTrackType = false;
+                        break;
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( isAllowedTrackType )
+            {
+                numAvailableTracks++;
+
+                auto CreateTrackOption = [this, pDefaultTrackInstance, pTypeInfo] ( ItemType itemType, char const* pNameSuffix = nullptr )
+                {
+                    InlineString menuItemName = pDefaultTrackInstance->GetTypeName();
+                    if ( pNameSuffix != nullptr )
+                    {
+                        menuItemName += pNameSuffix;
+                    }
+
+                    if ( ImGui::MenuItem( menuItemName.c_str() ) )
+                    {
+                        m_pTimeline->CreateTrack( pTypeInfo, itemType );
+                    }
+                };
+
+                //-------------------------------------------------------------------------
+
+                if ( pDefaultTrackInstance->GetAllowedItemType() == ItemType::Both )
+                {
+                    CreateTrackOption( ItemType::Immediate, "(Immediate)" );
+                    CreateTrackOption( ItemType::Duration, "(Duration)" );
+                }
+                else
+                {
+                    CreateTrackOption( pDefaultTrackInstance->GetAllowedItemType() );
+                }
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( numAvailableTracks == 0 )
+        {
+            ImGui::Text( "No Available Tracks" );
+        }
+    }
+
     void TimelineEditor::DrawContextMenu()
     {
         if ( m_isContextMenuRequested )
@@ -764,7 +786,7 @@ namespace EE::Timeline
             // Item Context Menu
             if ( m_contextMenuState.m_pItem != nullptr )
             {
-                auto pTrack = m_trackContainer.GetTrackForItem( m_contextMenuState.m_pItem );
+                auto pTrack = m_pTimeline->GetTrackForItem( m_contextMenuState.m_pItem );
                 if ( pTrack != nullptr )
                 {
                     bool const shouldDeleteItem = ImGui::MenuItem( EE_ICON_DELETE" Delete Item" );
@@ -782,7 +804,7 @@ namespace EE::Timeline
                     if ( shouldDeleteItem )
                     {
                         ClearSelection();
-                        m_trackContainer.DeleteItem( m_contextMenuState.m_pItem );
+                        m_pTimeline->DeleteItem( m_contextMenuState.m_pItem );
                         ImGui::CloseCurrentPopup();
                     }
                 }
@@ -790,7 +812,7 @@ namespace EE::Timeline
             // Track Context Menu
             else if ( m_contextMenuState.m_pTrack != nullptr )
             {
-                if ( m_trackContainer.Contains( m_contextMenuState.m_pTrack ) )
+                if ( m_pTimeline->Contains( m_contextMenuState.m_pTrack ) )
                 {
                     if ( m_contextMenuState.m_pTrack->CanCreateNewItems() && ImGui::MenuItem( EE_ICON_PLUS" Add Item" ) )
                     {
@@ -802,7 +824,7 @@ namespace EE::Timeline
                             itemStartTime = Math::Round( itemStartTime );
                         }
 
-                        m_trackContainer.CreateItem( m_contextMenuState.m_pTrack, itemStartTime );
+                        m_pTimeline->CreateItem( m_contextMenuState.m_pTrack, itemStartTime );
                     }
 
                     bool const shouldDeleteTrack = ImGui::MenuItem( EE_ICON_DELETE" Delete Track" );
@@ -811,7 +833,7 @@ namespace EE::Timeline
 
                     if ( m_contextMenuState.m_pTrack->HasContextMenu() )
                     {
-                        m_contextMenuState.m_pTrack->DrawContextMenu( m_trackContainer.m_tracks, m_contextMenuState.m_playheadTimeForMouse < 0.0f ? m_playheadTime : m_contextMenuState.m_playheadTimeForMouse );
+                        m_contextMenuState.m_pTrack->DrawContextMenu( m_pTimeline->GetTrackContext(), m_pTimeline->GetTracks(), m_contextMenuState.m_playheadTimeForMouse < 0.0f ? m_playheadTime : m_contextMenuState.m_playheadTimeForMouse );
                     }
 
                     //-------------------------------------------------------------------------
@@ -844,7 +866,7 @@ namespace EE::Timeline
         ImVec2 const canvasPos = ImGui::GetCursorScreenPos();
         ImVec2 const canvasSize = ImGui::GetContentRegionAvail();
 
-        bool const requiresHorizontalScrollBar = ( m_viewRange.m_begin > m_timeRange.m_begin || m_viewRange.m_end < m_timeRange.m_end );
+        bool const requiresHorizontalScrollBar = ( m_viewRange.m_begin > m_pTimeline->GetTimeRange().m_begin || m_viewRange.m_end < m_pTimeline->GetTimeRange().m_end );
         float const horizontalScrollBarHeight = requiresHorizontalScrollBar ? g_horizontalScrollbarHeight : 0.0f;
 
         //-------------------------------------------------------------------------
@@ -855,17 +877,17 @@ namespace EE::Timeline
         {
             m_playheadTime += ConvertSecondsToTimelineUnit( deltaTime );
 
-            if ( m_playheadTime >= m_timeRange.m_end )
+            if ( m_playheadTime >= m_pTimeline->GetTimeRange().m_end )
             {
                 if ( m_isLoopingEnabled )
                 {
-                    Percentage percentageThroughRange( m_timeRange.GetPercentageThrough( m_playheadTime ) );
+                    Percentage percentageThroughRange( m_pTimeline->GetTimeRange().GetPercentageThrough( m_playheadTime ) );
                     percentageThroughRange.Clamp( true );
-                    m_playheadTime = m_timeRange.GetValueForPercentageThrough( percentageThroughRange );
+                    m_playheadTime = m_pTimeline->GetTimeRange().GetValueForPercentageThrough( percentageThroughRange );
                 }
                 else // Clamp to end
                 {
-                    m_playheadTime = m_timeRange.m_end;
+                    m_playheadTime = m_pTimeline->GetTimeRange().m_end;
                     SetPlayState( PlayState::Paused );
                 }
             }
@@ -918,7 +940,7 @@ namespace EE::Timeline
 
             ImRect const horizontalScrollBarRect( ImVec2( canvasPos.x + g_trackHeaderWidth, canvasPos.y + canvasSize.y - horizontalScrollBarHeight ), ImVec2( canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y ) );
             int64_t const currentViewSize = Math::RoundToInt( m_viewRange.GetLength() * m_pixelsPerFrame );
-            int64_t const totalContentSizeNeeded = Math::RoundToInt( m_timeRange.GetLength() * m_pixelsPerFrame );
+            int64_t const totalContentSizeNeeded = Math::RoundToInt( m_pTimeline->GetTimeRange().GetLength() * m_pixelsPerFrame );
             int64_t scrollbarPosition = Math::RoundToInt( m_viewRange.m_begin * m_pixelsPerFrame );
 
             ImGuiWindow* pWindow = ImGui::GetCurrentWindow();
@@ -982,7 +1004,7 @@ namespace EE::Timeline
             }
 
             bool const isMouseWithinTimeline = m_timelineRect.Contains( mousePos );
-            bool const isMouseClicked = ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right );
+            bool const isMouseClicked = ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) || ImGui::IsMouseClicked( ImGuiMouseButton_Middle );
 
             // Handle clicks
             if ( isMouseClicked )
@@ -1003,6 +1025,17 @@ namespace EE::Timeline
                     if ( isMouseWithinTimeline )
                     {
                         m_isDraggingPlayhead = true;
+
+                        if ( ImGui::IsMouseClicked( ImGuiMouseButton_Middle ) )
+                        {
+                            for ( auto pTrack : m_selectedTracks )
+                            {
+                                if ( pTrack->CanCreateNewItems() )
+                                {
+                                    m_pTimeline->CreateItem( pTrack, m_playheadTime );
+                                }
+                            }
+                        }
                     }
                 }
                 else if ( isMouseWithinTimeline || m_playheadRect.Contains( mousePos ) )
@@ -1043,7 +1076,7 @@ namespace EE::Timeline
 
                 if ( !m_itemEditState.m_isEditing )
                 {
-                    m_trackContainer.BeginModification();
+                    m_pTimeline->BeginModification();
                     m_itemEditState.m_isEditing = true;
                 }
 
@@ -1058,7 +1091,7 @@ namespace EE::Timeline
                 if ( m_itemEditState.m_mode == ItemEditMode::Move )
                 {
                     // Create a new range to clamp the event start time to
-                    FloatRange validEventStartRange = m_timeRange;
+                    FloatRange validEventStartRange = m_pTimeline->GetTimeRange();
                     if ( pEditedItem->IsDurationItem() )
                     {
                         validEventStartRange.m_end = validEventStartRange.m_end - m_itemEditState.m_originalTimeRange.GetLength();
@@ -1083,7 +1116,7 @@ namespace EE::Timeline
                     }
 
                     editedItemTimeRange.m_begin = Math::Min( m_itemEditState.m_originalTimeRange.m_end - 1, newTime );
-                    editedItemTimeRange.m_begin = Math::Max( m_timeRange.m_begin, editedItemTimeRange.m_begin );
+                    editedItemTimeRange.m_begin = Math::Max( m_pTimeline->GetTimeRange().m_begin, editedItemTimeRange.m_begin );
                     SetCurrentTime( editedItemTimeRange.m_begin );
                 }
                 else if ( m_itemEditState.m_mode == ItemEditMode::ResizeRight )
@@ -1095,17 +1128,17 @@ namespace EE::Timeline
                     }
 
                     editedItemTimeRange.m_end = Math::Max( m_itemEditState.m_originalTimeRange.m_begin + 1, newTime );
-                    editedItemTimeRange.m_end = Math::Min( m_timeRange.m_end, editedItemTimeRange.m_end );
+                    editedItemTimeRange.m_end = Math::Min( m_pTimeline->GetTimeRange().m_end, editedItemTimeRange.m_end );
                     SetCurrentTime( editedItemTimeRange.m_end );
                 }
 
-                m_trackContainer.UpdateItemTimeRange( pEditedItem, editedItemTimeRange );
+                m_pTimeline->UpdateItemTimeRange( pEditedItem, editedItemTimeRange );
             }
             else if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
             {
                 if ( m_itemEditState.m_isEditing )
                 {
-                    m_trackContainer.EndModification();
+                    m_pTimeline->EndModification();
                 }
 
                 m_itemEditState.Reset();
@@ -1131,7 +1164,7 @@ namespace EE::Timeline
             //-------------------------------------------------------------------------
 
             // The valid range for the playhead, limit it to the current view range but dont let it leave the actual time range
-            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_timeRange.m_begin ), (float) Math::Min( m_viewRange.m_end, m_timeRange.m_end ) );
+            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
             float newPlayheadTime = m_viewRange.m_begin + ConvertPixelsToFrames( mousePos.x - m_timelineRect.Min.x );
             newPlayheadTime = playheadValidRange.GetClampedValue( newPlayheadTime );
             SetCurrentTime( newPlayheadTime );
@@ -1155,37 +1188,37 @@ namespace EE::Timeline
         }
         else if ( ImGui::IsKeyReleased( ImGuiKey_LeftArrow ) )
         {
-            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_timeRange.m_begin ), (float) Math::Min( m_viewRange.m_end, m_timeRange.m_end ) );
+            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
             float const newPlayheadTime = playheadValidRange.GetClampedValue( m_playheadTime - 1 );
             SetCurrentTime( newPlayheadTime );
         }
         else if ( ImGui::IsKeyReleased( ImGuiKey_RightArrow ) )
         {
-            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_timeRange.m_begin ), (float) Math::Min( m_viewRange.m_end, m_timeRange.m_end ) );
+            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
             float const newPlayheadTime = playheadValidRange.GetClampedValue( m_playheadTime + 1 );
             SetCurrentTime( newPlayheadTime );
         }
-        else if ( ImGui::IsKeyReleased( ImGuiKey_Enter ) )
+        else if ( ImGui::IsKeyReleased( ImGuiKey_E ) )
         {
             for ( auto pTrack : m_selectedTracks )
             {
                 if( pTrack->CanCreateNewItems() )
                 {
-                    m_trackContainer.CreateItem( pTrack, m_playheadTime );
+                    m_pTimeline->CreateItem( pTrack, m_playheadTime );
                 }
             }
         }
         else  if ( ImGui::IsKeyReleased( ImGuiKey_Delete ) )
         {
-            TVector<TrackItem*> copiedSelectedItems = m_selectedItems;
+            TVector<TrackItem*> tmpSelectedItems = m_selectedItems;
             ClearSelection();
 
-            m_trackContainer.BeginModification();
-            for ( auto pItem : copiedSelectedItems )
+            m_pTimeline->GetTrackContext().BeginModification();
+            for ( auto pItem : tmpSelectedItems )
             {
-                m_trackContainer.DeleteItem( pItem );
+                m_pTimeline->DeleteItem( pItem );
             }
-            m_trackContainer.EndModification();
+            m_pTimeline->GetTrackContext().EndModification();
         }
     }
 

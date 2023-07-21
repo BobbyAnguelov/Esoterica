@@ -28,15 +28,29 @@ namespace EE::Resource
     {
     public:
 
-        enum class Status
+        enum class DatabaseState
         {
-            Idle,
-            BuildingDB,
+            Empty,
+            BuildingFileSystemCache,
+            BuildingDescriptorCache,
+            Ready
         };
 
         struct FileEntry
         {
+            FileEntry() = default;
             ~FileEntry();
+
+            // Disable copying
+            FileEntry( FileEntry const& ) = delete;
+            FileEntry& operator=( FileEntry& ) = delete;
+            FileEntry& operator=( FileEntry const& ) = delete;
+
+            // Descriptor
+            void LoadDescriptor( TypeSystem::TypeRegistry const& typeRegistry );
+            void ReloadDescriptor( TypeSystem::TypeRegistry const& typeRegistry );
+
+        public:
 
             ResourceID                                              m_resourceID;
             FileSystem::Path                                        m_filePath;
@@ -69,6 +83,31 @@ namespace EE::Resource
         void Initialize( TypeSystem::TypeRegistry const* pTypeRegistry, TaskSystem* pTaskSystem, FileSystem::Path const& rawResourceDirPath, FileSystem::Path const& compiledResourceDirPath );
         void Shutdown();
 
+        // Process any filesystem updates, returns true if any changes were detected!
+        bool Update();
+
+        // Database State
+        //-------------------------------------------------------------------------
+
+        // Did we finish building the file system cache?
+        bool IsFileSystemCacheBuilt() const { return m_state > DatabaseState::BuildingFileSystemCache; }
+
+        // Event that fires whenever the database is updated
+        TEventHandle<> OnFileSystemCacheUpdated() const { return m_filesystemCacheUpdatedEvent; }
+
+        // Did we finish building the descriptor cache
+        bool IsDescriptorCacheBuilt() const { return m_state > DatabaseState::BuildingDescriptorCache; }
+
+        // Are we currently rebuilding the DB?
+        bool IsBuildingCaches() const { return m_state > DatabaseState::Empty && m_state < DatabaseState::Ready; }
+
+        // Get the current progress where 0 mean no progress and 1.0f means complete!
+        // Progress is per state i.e. progress will reset when we start building the descriptor cache
+        inline float GetProgress() const { return float( m_numItemsProcessed ) / m_totalItemsToProcess; }
+
+        // General Resource System Info
+        //-------------------------------------------------------------------------
+
         // Get the path for the raw resources
         inline FileSystem::Path const& GetRawResourceDirectoryPath() const { return m_rawResourceDirPath; }
 
@@ -78,22 +117,14 @@ namespace EE::Resource
         // Get a structured representation of all known raw resources
         inline DirectoryEntry const* GetRawResourceDirectoryEntry() const { return &m_reflectedDataDirectory; }
 
+        // Resource Info
+        //-------------------------------------------------------------------------
+
         // Try to get an entry for a resource path
         FileEntry const* GetFileEntry( ResourcePath const& resourcePath ) const;
 
         // Try to get an entry for a resource ID
         EE_FORCE_INLINE FileEntry const* GetFileEntry( ResourceID const& resourceID ) const { return GetFileEntry( resourceID.GetResourcePath() ); }
-
-        //-------------------------------------------------------------------------
-
-        // Are we currently rebuilding the DB?
-        bool IsRebuilding() const { return m_pAsyncTask != nullptr; }
-
-        // Get the rebuild progress where 0 mean no progress and 1.0f means complete!
-        inline float GetRebuildProgress() const { return m_rebuildProgress; }
-
-        // Process any filesystem updates, returns true if any changes were detected!
-        bool Update();
 
         // Check if this is a existing resource
         bool DoesResourceExist( ResourceID const& resourceID ) const;
@@ -110,9 +141,6 @@ namespace EE::Resource
         // Get a list of all known resource of the specified type
         TVector<ResourceID> GetAllResourcesOfTypeFiltered( ResourceTypeID resourceTypeID, TFunction<bool( ResourceDescriptor const*)> const& filter, bool includeDerivedTypes = false ) const;
 
-        // Event that fires whenever the database is updated
-        TEventHandle<> OnDatabaseUpdated() const { return m_databaseUpdatedEvent; }
-
         // Event that fires whenever a resource is deleted
         TEventHandle<ResourceID> OnResourceDeleted() const { return m_resourceDeletedEvent; }
 
@@ -120,21 +148,19 @@ namespace EE::Resource
 
         void ClearDatabase();
 
-        // Trigger a full rebuild of the database, this is done async
-        void RequestDatabaseRebuild();
+        void StartFilesystemCacheBuild();
 
-        // The actual rebuild task
-        void RebuildDatabase();
+        void StartDescriptorCacheBuild();
 
         // Cancel the rebuild of the database
-        void CancelDatabaseRebuild();
+        void CancelDatabaseBuild();
 
         // Directory operations
         DirectoryEntry* FindDirectory( FileSystem::Path const& dirPath );
         DirectoryEntry* FindOrCreateDirectory( FileSystem::Path const& dirPath );
 
         // Add/Remove records
-        void AddFileRecord( FileSystem::Path const& path );
+        FileEntry* AddFileRecord( FileSystem::Path const& path, bool loadDescriptor );
         void RemoveFileRecord( FileSystem::Path const& path );
 
         // File system listener
@@ -146,6 +172,8 @@ namespace EE::Resource
         virtual void OnDirectoryDeleted( FileSystem::Path const& path ) override final;
         virtual void OnDirectoryRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) override final;
 
+        bool TempFileWatcherEventWarning();
+
     private:
 
         TypeSystem::TypeRegistry const*                             m_pTypeRegistry = nullptr;
@@ -153,17 +181,23 @@ namespace EE::Resource
         FileSystem::Path                                            m_rawResourceDirPath;
         FileSystem::Path                                            m_compiledResourceDirPath;
         int32_t                                                     m_dataDirectoryPathDepth;
+
+        // File system watcher
         FileSystem::FileSystemWatcher                               m_fileSystemWatcher;
 
-        Status                                                      m_status = Status::Idle;
-        ITaskSet*                                                   m_pAsyncTask = nullptr;
-        bool                                                        m_cancelActiveTask = false;
-        std::atomic<float>                                          m_rebuildProgress = 1.0f;
-
+        // Database data
         DirectoryEntry                                              m_reflectedDataDirectory;
         THashMap<ResourceTypeID, TVector<FileEntry*>>               m_resourcesPerType;
         THashMap<ResourcePath, FileEntry*>                          m_resourcesPerPath;
-        mutable TEvent<>                                            m_databaseUpdatedEvent;
+        mutable TEvent<>                                            m_filesystemCacheUpdatedEvent;
         mutable TEvent<ResourceID>                                  m_resourceDeletedEvent;
+
+        // Build state
+        std::atomic<DatabaseState>                                  m_state = DatabaseState::Empty;
+        ITaskSet*                                                   m_pAsyncTask = nullptr;
+        std::atomic<bool>                                           m_cancelActiveTask = false;
+        std::atomic<int32_t>                                        m_numItemsProcessed = 0;
+        int32_t                                                     m_totalItemsToProcess = 1;
+        TVector<FileEntry*>                                         m_descriptorsToLoad;
     };
 }

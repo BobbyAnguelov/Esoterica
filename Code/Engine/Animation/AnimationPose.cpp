@@ -177,7 +177,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color, float lineThickness, BoneMask const* pBoneMask, bool detailedView ) const
+    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color, float lineThickness, BoneMask const* pBoneMask, TBitFlags<DrawFlags> drawFlags ) const
     {
         auto const& parentIndices = m_pSkeleton->GetParentBoneIndices();
 
@@ -216,13 +216,29 @@ namespace EE::Animation
                 ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, lineThickness );
                 ctx.DrawAxis( boneTransform, 0.01f, 3.0f );
 
-                if ( detailedView )
+                if ( drawFlags.IsAnyFlagSet() )
                 {
-                    if ( pBoneMask != nullptr )
+                    if ( pBoneMask != nullptr && drawFlags.IsFlagSet( DrawFlags::DrawBoneWeights ) )
                     {
                         float const boneWeight = pBoneMask->GetWeight( boneIdx );
-                        detailsStr.sprintf( "%.2f", boneWeight );
+
+                        if ( drawFlags.IsFlagSet( DrawFlags::DrawBoneNames ) )
+                        {
+                            detailsStr.sprintf( "%s: %.2f", m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneWeight );
+                        }
+                        else // Just draw the weights
+                        {
+                            detailsStr.sprintf( "%.2f", m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneWeight );
+                        }
+
                         ctx.DrawTextBox3D( boneTransform.GetTranslation(), detailsStr.c_str(), boneColor );
+                    }
+                    else // No Mask
+                    {
+                        if ( drawFlags.IsFlagSet( DrawFlags::DrawBoneNames ) )
+                        {
+                            ctx.DrawTextBox3D( boneTransform.GetTranslation(), m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneColor );
+                        }
                     }
                 }
             }

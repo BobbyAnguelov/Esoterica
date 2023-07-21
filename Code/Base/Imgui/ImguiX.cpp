@@ -840,7 +840,7 @@ namespace EE::ImGuiX
     // Advanced Widgets
     //-------------------------------------------------------------------------
 
-    bool FilterWidget::DrawAndUpdate( float width, TBitFlags<Flags> flags )
+    bool FilterWidget::UpdateAndDraw( float width, TBitFlags<Flags> flags )
     {
         bool filterUpdated = false;
         ImGui::PushID( this );
@@ -871,14 +871,8 @@ namespace EE::ImGuiX
             ImGui::SetNextItemWidth( textInputWidth );
             if ( ImGui::InputText( "##Filter", m_buffer, s_bufferSize ) )
             {
+                OnBufferUpdated();
                 filterUpdated = true;
-
-                StringUtils::Split( m_buffer, m_tokens );
-
-                for ( auto& token : m_tokens )
-                {
-                    token.make_lower();
-                }
             }
 
             // Draw clear button
@@ -946,6 +940,51 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         return true;
+    }
+
+    bool FilterWidget::MatchesFilter( InlineString string )
+    {
+        if ( string.empty() )
+        {
+            return false;
+        }
+
+        if ( m_tokens.empty() )
+        {
+            return true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        string.make_lower();
+        for ( auto const& token : m_tokens )
+        {
+            if ( string.find( token.c_str() ) == InlineString::npos )
+            {
+                return false;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        return true;
+    }
+
+	void FilterWidget::SetFilter( String const& filterText )
+	{
+        uint32_t const lengthToCopy = Math::Min( s_bufferSize, (uint32_t) filterText.length() );
+        memcpy( m_buffer, filterText.c_str(), lengthToCopy );
+        OnBufferUpdated();
+	}
+
+    void FilterWidget::OnBufferUpdated()
+    {
+        StringUtils::Split( String( m_buffer ), m_tokens );
+
+        for ( auto& token : m_tokens )
+        {
+            token.make_lower();
+        }
     }
 
     //-------------------------------------------------------------------------

@@ -201,6 +201,36 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    class EE_ENGINE_API FootstepEventIDNode : public IDValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings : public IDValueNode::Settings
+        {
+            EE_REFLECT_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( IDValueNode::Settings, m_sourceStateNodeIdx, m_rules );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+            TBitFlags<EventConditionRules>              m_rules;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        StateNode const*                                m_pSourceStateNode = nullptr;
+        StringID                                        m_result;
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API SyncEventIndexConditionNode : public BoolValueNode
     {
     public:
@@ -243,7 +273,71 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API CurrentSyncEventNode : public FloatValueNode
+    class EE_ENGINE_API CurrentSyncEventIDNode : public IDValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings : public IDValueNode::Settings
+        {
+            EE_REFLECT_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( IDValueNode::Settings, m_sourceStateNodeIdx );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+
+    private:
+
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        StateNode*                                      m_pSourceStateNode = nullptr;
+        StringID                                        m_result;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API CurrentSyncEventIndexNode : public FloatValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Settings : public FloatValueNode::Settings
+        {
+            EE_REFLECT_TYPE( Settings );
+            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+
+    private:
+
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        StateNode*                                      m_pSourceStateNode = nullptr;
+        float                                           m_result = 0.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API CurrentSyncEventPercentageThroughNode : public FloatValueNode
     {
     public:
 

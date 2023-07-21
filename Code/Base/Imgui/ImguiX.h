@@ -205,7 +205,10 @@ namespace EE::ImGuiX
     public:
 
         // Draws the filter. Returns true if the filter has been updated
-        bool DrawAndUpdate( float width = -1, TBitFlags<Flags> flags = TBitFlags<Flags>() );
+        bool UpdateAndDraw( float width = -1, TBitFlags<Flags> flags = TBitFlags<Flags>() );
+
+        // Manually set the filter buffer
+        void SetFilter( String const& filterText );
 
         // Set the help text shown when we dont have focus and the filter is empty
         void SetFilterHelpText( String const& helpText ) { m_filterHelpText = helpText; }
@@ -221,6 +224,16 @@ namespace EE::ImGuiX
 
         // Does a provided string match the current filter - the string copy is intentional!
         bool MatchesFilter( String string );
+
+        // Does a provided string match the current filter - the string copy is intentional!
+        bool MatchesFilter( InlineString string );
+
+        // Does a provided string match the current filter
+        bool MatchesFilter( char const* pString ) { return MatchesFilter( InlineString( pString ) ); }
+
+    private:
+
+        void OnBufferUpdated();
 
     private:
 

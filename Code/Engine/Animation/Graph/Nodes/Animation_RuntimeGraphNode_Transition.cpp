@@ -17,6 +17,8 @@ namespace EE::Animation::GraphNodes
         context.SetOptionalNodePtrFromIndex( m_durationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
         context.SetOptionalNodePtrFromIndex( m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
         context.SetOptionalNodePtrFromIndex( m_startBoneMaskNodeIdx, pNode->m_pStartBoneMaskNode );
+        context.SetOptionalNodePtrFromIndex( m_targetSyncIDNodeIdx, pNode->m_pTargetSyncIDNode );
+        
     }
 
     GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, GraphPoseNodeResult const& sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
@@ -224,13 +226,29 @@ namespace EE::Animation::GraphNodes
                     }
                     else if ( pSettings->ShouldMatchSyncEventID() )
                     {
-                        // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
-                        // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
-                        m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-                        SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
-                        StringID const sourceSyncEventID = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
-                        targetStartEventSyncTime.m_eventIdx = pSettings->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, sourceSyncEventID ) : targetSyncTrack.GetEventIndexForID( sourceSyncEventID );
-                        m_pTargetNode->Shutdown( context );
+                        // Get the sync event ID to match
+                        StringID eventIDToMatch;
+                        if ( m_pTargetSyncIDNode != nullptr )
+                        {
+                            m_pTargetSyncIDNode->Initialize( context );
+                            eventIDToMatch = m_pTargetSyncIDNode->GetValue<StringID>( context );
+                            m_pTargetSyncIDNode->Shutdown( context );
+                        }
+                        else
+                        {
+                            eventIDToMatch = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
+                        }
+
+                        // Get the target sync track time
+                        if ( eventIDToMatch.IsValid() )
+                        {
+                            // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
+                            // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
+                            m_pTargetNode->Initialize( context, targetStartEventSyncTime );
+                            SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
+                            targetStartEventSyncTime.m_eventIdx = pSettings->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, eventIDToMatch ) : targetSyncTrack.GetEventIndexForID( eventIDToMatch );
+                            m_pTargetNode->Shutdown( context );
+                        }
                     }
 
                     // Should we keep the source "From" percentage through

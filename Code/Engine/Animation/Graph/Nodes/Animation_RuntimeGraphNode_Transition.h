@@ -48,7 +48,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings : public PoseNode::Settings
         {
             EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
+            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_targetSyncIDNodeIdx, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
 
         public:
 
@@ -74,6 +74,7 @@ namespace EE::Animation::GraphNodes
             Percentage                          m_boneMaskBlendInTimePercentage = 0.33f;
             float                               m_syncEventOffset = 0;
             TBitFlags<TransitionOptions>        m_transitionOptions;
+            int16_t                             m_targetSyncIDNodeIdx = InvalidIndex;
             Math::Easing::Type                  m_blendWeightEasingType = Math::Easing::Type::Linear;
             RootMotionBlendMode                 m_rootMotionBlend = RootMotionBlendMode::Blend;
         };
@@ -155,6 +156,7 @@ namespace EE::Animation::GraphNodes
         FloatValueNode*                         m_pDurationOverrideNode = nullptr;
         FloatValueNode*                         m_pEventOffsetOverrideNode = nullptr;
         BoneMaskValueNode*                      m_pStartBoneMaskNode = nullptr;
+        IDValueNode*                            m_pTargetSyncIDNode = nullptr;
         BoneMask                                m_boneMask;
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;

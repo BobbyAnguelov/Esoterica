@@ -24,7 +24,7 @@ namespace EE
         ImGui::Text( "Filter:" );
         ImGui::SameLine();
         float const filterWidth = ImGui::GetContentRegionAvail().x - filterButtonWidth - ImGui::GetStyle().ItemSpacing.x;
-        if ( m_filterWidget.DrawAndUpdate( filterWidth ) )
+        if ( m_filterWidget.UpdateAndDraw( filterWidth ) )
         {
             UpdateFilteredList( context );
         }

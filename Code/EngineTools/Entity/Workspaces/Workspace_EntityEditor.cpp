@@ -711,7 +711,7 @@ namespace EE::EntityModel
         m_outlinerTreeView.SetFlag( TreeListView::Flags::ExpandItemsOnlyViaArrow );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::MultiSelectionAllowed );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::SortTree );
-        m_outlinerTreeView.SetFlag( TreeListView::Flags::ViewTracksSelection );
+        m_outlinerTreeView.SetFlag( TreeListView::Flags::TrackSelection );
 
         //-------------------------------------------------------------------------
 
@@ -1934,9 +1934,9 @@ namespace EE::EntityModel
         virtual bool IsDragAndDropTarget() const override { return m_pEntity->IsSpatialEntity(); }
         virtual bool IsDragAndDropSource() const override { return m_pEntity->IsSpatialEntity(); }
 
-        virtual String GetDisplayName() const override
+        virtual InlineString GetDisplayName() const override
         {
-            String displayName;
+            InlineString displayName;
 
             if ( m_pEntity->IsSpatialEntity() )
             {
@@ -2927,7 +2927,7 @@ namespace EE::EntityModel
             // Draw Filter
             //-------------------------------------------------------------------------
 
-            if ( m_operationFilterWidget.DrawAndUpdate( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
+            if ( m_operationFilterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
             {
                 if ( m_operationFilterWidget.HasFilterSet() )
                 {
