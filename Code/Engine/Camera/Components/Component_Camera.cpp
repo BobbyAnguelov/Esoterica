@@ -16,5 +16,6 @@ namespace EE
     {
         Transform const& worldTransform = GetWorldTransform();
         m_viewVolume.SetView( worldTransform.GetTranslation(), worldTransform.GetForwardVector(), worldTransform.GetUpVector() );
+        m_viewVolumeNeedsReflecting = true;
     }
 }

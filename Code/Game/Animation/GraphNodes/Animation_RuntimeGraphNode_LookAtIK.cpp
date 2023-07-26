@@ -28,19 +28,9 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult LookAtIKNode::Update( GraphContext& context )
+    GraphPoseNodeResult LookAtIKNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        GraphPoseNodeResult result = PassthroughNode::Update( context );
-        if ( result.HasRegisteredTasks() )
-        {
-            result = RegisterIKTask( context, result );
-        }
-        return result;
-    }
-
-    GraphPoseNodeResult LookAtIKNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        GraphPoseNodeResult result = PassthroughNode::Update( context, updateRange );
+        GraphPoseNodeResult result = PassthroughNode::Update( context, pUpdateRange );
         if ( result.HasRegisteredTasks() )
         {
             result = RegisterIKTask( context, result );

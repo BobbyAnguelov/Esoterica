@@ -39,8 +39,7 @@ namespace EE::Animation::GraphNodes
         virtual bool IsValid() const override;
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         void CreateRagdoll( GraphContext& context );
         GraphPoseNodeResult UpdateRagdoll( GraphContext& context, GraphPoseNodeResult const& childResult );

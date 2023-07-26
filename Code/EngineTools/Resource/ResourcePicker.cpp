@@ -85,7 +85,7 @@ namespace EE::Resource
             // Combo Selector
             //-------------------------------------------------------------------------
 
-            ImGui::BeginDisabled( m_toolsContext.m_pResourceDatabase->IsDescriptorCacheBuilt() );
+            ImGui::BeginDisabled( !m_toolsContext.m_pResourceDatabase->IsDescriptorCacheBuilt() );
             {
                 // Path Widget
                 //-------------------------------------------------------------------------

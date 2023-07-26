@@ -541,7 +541,7 @@ namespace EE
         for ( auto pWorkspace : m_workspaces )
         {
             EntityWorldUpdateContext updateContext( context, pWorkspace->GetWorld() );
-            pWorkspace->PreUpdateWorld( updateContext );
+            pWorkspace->PreWorldUpdate( updateContext );
         }
     }
 

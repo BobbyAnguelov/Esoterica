@@ -1,11 +1,16 @@
 #pragma once
 
-#include "Animation_RuntimeGraphNode_Transition.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
+    class TransitionNode;
+    class StateNode;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API StateMachineNode final : public PoseNode
     {
 
@@ -72,8 +77,7 @@ namespace EE::Animation::GraphNodes
         virtual bool IsValid() const override;
         virtual SyncTrack const& GetSyncTrack() const override;
 
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
     private:
 
@@ -85,7 +89,7 @@ namespace EE::Animation::GraphNodes
         void InitializeTransitionConditions( GraphContext& context );
         void ShutdownTransitionConditions( GraphContext& context );
 
-        void EvaluateTransitions( GraphContext& context, GraphPoseNodeResult& NodeResult );
+        void EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& NodeResult );
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;

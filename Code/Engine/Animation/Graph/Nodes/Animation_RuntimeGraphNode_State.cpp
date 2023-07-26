@@ -227,7 +227,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    GraphPoseNodeResult StateNode::Update( GraphContext& context )
+    GraphPoseNodeResult StateNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -240,42 +240,7 @@ namespace EE::Animation::GraphNodes
         // Update child
         if ( m_pChildNode != nullptr && m_pChildNode->IsValid() )
         {
-            result = m_pChildNode->Update( context );
-            m_duration = m_pChildNode->GetDuration();
-            m_previousTime = m_pChildNode->GetPreviousTime();
-            m_currentTime = m_pChildNode->GetCurrentTime();
-            m_sampledEventRange = result.m_sampledEventRange;
-        }
-
-        // Track time spent in state
-        m_elapsedTimeInState += context.m_deltaTime;
-
-        // Sample graph events ( we need to track the sampled range for this node explicitly )
-        SampleStateEvents( context );
-
-        // Update the result range to take into account any sampled state events
-        result.m_sampledEventRange = m_sampledEventRange;
-
-        // Update layer context and return
-        UpdateLayerContext( context );
-        m_isFirstStateUpdate = false;
-        return result;
-    }
-
-    GraphPoseNodeResult StateNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        MarkNodeActive( context );
-
-        // Set the result to a valid event range since we are recording it
-        GraphPoseNodeResult result;
-        m_sampledEventRange = context.GetEmptySampledEventRange();
-
-        // Update child
-        if ( m_pChildNode != nullptr && m_pChildNode->IsValid() )
-        {
-            result = m_pChildNode->Update( context, updateRange );
+            result = m_pChildNode->Update( context, pUpdateRange );
             m_duration = m_pChildNode->GetDuration();
             m_previousTime = m_pChildNode->GetPreviousTime();
             m_currentTime = m_pChildNode->GetCurrentTime();

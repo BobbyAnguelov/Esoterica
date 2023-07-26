@@ -10,7 +10,7 @@ namespace EE
         if ( allowLooping )
         {
             float integerPortion;
-            clampedValue = Percentage( Math::ModF( float( value ), &integerPortion ) );
+            clampedValue = Percentage( Math::ModF( float( value ), integerPortion ) );
             if ( clampedValue < 0.0f ) // wrapping backwards
             {
                 clampedValue = Percentage( 1.0f - clampedValue );

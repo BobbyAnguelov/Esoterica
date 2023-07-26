@@ -18,6 +18,7 @@ namespace EE::Resource
         SuccessWithWarnings = 2,
     };
 
+    // Context for a single compilation operation
     //-------------------------------------------------------------------------
 
     struct EE_ENGINETOOLS_API CompileContext
@@ -43,6 +44,7 @@ namespace EE::Resource
         uint64_t                                        m_sourceResourceHash = 0; // The combined hash of the source resource and its dependencies
     };
 
+    // Resource Compiler
     //-------------------------------------------------------------------------
 
     class EE_ENGINETOOLS_API Compiler : public IReflectedType
@@ -158,6 +160,27 @@ namespace EE::Resource
             }
 
             return TryLoadResourceDescriptor( descriptorFilePath, outDescriptor, pOutOptionalDescriptorDocument );
+        }
+
+        // Combines two results together and keeps the most severe one
+        EE_FORCE_INLINE CompilationResult CombineResult( CompilationResult a, CompilationResult b ) const
+        {
+            if ( a == Resource::CompilationResult::Failure || b == Resource::CompilationResult::Failure )
+            {
+                return Resource::CompilationResult::Failure;
+            }
+
+            if ( a == Resource::CompilationResult::SuccessWithWarnings || b == Resource::CompilationResult::SuccessWithWarnings )
+            {
+                return Resource::CompilationResult::SuccessWithWarnings;
+            }
+
+            if ( a == Resource::CompilationResult::SuccessUpToDate || b == Resource::CompilationResult::SuccessUpToDate )
+            {
+                return Resource::CompilationResult::SuccessUpToDate;
+            }
+
+            return Resource::CompilationResult::Success;
         }
 
     protected:

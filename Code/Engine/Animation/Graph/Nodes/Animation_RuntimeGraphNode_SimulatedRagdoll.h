@@ -54,16 +54,13 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
 
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-
-        // We dont support synchronization for this node!
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override { return Update( context ); }
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         //-------------------------------------------------------------------------
 
         void CreateRagdoll( GraphContext& context );
 
-        GraphPoseNodeResult UpdateEntry( GraphContext& context );
+        GraphPoseNodeResult UpdateEntry( GraphContext& context, SyncTrackTimeRange const* pUpdateRange );
         GraphPoseNodeResult UpdateSimulated( GraphContext& context );
         GraphPoseNodeResult UpdateExit( GraphContext& context );
 

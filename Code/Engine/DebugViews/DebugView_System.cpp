@@ -221,6 +221,12 @@ namespace EE
                 context.SetFrameRateLimit( 0.0f );
             }
 
+            bool is15FPS = context.HasFrameRateLimit() && context.GetFrameRateLimit() == 15.0f;
+            if ( ImGui::MenuItem( "15 FPS", nullptr, &is15FPS ) )
+            {
+                context.SetFrameRateLimit( 15.0f );
+            }
+
             bool is30FPS = context.HasFrameRateLimit() && context.GetFrameRateLimit() == 30.0f;
             if ( ImGui::MenuItem( "30 FPS", nullptr, &is30FPS ) )
             {

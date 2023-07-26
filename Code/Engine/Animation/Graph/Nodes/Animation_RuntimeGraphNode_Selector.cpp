@@ -108,7 +108,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult SelectorNode::Update( GraphContext& context )
+    GraphPoseNodeResult SelectorNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -118,31 +118,7 @@ namespace EE::Animation::GraphNodes
             MarkNodeActive( context );
 
             // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context );
-            m_duration = m_pSelectedNode->GetDuration();
-            m_previousTime = m_pSelectedNode->GetPreviousTime();
-            m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
-
-        return result;
-    }
-
-    GraphPoseNodeResult SelectorNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        GraphPoseNodeResult result;
-        if ( IsValid() )
-        {
-            MarkNodeActive( context );
-
-            // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context, updateRange );
+            result = m_pSelectedNode->Update( context, pUpdateRange );
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
@@ -275,7 +251,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult AnimationClipSelectorNode::Update( GraphContext& context )
+    GraphPoseNodeResult AnimationClipSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -285,31 +261,7 @@ namespace EE::Animation::GraphNodes
             MarkNodeActive( context );
 
             // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context );
-            m_duration = m_pSelectedNode->GetDuration();
-            m_previousTime = m_pSelectedNode->GetPreviousTime();
-            m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
-
-        return result;
-    }
-
-    GraphPoseNodeResult AnimationClipSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        GraphPoseNodeResult result;
-        if ( IsValid() )
-        {
-            MarkNodeActive( context );
-
-            // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context, updateRange );
+            result = m_pSelectedNode->Update( context, pUpdateRange );
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
@@ -450,7 +402,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult ParameterizedSelectorNode::Update( GraphContext& context )
+    GraphPoseNodeResult ParameterizedSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -460,31 +412,7 @@ namespace EE::Animation::GraphNodes
             MarkNodeActive( context );
 
             // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context );
-            m_duration = m_pSelectedNode->GetDuration();
-            m_previousTime = m_pSelectedNode->GetPreviousTime();
-            m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
-
-        return result;
-    }
-
-    GraphPoseNodeResult ParameterizedSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        GraphPoseNodeResult result;
-        if ( IsValid() )
-        {
-            MarkNodeActive( context );
-
-            // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context, updateRange );
+            result = m_pSelectedNode->Update( context, pUpdateRange );
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
@@ -597,7 +525,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult ParameterizedAnimationClipSelectorNode::Update( GraphContext& context )
+    GraphPoseNodeResult ParameterizedAnimationClipSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
 
@@ -607,31 +535,7 @@ namespace EE::Animation::GraphNodes
             MarkNodeActive( context );
 
             // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context );
-            m_duration = m_pSelectedNode->GetDuration();
-            m_previousTime = m_pSelectedNode->GetPreviousTime();
-            m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
-
-        return result;
-    }
-
-    GraphPoseNodeResult ParameterizedAnimationClipSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-
-        GraphPoseNodeResult result;
-        if ( IsValid() )
-        {
-            MarkNodeActive( context );
-
-            // Copy node instance data, this node acts like a passthrough
-            result = m_pSelectedNode->Update( context, updateRange );
+            result = m_pSelectedNode->Update( context, pUpdateRange );
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();

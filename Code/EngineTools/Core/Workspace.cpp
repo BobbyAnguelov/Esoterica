@@ -702,6 +702,11 @@ namespace EE
         return m_pCamera->GetWorldTransform();
     }
 
+    void Workspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
+    {
+        m_isDirty = m_undoStack.CanUndo();
+    }
+
     //-------------------------------------------------------------------------
 
     void Workspace::SetWorldPaused( bool newPausedState )

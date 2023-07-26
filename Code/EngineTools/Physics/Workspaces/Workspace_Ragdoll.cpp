@@ -685,7 +685,7 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
+    void RagdollWorkspace::PreWorldUpdate( EntityWorldUpdateContext const& updateContext )
     {
         if ( !IsPreviewing() )
         {

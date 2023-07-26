@@ -21,7 +21,7 @@ namespace EE::Animation::GraphNodes
         m_duration = 0;
     }
 
-    GraphPoseNodeResult ZeroPoseNode::Update( GraphContext& context )
+    GraphPoseNodeResult ZeroPoseNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
         m_duration = 0;
     }
 
-    GraphPoseNodeResult ReferencePoseNode::Update( GraphContext& context )
+    GraphPoseNodeResult ReferencePoseNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
@@ -105,7 +105,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult AnimationPoseNode::Update( GraphContext& context )
+    GraphPoseNodeResult AnimationPoseNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
 

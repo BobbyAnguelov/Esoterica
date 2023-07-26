@@ -86,7 +86,7 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult PoweredRagdollNode::Update( GraphContext& context )
+    GraphPoseNodeResult PoweredRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         GraphPoseNodeResult result;
 
@@ -103,39 +103,7 @@ namespace EE::Animation::GraphNodes
 
         if ( IsValid() )
         {
-            result = PassthroughNode::Update( context );
-            result = UpdateRagdoll( context, result );
-        }
-        else
-        {
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
-        }
-
-        //-------------------------------------------------------------------------
-
-        m_isFirstUpdate = false;
-
-        return result;
-    }
-
-    GraphPoseNodeResult PoweredRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        GraphPoseNodeResult result;
-
-        // Create ragdoll
-        //-------------------------------------------------------------------------
-
-        if ( m_isFirstUpdate )
-        {
-            CreateRagdoll( context );
-        }
-
-        // Update source node
-        //-------------------------------------------------------------------------
-
-        if ( IsValid() )
-        {
-            result = PassthroughNode::Update( context, updateRange );
+            result = PassthroughNode::Update( context, pUpdateRange );
             result = UpdateRagdoll( context, result );
         }
         else

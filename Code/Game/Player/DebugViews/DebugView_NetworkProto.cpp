@@ -650,7 +650,7 @@ namespace EE::Player
 
             // Set parameters
             m_pReplicatedInstance->SetRecordedFrameUpdateData( frameData );
-            m_pReplicatedInstance->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
+            m_pReplicatedInstance->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr, nullptr );
             m_pReplicatedInstance->ExecutePrePhysicsPoseTasks( nextRecordedFrameData.m_characterWorldTransform );
             m_pReplicatedInstance->ExecutePostPhysicsPoseTasks();
 

@@ -191,11 +191,10 @@ namespace EE::Animation
         void Initialize( GraphContext& context, SyncTrackTime const& initialTime = SyncTrackTime() );
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime );
 
-        // Unsynchronized update
-        virtual GraphPoseNodeResult Update( GraphContext& context ) = 0;
-
-        // Synchronized update
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) = 0;
+        // Node update function
+        // If the sync track update range is set, this will perform a synchronized update
+        // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange = nullptr ) = 0;
 
         //-------------------------------------------------------------------------
 

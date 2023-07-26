@@ -31,79 +31,85 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult SpeedScaleNode::Update( GraphContext& context )
+    GraphPoseNodeResult SpeedScaleNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         MarkNodeActive( context );
 
-        // Record old delta time
-        auto const deltaTime = context.m_deltaTime;
+        GraphPoseNodeResult result;
 
-        // Adjust the delta time for the child node
-        //-------------------------------------------------------------------------
-
-        float actualDuration = 0.0f;
-        if ( m_pChildNode->IsValid() )
+        // Synchronized Update
+        if ( pUpdateRange != nullptr )
         {
-            // Get expected scale
-            float speedScale = m_pScaleValueNode->GetValue<float>( context );
-            if ( speedScale < 0.0f )
-            {
-                speedScale = 0.0f;
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
+            #endif
 
-                #if EE_DEVELOPMENT_TOOLS
-                context.LogWarning( GetNodeIndex(), "Negative speed scale is not supported!" );
-                #endif
+            result = PassthroughNode::Update( context, pUpdateRange );
+        }
+        else // Unsynchronized Update
+        {
+            // Record old delta time
+            auto const deltaTime = context.m_deltaTime;
+
+            // Adjust the delta time for the child node
+            //-------------------------------------------------------------------------
+
+            float actualDuration = 0.0f;
+            if ( m_pChildNode->IsValid() )
+            {
+                // Get expected scale
+                float speedScale = m_pScaleValueNode->GetValue<float>( context );
+                if ( speedScale < 0.0f )
+                {
+                    speedScale = 0.0f;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    context.LogWarning( GetNodeIndex(), "Negative speed scale is not supported!" );
+                    #endif
+                }
+
+                // Perform blend
+                auto pSettings = GetSettings<SpeedScaleNode>();
+                if ( pSettings->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
+                {
+                    float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendInTime;
+                    m_blendWeight = Math::Clamp( m_blendWeight + blendWeightDelta, 0.0f, 1.0f );
+                    speedScale = Math::Lerp( 1.0f, speedScale, m_blendWeight );
+                }
+
+                // Zero scale is equivalent to a single pose animation
+                if ( Math::IsNearZero( speedScale ) )
+                {
+                    context.m_deltaTime = 0.0f;
+                    actualDuration = 0.0f;
+                }
+                else // Apply scale
+                {
+                    context.m_deltaTime *= speedScale;
+                    actualDuration = m_pChildNode->GetDuration() / speedScale;
+                }
             }
 
-            // Perform blend
-            auto pSettings = GetSettings<SpeedScaleNode>();
-            if ( pSettings->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
+            // Update the child node
+            //-------------------------------------------------------------------------
+
+            result = PassthroughNode::Update( context );
+
+            // Override node values
+            //-------------------------------------------------------------------------
+
+            if ( m_pChildNode->IsValid() )
             {
-                float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendInTime;
-                m_blendWeight = Math::Clamp( m_blendWeight + blendWeightDelta, 0.0f, 1.0f );
-                speedScale = Math::Lerp( 1.0f, speedScale, m_blendWeight );
+                m_duration = actualDuration;
             }
 
-            // Zero scale is equivalent to a single pose animation
-            if ( Math::IsNearZero( speedScale ) )
-            {
-                context.m_deltaTime = 0.0f;
-                actualDuration = 0.0f;
-            }
-            else // Apply scale
-            {
-                context.m_deltaTime *= speedScale;
-                actualDuration = m_pChildNode->GetDuration() / speedScale;
-            }
+            // Reset the delta time
+            //-------------------------------------------------------------------------
+
+            context.m_deltaTime = deltaTime;
         }
 
-        // Update the child node
-        //-------------------------------------------------------------------------
-
-        GraphPoseNodeResult result = PassthroughNode::Update( context );
-
-        // Override node values
-        //-------------------------------------------------------------------------
-
-        if ( m_pChildNode->IsValid() )
-        {
-            m_duration = actualDuration;
-        }
-
-        // Reset the delta time
-        //-------------------------------------------------------------------------
-
-        context.m_deltaTime = deltaTime;
         return result;
-    }
-
-    GraphPoseNodeResult SpeedScaleNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        #if EE_DEVELOPMENT_TOOLS
-        context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
-        #endif
-
-        return PassthroughNode::Update( context, updateRange );
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -145,71 +151,76 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult DurationScaleNode::Update( GraphContext& context )
+    GraphPoseNodeResult DurationScaleNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         MarkNodeActive( context );
 
-        // Record old delta time
-        auto const deltaTime = context.m_deltaTime;
+        GraphPoseNodeResult result;
 
-        // Adjust the delta time for the child node
-        //-------------------------------------------------------------------------
-
-        float actualDuration = 0.0f;
-        if ( m_pChildNode->IsValid() )
+        if( pUpdateRange )
         {
-            // Get expected scale
-            float desiredDuration = m_pDurationValueNode->GetValue<float>( context );
-            if ( desiredDuration < 0.0f )
-            {
-                desiredDuration = 0.0f;
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
+            #endif
 
-                #if EE_DEVELOPMENT_TOOLS
-                context.LogWarning( GetNodeIndex(), "Negative duration is not supported!" );
-                #endif
+            result = PassthroughNode::Update( context, pUpdateRange );
+        }
+        else
+        {
+            // Record old delta time
+            auto const deltaTime = context.m_deltaTime;
+
+            // Adjust the delta time for the child node
+            //-------------------------------------------------------------------------
+
+            float actualDuration = 0.0f;
+            if ( m_pChildNode->IsValid() )
+            {
+                // Get expected scale
+                float desiredDuration = m_pDurationValueNode->GetValue<float>( context );
+                if ( desiredDuration < 0.0f )
+                {
+                    desiredDuration = 0.0f;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    context.LogWarning( GetNodeIndex(), "Negative duration is not supported!" );
+                    #endif
+                }
+
+                // Zero length is equivalent to a single pose animation
+                if ( Math::IsNearZero( desiredDuration ) )
+                {
+                    context.m_deltaTime = 0.0f;
+                    actualDuration = 0.0f;
+                }
+                else // Apply scale
+                {
+                    float const scaleMultiplier = desiredDuration * m_pChildNode->GetDuration();
+                    context.m_deltaTime *= scaleMultiplier;
+                    actualDuration = desiredDuration;
+                }
             }
 
-            // Zero length is equivalent to a single pose animation
-            if ( Math::IsNearZero( desiredDuration ) )
+            // Update the child node
+            //-------------------------------------------------------------------------
+
+            result = PassthroughNode::Update( context );
+
+            // Override node values
+            //-------------------------------------------------------------------------
+
+            if ( m_pChildNode->IsValid() )
             {
-                context.m_deltaTime = 0.0f;
-                actualDuration = 0.0f;
+                m_duration = actualDuration;
             }
-            else // Apply scale
-            {
-                float const scaleMultiplier = desiredDuration * m_pChildNode->GetDuration();
-                context.m_deltaTime *= scaleMultiplier;
-                actualDuration = desiredDuration;
-            }
+
+            // Reset the delta time
+            //-------------------------------------------------------------------------
+
+            context.m_deltaTime = deltaTime;
         }
 
-        // Update the child node
-        //-------------------------------------------------------------------------
-
-        GraphPoseNodeResult result = PassthroughNode::Update( context );
-
-        // Override node values
-        //-------------------------------------------------------------------------
-
-        if ( m_pChildNode->IsValid() )
-        {
-            m_duration = actualDuration;
-        }
-
-        // Reset the delta time
-        //-------------------------------------------------------------------------
-
-        context.m_deltaTime = deltaTime;
         return result;
-    }
-
-    GraphPoseNodeResult DurationScaleNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        #if EE_DEVELOPMENT_TOOLS
-        context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
-        #endif
-
-        return PassthroughNode::Update( context, updateRange );
     }
 
     //-------------------------------------------------------------------------
@@ -269,19 +280,46 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    GraphPoseNodeResult VelocityBasedSpeedScaleNode::Update( GraphContext& context )
+    GraphPoseNodeResult VelocityBasedSpeedScaleNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         MarkNodeActive( context );
 
-        // Record old delta time
-        auto const deltaTime = context.m_deltaTime;
+        GraphPoseNodeResult result;
 
-        // Adjust the delta time for the child node
         //-------------------------------------------------------------------------
 
-        float actualDuration = 0.0f;
-        if ( m_pChildNode->IsValid() )
+        if ( !IsValid() )
         {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+            return result;
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Synchronized Update
+        if ( pUpdateRange != nullptr )
+        {
+
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
+            #endif
+
+            // Forward child node results
+            result = m_pChildNode->Update( context, pUpdateRange );
+            m_duration = m_pChildNode->GetDuration();
+            m_previousTime = m_pChildNode->GetPreviousTime();
+            m_currentTime = m_pChildNode->GetCurrentTime();
+        }
+        else // Unsynchronized Update
+        {
+            // Record old delta time
+            auto const deltaTime = context.m_deltaTime;
+
+            // Adjust the delta time for the child node
+            //-------------------------------------------------------------------------
+
+            float actualDuration = 0.0f;
+
             // Get the desired velocity
             float desiredVelocity = m_pDesiredVelocityValueNode->GetValue<float>( context );
             if ( desiredVelocity < 0.0f )
@@ -336,60 +374,28 @@ namespace EE::Animation::GraphNodes
 
             context.m_deltaTime *= speedMultiplier;
             actualDuration = m_pChildNode->GetDuration() / speedMultiplier;
-        }
 
-        // Update the child node
-        //-------------------------------------------------------------------------
+            // Update the child node
+            //-------------------------------------------------------------------------
 
-        GraphPoseNodeResult result;
-
-        // Forward child node results
-        if ( IsValid() )
-        {
+            // Forward child node results
             result = m_pChildNode->Update( context );
             m_duration = m_pChildNode->GetDuration();
             m_previousTime = m_pChildNode->GetPreviousTime();
             m_currentTime = m_pChildNode->GetCurrentTime();
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
 
-        // Override node values
-        //-------------------------------------------------------------------------
+            // Override node values
+            //-------------------------------------------------------------------------
 
-        if ( m_pChildNode->IsValid() )
-        {
-            m_duration = actualDuration;
-        }
+            if ( m_pChildNode->IsValid() )
+            {
+                m_duration = actualDuration;
+            }
 
-        // Reset the time delta
-        //-------------------------------------------------------------------------
+            // Reset the time delta
+            //-------------------------------------------------------------------------
 
-        context.m_deltaTime = deltaTime;
-        return result;
-    }
-
-    GraphPoseNodeResult VelocityBasedSpeedScaleNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        #if EE_DEVELOPMENT_TOOLS
-        context.LogWarning( GetNodeIndex(), "Attempting to run a speed scale node in a synchronized manner, this is an invalid operation!" );
-        #endif
-
-        GraphPoseNodeResult result;
-
-        // Forward child node results
-        if ( IsValid() )
-        {
-            result = m_pChildNode->Update( context, updateRange );
-            m_duration = m_pChildNode->GetDuration();
-            m_previousTime = m_pChildNode->GetPreviousTime();
-            m_currentTime = m_pChildNode->GetCurrentTime();
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+            context.m_deltaTime = deltaTime;
         }
 
         return result;

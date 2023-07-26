@@ -17,6 +17,18 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    TypeSystem::TypeInfo const* SnapToFrameEventTrack::GetEventTypeInfo() const
+    {
+        return SnapToFrameEvent::s_pTypeInfo;
+    }
+
+    InlineString SnapToFrameEventTrack::GetItemLabel( Timeline::TrackItem const* pItem ) const
+    {
+        auto pAnimEvent = GetAnimEvent<SnapToFrameEvent>( pItem );
+        return pAnimEvent->GetDebugText();
+    }
+    //-------------------------------------------------------------------------
+
     TypeSystem::TypeInfo const* FootEventTrack::GetEventTypeInfo() const
     {
         return FootEvent::s_pTypeInfo;
@@ -69,7 +81,7 @@ namespace EE::Animation
     {
         for ( auto pItem : m_items )
         {
-            if ( pItem->GetStartTime() < 1.0f || pItem->GetEndTime() > ( context.GetTimeRange().m_end - 1 ) )
+            if ( pItem->GetStartTime() < 1.0f || pItem->GetEndTime() > ( context.GetTimelineLength() - 1 ) )
             {
                 m_validationStatueMessage = "Warp event is not allowed to be within the first or last frame!";
                 return Status::HasErrors;

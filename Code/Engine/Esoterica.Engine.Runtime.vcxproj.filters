@@ -912,6 +912,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
     <ClInclude Include="Entity\Components\Component_EntityCollection.h" />
     <ClInclude Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.h" />
+    <ClInclude Include="Animation\Events\AnimationEvent_SnapToFrame.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">

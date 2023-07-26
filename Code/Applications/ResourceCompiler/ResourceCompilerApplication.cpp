@@ -473,5 +473,5 @@ int main( int argc, char* argv[] )
     //-------------------------------------------------------------------------
 
     Resource::ResourceCompilerApplication application( argParser, settings );
-    return (int32_t)application.Run();
+    return (int32_t) application.Run();
 }

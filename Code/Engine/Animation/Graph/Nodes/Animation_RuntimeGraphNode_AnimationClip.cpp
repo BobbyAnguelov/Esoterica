@@ -1,5 +1,6 @@
 #include "Animation_RuntimeGraphNode_AnimationClip.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
+#include "Engine/Animation/Events/AnimationEvent_SnapToFrame.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Sample.h"
@@ -70,78 +71,8 @@ namespace EE::Animation::GraphNodes
         AnimationClipReferenceNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() && IsInitialized() );
 
-        if ( !IsValid() )
-        {
-            return GraphPoseNodeResult();
-        }
-
-        MarkNodeActive( context );
-        EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
-
-        // Should we change the playback direction?
-        if ( m_pPlayInReverseValueNode != nullptr )
-        {
-            if ( m_shouldPlayInReverse != m_pPlayInReverseValueNode->GetValue<bool>( context ) )
-            {
-                m_shouldPlayInReverse = !m_shouldPlayInReverse;
-                m_currentTime = ( 1.0f - m_currentTime );
-                if ( m_currentTime == 1.0f )
-                {
-                    m_currentTime = 0.0f;
-                }
-            }
-        }
-
-        // Should we reset the node time
-        if ( m_pResetTimeValueNode != nullptr )
-        {
-            bool const resetTime = m_pResetTimeValueNode->GetValue<bool>( context );
-            if ( resetTime )
-            {
-                m_previousTime = m_currentTime = 0.0f;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( m_pAnimation->IsSingleFrameAnimation() )
-        {
-            m_previousTime = 1.0f;
-            m_currentTime = 1.0f;
-        }
-        else
-        {
-            Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
-
-            auto pSettings = GetSettings<AnimationClipNode>();
-            if ( !pSettings->m_allowLooping )
-            {
-                // We might have come from a sync update so ensure the previous time is set to the normalized current time
-                m_previousTime = m_currentTime;
-                m_currentTime = ( m_previousTime + deltaPercentage ).GetClamped( false );
-            }
-            else // Regular update
-            {
-                m_previousTime = m_currentTime;
-                m_currentTime += deltaPercentage;
-                if ( m_currentTime > 1 )
-                {
-                    m_currentTime = m_currentTime.GetNormalizedTime();
-                    m_loopCount++;
-                }
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        return CalculateResult( context );
-    }
-
-    GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
+    GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() && IsInitialized() );
 
@@ -155,27 +86,85 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
-        if ( m_pPlayInReverseValueNode != nullptr || m_shouldPlayInReverse )
+        // Synchronized Update
+        if ( pUpdateRange != nullptr )
         {
-            context.LogWarning( GetNodeIndex(), "'Play reversed' has no effect when used with time synchronization!" );
-        }
-        #endif
+            #if EE_DEVELOPMENT_TOOLS
+            if ( m_pPlayInReverseValueNode != nullptr || m_shouldPlayInReverse )
+            {
+                context.LogWarning( GetNodeIndex(), "'Play reversed' has no effect when used with time synchronization!" );
+            }
+            #endif
 
-        // Handle single frame animations
-        if ( m_pAnimation->IsSingleFrameAnimation() )
-        {
-            m_previousTime = 1.0f;
-            m_currentTime = 1.0f;
+            // Handle single frame animations
+            if ( m_pAnimation->IsSingleFrameAnimation() )
+            {
+                m_previousTime = 1.0f;
+                m_currentTime = 1.0f;
+            }
+            else // Regular time update
+            {
+                m_previousTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_startTime );
+                m_currentTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_endTime );
+                m_loopCount = 0;
+            }
         }
-        else // Regular time update
+        else // Unsynchronized Update
         {
-            m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
-            m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
-            m_loopCount = 0;
-        }
+            // Should we change the playback direction?
+            if ( m_pPlayInReverseValueNode != nullptr )
+            {
+                if ( m_shouldPlayInReverse != m_pPlayInReverseValueNode->GetValue<bool>( context ) )
+                {
+                    m_shouldPlayInReverse = !m_shouldPlayInReverse;
+                    m_currentTime = ( 1.0f - m_currentTime );
+                    if ( m_currentTime == 1.0f )
+                    {
+                        m_currentTime = 0.0f;
+                    }
+                }
+            }
 
-        //-------------------------------------------------------------------------
+            // Should we reset the node time
+            if ( m_pResetTimeValueNode != nullptr )
+            {
+                bool const resetTime = m_pResetTimeValueNode->GetValue<bool>( context );
+                if ( resetTime )
+                {
+                    m_previousTime = m_currentTime = 0.0f;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( m_pAnimation->IsSingleFrameAnimation() )
+            {
+                m_previousTime = 1.0f;
+                m_currentTime = 1.0f;
+            }
+            else
+            {
+                Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
+
+                auto pSettings = GetSettings<AnimationClipNode>();
+                if ( !pSettings->m_allowLooping )
+                {
+                    // We might have come from a sync update so ensure the previous time is set to the normalized current time
+                    m_previousTime = m_currentTime;
+                    m_currentTime = ( m_previousTime + deltaPercentage ).GetClamped( false );
+                }
+                else // Regular update
+                {
+                    m_previousTime = m_currentTime;
+                    m_currentTime += deltaPercentage;
+                    if ( m_currentTime > 1 )
+                    {
+                        m_currentTime = m_currentTime.GetNormalizedTime();
+                        m_loopCount++;
+                    }
+                }
+            }
+        }
 
         return CalculateResult( context );
     }
@@ -208,6 +197,10 @@ namespace EE::Animation::GraphNodes
             m_pAnimation->GetEventsForRange( actualAnimationSampleStartTime, actualAnimationSampleEndTime, sampledAnimationEvents );
         }
 
+        // Snap to frame settings
+        bool shouldSnapToFrame = false;
+        SnapToFrameEvent::SelectionMode frameSelectionMode = SnapToFrameEvent::SelectionMode::Floor;
+
         // Post-process sampled events
         for ( auto pEvent : sampledAnimationEvents )
         {
@@ -223,6 +216,12 @@ namespace EE::Animation::GraphNodes
                 {
                     percentageThroughEvent = 1.0f - percentageThroughEvent;
                 }
+            }
+
+            if ( auto pSnapFrameEvent = TryCast<SnapToFrameEvent>( pEvent ) )
+            {
+                shouldSnapToFrame = true;
+                frameSelectionMode = pSnapFrameEvent->GetFrameSelectionMode();
             }
 
             context.m_sampledEventsBuffer.EmplaceAnimationEvent( GetNodeIndex(), pEvent, percentageThroughEvent, isFromActiveBranch );
@@ -262,7 +261,15 @@ namespace EE::Animation::GraphNodes
         // Register pose tasks
         //-------------------------------------------------------------------------
 
-        Percentage const sampleTime = m_shouldPlayInReverse ? Percentage( 1.0f - m_currentTime.ToFloat() ) : m_currentTime;
+        Percentage sampleTime = m_shouldPlayInReverse ? Percentage( 1.0f - m_currentTime.ToFloat() ) : m_currentTime;
+
+        if ( shouldSnapToFrame )
+        {
+            FrameTime const frameTime = m_pAnimation->GetFrameTime( sampleTime );
+            uint32_t const frameIndex = ( frameSelectionMode == SnapToFrameEvent::SelectionMode::Round ) ? frameTime.GetNearestFrameIndex() : frameTime.GetLowerBoundFrameIndex();
+            sampleTime = m_pAnimation->GetPercentageThrough( frameIndex );
+        }
+
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, sampleTime );
         return result;
     }

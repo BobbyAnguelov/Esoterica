@@ -34,8 +34,7 @@ namespace EE::Animation::GraphNodes
 
         virtual SyncTrack const& GetSyncTrack() const override;
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         void TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result );
 

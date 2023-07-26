@@ -352,9 +352,10 @@ namespace EE::Animation
         m_graphContext.m_layerInitInfo.clear();
     }
 
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, bool resetGraphState )
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
+
         #if EE_DEVELOPMENT_TOOLS
         m_activeNodes.clear();
         m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
@@ -379,47 +380,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto result = m_pRootNode->Update( m_graphContext );
-        
+        auto result = m_pRootNode->Update( m_graphContext, pUpdateRange );
+
         #if EE_DEVELOPMENT_TOOLS
         RecordPostGraphEvaluateState( nullptr );
-        #endif
-
-        return result;
-    }
-
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const& updateRange, bool resetGraphState )
-    {
-        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
-
-        #if EE_DEVELOPMENT_TOOLS
-        m_activeNodes.clear();
-        m_rootMotionDebugger.StartCharacterUpdate( startWorldTransform );
-        RecordPreGraphEvaluateState( deltaTime, startWorldTransform );
-        #endif
-
-        //-------------------------------------------------------------------------
-
-        if ( m_pTaskSystem != nullptr )
-        {
-            m_pTaskSystem->Reset();
-        }
-
-        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsWorld );
-
-        //-------------------------------------------------------------------------
-
-        if ( resetGraphState || !m_pRootNode->IsInitialized() )
-        {
-            ResetGraphState();
-        }
-
-        //-------------------------------------------------------------------------
-
-        auto result = m_pRootNode->Update( m_graphContext, updateRange );
-
-        #if EE_DEVELOPMENT_TOOLS
-        RecordPostGraphEvaluateState( &updateRange );
         #endif
 
         return result;

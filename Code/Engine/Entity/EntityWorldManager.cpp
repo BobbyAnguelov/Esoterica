@@ -194,24 +194,27 @@ namespace EE
 
             // Update world view
             //-------------------------------------------------------------------------
-            // We explicitly reflect the camera at the end of the post-physics stage as we assume it has been updated at that point
 
-            if ( context.GetUpdateStage() == UpdateStage::PostPhysics && pWorld->GetViewport() != nullptr )
+            if ( pWorld->GetViewport() != nullptr )
             {
                 auto pViewport = pWorld->GetViewport();
                 auto pCameraManager = pWorld->GetWorldSystem<CameraManager>();
                 if ( pCameraManager->HasActiveCamera() )
                 {
                     auto pActiveCamera = pCameraManager->GetActiveCamera();
-
-                    // Update camera view dimensions if needed
-                    if ( pViewport->GetDimensions() != pActiveCamera->GetViewVolume().GetViewDimensions() )
+                    if ( pActiveCamera->ShouldReflectViewVolume() )
                     {
-                        pActiveCamera->UpdateViewDimensions( pViewport->GetDimensions() );
-                    }
+                        Math::ViewVolume const& cameraViewVolume = pActiveCamera->ReflectViewVolume();
 
-                    // Update world viewport
-                    pViewport->SetViewVolume( pActiveCamera->GetViewVolume() );
+                        // Update camera view dimensions if needed
+                        if ( pViewport->GetDimensions() != cameraViewVolume.GetViewDimensions() )
+                        {
+                            pActiveCamera->UpdateViewDimensions( pViewport->GetDimensions() );
+                        }
+
+                        // Update world viewport
+                        pViewport->SetViewVolume( cameraViewVolume );
+                    }
                 }
             }
         }

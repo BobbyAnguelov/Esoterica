@@ -131,7 +131,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    GraphPoseNodeResult SimulatedRagdollNode::Update( GraphContext& context )
+    GraphPoseNodeResult SimulatedRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( IsInitialized() );
 
@@ -151,7 +151,7 @@ namespace EE::Animation::GraphNodes
                 case Stage::FullyInEntryAnim:
                 case Stage::BlendToRagdoll:
                 {
-                    result = UpdateEntry( context );
+                    result = UpdateEntry( context, pUpdateRange );
                 }
                 break;
 
@@ -186,9 +186,9 @@ namespace EE::Animation::GraphNodes
         return result;
     }
 
-    GraphPoseNodeResult SimulatedRagdollNode::UpdateEntry( GraphContext& context )
+    GraphPoseNodeResult SimulatedRagdollNode::UpdateEntry( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        GraphPoseNodeResult result = m_pEntryNode->Update( context );
+        GraphPoseNodeResult result = m_pEntryNode->Update( context, pUpdateRange );
         m_duration = m_pEntryNode->GetDuration();
         m_previousTime = m_pEntryNode->GetPreviousTime();
         m_currentTime = m_pEntryNode->GetCurrentTime();

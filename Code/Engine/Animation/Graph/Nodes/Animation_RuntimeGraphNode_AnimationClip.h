@@ -42,8 +42,7 @@ namespace EE::Animation::GraphNodes
 
         virtual bool IsValid() const override;
 
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         virtual AnimationClip const* GetAnimation() const final { EE_ASSERT( IsValid() ); return m_pAnimation; }
         virtual void DisableRootMotionSampling() final { EE_ASSERT( IsValid() ); m_shouldSampleRootMotion = false; }

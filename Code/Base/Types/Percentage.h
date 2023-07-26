@@ -65,14 +65,14 @@ namespace EE
     inline void Percentage::GetLoopCountAndNormalizedTime( int32_t& loopCount, Percentage& normalizedValue ) const
     {
         float integerPortion;
-        normalizedValue = Percentage( Math::ModF( m_value, &integerPortion ) );
+        normalizedValue = Percentage( Math::ModF( m_value, integerPortion ) );
         loopCount = (int32_t) integerPortion;
     }
 
     inline Percentage Percentage::GetNormalizedTime() const
     {
         float loopCount;
-        float normalizedValue = Math::ModF( m_value, &loopCount );
+        float normalizedValue = Math::ModF( m_value, loopCount );
         if ( loopCount > 0 && normalizedValue == 0.0f )
         {
             normalizedValue = 1.0f;

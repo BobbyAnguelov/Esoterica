@@ -56,7 +56,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::ShutdownInternal( context );
     }
 
-    GraphPoseNodeResult PassthroughNode::Update( GraphContext& context )
+    GraphPoseNodeResult PassthroughNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
@@ -66,30 +66,7 @@ namespace EE::Animation::GraphNodes
         // Forward child node results
         if ( IsValid() )
         {
-            result = m_pChildNode->Update( context );
-            m_duration = m_pChildNode->GetDuration();
-            m_previousTime = m_pChildNode->GetPreviousTime();
-            m_currentTime = m_pChildNode->GetCurrentTime();
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
-
-        return result;
-    }
-
-    GraphPoseNodeResult PassthroughNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-        MarkNodeActive( context );
-
-        GraphPoseNodeResult result;
-
-        // Forward child node results
-        if ( IsValid() )
-        {
-            result = m_pChildNode->Update( context, updateRange );
+            result = m_pChildNode->Update( context, pUpdateRange );
             m_duration = m_pChildNode->GetDuration();
             m_previousTime = m_pChildNode->GetPreviousTime();
             m_currentTime = m_pChildNode->GetCurrentTime();

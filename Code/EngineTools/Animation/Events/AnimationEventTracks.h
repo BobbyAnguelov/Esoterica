@@ -3,6 +3,7 @@
 #include "AnimationEventTrack.h"
 
 #include "Engine/Animation/Events/AnimationEvent_ID.h"
+#include "Engine/Animation/Events/AnimationEvent_SnapToFrame.h"
 #include "Engine/Animation/Events/AnimationEvent_Foot.h"
 #include "Engine/Animation/Events/AnimationEvent_Warp.h"
 #include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
@@ -24,6 +25,19 @@ namespace EE::Animation
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
         virtual Timeline::ItemType GetAllowedItemType() const override { return Timeline::ItemType::Both; }
         virtual bool AllowMultipleTracks() const override { return true; }
+        virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class SnapToFrameEventTrack final : public EventTrack
+    {
+        EE_REFLECT_TYPE( SnapToFrameEventTrack );
+
+        virtual const char* GetTypeName() const override { return "Snap To Frame"; }
+        virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual Timeline::ItemType GetAllowedItemType() const override { return Timeline::ItemType::Duration; }
+        virtual bool AllowMultipleTracks() const override { return false; }
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
     };
 

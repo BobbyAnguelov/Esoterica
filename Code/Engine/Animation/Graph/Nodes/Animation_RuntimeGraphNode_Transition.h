@@ -82,17 +82,16 @@ namespace EE::Animation::GraphNodes
     public:
 
         virtual SyncTrack const& GetSyncTrack() const override { return m_syncTrack; }
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         // Secondary initialization
         //-------------------------------------------------------------------------
 
         // Start a transition from a state source node - will initialize the target state. Pass by value of the source node result is intentional
-        GraphPoseNodeResult StartTransitionFromState( GraphContext& context, GraphPoseNodeResult const& sourceNodeResult, StateNode* SourceState, bool startCachingSourcePose );
+        GraphPoseNodeResult StartTransitionFromState( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, StateNode* SourceState, bool startCachingSourcePose );
 
         // Start a transition from a transition source node - will initialize the target state. Pass by value of the source node result is intentional
-        GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* SourceTransition, bool startCachingSourcePose );
+        GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* SourceTransition, bool startCachingSourcePose );
 
         // Forceable transitions
         //-------------------------------------------------------------------------
@@ -115,15 +114,12 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
 
-        // Initialize and update the target state. Note: the source node result pass-by-value is intentional
-        GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, GraphPoseNodeResult sourceNodeResult );
+        // Initialize and update the target state - the update range is only set if the parent state machine was being updated via a sync'ed update
+        // Note: the source node result pass-by-value is intentional
+        GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult sourceNodeResult );
 
-        void UpdateProgress( GraphContext& context, bool isInitializing = false );
-        void UpdateProgressClampedSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange, bool isInitializing = false );
+        // Updates the layer context for this transition and any source states
         void UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext );
-
-        GraphPoseNodeResult UpdateUnsynchronized( GraphContext& context );
-        GraphPoseNodeResult UpdateSynchronized( GraphContext& context, SyncTrackTimeRange const& updateRange );
 
         void StartCachingSourcePose( GraphContext& context );
         void RegisterSourceCachePoseTask( GraphContext& context, GraphPoseNodeResult& sourceNodeResult );
@@ -163,6 +159,7 @@ namespace EE::Animation::GraphNodes
         float                                   m_transitionLength = 0; // This is either time in seconds, or percentage of the sync track
         float                                   m_syncEventOffset = 0;
         float                                   m_blendWeight = 0;
+        Seconds                                 m_blendedDuration = 0.0f;
 
         UUID                                    m_cachedPoseBufferID;
         SourceType                              m_sourceType = SourceType::State;

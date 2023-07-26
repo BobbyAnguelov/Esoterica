@@ -336,19 +336,9 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    GraphPoseNodeResult RootMotionOverrideNode::Update( GraphContext& context )
+    GraphPoseNodeResult RootMotionOverrideNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        GraphPoseNodeResult Result = PassthroughNode::Update( context );
-
-        // Always modify root motion even if child is invalid
-        ModifyRootMotion( context, Result );
-        m_isFirstUpdate = false;
-        return Result;
-    }
-
-    GraphPoseNodeResult RootMotionOverrideNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        GraphPoseNodeResult Result = PassthroughNode::Update( context, updateRange );
+        GraphPoseNodeResult Result = PassthroughNode::Update( context, pUpdateRange );
 
         // Always modify root motion even if child is invalid
         ModifyRootMotion( context, Result );

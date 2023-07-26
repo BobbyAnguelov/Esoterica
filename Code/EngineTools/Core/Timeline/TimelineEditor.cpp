@@ -81,7 +81,7 @@ namespace EE::Timeline
     TimelineEditor::TimelineEditor( TimelineData* pTimelineData )
         : m_pTimeline( pTimelineData )
     {
-        EE_ASSERT( pTimelineData != nullptr && pTimelineData->GetTimeRange().IsSetAndValid() );
+        EE_ASSERT( pTimelineData != nullptr );
     }
 
     //-------------------------------------------------------------------------
@@ -97,11 +97,6 @@ namespace EE::Timeline
 
         if ( newPlayState == PlayState::Playing )
         {
-            if ( m_playheadTime >= m_pTimeline->GetTimeRange().m_end )
-            {
-                m_playheadTime = (float) m_pTimeline->GetTimeRange().m_begin;
-            }
-
             m_viewUpdateMode = ViewUpdateMode::TrackPlayhead;
             m_playState = PlayState::Playing;
         }
@@ -117,6 +112,7 @@ namespace EE::Timeline
         ImVec2 const canvasSize = ImGui::GetContentRegionAvail();
         float const trackAreaWidth = ( canvasSize.x - g_trackHeaderWidth );
         float const maxVisibleUnits = Math::Max( 0.0f, Math::Floor( ( canvasSize.x - g_trackHeaderWidth ) / m_pixelsPerFrame ) );
+        EE_ASSERT( maxVisibleUnits >= 0.0f );
 
         // Adjust visible range based on the canvas size
         if ( m_viewRange.GetLength() != maxVisibleUnits )
@@ -127,34 +123,33 @@ namespace EE::Timeline
         // Process any update requests
         //-------------------------------------------------------------------------
 
-        FloatRange const& timelineRange = m_pTimeline->GetTimeRange();
+        float const timelineLength = m_pTimeline->GetLength();
 
         switch ( m_viewUpdateMode )
         {
             case ViewUpdateMode::ShowFullTimeRange:
             {
-                float const timeRangeLength = timelineRange.GetLength() + 1;
-                m_pixelsPerFrame = Math::Max( 1.0f, Math::Floor( trackAreaWidth / timeRangeLength ) );
-                m_viewRange = timelineRange;
-                m_viewRange.m_end += 1;
+                float const viewRangeLength = timelineLength + 1;
+                m_pixelsPerFrame = Math::Max( 1.0f, Math::Floor( trackAreaWidth / viewRangeLength ) );
+                m_viewRange = FloatRange( 0.0f, viewRangeLength );
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
             break;
 
             case ViewUpdateMode::GoToStart:
             {
-                m_viewRange.m_begin = timelineRange.m_begin;
+                m_viewRange.m_begin = 0;
                 m_viewRange.m_end = maxVisibleUnits;
-                m_playheadTime = timelineRange.m_begin;
+                m_playheadTime = 0;
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
             break;
 
             case ViewUpdateMode::GoToEnd:
             {
-                m_viewRange.m_begin = Math::Max( timelineRange.m_begin, timelineRange.m_end - maxVisibleUnits );
+                m_viewRange.m_begin = Math::Max( 0.0f, timelineLength - maxVisibleUnits );
                 m_viewRange.m_end = m_viewRange.m_begin + maxVisibleUnits;
-                m_playheadTime = timelineRange.m_end;
+                m_playheadTime = timelineLength;
                 m_viewUpdateMode = ViewUpdateMode::None;
             }
             break;
@@ -164,14 +159,14 @@ namespace EE::Timeline
                 if ( !m_viewRange.ContainsInclusive( m_playheadTime ) )
                 {
                     // If the playhead is in the last visible range
-                    if ( m_playheadTime + maxVisibleUnits >= timelineRange.m_end )
+                    if ( m_playheadTime + maxVisibleUnits >= timelineLength )
                     {
-                        m_viewRange.m_begin = timelineRange.m_end - maxVisibleUnits;
-                        m_viewRange.m_end = timelineRange.m_end;
+                        m_viewRange.m_begin = Math::Round( Math::Max( 0.0f, timelineLength - maxVisibleUnits ) );
+                        m_viewRange.m_end = timelineLength;
                     }
                     else
                     {
-                        m_viewRange.m_begin = m_playheadTime;
+                        m_viewRange.m_begin = Math::Round( m_playheadTime );
                         m_viewRange.m_end = m_viewRange.m_begin + maxVisibleUnits;
                     }
                 }
@@ -183,14 +178,17 @@ namespace EE::Timeline
         }
     }
 
-    void TimelineEditor::SetCurrentTime( float inPosition )
+    void TimelineEditor::SetPlayheadTime( float desiredPlayheadTime )
     {
-        m_playheadTime = m_pTimeline->GetTimeRange().GetClampedValue( inPosition );
+        float const timelineLength = m_pTimeline->GetLength();
+        m_playheadTime = FloatRange( 0.0f, timelineLength ).GetClampedValue( desiredPlayheadTime );
 
         if ( m_isFrameSnappingEnabled )
         {
             m_playheadTime = Math::Round( m_playheadTime );
         }
+
+        EE_ASSERT( m_playheadTime >= 0.0f );
     }
 
     //-------------------------------------------------------------------------
@@ -419,7 +417,7 @@ namespace EE::Timeline
 
         float const visibleRangeLength = m_viewRange.GetLength();
 
-        int32_t numFramesForLargeInterval = 10;
+        int32_t numFramesForLargeInterval = Math::Min( Math::MakeEven( Math::RoundToInt( visibleRangeLength / 4 ) ), 10 );
         int32_t numFramesForSmallInterval = 1;
         while ( ( numFramesForLargeInterval * m_pixelsPerFrame ) < g_timelineMinimumWidthForLargeInterval )
         {
@@ -476,13 +474,13 @@ namespace EE::Timeline
         // Draw End Line
         //-------------------------------------------------------------------------
 
-        if ( m_viewRange.ContainsInclusive( m_pTimeline->GetTimeRange().m_end ) )
+        if ( m_viewRange.ContainsInclusive( m_pTimeline->GetLength() ) )
         {
-            float const lineOffsetX = startPosX + Math::Round( m_pTimeline->GetTimeRange().m_end * m_pixelsPerFrame );
+            float const lineOffsetX = startPosX + Math::Round( m_pTimeline->GetLength() * m_pixelsPerFrame );
             pDrawList->AddLine( ImVec2( lineOffsetX, startPosY + g_timelineLargeLineOffset ), ImVec2( lineOffsetX, endPosY ), g_timelineRangeEndLineColor, 1 );
 
             // Draw text label
-            InlineString label( InlineString::CtorSprintf(), "%.0f", m_viewRange.m_begin + m_pTimeline->GetTimeRange().m_end );
+            InlineString label( InlineString::CtorSprintf(), "%.0f", m_viewRange.m_begin + m_pTimeline->GetLength() );
             pDrawList->AddText( ImVec2( lineOffsetX + g_timelineLabelLeftPadding, startPosY ), g_timelineRangeEndLineColor, label.c_str() );
         }
     }
@@ -531,7 +529,7 @@ namespace EE::Timeline
         // Draw marker lines
         //-------------------------------------------------------------------------
 
-        pDrawList->AddLine( playheadPosition, ImVec2( playheadPosition.x, timelineRect.GetBR().y ), m_playheadTime != m_pTimeline->GetTimeRange().m_end ? playheadColor : g_timelineRangeEndLineColor );
+        pDrawList->AddLine( playheadPosition, ImVec2( playheadPosition.x, timelineRect.GetBR().y ), m_playheadTime != m_pTimeline->GetLength() ? playheadColor : g_timelineRangeEndLineColor );
     }
 
     void TimelineEditor::DrawTracks( ImRect const& fullTrackAreaRect )
@@ -577,7 +575,7 @@ namespace EE::Timeline
             // Calculate playhead position for the mouse pos
             if ( fullTrackAreaRect.Contains( mousePos ) )
             {
-                FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
+                FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, 0.0f ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetLength() ) );
                 m_mouseState.m_playheadTimeForMouse = m_viewRange.m_begin + ConvertPixelsToFrames( mousePos.x - trackAreaRect.Min.x );
                 m_mouseState.m_playheadTimeForMouse = playheadValidRange.GetClampedValue( m_mouseState.m_playheadTimeForMouse );
                 m_mouseState.m_snappedPlayheadTimeForMouse = m_mouseState.m_playheadTimeForMouse;
@@ -612,13 +610,13 @@ namespace EE::Timeline
                 // Draw track highlight
                 if ( IsSelected( pTrack ) )
                 {
-                    pDrawList->AddRectFilled( trackAreaRect.GetTL(), trackAreaRect.GetBR(), ImGuiX::Style::s_colorGray2.GetAlphaVersion( 0.2f ) );
+                    pDrawList->AddRectFilled( trackAreaRect.GetTL(), trackAreaRect.GetBR(), ImGuiX::Style::s_colorAccent0.GetAlphaVersion( 0.1f ) );
                 }
 
                 // Draw items
                 //-------------------------------------------------------------------------
 
-                ImGui::PushClipRect( trackAreaRect.GetTL() - ImVec2( g_playheadHalfWidth, 0 ), trackAreaRect.GetBR(), false );
+                ImGui::PushClipRect( trackAreaRect.GetTL(), trackAreaRect.GetBR(), false );
 
                 for ( auto const pItem : pTrack->GetItems() )
                 {
@@ -866,7 +864,8 @@ namespace EE::Timeline
         ImVec2 const canvasPos = ImGui::GetCursorScreenPos();
         ImVec2 const canvasSize = ImGui::GetContentRegionAvail();
 
-        bool const requiresHorizontalScrollBar = ( m_viewRange.m_begin > m_pTimeline->GetTimeRange().m_begin || m_viewRange.m_end < m_pTimeline->GetTimeRange().m_end );
+        float const timelineLength = m_pTimeline->GetLength();
+        bool const requiresHorizontalScrollBar = ( m_viewRange.m_begin > 0.0f || m_viewRange.m_end < timelineLength );
         float const horizontalScrollBarHeight = requiresHorizontalScrollBar ? g_horizontalScrollbarHeight : 0.0f;
 
         //-------------------------------------------------------------------------
@@ -875,25 +874,26 @@ namespace EE::Timeline
 
         if ( IsPlaying() )
         {
-            m_playheadTime += ConvertSecondsToTimelineUnit( deltaTime );
+            float const deltaTimelineUnits = m_pTimeline->ConvertSecondsToTimelineUnit( deltaTime );
+            m_playheadTime += deltaTimelineUnits;
 
-            if ( m_playheadTime >= m_pTimeline->GetTimeRange().m_end )
+            if ( m_playheadTime >= timelineLength )
             {
                 if ( m_isLoopingEnabled )
                 {
-                    Percentage percentageThroughRange( m_pTimeline->GetTimeRange().GetPercentageThrough( m_playheadTime ) );
-                    percentageThroughRange.Clamp( true );
-                    m_playheadTime = m_pTimeline->GetTimeRange().GetValueForPercentageThrough( percentageThroughRange );
+                    m_playheadTime = Math::FModF( m_playheadTime, timelineLength );
                 }
                 else // Clamp to end
                 {
-                    m_playheadTime = m_pTimeline->GetTimeRange().m_end;
+                    m_playheadTime = timelineLength;
                     SetPlayState( PlayState::Paused );
                 }
+
+                EE_ASSERT( m_playheadTime >= 0.0f );
             }
         }
 
-        // Remove any invalid ptrs from the current selection
+        // Remove any invalid pointers from the current selection
         EnsureValidSelection();
 
         // Update the view range, to ensure that we track the playhead, etc...
@@ -940,7 +940,7 @@ namespace EE::Timeline
 
             ImRect const horizontalScrollBarRect( ImVec2( canvasPos.x + g_trackHeaderWidth, canvasPos.y + canvasSize.y - horizontalScrollBarHeight ), ImVec2( canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y ) );
             int64_t const currentViewSize = Math::RoundToInt( m_viewRange.GetLength() * m_pixelsPerFrame );
-            int64_t const totalContentSizeNeeded = Math::RoundToInt( m_pTimeline->GetTimeRange().GetLength() * m_pixelsPerFrame );
+            int64_t const totalContentSizeNeeded = Math::RoundToInt( m_pTimeline->GetLength() * m_pixelsPerFrame );
             int64_t scrollbarPosition = Math::RoundToInt( m_viewRange.m_begin * m_pixelsPerFrame );
 
             ImGuiWindow* pWindow = ImGui::GetCurrentWindow();
@@ -988,7 +988,7 @@ namespace EE::Timeline
                     // Shift playhead if we are right clicking on a track
                     if ( m_contextMenuState.m_pItem == nullptr && m_contextMenuState.m_pTrack != nullptr )
                     {
-                        SetCurrentTime( m_contextMenuState.m_playheadTimeForMouse );
+                        SetPlayheadTime( m_contextMenuState.m_playheadTimeForMouse );
                     }
 
                     m_isContextMenuRequested = true;
@@ -1091,7 +1091,7 @@ namespace EE::Timeline
                 if ( m_itemEditState.m_mode == ItemEditMode::Move )
                 {
                     // Create a new range to clamp the event start time to
-                    FloatRange validEventStartRange = m_pTimeline->GetTimeRange();
+                    FloatRange validEventStartRange( 0.0f, m_pTimeline->GetLength() );
                     if ( pEditedItem->IsDurationItem() )
                     {
                         validEventStartRange.m_end = validEventStartRange.m_end - m_itemEditState.m_originalTimeRange.GetLength();
@@ -1105,7 +1105,7 @@ namespace EE::Timeline
 
                     editedItemTimeRange.m_begin = validEventStartRange.GetClampedValue( newTime );
                     editedItemTimeRange.m_end = editedItemTimeRange.m_begin + m_itemEditState.m_originalTimeRange.GetLength();
-                    SetCurrentTime( editedItemTimeRange.m_begin );
+                    SetPlayheadTime( editedItemTimeRange.m_begin );
                 }
                 else if ( m_itemEditState.m_mode == ItemEditMode::ResizeLeft )
                 {
@@ -1116,8 +1116,8 @@ namespace EE::Timeline
                     }
 
                     editedItemTimeRange.m_begin = Math::Min( m_itemEditState.m_originalTimeRange.m_end - 1, newTime );
-                    editedItemTimeRange.m_begin = Math::Max( m_pTimeline->GetTimeRange().m_begin, editedItemTimeRange.m_begin );
-                    SetCurrentTime( editedItemTimeRange.m_begin );
+                    editedItemTimeRange.m_begin = Math::Max( 0.0f, editedItemTimeRange.m_begin );
+                    SetPlayheadTime( editedItemTimeRange.m_begin );
                 }
                 else if ( m_itemEditState.m_mode == ItemEditMode::ResizeRight )
                 {
@@ -1128,8 +1128,8 @@ namespace EE::Timeline
                     }
 
                     editedItemTimeRange.m_end = Math::Max( m_itemEditState.m_originalTimeRange.m_begin + 1, newTime );
-                    editedItemTimeRange.m_end = Math::Min( m_pTimeline->GetTimeRange().m_end, editedItemTimeRange.m_end );
-                    SetCurrentTime( editedItemTimeRange.m_end );
+                    editedItemTimeRange.m_end = Math::Min( m_pTimeline->GetLength(), editedItemTimeRange.m_end );
+                    SetPlayheadTime( editedItemTimeRange.m_end );
                 }
 
                 m_pTimeline->UpdateItemTimeRange( pEditedItem, editedItemTimeRange );
@@ -1164,10 +1164,10 @@ namespace EE::Timeline
             //-------------------------------------------------------------------------
 
             // The valid range for the playhead, limit it to the current view range but dont let it leave the actual time range
-            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
+            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, 0.0f ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetLength() ) );
             float newPlayheadTime = m_viewRange.m_begin + ConvertPixelsToFrames( mousePos.x - m_timelineRect.Min.x );
             newPlayheadTime = playheadValidRange.GetClampedValue( newPlayheadTime );
-            SetCurrentTime( newPlayheadTime );
+            SetPlayheadTime( newPlayheadTime );
 
             if ( !ImGui::IsMouseDown( ImGuiMouseButton_Left ) )
             {
@@ -1188,15 +1188,15 @@ namespace EE::Timeline
         }
         else if ( ImGui::IsKeyReleased( ImGuiKey_LeftArrow ) )
         {
-            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
+            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, 0.0f ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetLength() ) );
             float const newPlayheadTime = playheadValidRange.GetClampedValue( m_playheadTime - 1 );
-            SetCurrentTime( newPlayheadTime );
+            SetPlayheadTime( newPlayheadTime );
         }
         else if ( ImGui::IsKeyReleased( ImGuiKey_RightArrow ) )
         {
-            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, m_pTimeline->GetTimeRange().m_begin ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetTimeRange().m_end ) );
+            FloatRange const playheadValidRange( (float) Math::Max( m_viewRange.m_begin, 0.0f ), (float) Math::Min( m_viewRange.m_end, m_pTimeline->GetLength() ) );
             float const newPlayheadTime = playheadValidRange.GetClampedValue( m_playheadTime + 1 );
-            SetCurrentTime( newPlayheadTime );
+            SetPlayheadTime( newPlayheadTime );
         }
         else if ( ImGui::IsKeyReleased( ImGuiKey_E ) )
         {

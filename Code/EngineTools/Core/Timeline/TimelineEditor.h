@@ -12,7 +12,7 @@
 
 namespace EE::Timeline
 {
-    class EE_ENGINETOOLS_API TimelineEditor
+    class EE_ENGINETOOLS_API TimelineEditor final
     {
 
     protected:
@@ -77,7 +77,11 @@ namespace EE::Timeline
 
         TimelineEditor( TimelineData* pTimelineData );
 
+        // View
+        //-------------------------------------------------------------------------
+
         inline bool IsFocused() const { return m_isFocused; }
+        inline void SetViewRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_viewRange = inRange; }
 
         // Tracks
         //-------------------------------------------------------------------------
@@ -112,42 +116,19 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         // Set the playhead time
-        void SetCurrentTime( float inTime );
+        void SetPlayheadTime( float desiredPlayheadTime );
 
         // Get the current playhead time
-        inline float GetCurrentTime() const { return m_playheadTime; }
-
-        // Get the current working time range
-        EE_FORCE_INLINE FloatRange const& GetTimeRange() const { return m_pTimeline->GetTimeRange(); }
+        inline float GetPlayheadTime() const { return m_playheadTime; }
 
         // Get the current position as a percentage of the time line
-        inline Percentage GetCurrentTimeAsPercentage() const { return GetTimeRange().GetPercentageThrough( m_playheadTime ); }
+        inline Percentage GetPlayheadTimeAsPercentage() const { return FloatRange( 0, m_pTimeline->GetLength() ).GetPercentageThrough( m_playheadTime ); }
 
         // Selection
         //-------------------------------------------------------------------------
 
         inline TVector<TrackItem*> const& GetSelectedItems() const { return m_selectedItems; }
         void ClearSelection();
-
-        // Dirty State
-        //-------------------------------------------------------------------------
-
-        // Has any modifications been made to the tracks/events?
-        bool IsDirty() const { return m_isTimelineDirty; }
-
-        // Flag the timeline as dirty
-        inline void MarkDirty() { m_isTimelineDirty = true; }
-
-    protected:
-
-        // General conversion from seconds to the timeline units so we can update the play state
-        float ConvertSecondsToTimelineUnit( Seconds const inTime ) const { return inTime.ToFloat(); }
-
-        inline void SetTimeRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_pTimeline->SetTimeRange( inRange ); }
-        inline void SetViewRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_viewRange = inRange; }
-
-        // Set the playhead position from a percentage over the time range
-        inline void SetPlayheadPositionAsPercentage( Percentage inPercentage ) { m_playheadTime = inPercentage.GetClamped( m_isLoopingEnabled ).ToFloat() * GetTimeRange().m_end; }
 
     private:
 
@@ -244,11 +225,10 @@ namespace EE::Timeline
         ItemEditState               m_itemEditState;
         ContextMenuState            m_contextMenuState;
 
-        TVector<TrackItem*>              m_selectedItems;
+        TVector<TrackItem*>         m_selectedItems;
         TVector<Track*>             m_selectedTracks;
 
         bool                        m_isContextMenuRequested = false;
         bool                        m_isFocused = false;
-        bool                        m_isTimelineDirty = false;
     };
 }

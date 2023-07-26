@@ -30,6 +30,7 @@ namespace EE::Animation
         class ControlParameterToolsNode;
         class ParameterReferenceToolsNode;
         class IDControlParameterToolsNode;
+        class TargetControlParameterToolsNode;
     }
 
     //-------------------------------------------------------------------------
@@ -246,7 +247,7 @@ namespace EE::Animation
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
-        virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
+        virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_STATE_MACHINE; }
@@ -356,7 +357,7 @@ namespace EE::Animation
         // Clear the entire view stack - except for the edited graph!
         void ClearGraphStack();
 
-        // Generate the necessary debug data for the graph stack
+        // Generate the necessary debug data (node ID to idx mappings, graph instances, etc...) for the graph stack
         bool GenerateGraphStackDebugData();
 
         // Clear all graph stack debug data
@@ -577,6 +578,7 @@ namespace EE::Animation
         CategoryTree<GraphNodes::FlowToolsNode*>                            m_parameterCategoryTree;
         TVector<ControlParameterPreviewState*>                              m_previewParameterStates;
         CategoryTree<ControlParameterPreviewState*>                         m_previewParameterCategoryTree;
+        GraphNodes::TargetControlParameterToolsNode*                        m_pSelectedTargetControlParameter = nullptr;
 
         // Outliner
         ImGuiX::FilterWidget                                                m_outlinerFilterWidget;

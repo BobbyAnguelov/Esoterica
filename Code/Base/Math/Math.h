@@ -87,11 +87,13 @@ namespace EE
             return value > lowerBound && value < upperBound;
         }
 
-        EE_FORCE_INLINE float ModF( float value, float* pIntegerPortion )
+        // Decomposes a float into integer and remainder portions, remainder is return and the integer result is stored in the integer portion
+        EE_FORCE_INLINE float ModF( float value, float& integerPortion )
         {
-            return modff( value, pIntegerPortion );
+            return modff( value, &integerPortion );
         }
 
+        // Returns the floating point remainder of x/y
         EE_FORCE_INLINE float FModF( float x, float y )
         {
             return fmodf( x, y );
@@ -186,6 +188,20 @@ namespace EE
         {
             static_assert( std::numeric_limits<T>::is_integer, "Integer type required." );
             return n % 2 == 0; 
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE T MakeOdd( T n )
+        {
+            static_assert( std::numeric_limits<T>::is_integer, "Integer type required." );
+            return IsOdd( n ) ? n : n + 1;
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE T MakeEven( T n )
+        {
+            static_assert( std::numeric_limits<T>::is_integer, "Integer type required." );
+            return IsEven( n ) ? n : n + 1;
         }
 
         template<typename T>

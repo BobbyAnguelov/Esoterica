@@ -143,7 +143,8 @@ namespace EE
         // Does this workspace's viewport have a orientation guide drawn?
         virtual bool HasViewportOrientationGuide() const { return true; }
 
-        // Called within the context of a large overlay window allowing you to draw helpers and widgets over a viewport
+        // A large viewport overlay window is created for all workspaces allowing you to draw helpers and widgets over a viewport
+        // Called as part of the workspace drawing so at "Frame Start" - so be careful of any timing issue with 3D drawing
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) {}
 
         // Draw the viewport for this workspace - returns true if this viewport is currently focused
@@ -180,7 +181,7 @@ namespace EE
         virtual void Shutdown( UpdateContext const& context );
 
         // Called just before the world is updated per update stage
-        virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) {}
+        virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) {}
 
         // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
         void SharedUpdate( UpdateContext const& context, bool isVisible, bool isFocused );
@@ -225,7 +226,7 @@ namespace EE
         virtual void PreUndoRedo( UndoStack::Operation operation ) {}
 
         // Called immediately after we execute an undo or redo action - undo/redo commands occur before the workspace "update" call
-        virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) {}
+        virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction );
 
         inline bool CanUndo() { return m_undoStack.CanUndo(); }
         void Undo();

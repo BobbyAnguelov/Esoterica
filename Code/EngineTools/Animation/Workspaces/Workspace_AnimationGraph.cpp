@@ -1188,6 +1188,69 @@ namespace EE::Animation
         TWorkspace<GraphDefinition>::Shutdown( context );
     }
 
+    void AnimationGraphWorkspace::PreWorldUpdate( EntityWorldUpdateContext const& updateContext )
+    {
+        // Frame End
+        //-------------------------------------------------------------------------
+
+        if ( updateContext.GetUpdateStage() == UpdateStage::FrameEnd && IsDebugging() && m_pDebugGraphComponent->IsInitialized() )
+        {
+            // Update character transform
+            //-------------------------------------------------------------------------
+
+            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
+
+            // Transfer pose from game entity to preview entity
+            //-------------------------------------------------------------------------
+
+            if ( IsLiveDebugging() )
+            {
+                if ( m_pDebugMeshComponent != nullptr && m_pDebugMeshComponent->IsInitialized() )
+                {
+                    m_pDebugMeshComponent->SetPose( m_pDebugGraphComponent->GetPose() );
+                    m_pDebugMeshComponent->FinalizePose();
+                    m_pDebugMeshComponent->SetWorldTransform( m_characterTransform );
+                }
+            }
+
+            // Debug drawing
+            //-------------------------------------------------------------------------
+
+            // Update camera tracking
+            // TODO: this is pretty janky so need to try to improve it
+            if ( m_isCameraTrackingEnabled )
+            {
+                Transform const currentCameraTransform = GetCameraTransform();
+                Transform const offsetDelta = Transform::Delta( m_previousCameraTransform, currentCameraTransform );
+                m_cameraOffsetTransform = offsetDelta * m_cameraOffsetTransform;
+                m_previousCameraTransform = m_cameraOffsetTransform * m_characterTransform;
+                SetCameraTransform( m_previousCameraTransform );
+            }
+
+            // Reflect debug options
+            if ( m_pDebugGraphComponent->IsInitialized() )
+            {
+                auto drawingContext = updateContext.GetDrawingContext();
+                m_pDebugGraphComponent->SetGraphDebugMode( m_graphDebugMode );
+                m_pDebugGraphComponent->SetRootMotionDebugMode( m_rootMotionDebugMode );
+                m_pDebugGraphComponent->SetTaskSystemDebugMode( m_taskSystemDebugMode );
+                m_pDebugGraphComponent->DrawDebug( drawingContext );
+            }
+
+            // Draw preview capsule
+            if ( m_showPreviewCapsule )
+            {
+                if ( m_pDebugGraphComponent->HasGraphInstance() )
+                {
+                    auto drawContext = GetDrawingContext();
+                    Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
+                    capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
+                    drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
+                }
+            }
+        }
+    }
+
     void AnimationGraphWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         // Set read-only state
@@ -1208,6 +1271,124 @@ namespace EE::Animation
                 if ( ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) ) || ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_F ) ) )
                 {
                     StartNavigationOperation();
+                }
+            }
+        }
+
+        // Control Parameter Manipulation
+        //-------------------------------------------------------------------------
+
+        // Check if we have a target parameter selected
+        m_pSelectedTargetControlParameter = nullptr;
+        if ( !m_selectedNodes.empty() )
+        {
+            auto pSelectedNode = m_selectedNodes.back().m_pNode;
+            m_pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pSelectedNode );
+
+            // Handle reference nodes
+            if ( m_pSelectedTargetControlParameter == nullptr )
+            {
+                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
+                if ( pReferenceNode != nullptr && pReferenceNode->GetReferencedParameterValueType() == GraphValueType::Target && pReferenceNode->IsReferencingControlParameter() )
+                {
+                    m_pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pReferenceNode->GetReferencedControlParameter() );
+                }
+            }
+        }
+
+        // Debugging
+        //-------------------------------------------------------------------------
+
+        if ( IsDebugging() )
+        {
+            if ( !m_pDebugGraphComponent->IsInitialized() )
+            {
+                return;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( IsPreviewOrReview() )
+            {
+                if ( m_isFirstPreviewFrame )
+                {
+                    // We need to set the graph instance here since it was not available when we started the debug session
+                    EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
+                    m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                    if ( !GenerateGraphStackDebugData() )
+                    {
+                        StopDebugging();
+                    }
+
+                    UpdateUserContext();
+
+                    if ( IsReviewingRecording() )
+                    {
+                        m_reviewStarted = true;
+                        SetFrameToReview( 0 );
+                    }
+                    else if ( IsPreviewing() )
+                    {
+                        ReflectInitialPreviewParameterValues( context );
+
+                        if ( m_initializeGraphToSpecifiedSyncTime )
+                        {
+                            m_pDebugGraphInstance->ResetGraphState( m_previewStartSyncTime );
+                        }
+                        else
+                        {
+                            m_pDebugGraphInstance->ResetGraphState();
+                        }
+                    }
+
+                    m_isFirstPreviewFrame = false;
+                }
+            }
+            else if ( IsLiveDebugging() )
+            {
+                // Check if the entity we are debugging still exists
+                auto pDebuggedEntity = m_pToolsContext->TryFindEntityInAllWorlds( m_debuggedEntityID );
+                if ( pDebuggedEntity == nullptr )
+                {
+                    StopDebugging();
+                    return;
+                }
+
+                // Check that the component still exists on the entity
+                if ( pDebuggedEntity->FindComponent( m_debuggedComponentID ) == nullptr )
+                {
+                    StopDebugging();
+                    return;
+                }
+
+                // Ensure we still have a valid graph instance
+                if ( !m_pDebugGraphComponent->HasGraphInstance() )
+                {
+                    StopDebugging();
+                    return;
+                }
+
+                // Try to generate the relevant graph data for the first frame
+                if ( m_isFirstPreviewFrame )
+                {
+                    EE_ASSERT( m_pDebugGraphInstance != nullptr );
+                    if ( !GenerateGraphStackDebugData() )
+                    {
+                        StopDebugging();
+                    }
+
+                    UpdateUserContext();
+                    m_isFirstPreviewFrame = false;
+                }
+
+                // Check if the external graph instance is still connected
+                if ( m_debugExternalGraphSlotID.IsValid() )
+                {
+                    if ( !m_pDebugGraphComponent->GetDebugGraphInstance()->IsExternalGraphSlotFilled( m_debugExternalGraphSlotID ) )
+                    {
+                        StopDebugging();
+                        return;
+                    }
                 }
             }
         }
@@ -1450,26 +1631,8 @@ namespace EE::Animation
     {
         TWorkspace<GraphDefinition>::DrawViewportOverlayElements( context, pViewport );
 
-        // Check if we have a target parameter selected
-        GraphNodes::TargetControlParameterToolsNode* pSelectedTargetControlParameter = nullptr;
-        if ( !m_selectedNodes.empty() )
-        {
-            auto pSelectedNode = m_selectedNodes.back().m_pNode;
-            pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pSelectedNode );
-
-            // Handle reference nodes
-            if ( pSelectedTargetControlParameter == nullptr )
-            {
-                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
-                if ( pReferenceNode != nullptr && pReferenceNode->GetReferencedParameterValueType() == GraphValueType::Target && pReferenceNode->IsReferencingControlParameter() )
-                {
-                    pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pReferenceNode->GetReferencedControlParameter() );
-                }
-            }
-        }
-
         // Allow for in-viewport manipulation of the parameter preview value
-        if ( pSelectedTargetControlParameter != nullptr )
+        if ( m_pSelectedTargetControlParameter != nullptr )
         {
             Transform gizmoTransform;
             bool drawGizmo = false;
@@ -1478,7 +1641,7 @@ namespace EE::Animation
             {
                 if ( m_pDebugGraphComponent->HasGraphInstance() )
                 {
-                    int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pSelectedTargetControlParameter->GetParameterName() ) );
+                    int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( m_pSelectedTargetControlParameter->GetParameterName() ) );
                     EE_ASSERT( parameterIdx != InvalidIndex );
                     Target const targetValue = m_pDebugGraphComponent->GetControlParameterValue<Target>( parameterIdx );
                     if ( targetValue.IsTargetSet() && !targetValue.IsBoneTarget() )
@@ -1490,9 +1653,9 @@ namespace EE::Animation
             }
             else
             {
-                if ( !pSelectedTargetControlParameter->IsBoneTarget() )
+                if ( !m_pSelectedTargetControlParameter->IsBoneTarget() )
                 {
-                    gizmoTransform = pSelectedTargetControlParameter->GetPreviewTargetTransform();
+                    gizmoTransform = m_pSelectedTargetControlParameter->GetPreviewTargetTransform();
                     drawGizmo = true;
                 }
             }
@@ -1518,18 +1681,18 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                auto SetParameterValue = [this, pSelectedTargetControlParameter] ( Transform const& newTransform )
+                auto SetParameterValue = [this] ( Transform const& newTransform )
                 {
                     if ( IsDebugging() )
                     {
                         EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
-                        int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pSelectedTargetControlParameter->GetParameterName() ) );
+                        int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( m_pSelectedTargetControlParameter->GetParameterName() ) );
                         EE_ASSERT( parameterIdx != InvalidIndex );
                         m_pDebugGraphComponent->SetControlParameterValue<Target>( parameterIdx, Target( newTransform ) );
                     }
                     else
                     {
-                        pSelectedTargetControlParameter->SetPreviewTargetTransform( newTransform );
+                        m_pSelectedTargetControlParameter->SetPreviewTargetTransform( newTransform );
                     }
                 };
 
@@ -1570,19 +1733,6 @@ namespace EE::Animation
                     default:
                     break;
                 }
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( IsDebugging() && m_showPreviewCapsule )
-        {
-            if ( m_pDebugGraphComponent->HasGraphInstance() )
-            {
-                auto drawContext = GetDrawingContext();
-                Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
-                capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
-                drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
             }
         }
     }
@@ -1867,6 +2017,10 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
+        TWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
+
+        //-------------------------------------------------------------------------
+
         enum class ViewRestoreResult { Failed, PartialMatch, Success };
 
         auto pRootGraph = GetEditedRootGraph();
@@ -1957,8 +2111,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         OnGraphStateModified();
-
-        TWorkspace<GraphDefinition>::PostUndoRedo( operation, pAction );
     }
 
     void AnimationGraphWorkspace::OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded )
@@ -1969,147 +2121,6 @@ namespace EE::Animation
         {
             StopDebugging();
             m_graphRecorder.Reset();
-        }
-    }
-
-    //-------------------------------------------------------------------------
-
-    void AnimationGraphWorkspace::PreUpdateWorld( EntityWorldUpdateContext const& updateContext )
-    {
-        if ( IsPreviewOrReview() )
-        {
-            if ( !m_pDebugGraphComponent->IsInitialized() )
-            {
-                return;
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( m_isFirstPreviewFrame )
-            {
-                // We need to set the graph instance here since it was not available when we started the debug session
-                EE_ASSERT( m_pDebugGraphComponent->HasGraphInstance() );
-                m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                if ( !GenerateGraphStackDebugData() )
-                {
-                    StopDebugging();
-                }
-
-                UpdateUserContext();
-
-                if ( IsReviewingRecording() )
-                {
-                    m_reviewStarted = true;
-                    SetFrameToReview( 0 );
-                }
-                else if ( IsPreviewing() )
-                {
-                    ReflectInitialPreviewParameterValues( updateContext );
-
-                    if ( m_initializeGraphToSpecifiedSyncTime )
-                    {
-                        m_pDebugGraphInstance->ResetGraphState( m_previewStartSyncTime );
-                    }
-                    else
-                    {
-                        m_pDebugGraphInstance->ResetGraphState();
-                    }
-                }
-
-                m_isFirstPreviewFrame = false;
-            }
-
-            //-------------------------------------------------------------------------
-
-            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
-        }
-        else if ( IsLiveDebugging() )
-        {
-            // Check if the entity we are debugging still exists
-            auto pDebuggedEntity = m_pToolsContext->TryFindEntityInAllWorlds( m_debuggedEntityID );
-            if ( pDebuggedEntity == nullptr )
-            {
-                StopDebugging();
-                return;
-            }
-
-            // Check that the component still exists on the entity
-            if ( pDebuggedEntity->FindComponent( m_debuggedComponentID ) == nullptr )
-            {
-                StopDebugging();
-                return;
-            }
-
-            // Ensure we still have a valid graph instance
-            if ( !m_pDebugGraphComponent->HasGraphInstance() )
-            {
-                StopDebugging();
-                return;
-            }
-
-            if ( m_isFirstPreviewFrame )
-            {
-                EE_ASSERT( m_pDebugGraphInstance != nullptr );
-                if ( !GenerateGraphStackDebugData() )
-                {
-                    StopDebugging();
-                }
-
-                UpdateUserContext();
-                m_isFirstPreviewFrame = false;
-            }
-
-            // Check if the external graph instance is still connected
-            if ( m_debugExternalGraphSlotID.IsValid() )
-            {
-                if ( !m_pDebugGraphComponent->GetDebugGraphInstance()->IsExternalGraphSlotFilled( m_debugExternalGraphSlotID ) )
-                {
-                    StopDebugging();
-                    return;
-                }
-            }
-
-            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
-
-            // Transfer pose to preview entity
-            if ( m_pDebugMeshComponent != nullptr && m_pDebugMeshComponent->IsInitialized() )
-            {
-                m_pDebugMeshComponent->SetPose( m_pDebugGraphComponent->GetPose() );
-                m_pDebugMeshComponent->FinalizePose();
-                m_pDebugMeshComponent->SetWorldTransform( m_characterTransform );
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( IsDebugging() )
-        {
-            // Update camera tracking
-            // TODO: this is pretty janky so need to try to improve it
-            if ( updateContext.GetUpdateStage() == UpdateStage::FrameEnd )
-            {
-                if ( m_isCameraTrackingEnabled )
-                {
-                    Transform const currentCameraTransform = GetCameraTransform();
-                    Transform const offsetDelta = Transform::Delta( m_previousCameraTransform, currentCameraTransform );
-                    m_cameraOffsetTransform = offsetDelta * m_cameraOffsetTransform;
-                    m_previousCameraTransform = m_cameraOffsetTransform * m_characterTransform;
-                    SetCameraTransform( m_previousCameraTransform );
-                }
-            }
-
-            // Reflect debug options
-            if ( updateContext.GetUpdateStage() == UpdateStage::FrameEnd )
-            {
-                if ( m_pDebugGraphComponent->IsInitialized() )
-                {
-                    auto drawingContext = updateContext.GetDrawingContext();
-                    m_pDebugGraphComponent->SetGraphDebugMode( m_graphDebugMode );
-                    m_pDebugGraphComponent->SetRootMotionDebugMode( m_rootMotionDebugMode );
-                    m_pDebugGraphComponent->SetTaskSystemDebugMode( m_taskSystemDebugMode );
-                    m_pDebugGraphComponent->DrawDebug( drawingContext );
-                }
-            }
         }
     }
 

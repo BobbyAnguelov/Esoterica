@@ -76,7 +76,7 @@ namespace EE::Physics
         virtual bool Save() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
-        virtual void PreUpdateWorld( EntityWorldUpdateContext const& updateContext ) override;
+        virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }

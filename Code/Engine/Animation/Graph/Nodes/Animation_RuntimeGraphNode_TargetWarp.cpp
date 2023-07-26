@@ -1126,7 +1126,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context )
+    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         MarkNodeActive( context );
 
@@ -1137,35 +1137,7 @@ namespace EE::Animation::GraphNodes
 
         if ( IsValid() )
         {
-            result = m_pClipReferenceNode->Update( context );
-            m_duration = m_pClipReferenceNode->GetDuration();
-            m_previousTime = m_pClipReferenceNode->GetPreviousTime();
-            m_currentTime = m_pClipReferenceNode->GetCurrentTime();
-
-            SampleWarpedRootMotion( context, result );
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        }
-
-        EE_ASSERT( m_duration != 0.0f );
-
-        return result;
-    }
-
-    GraphPoseNodeResult TargetWarpNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        MarkNodeActive( context );
-
-        // Update source node
-        //-------------------------------------------------------------------------
-
-        GraphPoseNodeResult result;
-
-        if ( IsValid() )
-        {
-            result = m_pClipReferenceNode->Update( context, updateRange );
+            result = m_pClipReferenceNode->Update( context, pUpdateRange );
             m_duration = m_pClipReferenceNode->GetDuration();
             m_previousTime = m_pClipReferenceNode->GetPreviousTime();
             m_currentTime = m_pClipReferenceNode->GetCurrentTime();

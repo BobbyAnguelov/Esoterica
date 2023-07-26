@@ -56,7 +56,7 @@ namespace EE::Animation
                     if ( i == numEvents - 1 )
                     { 
                         FloatRange newTimeRange = m_items[i]->GetTimeRange();
-                        newTimeRange.m_end = context.GetTimeRange().m_end;
+                        newTimeRange.m_end = context.GetTimelineLength();
                         m_items[i]->SetTimeRange( newTimeRange );
                     }
                     else
@@ -126,9 +126,9 @@ namespace EE::Animation
     void EventTimeline::SetAnimationInfo( uint32_t numFrames, float FPS )
     {
         EE_ASSERT( numFrames > 0.0f );
-        if ( m_timeRange.m_end != (int32_t) numFrames - 1 )
+        if ( m_length != (int32_t) numFrames - 1 )
         {
-            SetTimeRange( FloatRange( 0, float( numFrames - 1 ) ) );
+            SetLength( float( numFrames - 1 ) );
         }
 
         EE_ASSERT( FPS >= 0.0f );

@@ -181,7 +181,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    GraphPoseNodeResult ChildGraphNode::Update( GraphContext& context )
+    GraphPoseNodeResult ChildGraphNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
@@ -195,27 +195,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             ReflectControlParameters( context );
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld );
-            TransferGraphInstanceData( context, result );
-        }
-        return result;
-    }
-
-    GraphPoseNodeResult ChildGraphNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-        MarkNodeActive( context );
-
-        GraphPoseNodeResult result;
-        if ( m_pGraphInstance == nullptr )
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
-        }
-        else
-        {
-            ReflectControlParameters( context );
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, updateRange );
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange );
             TransferGraphInstanceData( context, result );
         }
         return result;

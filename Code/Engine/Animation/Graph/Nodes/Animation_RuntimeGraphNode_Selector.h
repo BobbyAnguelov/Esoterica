@@ -35,9 +35,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         int32_t SelectOption( GraphContext& context ) const;
 
@@ -83,9 +81,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         virtual AnimationClip const* GetAnimation() const override;
         virtual void DisableRootMotionSampling() override;
@@ -135,9 +131,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         int32_t SelectOption( GraphContext& context ) const;
 
@@ -183,9 +177,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         virtual AnimationClip const* GetAnimation() const override;
         virtual void DisableRootMotionSampling() override;

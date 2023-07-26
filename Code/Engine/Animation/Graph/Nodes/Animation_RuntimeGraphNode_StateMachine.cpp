@@ -1,4 +1,5 @@
 #include "Animation_RuntimeGraphNode_StateMachine.h"
+#include "Animation_RuntimeGraphNode_Transition.h"
 
 //-------------------------------------------------------------------------
 
@@ -150,7 +151,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void StateMachineNode::EvaluateTransitions( GraphContext& context, GraphPoseNodeResult& sourceNodeResult )
+    void StateMachineNode::EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& sourceNodeResult )
     {
         auto const& currentlyActiveStateInfo = m_states[m_activeStateIndex];
 
@@ -223,11 +224,11 @@ namespace EE::Animation::GraphNodes
             // Initialize target state based on transition settings and what the source is (state or transition)
             if ( m_pActiveTransition != nullptr )
             {
-                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromTransition( context, sourceNodeResult, m_pActiveTransition, startCachingSourcePose );
+                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromTransition( context, pUpdateRange, sourceNodeResult, m_pActiveTransition, startCachingSourcePose );
             }
             else
             {
-                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromState( context, sourceNodeResult, m_states[m_activeStateIndex].m_pStateNode, startCachingSourcePose );
+                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromState( context, pUpdateRange, sourceNodeResult, m_states[m_activeStateIndex].m_pStateNode, startCachingSourcePose );
             }
 
             m_pActiveTransition = transition.m_pTransitionNode;
@@ -243,7 +244,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    GraphPoseNodeResult StateMachineNode::Update( GraphContext& context )
+    GraphPoseNodeResult StateMachineNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
@@ -267,7 +268,7 @@ namespace EE::Animation::GraphNodes
         if ( m_pActiveTransition == nullptr )
         {
             auto pActiveState = m_states[m_activeStateIndex].m_pStateNode;
-            result = pActiveState->Update( context );
+            result = pActiveState->Update( context, pUpdateRange );
 
             // Update node time
             m_duration = pActiveState->GetDuration();
@@ -276,7 +277,7 @@ namespace EE::Animation::GraphNodes
         }
         else // Update the transition
         {
-            result = m_pActiveTransition->Update( context );
+            result = m_pActiveTransition->Update( context, pUpdateRange );
 
             // Update node time
             m_duration = m_pActiveTransition->GetDuration();
@@ -289,63 +290,7 @@ namespace EE::Animation::GraphNodes
         // Check for a valid transition, if one exists start it
         if ( context.m_branchState == BranchState::Active )
         {
-            EvaluateTransitions( context, result );
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( result.m_sampledEventRange.m_startIdx == startSampledEventIdx );
-        #endif
-
-        return result;
-    }
-
-    GraphPoseNodeResult StateMachineNode::Update( GraphContext& context, SyncTrackTimeRange const& updateRange )
-    {
-        EE_ASSERT( context.IsValid() );
-        MarkNodeActive( context );
-
-        #if EE_DEVELOPMENT_TOOLS
-        int16_t const startSampledEventIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
-        #endif
-
-        // Check active transition
-        if ( m_pActiveTransition != nullptr )
-        {
-            if ( m_pActiveTransition->IsComplete( context ) )
-            {
-                m_pActiveTransition->Shutdown( context );
-                m_pActiveTransition = nullptr;
-            }
-        }
-
-        // If we are fully in a state, update the state directly
-        GraphPoseNodeResult result;
-        if ( m_pActiveTransition == nullptr )
-        {
-            auto pActiveState = m_states[m_activeStateIndex].m_pStateNode;
-            result = pActiveState->Update( context, updateRange );
-
-            // Update node time
-            m_duration = pActiveState->GetDuration();
-            m_previousTime = pActiveState->GetPreviousTime();
-            m_currentTime = pActiveState->GetCurrentTime();
-        }
-        else // Update the transition
-        {
-            result = m_pActiveTransition->Update( context, updateRange );
-
-            // Update node time
-            m_duration = m_pActiveTransition->GetDuration();
-            m_previousTime = m_pActiveTransition->GetPreviousTime();
-            m_currentTime = m_pActiveTransition->GetCurrentTime();
-        }
-
-        EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
-
-        // Check for a valid transition, if one exists start it
-        if ( context.m_branchState == BranchState::Active )
-        {
-            EvaluateTransitions( context, result );
+            EvaluateTransitions( context, pUpdateRange, result );
         }
 
         #if EE_DEVELOPMENT_TOOLS

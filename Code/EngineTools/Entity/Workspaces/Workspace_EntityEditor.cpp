@@ -787,6 +787,8 @@ namespace EE::EntityModel
 
     void EntityEditorWorkspace::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
+        Workspace::PostUndoRedo( operation, pAction );
+
         EntityUndoableAction const* pUndoableAction = static_cast<EntityUndoableAction const*>( pAction );
 
         if ( pUndoableAction->GetActionType() != EntityUndoableAction::TransformUpdate )

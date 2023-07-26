@@ -501,7 +501,6 @@ namespace EE::Timeline
             if ( m_onEndModification != nullptr )
             {
                 m_onEndModification();
-                m_isDirty = true;
             }
         }
     }

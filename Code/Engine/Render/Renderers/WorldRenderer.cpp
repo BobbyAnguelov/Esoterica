@@ -22,7 +22,7 @@ namespace EE::Render
         lightTransform.SetTranslation( Vector::Zero );
         Transform const invLightTransform = lightTransform.GetInverse();
 
-        //Get a modified camera view volume that has the shadow distance as the z far.
+        // Get a modified camera view volume that has the shadow distance as the z far.
         // This will get us the appropriate corners to translate into light space.
 
         // To make these cascade, you do this in a loop and move the depth range along by your

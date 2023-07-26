@@ -22,8 +22,7 @@ namespace EE::Animation::GraphNodes
 
         virtual SyncTrack const& GetSyncTrack() const override { return SyncTrack::s_defaultTrack; }
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override { return Update( context ); }
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
     };
 
     //-------------------------------------------------------------------------
@@ -42,8 +41,7 @@ namespace EE::Animation::GraphNodes
 
         virtual SyncTrack const& GetSyncTrack() const override { return SyncTrack::s_defaultTrack; }
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override { return Update( context ); }
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
     };
 
     //-------------------------------------------------------------------------
@@ -75,9 +73,7 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override { return SyncTrack::s_defaultTrack; }
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override { return Update( context ); }
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
     private:
 

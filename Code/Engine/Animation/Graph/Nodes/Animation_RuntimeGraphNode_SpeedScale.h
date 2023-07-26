@@ -26,8 +26,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -60,8 +59,7 @@ namespace EE::Animation::GraphNodes
 
         virtual void InitializeInternal ( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal ( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update ( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update ( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update ( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
     private:
 
@@ -92,8 +90,7 @@ namespace EE::Animation::GraphNodes
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual bool IsValid() const override { return PoseNode::IsValid() && m_pChildNode->IsValid(); }
         virtual SyncTrack const& GetSyncTrack() const override;
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;

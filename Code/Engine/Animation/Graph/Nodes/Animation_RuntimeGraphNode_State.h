@@ -65,8 +65,7 @@ namespace EE::Animation::GraphNodes
         virtual bool IsValid() const override { return PoseNode::IsValid() && m_pChildNode != nullptr && m_pChildNode->IsValid(); }
         virtual SyncTrack const& GetSyncTrack() const override;
 
-        virtual GraphPoseNodeResult Update( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const& updateRange ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         // State info
         inline float GetElapsedTimeInState() const { return m_elapsedTimeInState; }

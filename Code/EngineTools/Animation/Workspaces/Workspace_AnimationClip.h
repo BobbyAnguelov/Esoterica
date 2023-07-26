@@ -36,6 +36,8 @@ namespace EE::Animation
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
         virtual void OnHotReloadComplete() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+
+        virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual void DrawMenu( UpdateContext const& context ) override;

@@ -77,8 +77,7 @@ namespace EE::Resource
 
     CompilationResult Compiler::CompilationSucceededWithWarnings( CompileContext const& ctx ) const
     {
-        Message( "Compiled '%s' to '%s' successfully", (char const*) ctx.m_inputFilePath, (char const*) ctx.m_outputFilePath );
-        return CompilationResult::SuccessWithWarnings;
+        return Warning( "Compiled '%s' to '%s' successfully (with warnings)", (char const*) ctx.m_inputFilePath, (char const*) ctx.m_outputFilePath );
     }
 
     CompilationResult Compiler::CompilationFailed( CompileContext const& ctx ) const

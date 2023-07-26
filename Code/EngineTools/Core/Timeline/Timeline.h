@@ -45,11 +45,11 @@ namespace EE::Timeline
         void EndModification() const { m_endModification(); }
 
         // Get the current timeline length
-        EE_FORCE_INLINE FloatRange const& GetTimeRange() const { return m_timelineRange; }
+        EE_FORCE_INLINE float const& GetTimelineLength() const { return m_timelineLength; }
 
     private:
 
-        FloatRange          m_timelineRange;
+        float               m_timelineLength;
         TFunction<void()>   m_beginModification;
         TFunction<void()>   m_endModification;
     };
@@ -119,13 +119,6 @@ namespace EE::Timeline
         inline IReflectedType* GetData() { return m_pData; }
         inline IReflectedType const* GetData() const { return m_pData; }
         TypeSystem::TypeInfo const* GetDataTypeInfo() const { return m_pData->GetTypeInfo(); }
-
-        // Dirty state
-        //-------------------------------------------------------------------------
-
-        inline bool IsDirty() const { return m_isDirty; }
-        inline void MarkDirty() { m_isDirty = true; }
-        inline void ClearDirty() { m_isDirty = false; }
 
         // Serialization
         //-------------------------------------------------------------------------
@@ -299,7 +292,7 @@ namespace EE::Timeline
         ItemType                    m_itemType = ItemType::Duration;
 
         // The actual items
-        TVector<TrackItem*>              m_items;
+        TVector<TrackItem*>         m_items;
 
         // String set via validation 
         mutable String              m_validationStatueMessage;
@@ -339,11 +332,11 @@ namespace EE::Timeline
         // Get the overall status for all tracks
         Track::Status GetValidationStatus() const;
 
-        // Get the overall time range for this timeline
-        EE_FORCE_INLINE FloatRange const& GetTimeRange() const { return m_timeRange; }
+        // Get the length for this timeline
+        EE_FORCE_INLINE float const& GetLength() const { return m_length; }
 
         // Set the overall time range for this timeline
-        inline void SetTimeRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_timeRange = inRange; m_context.m_timelineRange = m_timeRange; }
+        inline void SetLength( float length ) { EE_ASSERT( length > 0.0f ); m_length = length; m_context.m_timelineLength = length; }
 
         // Tracks
         //-------------------------------------------------------------------------
@@ -399,15 +392,6 @@ namespace EE::Timeline
         // End an operation that modifies timeline data
         void EndModification();
 
-        // Dirty State
-        //-------------------------------------------------------------------------
-
-        // Did we modify this timeline
-        inline bool IsDirty() const { return m_isDirty; }
-
-        // Clear the dirty status
-        inline void ClearDirty() { m_isDirty = false; }
-
         // Serialization
         //-------------------------------------------------------------------------
 
@@ -417,14 +401,12 @@ namespace EE::Timeline
     protected:
 
         TVector<Track*>                             m_tracks;
-        FloatRange                                  m_timeRange = FloatRange( 0, 0 );
+        float                                       m_length = 0;
         TVector<TypeSystem::TypeInfo const*>        m_allowedTrackTypes;
 
         TrackContext                                m_context;
         TFunction<void()>                           m_onBeginModification;
         TFunction<void()>                           m_onEndModification;
         mutable int32_t                             m_beginModificationCallCount = 0;
-
-        bool                                        m_isDirty = false;
     };
 }

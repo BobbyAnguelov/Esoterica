@@ -11,6 +11,7 @@
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Serialization/BinarySerialization.h"
 #include "Base/Math/MathUtils.h"
+#include "Base/Time/Timers.h"
 #include <eastl/sort.h>
 
 //-------------------------------------------------------------------------
@@ -33,7 +34,15 @@ namespace EE::Animation
 
     Resource::CompilationResult AnimationClipCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
+        Resource::CompilationResult result = Resource::CompilationResult::Success;
+
+        //-------------------------------------------------------------------------
+
+        Milliseconds timeTaken = 0;
+
         // Read descriptor
+        //-------------------------------------------------------------------------
+
         rapidjson::Document descriptorDocument;
         AnimationClipResourceDescriptor resourceDescriptor;
         if ( !TryLoadResourceDescriptor( ctx.m_inputFilePath, resourceDescriptor, &descriptorDocument ) )
@@ -42,13 +51,18 @@ namespace EE::Animation
         }
 
         // Read animation data
+        //-------------------------------------------------------------------------
+
         TUniquePtr<RawAssets::RawAnimation> pRawAnimation = nullptr;
-        if ( !ReadRawAnimation( ctx, resourceDescriptor, pRawAnimation ) )
+        result = CombineResult( result, ReadRawAnimation( ctx, resourceDescriptor, pRawAnimation ) );
+        if ( result == Resource::CompilationResult::Failure )
         {
-            return Resource::CompilationResult::Failure;
+            return Error( "Failed to read raw animation data!" );
         }
 
         // Validate frame limit
+        //-------------------------------------------------------------------------
+
         if ( resourceDescriptor.m_limitFrameRange.IsSet() )
         {
             if ( pRawAnimation->GetNumFrames() == 1 )
@@ -66,21 +80,35 @@ namespace EE::Animation
         }
 
         // Auto-generate root motion
+        //-------------------------------------------------------------------------
+
         if ( resourceDescriptor.m_regenerateRootMotion )
         {
-            if ( !RegenerateRootMotion( resourceDescriptor, pRawAnimation.get() ) )
             {
-                return Resource::CompilationResult::Failure;
+                ScopedTimer<PlatformClock> timer( timeTaken );
+                result = CombineResult( result, RegenerateRootMotion( resourceDescriptor, pRawAnimation.get() ) );
+                if ( result == Resource::CompilationResult::Failure )
+                {
+                    return Error( "Failed to generate root motion data!" );
+                }
             }
+            Message( "Root Motion Generation: %.3fms", timeTaken.ToFloat() );
         }
 
         // Additive generation
+        //-------------------------------------------------------------------------
+
         if ( resourceDescriptor.m_additiveType != AnimationClipResourceDescriptor::AdditiveType::None )
         {
-            if ( !MakeAdditive( ctx, resourceDescriptor, *pRawAnimation ) )
             {
-                return Resource::CompilationResult::Failure;
+                ScopedTimer<PlatformClock> timer( timeTaken );
+                result = CombineResult( result, MakeAdditive( ctx, resourceDescriptor, *pRawAnimation ) );
+                if ( result == Resource::CompilationResult::Failure )
+                {
+                    return Error( "Failed to generate additive animation data!" );
+                }
             }
+            Message( "Additive Generation: %.3fms", timeTaken.ToFloat() );
         }
 
         // Reflect raw animation data into runtime format
@@ -88,16 +116,30 @@ namespace EE::Animation
 
         AnimationClip animData;
         animData.m_skeleton = resourceDescriptor.m_skeleton;
-        TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange );
+
+        {
+            ScopedTimer<PlatformClock> timer( timeTaken );
+            result = CombineResult( result, TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange ) );
+            if ( result == Resource::CompilationResult::Failure )
+            {
+                return Error( "Failed to compress animation!" );
+            }
+        }
+        Message( "Compression: %.3fms", timeTaken.ToFloat() );
 
         // Handle events
         //-------------------------------------------------------------------------
 
         AnimationClipEventData eventData;
-        if ( !ReadEventsData( ctx, descriptorDocument, *pRawAnimation, eventData ) )
         {
-            return CompilationFailed( ctx );
+            ScopedTimer<PlatformClock> timer( timeTaken );
+            result = CombineResult( result, ReadEventsData( ctx, descriptorDocument, *pRawAnimation, eventData ) );
+            if ( result == Resource::CompilationResult::Failure )
+            {
+                return Error( "Failed to read animation events!" );
+            }
         }
+        Message( "Read Animation Events: %.3fms", timeTaken.ToFloat() );
 
         // Serialize animation data
         //-------------------------------------------------------------------------
@@ -112,7 +154,7 @@ namespace EE::Animation
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
-            if ( pRawAnimation->HasWarnings() )
+            if ( pRawAnimation->HasWarnings() || result == Resource::CompilationResult::SuccessWithWarnings )
             {
                 return CompilationSucceededWithWarnings( ctx );
             }
@@ -129,64 +171,67 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool AnimationClipCompiler::ReadRawAnimation( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, TUniquePtr<RawAssets::RawAnimation>& pOutAnimation ) const
+    Resource::CompilationResult AnimationClipCompiler::ReadRawAnimation( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, TUniquePtr<RawAssets::RawAnimation>& pOutAnimation ) const
     {
+        Timer<PlatformClock> timer;
         EE_ASSERT( pOutAnimation == nullptr );
 
         // Read Skeleton Data
         //-------------------------------------------------------------------------
 
+        timer.Start();
+
         SkeletonResourceDescriptor skeletonResourceDescriptor;
         if ( !TryLoadResourceDescriptor( resourceDescriptor.m_skeleton.GetResourcePath(), skeletonResourceDescriptor ) )
         {
-            Error( "Failed to load skeleton descriptor!" );
-            return false;
+            return Error( "Failed to load skeleton descriptor!" );
         }
 
         FileSystem::Path skeletonFilePath;
         if ( !ConvertResourcePathToFilePath( skeletonResourceDescriptor.m_skeletonPath, skeletonFilePath ) )
         {
-            Error( "Invalid skeleton FBX data path: %s", skeletonResourceDescriptor.m_skeletonPath.GetString().c_str() );
-            return false;
+            return Error( "Invalid skeleton FBX data path: %s", skeletonResourceDescriptor.m_skeletonPath.GetString().c_str() );
         }
 
         RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
         auto pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName );
         if ( pRawSkeleton == nullptr || !pRawSkeleton->IsValid() )
         {
-            Error( "Failed to read skeleton file: %s", skeletonFilePath.ToString().c_str() );
-            return false;
+            return Error( "Failed to read skeleton file: %s", skeletonFilePath.ToString().c_str() );
         }
+
+        Message( "Read Raw Skeleton Data: %.3fms", timer.GetElapsedTimeMilliseconds().ToFloat() );
 
         // Read animation data
         //-------------------------------------------------------------------------
 
+        timer.Start();
+
         FileSystem::Path animationFilePath;
         if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_animationPath, animationFilePath ) )
         {
-            Error( "Invalid animation data path: %s", resourceDescriptor.m_animationPath.c_str() );
-            return false;
+            return Error( "Invalid animation data path: %s", resourceDescriptor.m_animationPath.c_str() );
         }
 
         if ( !FileSystem::Exists( animationFilePath ) )
         {
-            Error( "Invalid animation file path: %s", animationFilePath.ToString().c_str() );
-            return false;
+            return Error( "Invalid animation file path: %s", animationFilePath.ToString().c_str() );
         }
 
         pOutAnimation = RawAssets::ReadAnimation( readerCtx, animationFilePath, *pRawSkeleton, resourceDescriptor.m_animationName, resourceDescriptor.m_rootMotionBoneID );
         if ( pOutAnimation == nullptr )
         {
-            Error( "Failed to read animation from source file" );
-            return false;
+            return Error( "Failed to read animation from source file" );
         }
+
+        Message( "Read Raw Animation Data: %.3fms", timer.GetElapsedTimeMilliseconds().ToFloat() );
 
         //-------------------------------------------------------------------------
 
-        return true;
+        return Resource::CompilationResult::Success;
     }
 
-    bool AnimationClipCompiler::MakeAdditive( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation& rawAnimData ) const
+    Resource::CompilationResult AnimationClipCompiler::MakeAdditive( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation& rawAnimData ) const
     {
         EE_ASSERT( resourceDescriptor.m_additiveType != AnimationClipResourceDescriptor::AdditiveType::None );
 
@@ -204,21 +249,18 @@ namespace EE::Animation
             AnimationClipResourceDescriptor baseAnimResourceDescriptor;
             if ( !TryLoadResourceDescriptor( resourceDescriptor.m_additiveBaseAnimation.GetResourcePath(), baseAnimResourceDescriptor ) )
             {
-                Error( "Failed to load base animation descriptor!" );
-                return false;
+                return Error( "Failed to load base animation descriptor!" );
             }
 
             if ( baseAnimResourceDescriptor.m_skeleton != resourceDescriptor.m_skeleton )
             {
-                Error( "Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
-                return false;
+                return Error( "Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
             }
 
             TUniquePtr<RawAssets::RawAnimation> pBaseRawAnimation = nullptr;
-            if ( !ReadRawAnimation( ctx, baseAnimResourceDescriptor, pBaseRawAnimation ) )
+            if ( ReadRawAnimation( ctx, baseAnimResourceDescriptor, pBaseRawAnimation ) == Resource::CompilationResult::Failure )
             {
-                Error( "Failed to load base animation data!" );
-                return false;
+                return Error( "Failed to load base animation data!" );
             }
 
             rawAnimData.MakeAdditiveRelativeToAnimation( *pBaseRawAnimation.get() );
@@ -226,10 +268,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        return true;
+        return Resource::CompilationResult::Success;
     }
 
-    bool AnimationClipCompiler::RegenerateRootMotion( AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation* pRawAnimation ) const
+    Resource::CompilationResult AnimationClipCompiler::RegenerateRootMotion( AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation* pRawAnimation ) const
     {
         EE_ASSERT( pRawAnimation != nullptr && pRawAnimation->IsValid() );
 
@@ -244,14 +286,12 @@ namespace EE::Animation
                 rootMotionGenerationBoneIdx = pRawAnimation->GetSkeleton().GetBoneIndex( resourceDescriptor.m_rootMotionGenerationBoneID );
                 if ( rootMotionGenerationBoneIdx == InvalidIndex )
                 {
-                    Error( "Root Motion Generation: Skeleton doesnt contain specified bone: %s", resourceDescriptor.m_rootMotionGenerationBoneID.c_str() );
-                    return false;
+                    return Error( "Root Motion Generation: Skeleton doesnt contain specified bone: %s", resourceDescriptor.m_rootMotionGenerationBoneID.c_str() );
                 }
             }
             else
             {
                 Error( "Root Motion Generation: No bone specified for root motion generation!" );
-                return false;
             }
         }
 
@@ -300,11 +340,12 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        return true;
+        return Resource::CompilationResult::Success;
     }
 
-    void AnimationClipCompiler::TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange ) const
+    Resource::CompilationResult AnimationClipCompiler::TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange ) const
     {
+        Resource::CompilationResult result = Resource::CompilationResult::Success;
         auto const& rawTrackData = rawAnimData.GetTrackData();
         uint32_t const numBones = rawAnimData.GetNumBones();
         int32_t const numOriginalFrames = rawAnimData.GetNumFrames();
@@ -320,7 +361,7 @@ namespace EE::Animation
         {
             if( limitRange.m_end >= numOriginalFrames )
             {
-                Warning( "Frame range limit exceed available frames, clamping to end of animation!" );
+                result = Warning( "Frame range limit exceed available frames, clamping to end of animation!" );
             }
 
             frameIdxStart = Math::Max( limitRange.m_begin, 0 );
@@ -502,13 +543,17 @@ namespace EE::Animation
                 }
             }
         }
+
+        return result;
     }
 
     //-------------------------------------------------------------------------
 
-    bool AnimationClipCompiler::ReadEventsData( Resource::CompileContext const& ctx, rapidjson::Document const& document, RawAssets::RawAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const
+    Resource::CompilationResult AnimationClipCompiler::ReadEventsData( Resource::CompileContext const& ctx, rapidjson::Document const& document, RawAssets::RawAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const
     {
         EE_ASSERT( document.IsObject() );
+
+        Resource::CompilationResult result = Resource::CompilationResult::Success;
 
         // Read event track data
         //-------------------------------------------------------------------------
@@ -516,13 +561,13 @@ namespace EE::Animation
         EventTimeline eventTimeline( nullptr, nullptr, *m_pTypeRegistry );
         if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
         {
-            Error( "Malformed event track data" );
-            return false;
+            result = Error( "Malformed event track data" );
+            return result;
         }
 
         float const numIntervals = float( rawAnimData.GetNumFrames() - 1 );
         eventTimeline.SetAnimationInfo( uint32_t( numIntervals ), rawAnimData.GetSamplingFrameRate() );
-        FloatRange const& animationTimeRange = eventTimeline.GetTimeRange();
+        FloatRange const animationTimeRange( 0, eventTimeline.GetLength() );
 
         // Reflect into runtime events
         //-------------------------------------------------------------------------
@@ -540,11 +585,11 @@ namespace EE::Animation
             {
                 if ( pTrack->IsRenameable() )
                 {
-                    Warning( "Invalid animation event track (%s - %s) encountered!", pTrack->GetName(), pTrack->GetTypeName() );
+                    result = Warning( "Invalid animation event track (%s - %s) encountered!", pTrack->GetName(), pTrack->GetTypeName() );
                 }
                 else
                 {
-                    Warning( "Invalid animation event track (%s) encountered!", pTrack->GetTypeName() );
+                    result = Warning( "Invalid animation event track (%s) encountered!", pTrack->GetTypeName() );
                 }
 
                 // Skip invalid tracks
@@ -557,11 +602,11 @@ namespace EE::Animation
             {
                 if ( pTrack->IsRenameable() )
                 {
-                    Warning( "Animation event track (Track: %s, Type: %s) has warnings: %s", pTrack->GetName(), pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    result = Warning( "Animation event track (Track: %s, Type: %s) has warnings: %s", pTrack->GetName(), pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
                 }
                 else
                 {
-                    Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    result = Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
                 }
             }
 
@@ -580,7 +625,7 @@ namespace EE::Animation
 
                 if ( !pEvent->IsValid() )
                 {
-                    Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    result = Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
                     continue;
                 }
 
@@ -591,14 +636,14 @@ namespace EE::Animation
                 FloatRange eventTimeRange = pItem->GetTimeRange();
                 if ( !animationTimeRange.Overlaps( eventTimeRange ) )
                 {
-                    Warning( "Event detected outside animation time range, event will be ignored" );
+                    result = Warning( "Event detected outside animation time range, event will be ignored" );
                     continue;
                 }
 
                 // Clamp events that extend out of the animation time range to the animation time range
                 if ( !animationTimeRange.ContainsInclusive( eventTimeRange ) )
                 {
-                    Warning( "Event extend outside the valid animation time range, event will be clamped to animation range" );
+                    result = Warning( "Event extend outside the valid animation time range, event will be clamped to animation range" );
 
                     eventTimeRange.m_begin = animationTimeRange.GetClampedValue( eventTimeRange.m_begin );
                     eventTimeRange.m_end = animationTimeRange.GetClampedValue( eventTimeRange.m_end );
@@ -622,7 +667,7 @@ namespace EE::Animation
 
         if ( numSyncTracks > 1 )
         {
-            Warning( "Multiple sync tracks detected, using the first one encountered!" );
+            result = Warning( "Multiple sync tracks detected, using the first one encountered!" );
         }
 
         // Transfer sorted events
@@ -644,7 +689,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        return true;
+        return result;
     }
 
     bool AnimationClipCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
