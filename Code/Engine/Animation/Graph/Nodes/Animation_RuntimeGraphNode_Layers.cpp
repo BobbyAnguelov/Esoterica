@@ -48,13 +48,17 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        GraphLayerInitInfo const* pLayerInitInfo = nullptr;
-        for ( auto const& li : context.m_layerInitInfo )
+        // Check if we have layer initialization data for this node
+        GraphLayerUpdateState const* pLayerInitializationData = nullptr;
+        if ( context.m_pLayerInitializationInfo != nullptr )
         {
-            if ( li.m_layerNodeIdx == GetNodeIndex() )
+            for ( auto const& li : *context.m_pLayerInitializationInfo )
             {
-                pLayerInitInfo = &li;
-                break;
+                if ( li.m_nodeIdx == GetNodeIndex() )
+                {
+                    pLayerInitializationData = &li;
+                    break;
+                }
             }
         }
 
@@ -72,23 +76,23 @@ namespace EE::Animation::GraphNodes
             {
                 m_layers[i].m_pInputNode->Initialize( context, initialTime );
             }
-            else
+            else // If we have initialization data initialize the layer to the specified time, otherwise just initialize it to the start
             {
-                SyncTrackTime initTime;
+                SyncTrackTime layerInitTime;
 
-                if( pLayerInitInfo != nullptr )
+                if( pLayerInitializationData != nullptr )
                 {
-                    for ( auto const& layerInfo : pLayerInitInfo->m_layerInitTimes )
+                    for ( auto const& layerInfo : pLayerInitializationData->m_updateRanges )
                     {
                         if ( layerInfo.first == i )
                         {
-                            initTime = layerInfo.second.m_startTime;
+                            layerInitTime = layerInfo.second.m_startTime;
                             break;
                         }
                     }
                 }
 
-                m_layers[i].m_pInputNode->Initialize( context, initTime );
+                m_layers[i].m_pInputNode->Initialize( context, layerInitTime );
             }
 
             // Optional Nodes
@@ -399,7 +403,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::RestoreGraphState( inState );
     }
 
-    void LayerBlendNode::GetSyncUpdateRangesForUnsynchronizedLayers( TVector<TPair<int8_t, SyncTrackTimeRange>>& outRanges ) const
+    void LayerBlendNode::GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>& outLayerUpdateRanges ) const
     {
         auto pSettings = GetSettings<LayerBlendNode>();
         int8_t const numLayers = (int8_t) m_layers.size();
@@ -412,7 +416,7 @@ namespace EE::Animation::GraphNodes
                 Percentage const currentTime = m_layers[i].m_pInputNode->GetCurrentTime();
                 if ( prevTime != 0.0f && currentTime != 0.0f )
                 {
-                    outRanges.emplace_back( i, SyncTrackTimeRange( layerSyncTrack.GetTime( prevTime ), layerSyncTrack.GetTime( currentTime ) ) );
+                    outLayerUpdateRanges.emplace_back( i, SyncTrackTimeRange( layerSyncTrack.GetTime( prevTime ), layerSyncTrack.GetTime( currentTime ) ) );
                 }
             }
         }

@@ -63,7 +63,7 @@ namespace EE::Animation::Tasks
     {
         serializer.WriteDependencyIndex( m_dependencies[0] );
         serializer.WriteDependencyIndex( m_dependencies[1] );
-        serializer.WriteNormalizedFloat( m_blendWeight );
+        serializer.WriteNormalizedFloat8Bit( m_blendWeight );
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
@@ -79,7 +79,7 @@ namespace EE::Animation::Tasks
         m_dependencies.resize( 2 );
         m_dependencies[0] = serializer.ReadDependencyIndex();
         m_dependencies[1] = serializer.ReadDependencyIndex();
-        m_blendWeight = serializer.ReadNormalizedFloat();
+        m_blendWeight = serializer.ReadNormalizedFloat8Bit();
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = serializer.ReadBool();
@@ -179,7 +179,7 @@ namespace EE::Animation::Tasks
     {
         serializer.WriteDependencyIndex( m_dependencies[0] );
         serializer.WriteDependencyIndex( m_dependencies[1] );
-        serializer.WriteNormalizedFloat( m_blendWeight );
+        serializer.WriteNormalizedFloat8Bit( m_blendWeight );
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
@@ -195,7 +195,7 @@ namespace EE::Animation::Tasks
         m_dependencies.resize( 2 );
         m_dependencies[0] = serializer.ReadDependencyIndex();
         m_dependencies[1] = serializer.ReadDependencyIndex();
-        m_blendWeight = serializer.ReadNormalizedFloat();
+        m_blendWeight = serializer.ReadNormalizedFloat8Bit();
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = serializer.ReadBool();
@@ -283,7 +283,7 @@ namespace EE::Animation::Tasks
     {
         serializer.WriteDependencyIndex( m_dependencies[0] );
         serializer.WriteDependencyIndex( m_dependencies[1] );
-        serializer.WriteNormalizedFloat( m_layerWeight );
+        serializer.WriteNormalizedFloat8Bit( m_layerWeight );
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
@@ -299,7 +299,7 @@ namespace EE::Animation::Tasks
         m_dependencies.resize( 2 );
         m_dependencies[0] = serializer.ReadDependencyIndex();
         m_dependencies[1] = serializer.ReadDependencyIndex();
-        m_layerWeight = serializer.ReadNormalizedFloat();
+        m_layerWeight = serializer.ReadNormalizedFloat8Bit();
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = serializer.ReadBool();

@@ -110,13 +110,13 @@ namespace EE::Animation
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
 
         // Reset the graph state with an initial time
-        void ResetGraphState( SyncTrackTime initTime = SyncTrackTime() );
-
-        // Reset the graph state with an initial time
-        void ResetGraphState_HACK( SyncTrackTime initTime, TInlineVector<GraphLayerInitInfo, 10> layerInitInfo );
+        void ResetGraphState( SyncTrackTime initTime = SyncTrackTime(), TVector<GraphLayerUpdateState> const* pLayerInitInfo = nullptr );
 
         // Get the current graph updateID
         inline uint32_t GetUpdateID() const { return m_graphContext.m_updateID; }
+
+        // Get the current active layer states
+        void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges );
 
         // Run the graph logic
         // If the sync track update range is set, this will perform a synchronized update

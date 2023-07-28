@@ -37,12 +37,10 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    TaskSystem::TaskSystem()
+    TaskSystem::TaskSystem( int32_t numWorkers )
+        : m_numWorkers( numWorkers )
     {
-        // Get number of worker threads that we should create (excluding main thread)
-        auto const processorInfo = Threading::GetProcessorInfo();
-        EE_ASSERT( processorInfo.m_numPhysicalCores >= 1 );
-        const_cast<uint32_t&>( m_numWorkers ) = processorInfo.m_numPhysicalCores - 1;
+        EE_ASSERT( numWorkers > 0 );
     }
 
     TaskSystem::~TaskSystem()

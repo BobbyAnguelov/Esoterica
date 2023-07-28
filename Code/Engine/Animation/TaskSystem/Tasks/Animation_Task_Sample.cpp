@@ -27,13 +27,13 @@ namespace EE::Animation::Tasks
     void SampleTask::Serialize( TaskSerializer& serializer ) const
     {
         serializer.WriteResourcePtr( m_pAnimation );
-        serializer.WriteNormalizedFloat( m_time );
+        serializer.WriteNormalizedFloat16Bit( m_time );
     }
 
     void SampleTask::Deserialize( TaskSerializer& serializer )
     {
         m_pAnimation = serializer.ReadResourcePtr<AnimationClip>();
-        m_time = serializer.ReadNormalizedFloat();
+        m_time = serializer.ReadNormalizedFloat16Bit();
     }
 
     #if EE_DEVELOPMENT_TOOLS

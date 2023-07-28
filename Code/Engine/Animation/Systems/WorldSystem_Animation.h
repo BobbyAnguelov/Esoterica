@@ -18,7 +18,7 @@ namespace EE::Animation
 
     public:
 
-        EE_ENTITY_WORLD_SYSTEM( AnimationWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ) );
+        EE_ENTITY_WORLD_SYSTEM( AnimationWorldSystem, RequiresUpdate( UpdateStage::FrameEnd ), RequiresUpdate( UpdateStage::Paused ) );
 
         #if EE_DEVELOPMENT_TOOLS
         inline TVector<GraphComponent*> const& GetRegisteredGraphComponents() const { return m_graphComponents.GetVector(); }

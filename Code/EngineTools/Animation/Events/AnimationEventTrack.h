@@ -20,6 +20,12 @@ namespace EE::Animation
 
         // Helper to cast the item data to the actual anim event required
         template<typename T>
+        static T* GetAnimEvent( Timeline::TrackItem* pItem )
+        {
+            return Cast<T>( pItem->GetData() );
+        }
+
+        template<typename T>
         static T const* GetAnimEvent( Timeline::TrackItem const* pItem )
         {
             return Cast<T>( pItem->GetData() );
@@ -39,14 +45,14 @@ namespace EE::Animation
     protected:
 
         virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
-        virtual bool HasContextMenu() const override { return true; }
-        virtual void DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) override;
+        virtual bool DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) override;
         virtual Timeline::TrackItem* CreateItemInternal( Timeline::TrackContext const& context, float itemStartTime ) override;
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) override;
 
     protected:
 
-        EE_REFLECT() bool                                  m_isSyncTrack = false;
+        EE_REFLECT()
+        bool                                    m_isSyncTrack = false;
     };
 
     //-------------------------------------------------------------------------
@@ -69,6 +75,6 @@ namespace EE::Animation
 
     private:
 
-        float                                       m_FPS = 0.0f;
+        float                                   m_FPS = 0.0f;
     };
 }

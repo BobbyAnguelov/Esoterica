@@ -38,11 +38,12 @@ namespace EE::Resource
 
         Network::IPC::Client                                m_networkClient;
         String                                              m_address;
-        TVector<NetworkResourceResponse>                    m_serverReponses;
-        Threading::LockFreeQueue<Network::IPC::Message>     m_messagesToSend;
+        TVector<NetworkResourceResponse::Result>            m_serverResults;
         bool                                                m_networkFailureDetected = false;
 
-        TVector<ResourceRequest*>                           m_requests;
+        TVector<ResourceRequest*>                           m_pendingRequests; // Requests we need to still send
+        TVector<ResourceRequest*>                           m_sentRequests; // Request that were sent but we're still waiting for a response
+
         TVector<ResourceID>                                 m_externallyUpdatedResources;
     };
 }

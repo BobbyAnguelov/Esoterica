@@ -778,7 +778,7 @@ namespace EE::Timeline
 
         //-------------------------------------------------------------------------
 
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 8 ) );
         if ( ImGui::BeginPopupContextItem( "TimelineContextMenu" ) )
         {
             // Item Context Menu
@@ -787,23 +787,32 @@ namespace EE::Timeline
                 auto pTrack = m_pTimeline->GetTrackForItem( m_contextMenuState.m_pItem );
                 if ( pTrack != nullptr )
                 {
-                    bool const shouldDeleteItem = ImGui::MenuItem( EE_ICON_DELETE" Delete Item" );
+                    bool shouldClearSelection = false;
 
+                    // Misc Common options
                     //-------------------------------------------------------------------------
 
-                    if ( pTrack->HasItemContextMenu( m_contextMenuState.m_pItem ) )
+                    shouldClearSelection = pTrack->DrawItemContextMenu( m_pTimeline->GetTrackContext(), m_contextMenuState.m_pItem );
+
+                    // Default options
+                    //-------------------------------------------------------------------------
+
+                    if ( ImGui::MenuItem( EE_ICON_ARROW_LEFT_RIGHT" Expand event to fill gap" ) )
                     {
-                        ImGui::Separator();
-                        pTrack->DrawItemContextMenu( m_contextMenuState.m_pItem );
+                        pTrack->GrowItemToFillGap( m_pTimeline->GetTrackContext(), m_contextMenuState.m_pItem );
+                    }
+
+                    if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Item" ) )
+                    {
+                        shouldClearSelection = true;
+                        m_pTimeline->DeleteItem( m_contextMenuState.m_pItem );
                     }
 
                     //-------------------------------------------------------------------------
 
-                    if ( shouldDeleteItem )
+                    if ( shouldClearSelection )
                     {
                         ClearSelection();
-                        m_pTimeline->DeleteItem( m_contextMenuState.m_pItem );
-                        ImGui::CloseCurrentPopup();
                     }
                 }
             }
@@ -812,6 +821,11 @@ namespace EE::Timeline
             {
                 if ( m_pTimeline->Contains( m_contextMenuState.m_pTrack ) )
                 {
+                    bool shouldClearSelection = false;
+
+                    // Default Options
+                    //-------------------------------------------------------------------------
+
                     if ( m_contextMenuState.m_pTrack->CanCreateNewItems() && ImGui::MenuItem( EE_ICON_PLUS" Add Item" ) )
                     {
                         // Calculate the appropriate item start time
@@ -825,22 +839,33 @@ namespace EE::Timeline
                         m_pTimeline->CreateItem( m_contextMenuState.m_pTrack, itemStartTime );
                     }
 
-                    bool const shouldDeleteTrack = ImGui::MenuItem( EE_ICON_DELETE" Delete Track" );
-
+                    // Custom Options
                     //-------------------------------------------------------------------------
 
-                    if ( m_contextMenuState.m_pTrack->HasContextMenu() )
+                    shouldClearSelection = m_contextMenuState.m_pTrack->DrawContextMenu( m_pTimeline->GetTrackContext(), m_pTimeline->GetTracks(), m_contextMenuState.m_playheadTimeForMouse < 0.0f ? m_playheadTime : m_contextMenuState.m_playheadTimeForMouse );
+
+                    // Default Options
+                    //-------------------------------------------------------------------------
+
+                    if ( m_contextMenuState.m_pTrack->GetActualItemType() == Timeline::ItemType::Duration )
                     {
-                        m_contextMenuState.m_pTrack->DrawContextMenu( m_pTimeline->GetTrackContext(), m_pTimeline->GetTracks(), m_contextMenuState.m_playheadTimeForMouse < 0.0f ? m_playheadTime : m_contextMenuState.m_playheadTimeForMouse );
+                        if ( ImGui::MenuItem( EE_ICON_ARROW_LEFT_RIGHT" Expand events to fill gaps" ) )
+                        {
+                            m_contextMenuState.m_pTrack->FillGapsForDurationItems( m_pTimeline->GetTrackContext() );
+                        }
+                    }
+
+                    if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Track" ) )
+                    {
+                        shouldClearSelection = true;
+                        DeleteTrack( m_contextMenuState.m_pTrack );
                     }
 
                     //-------------------------------------------------------------------------
 
-                    if ( shouldDeleteTrack )
+                    if ( shouldClearSelection )
                     {
                         ClearSelection();
-                        DeleteTrack( m_contextMenuState.m_pTrack );
-                        ImGui::CloseCurrentPopup();
                     }
                 }
             }
@@ -1018,29 +1043,31 @@ namespace EE::Timeline
 
                     SetSelection( m_mouseState.m_pHoveredItem );
                 }
-                else if ( m_mouseState.m_pHoveredTrack != nullptr )
+                else if ( isMouseWithinTimeline || m_playheadRect.Contains( mousePos ) )
+                {
+                    m_isDraggingPlayhead = true;
+                }
+            }
+
+            // Create events with mouse
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::IsMouseReleased( ImGuiMouseButton_Middle ) )
+            {
+                if ( m_mouseState.m_pHoveredTrack != nullptr )
                 {
                     SetSelection( m_mouseState.m_pHoveredTrack );
 
                     if ( isMouseWithinTimeline )
                     {
-                        m_isDraggingPlayhead = true;
-
-                        if ( ImGui::IsMouseClicked( ImGuiMouseButton_Middle ) )
+                        for ( auto pTrack : m_selectedTracks )
                         {
-                            for ( auto pTrack : m_selectedTracks )
+                            if ( pTrack->CanCreateNewItems() )
                             {
-                                if ( pTrack->CanCreateNewItems() )
-                                {
-                                    m_pTimeline->CreateItem( pTrack, m_playheadTime );
-                                }
+                                m_pTimeline->CreateItem( pTrack, m_playheadTime );
                             }
                         }
                     }
-                }
-                else if ( isMouseWithinTimeline || m_playheadRect.Contains( mousePos ) )
-                {
-                    m_isDraggingPlayhead = true;
                 }
             }
 

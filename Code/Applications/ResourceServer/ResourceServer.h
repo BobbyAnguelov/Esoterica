@@ -119,7 +119,6 @@ namespace EE::Resource
 
         CompilationRequest* CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
         void ProcessCompletedRequests();
-        void NotifyClientOnCompletedRequest( CompilationRequest* pRequest );
 
         // File system listener
         //-------------------------------------------------------------------------
@@ -130,7 +129,7 @@ namespace EE::Resource
 
         Network::IPC::Server                                        m_networkServer;
         TypeSystem::TypeRegistry                                    m_typeRegistry;
-        TaskSystem                                                  m_taskSystem;
+        TaskSystem                                                  m_taskSystem = TaskSystem( Threading::GetProcessorInfo().m_numLogicalCores );
         CompilerRegistry*                                           m_pCompilerRegistry = nullptr;
         String                                                      m_errorMessage;
         bool                                                        m_cleanupRequested = false;

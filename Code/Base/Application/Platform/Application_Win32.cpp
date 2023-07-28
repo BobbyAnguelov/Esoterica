@@ -126,7 +126,7 @@ namespace EE
         m_windowClass.cbWndExtra = 0;
         m_windowClass.hIcon = m_windowIcon;
         m_windowClass.hCursor = ::LoadCursor( nullptr, IDC_ARROW );
-        m_windowClass.hbrBackground = (HBRUSH) ( COLOR_WINDOW + 1 );
+        m_windowClass.hbrBackground = CreateSolidBrush( RGB( 23, 23, 23 ) );
         m_windowClass.lpszMenuName = 0;
         m_windowClass.lpszClassName = m_applicationName.c_str();
         m_windowClass.hIconSm = 0;
@@ -186,10 +186,10 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        // Enable shadow
+        // Disable shadow (causes white border around window in Win10)
         if ( IsCompositionEnabled() ) 
         {
-            static MARGINS const shadowOffset = { 1 };
+            static MARGINS const shadowOffset = { 0 };
             ::DwmExtendFrameIntoClientArea( m_windowHandle, &shadowOffset );
         }
 
@@ -200,6 +200,8 @@ namespace EE
         {
             GetClientRect( m_windowHandle, &m_windowRect );
         }
+
+        //-------------------------------------------------------------------------
 
         return true;
     }
@@ -226,11 +228,11 @@ namespace EE
             {
                 if ( wParam == TRUE && m_isBorderLess )
                 {
-                    auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>( lParam );
+                    NCCALCSIZE_PARAMS& parameters = *reinterpret_cast<NCCALCSIZE_PARAMS*>( lParam );
 
                     if ( IsWindowMaximized( m_windowHandle ) )
                     {
-                        auto pMonitor = ::MonitorFromRect( &params.rgrc[0], MONITOR_DEFAULTTONEAREST );
+                        auto pMonitor = ::MonitorFromRect( &parameters.rgrc[0], MONITOR_DEFAULTTONEAREST );
                         if ( pMonitor )
                         {
                             MONITORINFO monitorInfo{};
@@ -238,19 +240,20 @@ namespace EE
                             if ( ::GetMonitorInfoW( pMonitor, &monitorInfo ) )
                             {
                                 // When maximized, make the client area fill just the monitor (without task bar) rect and not the whole window rect which extends beyond the monitor.
-                                params.rgrc[0] = monitorInfo.rcWork;
-                                params.rgrc[0].left--; // For some reason maximizing, offsets the window one pixel to the right?!
-                                params.rgrc[0].right--; // For some reason maximizing, offsets the window one pixel to the right?!
+                                parameters.rgrc[0] = monitorInfo.rcWork;
                             }
                         }
                     }
                     else // Offset the hit-test borders by the system border metric to replicate Windows10+ resize behavior
                     {
-                        int32_t const borderWidth = ::GetSystemMetrics( SM_CXFRAME ) + ::GetSystemMetrics( SM_CXPADDEDBORDER );
-                        params.rgrc[0].left += borderWidth;
-                        params.rgrc[0].top = params.rgrc[0].top;
-                        params.rgrc[0].right -= borderWidth;
-                        params.rgrc[0].bottom -= borderWidth;
+                        auto& requestedClientArea = parameters.rgrc[0];
+
+                        int32_t const borderWidthX = ::GetSystemMetrics( SM_CXFRAME ) + ::GetSystemMetrics( SM_CXPADDEDBORDER );
+                        requestedClientArea.right -= borderWidthX;
+                        requestedClientArea.left += borderWidthX;
+
+                        int32_t const borderWidthY = ::GetSystemMetrics( SM_CYFRAME ) + ::GetSystemMetrics( SM_CXPADDEDBORDER );
+                        requestedClientArea.bottom -= borderWidthY;
                     }
 
                     return 0;

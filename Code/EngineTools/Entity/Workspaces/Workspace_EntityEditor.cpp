@@ -1014,7 +1014,7 @@ namespace EE::EntityModel
                 }
             }
 
-            drawingCtx.DrawWireBox( m_selectionBounds, Colors::Yellow, 3.0f, Drawing::EnableDepthTest );
+            drawingCtx.DrawWireBox( m_selectionBounds, Colors::Yellow, 3.0f, Drawing::DepthTest::Enable );
 
             // Update Gizmo
             //-------------------------------------------------------------------------

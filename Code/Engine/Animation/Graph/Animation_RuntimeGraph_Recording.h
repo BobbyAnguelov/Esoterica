@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/_Module/API.h"
+#include "Animation_RuntimeGraph_Contexts.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Base/Time/Time.h"
@@ -15,7 +16,7 @@ namespace EE::Animation
     class GraphNode;
 
     //-------------------------------------------------------------------------
-    // Graph State
+    // Recorded Full Graph State
     //-------------------------------------------------------------------------
 
     // Records the state of a given graph instance
@@ -93,7 +94,7 @@ namespace EE::Animation
     };
 
     //-------------------------------------------------------------------------
-    // Graph Updates
+    // Recorded Per-Frame Graph Data
     //-------------------------------------------------------------------------
 
     // All the data needed to replay a given recorded frame
@@ -110,12 +111,6 @@ namespace EE::Animation
             Target                                          m_target;
         };
 
-        struct LayerState
-        {
-            int16_t                                         m_nodeIdx;
-            TVector<TPair<int8_t, SyncTrackTimeRange>>      m_layerUpdateRanges;
-        };
-
     public:
 
         Transform                                           m_characterWorldTransform;
@@ -123,8 +118,12 @@ namespace EE::Animation
         TVector<ParameterData>                              m_parameterData;
         Seconds                                             m_deltaTime;
         Blob                                                m_serializedTaskData;
-        TVector<LayerState>                                 m_layerStates;
+        TVector<GraphLayerUpdateState>                      m_layerUpdateStates;
     };
+
+    //-------------------------------------------------------------------------
+    // Graph Recorder
+    //-------------------------------------------------------------------------
 
     // Records information about each update for the recorded graph instance
     struct EE_ENGINE_API GraphRecorder

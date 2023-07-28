@@ -19,25 +19,35 @@ namespace EE
 
         struct NetworkResourceRequest
         {
-            EE_SERIALIZE( m_path );
+            EE_SERIALIZE( m_resourceIDs );
 
-            NetworkResourceRequest() = default;
-
-            NetworkResourceRequest( ResourceID const& ID )
-                : m_path( ID )
-            {}
-
-            ResourceID              m_path;
+            TVector<ResourceID>     m_resourceIDs;
         };
 
         //-------------------------------------------------------------------------
 
         struct NetworkResourceResponse
         {
-            EE_SERIALIZE( m_resourceID, m_filePath );
+            struct Result
+            {
+                EE_SERIALIZE( m_resourceID, m_filePath );
 
-            ResourceID              m_resourceID;
-            String                  m_filePath;
+                Result() = default;
+
+                Result( ResourceID const& ID, String const& path )
+                    : m_resourceID( ID )
+                    , m_filePath( path )
+                {}
+
+                ResourceID              m_resourceID;
+                String                  m_filePath;
+            };
+
+        public:
+
+            EE_SERIALIZE( m_results );
+
+            TVector<Result>     m_results;
         };
     }
 }

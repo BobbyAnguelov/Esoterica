@@ -342,7 +342,10 @@ namespace EE::Resource
                 {
                     uint32_t const clientID = message.GetClientConnectionID();
                     NetworkResourceRequest networkRequest = message.GetData<NetworkResourceRequest>();
-                    CreateResourceRequest( networkRequest.m_path, clientID );
+                    for ( auto const& resourceID : networkRequest.m_resourceIDs )
+                    {
+                        CreateResourceRequest( resourceID, clientID );
+                    }
                 }
             };
 
@@ -501,6 +504,54 @@ namespace EE::Resource
 
     void ResourceServer::ProcessCompletedRequests()
     {
+        // Create a bucket per connected client
+        //-------------------------------------------------------------------------
+
+        struct Bucket
+        {
+            void AddUpdateResponse( ResourceID const& ID, String const& filePath )
+            {
+                if ( m_updateResponses.empty() )
+                {
+                    m_updateResponses.push_back();
+                }
+
+                m_updateResponses.back().m_results.emplace_back( ID, filePath );
+
+                if ( m_updateResponses.size() == 64 )
+                {
+                    m_updateResponses.push_back();
+                }
+            }
+
+            void AddRequestResponse( ResourceID const& ID, String const& filePath )
+            {
+                if ( m_requestResponses.empty() )
+                {
+                    m_requestResponses.push_back();
+                }
+
+                m_requestResponses.back().m_results.emplace_back( ID, filePath );
+
+                if ( m_requestResponses.size() == 64 )
+                {
+                    m_requestResponses.push_back();
+                }
+            }
+
+            TVector<NetworkResourceResponse> m_updateResponses;
+            TVector<NetworkResourceResponse> m_requestResponses;
+        };
+
+        TInlineVector<Bucket, 20> clientBuckets;
+
+        auto const& connectedClients = m_networkServer.GetConnectedClients();
+        int32_t const numConnectedClients = m_networkServer.GetNumConnectedClients();
+        clientBuckets.resize( numConnectedClients );
+
+        // Fill buckets
+        //-------------------------------------------------------------------------
+
         for ( int32_t i = (int32_t) m_activeTasks.size() - 1; i >= 0; i-- )
         {
             CompilationTask* pActiveTask = m_activeTasks[i];
@@ -510,10 +561,34 @@ namespace EE::Resource
                 auto pRequest = pActiveTask->GetRequest();
                 EE_ASSERT( pRequest->IsComplete() );
 
-                // Send network response
+                // No notifications if exiting
                 if ( !m_context.m_isExiting )
                 {
-                    NotifyClientOnCompletedRequest( pRequest );
+                    // Notify all clients
+                    if ( pRequest->IsInternalRequest() )
+                    {
+                        // No need to notify the client for internal requests resources that are up to date
+                        if ( pRequest->m_status == CompilationRequest::Status::SucceededUpToDate )
+                        {
+                            return;
+                        }
+
+                        // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
+                        for ( auto& clientBucket : clientBuckets )
+                        {
+                            clientBucket.AddUpdateResponse( pRequest->GetResourceID(), pRequest->HasSucceeded() ? pRequest->GetDestinationFilePath().ToString() : String() );
+                        }
+                    }
+                    else // Notify single client
+                    {
+                        for ( int32_t clientIdx = 0; clientIdx < numConnectedClients; clientIdx++ )
+                        {
+                            if ( connectedClients[clientIdx].m_ID == pRequest->GetClientID() )
+                            {
+                                clientBuckets[clientIdx].AddRequestResponse( pRequest->GetResourceID(), pRequest->HasSucceeded() ? pRequest->GetDestinationFilePath().ToString() : String() );
+                            }
+                        }
+                    }
                 }
 
                 // Delete task
@@ -524,48 +599,30 @@ namespace EE::Resource
                 m_numScheduledTasks--;
             }
         }
-    }
 
-    void ResourceServer::NotifyClientOnCompletedRequest( CompilationRequest* pRequest )
-    {
-        EE_ASSERT( !m_context.m_isExiting );
-        EE_ASSERT( pRequest->IsComplete() );
-
+        // Send Messages
         //-------------------------------------------------------------------------
 
-        NetworkResourceResponse response;
-        response.m_resourceID = pRequest->GetResourceID();
-        if ( pRequest->HasSucceeded() )
+        // Send messages per bucket
+        for ( auto i = 0; i < numConnectedClients; i++ )
         {
-            response.m_filePath = pRequest->GetDestinationFilePath();
-        }
-
-        //-------------------------------------------------------------------------
-
-        // Notify all clients
-        if ( pRequest->IsInternalRequest() )
-        {
-            // No need to notify the client for internal requests resources that are up to date
-            if ( pRequest->m_status == CompilationRequest::Status::SucceededUpToDate )
-            {
-                return;
-            }
-
-            // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
-            for ( auto const& clientInfo : m_networkServer.GetConnectedClients() )
+            // Update notifications
+            for( auto const& response : clientBuckets[i].m_updateResponses )
             {
                 Network::IPC::Message message;
-                message.SetClientConnectionID( clientInfo.m_ID );
+                message.SetClientConnectionID( connectedClients[i].m_ID );
                 message.SetData( (int32_t) NetworkMessageID::ResourceUpdated, response );
                 m_networkServer.SendNetworkMessage( eastl::move( message ) );
             }
-        }
-        else // Notify single client
-        {
-            Network::IPC::Message message;
-            message.SetClientConnectionID( pRequest->GetClientID() );
-            message.SetData( (int32_t) NetworkMessageID::ResourceRequestComplete, response );
-            m_networkServer.SendNetworkMessage( eastl::move( message ) );
+
+            // Completed requests
+            for ( auto const& response : clientBuckets[i].m_requestResponses )
+            {
+                Network::IPC::Message message;
+                message.SetClientConnectionID( connectedClients[i].m_ID );
+                message.SetData( (int32_t) NetworkMessageID::ResourceRequestComplete, response );
+                m_networkServer.SendNetworkMessage( eastl::move( message ) );
+            }
         }
     }
 

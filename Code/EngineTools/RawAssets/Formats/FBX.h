@@ -43,7 +43,12 @@ namespace EE::Fbx
         ~FbxSceneContext();
 
         inline bool IsValid() const { return m_pManager != nullptr && m_pScene != nullptr && m_error.empty(); }
+
+        inline bool HasErrorOccurred() const { return !m_error.empty(); }
         inline String const& GetErrorMessage() const { return m_error; }
+
+        inline bool HasWarningOccurred() const { return !m_warning.empty(); }
+        inline String const& GetWarningMessage() const { return m_warning; }
 
         inline Axis GetOriginalUpAxis() const { return m_originalUpAxis; }
 
@@ -143,6 +148,7 @@ namespace EE::Fbx
     private:
 
         String                      m_error;
+        String                      m_warning;
         Axis                        m_originalUpAxis = Axis::Z;
         float                       m_scaleConversionMultiplier = 1.0f;
     };

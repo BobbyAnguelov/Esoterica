@@ -3,6 +3,10 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "d2a94af2-74ff-4cd8-a80e-76ed0be7ff6a",
+      "Command": "-compile data://citadel/npc/trooper_melee/animation/trooper_melee_idle.anim"
+    },
+    {
       "Id": "5eb7dc3f-b7b4-4bca-bd87-d695b1acd0a1",
       "Command": "-compile data://citadel/npc/trooper_melee/animation/tier_1_shield_mode_deploy.anim"
     },

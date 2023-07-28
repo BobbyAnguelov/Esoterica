@@ -13,10 +13,10 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Drawing
 {
-    enum DepthTestState : uint8_t
+    enum class DepthTest : uint8_t
     {
-        EnableDepthTest,
-        DisableDepthTest
+        Enable,
+        Disable
     };
 
     //-------------------------------------------------------------------------
@@ -243,25 +243,25 @@ namespace EE::Drawing
 
         inline Threading::ThreadID GetThreadID() const { return m_ID; }
 
-        EE_FORCE_INLINE void AddCommand( PointCommand&& cmd, DepthTestState depthTestState )
+        EE_FORCE_INLINE void AddCommand( PointCommand&& cmd, DepthTest depthTestState )
         {
             CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
             pBuffer->m_pointCommands.emplace_back( eastl::move( cmd ) );
         }
 
-        EE_FORCE_INLINE void AddCommand( LineCommand&& cmd, DepthTestState depthTestState )
+        EE_FORCE_INLINE void AddCommand( LineCommand&& cmd, DepthTest depthTestState )
         {
             CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
             pBuffer->m_lineCommands.emplace_back( eastl::move( cmd ) );
         }
 
-        EE_FORCE_INLINE void AddCommand( TriangleCommand&& cmd, DepthTestState depthTestState )
+        EE_FORCE_INLINE void AddCommand( TriangleCommand&& cmd, DepthTest depthTestState )
         {
             CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
             pBuffer->m_triangleCommands.emplace_back( eastl::move( cmd ) );
         }
 
-        EE_FORCE_INLINE void AddCommand( TextCommand&& cmd, DepthTestState depthTestState )
+        EE_FORCE_INLINE void AddCommand( TextCommand&& cmd, DepthTest depthTestState )
         {
             CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
             pBuffer->m_textCommands.emplace_back( eastl::move( cmd ) );
@@ -282,11 +282,11 @@ namespace EE::Drawing
 
     private:
 
-        inline CommandBuffer* GetCommandBuffer( DepthTestState depthTestState, bool isTransparent )
+        inline CommandBuffer* GetCommandBuffer( DepthTest depthTestState, bool isTransparent )
         {
             CommandBuffer* pBuffer = nullptr;
 
-            if ( depthTestState == DepthTestState::EnableDepthTest )
+            if ( depthTestState == DepthTest::Enable )
             {
                 pBuffer = isTransparent ? &m_transparentDepthOn : &m_opaqueDepthOn;
             }

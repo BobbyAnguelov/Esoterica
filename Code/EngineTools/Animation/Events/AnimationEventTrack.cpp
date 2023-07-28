@@ -17,13 +17,13 @@ namespace EE::Animation
         }
     }
 
-    void EventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition )
+    bool EventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition )
     {
         if ( m_isSyncTrack )
         {
             if ( ImGui::MenuItem( EE_ICON_SYNC" Clear Sync Track" ) )
             {
-                Timeline::ScopedTimelineModification const stm( context );
+                Timeline::ScopedModification const stm( context );
                 m_isSyncTrack = false;
             }
         }
@@ -31,7 +31,7 @@ namespace EE::Animation
         {
             if ( ImGui::MenuItem( EE_ICON_SYNC" Set As Sync Track" ) )
             {
-                Timeline::ScopedTimelineModification const stm( context );
+                Timeline::ScopedModification const stm( context );
 
                 // Clear sync track from any other track
                 for ( auto pTrack : tracks )
@@ -43,31 +43,7 @@ namespace EE::Animation
             }
         }
 
-        if ( m_itemType == Timeline::ItemType::Duration )
-        {
-            if ( ImGui::MenuItem( EE_ICON_ARROW_LEFT_RIGHT" Expand events to fill gaps" ) )
-            {
-                Timeline::ScopedTimelineModification const stm( context );
-
-                int32_t const numEvents = GetNumItems();
-                for ( int32_t i = 0; i < numEvents; i++ )
-                {
-                    // Last event
-                    if ( i == numEvents - 1 )
-                    { 
-                        FloatRange newTimeRange = m_items[i]->GetTimeRange();
-                        newTimeRange.m_end = context.GetTimelineLength();
-                        m_items[i]->SetTimeRange( newTimeRange );
-                    }
-                    else
-                    {
-                        FloatRange newTimeRange = m_items[i]->GetTimeRange();
-                        newTimeRange.m_end = m_items[i + 1]->GetTimeRange().m_begin;
-                        m_items[i]->SetTimeRange( newTimeRange );
-                    }
-                }
-            }
-        }
+        return false;
     }
 
     Timeline::TrackItem* EventTrack::CreateItemInternal( Timeline::TrackContext const& context, float itemStartTime )

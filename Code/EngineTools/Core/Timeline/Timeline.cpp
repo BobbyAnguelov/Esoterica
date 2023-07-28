@@ -95,7 +95,7 @@ namespace EE::Timeline
 
     void Track::CreateItem( TrackContext const& context, float itemStartTime )
     {
-        ScopedTimelineModification const stm( context );
+        ScopedModification const stm( context );
         auto pCreatedItem = CreateItemInternal( context, itemStartTime );
         EE_ASSERT( pCreatedItem != nullptr );
         PostCreateItem( pCreatedItem );
@@ -106,13 +106,75 @@ namespace EE::Timeline
         auto foundIter = eastl::find( m_items.begin(), m_items.end(), pItem );
         if ( foundIter != m_items.end() )
         {
-            ScopedTimelineModification const stm( context );
+            ScopedModification const stm( context );
             EE::Delete( *foundIter );
             m_items.erase( foundIter );
             return true;
         }
 
         return false;
+    }
+
+    void Track::GrowItemToFillGap( TrackContext const& context, TrackItem const* pItem )
+    {
+        ScopedModification const stm( context );
+
+        EE_ASSERT( pItem != nullptr && pItem->IsDurationItem() );
+        int32_t const itemIdx = GetItemIndex( pItem );
+        EE_ASSERT( itemIdx != InvalidIndex );
+
+        // Last event
+        if ( itemIdx == GetNumItems() - 1 )
+        {
+            FloatRange newTimeRange = m_items[itemIdx]->GetTimeRange();
+            newTimeRange.m_end = context.GetTimelineLength();
+            m_items[itemIdx]->SetTimeRange( newTimeRange );
+        }
+        else
+        {
+            FloatRange newTimeRange = m_items[itemIdx]->GetTimeRange();
+            newTimeRange.m_end = m_items[itemIdx + 1]->GetTimeRange().m_begin;
+            m_items[itemIdx]->SetTimeRange( newTimeRange );
+        }
+    }
+
+    void Track::FillGapsForDurationItems( TrackContext const& context )
+    {
+        ScopedModification const stm( context );
+
+        int32_t const numItems = GetNumItems();
+        for ( int32_t i = 0; i < numItems; i++ )
+        {
+            // Last event
+            if ( i == numItems - 1 )
+            {
+                FloatRange newTimeRange = m_items[i]->GetTimeRange();
+                newTimeRange.m_end = context.GetTimelineLength();
+                m_items[i]->SetTimeRange( newTimeRange );
+            }
+            else
+            {
+                FloatRange newTimeRange = m_items[i]->GetTimeRange();
+                newTimeRange.m_end = m_items[i + 1]->GetTimeRange().m_begin;
+                m_items[i]->SetTimeRange( newTimeRange );
+            }
+        }
+    }
+
+    int32_t Track::GetItemIndex( TrackItem const* pItem ) const
+    {
+        EE_ASSERT( pItem != nullptr );
+
+        int32_t const numItems = GetNumItems();
+        for ( int32_t i = 0; i < numItems; i++ )
+        {
+            if ( m_items[i] == pItem )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
     }
 
     Color Track::GetItemBackgroundColor( ItemState itemState, bool isHovered )
@@ -279,7 +341,7 @@ namespace EE::Timeline
     {
         EE_ASSERT( pTrackTypeInfo->IsDerivedFrom( Track::GetStaticTypeID() ) );
 
-        ScopedTimelineModification const stm( m_context );
+        ScopedModification const stm( m_context );
         auto pCreatedTrack = Cast<Track>( pTrackTypeInfo->CreateType() );
         pCreatedTrack->m_itemType = itemType;
         m_tracks.emplace_back( pCreatedTrack );
@@ -291,7 +353,7 @@ namespace EE::Timeline
     {
         EE_ASSERT( Contains( pTrack ) );
 
-        ScopedTimelineModification const stm( m_context );
+        ScopedModification const stm( m_context );
         m_tracks.erase_first( pTrack );
         EE::Delete( pTrack );
     }
@@ -301,7 +363,7 @@ namespace EE::Timeline
         EE_ASSERT( pTrack != nullptr );
         EE_ASSERT( Contains( pTrack ) );
 
-        ScopedTimelineModification const stm( m_context );
+        ScopedModification const stm( m_context );
         pTrack->CreateItem( m_context, itemStartTime );
     }
 
@@ -311,7 +373,7 @@ namespace EE::Timeline
         EE_ASSERT( Contains( pItem ) );
         EE_ASSERT( newTimeRange.IsSetAndValid() );
 
-        ScopedTimelineModification const stm( m_context );
+        ScopedModification const stm( m_context );
         pItem->SetTimeRange( newTimeRange );
     }
 
@@ -320,7 +382,7 @@ namespace EE::Timeline
         EE_ASSERT( pItem != nullptr );
         EE_ASSERT( Contains( pItem ) );
 
-        ScopedTimelineModification const stm( m_context );
+        ScopedModification const stm( m_context );
 
         for ( auto pTrack : m_tracks )
         {

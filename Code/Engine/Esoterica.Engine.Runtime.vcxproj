@@ -225,7 +225,6 @@
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />

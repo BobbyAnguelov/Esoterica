@@ -50,7 +50,7 @@ namespace EE::Physics
 
     public:
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT();
         TResourcePtr<Animation::Skeleton>               m_skeleton;
 
         EE_REFLECT( "IsToolsReadOnly" : true );

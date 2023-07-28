@@ -297,7 +297,7 @@ namespace EE::Math
     {
         auto const& currentNode = m_nodes[nodeIdx];
         EE_ASSERT( !currentNode.IsLeafNode() );
-        drawingContext.DrawWireBox( currentNode.m_bounds, Colors::Cyan, 1.0f, Drawing::DepthTestState::EnableDepthTest );
+        drawingContext.DrawWireBox( currentNode.m_bounds, Colors::Cyan, 1.0f, Drawing::DepthTest::Enable );
 
         // Left
         if ( m_nodes[currentNode.m_leftNodeIdx].IsLeafNode() )
@@ -323,7 +323,7 @@ namespace EE::Math
     void AABBTree::DrawLeaf( Drawing::DrawContext& drawingContext, int32_t nodeIdx ) const
     {
         EE_ASSERT( m_nodes[nodeIdx].IsLeafNode() );
-        drawingContext.DrawWireBox( m_nodes[nodeIdx].m_bounds, Colors::Lime, 2.0f, Drawing::DepthTestState::EnableDepthTest );
+        drawingContext.DrawWireBox( m_nodes[nodeIdx].m_bounds, Colors::Lime, 2.0f, Drawing::DepthTest::Enable );
     }
     #endif
 }

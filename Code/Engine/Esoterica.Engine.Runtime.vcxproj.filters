@@ -513,9 +513,6 @@
     <ClInclude Include="Animation\AnimationTarget.h">
       <Filter>Animation</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Version.h">
-      <Filter>Animation\Graph</Filter>
-    </ClInclude>
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h">
       <Filter>Animation\Graph</Filter>
     </ClInclude>

@@ -51,6 +51,9 @@ namespace EE::Animation
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
         virtual Color GetItemColor( Timeline::TrackItem const* pItem ) const override;
+        virtual bool DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) override;
+
+        void AutoSetPhases( Timeline::TrackContext const& context, FootEvent::Phase startingPhase );
     };
 
     //-------------------------------------------------------------------------

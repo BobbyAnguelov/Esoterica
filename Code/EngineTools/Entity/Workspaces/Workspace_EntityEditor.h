@@ -132,7 +132,6 @@ namespace EE::EntityModel
         // Events
         //-------------------------------------------------------------------------
 
-        void OnActionPerformed();
         void UpdateSelectionSpatialInfo();
 
         // Outliner

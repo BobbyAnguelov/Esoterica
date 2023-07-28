@@ -829,7 +829,7 @@ namespace EE::Animation
 
                 case BoneMaskTask::Type::GenerateMask:
                 {
-                    archive.WriteNormalizedFloat( task.m_weight );
+                    archive.WriteNormalizedFloat8Bit( task.m_weight );
                 }
                 break;
 
@@ -837,14 +837,14 @@ namespace EE::Animation
                 {
                     archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
                     archive.WriteUInt( task.m_targetTaskIdx, numBitsToUseForTaskIndices );
-                    archive.WriteNormalizedFloat( task.m_weight );
+                    archive.WriteNormalizedFloat8Bit( task.m_weight );
                 }
                 break;
 
                 case BoneMaskTask::Type::Scale:
                 {
                     archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
-                    archive.WriteNormalizedFloat( task.m_weight );
+                    archive.WriteNormalizedFloat8Bit( task.m_weight );
                 }
                 break;
 
@@ -878,7 +878,7 @@ namespace EE::Animation
 
                 case BoneMaskTask::Type::GenerateMask:
                 {
-                    float const weight = archive.ReadNormalizedFloat();
+                    float const weight = archive.ReadNormalizedFloat8Bit();
                     m_tasks.emplace_back( weight );
                 }
                 break;
@@ -889,7 +889,7 @@ namespace EE::Animation
                     task.m_type = type;
                     task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
                     task.m_targetTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
-                    task.m_weight = archive.ReadNormalizedFloat();
+                    task.m_weight = archive.ReadNormalizedFloat8Bit();
                 }
                 break;
 
@@ -899,7 +899,7 @@ namespace EE::Animation
                     task.m_type = type;
                     task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
                     task.m_targetTaskIdx = InvalidIndex;
-                    task.m_weight = archive.ReadNormalizedFloat();
+                    task.m_weight = archive.ReadNormalizedFloat8Bit();
                 }
                 break;
 

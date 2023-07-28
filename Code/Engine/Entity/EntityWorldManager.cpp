@@ -202,17 +202,18 @@ namespace EE
                 if ( pCameraManager->HasActiveCamera() )
                 {
                     auto pActiveCamera = pCameraManager->GetActiveCamera();
+
+                    // Update camera view dimensions if they differ (needed when we resize the viewport even if the camera hasn't updated)
+                    if ( pViewport->GetDimensions() != pActiveCamera->GetViewVolume().GetViewDimensions() )
+                    {
+                        pActiveCamera->UpdateViewDimensions( pViewport->GetDimensions() );
+                        pViewport->SetViewVolume( pActiveCamera->GetViewVolume() );
+                    }
+
+                    // Update world view volume only if camera has been updated
                     if ( pActiveCamera->ShouldReflectViewVolume() )
                     {
                         Math::ViewVolume const& cameraViewVolume = pActiveCamera->ReflectViewVolume();
-
-                        // Update camera view dimensions if needed
-                        if ( pViewport->GetDimensions() != cameraViewVolume.GetViewDimensions() )
-                        {
-                            pActiveCamera->UpdateViewDimensions( pViewport->GetDimensions() );
-                        }
-
-                        // Update world viewport
                         pViewport->SetViewVolume( cameraViewVolume );
                     }
                 }

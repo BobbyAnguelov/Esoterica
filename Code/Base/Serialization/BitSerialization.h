@@ -37,8 +37,11 @@ namespace EE::Serialization
         // Use this for enum value though clients are expected to do any conversions themselves
         void WriteUInt( uint32_t value, uint32_t maxBitsToUse );
 
+        // Writes a 8bit float - expected to be in the range [0:1]
+        void WriteNormalizedFloat8Bit( float value );
+
         // Writes a 16bit float - expected to be in the range [0:1]
-        void WriteNormalizedFloat( float value );
+        void WriteNormalizedFloat16Bit( float value );
 
         // Writes a quantized 16bit float - requires you to provide a quantization range with the min/max values
         void WriteQuantizedFloat( float value, float minPossibleValue, float maxPossibleValue );
@@ -59,8 +62,11 @@ namespace EE::Serialization
         // Use this for enum value though clients are expected to do any conversions themselves
         uint32_t ReadUInt( uint32_t maxBitsToUse );
 
+        // Read back a 8bit float - expected to be in the range [0:1]
+        float ReadNormalizedFloat8Bit();
+
         // Read back a 16bit float - expected to be in the range [0:1]
-        float ReadNormalizedFloat();
+        float ReadNormalizedFloat16Bit();
 
         // Read back a quantized 16bit float - requires you to provide a quantization range with the min/max values
         float ReadFloat( float minPossibleValue, float maxPossibleValue );
@@ -109,7 +115,15 @@ namespace EE::Serialization
     }
 
     template<size_t N>
-    void BitArchive<N>::WriteNormalizedFloat( float value )
+    void BitArchive<N>::WriteNormalizedFloat8Bit( float value )
+    {
+        EE_ASSERT( !m_isReading );
+        uint16_t const encodedFloat = Quantization::EncodeUnsignedNormalizedFloat<8>( value );
+        WriteUInt( encodedFloat, 8 );
+    }
+
+    template<size_t N>
+    void BitArchive<N>::WriteNormalizedFloat16Bit( float value )
     {
         EE_ASSERT( !m_isReading );
         uint16_t const encodedFloat = Quantization::EncodeUnsignedNormalizedFloat<16>( value );
@@ -187,7 +201,15 @@ namespace EE::Serialization
     }
 
     template<size_t N>
-    float BitArchive<N>::ReadNormalizedFloat()
+    float BitArchive<N>::ReadNormalizedFloat8Bit()
+    {
+        EE_ASSERT( m_isReading );
+        uint16_t const encodedFloat = (uint16_t) ReadUInt( 8 );
+        return Quantization::DecodeUnsignedNormalizedFloat<8>( encodedFloat );
+    }
+
+    template<size_t N>
+    float BitArchive<N>::ReadNormalizedFloat16Bit()
     {
         EE_ASSERT( m_isReading );
         uint16_t const encodedFloat = (uint16_t) ReadUInt( 16 );

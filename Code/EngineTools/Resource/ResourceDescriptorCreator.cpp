@@ -39,45 +39,57 @@ namespace EE::Resource
 
     bool ResourceDescriptorCreator::Draw()
     {
-        if ( !ImGui::IsPopupOpen( s_title ) )
+        bool isOpen = true;
+
+        // Just save empty descriptors immediately
+        if ( m_pDescriptor->GetTypeInfo()->m_properties.empty() )
         {
-            ImGui::OpenPopup( s_title );
+            SaveDescriptor();
+            isOpen = false;
+        }
+        else // Draw property grid editor
+        {
+            if ( !ImGui::IsPopupOpen( s_title ) )
+            {
+                ImGui::OpenPopup( s_title );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::SetNextWindowSize( ImVec2( 600, 800 ), ImGuiCond_FirstUseEver );
+            if ( ImGui::BeginPopupModal( s_title, &isOpen ) )
+            {
+                if ( ImGui::BeginChild( "#descEditor", ImGui::GetContentRegionAvail() - ImVec2( 0, 40 ) ) )
+                {
+                    m_propertyGrid.DrawGrid();
+                }
+                ImGui::EndChild();
+
+                //-------------------------------------------------------------------------
+
+                ImGui::BeginDisabled( !m_pDescriptor->IsValid() );
+                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Save", ImVec2( 120, 0 ) ) )
+                {
+                    SaveDescriptor();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndDisabled();
+
+                ImGui::SetItemDefaultFocus();
+                ImGui::SameLine();
+
+                if ( ImGui::Button( "Cancel", ImVec2( 120, 0 ) ) )
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::EndPopup();
+            }
         }
 
         //-------------------------------------------------------------------------
-
-        bool isOpen = true;
-        ImGui::SetNextWindowSize( ImVec2( 600, 800 ), ImGuiCond_FirstUseEver );
-        if ( ImGui::BeginPopupModal( s_title, &isOpen ) )
-        {
-            if ( ImGui::BeginChild( "#descEditor", ImGui::GetContentRegionAvail() - ImVec2( 0, 40 ) ) )
-            {
-                m_propertyGrid.DrawGrid();
-            }
-            ImGui::EndChild();
-
-            //-------------------------------------------------------------------------
-
-            ImGui::BeginDisabled( !m_pDescriptor->IsValid() );
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Save", ImVec2( 120, 0 ) ) )
-            {
-                SaveDescriptor();
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndDisabled();
-
-            ImGui::SetItemDefaultFocus();
-            ImGui::SameLine();
-
-            if ( ImGui::Button( "Cancel", ImVec2( 120, 0 ) ) )
-            {
-                ImGui::CloseCurrentPopup();
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::EndPopup();
-        }
 
         return isOpen && ImGui::IsPopupOpen( s_title );
     }

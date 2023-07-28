@@ -56,12 +56,12 @@ namespace EE::Timeline
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API [[nodiscard]] ScopedTimelineModification
+    class EE_ENGINETOOLS_API [[nodiscard]] ScopedModification
     {
     public:
 
-        ScopedTimelineModification( TrackContext const& context ) : m_context( context ) { context.BeginModification(); }
-        ~ScopedTimelineModification() { m_context.EndModification(); }
+        ScopedModification( TrackContext const& context ) : m_context( context ) { context.BeginModification(); }
+        ~ScopedModification() { m_context.EndModification(); }
 
     private:
 
@@ -182,8 +182,8 @@ namespace EE::Timeline
         // What item types are allowed for this track
         virtual ItemType GetAllowedItemType() const { return ItemType::Duration; }
 
-        // Does this track have custom context menu options
-        virtual bool HasContextMenu() const { return false; }
+        // What item types are allowed for this track
+        inline ItemType GetActualItemType() const { return m_itemType; }
 
         // Track Info
         //-------------------------------------------------------------------------
@@ -214,8 +214,8 @@ namespace EE::Timeline
         // Get the desired track height (in pixels)
         virtual float GetTrackHeight() const { return 30.0f; }
 
-        // Draw the custom context menu options
-        virtual void DrawContextMenu( TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) {}
+        // Draw the custom context menu options - return true if you've made major changes to the the track i.e. deleted an item
+        virtual bool DrawContextMenu( TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) { return false; }
 
         // Draws an immediate item and returns the hover rect for the drawn item. This rect defines drag zone.
         virtual ImRect DrawImmediateItem( TrackContext const& context, ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemPos, ItemState itemState );
@@ -245,14 +245,20 @@ namespace EE::Timeline
         // Get the color for a given item
         virtual Color GetItemColor( TrackItem const* pItem ) const { return Color( 0xFFAAAAAA ); }
 
-        // Does this item have any custom context menu options
-        virtual bool HasItemContextMenu( TrackItem const* pItem ) const { return false; }
-
-        // Draw the custom context menu options for this item
-        virtual void DrawItemContextMenu( TrackItem* pItem ) {}
+        // Draw the custom context menu options for this item - return true if you've made major changes to the the track i.e. deleted an item
+        virtual bool DrawItemContextMenu( TrackContext const& context, TrackItem* pItem ) { return false; }
 
         // Can we create new items on this track (certain tracks have restrictions regarding this)
         virtual bool CanCreateNewItems() const { return true; }
+
+        // Utilities
+        //-------------------------------------------------------------------------
+
+        // Expand specified duration item to fill the gaps
+        void GrowItemToFillGap( TrackContext const& context, TrackItem const* pItem );
+
+        // Fill all gaps between duration items
+        void FillGapsForDurationItems( TrackContext const& context );
 
         // Serialization
         //-------------------------------------------------------------------------
@@ -265,6 +271,8 @@ namespace EE::Timeline
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) {}
 
         static Color GetItemBackgroundColor( ItemState itemState, bool isHovered );
+
+        int32_t GetItemIndex( TrackItem const* pItem ) const;
 
         void ResetStatusMessage() const { m_validationStatueMessage = "Track is Valid"; }
 

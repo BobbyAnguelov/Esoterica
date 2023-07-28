@@ -2,12 +2,10 @@
 
 #include "Animation_RuntimeGraph_Events.h"
 #include "Engine/Animation/AnimationBoneMask.h"
+#include "Engine/Animation/AnimationSyncTrack.h"
 #include "Base/Math/Transform.h"
 #include "Base/Time/Time.h"
 #include "Base/Types/Arrays.h"
-
-// HACK
-#include "Engine/Animation/AnimationSyncTrack.h"
 
 //-------------------------------------------------------------------------
 
@@ -124,10 +122,10 @@ namespace EE::Animation
     // Layer Context
     //-------------------------------------------------------------------------
 
-    struct GraphLayerInitInfo
+    struct GraphLayerUpdateState
     {
-        int16_t                                                     m_layerNodeIdx;
-        TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>         m_layerInitTimes;
+        int16_t                                                     m_nodeIdx; // The index of the layer node
+        TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>         m_updateRanges; // The update range for each non-synchronized layer in order
     };
 
     struct GraphLayerContext final
@@ -226,32 +224,32 @@ namespace EE::Animation
     public:
 
         // Set at construction
-        uint64_t                                m_graphUserID = 0; // The entity ID that owns this graph.
-        Skeleton const*                         m_pSkeleton = nullptr;
-        SampledEventsBuffer                     m_sampledEventsBuffer;
+        uint64_t                                    m_graphUserID = 0; // The entity ID that owns this graph.
+        Skeleton const*                             m_pSkeleton = nullptr;
+        SampledEventsBuffer                         m_sampledEventsBuffer;
 
         // Set at initialization time
-        TaskSystem*                             m_pTaskSystem = nullptr;
-        Pose const*                             m_pPreviousPose = nullptr;
+        TaskSystem*                                 m_pTaskSystem = nullptr;
+        Pose const*                                 m_pPreviousPose = nullptr;
 
         // Initialization data
-        TInlineVector<GraphLayerInitInfo, 10>   m_layerInitInfo;
+        TVector<GraphLayerUpdateState> const*       m_pLayerInitializationInfo = nullptr;
 
         // Runtime Values
-        Transform                               m_worldTransform = Transform::Identity;
-        Transform                               m_worldTransformInverse = Transform::Identity;
-        uint32_t                                m_updateID = 0;
-        BranchState                             m_branchState = BranchState::Active;
-        Physics::PhysicsWorld*                  m_pPhysicsWorld = nullptr;
-        GraphLayerContext                       m_layerContext;
-        Seconds                                 m_deltaTime = 0.0f;
+        Transform                                   m_worldTransform = Transform::Identity;
+        Transform                                   m_worldTransformInverse = Transform::Identity;
+        uint32_t                                    m_updateID = 0;
+        BranchState                                 m_branchState = BranchState::Active;
+        Physics::PhysicsWorld*                      m_pPhysicsWorld = nullptr;
+        GraphLayerContext                           m_layerContext;
+        Seconds                                     m_deltaTime = 0.0f;
 
     private:
 
         #if EE_DEVELOPMENT_TOOLS
-        RootMotionDebugger*                     m_pRootMotionDebugger = nullptr; // Allows nodes to record root motion operations
-        TVector<int16_t>*                       m_pActiveNodes = nullptr;
-        TVector<GraphLogEntry>*                 m_pLog = nullptr;
+        RootMotionDebugger*                         m_pRootMotionDebugger = nullptr; // Allows nodes to record root motion operations
+        TVector<int16_t>*                           m_pActiveNodes = nullptr;
+        TVector<GraphLogEntry>*                     m_pLog = nullptr;
         #endif
     };
 }

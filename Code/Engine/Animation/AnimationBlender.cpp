@@ -17,6 +17,18 @@ namespace EE::Animation
         }
         #endif
 
+        // Check for early-out condition
+        //-------------------------------------------------------------------------
+
+        if ( layerWeight == 0.0f )
+        {
+            if ( pBasePose != pResultPose )
+            {
+                pResultPose->CopyFrom( pBasePose );
+            }
+            return;
+        }
+
         // Calculate global rotations for base and layer poses
         //-------------------------------------------------------------------------
 

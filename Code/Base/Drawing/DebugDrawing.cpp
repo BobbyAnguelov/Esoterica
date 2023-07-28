@@ -78,7 +78,7 @@ namespace EE::Drawing
     // Drawing Context
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawWireTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawWireTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
     {
         InternalDrawLine( m_commandBuffer, v0, v1, color, lineThickness, depthTestState, TTL );
         InternalDrawLine( m_commandBuffer, v1, v2, color, lineThickness, depthTestState, TTL );
@@ -89,7 +89,7 @@ namespace EE::Drawing
     // Boxes / Volumes / Planes
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawPlane( Float4 const& planeEquation, Float4 const& color, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawPlane( Float4 const& planeEquation, Float4 const& color, DepthTest depthTestState, Seconds TTL )
     {
         auto const plane = Plane::FromPlaneEquation( planeEquation );
         auto const translation = plane.ProjectPoint( Vector::UnitW );
@@ -119,7 +119,7 @@ namespace EE::Drawing
         InternalDrawTriangle( m_commandBuffer, verts[2], verts[1], verts[3], color, depthTestState, TTL );
     }
 
-    void DrawContext::DrawBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, DepthTest depthTestState, Seconds TTL )
     {
         // Calculate transformed vertices
         Vector verts[8] =
@@ -142,7 +142,7 @@ namespace EE::Drawing
         }
     }
 
-    void DrawContext::DrawWireBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawWireBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
     {
         // Calculate vertices
         Vector verts[8] =
@@ -169,7 +169,7 @@ namespace EE::Drawing
     // Sphere / Circle
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
     {
         if ( !g_circleVerticesInitialized )
         {
@@ -214,14 +214,14 @@ namespace EE::Drawing
         InternalDrawLine( m_commandBuffer, verts[g_numCircleVertices - 1], verts[0], color, lineThickness, depthTestState, TTL );
     }
 
-    void DrawContext::DrawSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
     {
         DrawCircle( transform, Axis::X, radius, color, lineThickness, depthTestState, TTL );
         DrawCircle( transform, Axis::Y, radius, color, lineThickness, depthTestState, TTL );
         DrawCircle( transform, Axis::Z, radius, color, lineThickness, depthTestState, TTL );
     }
 
-    void DrawContext::DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DepthTest depthTestState, Seconds TTL )
     {
         if ( !g_circleVerticesInitialized )
         {
@@ -250,7 +250,7 @@ namespace EE::Drawing
     }
 
 
-    void DrawContext::InternalDrawCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::InternalDrawCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
     {
         Vector const axisX = worldTransform.GetAxisX();
         Vector const axisY = worldTransform.GetAxisY();
@@ -344,7 +344,7 @@ namespace EE::Drawing
     // Compound Shapes
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
     {
         constexpr static float const minArrowHeadThickness = 16.0f; // 16 pixels
         constexpr static float const maxArrowHeadLength = 0.1f; // 10cm
@@ -365,7 +365,7 @@ namespace EE::Drawing
         InternalDrawLine( m_commandBuffer, arrowHeadStartPoint, endPoint, color, arrowHeadThickness, 2.0f, depthTestState, TTL );
     }
 
-    void DrawContext::DrawCone( Transform const& transform, Radians coneAngle, float length, Float4 const& color, float thickness, DepthTestState depthTestState, Seconds TTL )
+    void DrawContext::DrawCone( Transform const& transform, Radians coneAngle, float length, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
     {
         Vector const capOffset = ( transform.GetForwardVector() * length );
         float const coneCapRadius = Math::Tan( coneAngle.ToFloat() ) * length;

@@ -34,7 +34,7 @@ namespace EE
 
     public:
 
-        TaskSystem();
+        TaskSystem( int32_t numWorkers );
         ~TaskSystem();
 
         inline bool IsInitialized() const { return m_initialized; }

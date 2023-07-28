@@ -39,24 +39,23 @@ namespace EE::Resource
 
         #if EE_DEVELOPMENT_TOOLS
         auto predicate = [] ( ResourceRequest* pRequest, ResourceID const& resourceID ) { return pRequest->GetResourceID() == resourceID; };
-        auto foundIter = VectorFind( m_requests, pRequest->GetResourceID(), predicate );
-        EE_ASSERT( foundIter == m_requests.end() );
+        auto foundIter = VectorFind( m_sentRequests, pRequest->GetResourceID(), predicate );
+        EE_ASSERT( foundIter == m_sentRequests.end() );
         #endif
 
         //-------------------------------------------------------------------------
 
-        m_messagesToSend.enqueue( Network::IPC::Message( (int32_t) NetworkMessageID::RequestResource, NetworkResourceRequest( pRequest->GetResourceID() ) ) );
-        m_requests.emplace_back( pRequest );
+        m_pendingRequests.emplace_back( pRequest );
     }
 
     void NetworkResourceProvider::CancelRequest( ResourceRequest* pRequest )
     {
         EE_ASSERT( pRequest != nullptr && pRequest->IsValid() );
 
-        auto foundIter = VectorFind( m_requests, pRequest );
-        EE_ASSERT( foundIter != m_requests.end() );
+        auto foundIter = VectorFind( m_sentRequests, pRequest );
+        EE_ASSERT( foundIter != m_sentRequests.end() );
 
-        m_requests.erase_unsorted( foundIter );
+        m_sentRequests.erase_unsorted( foundIter );
     }
 
     void NetworkResourceProvider::Update()
@@ -96,7 +95,8 @@ namespace EE::Resource
             {
                 case NetworkMessageID::ResourceRequestComplete:
                 {
-                    m_serverReponses.emplace_back( message.GetData<NetworkResourceResponse>() );
+                    NetworkResourceResponse response = message.GetData<NetworkResourceResponse>();
+                    m_serverResults.insert( m_serverResults.end(), response.m_results.begin(), response.m_results.end() );
                 }
                 break;
 
@@ -104,7 +104,10 @@ namespace EE::Resource
                 {
                     #if EE_DEVELOPMENT_TOOLS
                     NetworkResourceResponse response = message.GetData<NetworkResourceResponse>();
-                    m_externallyUpdatedResources.emplace_back( response.m_resourceID );
+                    for ( auto const& result : response.m_results )
+                    {
+                        m_externallyUpdatedResources.emplace_back( result.m_resourceID );
+                    }
                     #endif
                 }
                 break;
@@ -119,22 +122,44 @@ namespace EE::Resource
         // Send all requests and keep-alive messages
         //-------------------------------------------------------------------------
 
-        Network::IPC::Message messageToSend;
-        while ( m_messagesToSend.try_dequeue( messageToSend ) )
+        if ( !m_pendingRequests.empty() )
         {
-            m_networkClient.SendMessageToServer( eastl::move( messageToSend ) );
+            NetworkResourceRequest request;
+
+            // Process all pending requests
+            for( auto pRequest : m_pendingRequests )
+            {
+                request.m_resourceIDs.emplace_back( pRequest->GetResourceID() );
+                m_sentRequests.emplace_back( pRequest );
+
+                // Try to limit the size of the network messages so we limit each message to 128 request
+                if ( request.m_resourceIDs.size() == 128 )
+                {
+                    Network::IPC::Message requestResourceMessage( (int32_t) NetworkMessageID::RequestResource, request );
+                    m_networkClient.SendMessageToServer( eastl::move( requestResourceMessage ) );
+                    request.m_resourceIDs.clear();
+                }
+            }
+            m_pendingRequests.clear();
+
+            // Send any remaining requests
+            if ( request.m_resourceIDs.size() > 0 )
+            {
+                Network::IPC::Message requestResourceMessage( (int32_t) NetworkMessageID::RequestResource, request );
+                m_networkClient.SendMessageToServer( eastl::move( requestResourceMessage ) );
+            }
         }
 
-        // Process all responses
+        // Process all server results
         //-------------------------------------------------------------------------
 
-        for ( auto& response : m_serverReponses )
+        for ( auto& result : m_serverResults )
         {
             auto predicate = [] ( ResourceRequest* pRequest, ResourceID const& resourceID ) { return pRequest->GetResourceID() == resourceID; };
-            auto foundIter = VectorFind( m_requests, response.m_resourceID, predicate );
+            auto foundIter = VectorFind( m_sentRequests, result.m_resourceID, predicate );
 
             // This might have been a canceled request
-            if ( foundIter == m_requests.end() )
+            if ( foundIter == m_sentRequests.end() )
             {
                 continue;
             }
@@ -149,13 +174,13 @@ namespace EE::Resource
             }
 
             // If the request has a filepath set, the compilation was a success
-            pFoundRequest->OnRawResourceRequestComplete( response.m_filePath );
+            pFoundRequest->OnRawResourceRequestComplete( result.m_filePath );
 
             // Remove from request list
-            m_requests.erase_unsorted( foundIter );
+            m_sentRequests.erase_unsorted( foundIter );
         }
 
-        m_serverReponses.clear();
+        m_serverResults.clear();
     }
 }
 #endif

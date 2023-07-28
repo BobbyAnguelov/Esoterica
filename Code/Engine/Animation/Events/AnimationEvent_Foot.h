@@ -16,6 +16,7 @@ namespace EE::Animation
     class EE_ENGINE_API FootEvent final : public Event
     {
         EE_REFLECT_TYPE( FootEvent );
+        friend class FootEventTrack;
 
     public:
 

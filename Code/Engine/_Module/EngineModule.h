@@ -79,7 +79,7 @@ namespace EE
         bool                                            m_moduleInitialized = false;
 
         // System
-        TaskSystem                                      m_taskSystem;
+        TaskSystem                                      m_taskSystem = TaskSystem( Threading::GetProcessorInfo().m_numPhysicalCores - 1 );
         TypeSystem::TypeRegistry                        m_typeRegistry;
         SystemRegistry                                  m_systemRegistry;
         Input::InputSystem                              m_inputSystem;

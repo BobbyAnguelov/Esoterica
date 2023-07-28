@@ -43,6 +43,22 @@ namespace EE::Fbx
         }
         pImporter->Destroy();
 
+        // Check file format
+        //-------------------------------------------------------------------------
+
+        FILE* fp = nullptr;
+        int32_t errcode = fopen_s( &fp, filePath.c_str(), "r" );
+        EE_ASSERT( errcode == 0 );
+
+        char cmpBuffer[19] = { 0 };
+        fread( cmpBuffer, 1, 18, fp );
+        fclose( fp );
+
+        if ( strcmp( cmpBuffer, "Kaydara FBX Binary" ) != 0 )
+        {
+            m_warning.sprintf( "Reading ASCII FBX files will be slower than binary. It is highly recommended that you convert all FBX input files to binary!" );
+        }
+
         // Co-ordinate system scene conversion
         //-------------------------------------------------------------------------
 
@@ -244,6 +260,11 @@ namespace EE::Fbx
             Fbx::FbxSceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
+                if ( sceneCtx.HasWarningOccurred() )
+                {
+                    pRawSkeleton->LogWarning( sceneCtx.GetWarningMessage().c_str() );
+                }
+
                 ReadSkeleton( sceneCtx, skeletonRootBoneName, *pRawSkeleton );
             }
             else
@@ -379,6 +400,11 @@ namespace EE::Fbx
             Fbx::FbxSceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
+                if ( sceneCtx.HasWarningOccurred() )
+                {
+                    pRawAnimation->LogWarning( sceneCtx.GetWarningMessage().c_str() );
+                }
+
                 // Find the required anim stack
                 //-------------------------------------------------------------------------
 
@@ -693,6 +719,11 @@ namespace EE::Fbx
             Fbx::FbxSceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
+                if ( sceneCtx.HasWarningOccurred() )
+                {
+                    pRawMesh->LogWarning( sceneCtx.GetWarningMessage().c_str() );
+                }
+
                 ReadAllSubmeshes( *pRawMesh, sceneCtx, meshesToInclude );
             }
             else
@@ -715,6 +746,11 @@ namespace EE::Fbx
             Fbx::FbxSceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
+                if ( sceneCtx.HasWarningOccurred() )
+                {
+                    pRawMesh->LogWarning( sceneCtx.GetWarningMessage().c_str() );
+                }
+
                 pRawMesh->m_maxNumberOfBoneInfluences = maxBoneInfluences;
                 pRawMesh->m_isSkeletalMesh = true;
 

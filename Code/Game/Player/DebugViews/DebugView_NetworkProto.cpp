@@ -471,26 +471,26 @@ namespace EE::Player
         //-------------------------------------------------------------------------
 
         archive.WriteUInt( (uint8_t) data.m_updateRange.m_startTime.m_eventIdx, 8 );
-        archive.WriteNormalizedFloat( data.m_updateRange.m_startTime.m_percentageThrough );
+        archive.WriteNormalizedFloat16Bit( data.m_updateRange.m_startTime.m_percentageThrough );
         archive.WriteUInt( (uint8_t) data.m_updateRange.m_endTime.m_eventIdx, 8 );
-        archive.WriteNormalizedFloat( data.m_updateRange.m_endTime.m_percentageThrough );
+        archive.WriteNormalizedFloat16Bit( data.m_updateRange.m_endTime.m_percentageThrough );
 
-        uint8_t const numLayerNodes = (uint8_t) data.m_layerStates.size();
+        uint8_t const numLayerNodes = (uint8_t) data.m_layerUpdateStates.size();
         archive.WriteUInt( numLayerNodes, 8 );
 
         for ( auto i = 0; i < numLayerNodes; i++ )
         {
-            archive.WriteUInt( data.m_layerStates[i].m_nodeIdx, 16 );
+            archive.WriteUInt( data.m_layerUpdateStates[i].m_nodeIdx, 16 );
 
-            uint8_t const numLayers = (uint8_t) data.m_layerStates[i].m_layerUpdateRanges.size();
+            uint8_t const numLayers = (uint8_t) data.m_layerUpdateStates[i].m_updateRanges.size();
             archive.WriteUInt( numLayerNodes, 8 );
 
             for ( auto j = 0u; j < numLayers; j++ )
             {
                 archive.WriteUInt( (uint8_t) data.m_updateRange.m_startTime.m_eventIdx, 8 );
-                archive.WriteNormalizedFloat( data.m_updateRange.m_startTime.m_percentageThrough );
+                archive.WriteNormalizedFloat16Bit( data.m_updateRange.m_startTime.m_percentageThrough );
                 archive.WriteUInt( (uint8_t) data.m_updateRange.m_endTime.m_eventIdx, 8 );
-                archive.WriteNormalizedFloat( data.m_updateRange.m_endTime.m_percentageThrough );
+                archive.WriteNormalizedFloat16Bit( data.m_updateRange.m_endTime.m_percentageThrough );
             }
         }
 
@@ -627,19 +627,7 @@ namespace EE::Player
         // Set graph parameters before reset
         auto const& startFrameData = m_graphRecorder.m_recordedData[startFrameIdx];
         m_pReplicatedInstance->SetRecordedFrameUpdateData( startFrameData );
-
-        TInlineVector<Animation::GraphLayerInitInfo, 10> layerInfo;
-        if ( useLayerInitInfo )
-        {
-            for ( auto const& ls : startFrameData.m_layerStates )
-            {
-                auto& li = layerInfo.emplace_back();
-                li.m_layerNodeIdx = ls.m_nodeIdx;
-                li.m_layerInitTimes.insert( li.m_layerInitTimes.begin(), ls.m_layerUpdateRanges.begin(), ls.m_layerUpdateRanges.end() );
-            }
-        }
-
-        m_pReplicatedInstance->ResetGraphState_HACK( startFrameData.m_updateRange.m_startTime, layerInfo );
+        m_pReplicatedInstance->ResetGraphState( startFrameData.m_updateRange.m_startTime, useLayerInitInfo ? &startFrameData.m_layerUpdateStates : nullptr );
 
         // Evaluate subsequent frames
         for ( auto i = startFrameIdx; i < m_graphRecorder.GetNumRecordedFrames(); i++ )

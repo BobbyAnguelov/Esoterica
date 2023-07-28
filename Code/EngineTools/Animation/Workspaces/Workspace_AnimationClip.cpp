@@ -306,6 +306,30 @@ namespace EE::Animation
         {
             ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
 
+            ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
+
+            ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
+
+            //-------------------------------------------------------------------------
+
+            ImGuiX::TextSeparator( "Capsule Debug" );
+
+            ImGui::Checkbox( "Show Preview Capsule", &m_isPreviewCapsuleDrawingEnabled );
+
+            ImGui::Text( "Half-Height" );
+            ImGui::SameLine( 90 );
+            if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
+            {
+                m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
+            }
+
+            ImGui::Text( "Radius" );
+            ImGui::SameLine( 90 );
+            if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
+            {
+                m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
+            }
+
             ImGui::EndMenu();
         }
 
@@ -355,39 +379,6 @@ namespace EE::Animation
         {
             return;
         }
-
-        // Debug Options
-        //-------------------------------------------------------------------------
-
-        auto DrawDebugOptions = [this] ()
-        {
-            ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
-
-            ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
-
-            //-------------------------------------------------------------------------
-
-            ImGuiX::TextSeparator( "Capsule Debug" );
-
-            ImGui::Checkbox( "Show Preview Capsule", &m_isPreviewCapsuleDrawingEnabled );
-
-            ImGui::Text( "Half-Height" );
-            ImGui::SameLine( 90 );
-            if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
-            {
-                m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
-            }
-
-            ImGui::Text( "Radius" );
-            ImGui::SameLine( 90 );
-            if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
-            {
-                m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
-            }
-        };
-
-        ImGui::SameLine();
-        DrawViewportToolbarComboIcon( "##DebugOptions", EE_ICON_BUG_CHECK, "Debug Options", DrawDebugOptions );
 
         // Play Button
         //-------------------------------------------------------------------------

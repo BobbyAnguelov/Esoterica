@@ -69,6 +69,19 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
+    void EntityCollectionEditor::DrawMenu( UpdateContext const& context )
+    {
+        EntityEditorWorkspace::DrawMenu( context );
+
+        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
+        {
+            ImGuiX::Checkbox( "Draw Grid", &m_drawGrid );
+            ImGui::EndMenu();
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void EntityCollectionEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         if ( !m_collectionInstantiated )
@@ -86,5 +99,21 @@ namespace EE::EntityModel
         }
 
         EntityEditorWorkspace::Update( context, isVisible, isFocused );
+
+        // Draw Grid
+        //-------------------------------------------------------------------------
+
+        if ( m_drawGrid )
+        {
+            constexpr float const lineLength = 20;
+            constexpr float const halfLineLength = lineLength / 2.0f;
+
+            auto drawingCtx = GetDrawingContext();
+            for ( float i = -halfLineLength; i <= halfLineLength; i++ )
+            {
+                drawingCtx.DrawLine( Vector( -halfLineLength, i, 0.0f ), Vector( halfLineLength, i, 0.0f ), Colors::LightGray, 1.0f, Drawing::DepthTest::Enable );
+                drawingCtx.DrawLine( Vector( i, -halfLineLength, 0.0f ), Vector( i, halfLineLength, 0.0f ), Colors::LightGray, 1.0f, Drawing::DepthTest::Enable );
+            }
+        }
     }
 }

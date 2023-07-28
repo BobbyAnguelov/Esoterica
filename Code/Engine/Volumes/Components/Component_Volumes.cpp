@@ -17,8 +17,8 @@ namespace EE
         Color const volumeColor = volumeBorderColor.GetAlphaVersion( 0.35f );
         auto const& worldBounds = GetWorldBounds();
 
-        drawingCtx.DrawBox( worldBounds, volumeColor, Drawing::EnableDepthTest );
-        drawingCtx.DrawWireBox( worldBounds, volumeBorderColor, 2.0f, Drawing::EnableDepthTest );
+        drawingCtx.DrawBox( worldBounds, volumeColor, Drawing::DepthTest::Enable );
+        drawingCtx.DrawWireBox( worldBounds, volumeBorderColor, 2.0f, Drawing::DepthTest::Enable );
     }
     #endif
 }
