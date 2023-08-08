@@ -12,7 +12,6 @@
 
 namespace EE
 {
-    TEvent<Entity*> Entity::s_entityUpdatedEvent;
     TEvent<Entity*> Entity::s_entityInternalStateUpdatedEvent;
 
     //-------------------------------------------------------------------------
@@ -430,11 +429,6 @@ namespace EE
             }
         }
 
-        if ( entityStateChanged )
-        {
-            s_entityUpdatedEvent.Execute( this );
-        }
-
         //-------------------------------------------------------------------------
         // Component Loading
         //-------------------------------------------------------------------------
@@ -830,7 +824,6 @@ namespace EE
         if ( IsUnloaded() )
         {
             CreateSystemImmediate( pSystemTypeInfo );
-            s_entityUpdatedEvent.Execute( this );
         }
         else
         {
@@ -851,7 +844,6 @@ namespace EE
         if ( IsUnloaded() )
         {
             DestroySystemImmediate( pSystemTypeInfo );
-            s_entityUpdatedEvent.Execute( this );
         }
         else
         {
@@ -979,7 +971,6 @@ namespace EE
             }
 
             AddComponentImmediate( pComponent, pParentComponent );
-            s_entityUpdatedEvent.Execute( this );
         }
         else // Defer the operation to the next loading phase
         {
@@ -1014,7 +1005,6 @@ namespace EE
             }
 
             DestroyComponentImmediate( pComponent );
-            s_entityUpdatedEvent.Execute( this );
         }
         else // Defer the operation to the next loading phase
         {

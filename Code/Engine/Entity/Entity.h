@@ -76,9 +76,6 @@ namespace EE
             Type                                m_type = Type::Unknown;     // Type of action
         };
 
-        // Event that's fired whenever a component/system is actually added or removed
-        static TEvent<Entity*>                  s_entityUpdatedEvent;
-
         // Event that's fired whenever a component/system is added or removed
         static TEvent<Entity*>                  s_entityInternalStateUpdatedEvent;
 
@@ -105,9 +102,6 @@ namespace EE
             KeepWorldTransform,
             KeepLocalTranform
         };
-
-        // Event that's fired whenever a component/system is actually added or removed
-        static TEventHandle<Entity*> OnEntityUpdated() { return s_entityUpdatedEvent; }
 
         // Event that's fired whenever an entities internal state changes and it requires an state update
         static TEventHandle<Entity*> OnEntityInternalStateUpdated() { return s_entityInternalStateUpdatedEvent; }
