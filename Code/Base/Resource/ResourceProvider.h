@@ -28,6 +28,7 @@ namespace EE::Resource
     public:
 
         ResourceProvider( ResourceSettings const& settings ) : m_settings( settings ) {}
+        ResourceProvider( ResourceProvider const& ) = delete;
         virtual ~ResourceProvider() {}
 
         virtual bool IsReady() const = 0;

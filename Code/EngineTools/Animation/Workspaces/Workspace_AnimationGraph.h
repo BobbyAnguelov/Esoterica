@@ -213,23 +213,6 @@ namespace EE::Animation
         };
 
         //-------------------------------------------------------------------------
-        // Graph Operations
-        //-------------------------------------------------------------------------
-
-        enum class GraphOperationType
-        {
-            None,
-            NotifyUser,
-            Navigate,
-            RenameIDs,
-            CreateParameter,
-            RenameParameter,
-            DeleteParameter,
-            DeleteUnusedParameters,
-            CreateVariation,
-            RenameVariation,
-            DeleteVariation
-        };
 
         // Event fired whenever we perform a graph edit
         static TEvent<ResourceID const&> s_graphModifiedEvent;
@@ -264,7 +247,6 @@ namespace EE::Animation
         // Dialogs
         //-------------------------------------------------------------------------
 
-        virtual void DrawDialogs( UpdateContext const& context ) override;
         void ShowNotifyDialog( String const& title, String const& message );
         void ShowNotifyDialog( String const& title, char const* pMessageFormat, ... );
 
@@ -294,7 +276,7 @@ namespace EE::Animation
         void StartRenameIDs();
 
         // Draw the rename dialog
-        void DrawRenameIDsDialog();
+        bool DrawRenameIDsDialog( UpdateContext const& context );
 
         // Copy all the found parameter names to the clipboard
         void CopyAllParameterNamesToClipboard();
@@ -369,7 +351,7 @@ namespace EE::Animation
         void NavigateTo( VisualGraph::BaseNode* pNode, bool focusViewOnNode = true );
         void NavigateTo( VisualGraph::BaseGraph* pGraph );
         void StartNavigationOperation();
-        void DrawNavigationDialogWindow( UpdateContext const& context );
+        bool DrawNavigationDialogWindow( UpdateContext const& context );
         void GenerateNavigationTargetList();
         void GenerateActiveTargetList();
 
@@ -410,9 +392,9 @@ namespace EE::Animation
         void DrawParameterListRow( GraphNodes::FlowToolsNode* pParameter );
         void DrawPreviewParameterList( UpdateContext const& context );
 
-        void DrawCreateOrRenameParameterDialogWindow();
-        void DrawDeleteParameterDialogWindow();
-        void DrawDeleteUnusedParameterDialogWindow();
+        bool DrawCreateOrRenameParameterDialogWindow( UpdateContext const& context, bool isRename );
+        bool DrawDeleteParameterDialogWindow( UpdateContext const& context );
+        bool DrawDeleteUnusedParameterDialogWindow( UpdateContext const& context );
 
         void ControlParameterCategoryDragAndDropHandler( Category<GraphNodes::FlowToolsNode*>& category );
 
@@ -449,10 +431,10 @@ namespace EE::Animation
         void RefreshVariationEditor();
         void RefreshVariationSlotPickers();
 
-        bool DrawVariationNameEditor();
-        void DrawCreateVariationDialogWindow();
-        void DrawRenameVariationDialogWindow();
-        void DrawDeleteVariationDialogWindow();
+        bool DrawVariationNameEditor( bool& isDialogOpen, bool isRename );
+        bool DrawCreateVariationDialogWindow( UpdateContext const& context );
+        bool DrawRenameVariationDialogWindow( UpdateContext const& context );
+        bool DrawDeleteVariationDialogWindow( UpdateContext const& context );
 
         // Debugging
         //-------------------------------------------------------------------------
@@ -539,11 +521,6 @@ namespace EE::Animation
         EventBindingID                                                      m_postPasteNodesEventBindingID;
         EventBindingID                                                      m_advancedCommandEventBindingID;
 
-        // Operations/Dialogs
-        GraphOperationType                                                  m_activeOperation = GraphOperationType::None;
-        String                                                              m_notifyDialogTitle;
-        String                                                              m_notifyDialogText;
-
         // Graph view
         float                                                               m_primaryGraphViewProportionalHeight = 0.6f;
         VisualGraph::GraphView                                              m_primaryGraphView;
@@ -619,6 +596,7 @@ namespace EE::Animation
         bool                                                                m_isFirstPreviewFrame = false;
         bool                                                                m_isCameraTrackingEnabled = true;
         bool                                                                m_initializeGraphToSpecifiedSyncTime = false;
+        Skeleton::LOD                                                       m_skeletonLOD = Skeleton::LOD::High;
 
         // Recording
         GraphRecorder                                                       m_graphRecorder;

@@ -181,6 +181,8 @@ namespace EE
             ( ( m_flags |= 1u << (uint8_t) args ), ... );
         }
 
+        TBitFlags& operator=( TBitFlags const& rhs ) = default;
+
         //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE bool IsFlagSet( T flag ) const { return BitFlags::IsFlagSet( (uint8_t) flag ); }

@@ -1,13 +1,14 @@
 #include "EditorUI.h"
 #include "RenderingSystem.h"
-#include "EngineTools/Resource/RawFileInspector.h"
 #include "EngineTools/Entity/Workspaces/Workspace_MapEditor.h"
 #include "EngineTools/Entity/Workspaces/Workspace_GamePreviewer.h"
+#include "EngineTools/Resource/EditorTools/EditorTool_RawFileInspector.h"
 #include "EngineTools/Resource/EditorTools/EditorTool_ResourceBrowser.h"
 #include "EngineTools/Resource/EditorTools/EditorTool_ResourceSystem.h"
 #include "EngineTools/Core/EditorTools/EditorTool_SystemLog.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
+#include "Engine/ToolsUI/EngineDebugUI.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -26,11 +27,6 @@ namespace EE
 {
     EditorUI::~EditorUI()
     {
-        if ( m_pRawResourceInspector )
-        {
-            EE::Delete( m_pRawResourceInspector );
-        }
-
         EE_ASSERT( m_workspaces.empty() );
         EE_ASSERT( m_pMapEditor == nullptr );
         EE_ASSERT( m_pGamePreviewer == nullptr );
@@ -126,7 +122,7 @@ namespace EE
         // Editor Tools
         //-------------------------------------------------------------------------
 
-        for ( auto& pEditorTool : m_editorToolCreationRequests )
+        for ( auto& pEditorTool : m_editorToolsPendingInitialization )
         {
             EE::Delete( pEditorTool );
         }
@@ -169,14 +165,50 @@ namespace EE
 
     bool EditorUI::TryOpenRawResource( FileSystem::Path const& resourcePath ) const
     {
-        if ( Resource::RawFileInspectorFactory::CanCreateInspector( resourcePath ) )
+        auto CheckForExistingInspector = [this] ( EditorTool* pEditorTool, FileSystem::Path const& resourcePath )
         {
-            const_cast<EditorUI*>( this )->m_pRawResourceInspector = Resource::RawFileInspectorFactory::TryCreateInspector( this, resourcePath );
+            if ( pEditorTool->GetToolTypeID() == Resource::RawFileInspectorEditorTool::s_toolTypeID )
+            {
+                auto pInspectorTool = static_cast<Resource::RawFileInspectorEditorTool*>( pEditorTool );
+                if ( pInspectorTool->GetInspectedPath() == resourcePath )
+                {
+                    ImGuiX::MakeTabVisible( pEditorTool->m_windowName.c_str() );
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        //-------------------------------------------------------------------------
+
+        for ( auto pEditorTool : m_editorTools )
+        {
+            if ( CheckForExistingInspector( pEditorTool, resourcePath ) )
+            {
+                return true;
+            }
+        }
+
+        for ( auto const& pEditorTool : m_editorToolsPendingInitialization )
+        {
+            if ( CheckForExistingInspector( pEditorTool, resourcePath ) )
+            {
+                return true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto pEditorTool = Resource::RawFileInspectorFactory::TryCreateInspector( this, resourcePath );
+        if ( pEditorTool != nullptr )
+        {
+            const_cast<EditorUI*>( this )->m_editorToolsPendingInitialization.emplace_back( pEditorTool );
             return true;
         }
         else
         {
-            pfd::message( "Import Error", "File type is not importable!", pfd::choice::ok, pfd::icon::error );
+            pfd::message( "Import Error", "File type can not be inspected!", pfd::choice::ok, pfd::icon::error );
             return false;
         }
     }
@@ -227,6 +259,11 @@ namespace EE
             if ( ImGui::MenuItem( "Resource System", nullptr, &isResourceSystemOpen, !isResourceSystemOpen ) )
             {
                 CreateEditorTool<Resource::ResourceSystemEditorTool>( this );
+            }
+
+            if ( ImGui::MenuItem( "Rebuild Resource Database" ) )
+            {
+                m_resourceDB.RequestRebuild();
             }
 
             //-------------------------------------------------------------------------
@@ -303,7 +340,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Destroy all required editor tools
-        // We needed to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
+        // We needed to defer this to the start of the update since we may have references to resources that we might unload (i.e. textures)
         for ( auto pEditorToolToDestroy : m_editorToolDestructionRequests )
         {
             if ( m_pLastActiveWorkspaceOrEditorTool == pEditorToolToDestroy )
@@ -316,13 +353,13 @@ namespace EE
         m_editorToolDestructionRequests.clear();
 
         // Initialize and add all newly created tools
-        for ( auto pNewEditorTool : m_editorToolCreationRequests )
+        for ( auto pEditorTool : m_editorToolsPendingInitialization )
         {
-            pNewEditorTool->Initialize( context );
-            m_editorTools.emplace_back( pNewEditorTool );
+            pEditorTool->Initialize( context );
+            m_editorTools.emplace_back( pEditorTool );
         }
 
-        m_editorToolCreationRequests.clear();
+        m_editorToolsPendingInitialization.clear();
 
         //-------------------------------------------------------------------------
         // Workspace Management
@@ -416,14 +453,6 @@ namespace EE
         // Draw editor windows
         //-------------------------------------------------------------------------
 
-        if ( m_pRawResourceInspector != nullptr )
-        {
-            if ( !m_pRawResourceInspector->DrawDialog() )
-            {
-                EE::Delete( m_pRawResourceInspector );
-            }
-        }
-
         if ( m_isImguiDemoWindowOpen )
         {
             ImGui::ShowDemoWindow( &m_isImguiDemoWindowOpen );
@@ -443,6 +472,7 @@ namespace EE
         // Draw open editor tools
         //-------------------------------------------------------------------------
 
+        m_hasOpenModalDialog = false;
         EditorTool* pEditorToolToClose = nullptr;
 
         // Update the location for all editor tools
@@ -549,19 +579,47 @@ namespace EE
     // Hot Reload
     //-------------------------------------------------------------------------
 
-    void EditorUI::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void EditorUI::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         for ( auto pWorkspace : m_workspaces )
         {
-            pWorkspace->BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
+            pWorkspace->HotReload_UnloadResources( usersToBeReloaded, resourcesToBeReloaded );
+        }
+
+        if ( m_pGamePreviewer != nullptr )
+        {
+            m_pGamePreviewer->m_pDebugUI->HotReload_UnloadResources( usersToBeReloaded, resourcesToBeReloaded );
+        }
+
+        for ( auto pEditorTool : m_editorTools )
+        {
+            pEditorTool->HotReload_UnloadResources( usersToBeReloaded, resourcesToBeReloaded );
         }
     }
 
-    void EditorUI::EndHotReload()
+    void EditorUI::HotReload_ReloadResources()
     {
         for ( auto pWorkspace : m_workspaces )
         {
-            pWorkspace->EndHotReload();
+            pWorkspace->HotReload_ReloadResources();
+        }
+
+        if ( m_pGamePreviewer != nullptr )
+        {
+            m_pGamePreviewer->m_pDebugUI->HotReload_ReloadResources();
+        }
+
+        for ( auto pEditorTool : m_editorTools )
+        {
+            pEditorTool->HotReload_ReloadResources();
+        }
+    }
+
+    void EditorUI::HotReload_ReloadComplete()
+    {
+        for ( auto pWorkspace : m_workspaces )
+        {
+            pWorkspace->HotReload_ReloadComplete();
 
             // Auto destroy any workspaces that had a problem loading their descriptor i.e. they were externally corrupted.
             if ( pWorkspace->IsADescriptorWorkspace() && !pWorkspace->IsDescriptorLoaded() )
@@ -570,6 +628,16 @@ namespace EE
                 pfd::message( "Error Loading Descriptor", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
                 QueueDestroyWorkspace( pWorkspace );
             }
+        }
+
+        if ( m_pGamePreviewer != nullptr )
+        {
+            m_pGamePreviewer->m_pDebugUI->HotReload_ReloadComplete();
+        }
+
+        for ( auto pEditorTool : m_editorTools )
+        {
+            pEditorTool->HotReload_ReloadComplete();
         }
     }
 
@@ -1053,6 +1121,7 @@ namespace EE
             if ( ImGui::BeginMenuBar() )
             {
                 pWorkspace->DrawMenu( context );
+                pWorkspace->DrawSharedMenus();
                 ImGui::EndMenuBar();
             }
             ImGui::PopStyleVar( 1 );
@@ -1098,7 +1167,7 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            if ( toolWindow.m_type == Workspace::ToolWindow::Type::Viewport )
+            if ( toolWindow.m_isViewport )
             {
                 Workspace::ViewportInfo viewportInfo;
                 viewportInfo.m_pViewportRenderTargetTexture = (void*) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
@@ -1123,7 +1192,12 @@ namespace EE
             }
             else // Draw the tool window
             {
-                ImGuiWindowFlags const toolWindowFlags = ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                ImGuiWindowFlags toolWindowFlags = ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                if ( toolWindow.m_disableScrolling )
+                {
+                    toolWindowFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+                }
+
                 ImGui::SetNextWindowClass( &pWorkspace->m_toolWindowClass );
 
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, toolWindow.HasUserSpecifiedWindowPadding() ? toolWindow.m_windowPadding : ImGui::GetStyle().WindowPadding );
@@ -1140,12 +1214,15 @@ namespace EE
             }
         }
 
-        pWorkspace->SetCameraUpdateEnabled( pWorkspace->m_isViewportHovered );
+        pWorkspace->SetCameraUpdateEnabled( pWorkspace->m_isViewportFocused && pWorkspace->m_isViewportHovered );
 
         // Draw any open dialogs
         //-------------------------------------------------------------------------
 
-        pWorkspace->DrawDialogs( context );
+        if ( !m_hasOpenModalDialog )
+        {
+            m_hasOpenModalDialog = pWorkspace->m_dialogManager.DrawDialog( context );
+        }
     }
 
     void EditorUI::CreateGamePreviewWorkspace( UpdateContext const& context )
@@ -1406,6 +1483,7 @@ namespace EE
             if ( ImGui::BeginMenuBar() )
             {
                 pEditorTool->DrawMenu( context );
+                pEditorTool->DrawSharedMenus();
                 ImGui::EndMenuBar();
             }
             ImGui::PopStyleVar( 1 );
@@ -1473,7 +1551,10 @@ namespace EE
         // Draw any open dialogs
         //-------------------------------------------------------------------------
 
-        pEditorTool->DrawDialogs( context );
+        if ( !m_hasOpenModalDialog )
+        {
+            m_hasOpenModalDialog = pEditorTool->m_dialogManager.DrawDialog( context );
+        }
     }
 
     //-------------------------------------------------------------------------

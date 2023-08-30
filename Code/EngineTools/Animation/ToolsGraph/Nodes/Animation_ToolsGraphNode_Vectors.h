@@ -19,6 +19,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Vector"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
 
     private:
 

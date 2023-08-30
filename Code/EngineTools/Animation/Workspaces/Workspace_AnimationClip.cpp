@@ -21,8 +21,8 @@ namespace EE::Animation
 
     AnimationClipWorkspace::AnimationClipWorkspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
         : TWorkspace<AnimationClip>( pToolsContext, pWorld, resourceID )
-        , m_eventTimeline( [this] () { BeginDescriptorModification(); }, [this] () { EndDescriptorModification(); }, *pToolsContext->m_pTypeRegistry )
-        , m_timelineEditor( &m_eventTimeline )
+        , m_eventTimeline( *pToolsContext->m_pTypeRegistry )
+        , m_timelineEditor( &m_eventTimeline, [this] () { BeginDescriptorModification(); }, [this] () { EndDescriptorModification(); } )
         , m_propertyGrid( m_pToolsContext )
     {
         m_timelineEditor.SetLooping( true );
@@ -86,7 +86,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        CreateToolWindow( "Timeline", [this] ( UpdateContext const& context, bool isFocused ) { DrawTimelineWindow( context, isFocused ); }, ImVec2( 0, 0 ) );
+        CreateToolWindow( "Timeline", [this] ( UpdateContext const& context, bool isFocused ) { DrawTimelineWindow( context, isFocused ); }, ImVec2( 0, 0 ), true );
         CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
         CreateToolWindow( "Clip Browser", [this] ( UpdateContext const& context, bool isFocused ) { DrawClipBrowser( context, isFocused ); } );
         CreateToolWindow( "Track Data", [this] ( UpdateContext const& context, bool isFocused ) { DrawTrackDataWindow( context, isFocused ); } );
@@ -110,6 +110,7 @@ namespace EE::Animation
         m_pAnimationComponent = EE::New<AnimationClipPlayerComponent>( StringID( "Animation Component" ) );
         m_pAnimationComponent->SetAnimation( m_workspaceResource.GetResourceID() );
         m_pAnimationComponent->SetPlayMode( AnimationClipPlayerComponent::PlayMode::Posed );
+        m_pAnimationComponent->SetSkeletonLOD( m_skeletonLOD );
 
         // Create entity
         m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
@@ -181,6 +182,7 @@ namespace EE::Animation
         if ( descriptorNeedsReload )
         {
             m_propertyGrid.SetTypeToEdit( nullptr );
+
             if ( m_pPreviewEntity != nullptr )
             {
                 DestroyPreviewEntity();
@@ -191,6 +193,10 @@ namespace EE::Animation
         {
             DestroyPreviewMeshComponent();
         }
+
+        //-------------------------------------------------------------------------
+
+        m_timelineEditor.SetLength( 0.0f );
     }
 
     void AnimationClipWorkspace::OnHotReloadComplete()
@@ -208,6 +214,23 @@ namespace EE::Animation
         }
 
         m_characterPoseUpdateRequested = true;
+
+        //-------------------------------------------------------------------------
+
+        if ( m_workspaceResource.IsLoaded() )
+        {
+            m_timelineEditor.SetLength( (float) m_workspaceResource->GetNumFrames() - 1 );
+            m_timelineEditor.SetTimeUnitConversionFactor( m_workspaceResource->IsSingleFrameAnimation() ? 30.0f : m_workspaceResource->GetFPS() );
+        }
+    }
+
+    void AnimationClipWorkspace::OnInitialResourceLoadCompleted()
+    {
+        if ( m_workspaceResource.IsLoaded() )
+        {
+            m_timelineEditor.SetLength( (float) m_workspaceResource->GetNumFrames() - 1 );
+            m_timelineEditor.SetTimeUnitConversionFactor( m_workspaceResource->IsSingleFrameAnimation() ? 30 : m_workspaceResource->GetFPS() );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -258,11 +281,6 @@ namespace EE::Animation
 
     void AnimationClipWorkspace::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        if ( IsResourceLoaded() )
-        {
-            m_eventTimeline.SetAnimationInfo( m_workspaceResource->GetNumFrames(), m_workspaceResource->GetFPS() );
-        }
-
         // Enable the global timeline keyboard shortcuts
         if ( isFocused && !m_isDescriptorWindowFocused && !m_isDetailsWindowFocused )
         {
@@ -282,6 +300,7 @@ namespace EE::Animation
             {
                 m_currentAnimTime = percentageThroughAnimation;
                 m_pAnimationComponent->SetAnimTime( percentageThroughAnimation );
+                m_pAnimationComponent->SetSkeletonLOD( m_skeletonLOD );
                 m_characterTransform = m_isRootMotionEnabled ? m_workspaceResource->GetRootTransform( percentageThroughAnimation ) : Transform::Identity;
 
                 // Update character preview position
@@ -310,6 +329,12 @@ namespace EE::Animation
 
             ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
 
+            bool isUsingLowLOD = m_skeletonLOD == Skeleton::LOD::Low;
+            if ( ImGui::Checkbox( "Use Low Skeleton LOD", &isUsingLowLOD ) )
+            {
+                m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
+            }
+
             //-------------------------------------------------------------------------
 
             ImGuiX::TextSeparator( "Capsule Debug" );
@@ -332,41 +357,12 @@ namespace EE::Animation
 
             ImGui::EndMenu();
         }
+    }
 
-        // Help
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::BeginMenu( EE_ICON_HELP_CIRCLE_OUTLINE" Help" ) )
-        {
-            auto DrawHelpRow = [] ( char const* pLabel, char const* pHotkey )
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
-                    ImGui::Text( pLabel );
-                }
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                    ImGui::Text( pHotkey );
-                }
-            };
-
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::BeginTable( "HelpTable", 2 ) )
-            {
-                DrawHelpRow( "Navigate Timeline", "Left/Right arrows" );
-                DrawHelpRow( "Create Event", "Enter (with track selected)" );
-
-                ImGui::EndTable();
-            }
-
-            ImGui::EndMenu();
-        }
+    void AnimationClipWorkspace::DrawHelpMenu() const
+    {
+        DrawHelpTextRow( "Navigate Timeline", "Left/Right arrows" );
+        DrawHelpTextRow( "Create Event", "Enter (with track selected)" );
     }
 
     void AnimationClipWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -378,26 +374,6 @@ namespace EE::Animation
         if ( !IsResourceLoaded() )
         {
             return;
-        }
-
-        // Play Button
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-
-        if ( m_timelineEditor.IsPlaying() )
-        {
-            if ( ImGuiX::IconButton( EE_ICON_PAUSE, "Pause", Colors::Yellow, ImVec2( 70, 0 ) ) )
-            {
-                m_timelineEditor.Pause();
-            }
-        }
-        else
-        {
-            if ( ImGuiX::IconButton( EE_ICON_PLAY, "Play", Colors::Lime, ImVec2( 70, 0 ) ) )
-            {
-                m_timelineEditor.Play();
-            }
         }
 
         // Clip Info
@@ -415,7 +391,7 @@ namespace EE::Animation
             ImGui::Text( "Avg Linear Velocity: %.2f m/s", m_workspaceResource->GetAverageLinearVelocity() );
             ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_workspaceResource->GetAverageAngularVelocity().ToFloat() );
             ImGui::Text( "Distance Covered: %.2fm", m_workspaceResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
-            ImGui::Text( "Frame: %.2f/%d (%.2f/%d)", frameTime.ToFloat(), numFrames - 1, frameTime.ToFloat() + 1.0f, numFrames ); // Draw offset time too to match DCC timelines that start at 1
+            ImGui::Text( "Frame: %.2f/%d", frameTime.ToFloat(), numFrames - 1 );
             ImGui::Text( "Time: %.2fs/%0.2fs", m_timelineEditor.GetPlayheadTimeAsPercentage().ToFloat() * m_workspaceResource->GetDuration(), m_workspaceResource->GetDuration().ToFloat() );
             ImGui::Text( "Percentage: %.2f%%", m_timelineEditor.GetPlayheadTimeAsPercentage().ToFloat() * 100 );
 

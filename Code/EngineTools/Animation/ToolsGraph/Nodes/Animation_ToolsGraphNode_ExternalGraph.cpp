@@ -15,7 +15,10 @@ namespace EE::Animation::GraphNodes
 
     void ExternalGraphToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
     {
-        m_name = GetUniqueSlotName( "External Graph" );
+        FlowToolsNode::Initialize( pParentGraph );
+
+        EE_ASSERT( pParentGraph != nullptr );
+        m_name = GetUniqueSlotName( pParentGraph->GetRootGraph(), "External Graph" );
     }
 
     int16_t ExternalGraphToolsNode::Compile( GraphCompilationContext& context ) const
@@ -32,7 +35,14 @@ namespace EE::Animation::GraphNodes
     void ExternalGraphToolsNode::SetName( String const& newName )
     {
         EE_ASSERT( IsRenameable() );
-        m_name = GetUniqueSlotName( newName );
+        if ( GetRootGraph() != nullptr )
+        {
+            m_name = GetUniqueSlotName( GetRootGraph(), newName );
+        }
+        else
+        {
+            m_name = newName;
+        }
     }
 
     void ExternalGraphToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
@@ -64,7 +74,7 @@ namespace EE::Animation::GraphNodes
             ImGui::Text( EE_ICON_NEEDLE" External Graph" );
         }
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y );
 
         //-------------------------------------------------------------------------
 
@@ -75,12 +85,14 @@ namespace EE::Animation::GraphNodes
         FlowToolsNode::DrawExtraControls( ctx, pUserContext );
     }
 
-    String ExternalGraphToolsNode::GetUniqueSlotName( String const& desiredName )
+    String ExternalGraphToolsNode::GetUniqueSlotName( VisualGraph::BaseGraph* pRootGraph, String const& desiredName )
     {
+        EE_ASSERT( pRootGraph != nullptr && pRootGraph->IsRootGraph() );
+
         // Ensure that the slot name is unique within the same graph
         int32_t cnt = 0;
         String uniqueName = desiredName;
-        auto const externalSlotNodes = GetRootGraph()->FindAllNodesOfType<ExternalGraphToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
+        auto const externalSlotNodes = pRootGraph->FindAllNodesOfType<ExternalGraphToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
         for ( int32_t i = 0; i < (int32_t) externalSlotNodes.size(); i++ )
         {
             if ( externalSlotNodes[i] == this )
@@ -102,7 +114,7 @@ namespace EE::Animation::GraphNodes
     void ExternalGraphToolsNode::PostPaste()
     {
         FlowToolsNode::PostPaste();
-        m_name = GetUniqueSlotName( m_name );
+        m_name = GetUniqueSlotName( GetRootGraph(), m_name );
     }
 
     void ExternalGraphToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
@@ -127,7 +139,7 @@ namespace EE::Animation::GraphNodes
     void ExternalGraphToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
     {
         FlowToolsNode::PostPropertyEdit( pPropertyEdited );
-        m_name = GetUniqueSlotName( m_name );
+        m_name = GetUniqueSlotName( GetRootGraph(), m_name );
     }
     #endif
 }

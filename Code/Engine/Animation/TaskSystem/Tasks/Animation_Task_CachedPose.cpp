@@ -15,7 +15,7 @@ namespace EE::Animation::Tasks
 
     void CachedPoseWriteTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pCachedPoseBuffer = context.m_posePool.GetCachedPoseBuffer( m_cachedPoseID );
         PoseBuffer const* pPoseBuffer = TransferDependencyPoseBuffer( context, 0 );
         EE_ASSERT( pPoseBuffer->m_pose.IsPoseSet() );
@@ -35,7 +35,7 @@ namespace EE::Animation::Tasks
 
     void CachedPoseReadTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pCachedPoseBuffer = context.m_posePool.GetCachedPoseBuffer( m_cachedPoseID );
         auto pPoseBuffer = GetNewPoseBuffer( context );
 

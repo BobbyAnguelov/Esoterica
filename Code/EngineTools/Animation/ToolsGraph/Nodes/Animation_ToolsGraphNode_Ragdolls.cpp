@@ -130,7 +130,7 @@ namespace EE::Animation::GraphNodes
 
     bool SimulatedRagdollToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
     {
-        return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+        return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
     }
 
     int16_t SimulatedRagdollToolsNode::Compile( GraphCompilationContext& context ) const

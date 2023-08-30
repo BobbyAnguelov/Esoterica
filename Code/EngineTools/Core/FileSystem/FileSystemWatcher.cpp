@@ -20,7 +20,7 @@
 #if _WIN32
 namespace EE::FileSystem
 {
-    FileSystemWatcher::FileSystemWatcher()
+    Watcher::Watcher()
     {
         // Create overlapped event
         OVERLAPPED* pOverlappedEvent = EE::New<OVERLAPPED>();
@@ -28,9 +28,8 @@ namespace EE::FileSystem
         m_pOverlappedEvent = pOverlappedEvent;
     }
 
-    FileSystemWatcher::~FileSystemWatcher()
+    Watcher::~Watcher()
     {
-        EE_ASSERT( m_changeListeners.empty() );
         StopWatching();
 
         // Delete overlapped event
@@ -38,22 +37,11 @@ namespace EE::FileSystem
         EE::Delete( pOverlappedEvent );
     }
 
-    void FileSystemWatcher::RegisterChangeListener( IFileSystemChangeListener* pListener )
-    {
-        EE_ASSERT( pListener != nullptr && !VectorContains( m_changeListeners, pListener ) );
-        m_changeListeners.emplace_back( pListener );
-    }
-
-    void FileSystemWatcher::UnregisterChangeListener( IFileSystemChangeListener* pListener )
-    {
-        EE_ASSERT( pListener != nullptr && VectorContains( m_changeListeners, pListener ) );
-        m_changeListeners.erase_first_unsorted( pListener );
-    }
-
-    bool FileSystemWatcher::StartWatching( Path const& directoryToWatch )
+    bool Watcher::StartWatching( Path const& directoryToWatch )
     {
         EE_ASSERT( !IsWatching() );
         EE_ASSERT( directoryToWatch.IsValid() && directoryToWatch.IsDirectoryPath() );
+        m_directoryToWatch = directoryToWatch;
 
         // Get directory handle
         //-------------------------------------------------------------------------
@@ -83,11 +71,12 @@ namespace EE::FileSystem
             return false;
         }
 
-        m_directoryToWatch = directoryToWatch;
+        RequestListOfDirectoryChanges();
+
         return true;
     }
 
-    void FileSystemWatcher::StopWatching()
+    void Watcher::StopWatching()
     {
         auto pOverlappedEvent = reinterpret_cast<OVERLAPPED*>( m_pOverlappedEvent );
 
@@ -95,19 +84,8 @@ namespace EE::FileSystem
         if ( m_requestPending )
         {
             CancelIo( m_pDirectoryHandle );
-            GetOverlappedResult( m_pDirectoryHandle, pOverlappedEvent, &m_numBytesReturned, TRUE);
+            GetOverlappedResult( m_pDirectoryHandle, pOverlappedEvent, &m_numBytesReturned, TRUE );
         }
-
-        // Send all pending notifications
-        for ( auto& event : m_pendingFileModificationEvents )
-        {
-            for ( auto pChangeHandler : m_changeListeners )
-            {
-                pChangeHandler->OnFileModified( event.m_path );
-            }
-        }
-
-        m_pendingFileModificationEvents.clear();
 
         //-------------------------------------------------------------------------
 
@@ -118,57 +96,34 @@ namespace EE::FileSystem
         m_pDirectoryHandle = nullptr;
     }
 
-    bool FileSystemWatcher::Update()
+    bool Watcher::Update()
     {
         EE_ASSERT( IsWatching() );
-
-        auto pOverlappedEvent = reinterpret_cast<OVERLAPPED*>( m_pOverlappedEvent );
-
-        bool changeDetected = false;
-
-        if ( !m_requestPending )
-        {
-            m_requestPending = ReadDirectoryChangesExW
-            (
-                m_pDirectoryHandle,
-                m_resultBuffer,
-                ResultBufferSize,
-                TRUE,
-                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION,
-                &m_numBytesReturned,
-                pOverlappedEvent,
-                NULL,
-                ReadDirectoryNotifyExtendedInformation
-            );
-
-            EE_ASSERT( m_requestPending );
-        }
-        else // Wait for request to complete
-        {
-            if ( GetOverlappedResult( m_pDirectoryHandle, pOverlappedEvent, &m_numBytesReturned, FALSE ) )
-            {
-                if ( m_numBytesReturned != 0 )
-                {
-                    ProcessResults();
-                }
-
-                m_requestPending = false;
-                changeDetected = true;
-            }
-            else // Error occurred or request not complete
-            {
-                if ( GetLastError() != ERROR_IO_INCOMPLETE )
-                {
-                    EE_LOG_FATAL_ERROR( "FileSystem", "FileSystemWatcher", "Failed to get overlapped results: %s", Platform::Win32::GetLastErrorMessage().c_str() );
-                    EE_HALT();
-                }
-            }
-        }
+        m_unhandledEvents.clear();
 
         //-------------------------------------------------------------------------
 
-        ProcessPendingModificationEvents();
-        return changeDetected;
+        auto pOverlappedEvent = reinterpret_cast<OVERLAPPED*>( m_pOverlappedEvent );
+        if ( GetOverlappedResult( m_pDirectoryHandle, pOverlappedEvent, &m_numBytesReturned, FALSE ) )
+        {
+            EE_ASSERT( m_numBytesReturned > 0 ); // 0 means we've overflowed the allocated buffer - we dont support that atm
+            m_requestPending = false;
+
+            ProcessListOfDirectoryChanges();
+            RequestListOfDirectoryChanges();
+
+            return true;
+        }
+        else // Error occurred or request not complete
+        {
+            if ( GetLastError() != ERROR_IO_INCOMPLETE ) // GetOverlappedResults returns 'ERROR_IO_INCOMPLETE' while the operation is pending
+            {
+                EE_LOG_FATAL_ERROR( "FileSystem", "FileSystemWatcher", "Failed to get overlapped results: %s", Platform::Win32::GetLastErrorMessage().c_str() );
+                EE_HALT();
+            }
+
+            return false;
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -193,137 +148,84 @@ namespace EE::FileSystem
         }
     }
 
-    void FileSystemWatcher::ProcessResults()
+    void Watcher::RequestListOfDirectoryChanges()
     {
-        Path path, secondPath;
+        auto pOverlappedEvent = reinterpret_cast<OVERLAPPED*>( m_pOverlappedEvent );
 
-        _FILE_NOTIFY_EXTENDED_INFORMATION* pNotify = nullptr;
-        size_t offset = 0;
+        m_requestPending = ReadDirectoryChangesExW
+        (
+            m_pDirectoryHandle,
+            m_resultBuffer,
+            s_resultBufferSize,
+            TRUE,
+            FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION,
+            &m_numBytesReturned,
+            pOverlappedEvent,
+            NULL,
+            ReadDirectoryNotifyExtendedInformation
+        );
 
-        do
-        {
-            pNotify = reinterpret_cast<_FILE_NOTIFY_EXTENDED_INFORMATION*>( m_resultBuffer + offset );
-
-            switch ( pNotify->Action )
-            {
-                case FILE_ACTION_ADDED:
-                {
-                    path = GetFileSystemPath( m_directoryToWatch, pNotify );
-
-                    if ( path.IsDirectoryPath() )
-                    {
-                        for ( auto pChangeHandler : m_changeListeners )
-                        {
-                            pChangeHandler->OnDirectoryCreated( path );
-                        }
-                    }
-                    else
-                    {
-                        for ( auto pChangeHandler : m_changeListeners )
-                        {
-                            pChangeHandler->OnFileCreated( path );
-                        }
-                    }
-                }
-                break;
-
-                case FILE_ACTION_REMOVED:
-                {
-                    path = GetFileSystemPath( m_directoryToWatch, pNotify );
-
-                    if ( path.IsDirectoryPath() )
-                    {
-                        for ( auto pChangeHandler : m_changeListeners )
-                        {
-                            pChangeHandler->OnDirectoryDeleted( path );
-                        }
-                    }
-                    else
-                    {
-                        for ( auto pChangeHandler : m_changeListeners )
-                        {
-                            pChangeHandler->OnFileDeleted( path );
-                        }
-                    }
-                }
-                break;
-
-                case FILE_ACTION_MODIFIED:
-                {
-                    path = GetFileSystemPath( m_directoryToWatch, pNotify );
-
-                    if ( path.IsFilePath() )
-                    {
-                        auto predicate = [] ( FileModificationEvent const& event, Path const& path )
-                        {
-                            return event.m_path == path;
-                        };
-
-                        if ( !VectorContains( m_pendingFileModificationEvents, path, predicate ) )
-                        {
-                            m_pendingFileModificationEvents.emplace_back( FileModificationEvent( path ) );
-                        }
-                    }
-                }
-                break;
-
-                case FILE_ACTION_RENAMED_OLD_NAME:
-                {
-                    // Get old name
-                    path = GetFileSystemPath( m_directoryToWatch, pNotify );
-
-                    // Get new name
-                    EE_ASSERT( pNotify->NextEntryOffset != 0 );
-                    offset += pNotify->NextEntryOffset;
-                    pNotify = reinterpret_cast<_FILE_NOTIFY_EXTENDED_INFORMATION*>( m_resultBuffer + offset );
-                    EE_ASSERT( pNotify->Action == FILE_ACTION_RENAMED_NEW_NAME );
-
-                    secondPath = GetFileSystemPath( m_directoryToWatch, pNotify );
-
-                    //-------------------------------------------------------------------------
-
-                    if ( secondPath.IsDirectoryPath() )
-                    {
-                        for ( auto pChangeHandler : m_changeListeners )
-                        {
-                            pChangeHandler->OnDirectoryRenamed( path, secondPath );
-                        }
-                    }
-                    else
-                    {
-                        for ( auto pChangeHandler : m_changeListeners )
-                        {
-                            pChangeHandler->OnFileRenamed( path, secondPath );
-                        }
-                    }
-                }
-                break;
-            }
-
-            offset += pNotify->NextEntryOffset;
-
-        } while ( pNotify->NextEntryOffset != 0 );
-
-        // Clear the result buffer
-        Memory::MemsetZero( m_resultBuffer, ResultBufferSize );
+        EE_ASSERT( m_requestPending );
     }
 
-    void FileSystemWatcher::ProcessPendingModificationEvents()
+    void Watcher::ProcessListOfDirectoryChanges()
     {
-        for ( int32_t i = (int32_t) m_pendingFileModificationEvents.size() - 1; i >= 0; i-- )
+        if ( m_numBytesReturned != 0 )
         {
-            auto& pendingEvent = m_pendingFileModificationEvents[i];
+            _FILE_NOTIFY_EXTENDED_INFORMATION* pNotify = nullptr;
+            size_t offset = 0;
 
-            Milliseconds const elapsedTime = PlatformClock::GetTimeInMilliseconds() - pendingEvent.m_startTime;
-            if ( elapsedTime > FileModificationBatchTimeout )
+            do
             {
-                for ( auto pChangeHandler : m_changeListeners )
+                pNotify = reinterpret_cast<_FILE_NOTIFY_EXTENDED_INFORMATION*>( m_resultBuffer + offset );
+
+                Event& newEvent = m_unhandledEvents.emplace_back();
+
+                switch ( pNotify->Action )
                 {
-                    pChangeHandler->OnFileModified( pendingEvent.m_path );
+                    case FILE_ACTION_ADDED:
+                    {
+                        newEvent.m_path = GetFileSystemPath( m_directoryToWatch, pNotify );
+                        newEvent.m_type = ( newEvent.m_path.IsDirectoryPath() ) ? Event::DirectoryCreated : Event::FileCreated;
+                    }
+                    break;
+
+                    case FILE_ACTION_REMOVED:
+                    {
+                        newEvent.m_path = GetFileSystemPath( m_directoryToWatch, pNotify );
+                        newEvent.m_type = ( newEvent.m_path.IsDirectoryPath() ) ? Event::DirectoryDeleted : Event::FileDeleted;
+                    }
+                    break;
+
+                    case FILE_ACTION_MODIFIED:
+                    {
+                        newEvent.m_path = GetFileSystemPath( m_directoryToWatch, pNotify );
+                        newEvent.m_type = ( newEvent.m_path.IsDirectoryPath() ) ? Event::DirectoryModified : Event::FileModified;
+                    }
+                    break;
+
+                    case FILE_ACTION_RENAMED_OLD_NAME:
+                    {
+                        // Get old name and type
+                        newEvent.m_oldPath = GetFileSystemPath( m_directoryToWatch, pNotify );
+                        newEvent.m_type = ( newEvent.m_oldPath.IsDirectoryPath() ) ? Event::DirectoryRenamed : Event::FileRenamed;
+
+                        // Get new name
+                        EE_ASSERT( pNotify->NextEntryOffset != 0 );
+                        offset += pNotify->NextEntryOffset;
+                        pNotify = reinterpret_cast<_FILE_NOTIFY_EXTENDED_INFORMATION*>( m_resultBuffer + offset );
+                        EE_ASSERT( pNotify->Action == FILE_ACTION_RENAMED_NEW_NAME );
+                        newEvent.m_path = GetFileSystemPath( m_directoryToWatch, pNotify );
+                    }
+                    break;
                 }
 
-                m_pendingFileModificationEvents.erase_unsorted( m_pendingFileModificationEvents.begin() + i );
-            }
+                offset += pNotify->NextEntryOffset;
+
+            } while ( pNotify->NextEntryOffset != 0 );
+
+            // Clear the result buffer
+            Memory::MemsetZero( m_resultBuffer, s_resultBufferSize );
         }
     }
 }

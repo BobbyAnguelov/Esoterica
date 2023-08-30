@@ -376,46 +376,6 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
-    {
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth( 48 );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4.0f, 4.0f ) );
-        if ( ImGui::BeginCombo( "##Help", EE_ICON_HELP_CIRCLE_OUTLINE, ImGuiComboFlags_HeightLarge ) )
-        {
-            auto DrawHelpRow = [] ( char const* pLabel, char const* pHotkey )
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
-                    ImGui::Text( pLabel );
-                }
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                    ImGui::Text( pHotkey );
-                }
-            };
-
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::BeginTable( "HelpTable", 2 ) )
-            {
-                DrawHelpRow( "Impulse", "Hold Ctrl" );
-                DrawHelpRow( "Spawn Collision Object", "Hold Shift" );
-
-                ImGui::EndTable();
-            }
-
-            ImGui::EndCombo();
-        }
-        ImGuiX::ItemTooltip( "Help" );
-        ImGui::PopStyleVar();
-    }
-
     void RagdollWorkspace::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
     {
         TWorkspace<RagdollDefinition>::DrawViewportOverlayElements( context, pViewport );
@@ -766,7 +726,7 @@ namespace EE::Physics
             bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform, m_pPose );
 
             // Apply physics blend weight
-            Animation::Blender::LocalBlend( m_pFinalPose, m_pPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
+            Animation::Blender::LocalBlend( Animation::Skeleton::LOD::High, m_pFinalPose, m_pPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
 
             // Draw ragdoll pose
             if ( m_drawRagdoll )
@@ -793,117 +753,199 @@ namespace EE::Physics
         }
     }
 
-    void RagdollWorkspace::DrawDialogs( UpdateContext const& context )
+    bool RagdollWorkspace::DrawCreateProfileDialog( UpdateContext const& context )
     {
-        constexpr static char const* const dialogNames[2] = { "Create New Profile", "Rename Profile" };
-
+        // Validate current name in buffer
         //-------------------------------------------------------------------------
 
-        bool completeOperation = false;
-        bool isDialogOpen = m_activeOperation != Operation::None;
-        if ( isDialogOpen )
+        bool isValidName = strlen( m_profileNameBuffer ) > 0;
+        if ( isValidName )
         {
-            char const* pDialogName = ( m_activeOperation == Operation::CreateProfile ) ? dialogNames[0] : dialogNames[1];
-
-            ImGui::OpenPopup( pDialogName );
-            ImGui::SetNextWindowSize( ImVec2( 400, 90 ) );
-            if ( ImGui::BeginPopupModal( pDialogName, &isDialogOpen, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar ) )
+            StringID const potentialID( m_profileNameBuffer );
+            for ( auto const& profile : m_ragdollDefinition.m_profiles )
             {
-                // Validate current name in buffer
-                //-------------------------------------------------------------------------
-
-                bool isValidName = strlen( m_profileNameBuffer ) > 0;
-                if ( isValidName )
+                if ( profile.m_ID == potentialID )
                 {
-                    StringID const potentialID( m_profileNameBuffer );
-                    for ( auto const& profile : m_ragdollDefinition.m_profiles )
-                    {
-                        if ( profile.m_ID == potentialID )
-                        {
-                            isValidName = false;
-                            break;
-                        }
-                    }
+                    isValidName = false;
+                    break;
                 }
-
-                // Draw UI
-                //-------------------------------------------------------------------------
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Name: " );
-                ImGui::SameLine();
-
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red );
-                completeOperation = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
-                ImGui::PopStyleColor();
-
-                ImGui::NewLine();
-                ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
-
-                ImGui::BeginDisabled( !isValidName );
-                if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
-                {
-                    completeOperation = true;
-                }
-                ImGui::EndDisabled();
-
-                ImGui::SameLine();
-                if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
-                {
-                    m_activeOperation = Operation::None;
-                    ImGui::CloseCurrentPopup();
-                }
-
-                ImGui::EndPopup();
             }
         }
 
-        // If the dialog was closed (i.e. operation canceled)
-        if ( !isDialogOpen )
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        bool shouldCloseDialog = false;
+        bool completeAction = false;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Name: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( -1 );
+        ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText : Colors::Red );
+        completeAction = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
+        ImGui::PopStyleColor();
+
+        ImGui::NewLine();
+        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
+
+        ImGui::BeginDisabled( !isValidName );
+        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
         {
-            m_activeOperation = Operation::None;
+            completeAction = true;
+            shouldCloseDialog = true;
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
+        {
+            shouldCloseDialog = true;
         }
 
         //-------------------------------------------------------------------------
 
-        if ( completeOperation )
+        if ( completeAction )
         {
-            switch ( m_activeOperation )
-            {
-                case Operation::CreateProfile:
-                {
-                    StringID const newProfileID = CreateProfile( m_profileNameBuffer );
-                    SetActiveProfile( newProfileID );
-                }
-                break;
-
-                case Operation::DuplicateProfile:
-                {
-                    StringID const newProfileID = DuplicateProfile( m_activeProfileID, m_profileNameBuffer );
-                    SetActiveProfile( newProfileID );
-                }
-                break;
-
-                case Operation::RenameProfile:
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    auto pProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-                    EE_ASSERT( pProfile != nullptr );
-                    pProfile->m_ID = StringID( m_profileNameBuffer );
-                    SetActiveProfile( pProfile->m_ID );
-                }
-                break;
-
-                default:
-                {
-                    EE_UNREACHABLE_CODE();
-                }
-                break;
-            }
-
-            m_activeOperation = Operation::None;
+            StringID const newProfileID = CreateProfile( m_profileNameBuffer );
+            SetActiveProfile( newProfileID );
         }
+
+        //-------------------------------------------------------------------------
+
+        return !shouldCloseDialog;
+    }
+
+    bool RagdollWorkspace::DrawDuplicateProfileDialog( UpdateContext const& context )
+    {
+        // Validate current name in buffer
+        //-------------------------------------------------------------------------
+
+        bool isValidName = strlen( m_profileNameBuffer ) > 0;
+        if ( isValidName )
+        {
+            StringID const potentialID( m_profileNameBuffer );
+            for ( auto const& profile : m_ragdollDefinition.m_profiles )
+            {
+                if ( profile.m_ID == potentialID )
+                {
+                    isValidName = false;
+                    break;
+                }
+            }
+        }
+
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        bool shouldCloseDialog = false;
+        bool completeAction = false;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Name: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( -1 );
+        ImGui::PushStyleColor( ImGuiCol_Text, ( isValidName ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4() );
+        completeAction = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
+        ImGui::PopStyleColor();
+
+        ImGui::NewLine();
+        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
+
+        ImGui::BeginDisabled( !isValidName );
+        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
+        {
+            completeAction = true;
+            shouldCloseDialog = true;
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
+        {
+            shouldCloseDialog = true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( completeAction )
+        {
+            StringID const newProfileID = DuplicateProfile( m_activeProfileID, m_profileNameBuffer );
+            SetActiveProfile( newProfileID );
+        }
+
+        //-------------------------------------------------------------------------
+
+        return !shouldCloseDialog;
+    }
+
+    bool RagdollWorkspace::DrawRenameProfileDialog( UpdateContext const& context )
+    {
+        // Validate current name in buffer
+        //-------------------------------------------------------------------------
+
+        bool isValidName = strlen( m_profileNameBuffer ) > 0;
+        if ( isValidName )
+        {
+            StringID const potentialID( m_profileNameBuffer );
+            for ( auto const& profile : m_ragdollDefinition.m_profiles )
+            {
+                if ( profile.m_ID == potentialID )
+                {
+                    isValidName = false;
+                    break;
+                }
+            }
+        }
+
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        bool shouldCloseDialog = false;
+        bool completeAction = false;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Name: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( -1 );
+        ImGui::PushStyleColor( ImGuiCol_Text, ( isValidName ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4() );
+        completeAction = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
+        ImGui::PopStyleColor();
+
+        ImGui::NewLine();
+        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
+
+        ImGui::BeginDisabled( !isValidName );
+        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
+        {
+            completeAction = true;
+            shouldCloseDialog = true;
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
+        {
+            shouldCloseDialog = true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( completeAction )
+        {
+            ScopedRagdollSettingsModification const sdm( this );
+            auto pProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
+            EE_ASSERT( pProfile != nullptr );
+            pProfile->m_ID = StringID( m_profileNameBuffer );
+            SetActiveProfile( pProfile->m_ID );
+        }
+
+        //-------------------------------------------------------------------------
+
+        return !shouldCloseDialog;
     }
 
     //-------------------------------------------------------------------------
@@ -1718,7 +1760,7 @@ namespace EE::Physics
             {
                 auto const newUniqueName = GetUniqueProfileName( "Profile" );
                 Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
-                m_activeOperation = Operation::CreateProfile;
+                m_dialogManager.CreateModalDialog( "Create Profile", [this] ( UpdateContext const& context ) { return DrawCreateProfileDialog( context ); } );
             }
 
             //-------------------------------------------------------------------------
@@ -1728,7 +1770,7 @@ namespace EE::Physics
             {
                 auto const newUniqueName = GetUniqueProfileName( m_activeProfileID.c_str() );
                 Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
-                m_activeOperation = Operation::DuplicateProfile;
+                m_dialogManager.CreateModalDialog( "Rename Profile", [this] ( UpdateContext const& context ) { return DrawDuplicateProfileDialog( context ); } );
             }
 
             //-------------------------------------------------------------------------
@@ -1737,7 +1779,7 @@ namespace EE::Physics
             if ( ImGuiX::ColoredButton( Colors::RoyalBlue, Colors::White, EE_ICON_RENAME_BOX"##Rename", ImVec2( iconButtonWidth, 0 ) ) )
             {
                 Printf( m_profileNameBuffer, 256, m_activeProfileID.c_str() );
-                m_activeOperation = Operation::RenameProfile;
+                m_dialogManager.CreateModalDialog( "Rename Profile", [this] ( UpdateContext const& context ) { return DrawRenameProfileDialog( context ); } );
             }
             ImGuiX::ItemTooltip( "Rename Current Profile" );
 

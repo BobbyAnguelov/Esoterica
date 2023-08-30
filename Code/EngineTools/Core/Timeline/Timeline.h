@@ -32,26 +32,39 @@ namespace EE::Timeline
 
     class TrackContext
     {
-        friend class TimelineData;
+        friend class TimelineEditor;
 
     public:
 
         TrackContext() = default;
 
+        TrackContext( float length, float unitsPerSecond = 1.0f )
+            : m_timelineLength( length )
+            , m_unitsPerSeconds( unitsPerSecond )
+        {
+            EE_ASSERT( m_timelineLength > 0 );
+            EE_ASSERT( m_unitsPerSeconds > 0 );
+        }
+
         // Start a timeline modification action (starts recording into the undo buffer)
-        void BeginModification() const { m_beginModification(); }
+        void BeginModification() const;
 
         // Ends a timeline modification action (end recording into the undo buffer)
-        void EndModification() const { m_endModification(); }
+        void EndModification() const;
 
         // Get the current timeline length
         EE_FORCE_INLINE float const& GetTimelineLength() const { return m_timelineLength; }
 
+        // Get the units per second conversion factor
+        EE_FORCE_INLINE float const& GetUnitsPerSecondConversionFactor() const { return m_unitsPerSeconds; }
+
     private:
 
-        float               m_timelineLength;
+        float               m_timelineLength = 0.0f;
+        float               m_unitsPerSeconds = 1.0f;
         TFunction<void()>   m_beginModification;
         TFunction<void()>   m_endModification;
+        mutable int32_t     m_beginModificationCallCount = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -138,6 +151,7 @@ namespace EE::Timeline
 
         EE_REFLECT() 
         float                       m_duration = 0.0f; // Timeline units
+
         IReflectedType*             m_pData = nullptr;
         bool                        m_isDirty = false;
     };
@@ -161,7 +175,9 @@ namespace EE::Timeline
         enum class ItemState
         {
             None,
+            Hovered,
             Selected,
+            SelectedAndHovered,
             Edited
         };
 
@@ -191,7 +207,7 @@ namespace EE::Timeline
         // Get the name of this track type
         virtual const char* GetTypeName() const;
 
-        // Gets the track's name (some tracks are renameable - for non-renameable tracks this is the same as the type label)
+        // Gets the track's name (some tracks are renamable - for non-renameable tracks this is the same as the type label)
         // Note: names are not guaranteed to be unique and are only there to help user organize multiple tracks of the same type.
         virtual const char* GetName() const { return GetTypeName(); }
 
@@ -217,11 +233,17 @@ namespace EE::Timeline
         // Draw the custom context menu options - return true if you've made major changes to the the track i.e. deleted an item
         virtual bool DrawContextMenu( TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) { return false; }
 
+        // Calculate the rect needed to draw this item
+        virtual ImRect CalculateImmediateItemRect( TrackItem* pItem, Float2 const& itemPos ) const;
+
+        // Calculate the rect needed to draw this item
+        virtual ImRect CalculateDurationItemRect( TrackItem* pItem, Float2 const& itemStartPos, float itemWidth ) const;
+
         // Draws an immediate item and returns the hover rect for the drawn item. This rect defines drag zone.
-        virtual ImRect DrawImmediateItem( TrackContext const& context, ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemPos, ItemState itemState );
+        virtual void DrawImmediateItem( TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, TrackItem* pItem );
 
         // Draws a duration item and returns the hover/interaction rect for the drawn item. This rect defines the resize handle locations and drag zone.
-        virtual ImRect DrawDurationItem( TrackContext const& context, ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState );
+        virtual void DrawDurationItem( TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, TrackItem* pItem );
 
         // Get extra info for a given item
         virtual InlineString GetItemTooltip( TrackItem* pItem ) const { return InlineString(); }
@@ -270,7 +292,9 @@ namespace EE::Timeline
 
         virtual void DrawExtraHeaderWidgets( ImRect const& widgetsRect ) {}
 
-        static Color GetItemBackgroundColor( ItemState itemState, bool isHovered );
+        static Color GetItemBackgroundColor( ItemState itemState );
+
+        Color GetItemDisplayColor( TrackItem const* pItem, ItemState itemState );
 
         int32_t GetItemIndex( TrackItem const* pItem ) const;
 
@@ -302,7 +326,7 @@ namespace EE::Timeline
         // The actual items
         TVector<TrackItem*>         m_items;
 
-        // String set via validation 
+        // String set via validation
         mutable String              m_validationStatueMessage;
     };
 
@@ -321,8 +345,7 @@ namespace EE::Timeline
 
     public:
 
-        TimelineData( TFunction<void()>& onBeginModification, TFunction<void()>& onEndModification );
-        TimelineData( TFunction<void()>&& onBeginModification, TFunction<void()>&& onEndModification ) : TimelineData( onBeginModification, onEndModification ) {}
+        TimelineData() = default;
         virtual ~TimelineData();
 
         // Frees all tracks - not part of undo/redo
@@ -334,22 +357,11 @@ namespace EE::Timeline
         // Get all the track types that are allowed to be added to this timeline
         inline TVector<TypeSystem::TypeInfo const*> const& GetAllowedTrackTypes() const { return m_allowedTrackTypes; }
 
-        // Convert from seconds to timeline units - allows for preview in the tool - common will convert from seconds to frames
-        virtual float ConvertSecondsToTimelineUnit( Seconds const inTime ) const { return inTime.ToFloat(); }
-
         // Get the overall status for all tracks
-        Track::Status GetValidationStatus() const;
-
-        // Get the length for this timeline
-        EE_FORCE_INLINE float const& GetLength() const { return m_length; }
-
-        // Set the overall time range for this timeline
-        inline void SetLength( float length ) { EE_ASSERT( length > 0.0f ); m_length = length; m_context.m_timelineLength = length; }
+        Track::Status GetValidationStatus( TrackContext const& context ) const;
 
         // Tracks
         //-------------------------------------------------------------------------
-
-        inline TrackContext const& GetTrackContext() const { return m_context; }
 
         inline int32_t GetNumTracks() const { return (int32_t) m_tracks.size(); }
 
@@ -365,22 +377,22 @@ namespace EE::Timeline
         bool Contains( Track const* pTrack ) const;
 
         // Create a new track
-        Track* CreateTrack( TypeSystem::TypeInfo const* pTrackTypeInfo, ItemType itemType );
+        Track* CreateTrack( TrackContext const& context, TypeSystem::TypeInfo const* pTrackTypeInfo, ItemType itemType );
 
         // Delete a track and all items
-        void DeleteTrack( Track* pTrack );
+        void DeleteTrack( TrackContext const& context, Track* pTrack );
 
         // Items
         //-------------------------------------------------------------------------
 
         // Create a new item
-        void CreateItem( Track* pTrack, float itemStartTime );
+        void CreateItem( TrackContext const& context, Track* pTrack, float itemStartTime );
 
         // Delete an item
-        void DeleteItem( TrackItem* pItem );
+        void DeleteItem( TrackContext const& context, TrackItem* pItem );
 
         // Update the start/end time of an item
-        void UpdateItemTimeRange( TrackItem* pItem, FloatRange const& newTimeRange );
+        void UpdateItemTimeRange( TrackContext const& context, TrackItem* pItem, FloatRange const& newTimeRange );
 
         // Get the track that this item belongs to, if it exists
         Track* GetTrackForItem( TrackItem const* pItem );
@@ -391,15 +403,6 @@ namespace EE::Timeline
         // Does this container own this item?
         bool Contains( TrackItem const* pItem ) const;
 
-        // Undo/Redo
-        //-------------------------------------------------------------------------
-
-        // Start an operation that modifies timeline data
-        void BeginModification();
-
-        // End an operation that modifies timeline data
-        void EndModification();
-
         // Serialization
         //-------------------------------------------------------------------------
 
@@ -409,12 +412,6 @@ namespace EE::Timeline
     protected:
 
         TVector<Track*>                             m_tracks;
-        float                                       m_length = 0;
         TVector<TypeSystem::TypeInfo const*>        m_allowedTrackTypes;
-
-        TrackContext                                m_context;
-        TFunction<void()>                           m_onBeginModification;
-        TFunction<void()>                           m_onEndModification;
-        mutable int32_t                             m_beginModificationCallCount = 0;
     };
 }

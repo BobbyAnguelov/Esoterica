@@ -18,6 +18,7 @@
     <ClInclude Include="Encoding\Hash.h" />
     <ClInclude Include="Encoding\Quantization.h" />
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
+    <ClInclude Include="Imgui\ImguiXNotifications.h" />
     <ClInclude Include="Logging\LoggingSystem.h" />
     <ClInclude Include="Platform\Platform.h" />
     <ClInclude Include="Serialization\BitSerialization.h" />
@@ -500,6 +501,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Encoding\Hash.cpp" />
+    <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
     <ClCompile Include="Logging\LoggingSystem.cpp" />
     <ClCompile Include="Logging\Platform\Log_Win32.cpp" />
     <ClCompile Include="Math\Platform\Math_Win32.h" />

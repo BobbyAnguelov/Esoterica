@@ -193,7 +193,10 @@ namespace EE::Animation
     public:
 
         BoneMaskPool( Skeleton const* pSkeleton );
+        BoneMaskPool( BoneMaskPool const& ) = delete;
         ~BoneMaskPool();
+
+        BoneMaskPool& operator=( BoneMaskPool const& rhs ) = delete;
 
         #if EE_DEVELOPMENT_TOOLS
         void PerformValidation() const;
@@ -345,7 +348,12 @@ namespace EE::Animation
     public:
 
         BoneMaskTaskList() = default;
+
+        // Create with an initial task
         BoneMaskTaskList( BoneMaskTask const& task ) { m_tasks.emplace_back( task ); }
+
+        // Create from a blend between task lists
+        BoneMaskTaskList( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight );
 
         // Do we have any tasks
         inline bool HasTasks() const { return !m_tasks.empty(); }
@@ -391,14 +399,14 @@ namespace EE::Animation
             return GetLastTaskIdx();
         }
 
-        // Create a blend between two task lists
-        int8_t CreateBlend( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight );
+        // Set this task list to a blend between two task lists - returns the last task idx
+        int8_t SetToBlendBetweenTaskLists( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight );
 
-        // Create a blend between two task lists
-        int8_t CreateBlendToGeneratedMask( BoneMaskTaskList const& sourceTaskList, float maskWeight, float blendWeight );
+        // Create a blend from the current registered tasks to a generated mask - returns the last task idx
+        int8_t BlendToGeneratedMask( float generatedMaskWeight, float blendWeight );
 
-        // Create a blend between two task lists
-        int8_t CreateBlendFromGeneratedMask( BoneMaskTaskList const& targetTaskList, float maskWeight, float blendWeight );
+        // Create a blend from a generated mask to our current registered tasks - returns the last task idx
+        int8_t BlendFromGeneratedMask( float generatedMaskWeight, float blendWeight ) { return BlendToGeneratedMask( generatedMaskWeight, 1.0f - blendWeight ); }
 
         //-------------------------------------------------------------------------
 

@@ -28,18 +28,23 @@ namespace EE::Physics
 
     public:
 
-        EE_REFLECT() ResourcePath       m_sourcePath;
+        EE_REFLECT();
+        ResourcePath        m_sourcePath;
 
-        // Optional: Specifies a single sub-mesh/sub-item to use to generated the physics collision, if this is not set, all sub-items contained in the source will be combined into a single collision setup
-        EE_REFLECT() String             m_sourceItemName;
+        // Optional: specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
+        EE_REFLECT();
+        TVector<String>     m_meshesToInclude;
 
         // The default collision settings
-        EE_REFLECT() CollisionSettings  m_collisionSettings;
+        EE_REFLECT();
+        CollisionSettings   m_collisionSettings;
 
         // Optional: Specifies if the collision setup is a convex shape
-        EE_REFLECT() bool               m_isConvexMesh = false;
+        EE_REFLECT();
+        bool                m_isConvexMesh = false;
 
         // This allows you to perform non-uniform scaling/mirroring at import time since the engine does not support non-uniform scaling
-        EE_REFLECT() Float3             m_scale = Float3( 1.0f, 1.0f, 1.0f );
+        EE_REFLECT();
+        Float3              m_scale = Float3( 1.0f, 1.0f, 1.0f );
     };
 }

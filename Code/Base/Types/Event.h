@@ -59,6 +59,8 @@ namespace EE
 
     public:
 
+        TEvent() = default;
+        TEvent( TEvent const& ) = default;
         ~TEvent()
         {
             if ( HasBoundUsers() )
@@ -67,6 +69,8 @@ namespace EE
                 EE_HALT();
             }
         }
+
+        TEvent& operator=( TEvent const& rhs ) = default;
 
         inline bool HasBoundUsers() const { return !m_boundUsers.empty(); }
 

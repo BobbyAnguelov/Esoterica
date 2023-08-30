@@ -1,5 +1,6 @@
 #pragma once
 #include "Base/Encoding/Hash.h"
+#include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 
 #if EE_DEVELOPMENT_TOOLS

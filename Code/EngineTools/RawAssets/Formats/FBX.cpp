@@ -14,11 +14,33 @@ using namespace EE::RawAssets;
 
 namespace EE::Fbx
 {
-    FbxSceneContext::FbxSceneContext( FileSystem::Path const& filePath, float additionalScalingFactor )
+    SceneContext::SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor )
     {
-        if ( !FileSystem::Exists( filePath ) )
+        Initialize( filePath, additionalScalingFactor );
+    }
+
+    SceneContext::~SceneContext()
+    {
+        Shutdown();
+    }
+
+    //-------------------------------------------------------------------------
+
+    void SceneContext::LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor )
+    {
+        Shutdown();
+        Initialize( filePath, additionalScalingFactor );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void SceneContext::Initialize( FileSystem::Path const& filePath, float additionalScalingFactor )
+    {
+        m_filePath = filePath;
+
+        if ( !FileSystem::Exists( m_filePath ) )
         {
-            m_error.sprintf( "Specified FBX file doesn't exist: %s", filePath.c_str() );
+            m_error.sprintf( "Specified FBX file doesn't exist: %s", m_filePath.c_str() );
             return;
         }
 
@@ -28,26 +50,28 @@ namespace EE::Fbx
         m_pManager = FbxManager::Create();
 
         auto pImporter = FbxImporter::Create( m_pManager, "EE Importer" );
-        if ( !pImporter->Initialize( filePath, -1, m_pManager->GetIOSettings() ) )
+        if ( !pImporter->Initialize( m_filePath, -1, m_pManager->GetIOSettings() ) )
         {
-            m_error.sprintf( "Failed to load specified FBX file ( %s ) : %s", filePath.c_str(), pImporter->GetStatus().GetErrorString() );
+            m_error.sprintf( "Failed to load specified FBX file ( %s ) : %s", m_filePath.c_str(), pImporter->GetStatus().GetErrorString() );
             return;
         }
 
         m_pScene = FbxScene::Create( m_pManager, "ImportScene" );
         if ( !pImporter->Import( m_pScene ) )
         {
-            m_error.sprintf( "Failed to load specified FBX file ( %s ) : %s", filePath.c_str(), pImporter->GetStatus().GetErrorString() );
+            m_error.sprintf( "Failed to load specified FBX file ( %s ) : %s", m_filePath.c_str(), pImporter->GetStatus().GetErrorString() );
             pImporter->Destroy();
             return;
         }
         pImporter->Destroy();
 
+        m_pGeometryConvertor = EE::New<FbxGeometryConverter>( m_pManager );
+
         // Check file format
         //-------------------------------------------------------------------------
 
         FILE* fp = nullptr;
-        int32_t errcode = fopen_s( &fp, filePath.c_str(), "r" );
+        int32_t errcode = fopen_s( &fp, m_filePath.c_str(), "r" );
         EE_ASSERT( errcode == 0 );
 
         char cmpBuffer[19] = { 0 };
@@ -100,12 +124,27 @@ namespace EE::Fbx
         FbxSystemUnit const originalSystemUnits = globalSettings.GetSystemUnit();
         m_scaleConversionMultiplier = (float) originalSystemUnits.GetConversionFactorTo( FbxSystemUnit::m );
         m_scaleConversionMultiplier *= additionalScalingFactor;
+
+        // Common operations
+        //-------------------------------------------------------------------------
+
+        if ( !m_pGeometryConvertor->SplitMeshesPerMaterial( m_pScene, true ) )
+        {
+            m_error = "Failed to split meshes based on material!";
+        }
     }
 
-    FbxSceneContext::~FbxSceneContext()
+    void SceneContext::Shutdown()
     {
         if ( m_pScene != nullptr ) m_pScene->Destroy();
         if ( m_pManager != nullptr ) m_pManager->Destroy();
+        EE::Delete( m_pGeometryConvertor );
+
+        m_filePath.Clear();
+        m_error.clear();
+        m_warning.clear();
+        m_originalUpAxis = Axis::Z;
+        m_scaleConversionMultiplier = 1.0f;
     }
 
     //-------------------------------------------------------------------------
@@ -141,7 +180,7 @@ namespace EE::Fbx
         }
     }
 
-    void FbxSceneContext::FindAllNodesOfType( FbxNodeAttribute::EType nodeType, TVector<FbxNode*>& results ) const
+    void SceneContext::FindAllNodesOfType( FbxNodeAttribute::EType nodeType, TVector<FbxNode*>& results ) const
     {
         EE_ASSERT( IsValid() );
         auto pRootNode = m_pScene->GetRootNode();
@@ -185,7 +224,7 @@ namespace EE::Fbx
         return nullptr;
     }
 
-    FbxNode* FbxSceneContext::FindNodeOfTypeByName( FbxNodeAttribute::EType nodeType, char const* pNodeNameToFind ) const
+    FbxNode* SceneContext::FindNodeOfTypeByName( FbxNodeAttribute::EType nodeType, char const* pNodeNameToFind ) const
     {
         EE_ASSERT( IsValid() );
         auto pRootNode = m_pScene->GetRootNode();
@@ -194,7 +233,7 @@ namespace EE::Fbx
 
     //-------------------------------------------------------------------------
 
-    void FbxSceneContext::FindAllAnimStacks( TVector<FbxAnimStack*>& results ) const
+    void SceneContext::FindAllAnimStacks( TVector<FbxAnimStack*>& results ) const
     {
         EE_ASSERT( IsValid() );
 
@@ -205,7 +244,7 @@ namespace EE::Fbx
         }
     }
 
-    FbxAnimStack* FbxSceneContext::FindAnimStack( char const* pTakeName ) const
+    FbxAnimStack* SceneContext::FindAnimStack( char const* pTakeName ) const
     {
         EE_ASSERT( IsValid() && pTakeName != nullptr );
 
@@ -257,7 +296,7 @@ namespace EE::Fbx
 
             //-------------------------------------------------------------------------
 
-            Fbx::FbxSceneContext sceneCtx( sourceFilePath );
+            Fbx::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 if ( sceneCtx.HasWarningOccurred() )
@@ -275,7 +314,7 @@ namespace EE::Fbx
             return pSkeleton;
         }
 
-        static void ReadSkeleton( Fbx::FbxSceneContext const& sceneCtx, String const& skeletonRootBoneName, FbxRawSkeleton& rawSkeleton )
+        static void ReadSkeleton( Fbx::SceneContext const& sceneCtx, String const& skeletonRootBoneName, FbxRawSkeleton& rawSkeleton )
         {
             TVector<FbxNode*> skeletonRootNodes;
             sceneCtx.FindAllNodesOfType( FbxNodeAttribute::eSkeleton, skeletonRootNodes );
@@ -332,12 +371,13 @@ namespace EE::Fbx
             rawSkeleton.CalculateLocalTransforms();
         }
 
-        static void ReadBoneHierarchy( FbxRawSkeleton& rawSkeleton, Fbx::FbxSceneContext const& sceneCtx, FbxNode* pNode, int32_t parentIdx )
+        static void ReadBoneHierarchy( FbxRawSkeleton& rawSkeleton, Fbx::SceneContext const& sceneCtx, FbxNode* pNode, int32_t parentIdx )
         {
             EE_ASSERT( pNode != nullptr && ( pNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton || pNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eNull ) );
 
             auto const boneIdx = (int32_t) rawSkeleton.m_bones.size();
             rawSkeleton.m_bones.push_back( RawSkeleton::BoneData( Fbx::GetNameWithoutNamespace( pNode ) ) );
+            rawSkeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? rawSkeleton.m_bones[parentIdx].m_name : StringID();
             rawSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Read Bone transform
@@ -366,7 +406,7 @@ namespace EE::Fbx
         return FbxSkeletonFileReader::ReadSkeleton( sourceFilePath, skeletonRootBoneName );
     }
 
-    void ReadSkeleton( FbxSceneContext const& sceneCtx, String const& skeletonRootBoneName, RawSkeleton& skeleton )
+    void ReadSkeleton( SceneContext const& sceneCtx, String const& skeletonRootBoneName, RawSkeleton& skeleton )
     {
         return FbxSkeletonFileReader::ReadSkeleton( sceneCtx, skeletonRootBoneName, (FbxRawSkeleton&) skeleton );
     }
@@ -397,7 +437,7 @@ namespace EE::Fbx
             TUniquePtr<RawAnimation> pAnimation( EE::New<RawAnimation>( rawSkeleton ) );
             FbxRawAnimation* pRawAnimation = (FbxRawAnimation*) pAnimation.get();
 
-            Fbx::FbxSceneContext sceneCtx( sourceFilePath );
+            Fbx::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 if ( sceneCtx.HasWarningOccurred() )
@@ -482,7 +522,7 @@ namespace EE::Fbx
             return pAnimation;
         }
 
-        static bool GenerateNodeMappings( Fbx::FbxSceneContext const& sceneCtx, FbxRawAnimation& rawAnimation, TVector<FbxNode*>& outBoneToNodeMapping )
+        static bool GenerateNodeMappings( Fbx::SceneContext const& sceneCtx, FbxRawAnimation& rawAnimation, TVector<FbxNode*>& outBoneToNodeMapping )
         {
             struct NodeInfo
             {
@@ -545,7 +585,7 @@ namespace EE::Fbx
             return true;
         }
 
-        static bool ReadTrackData( Fbx::FbxSceneContext const& sceneCtx, FbxRawAnimation& rawAnimation, TVector<FbxNode*> const& boneToNodeMapping, float samplingStartTime )
+        static bool ReadTrackData( Fbx::SceneContext const& sceneCtx, FbxRawAnimation& rawAnimation, TVector<FbxNode*> const& boneToNodeMapping, float samplingStartTime )
         {
             int32_t const numBones = rawAnimation.m_skeleton.GetNumBones();
             float const samplingTimeStep = 1.0f / rawAnimation.m_samplingFrameRate;
@@ -716,7 +756,7 @@ namespace EE::Fbx
 
             //-------------------------------------------------------------------------
 
-            Fbx::FbxSceneContext sceneCtx( sourceFilePath );
+            Fbx::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 if ( sceneCtx.HasWarningOccurred() )
@@ -743,7 +783,7 @@ namespace EE::Fbx
 
             //-------------------------------------------------------------------------
 
-            Fbx::FbxSceneContext sceneCtx( sourceFilePath );
+            Fbx::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 if ( sceneCtx.HasWarningOccurred() )
@@ -778,11 +818,8 @@ namespace EE::Fbx
 
         //-------------------------------------------------------------------------
 
-        static void ReadAllSubmeshes( FbxRawMesh& rawMesh, Fbx::FbxSceneContext const& sceneCtx, TVector<String> const& meshesToInclude )
+        static void ReadAllSubmeshes( FbxRawMesh& rawMesh, Fbx::SceneContext const& sceneCtx, TVector<String> const& meshesToInclude )
         {
-            FbxGeometryConverter geomConverter( sceneCtx.m_pManager );
-            geomConverter.SplitMeshesPerMaterial( sceneCtx.m_pScene, true );
-
             // Find all meshes in the sceneCtx
             //-------------------------------------------------------------------------
 
@@ -794,7 +831,6 @@ namespace EE::Fbx
 
             TInlineVector<FoundMesh, 20> meshes;
             auto numGeometries = sceneCtx.m_pScene->GetGeometryCount();
-
             if ( numGeometries == 0 )
             {
                 rawMesh.m_errors.push_back( "No meshes present in the sceneCtx" );
@@ -814,7 +850,7 @@ namespace EE::Fbx
             // For each mesh found perform necessary corrections and read mesh data
             // Note: this needs to be done in two passes since these operations reorder the geometries in the sceneCtx and pScene->GetGeometry( x ) doesnt return what you expect
             bool meshFound = false;
-            TVector<TVector<uint32_t>> controlPointVertexMapping;
+            
             for ( auto foundMesh : meshes )
             {
                 if ( rawMesh.m_isSkeletalMesh && !foundMesh.isSkinned )
@@ -823,34 +859,57 @@ namespace EE::Fbx
                 }
 
                 auto pMesh = foundMesh.m_pMesh;
+                auto pMeshNode = pMesh->GetNode();
 
                 // Only process specified meshes
                 if ( !meshesToInclude.empty() )
                 {
-                    FbxString const meshName = Fbx::GetNameWithoutNamespace( pMesh->GetNode() );
+                    FbxString const meshName = Fbx::GetNameWithoutNamespace( pMeshNode );
                     if ( !VectorContains( meshesToInclude, meshName ) )
                     {
                         continue;
                     }
                 }
 
+                // Prepare the mesh for reading
                 //-------------------------------------------------------------------------
 
-                // Prepare the mesh for reading
                 meshFound = true;
-                if ( !PrepareMesh( sceneCtx, geomConverter, pMesh, rawMesh ) )
+                if ( !PrepareMesh( sceneCtx, pMesh, rawMesh ) )
                 {
                     return;
                 }
 
-                // Allocate space for the control point mapping
-                controlPointVertexMapping.clear();
-                controlPointVertexMapping.resize( pMesh->GetControlPointsCount() );
-
                 // Create new geometry section
                 RawMesh::GeometrySection& meshData = rawMesh.m_geometrySections.emplace_back( RawMesh::GeometrySection() );
-                meshData.m_name = Fbx::GetNameWithoutNamespace( pMesh->GetNode() );
+                meshData.m_name = rawMesh.GetUniqueGeometrySectionName( Fbx::GetNameWithoutNamespace( pMeshNode ) );
                 meshData.m_numUVChannels = pMesh->GetElementUVCount();
+
+                // Get material name
+                int32_t const numMaterials = pMesh->GetElementMaterialCount();
+                if ( numMaterials == 1 )
+                {
+                    FbxGeometryElementMaterial* pMaterialElement = pMesh->GetElementMaterial( 0 );
+                    FbxSurfaceMaterial* pMaterial = pMeshNode->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) );
+                    meshData.m_materialNameID = StringID( pMaterial->GetName() );
+                }
+                else if ( numMaterials > 1 )
+                {
+                    rawMesh.LogError( "More than one material detected on section (%s) - This is not supported.", meshData.m_name.c_str() );
+                    return;
+                }
+                else
+                {
+                    rawMesh.LogWarning( "Mesh section (%s) doesnt have a material assigned.", meshData.m_name.c_str() );
+                }
+
+                // Read mesh data
+                //-------------------------------------------------------------------------
+
+                // Allocate space for the control point mapping
+                TVector<TVector<uint32_t>> controlPointVertexMapping;
+                controlPointVertexMapping.clear();
+                controlPointVertexMapping.resize( pMesh->GetControlPointsCount() );
 
                 if ( !ReadMeshData( sceneCtx, pMesh, meshData, controlPointVertexMapping ) )
                 {
@@ -883,23 +942,22 @@ namespace EE::Fbx
 
         //-------------------------------------------------------------------------
 
-        static bool PrepareMesh( Fbx::FbxSceneContext const& sceneCtx, FbxGeometryConverter& geomConverter, fbxsdk::FbxMesh*& pMesh, FbxRawMesh& rawMesh )
+        static bool PrepareMesh( Fbx::SceneContext const& sceneCtx, fbxsdk::FbxMesh*& pMesh, FbxRawMesh& rawMesh )
         {
             pMesh->RemoveBadPolygons();
 
             // Ensure that the mesh is triangulated
             if ( !pMesh->IsTriangleMesh() )
             {
-                pMesh = (fbxsdk::FbxMesh*) geomConverter.Triangulate( pMesh, true );
+                pMesh = (fbxsdk::FbxMesh*) sceneCtx.m_pGeometryConvertor->Triangulate( pMesh, true );
                 EE_ASSERT( pMesh != nullptr && pMesh->IsTriangleMesh() );
             }
 
             // Generate normals if they're not available or not in the right format
             bool const hasNormals = pMesh->GetElementNormalCount() > 0;
-            bool const hasPerVertexNormals = hasNormals && pMesh->GetElementNormal()->GetMappingMode() == FbxLayerElement::eByPolygonVertex;
-            if ( !hasPerVertexNormals )
+            if ( !hasNormals )
             {
-                if ( !pMesh->GenerateNormals( true, false, false ) )
+                if ( !pMesh->GenerateNormals( true, true, false ) )
                 {
                     rawMesh.m_errors.push_back( String( String::CtorSprintf(), "Failed to regenerate mesh normals for mesh: %s", Fbx::GetNameWithoutNamespace( pMesh ) ) );
                     return false;
@@ -909,15 +967,14 @@ namespace EE::Fbx
             // Generate smoothing groups if they doesnt exist
             if ( pMesh->GetElementSmoothingCount() == 0 )
             {
-                geomConverter.ComputeEdgeSmoothingFromNormals( pMesh );
-                geomConverter.ComputePolygonSmoothingFromEdgeSmoothing( pMesh );
+                sceneCtx.m_pGeometryConvertor->ComputeEdgeSmoothingFromNormals( pMesh );
+                sceneCtx.m_pGeometryConvertor->ComputePolygonSmoothingFromEdgeSmoothing( pMesh );
             }
 
-            EE_ASSERT( pMesh->GetElementNormal()->GetMappingMode() == FbxLayerElement::eByPolygonVertex );
             return true;
         }
 
-        static bool ReadMeshData( Fbx::FbxSceneContext const& sceneCtx, fbxsdk::FbxMesh* pMesh, FbxRawMesh::GeometrySection& geometryData, TVector<TVector<uint32_t>>& controlPointVertexMapping )
+        static bool ReadMeshData( Fbx::SceneContext const& sceneCtx, fbxsdk::FbxMesh* pMesh, FbxRawMesh::GeometrySection& geometryData, TVector<TVector<uint32_t>>& controlPointVertexMapping )
         {
             EE_ASSERT( pMesh != nullptr && pMesh->IsTriangleMesh() );
 
@@ -949,7 +1006,7 @@ namespace EE::Fbx
                     //-------------------------------------------------------------------------
 
                     int32_t const ctrlPointIdx = pMesh->GetPolygonVertex( polygonIdx, vertexIdx );
-                    FbxVector4 const meshVertex = meshNodeGlobalTransform.MultT( pMesh->GetControlPoints()[ctrlPointIdx] );
+                    FbxVector4 const meshVertex = meshNodeGlobalTransform.MultT( pMesh->GetControlPointAt( ctrlPointIdx ) );
                     vert.m_position = sceneCtx.ConvertVector3AndFixScale( meshVertex );
                     vert.m_position.m_w = 1.0f;
 
@@ -1059,9 +1116,10 @@ namespace EE::Fbx
                     // Add vertex to mesh data
                     //-------------------------------------------------------------------------
 
+                    auto& vertexIndices = controlPointVertexMapping[ctrlPointIdx];
+
                     // Check whether we are referencing a new vertex or should use the index to an existing one?
                     uint32_t existingVertexIdx = (uint32_t) InvalidIndex;
-                    auto& vertexIndices = controlPointVertexMapping[ctrlPointIdx];
                     for ( auto const& idx : vertexIndices )
                     {
                         if ( vert == geometryData.m_vertices[idx] )
@@ -1131,7 +1189,7 @@ namespace EE::Fbx
             return pSkeletonRootNode;
         }
 
-        static bool ReadSkinningData( FbxRawMesh& rawMesh, Fbx::FbxSceneContext const& sceneCtx, fbxsdk::FbxMesh* pMesh, RawMesh::GeometrySection& geometryData, TVector<TVector<uint32_t>>& controlPointVertexMapping )
+        static bool ReadSkinningData( FbxRawMesh& rawMesh, Fbx::SceneContext const& sceneCtx, fbxsdk::FbxMesh* pMesh, RawMesh::GeometrySection& geometryData, TVector<TVector<uint32_t>>& controlPointVertexMapping )
         {
             EE_ASSERT( pMesh != nullptr && pMesh->IsTriangleMesh() && rawMesh.m_isSkeletalMesh );
 

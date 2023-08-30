@@ -87,25 +87,66 @@ namespace EE::Resource
 
             ImGui::BeginDisabled( !m_toolsContext.m_pResourceDatabase->IsDescriptorCacheBuilt() );
             {
-                // Path Widget
-                //-------------------------------------------------------------------------
-
                 // Calculate size of resource path field
                 float const contentRegionAvailableX = ImGui::GetContentRegionAvail().x;
                 float usedWidth = ( itemSpacingX * 2 ) + ( g_buttonSize.x * 2 );
-                float const pathWidgetWidth = contentRegionAvailableX - usedWidth;
 
-                ImVec2 const comboDropDownSize( Math::Max( pathWidgetWidth, 500.0f ), ImGui::GetFrameHeight() * 20 );
-                ImGui::SetNextItemWidth( pathWidgetWidth );
+                // Type and path fields
+                //-------------------------------------------------------------------------
+
+                float typeStrWidth = 0;
+                if ( actualResourceTypeID.IsValid() )
+                {
+                    float const startCursorPosX = ImGui::GetCursorPosX();
+                    TInlineString<7> const resourceTypeStr( TInlineString<7>::CtorSprintf(), "[%s]", actualResourceTypeID.ToString().c_str() );
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::TextColored( Colors::LightPink.ToFloat4(), resourceTypeStr.c_str() );
+                    ImGui::SameLine();
+
+                    typeStrWidth = ImGui::GetCursorPosX() - startCursorPosX;
+                }
+
+                float const comboArrowWidth = ImGui::GetFrameHeight();
+                float const totalPathWidgetWidth = contentRegionAvailableX - usedWidth - typeStrWidth;
+                float const textWidgetWidth = totalPathWidgetWidth - comboArrowWidth - style.ItemSpacing.x;
+
+                ImVec4 const pathColor = ( validPath ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4();
+                ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
+                ImGui::SetNextItemWidth( textWidgetWidth );
+                String const& pathString = m_resourceID.ToString();
+                ImGui::InputText( "##ResourcePathText", const_cast<char*>( pathString.c_str() ), pathString.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
+                ImGui::PopStyleColor();
+
+                // Tooltip
+                if ( m_resourceID.IsValid() )
+                {
+                    ImGuiX::ItemTooltip( m_resourceID.c_str() );
+                }
+
+                // Allow pasting valid paths
+                if ( ImGui::IsItemFocused() )
+                {
+                    if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
+                    {
+                        valueUpdated = TryUpdateResourceFromClipboard();
+                    }
+                }
+
+                // Combo
+                //-------------------------------------------------------------------------
+
+                ImVec2 const comboDropDownSize( Math::Max( totalPathWidgetWidth, 500.0f ), ImGui::GetFrameHeight() * 20 );
                 ImGui::SetNextWindowSizeConstraints( ImVec2( comboDropDownSize.x, 0 ), comboDropDownSize );
 
+                ImGui::SameLine();
                 bool const wasComboOpen = m_isComboOpen;
-                m_isComboOpen = ImGui::BeginCombo( "##DataPath", "", ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_CustomPreview );
+                m_isComboOpen = ImGui::BeginCombo( "##DataPath", "", ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_NoPreview );
 
                 // Regenerate options and clear filter each time we open the combo
                 if ( m_isComboOpen && !wasComboOpen )
                 {
                     m_filterWidget.Clear();
+                    GenerateResourceOptionsList();
                     GenerateFilteredOptionList();
                 }
 
@@ -147,32 +188,6 @@ namespace EE::Resource
                     ImGui::EndChild();
 
                     ImGui::EndCombo();
-                }
-
-                // Custom combo preview
-                //-------------------------------------------------------------------------
-
-                if ( ImGui::BeginComboPreview() )
-                {
-                    if ( actualResourceTypeID.IsValid() )
-                    {
-                        TInlineString<7> const resourceTypeStr( TInlineString<7>::CtorSprintf(), "[%s]", actualResourceTypeID.ToString().c_str() );
-                        ImGui::TextColored( Colors::LightPink.ToFloat4(), resourceTypeStr.c_str() );
-                        ImGui::SameLine();
-                    }
-
-                    ImVec4 const pathColor = validPath ? ImGuiX::Style::s_colorText : Colors::Red.ToFloat4();
-                    ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
-                    ImGui::Text( m_resourceID.IsValid() ? m_resourceID.c_str() + 7 : "" );
-                    ImGui::PopStyleColor();
-
-                    ImGui::EndComboPreview();
-                }
-
-                // Tooltip
-                if ( m_resourceID.IsValid() )
-                {
-                    ImGuiX::ItemTooltip( m_resourceID.c_str() );
                 }
             }
             ImGui::EndDisabled();
@@ -318,6 +333,51 @@ namespace EE::Resource
         m_resourceID = resourceID;
     }
 
+    bool ResourcePicker::TryUpdateResourceFromClipboard()
+    {
+        String clipboardText = ImGui::GetClipboardText();
+
+        // Check for a valid file path if the resource path is bad
+        //-------------------------------------------------------------------------
+
+        ResourcePath resourcePath;
+
+        if ( !ResourcePath::IsValidPath( clipboardText ) )
+        {
+            FileSystem::Path pastedFilePath( clipboardText );
+            if ( pastedFilePath.IsValid() && pastedFilePath.IsUnderDirectory( m_toolsContext.GetRawResourceDirectory() ) )
+            {
+                resourcePath = ResourcePath::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory().c_str(), pastedFilePath );
+            }
+        }
+        else
+        {
+            resourcePath = ResourcePath( clipboardText );
+        }
+
+        if ( !resourcePath.IsValid() )
+        {
+            return false;
+        }
+
+        // Validate resource
+        //-------------------------------------------------------------------------
+
+        ResourceID potentialNewResourceID( resourcePath );
+
+        // Validate resource type
+        if ( m_resourceTypeID.IsValid() )
+        {
+            if ( potentialNewResourceID.GetResourceTypeID() != m_resourceTypeID )
+            {
+                return false;
+            }
+        }
+
+        m_resourceID = potentialNewResourceID;
+        return true;
+    }
+
     //-------------------------------------------------------------------------
 
     bool ResourcePathPicker::UpdateAndDraw()
@@ -351,8 +411,31 @@ namespace EE::Resource
                 ImGui::SetNextItemWidth( contentRegionAvailableX - usedWidth );
                 String const& resourcePathStr = m_resourcePath.GetString();
                 ImGui::PushStyleColor( ImGuiCol_Text, validPath ? ImGuiX::Style::s_colorText : Colors::Red );
-                ImGui::InputText( "##DataPath", const_cast<char*>( resourcePathStr.c_str() ), resourcePathStr.length(), ImGuiInputTextFlags_ReadOnly );
+                ImGui::InputText( "##DataPath", const_cast<char*>( resourcePathStr.c_str() ), resourcePathStr.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
                 ImGui::PopStyleColor();
+
+                // Allow pasting valid paths
+                if ( ImGui::IsItemFocused() )
+                {
+                    if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
+                    {
+                        String clipboardText = ImGui::GetClipboardText();
+                        if ( ResourcePath::IsValidPath( clipboardText ) )
+                        {
+                            m_resourcePath = ResourcePath( clipboardText );
+                            valueUpdated = true;
+                        }
+                        else
+                        {
+                            FileSystem::Path pastedFilePath( clipboardText );
+                            if ( pastedFilePath.IsValid() && pastedFilePath.IsUnderDirectory( m_rawResourceDirectoryPath ) )
+                            {
+                                m_resourcePath = ResourcePath::FromFileSystemPath( m_rawResourceDirectoryPath.c_str(), pastedFilePath );
+                                valueUpdated = true;
+                            }
+                        }
+                    }
+                }
 
                 // Tooltip
                 if ( m_resourcePath.IsValid() )
@@ -362,7 +445,7 @@ namespace EE::Resource
 
                 // Pick Path
                 ImGui::SameLine( 0, itemSpacingX );
-                if ( ImGui::Button( EE_ICON_FILE_FIND "##Pick", g_buttonSize ) )
+                if ( ImGui::Button( EE_ICON_FILE_SEARCH_OUTLINE "##Pick", g_buttonSize ) )
                 {
                     auto const selectedFiles = pfd::open_file( "Choose Data File", m_rawResourceDirectoryPath.c_str(), { "All Files", "*" }, pfd::opt::none ).result();
                     if ( !selectedFiles.empty() )

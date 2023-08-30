@@ -68,7 +68,7 @@ namespace EE::Render
         // Mesh Sections
         inline TVector<GeometrySection> const& GetSections() const { return m_sections; }
         inline uint32_t GetNumSections() const { return (uint32_t) m_sections.size(); }
-        inline GeometrySection GetSection( uint32_t i ) const { EE_ASSERT( i < GetNumSections() ); return m_sections[i]; }
+        inline GeometrySection const& GetSection( uint32_t i ) const { EE_ASSERT( i < GetNumSections() ); return m_sections[i]; }
 
         // Materials
         TVector<TResourcePtr<Material>> const& GetMaterials() const { return m_materials; }

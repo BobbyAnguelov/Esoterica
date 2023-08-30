@@ -27,7 +27,7 @@ namespace EE::Animation::Tasks
 
     void BlendTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
@@ -36,7 +36,7 @@ namespace EE::Animation::Tasks
         if ( m_boneMaskTaskList.HasTasks() )
         {
             auto const result = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::LocalBlend( &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, result.m_pBoneMask, &pFinalBuffer->m_pose, true );
+            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, result.m_pBoneMask, &pFinalBuffer->m_pose, true );
 
             #if EE_DEVELOPMENT_TOOLS
             if ( context.m_posePool.IsRecordingEnabled() )
@@ -52,7 +52,7 @@ namespace EE::Animation::Tasks
         }
         else // Perform a simple blend
         {
-            Blender::LocalBlend( &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, nullptr, &pFinalBuffer->m_pose, true );
+            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, nullptr, &pFinalBuffer->m_pose, true );
         }
 
         ReleaseDependencyPoseBuffer( context, 1 );
@@ -143,7 +143,7 @@ namespace EE::Animation::Tasks
 
     void AdditiveBlendTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
@@ -152,7 +152,7 @@ namespace EE::Animation::Tasks
         if ( m_boneMaskTaskList.HasTasks() )
         {
             auto const result = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::AdditiveBlend( &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, result.m_pBoneMask, &pFinalBuffer->m_pose );
+            Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, result.m_pBoneMask, &pFinalBuffer->m_pose );
 
             #if EE_DEVELOPMENT_TOOLS
             if ( context.m_posePool.IsRecordingEnabled() )
@@ -168,7 +168,7 @@ namespace EE::Animation::Tasks
         }
         else // Perform a simple blend
         {
-            Blender::AdditiveBlend( &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, nullptr, &pFinalBuffer->m_pose );
+            Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, nullptr, &pFinalBuffer->m_pose );
         }
 
         ReleaseDependencyPoseBuffer( context, 1 );
@@ -250,7 +250,7 @@ namespace EE::Animation::Tasks
 
     void GlobalBlendTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = AccessDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = TransferDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pTargetBuffer;
@@ -260,7 +260,7 @@ namespace EE::Animation::Tasks
         {
             auto const result = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
 
-            Blender::GlobalBlend( &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_layerWeight, result.m_pBoneMask, &pFinalBuffer->m_pose );
+            Blender::GlobalBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_layerWeight, result.m_pBoneMask, &pFinalBuffer->m_pose );
 
             #if EE_DEVELOPMENT_TOOLS
             if ( context.m_posePool.IsRecordingEnabled() )

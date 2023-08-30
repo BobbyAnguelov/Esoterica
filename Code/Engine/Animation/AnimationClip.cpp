@@ -7,7 +7,7 @@
 
 namespace EE::Animation
 {
-    void AnimationClip::GetPose( FrameTime const& frameTime, Pose* pOutPose ) const
+    void AnimationClip::GetPose( FrameTime const& frameTime, Pose* pOutPose, Skeleton::LOD lod ) const
     {
         EE_ASSERT( IsValid() );
         EE_ASSERT( pOutPose != nullptr && pOutPose->GetSkeleton() == m_skeleton.GetPtr() );
@@ -17,7 +17,8 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        int32_t const numBones = m_skeleton->GetNumBones();
+        int32_t const numBones = m_skeleton->GetNumBones( lod );
+
         auto ReadCompressedPose = [&] ( int32_t poseIdx, Transform outTransforms[] )
         {
             uint16_t const* pReadPtr = m_compressedPoseData2.data() + m_compressedPoseOffsets[poseIdx];

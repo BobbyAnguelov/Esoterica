@@ -113,7 +113,7 @@ namespace EE::Animation::GraphNodes
             }
             else // Actually perform the blend
             {
-                m_taskList.CreateBlend( *m_pSourceBoneMask->GetValue<BoneMaskTaskList const*>( context ), *m_pTargetBoneMask->GetValue<BoneMaskTaskList const*>( context ), blendWeight );
+                m_taskList.SetToBlendBetweenTaskLists( *m_pSourceBoneMask->GetValue<BoneMaskTaskList const*>( context ), *m_pTargetBoneMask->GetValue<BoneMaskTaskList const*>( context ), blendWeight );
             }
         }
 
@@ -254,7 +254,7 @@ namespace EE::Animation::GraphNodes
                 }
                 else // Perform blend and return the result
                 {
-                    m_taskList.CreateBlend( *GetBoneMaskForIndex( context, m_selectedMaskIndex ), *GetBoneMaskForIndex( context, m_newMaskIndex ), blendWeight );
+                    m_taskList.SetToBlendBetweenTaskLists( *GetBoneMaskForIndex( context, m_selectedMaskIndex ), *GetBoneMaskForIndex( context, m_newMaskIndex ), blendWeight );
                 }
             }
         }

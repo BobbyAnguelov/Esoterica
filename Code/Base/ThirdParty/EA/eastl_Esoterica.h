@@ -43,7 +43,14 @@
 
 //-------------------------------------------------------------------------
 
+#if __cplusplus >= 202002L
 inline int Vsnprintf8( char8_t* pDestination, size_t n, const char8_t* pFormat, va_list arguments )
+{
+    return vsnprintf( (char*) pDestination, n, (char*) pFormat, arguments );
+}
+#endif
+
+inline int Vsnprintf8( char* pDestination, size_t n, const char* pFormat, va_list arguments )
 {
     return vsnprintf( (char*) pDestination, n, (char*) pFormat, arguments );
 }

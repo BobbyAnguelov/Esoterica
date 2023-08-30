@@ -2,7 +2,18 @@
 #include "Base/Math/Math.h"
 #include "Physics.h"
 
+//-------------------------------------------------------------------------
+
+#if _MSC_VER
+#pragma warning( push, 0 )
+#pragma warning( disable : 4435, disable : 4996 )
+#endif
+
 #include <PxMaterial.h>
+
+#if _MSC_VER
+#pragma warning( pop )
+#endif
 
 //-------------------------------------------------------------------------
 

@@ -72,7 +72,7 @@ namespace EE
         UpdatePriorityList( Args&&... args )
         {
             Reset();
-            ( ( *this << eastl::forward<Args>( args ) ), ... );
+            ( ( *this << static_cast<Args&&>( args ) ), ... );
         }
 
         inline void Reset()

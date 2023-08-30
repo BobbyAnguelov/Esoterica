@@ -151,11 +151,14 @@ namespace EE::Render
         size_t const vertexSize = (size_t) mesh.m_vertexBuffer.m_byteStride;
         size_t const numVertices = (size_t) mesh.GetNumVertices();
 
-        meshopt_optimizeVertexCache( &mesh.m_indices[0], &mesh.m_indices[0], mesh.m_indices.size(), mesh.m_vertices.size() );
+        for ( auto const& section : mesh.m_sections )
+        {
+            meshopt_optimizeVertexCache( &mesh.m_indices[section.m_startIndex], &mesh.m_indices[section.m_startIndex], section.m_numIndices, mesh.m_vertices.size() );
 
-        // Reorder indices for overdraw, balancing overdraw and vertex cache efficiency
-        const float kThreshold = 1.01f; // allow up to 1% worse ACMR to get more reordering opportunities for overdraw
-        meshopt_optimizeOverdraw( &mesh.m_indices[0], &mesh.m_indices[0], mesh.m_indices.size(), (float*) &mesh.m_vertices[0], numVertices, vertexSize, kThreshold );
+            // Reorder indices for overdraw, balancing overdraw and vertex cache efficiency
+            const float kThreshold = 1.01f; // allow up to 1% worse ACMR to get more reordering opportunities for overdraw
+            meshopt_optimizeOverdraw( &mesh.m_indices[section.m_startIndex], &mesh.m_indices[section.m_startIndex], section.m_numIndices, (float*) &mesh.m_vertices[0], numVertices, vertexSize, kThreshold );
+        }
 
         // Vertex fetch optimization should go last as it depends on the final index order
         meshopt_optimizeVertexFetch( &mesh.m_vertices[0], &mesh.m_indices[0], mesh.m_indices.size(), &mesh.m_vertices[0], numVertices, vertexSize );
@@ -248,7 +251,13 @@ namespace EE::Render
         }
 
         EE_ASSERT( pRawMesh->IsValid() );
+
         pRawMesh->ApplyScale( resourceDescriptor.m_scale );
+
+        if ( resourceDescriptor.m_mergeSectionsByMaterial )
+        {
+            pRawMesh->MergeGeometrySectionsByMaterial();
+        }
 
         // Reflect FBX data into runtime format
         //-------------------------------------------------------------------------
@@ -319,6 +328,11 @@ namespace EE::Render
         }
 
         EE_ASSERT( pRawMesh->IsValid() );
+
+        if ( resourceDescriptor.m_mergeSectionsByMaterial )
+        {
+            pRawMesh->MergeGeometrySectionsByMaterial();
+        }
 
         // Reflect FBX data into runtime format
         //-------------------------------------------------------------------------

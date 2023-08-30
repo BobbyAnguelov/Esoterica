@@ -24,7 +24,12 @@ namespace EE
 
     public:
 
+        IReflectedType() = default;
+        IReflectedType( IReflectedType const& ) = default;
         virtual ~IReflectedType() = default;
+
+        IReflectedType& operator=( IReflectedType const& rhs ) = default;
+
         virtual EE::TypeSystem::TypeInfo const* GetTypeInfo() const = 0;
         virtual EE::TypeSystem::TypeID GetTypeID() const = 0;
 
@@ -38,7 +43,11 @@ namespace EE
     template<typename T>
     bool IsOfType( IReflectedType const* pType )
     {
-        EE_ASSERT( pType != nullptr );
+        if ( pType == nullptr )
+        {
+            return false;
+        }
+
         return pType->GetTypeInfo()->IsDerivedFrom( T::GetStaticTypeID() );
     }
 
@@ -117,15 +126,3 @@ namespace EE
         public: \
         static void RegisterTypes( TypeSystem::TypeRegistry& typeRegistry ); \
         static void UnregisterTypes( TypeSystem::TypeRegistry& typeRegistry );
-
-//-------------------------------------------------------------------------
-// Reflection Helpers
-//-------------------------------------------------------------------------
-
-namespace EE::TypeSystem::Internal
-{
-    template<typename T>
-    StringID MakePropertyName( char const* pID ) { return StringID( pID ); }
-}
-
-#define EE_REFLECT_GET_PROPERTY_ID( typeName, propertyName ) EE::TypeSystem::Internal::MakePropertyName<decltype( typeName::propertyName )>( #propertyName )

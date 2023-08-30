@@ -34,7 +34,13 @@ namespace EE
         ImGui::SameLine();
 
         ImGui::SetNextItemWidth( filterButtonWidth );
-        if ( ImGuiX::BeginComboButton( EE_ICON_FILTER_COG"##FilterOptions" ) )
+        ImGui::PushStyleColor( ImGuiCol_FrameBg, ImGuiX::Style::s_colorGray3 );
+        ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGuiX::Style::s_colorGray2 );
+        ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGuiX::Style::s_colorGray1 );
+        bool const drawCombo = ImGui::BeginCombo( "##FilterOptions", EE_ICON_FILTER_COG, ImGuiComboFlags_NoArrowButton );
+        ImGui::PopStyleColor( 3 );
+
+        if ( drawCombo )
         {
             bool shouldUpdateFilteredList = false;
             shouldUpdateFilteredList |= ImGuiX::Checkbox( "Messages", &m_showLogMessages );
@@ -91,8 +97,8 @@ namespace EE
                     ImGui::AlignTextToFramePadding();
                     switch ( entry.m_severity )
                     {
-                        case Log::Severity::Message:
-                        ImGui::Text( EE_ICON_MESSAGE );
+                        case Log::Severity::Info:
+                        ImGui::Text( EE_ICON_INFORMATION );
                         break;
 
                         case Log::Severity::Warning:
@@ -100,7 +106,7 @@ namespace EE
                         break;
 
                         case Log::Severity::Error:
-                        ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT_CIRCLE_OUTLINE );
+                        ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_CLOSE_CIRCLE );
                         break;
 
                         default:
@@ -170,7 +176,7 @@ namespace EE
                 }
                 break;
 
-                case Log::Severity::Message:
+                case Log::Severity::Info:
                 if ( !m_showLogMessages )
                 {
                     continue;

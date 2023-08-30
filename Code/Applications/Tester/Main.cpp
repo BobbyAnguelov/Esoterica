@@ -9,91 +9,40 @@
 
 #include <iostream>
 #include "Base/Network/IPC/IPCMessage.h"
+#include "Base/Math/MathRandom.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
 using namespace EE;
-using namespace EE::Physics;
 
 //-------------------------------------------------------------------------
 
-struct Foo
+EE_FORCE_INLINE float Dot( Float3 const& a, Float3 const& b )
 {
-    EE_SERIALIZE( boo, a, b, c, d );
+    float const d = ( a.m_x * b.m_x ) + ( a.m_y * b.m_y ) + ( a.m_z * b.m_z );
+    return d;
+}
 
-    void Reset()
-    {
-        boo = false;
-        a = 0;
-        b = 0;
-        c = 0;
-        d = 0;
-    }
-
-    bool boo = true;
-    int8_t a = 0;
-    int16_t b = 1;
-    int32_t c = 2;
-    int64_t d = 3;
-};
-
-struct Bar : public Foo
+EE_FORCE_INLINE Float3 Cross3( Float3 const& a, Float3 const& b )
 {
-    EE_SERIALIZE( EE_SERIALIZE_BASE( Foo ), e, f, g, h );
+    float x = ( a.m_y * b.m_z ) - ( a.m_z * b.m_y );
+    float y = ( a.m_z * b.m_x ) - ( a.m_x * b.m_z );
+    float z = ( a.m_x * b.m_y ) - ( a.m_y * b.m_x );
+    return Float3( x, y, z );
+}
 
-    void Reset()
-    {
-        Foo::Reset();
-
-        e = 0;
-        f = 0;
-        g = 0;
-        h = 0;
-    }
-
-    uint8_t e = 4;
-    uint16_t f = 5;
-    uint32_t g = 6;
-    uint64_t h = 7;
-};
-
-struct Wah : public Bar
+EE_FORCE_INLINE Float4 QuatMul( Float4 const &a, Float4 const& b )
 {
-    EE_SERIALIZE( EE_SERIALIZE_BASE( Bar ), i, j, k, l, m, n, o, p, q, blob, id );
+   return Float4(
+            ( b.m_w * a.m_x ) + ( b.m_x * a.m_w ) + ( b.m_y * a.m_z ) - ( b.m_z * a.m_y ),
+            ( b.m_w * a.m_y ) - ( b.m_x * a.m_z ) + ( b.m_y * a.m_w ) + ( b.m_z * a.m_x ),
+            ( b.m_w * a.m_z ) + ( b.m_x * a.m_y ) - ( b.m_y * a.m_x ) + ( b.m_z * a.m_w ),
+            ( b.m_w * a.m_w ) - ( b.m_x * a.m_x ) - ( b.m_y * a.m_y ) - ( b.m_z * a.m_z )
+        );
 
-    void Reset()
-    {
-        Bar::Reset();
-
-        i = 0;
-        j = 0;
-        k.clear();
-        l[0] = l[1] = l[2] = 0;
-        m.clear();
-        n.clear();
-
-        o.Reset();
-        p[0].Reset();
-        p[1].Reset();
-        p[2].Reset();
-
-        q.clear();
-        blob.clear();
-    }
-
-    float i = 124.5f;
-    double j = 154.5;
-    String k = "Woohoo!";
-    int32_t l[3] = { 6, 7, 8 };
-    TVector<uint64_t> m = { 9, 10, 11, 12, 13 };
-    TVector<String> n = { "AAA", "BBB", "CCC" };
-
-    Bar o;
-    Bar p[3] = { Bar(), Bar(), Bar() };
-    TInlineVector<Bar, 2> q = { Bar(), Bar() };
-    Blob blob = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    StringID id;
-};
+   
+}
 
 //-------------------------------------------------------------------------
 
@@ -106,39 +55,58 @@ int main( int argc, char *argv[] )
 
         //-------------------------------------------------------------------------
 
-        Vector v;
-        v.SetX( 1 );
-        v.SetY( 2 );
-        v.SetZ( 3 );
-        v.SetW( 4 );
+        constexpr static int32_t const size = 10000;
 
-        //String f( "SDA" );
-        ResourceID f( "data://test.dat" );
-        //Wah const f;
-        /*THashMap<String, String> f;
-        f.insert( TPair<String, String>( "1.", "A" ) );
-        f.insert( TPair<String, String>( "2.", "B" ) );
-        f.insert( TPair<String, String>( "3.", "C" ) );*/
+        Float4 s[size];
+        Float4 sR[size];
 
-        Serialization::BinaryOutputArchive out;
-        out << f;
-        out.WriteToFile( "D:\\test.srl" );
+        for ( int32_t i = 0; i < size; i++ )
+        {
+            s[i] = Float4( Math::GetRandomFloat( -20000, 20000 ), Math::GetRandomFloat( -20000, 20000 ), Math::GetRandomFloat( -20000, 20000 ), Math::GetRandomFloat( -20000, 20000 ) );
+        }
 
-        std::cout << std::endl << std::endl;
+        Quaternion v[size];
+        Quaternion vR[size];
 
-        //String t;
-        ResourceID t, t2;
-        //THashMap<String, String> t;
-        //Wah t;
-        //t.Reset();
+        for ( int32_t i = 0; i < size; i++ )
+        {
+            v[i] = Quaternion( s[i] );
+        }
 
-        Serialization::BinaryInputArchive in;
-        in.ReadFromData( out.GetBinaryData(), out.GetBinaryDataSize() );
-        in << t;
+        //-------------------------------------------------------------------------
 
-        Serialization::BinaryInputArchive in2;
-        in2.ReadFromFile( "D:\\test.srl" );
-        in2 << t2;
+        Milliseconds time;
+
+        {
+            ScopedTimer<PlatformClock> t( time );
+
+            for ( int32_t j = 0; j < 100000; j++ )
+            {
+                for ( int32_t i = 0; i < ( size - 1 ); i++ )
+                {
+                    sR[i] = QuatMul( s[i], s[i+1] );
+                }
+            }
+        }
+
+        std::cout << "Scalar: " << time.ToFloat() << "ms" << std::endl;
+        std::cout << sR[340].m_y << std::endl;
+
+        //-------------------------------------------------------------------------
+
+        {
+            ScopedTimer<PlatformClock> t( time );
+
+            for ( int32_t j = 0; j < 100000; j++ )
+            {
+                for ( int32_t i = 0; i < ( size - 1 ); i++ )
+                {
+                    vR[i] = v[i] * v[i + 1];
+                }
+            }
+        }
+        
+        std::cout << "Vector: " << time.ToFloat() << "ms" << std::endl;
 
         //-------------------------------------------------------------------------
 

@@ -64,13 +64,16 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<AnimationPoseNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
-        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIndex );
+        pNode->m_pAnimation = context.m_pDataSet->GetResource<AnimationClip>( m_dataSlotIndex );
 
         //-------------------------------------------------------------------------
 
-        if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+        if ( pNode->m_pAnimation != nullptr )
         {
-            pNode->m_pAnimation = nullptr;
+            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+            {
+                pNode->m_pAnimation = nullptr;
+            }
         }
     }
 
@@ -122,27 +125,35 @@ namespace EE::Animation::GraphNodes
         // Register the sample task
         //-------------------------------------------------------------------------
 
-        auto pSettings = GetSettings<AnimationPoseNode>();
-        float timeValue = ( m_pPoseTimeValue != nullptr ) ? m_pPoseTimeValue->GetValue<float>( context ) : pSettings->m_userSpecifiedTime;
-
-        // Optional Remap
-        if ( pSettings->m_inputTimeRemapRange.IsSet() )
+        if ( m_pAnimation->IsSingleFrameAnimation() )
         {
-            timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
+            m_currentTime = 0.0f;
+            m_previousTime = 0.0f;
         }
-
-        // Convert to percentage
-        if ( pSettings->m_useFramesAsInput )
+        else
         {
-            timeValue = timeValue / m_pAnimation->GetNumFrames();
-        }
+            auto pSettings = GetSettings<AnimationPoseNode>();
+            float timeValue = ( m_pPoseTimeValue != nullptr ) ? m_pPoseTimeValue->GetValue<float>( context ) : pSettings->m_userSpecifiedTime;
 
-        // Ensure valid time value
-        m_currentTime = Math::Clamp( timeValue, 0.0f, 1.0f );
-        Percentage const sampleTime( m_currentTime );
+            // Optional Remap
+            if ( pSettings->m_inputTimeRemapRange.IsSet() )
+            {
+                timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
+            }
+
+            // Convert to percentage
+            if ( pSettings->m_useFramesAsInput )
+            {
+                timeValue = timeValue / ( m_pAnimation->GetNumFrames() - 1 );
+            }
+
+            // Ensure valid time value
+            m_currentTime = Math::Clamp( timeValue, 0.0f, 1.0f );
+            m_previousTime = m_currentTime;
+        }
 
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, sampleTime );
+        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, Percentage( m_currentTime ) );
         return result;
     }
 }

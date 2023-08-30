@@ -61,20 +61,8 @@ namespace EE::Animation
     {
     public:
 
-        EventTimeline( TFunction<void()>&& onBeginModification, TFunction<void()>&& onEndModification, TypeSystem::TypeRegistry const& typeRegistry );
+        EventTimeline( TypeSystem::TypeRegistry const& typeRegistry );
 
-        // Set the time info for the animation this event data is attached to, has to be done after the fact since we need to load the animation first
-        void SetAnimationInfo( uint32_t numFrames, float FPS );
-
-        // Custom serialization
         virtual bool Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue ) override;
-
-    private:
-
-        virtual float ConvertSecondsToTimelineUnit( Seconds const inTime ) const override { return inTime.ToFloat() * m_FPS; }
-
-    private:
-
-        float                                   m_FPS = 0.0f;
     };
 }

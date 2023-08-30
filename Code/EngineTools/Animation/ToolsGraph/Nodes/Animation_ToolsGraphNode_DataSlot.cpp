@@ -198,7 +198,7 @@ namespace EE::Animation::GraphNodes
             ImGui::Text( EE_ICON_CUBE_OUTLINE" Empty Slot!" );
         }
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y );
 
         //-------------------------------------------------------------------------
 

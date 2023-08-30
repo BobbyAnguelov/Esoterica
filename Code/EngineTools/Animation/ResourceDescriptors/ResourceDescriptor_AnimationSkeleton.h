@@ -50,5 +50,9 @@ namespace EE::Animation
 
         EE_REFLECT();
         TVector<BoneMaskDefinition>                 m_boneMaskDefinitions;
+
+        // The set of bones that only matter when working with this skeleton at high LOD
+        EE_REFLECT( "IsToolsReadOnly" : "True" );
+        TVector<StringID>                           m_highLODBones;
     };
 }

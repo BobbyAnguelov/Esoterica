@@ -558,10 +558,18 @@ namespace EE::Render
             renderContext.SetIndexBuffer( pMesh->GetIndexBuffer() );
 
             TVector<Material const*> const& materials = pMeshComponent->GetMaterials();
+            uint64_t const visibility = pMeshComponent->GetSectionVisibilityMask();
 
             auto const numSubMeshes = pMesh->GetNumSections();
             for ( auto i = 0u; i < numSubMeshes; i++ )
             {
+                // Skip hidden sections
+                if ( ( visibility & ( 1ull << i ) ) == 0 )
+                {
+                    continue;
+                }
+
+                // Set material
                 if ( i < materials.size() && materials[i] )
                 {
                     SetMaterial( renderContext, *pPipelineState->m_pPixelShader, materials[i] );
@@ -634,10 +642,18 @@ namespace EE::Render
             //-------------------------------------------------------------------------
 
             TVector<Material const*> const& materials = pMeshComponent->GetMaterials();
+            uint64_t const visibility = pMeshComponent->GetSectionVisibilityMask();
 
             auto const numSubMeshes = pCurrentMesh->GetNumSections();
             for ( auto i = 0u; i < numSubMeshes; i++ )
             {
+                // Skip hidden sections
+                if ( ( visibility & ( 1ull << i ) ) == 0 )
+                {
+                    continue;
+                }
+
+                // Set material
                 if ( i < materials.size() && materials[i] )
                 {
                     SetMaterial( renderContext, *pPipelineState->m_pPixelShader, materials[i] );
@@ -830,7 +846,7 @@ namespace EE::Render
             renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr = pPointLightComponent->GetLightPosition();
             renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr.SetW( Math::Sqr( 1.0f / pPointLightComponent->GetLightRadius() ) );
             renderData.m_lightData.m_punctualLights[lightIndex].m_dir = Vector::Zero;
-            renderData.m_lightData.m_punctualLights[lightIndex].m_color = Vector( pPointLightComponent->GetLightColor() ) * pPointLightComponent->GetLightIntensity();
+            renderData.m_lightData.m_punctualLights[lightIndex].m_color = Vector( pPointLightComponent->GetLightColor().ToFloat4() ) * pPointLightComponent->GetLightIntensity();
             renderData.m_lightData.m_punctualLights[lightIndex].m_spotAngles = Vector( -1.0f, 1.0f, 0.0f );
             ++lightIndex;
         }
@@ -843,7 +859,7 @@ namespace EE::Render
             renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr = pSpotLightComponent->GetLightPosition();
             renderData.m_lightData.m_punctualLights[lightIndex].m_positionInvRadiusSqr.SetW( Math::Sqr( 1.0f / pSpotLightComponent->GetLightRadius() ) );
             renderData.m_lightData.m_punctualLights[lightIndex].m_dir = -pSpotLightComponent->GetLightDirection();
-            renderData.m_lightData.m_punctualLights[lightIndex].m_color = Vector( pSpotLightComponent->GetLightColor() ) * pSpotLightComponent->GetLightIntensity();
+            renderData.m_lightData.m_punctualLights[lightIndex].m_color = Vector( pSpotLightComponent->GetLightColor().ToFloat4() ) * pSpotLightComponent->GetLightIntensity();
             Radians innerAngle = pSpotLightComponent->GetLightInnerUmbraAngle().ToRadians();
             Radians outerAngle = pSpotLightComponent->GetLightOuterUmbraAngle().ToRadians();
             innerAngle.Clamp( 0, Math::PiDivTwo );

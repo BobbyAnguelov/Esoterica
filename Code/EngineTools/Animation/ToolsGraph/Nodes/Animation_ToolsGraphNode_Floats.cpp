@@ -695,9 +695,9 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    bool FloatSelectorToolsNode::DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    bool FloatSelectorToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
     {
-        FlowToolsNode::DrawPinControls( pUserContext, pin );
+        FlowToolsNode::DrawPinControls( ctx, pUserContext, pin );
 
         // Add parameter value input field
         if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Bool ) )
@@ -706,7 +706,7 @@ namespace EE::Animation::GraphNodes
             EE_ASSERT( valueIdx >= 0 && valueIdx < m_pinValues.size() );
 
             ImGui::PushID( &m_pinValues[valueIdx] );
-            ImGui::SetNextItemWidth( 50 );
+            ImGui::SetNextItemWidth( 50 * ctx.m_viewScaleFactor );
             ImGui::InputFloat( "##parameter", &m_pinValues[valueIdx], 0.0f, 0.0f, "%.2f" );
             ImGui::PopID();
 

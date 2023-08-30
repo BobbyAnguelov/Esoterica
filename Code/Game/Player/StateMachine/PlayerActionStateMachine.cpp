@@ -290,7 +290,7 @@ namespace EE::Player
 
                     for ( auto pOverlayAction : m_overlayActions )
                     {
-                        ImVec4 const color = pOverlayAction->IsActive() ? Colors::LimeGreen.ToFloat4() : ImGui::GetStyle().Colors[ImGuiCol_Text];
+                        ImVec4 const color = pOverlayAction->IsActive() ? ImVec4( Colors::LimeGreen.ToFloat4() ) : ImGui::GetStyle().Colors[ImGuiCol_Text];
 
                         ImGui::TableNextRow();
 

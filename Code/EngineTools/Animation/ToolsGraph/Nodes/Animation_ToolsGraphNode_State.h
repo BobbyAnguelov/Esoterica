@@ -1,5 +1,6 @@
 #pragma once
 #include "Animation_ToolsGraphNode.h"
+#include "EngineTools/Core/VisualGraph/VisualGraph_StateMachineGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -29,6 +30,9 @@ namespace EE::Animation::GraphNodes
     {
         friend class StateMachineToolsNode;
         EE_REFLECT_TYPE( StateToolsNode );
+
+        constexpr static float const s_minimumStateNodeUnscaledWidth = 30;
+        constexpr static float const s_minimumStateNodeUnscaledHeight = 30;
 
     public:
 

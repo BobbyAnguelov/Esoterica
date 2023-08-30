@@ -53,7 +53,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Animation/Poses"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual bool DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
+        virtual bool DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
 
         virtual char const* GetDefaultSlotName() const override { return "Pose"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override { return AnimationClip::GetStaticResourceTypeID(); }

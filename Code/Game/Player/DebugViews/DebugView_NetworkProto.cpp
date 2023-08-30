@@ -34,7 +34,7 @@ namespace EE::Player
         DebugView::Shutdown();
     }
 
-    void NetworkProtoDebugView::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
+    void NetworkProtoDebugView::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         if ( VectorContains( usersToReload, Resource::ResourceRequesterID( m_pPlayerGraphComponent->GetEntityID().m_value ) ) )
         {
@@ -128,6 +128,31 @@ namespace EE::Player
         ImGui::SameLine();
 
         ImGuiX::Checkbox( "Hide Mesh", &m_isMeshHidden );
+
+        // Legend
+        //-------------------------------------------------------------------------
+
+        {
+            ImGui::SameLine();
+            ImGuiX::ScopedFont sf( Colors::LimeGreen );
+            ImGui::BulletText( "Server Pose" );
+        }
+
+        {
+            ImGui::SameLine();
+            ImGuiX::ScopedFont sf( Colors::HotPink );
+            ImGui::BulletText( "Replicated Parameters Pose" );
+            ImGui::SameLine();
+            ImGuiX::Checkbox( "##Replicated Parameters Pose", &m_showParameterPose );
+        }
+
+        {
+            ImGui::SameLine();
+            ImGuiX::ScopedFont sf( Colors::Orange );
+            ImGui::BulletText( "Replicated Tasks Pose" );
+            ImGui::SameLine();
+            ImGuiX::Checkbox( "##Replicated Tasks Pose", &m_showTaskPose );
+        }
 
         //-------------------------------------------------------------------------
 
@@ -232,10 +257,22 @@ namespace EE::Player
                     ImPlot::EndPlot();
                 }
 
-                if ( ImPlot::BeginPlot( "Recorded Task Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                if ( ImPlot::BeginPlot( "Recorded Task Size Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
                 {
                     ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
-                    ImPlot::PlotBars( "Vertical", m_serializedTaskDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                    ImPlot::PlotBars( "Vertical", m_serializedTaskSizeDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                    double x = (double) m_updateFrameIdx;
+                    if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                    {
+                        UpdateFrameIndex( (int32_t) x );
+                    }
+                    ImPlot::EndPlot();
+                }
+
+                if ( ImPlot::BeginPlot( "Recorded Task Shared Byte Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                {
+                    ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                    ImPlot::PlotBars( "Vertical", m_serializedTaskSharedByteDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
                     double x = (double) m_updateFrameIdx;
                     if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
                     {
@@ -261,7 +298,9 @@ namespace EE::Player
 
                 ImGui::Text( "Serialized Task Size: %d bytes", frameData.m_serializedTaskData.size() );
 
-                ImGui::Text( "Delta from previous frame : % d bytes",  (int32_t) m_serializedTaskDeltas[m_updateFrameIdx] );
+                ImGui::Text( "Size Delta from previous frame : % d bytes",  (int32_t) m_serializedTaskSizeDeltas[m_updateFrameIdx] );
+
+                ImGui::Text( "Shared byte Delta from previous frame : % d bytes", (int32_t) m_serializedTaskSharedByteDeltas[m_updateFrameIdx] );
 
                 ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
                 bool const drawMainTable = ImGui::BeginTable( "RecData", 2, ImGuiTableFlags_Borders );
@@ -374,10 +413,18 @@ namespace EE::Player
             auto const& nextRecordedFrameData = m_graphRecorder.m_recordedData[nextFrameIdx];
 
             auto drawContext = context.GetDrawingContext();
-            m_actualPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::LimeGreen, 4.0f );
-            m_replicatedPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::HotPink, 4.0f );
 
-            if ( m_pGeneratedPose != nullptr )
+            // Server Pose
+            m_actualPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::LimeGreen, 4.0f );
+
+            // Parameter Pose
+            if ( m_showParameterPose )
+            {
+                m_replicatedPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::HotPink, 4.0f );
+            }
+
+            // Task Pose
+            if ( m_showTaskPose && m_pGeneratedPose != nullptr )
             {
                 m_pGeneratedPose->DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::Orange, 4.0f );
             }
@@ -397,7 +444,8 @@ namespace EE::Player
         m_actualPoses.clear();
         m_replicatedPoses.clear();
         m_serializedTaskSizes.clear();
-        m_serializedTaskDeltas.clear();
+        m_serializedTaskSizeDeltas.clear();
+        m_serializedTaskSharedByteDeltas.clear();
     }
 
     void GenerateBitPackedParameterData( Animation::GraphInstance const* pGraphInstance, Animation::RecordedGraphFrameData const& data, Blob& outData )
@@ -504,7 +552,8 @@ namespace EE::Player
         m_actualPoses.clear();
         m_replicatedPoses.clear();
         m_serializedTaskSizes.clear();
-        m_serializedTaskDeltas.clear();
+        m_serializedTaskSizeDeltas.clear();
+        m_serializedTaskSharedByteDeltas.clear();
 
         m_joinInProgressFrameIdx = simulatedJoinInProgressFrame;
 
@@ -563,25 +612,28 @@ namespace EE::Player
 
             if ( i == 0 )
             {
-                m_serializedTaskDeltas.emplace_back( m_serializedTaskSizes[0] );
+                m_serializedTaskSizeDeltas.emplace_back( m_serializedTaskSizes[0] );
+                m_serializedTaskSharedByteDeltas.emplace_back( m_serializedTaskSizes[0] );
             }
             else // Calculate delta
             {
                 auto const& from = m_graphRecorder.m_recordedData[i-1].m_serializedTaskData;
                 auto const& to = m_graphRecorder.m_recordedData[i].m_serializedTaskData;
 
-                size_t const numSharedBytes = Math::Min( from.size(), to.size() );
-                float delta = (float) to.size() - (float) from.size();
+                float const sizeDelta = (float) to.size() - (float) from.size();
+                m_serializedTaskSizeDeltas.emplace_back( sizeDelta );
 
+                float byteDelta = 0;
+                size_t const numSharedBytes = Math::Min( from.size(), to.size() );
                 for ( auto b = 0u; b < numSharedBytes; b++ )
                 {
                     if ( from[b] != to[b] )
                     {
-                        delta++;
+                        byteDelta++;
                     }
                 }
 
-                m_serializedTaskDeltas.emplace_back( delta );
+                m_serializedTaskSharedByteDeltas.emplace_back( byteDelta );
             }
         }
 
@@ -599,7 +651,7 @@ namespace EE::Player
 
             // Set parameters
             m_pActualInstance->SetRecordedFrameUpdateData( frameData );
-            m_pActualInstance->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr, false );
+            m_pActualInstance->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr, nullptr, false );
             m_pActualInstance->ExecutePrePhysicsPoseTasks( nextRecordedFrameData.m_characterWorldTransform );
             m_pActualInstance->ExecutePostPhysicsPoseTasks();
 

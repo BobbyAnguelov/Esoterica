@@ -5,11 +5,11 @@
 
 namespace EE
 {
-    FileSystem::Path SaveDialog( String const& extension, FileSystem::Path const& startingPath, String const& friendlyFilterName )
+    bool SaveDialog( String const& extension, FileSystem::Path& outPath, FileSystem::Path const& startingPath, String const& friendlyFilterName )
     {
         EE_ASSERT( !extension.empty() && extension.front() != '.' );
 
-        FileSystem::Path outPath;
+        outPath.Clear();
 
         // Select file
         //-------------------------------------------------------------------------
@@ -20,7 +20,7 @@ namespace EE
         auto const selectedFilePath = pfd::save_file( "Save File", startingPath.c_str(), { friendlyFilterName.c_str(), filterString.c_str() } ).result();
         if ( selectedFilePath.empty() )
         {
-            return outPath;
+            return false;
         }
 
         outPath = selectedFilePath.c_str();
@@ -35,14 +35,17 @@ namespace EE
             errorString.sprintf( "Invalid extension provided! You need to have the .%s extension!", extension.c_str() );
             pfd::message( "Error", errorString.c_str(), pfd::choice::ok, pfd::icon::error ).result();
             outPath.Clear();
+            return false;
         }
 
-        return outPath;
+        //-------------------------------------------------------------------------
+
+        return true;
     }
 
-    FileSystem::Path SaveDialog( ResourceTypeID resourceTypeID, FileSystem::Path const& startingPath, String const& friendlyFilterName )
+    bool SaveDialog( ResourceTypeID resourceTypeID, FileSystem::Path& outPath, FileSystem::Path const& startingPath, String const& friendlyFilterName )
     {
-        FileSystem::Path outPath;
+        outPath.Clear();
 
         TInlineString<5> const resourceTypeIDString = resourceTypeID.ToString();
 
@@ -55,7 +58,7 @@ namespace EE
         auto const selectedFilePath = pfd::save_file( "Save File", startingPath.c_str(), { friendlyFilterName.c_str(), filterString.c_str() } ).result();
         if ( selectedFilePath.empty() )
         {
-            return outPath;
+            return false;
         }
 
         outPath = selectedFilePath.c_str();
@@ -77,9 +80,10 @@ namespace EE
                 errorString.sprintf( "Invalid extension provided! You need to have the .%s extension!", resourceTypeIDString.c_str() );
                 pfd::message( "Error", errorString.c_str(), pfd::choice::ok, pfd::icon::error ).result();
                 outPath.Clear();
+                return false;
             }
         }
 
-        return outPath;
+        return true;
     }
 }

@@ -38,73 +38,98 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo )
+    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo )
     {
-        float const availableWidth = Math::Max( width, g_playbackBarMinimumWidth );
-        ImVec2 const playbackBarSize = ImVec2( availableWidth, g_playbackBarHeight );
+        float const availableCanvasWidth = Math::Max( canvasWidth, g_playbackBarMinimumWidth );
+        ImVec2 const playbackBarSize = ctx.CanvasToWindow( ImVec2( availableCanvasWidth, g_playbackBarHeight ) );
         ImVec2 const playbackBarTopLeft = ImGui::GetCursorScreenPos();
         ImVec2 const playbackBarBottomRight = playbackBarTopLeft + playbackBarSize;
 
-        Percentage const percentageThroughTrack = debugInfo.m_currentTime.GetNormalizedTime();
-        float const pixelOffsetForPercentageThrough = Math::Floor( playbackBarSize.x * percentageThroughTrack );
+        // Draw spacer
+        //-------------------------------------------------------------------------
+
+        ImGui::Dummy( playbackBarSize );
+
+        // Draw Info
+        //-------------------------------------------------------------------------
+
+        if ( pDebugInfo != nullptr )
+        {
+            Percentage const percentageThroughTrack = pDebugInfo->m_currentTime.GetNormalizedTime();
+            float const pixelOffsetForPercentageThrough = Math::Floor( playbackBarSize.x * percentageThroughTrack );
+
+            // Draw events
+            bool useAlternateColor = false;
+            ImVec2 eventTopLeft = playbackBarTopLeft;
+            ImVec2 eventBottomRight = playbackBarBottomRight;
+            for ( auto const& evt : pDebugInfo->m_pSyncTrack->GetEvents() )
+            {
+                eventBottomRight.x = eventTopLeft.x + Math::Floor( playbackBarSize.x * evt.m_duration );
+                ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? Colors::White : Colors::DarkGray );
+                eventTopLeft.x = eventBottomRight.x;
+                useAlternateColor = !useAlternateColor;
+            }
+
+            // Draw progress bar
+            ImVec2 progressBarTopLeft = playbackBarTopLeft;
+            ImVec2 progressBarBottomRight = playbackBarTopLeft + ImVec2( pixelOffsetForPercentageThrough, playbackBarSize.y );
+            ctx.m_pDrawList->AddRectFilled( progressBarTopLeft, progressBarBottomRight, Colors::LimeGreen.GetAlphaVersion( 0.65f ) );
+
+            // Draw Marker
+            float const scaledMarkerSize = ctx.CanvasToWindow( g_playbackBarMarkerSize );
+            ImVec2 t0( progressBarTopLeft.x + pixelOffsetForPercentageThrough, playbackBarBottomRight.y );
+            ImVec2 t1( t0.x - scaledMarkerSize, playbackBarBottomRight.y + scaledMarkerSize );
+            ImVec2 t2( t0.x + scaledMarkerSize, playbackBarBottomRight.y + scaledMarkerSize );
+            ctx.m_pDrawList->AddLine( t0, t0 - ImVec2( 0, playbackBarSize.y ), Colors::LimeGreen );
+            ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, Colors::LimeGreen );
+
+            // Draw text info
+            ImGui::Text( "Time: %.2f/%.2fs", pDebugInfo->m_currentTime.ToFloat() * pDebugInfo->m_duration, pDebugInfo->m_duration.ToFloat() );
+            ImGui::Text( "Percent: %.1f%%", pDebugInfo->m_currentTime.ToFloat() * 100 );
+            ImGui::Text( "Event: %d, %.1f%%", pDebugInfo->m_currentSyncTime.m_eventIdx, pDebugInfo->m_currentSyncTime.m_percentageThrough.ToFloat() * 100 );
+            StringID const eventID = pDebugInfo->m_pSyncTrack->GetEventID( pDebugInfo->m_currentSyncTime.m_eventIdx );
+            ImGui::Text( "Event ID: %s", eventID.IsValid() ? eventID.c_str() : "No ID");
+        }
+        else
+        {
+            // Draw empty playback visualization bar
+            ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, Colors::DarkGray );
+
+            // Draw text placeholders
+            ImGui::Text( "Time: N/A" );
+            ImGui::Text( "Percent: N/A" );
+            ImGui::Text( "Event: N/A" );
+            ImGui::Text( "Event ID: N/A" );
+        }
+    }
+
+    void DrawRuntimeNodeIndex( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, VisualGraph::BaseNode* pNode, int16_t runtimeNodeIdx )
+    {
+        ImGuiStyle const& style = ImGui::GetStyle();
 
         //-------------------------------------------------------------------------
 
-        // Draw spacer
-        ImVec2 const playbackBarRegion = ImVec2( availableWidth, g_playbackBarRegionHeight );
-        ImGui::InvisibleButton( "Spacer", playbackBarRegion );
+        InlineString const idxStr( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
 
-        // Draw events
-        bool useAlternateColor = false;
-        ImVec2 eventTopLeft = playbackBarTopLeft;
-        ImVec2 eventBottomRight = playbackBarBottomRight;
-        for ( auto const& evt : debugInfo.m_pSyncTrack->GetEvents() )
-        {
-            eventBottomRight.x = eventTopLeft.x + Math::Floor( playbackBarSize.x * evt.m_duration );
-            ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? Colors::White : Colors::DarkGray );
-            eventTopLeft.x = eventBottomRight.x;
-            useAlternateColor = !useAlternateColor;
-        }
+        ImVec2 const textSize = ImGui::CalcTextSize( idxStr.c_str() );
+        float const scaledBubblePadding = ctx.CanvasToWindow( 4.0f );
+        float const scaledVerticalOffset = ctx.CanvasToWindow( pNode->GetNodeMargin() ).y + style.ItemSpacing.y;
+        float const scaledBubbleWidth = textSize.x + style.ItemSpacing.x + ( scaledBubblePadding * 2 );
+        float const scaledBubbleHeight = ImGui::GetFrameHeight();
 
-        // Draw progress bar
-        ImVec2 progressBarTopLeft = playbackBarTopLeft;
-        ImVec2 progressBarBottomRight = playbackBarTopLeft + ImVec2( pixelOffsetForPercentageThrough, playbackBarSize.y );
-        ctx.m_pDrawList->AddRectFilled( progressBarTopLeft, progressBarBottomRight, Colors::LimeGreen.GetAlphaVersion( 0.65f ) );
+        //-------------------------------------------------------------------------
 
-        // Draw Marker
-        ImVec2 t0( progressBarTopLeft.x + pixelOffsetForPercentageThrough, playbackBarBottomRight.y );
-        ImVec2 t1( t0.x - g_playbackBarMarkerSize, playbackBarBottomRight.y + g_playbackBarMarkerSize );
-        ImVec2 t2( t0.x + g_playbackBarMarkerSize, playbackBarBottomRight.y + g_playbackBarMarkerSize );
-        ctx.m_pDrawList->AddLine( t0, t0 - ImVec2( 0, playbackBarSize.y ), Colors::LimeGreen );
-        ctx.m_pDrawList->AddTriangleFilled( t0, t1, t2, Colors::LimeGreen );
+        Float2 const nodeWindowPosition = ctx.CanvasToWindowPosition( pNode->GetPosition() );
+        ImVec2 const startRect = ctx.WindowToScreenPosition( ImVec2( nodeWindowPosition.m_x, nodeWindowPosition.m_y - scaledBubbleHeight - scaledVerticalOffset ) );
+        ImVec2 const endRect = ImVec2( startRect.x + scaledBubbleWidth, startRect.y + scaledBubbleHeight );
+        float const scaledRounding = ctx.CanvasToWindow( 3.0f * ctx.m_viewScaleFactor );
+        ctx.m_pDrawList->AddRectFilled( startRect, endRect, Colors::MediumRed, scaledRounding );
 
-        // Draw text info
-        ImGui::Text( "Time: %.2f/%.2fs", debugInfo.m_currentTime.ToFloat() * debugInfo.m_duration, debugInfo.m_duration.ToFloat() );
-        ImGui::Text( "Percent: %.1f%%", debugInfo.m_currentTime.ToFloat() * 100 );
-        ImGui::Text( "Event: %d, %.1f%%", debugInfo.m_currentSyncTime.m_eventIdx, debugInfo.m_currentSyncTime.m_percentageThrough.ToFloat() * 100 );
-        StringID const eventID = debugInfo.m_pSyncTrack->GetEventID( debugInfo.m_currentSyncTime.m_eventIdx );
-        ImGui::Text( "Event ID: %s", eventID.IsValid() ? eventID.c_str() : "No ID");
-    }
+        //-------------------------------------------------------------------------
 
-    void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width )
-    {
-        float const availableWidth = Math::Max( width, g_playbackBarMinimumWidth );
-        ImVec2 const playbackBarSize = ImVec2( availableWidth, g_playbackBarHeight );
-        ImVec2 const playbackBarTopLeft = ImGui::GetCursorScreenPos();
-        ImVec2 const playbackBarBottomRight = playbackBarTopLeft + playbackBarSize;
-
-        // Draw spacer
-        ImVec2 const playbackBarRegion = ImVec2( availableWidth, g_playbackBarRegionHeight );
-        ImGui::InvisibleButton( "Spacer", playbackBarRegion );
-
-        // Draw empty playback visualization bar
-        ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, playbackBarTopLeft + playbackBarSize, Colors::DarkGray );
-
-        // Draw text placeholders
-        ImGui::Text( "Time: N/A" );
-        ImGui::Text( "Percent: N/A" );
-        ImGui::Text( "Event: N/A" );
-        ImGui::Text( "Event ID: N/A" );
+        auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+        Float2 const scaledTextOffset( scaledBubblePadding, scaledBubblePadding );
+        ctx.m_pDrawList->AddText( pFont, pFont->FontSize * ctx.m_viewScaleFactor, startRect + scaledTextOffset, Colors::White, idxStr.c_str() );
     }
 
     void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& value )
@@ -219,6 +244,7 @@ namespace EE::Animation::GraphNodes
     void FlowToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
         int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
@@ -229,24 +255,7 @@ namespace EE::Animation::GraphNodes
 
         if ( pGraphNodeContext->m_showRuntimeIndices && isPreviewingAndValidRuntimeNodeIdx )
         {
-            InlineString const idxStr( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
-            ImVec2 const textSize = ImGui::CalcTextSize( idxStr.c_str() );
-
-            //-------------------------------------------------------------------------
-
-            ImGuiStyle const& style = ImGui::GetStyle();
-            constexpr static float const verticalOffset = 10;
-            float const bubbleHeight = ImGui::GetFrameHeightWithSpacing();
-            float const bubbleWidth = textSize.x + 12;
-
-            ImVec2 const startRect( GetCanvasPosition().m_x, GetCanvasPosition().m_y - bubbleHeight - verticalOffset );
-            ImVec2 const endRect( startRect.x + bubbleWidth, startRect.y + bubbleHeight );
-            ImVec2 const canvasStartRect = ctx.CanvasPositionToScreenPosition( startRect );
-
-            ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), Colors::MediumRed, 3 );
-
-            auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-            ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), Colors::White, idxStr.c_str());
+            DrawRuntimeNodeIndex( ctx, pGraphNodeContext, this, runtimeNodeIdx );
         }
 
         //-------------------------------------------------------------------------
@@ -258,14 +267,14 @@ namespace EE::Animation::GraphNodes
             if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
             {
                 PoseNodeDebugInfo const debugInfo = pGraphNodeContext->GetPoseNodeDebugInfo( runtimeNodeIdx );
-                DrawPoseNodeDebugInfo( ctx, GetWidth(), debugInfo );
+                DrawPoseNodeDebugInfo( ctx, GetWidth(), &debugInfo );
             }
             else
             {
-                DrawEmptyPoseNodeDebugInfo( ctx, GetWidth() );
+                DrawPoseNodeDebugInfo( ctx, GetWidth(), nullptr );
             }
 
-            ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+            ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y );
 
             DrawInfoText( ctx );
         }
@@ -280,9 +289,9 @@ namespace EE::Animation::GraphNodes
 
             if ( GetValueType() != GraphValueType::Unknown && GetValueType() != GraphValueType::BoneMask && GetValueType() != GraphValueType::Pose && GetValueType() != GraphValueType::Special )
             {
-                DrawInternalSeparator( ctx, s_genericNodeSeparatorColor, 4.0f );
+                DrawInternalSeparator( ctx, s_genericNodeSeparatorColor );
 
-                BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ), 4, 2 );
+                BeginDrawInternalRegion( ctx );
 
                 if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) && HasOutputPin() )
                 {

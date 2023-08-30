@@ -18,7 +18,7 @@ namespace EE::Animation::Tasks
 
     void RagdollSetPoseTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         pSourceBuffer->m_pose.CalculateGlobalTransforms();
         m_pRagdoll->Update( context.m_deltaTime, context.m_worldTransform, &pSourceBuffer->m_pose, m_initOption == InitializeBodies );
@@ -45,7 +45,7 @@ namespace EE::Animation::Tasks
 
     void RagdollGetPoseTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         if ( context.m_dependencies.empty() )
         {
             auto pResultBuffer = GetNewPoseBuffer( context );
@@ -72,7 +72,7 @@ namespace EE::Animation::Tasks
                 // Get the ragdoll pose and blend it with the animation pose
                 pTempBuffer->m_pose.CalculateGlobalTransforms();
                 m_pRagdoll->GetPose( context.m_worldTransform, &pTempBuffer->m_pose );
-                Animation::Blender::LocalBlend( &pResultBuffer->m_pose, &pTempBuffer->m_pose, m_physicsBlendWeight, nullptr, &pResultBuffer->m_pose );
+                Animation::Blender::LocalBlend( context.m_skeletonLOD, &pResultBuffer->m_pose, &pTempBuffer->m_pose, m_physicsBlendWeight, nullptr, &pResultBuffer->m_pose );
 
                 ReleaseTemporaryPoseBuffer( context, tmpBufferIdx );
             }

@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
             transitionsToRemove.emplace_back( pTransition );
         }
 
-        ImVec2 const initialPosition = globalTransitions.empty() ? ImVec2( 0, 0 ) : globalTransitions.front()->GetCanvasPosition();
+        ImVec2 const initialPosition = globalTransitions.empty() ? ImVec2( 0, 0 ) : ImVec2( globalTransitions.front()->GetPosition() );
 
         // Check transition states
         //-------------------------------------------------------------------------
@@ -90,7 +90,7 @@ namespace EE::Animation::GraphNodes
             pNewTransition->m_name = pState->GetName();
             pNewTransition->m_stateID = pState->GetID();
 
-            pNewTransition->SetCanvasPosition( initialPosition + offset );
+            pNewTransition->SetPosition( initialPosition + offset );
             offset += offsetStep;
         }
     }

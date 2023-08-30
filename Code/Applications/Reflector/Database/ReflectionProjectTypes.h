@@ -17,7 +17,7 @@ namespace EE::TypeSystem::Reflection
     {
         inline static HeaderID GetHeaderID( FileSystem::Path const& headerFilePath )
         {
-            String lowercasePath = headerFilePath;
+            String lowercasePath = headerFilePath.GetString();
             lowercasePath.make_lower();
             return StringID( lowercasePath.c_str() );
         }
@@ -61,7 +61,7 @@ namespace EE::TypeSystem::Reflection
     {
         inline static ProjectID GetProjectID( FileSystem::Path const& projectFilePath )
         {
-            String lowercasePath = projectFilePath;
+            String lowercasePath = projectFilePath.GetString();
             lowercasePath.make_lower();
             return StringID( lowercasePath.c_str() );
         }

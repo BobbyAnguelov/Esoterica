@@ -129,13 +129,11 @@ namespace EE::Math
     }
 
     // Returns the yaw angle (rotation around Z) between two vectors, relative to the reference vector
-    inline Radians GetYawAngleBetweenVectors( Vector const& reference, Vector const& v )
+    inline Radians GetYawAngleBetweenNormalizedVectors( Vector const& reference, Vector const& v )
     {
-        Vector const nr = reference.GetNormalized2();
-        Vector const nv = v.GetNormalized2();
-        Radians horizontalAngle = GetAngleBetweenVectors( nr, nv );
+        Radians horizontalAngle = GetAngleBetweenVectors( reference, v );
 
-        Vector const cross = Vector::Cross3( nr, nv );
+        Vector const cross = Vector::Cross3( reference, v );
         Vector const dot = Vector::Dot3( cross, Vector::UnitZ );
         if ( dot.ToFloat() < 0.0f )
         {
@@ -143,6 +141,14 @@ namespace EE::Math
         }
 
         return horizontalAngle;
+    }
+
+    // Returns the yaw angle (rotation around Z) between two vectors, relative to the reference vector
+    inline Radians GetYawAngleBetweenVectors( Vector const& reference, Vector const& v )
+    {
+        Vector const nr = reference.GetNormalized2();
+        Vector const nv = v.GetNormalized2();
+        return GetYawAngleBetweenNormalizedVectors( nr, nv );
     }
 
     // Returns the pitch angle (rotation around X) between two vectors, relative to the reference vector

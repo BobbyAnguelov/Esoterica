@@ -36,7 +36,7 @@ namespace EE::Animation::GraphNodes
 
         virtual char const* GetTypeName() const override { return "Blend 1D"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual bool DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
+        virtual bool DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
         virtual void OnDynamicPinCreation( UUID pinID ) override;
         virtual void OnDynamicPinDestruction( UUID pinID ) override;
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "Animation_ToolsGraphNode.h"
+#include "EngineTools/Core/VisualGraph/VisualGraph_StateMachineGraph.h"
 
 //-------------------------------------------------------------------------
 

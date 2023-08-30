@@ -45,7 +45,7 @@ namespace EE::Timeline
             void Reset();
 
             Track*                  m_pHoveredTrack = nullptr;
-            TrackItem*                   m_pHoveredItem = nullptr;
+            TrackItem*              m_pHoveredItem = nullptr;
             float                   m_playheadTimeForMouse = -1.0f;
             float                   m_snappedPlayheadTimeForMouse = -1.0f;
             ItemEditMode            m_hoveredItemMode = ItemEditMode::None;
@@ -58,7 +58,7 @@ namespace EE::Timeline
 
             ItemEditMode            m_mode = ItemEditMode::None;
             Track const*            m_pTrackForEditedItem = nullptr;
-            TrackItem*                   m_pEditedItem = nullptr;
+            TrackItem*              m_pEditedItem = nullptr;
             FloatRange              m_originalTimeRange;
             bool                    m_isEditing = false;
         };
@@ -69,18 +69,51 @@ namespace EE::Timeline
             void Reset();
 
             Track*                  m_pTrack = nullptr;
-            TrackItem*                   m_pItem = nullptr;
+            TrackItem*              m_pItem = nullptr;
             float                   m_playheadTimeForMouse = -1.0f;
+        };
+
+        struct VisualTrackItem
+        {
+            VisualTrackItem() = default;
+            VisualTrackItem( TrackItem* pItem, ImRect const& rect ) : m_pItem( pItem ), m_rect( rect ) {}
+
+        public:
+
+            TrackItem*                  m_pItem = nullptr;
+            ImRect                      m_rect;
+            Track::ItemState            m_itemState = Track::ItemState::None;
+        };
+
+        struct VisualTrack
+        {
+            VisualTrack() = default;
+            VisualTrack( Track* pTrack ) : m_pTrack( pTrack ) {}
+
+        public:
+
+            Track*                      m_pTrack = nullptr;
+            ImRect                      m_rect;
+            ImRect                      m_headerRect;
+            TVector<VisualTrackItem>    m_items;
         };
 
     public:
 
-        TimelineEditor( TimelineData* pTimelineData );
+        TimelineEditor( TimelineData* pTimelineData, TFunction<void()>& onBeginModification, TFunction<void()>& onEndModification );
+        TimelineEditor( TimelineData* pTimelineData, TFunction<void()>&& onBeginModification, TFunction<void()>&& onEndModification ) : TimelineEditor( pTimelineData, onBeginModification, onEndModification ) {}
+
+        // Set the max length on the time line
+        void SetLength( float length );
+
+        // Set the conversion factor to convert from seconds to timeline units
+        void SetTimeUnitConversionFactor( float unitsPerSecond );
 
         // View
         //-------------------------------------------------------------------------
 
         inline bool IsFocused() const { return m_isFocused; }
+
         inline void SetViewRange( FloatRange const& inRange ) { EE_ASSERT( inRange.IsSetAndValid() ); m_viewRange = inRange; }
 
         // Tracks
@@ -89,7 +122,7 @@ namespace EE::Timeline
         inline TimelineData const* GetTrackContainer() const { return m_pTimeline; }
 
         // Get the overall status for the track container
-        inline Track::Status GetTrackContainerValidationStatus() const { return m_pTimeline->GetValidationStatus(); }
+        inline Track::Status GetTrackContainerValidationStatus() const { return m_pTimeline->GetValidationStatus( m_context ); }
 
         // Update
         //-------------------------------------------------------------------------
@@ -122,13 +155,16 @@ namespace EE::Timeline
         inline float GetPlayheadTime() const { return m_playheadTime; }
 
         // Get the current position as a percentage of the time line
-        inline Percentage GetPlayheadTimeAsPercentage() const { return FloatRange( 0, m_pTimeline->GetLength() ).GetPercentageThrough( m_playheadTime ); }
+        inline Percentage GetPlayheadTimeAsPercentage() const { return FloatRange( 0, m_context.m_timelineLength ).GetPercentageThrough( m_playheadTime ); }
 
         // Selection
         //-------------------------------------------------------------------------
 
         inline TVector<TrackItem*> const& GetSelectedItems() const { return m_selectedItems; }
         void ClearSelection();
+
+        // Extensions
+        //-------------------------------------------------------------------------
 
     private:
 
@@ -140,7 +176,7 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         // Delete specified track
-        inline void DeleteTrack( Track* pTrack ) { m_pTimeline->DeleteTrack( pTrack ); }
+        inline void DeleteTrack( Track* pTrack ) { m_pTimeline->DeleteTrack( m_context, pTrack ); }
 
         //-------------------------------------------------------------------------
 
@@ -149,17 +185,14 @@ namespace EE::Timeline
 
         //-------------------------------------------------------------------------
 
-        // Provided rect overs only the area within with the controls can be drawn
-        void DrawTimelineControls( ImRect const& controlsRect );
+        // Calculate the size of the regions in the timeline editor
+        void CalculateLayout();
 
-        // Provided rect covers only the area for the timeline display, excludes track header region
-        void DrawTimeline( ImRect const& timelineRect );
+        // Create all the child windows and the default ImGui widgets
+        void CreateWindowsAndWidgets();
 
-        // Provided rect covers only the area for the timeline display, excludes track header region
-        void DrawPlayhead( ImRect const& timelineRect );
-
-        // Provided rect defines the area available to draw multiple tracks (incl. headers and items)
-        void DrawTracks( ImRect const& trackAreaRect );
+        // Perform all ImGui draw list operations
+        void DrawUI();
 
         // Draw the list of available tracks to add
         void DrawAddTracksMenu();
@@ -205,21 +238,40 @@ namespace EE::Timeline
     protected:
 
         // The timeline data
+        //-------------------------------------------------------------------------
+
         TimelineData*               m_pTimeline = nullptr;
+        TrackContext                m_context;
 
-        // The current visible time range
+        // Play State
+        //-------------------------------------------------------------------------
+
         FloatRange                  m_viewRange = FloatRange( 0, 0 );
-
-        float                       m_pixelsPerFrame = 10.0f;
         float                       m_playheadTime = 0.0f;
-        ImRect                      m_timelineRect;
-        ImRect                      m_playheadRect;
-
         PlayState                   m_playState = PlayState::Paused;
-        ViewUpdateMode              m_viewUpdateMode = ViewUpdateMode::ShowFullTimeRange;
+
+        // Options
+        //-------------------------------------------------------------------------
+
         bool                        m_isLoopingEnabled = false;
         bool                        m_isFrameSnappingEnabled = true;
-        bool                        m_isDraggingPlayhead = false;
+
+        // Layout
+        //-------------------------------------------------------------------------
+
+        ImDrawList*                 m_pDrawlist = nullptr;
+        float                       m_pixelsPerFrame = 10.0f;
+        bool                        m_hasScrollbar[2] = { false, false };
+        TVector<VisualTrack>        m_visualTracks;
+        ImVec2                      m_scrollbarValues;
+        ImVec2                      m_desiredTrackAreaSize;
+        ImRect                      m_controlsRowRect;
+        ImRect                      m_timelineRowRect;
+        ImRect                      m_timelineRect;
+        ImRect                      m_playheadRect;
+        ImRect                      m_trackAreaRect;
+
+        //-------------------------------------------------------------------------
 
         MouseState                  m_mouseState;
         ItemEditState               m_itemEditState;
@@ -228,6 +280,10 @@ namespace EE::Timeline
         TVector<TrackItem*>         m_selectedItems;
         TVector<Track*>             m_selectedTracks;
 
+        ViewUpdateMode              m_viewUpdateMode = ViewUpdateMode::ShowFullTimeRange;
+        bool                        m_isPlayheadVisible = false;
+        bool                        m_isPlayheadHovered = false;
+        bool                        m_isDraggingPlayhead = false;
         bool                        m_isContextMenuRequested = false;
         bool                        m_isFocused = false;
     };

@@ -37,13 +37,14 @@ namespace EE::Animation
             EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
             pNode->Initialize( this );
 
+            AddNode( pNode );
+
             // Ensure unique name
             if ( pNode->IsRenameable() )
             {
                 pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
             }
 
-            AddNode( pNode );
             return pNode;
         }
 
@@ -56,13 +57,14 @@ namespace EE::Animation
             EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
             pNode->Initialize( this );
 
+            AddNode( pNode );
+
             // Ensure unique name
             if ( pNode->IsRenameable() )
             {
                 pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
             }
 
-            AddNode( pNode );
             return pNode;
         }
 

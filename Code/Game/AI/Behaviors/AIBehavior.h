@@ -1,5 +1,6 @@
 #pragma once
 #include "Base/Encoding/Hash.h"
+#include "Game/AI/Animation/AIAnimationController.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 
 #if EE_DEVELOPMENT_TOOLS

@@ -44,6 +44,41 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
+    void VectorInfoToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        switch ( m_desiredInfo )
+        {
+            case VectorInfoNode::Info::X:
+            ImGui::Text( "X" );
+            break;
+
+            case VectorInfoNode::Info::Y:
+            ImGui::Text( "Y" );
+            break;
+
+            case VectorInfoNode::Info::Z:
+            ImGui::Text( "Z" );
+            break;
+
+            case VectorInfoNode::Info::W:
+            ImGui::Text( "W" );
+            break;
+
+            case VectorInfoNode::Info::Length:
+            ImGui::Text( "Length" );
+            break;
+
+            case VectorInfoNode::Info::AngleHorizontal:
+            ImGui::Text( "Angle Horizontal" );
+            break;
+
+            case VectorInfoNode::Info::AngleVertical:
+            ImGui::Text( "Angle Vertical" );
+            break;
+
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     VectorCreateToolsNode::VectorCreateToolsNode()

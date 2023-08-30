@@ -22,6 +22,10 @@
 
 namespace EE
 {
+    static StringID const g_descriptorWindowID( "DescriptorWindow" );
+
+    //-------------------------------------------------------------------------
+
     ResourceDescriptorUndoableAction::ResourceDescriptorUndoableAction( TypeSystem::TypeRegistry const* pTypeRegistry, Workspace* pWorkspace )
         : m_pTypeRegistry( pTypeRegistry )
         , m_pWorkspace( pWorkspace )
@@ -94,9 +98,8 @@ namespace EE
     //-------------------------------------------------------------------------
 
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : m_pWorld( pWorld )
-        , m_pToolsContext( pToolsContext )
-        , m_windowName( String::CtorSprintf(), "%s##%s", resourceID.GetResourcePath().GetFileName().c_str(), resourceID.GetResourcePath().c_str() ) // Temp storage for display name since we cant call virtuals from CTOR
+        : EditorTool( pToolsContext, String( String::CtorSprintf(), "%s##%s", resourceID.GetResourcePath().GetFileName().c_str(), resourceID.GetResourcePath().c_str() ) )
+        , m_pWorld( pWorld )
         , m_descriptorID( resourceID )
         , m_descriptorPath( GetFileSystemPath( resourceID ) )
     {
@@ -140,18 +143,10 @@ namespace EE
     }
 
     Workspace::Workspace( ToolsContext const* pToolsContext, EntityWorld* pWorld, String const& displayName )
-        : m_pWorld( pWorld )
-        , m_pToolsContext( pToolsContext )
-        , m_windowName( displayName ) // Temp storage for display name since we cant call virtuals from CTOR
+        : EditorTool( pToolsContext, displayName )
+        , m_pWorld( pWorld )
     {
         EE_ASSERT( m_pWorld != nullptr );
-        EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
-
-        m_ID = Hash::GetHash32( displayName );
-
-        // Camera
-        //-------------------------------------------------------------------------
-
         CreateCamera();
     }
 
@@ -190,10 +185,7 @@ namespace EE
 
     void Workspace::Initialize( UpdateContext const& context )
     {
-        // Set display name
-        //-------------------------------------------------------------------------
-
-        SetDisplayName( m_windowName );
+        EditorTool::Initialize( context );
 
         // Load Resources
         //-------------------------------------------------------------------------
@@ -220,23 +212,19 @@ namespace EE
             ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
         }
 
-        //-------------------------------------------------------------------------
-
-        m_pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
-
         // Create Tool Windows
         //-------------------------------------------------------------------------
 
         if ( IsADescriptorWorkspace() )
         {
             CreateToolWindow( "Descriptor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
-            m_toolWindows.back().m_type = ToolWindow::Type::Descriptor;
+            m_toolWindows.back().m_userData = g_descriptorWindowID.ToUint();
         }
 
         if ( HasViewportWindow() )
         {
             CreateToolWindow( "Viewport", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
-            m_toolWindows.back().m_type = ToolWindow::Type::Viewport;
+            m_toolWindows.back().m_isViewport = true;
         }
 
         //-------------------------------------------------------------------------
@@ -244,52 +232,17 @@ namespace EE
         m_isInitialized = true;
     }
 
-    void Workspace::Shutdown( UpdateContext const& context )
-    {
-        EE_ASSERT( m_isInitialized );
-        m_pResourceSystem = nullptr;
-        m_isInitialized = false;
-    }
-
     void Workspace::SetDisplayName( String name )
     {
-        EE_ASSERT( !name.empty() );
-
-        // Add in title bar icon
-        //-------------------------------------------------------------------------
-
-        if ( HasTitlebarIcon() )
-        {
-            m_windowName.sprintf( "%s %s", GetTitlebarIcon(), name.c_str() );
-        }
-        else
-        {
-            m_windowName = name;
-        }
-
-        // Set entity world name
-        //-------------------------------------------------------------------------
-
+        EditorTool::SetDisplayName( name );
         m_pWorld->SetDebugName( name.c_str() );
-    }
-
-    void Workspace::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding )
-    {
-        for ( auto const& toolWindow : m_toolWindows )
-        {
-            EE_ASSERT( toolWindow.m_name != name );
-        }
-
-        m_toolWindows.emplace_back( name, drawFunction, windowPadding );
-
-        eastl::sort( m_toolWindows.begin(), m_toolWindows.end(), [] ( ToolWindow const& lhs, ToolWindow const& rhs ) { return lhs.m_name < rhs.m_name; } );
     }
 
     void Workspace::HideDescriptorWindow()
     {
         for ( auto& toolWindow : m_toolWindows )
         {
-            if ( toolWindow.m_type == ToolWindow::Type::Descriptor )
+            if ( toolWindow.m_userData == g_descriptorWindowID.ToUint() )
             {
                 toolWindow.m_isOpen = false;
             }
@@ -359,21 +312,6 @@ namespace EE
                     m_pToolsContext->TryFindInResourceBrowser( m_descriptorID.c_str() );
                 }
                 ImGuiX::ItemTooltip( "Copy Resource Path" );
-
-                ImGui::EndMenu();
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( !m_toolWindows.empty() )
-        {
-            if ( ImGui::BeginMenu( EE_ICON_WINDOW_RESTORE" Window" ) )
-            {
-                for ( auto& toolWindow : m_toolWindows )
-                {
-                    ImGui::MenuItem( toolWindow.m_name.c_str(), nullptr, &toolWindow.m_isOpen );
-                }
 
                 ImGui::EndMenu();
             }
@@ -611,6 +549,15 @@ namespace EE
             ImGui::EndDragDropTarget();
         }
 
+        // Draw loading message
+        //-------------------------------------------------------------------------
+
+        ImGui::SetCursorPos( ImVec2( ( viewportSize.x - 100 ) / 2, viewportSize.y / 2 ) );
+        if ( m_pWorld->IsBusyLoading() || m_pWorld->HasPendingMapChangeActions() )
+        {
+            ImGuiX::DrawSpinner( "Loading - Please Wait!", ImGuiX::Style::s_colorAccent0 );
+        }
+
         // Draw overlay elements
         //-------------------------------------------------------------------------
 
@@ -751,65 +698,6 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Workspace::LoadResource( Resource::ResourcePtr* pResourcePtr )
-    {
-        EE_ASSERT( m_pResourceSystem != nullptr );
-        EE_ASSERT( pResourcePtr != nullptr && pResourcePtr->IsUnloaded() );
-        EE_ASSERT( !VectorContains( m_requestedResources, pResourcePtr ) );
-        m_requestedResources.emplace_back( pResourcePtr );
-        m_pResourceSystem->LoadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
-    }
-
-    void Workspace::UnloadResource( Resource::ResourcePtr* pResourcePtr )
-    {
-        EE_ASSERT( m_pResourceSystem != nullptr );
-        EE_ASSERT( pResourcePtr->WasRequested() );
-        EE_ASSERT( VectorContains( m_requestedResources, pResourcePtr ) );
-        m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
-        m_requestedResources.erase_first_unsorted( pResourcePtr );
-    }
-
-    bool Workspace::RequestImmediateResourceCompilation( ResourceID const& resourceID )
-    {
-        EE_ASSERT( resourceID.IsValid() );
-
-        // Trigger external recompile request and wait for it
-        //-------------------------------------------------------------------------
-
-        char const* processCommandLineArgs[5] = { m_pResourceSystem->GetSettings().m_resourceCompilerExecutablePath.c_str(), "-compile", resourceID.c_str(), nullptr, nullptr };
-
-        subprocess_s subProcess;
-        int32_t result = subprocess_create( processCommandLineArgs, subprocess_option_combined_stdout_stderr | subprocess_option_inherit_environment | subprocess_option_no_window, &subProcess );
-        if ( result != 0 )
-        {
-            return false;
-        }
-
-        int32_t exitCode = -1;
-        result = subprocess_join( &subProcess, &exitCode );
-        if ( result != 0 )
-        {
-            subprocess_destroy( &subProcess );
-            return false;
-        }
-
-        subprocess_destroy( &subProcess );
-
-        // Notify resource server to reload the resource
-        //-------------------------------------------------------------------------
-
-        if ( exitCode >= (int32_t) Resource::CompilationResult::SuccessUpToDate )
-        {
-            m_pResourceSystem->RequestResourceHotReload( resourceID );
-        }
-
-        //-------------------------------------------------------------------------
-
-        return true;
-    }
-
-    //-------------------------------------------------------------------------
-
     void Workspace::AddEntityToWorld( Entity* pEntity )
     {
         EE_ASSERT( m_pWorld != nullptr );
@@ -940,9 +828,11 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void Workspace::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void Workspace::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         EE_ASSERT( !m_isHotReloading );
+
+        EditorTool::HotReload_UnloadResources( usersToBeReloaded, resourcesToBeReloaded );
 
         // Does the descriptor need reloading?
         bool reloadDescriptor = false;
@@ -950,7 +840,7 @@ namespace EE
         {
             if ( VectorContains( resourcesToBeReloaded, m_descriptorID ) )
             {
-                reloadDescriptor = true;
+                EE::Delete( m_pDescriptor );
             }
         }
 
@@ -1016,21 +906,8 @@ namespace EE
         }
     }
 
-    void Workspace::EndHotReload()
+    void Workspace::HotReload_ReloadComplete()
     {
-        bool const hasResourcesToReload = !m_reloadingResources.empty();
-        if ( hasResourcesToReload )
-        {
-            // Load all unloaded resources
-            for ( auto& pReloadedResource : m_reloadingResources )
-            {
-                m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
-            }
-            m_reloadingResources.clear();
-        }
-
-        //-------------------------------------------------------------------------
-
         bool const needsToReloadDescriptor = IsADescriptorWorkspace() && m_pDescriptor == nullptr;
         if ( needsToReloadDescriptor )
         {
@@ -1045,12 +922,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        // Notify workspaces that the reload is complete
-        if ( m_isHotReloading )
-        {
-            OnHotReloadComplete();
-            m_isHotReloading = false;
-        }
+        EditorTool::HotReload_ReloadComplete();
     }
 
     //-------------------------------------------------------------------------
@@ -1131,6 +1003,10 @@ namespace EE
                 }
             }
         }
+
+        //-------------------------------------------------------------------------
+
+        PrivateInternalUpdate( context );
     }
 }
 

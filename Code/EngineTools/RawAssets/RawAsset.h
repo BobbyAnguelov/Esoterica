@@ -16,7 +16,10 @@ namespace EE::RawAssets
     public:
 
         RawAsset() = default;
+        RawAsset( RawAsset const& ) = default;
         virtual ~RawAsset() = default;
+
+        RawAsset& operator=( RawAsset const& rhs ) = default;
 
         virtual bool IsValid() const = 0;
 

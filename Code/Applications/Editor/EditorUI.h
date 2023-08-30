@@ -16,7 +16,6 @@ namespace EE
     class GamePreviewer;
     namespace EntityModel { class EntityMapEditor; }
     namespace Render{ class RenderingSystem; }
-    namespace Resource { class RawFileInspector; }
 
     //-------------------------------------------------------------------------
 
@@ -33,8 +32,8 @@ namespace EE
 
         public:
 
-            ResourceID  m_resourceID;
-            Type        m_type = ResourceWorkspace;
+            ResourceID          m_resourceID;
+            Type                m_type = ResourceWorkspace;
         };
 
     public:
@@ -67,8 +66,9 @@ namespace EE
         // Hot Reload
         //-------------------------------------------------------------------------
 
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
-        virtual void EndHotReload() override;
+        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
+        virtual void HotReload_ReloadResources() override;
+        virtual void HotReload_ReloadComplete() override;
 
         // Resource Management
         //-------------------------------------------------------------------------
@@ -157,7 +157,7 @@ namespace EE
             //-------------------------------------------------------------------------
 
             T* pEditorTool = EE::New<T>( eastl::forward<ConstructorParams>( params )... );
-            m_editorToolCreationRequests.emplace_back( pEditorTool );
+            m_editorToolsPendingInitialization.emplace_back( pEditorTool );
             return pEditorTool;
         }
 
@@ -168,39 +168,40 @@ namespace EE
 
     private:
 
-        ResourceID                          m_startupMapResourceID;
-        ImGuiX::ApplicationTitleBar         m_titleBar;
-        ImGuiX::ImageInfo                   m_editorIcon;
+        ResourceID                                      m_startupMapResourceID;
+        ImGuiX::ApplicationTitleBar                     m_titleBar;
+        ImGuiX::ImageInfo                               m_editorIcon;
 
         // Systems
-        Render::RenderingSystem*            m_pRenderingSystem = nullptr;
-        EntityWorldManager*                 m_pWorldManager = nullptr;
+        Render::RenderingSystem*                        m_pRenderingSystem = nullptr;
+        EntityWorldManager*                             m_pWorldManager = nullptr;
 
         // Window Management
-        ImGuiWindowClass                    m_editorWindowClass;
-        bool                                m_isImguiDemoWindowOpen = false;
-        bool                                m_isImguiPlotDemoWindowOpen = false;
-        bool                                m_isUITestWindowOpen = false;
+        ImGuiWindowClass                                m_editorWindowClass;
+        bool                                            m_isImguiDemoWindowOpen = false;
+        bool                                            m_isImguiPlotDemoWindowOpen = false;
+        bool                                            m_isUITestWindowOpen = false;
 
         // Resource Browser
-        Resource::ResourceDatabase          m_resourceDB;
-        EventBindingID                      m_resourceDeletedEventID;
-        float                               m_resourceBrowserViewWidth = 150;
-        Resource::RawFileInspector*         m_pRawResourceInspector = nullptr;
+        Resource::ResourceDatabase                      m_resourceDB;
+        EventBindingID                                  m_resourceDeletedEventID;
+        float                                           m_resourceBrowserViewWidth = 150;
 
         // Editor Tools and Workspaces
-        TVector<EditorTool*>                m_editorTools;
-        TVector<EditorTool*>                m_editorToolCreationRequests;
-        TVector<EditorTool*>                m_editorToolDestructionRequests;
-        TVector<Workspace*>                 m_workspaces;
-        TVector<WorkspaceCreationRequest>   m_workspaceCreationRequests;
-        TVector<Workspace*>                 m_workspaceDestructionRequests;
-        void*                               m_pLastActiveWorkspaceOrEditorTool = nullptr;
+        TVector<EditorTool*>                            m_editorTools;
+        TVector<EditorTool*>                            m_editorToolsPendingInitialization;
+        TVector<EditorTool*>                            m_editorToolDestructionRequests;
+
+        TVector<Workspace*>                             m_workspaces;
+        TVector<WorkspaceCreationRequest>               m_workspaceCreationRequests;
+        TVector<Workspace*>                             m_workspaceDestructionRequests;
+        void*                                           m_pLastActiveWorkspaceOrEditorTool = nullptr;
+        bool                                            m_hasOpenModalDialog = false;
 
         // Map Editor and Game Preview
-        EntityModel::EntityMapEditor*       m_pMapEditor = nullptr;
-        GamePreviewer*                      m_pGamePreviewer = nullptr;
-        EventBindingID                      m_gamePreviewStartRequestEventBindingID;
-        EventBindingID                      m_gamePreviewStopRequestEventBindingID;
+        EntityModel::EntityMapEditor*                   m_pMapEditor = nullptr;
+        GamePreviewer*                                  m_pGamePreviewer = nullptr;
+        EventBindingID                                  m_gamePreviewStartRequestEventBindingID;
+        EventBindingID                                  m_gamePreviewStopRequestEventBindingID;
     };
 }

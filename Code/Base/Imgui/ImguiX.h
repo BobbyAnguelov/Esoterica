@@ -146,9 +146,6 @@ namespace EE::ImGuiX
     // Draw a basic spinner
     EE_BASE_API bool DrawSpinner( char const* pLabel, Color const& color = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), float radius = 6.0f, float thickness = 3.0f );
 
-    // Draw a combo button - wrapper on imgui begin combo, so call end combo as expected
-    EE_BASE_API bool BeginComboButton( char const* pLabelAndID, ImGuiComboFlags flags = 0 );
-
     //-------------------------------------------------------------------------
 
     EE_BASE_API bool InputFloat2( char const* pID, Float2& value, float width = -1, bool readOnly = false );
@@ -156,6 +153,29 @@ namespace EE::ImGuiX
     EE_BASE_API bool InputFloat4( char const* pID, Float4& value, float width = -1, bool readOnly = false );
 
     EE_BASE_API bool InputTransform( char const* pID, Transform& value, float width = -1, bool readOnly = false );
+
+    //-------------------------------------------------------------------------
+
+    static void HelpMarker( const char* pHelpText )
+    {
+        ImGui::TextDisabled( EE_ICON_HELP_CIRCLE_OUTLINE );
+        if ( ImGui::IsItemHovered( ImGuiHoveredFlags_DelayShort ) && ImGui::BeginTooltip() )
+        {
+            ImGui::PushTextWrapPos( ImGui::GetFontSize() * 35.0f );
+            ImGui::TextUnformatted( pHelpText );
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Notifications
+    //-------------------------------------------------------------------------
+
+    EE_BASE_API void NotifyInfo( const char* format, ... );
+    EE_BASE_API void NotifySuccess( const char* format, ... );
+    EE_BASE_API void NotifyWarning( const char* format, ... );
+    EE_BASE_API void NotifyError( const char* format, ... );
 
     //-------------------------------------------------------------------------
     // Images

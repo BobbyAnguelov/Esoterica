@@ -366,13 +366,16 @@ namespace EE::Resource
         {
             if ( m_pendingInstallDependencies[i].HasLoadingFailed() )
             {
-                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load install dependency: %s", m_pendingInstallDependencies[i].GetResourceID().ToString().c_str() );
-                status = InstallStatus::ShouldFail;
-                break;
+                if ( !m_pResourceLoader->CanProceedWithFailedInstallDependency() )
+                {
+                    EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load install dependency: %s", m_pendingInstallDependencies[i].GetResourceID().ToString().c_str() );
+                    status = InstallStatus::ShouldFail;
+                    break;
+                }
             }
 
             // If it's loaded, move it to the loaded list and continue iterating
-            if ( m_pendingInstallDependencies[i].IsLoaded() )
+            if ( m_pendingInstallDependencies[i].IsLoaded() || m_pendingInstallDependencies[i].HasLoadingFailed() )
             {
                 m_installDependencies.emplace_back( m_pendingInstallDependencies[i] );
                 m_pendingInstallDependencies.erase_unsorted( m_pendingInstallDependencies.begin() + i );

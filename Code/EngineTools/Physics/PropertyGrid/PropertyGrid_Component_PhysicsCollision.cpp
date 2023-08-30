@@ -16,7 +16,8 @@ namespace EE::Physics
 
         virtual bool IsHidden( StringID const& propertyID ) override
         {
-            if ( propertyID == EE_REFLECT_GET_PROPERTY_ID( CollisionMeshComponent, m_collisionSettings ) )
+            StringID const collisionSettingsPropertyID( "m_collisionSettings" );
+            if ( propertyID == collisionSettingsPropertyID )
             {
                 return !m_pTypeInstance->IsOverridingCollisionSettings();
             }

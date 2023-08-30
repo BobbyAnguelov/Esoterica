@@ -10,7 +10,7 @@ namespace EE::Animation
     class SkeletonCompiler : public Resource::Compiler
     {
         EE_REFLECT_TYPE( SkeletonCompiler );
-        static const int32_t s_version = 3;
+        static const int32_t s_version = 5;
 
     public:
 

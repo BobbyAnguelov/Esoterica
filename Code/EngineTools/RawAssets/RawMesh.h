@@ -52,6 +52,7 @@ namespace EE::RawAssets
         public:
 
             String                              m_name;
+            StringID                            m_materialNameID;
             TVector<VertexData>                 m_vertices;
             TVector<uint32_t>                   m_indices;
             int32_t                             m_numUVChannels = 0;
@@ -72,6 +73,13 @@ namespace EE::RawAssets
         inline int32_t GetNumBones() const { EE_ASSERT( IsSkeletalMesh() ); return m_skeleton.GetNumBones(); }
         inline int32_t GetNumBoneInfluencesPerVertex() const { EE_ASSERT( IsSkeletalMesh() ); return m_maxNumberOfBoneInfluences; }
 
+        // Get a unique name for a new geometry section
+        String GetUniqueGeometrySectionName( String const& desiredName ) const;
+
+        // Merge all geometry sections together that have the same name
+        void MergeGeometrySectionsByMaterial();
+
+        // Apply scale to this mesh
         void ApplyScale( Float3 const& scale );
 
     protected:

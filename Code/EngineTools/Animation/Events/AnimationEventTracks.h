@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AnimationEventTrack.h"
+#include "AnimationEventTimeline.h"
 
 #include "Engine/Animation/Events/AnimationEvent_ID.h"
 #include "Engine/Animation/Events/AnimationEvent_SnapToFrame.h"
@@ -76,6 +76,7 @@ namespace EE::Animation
 
         virtual const char* GetTypeName() const override { return "Orientation Warp"; }
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override { return "Orient"; }
         virtual bool CanCreateNewItems() const override;
 
     private:
@@ -129,7 +130,7 @@ namespace EE::Animation
     private:
 
         virtual Status GetValidationStatus( Timeline::TrackContext const& context ) const override;
-        virtual ImRect DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState ) override;
+        virtual void DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, Timeline::TrackItem* pItem ) override;
         virtual float GetTrackHeight() const override { return 70; }
     };
 }

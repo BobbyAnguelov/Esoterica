@@ -85,6 +85,12 @@ namespace EE::Animation
         // Get the final pose from the task system
         Pose const* GetPose();
 
+        // Set the skeleton LOD for the result pose
+        void SetSkeletonLOD( Skeleton::LOD lod );
+
+        // Get the current skeleton LOD we are using
+        Skeleton::LOD GetSkeletonLOD() const;
+
         // Task System
         //-------------------------------------------------------------------------
 
@@ -109,7 +115,7 @@ namespace EE::Animation
         // Is this a valid instance that has been correctly initialized
         bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
 
-        // Reset the graph state with an initial time
+        // Reset/Initialize the graph state with an initial time
         void ResetGraphState( SyncTrackTime initTime = SyncTrackTime(), TVector<GraphLayerUpdateState> const* pLayerInitInfo = nullptr );
 
         // Get the current graph updateID
@@ -122,6 +128,11 @@ namespace EE::Animation
         // If the sync track update range is set, this will perform a synchronized update
         // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
         GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, bool resetGraphState = false );
+
+        // Run the graph logic - as a child graph
+        // If the sync track update range is set, this will perform a synchronized update
+        // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
+        GraphPoseNodeResult EvaluateChildGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext );
 
         // Execute any pre-physics pose tasks (assumes the character is at its final position for this frame)
         void ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform );

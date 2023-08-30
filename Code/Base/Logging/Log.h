@@ -12,7 +12,7 @@ namespace EE::Log
 {
     enum class Severity
     {
-        Message = 0,
+        Info = 0,
         Warning,
         Error,
         FatalError,
@@ -38,7 +38,7 @@ namespace EE::Log
 
 //-------------------------------------------------------------------------
 
-#define EE_LOG_MESSAGE( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Message, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_INFO( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Info, category, source, __FILE__, __LINE__, __VA_ARGS__ )
 #define EE_LOG_WARNING( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Warning, category, source, __FILE__, __LINE__, __VA_ARGS__ )
 #define EE_LOG_ERROR( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Error, category, source, __FILE__, __LINE__, __VA_ARGS__ )
 #define EE_LOG_FATAL_ERROR( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::FatalError, category, source, __FILE__, __LINE__, __VA_ARGS__ ); EE_HALT()

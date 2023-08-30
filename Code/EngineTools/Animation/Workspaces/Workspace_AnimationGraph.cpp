@@ -1235,6 +1235,12 @@ namespace EE::Animation
                 m_pDebugGraphComponent->SetRootMotionDebugMode( m_rootMotionDebugMode );
                 m_pDebugGraphComponent->SetTaskSystemDebugMode( m_taskSystemDebugMode );
                 m_pDebugGraphComponent->DrawDebug( drawingContext );
+
+                // Only mess with skeleton LOD on previews and not when live-attaching
+                if ( IsPreviewing() )
+                {
+                    m_pDebugGraphComponent->SetSkeletonLOD( m_skeletonLOD );
+                }
             }
 
             // Draw preview capsule
@@ -1266,7 +1272,7 @@ namespace EE::Animation
 
         if ( isFocused )
         {
-            if ( m_activeOperation == GraphOperationType::None )
+            if ( !m_dialogManager.HasActiveModalDialog() )
             {
                 if ( ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) ) || ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_F ) ) )
                 {
@@ -1400,7 +1406,17 @@ namespace EE::Animation
 
         ImGui::Separator();
 
-        if ( ImGui::BeginMenu( "Tools" ) )
+        // Variation Selector
+        //-------------------------------------------------------------------------
+
+        ImGui::Text( "Variation: " );
+        ImGui::SameLine();
+        DrawVariationSelector( 150 );
+
+        // Editing Tools
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginMenu( EE_ICON_WRENCH" Tools" ) )
         {
             if ( ImGui::MenuItem( EE_ICON_TAB_SEARCH" Find/Navigate") )
             {
@@ -1425,6 +1441,26 @@ namespace EE::Animation
             ImGui::EndMenu();
         }
 
+        // Options
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
+        {
+            bool isUsingLowLOD = m_skeletonLOD == Skeleton::LOD::Low;
+            if ( ImGui::Checkbox( "Use Low Skeleton LOD (for preview)", &isUsingLowLOD ) )
+            {
+                m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
+            }
+
+            if ( ImGui::Checkbox( "Show Runtime Node Indices", &m_userContext.m_showRuntimeIndices ) )
+            {
+                m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
+            }
+
+            ImGui::EndMenu();
+        }
+
+        // Live Debug
         //-------------------------------------------------------------------------
 
         if ( IsLiveDebugging() )
@@ -1445,23 +1481,18 @@ namespace EE::Animation
             ImGui::EndDisabled();
         }
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        ImGuiX::FlatToggleButton( EE_ICON_NUMERIC, EE_ICON_NUMERIC_OFF, m_userContext.m_showRuntimeIndices);
-        ImGuiX::ItemTooltip( "Show Runtime Node Indices" );
+        //float const gapWidth = 150.0f + ImGui::GetStyle().ItemSpacing.x;
+        //float const availableX = ImGui::GetContentRegionAvail().x;
+        //if ( availableX > gapWidth )
+        //{
+        //    ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
+        //}
 
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
 
-        float const gapWidth = 150.0f + ImGui::GetStyle().ItemSpacing.x;
-        float const availableX = ImGui::GetContentRegionAvail().x;
-        if ( availableX > gapWidth )
-        {
-            ImGui::Dummy( ImVec2( availableX - gapWidth, 0 ) );
-        }
-
-        //-------------------------------------------------------------------------
-
-        DrawVariationSelector( 150 );
+        //DrawVariationSelector( 150 );
     }
 
     void AnimationGraphWorkspace::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -1565,7 +1596,7 @@ namespace EE::Animation
         ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold );
         ImGui::SameLine();
 
-        auto DrawPreviewOptions = [this, context]()
+        auto DrawPreviewOptions = [this]()
         {
             ImGuiX::TextSeparator( "Preview Settings" );
             ImGui::Checkbox( "Start Paused", &m_startPaused );
@@ -1597,7 +1628,7 @@ namespace EE::Animation
                 float percentageThrough = m_previewStartSyncTime.m_percentageThrough.ToFloat();
                 if ( ImGui::InputFloat( "%", &percentageThrough ) )
                 {
-                    m_previewStartSyncTime.m_percentageThrough = percentageThrough;
+                    m_previewStartSyncTime.m_percentageThrough = Percentage( percentageThrough ).GetClamped();
                 }
 
                 if ( ImGui::Button( "Reset Sync Time", ImVec2( -1, 0 ) ) )
@@ -1741,173 +1772,35 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::ShowNotifyDialog( String const& title, String const& message )
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::None );
         EE_ASSERT( !title.empty() && !message.empty() );
-        m_notifyDialogTitle = title;
-        m_notifyDialogText = message;
-        m_activeOperation = GraphOperationType::NotifyUser;
+
+        auto DrawDialog = [message] ( UpdateContext const& context )
+        {
+            ImGui::Text( message.c_str() );
+
+            ImGui::NewLine();
+
+            ImGui::SameLine( ( ImGui::GetContentRegionAvail().x - 100 ) / 2.0f );
+            if ( ImGui::Button( "OK", ImVec2( 100, 0 ) ) )
+            {
+                return false;
+            }
+
+            return true;
+        };
+
+        m_dialogManager.CreateModalDialog( title, DrawDialog, ImVec2( -1, -1 ), false );
     }
 
     void AnimationGraphWorkspace::ShowNotifyDialog( String const& title, char const* pMessageFormat, ... )
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::None );
-        EE_ASSERT( !title.empty() );
-        m_notifyDialogTitle = title;
-        m_notifyDialogText.clear();
-        
+        String message;
         va_list args;
         va_start( args, pMessageFormat );
-        m_notifyDialogText.sprintf( pMessageFormat, args );
+        message.sprintf( pMessageFormat, args );
         va_end( args );
 
-        m_activeOperation = GraphOperationType::NotifyUser;
-    }
-
-    void AnimationGraphWorkspace::DrawDialogs( UpdateContext const& context )
-    {
-        bool isDialogOpen = m_activeOperation != GraphOperationType::None;
-
-        //-------------------------------------------------------------------------
-
-        switch ( m_activeOperation )
-        {
-            case GraphOperationType::None:
-            break;
-
-            case GraphOperationType::NotifyUser:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( m_notifyDialogTitle.c_str(), &isDialogOpen, ImVec2( 800, 200 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
-                {
-                    ImGui::Text( m_notifyDialogText.c_str() );
-
-                    ImGui::NewLine();
-
-                    ImGui::SameLine( ( ImGui::GetContentRegionAvail().x - 100 ) / 2.0f );
-                    if ( ImGui::Button( "OK", ImVec2( 100, 0 ) ) )
-                    {
-                        isDialogOpen = false;
-                        ImGui::CloseCurrentPopup();
-                    }
-
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::Navigate:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Navigate", &isDialogOpen, ImVec2( 800, 600 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings ) )
-                {
-                    DrawNavigationDialogWindow( context );
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::RenameIDs:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Rename IDs", &isDialogOpen, ImVec2( 400, 0 ), ImGuiCond_Always, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize ) )
-                {
-                    DrawRenameIDsDialog();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::CreateParameter:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Create Parameter", &isDialogOpen, ImVec2( 300, -1 ) ) )
-                {
-                    DrawCreateOrRenameParameterDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::RenameParameter:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Rename Parameter", &isDialogOpen, ImVec2( 300, -1 ) ) )
-                {
-                    DrawCreateOrRenameParameterDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::DeleteParameter:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Delete Parameter", &isDialogOpen, ImVec2( 300, -1 ) ) )
-                {
-                    DrawDeleteParameterDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::DeleteUnusedParameters:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Delete Unused Parameters", &isDialogOpen, ImVec2( 500, -1 ) ) )
-                {
-                    DrawDeleteUnusedParameterDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::CreateVariation:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Create Variation", &isDialogOpen, ImVec2( 300, -1 ) ) )
-                {
-                    DrawCreateVariationDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::RenameVariation:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Rename Variation", &isDialogOpen, ImVec2( 300, -1 ) ) )
-                {
-                    DrawRenameVariationDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            case GraphOperationType::DeleteVariation:
-            {
-                if ( ImGuiX::BeginViewportPopupModal( "Delete Variation", &isDialogOpen ) )
-                {
-                    DrawDeleteVariationDialogWindow();
-                    isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-                    ImGui::EndPopup();
-                }
-            }
-            break;
-
-            default:
-            {
-                EE_UNREACHABLE_CODE();
-            }
-            break;
-        }
-
-        //-------------------------------------------------------------------------
-
-        // If the dialog was closed (i.e. operation canceled)
-        if ( !isDialogOpen )
-        {
-            m_activeOperation = GraphOperationType::None;
-        }
+        ShowNotifyDialog( title, message );
     }
 
     //-------------------------------------------------------------------------
@@ -2307,6 +2200,7 @@ namespace EE::Animation
             m_pDebugGraphComponent = EE::New<GraphComponent>( StringID( "Animation Component" ) );
             m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
             m_pDebugGraphComponent->SetGraphVariation( graphVariationResourceID );
+            m_pDebugGraphComponent->SetSkeletonLOD( m_skeletonLOD );
 
             if ( target.m_type == DebugTargetType::Recording )
             {
@@ -2922,7 +2816,7 @@ namespace EE::Animation
                 bool const isExternalChildGraphItem = pathFromChildToRoot[i].m_stackIdx > 0;
                 if ( isExternalChildGraphItem )
                 {
-                    ImVec4 const color = ( Vector( 0.65f, 0.65f, 0.65f, 1.0f ) * Vector( ImGuiX::Style::s_colorText ) ).ToFloat4();
+                    ImVec4 const color( Vector( 0.65f, 0.65f, 0.65f, 1.0f ) * Vector( ImGuiX::Style::s_colorText.ToFloat4() ) );
                     ImGui::PushStyleColor( ImGuiCol_Text, color );
                 }
 
@@ -3109,8 +3003,6 @@ namespace EE::Animation
         {
             auto pTypeRegistry = context.GetSystem<TypeSystem::TypeRegistry>();
 
-            ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, 0 ) );
-
             // Navigation Bar
             //-------------------------------------------------------------------------
 
@@ -3139,7 +3031,7 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             ImGui::PushStyleVar( ImGuiStyleVar_FrameRounding, 0.0f );
-            ImGui::Button( "##GraphViewSplitter", ImVec2( -1, 3 ) );
+            ImGui::Button( "##GraphViewSplitter", ImVec2( -1, 5 ) );
             ImGui::PopStyleVar();
 
             if ( ImGui::IsItemHovered() )
@@ -3163,10 +3055,6 @@ namespace EE::Animation
             {
                 SetSelectedNodes( m_secondaryGraphView.GetSelectedNodes() );
             }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::PopStyleVar();
         }
 
         // Handle Focus and selection
@@ -3534,7 +3422,8 @@ namespace EE::Animation
         m_navigationTargetNodes.clear();
         m_navigationActiveTargetNodes.clear();
         GenerateNavigationTargetList();
-        m_activeOperation = GraphOperationType::Navigate;
+        m_dialogManager.CreateModalDialog( "Navigate", [this] ( UpdateContext const& context ) { return DrawNavigationDialogWindow( context ); }, ImVec2( 800, 600 ) );
+        
     }
 
     void AnimationGraphWorkspace::GenerateNavigationTargetList()
@@ -3583,7 +3472,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphWorkspace::DrawNavigationDialogWindow( UpdateContext const& context )
+    bool AnimationGraphWorkspace::DrawNavigationDialogWindow( UpdateContext const& context )
     {
         // Filter
         //-------------------------------------------------------------------------
@@ -3702,7 +3591,6 @@ namespace EE::Animation
                     if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
                     {
                         NavigateTo( const_cast<VisualGraph::BaseNode*>( pTarget->m_pNode ) );
-                        m_activeOperation = GraphOperationType::None;
                     }
                 }
 
@@ -3718,6 +3606,8 @@ namespace EE::Animation
 
             ImGui::EndTable();
         }
+
+        return true;
     }
 
     //-------------------------------------------------------------------------
@@ -4008,8 +3898,8 @@ namespace EE::Animation
                             ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT );
                             break;
 
-                            case Log::Severity::Message:
-                            ImGui::Text( "Message" );
+                            case Log::Severity::Info:
+                            ImGui::Text( EE_ICON_INFORMATION );
                             break;
 
                             default:
@@ -4087,8 +3977,8 @@ namespace EE::Animation
                             ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT );
                             break;
 
-                            case Log::Severity::Message:
-                            ImGui::Text( "Message" );
+                            case Log::Severity::Info:
+                            ImGui::Text( EE_ICON_INFORMATION );
                             break;
 
                             default:
@@ -4215,9 +4105,9 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphWorkspace::DrawCreateOrRenameParameterDialogWindow()
+    bool AnimationGraphWorkspace::DrawCreateOrRenameParameterDialogWindow( UpdateContext const& context, bool isRename )
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::CreateParameter || m_activeOperation == GraphOperationType::RenameParameter );
+        bool isDialogOpen = true;
 
         constexpr static float const fieldOffset = 80;
         bool updateConfirmed = false;
@@ -4270,7 +4160,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Rename existing parameter
-        if ( m_activeOperation == GraphOperationType::RenameParameter )
+        if ( isRename )
         {
             if ( auto pControlParameter = FindControlParameter( m_currentOperationParameterID ) )
             {
@@ -4280,7 +4170,7 @@ namespace EE::Animation
                 if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
                 {
                     RenameParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
-                    m_activeOperation = GraphOperationType::None;
+                    isDialogOpen = false;
                 }
                 ImGui::EndDisabled();
             }
@@ -4295,7 +4185,7 @@ namespace EE::Animation
                 if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
                 {
                     RenameParameter( m_currentOperationParameterID, m_parameterNameBuffer, m_parameterCategoryBuffer );
-                    m_activeOperation = GraphOperationType::None;
+                    isDialogOpen = false;
                 }
                 ImGui::EndDisabled();
             }
@@ -4305,7 +4195,7 @@ namespace EE::Animation
             if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || updateConfirmed )
             {
                 CreateParameter( m_currentOperationParameterType, m_currentOperationParameterValueType, m_parameterNameBuffer, m_parameterCategoryBuffer );
-                m_activeOperation = GraphOperationType::None;
+                isDialogOpen = false;
                 m_currentOperationParameterValueType = GraphValueType::Unknown;
             }
         }
@@ -4314,13 +4204,15 @@ namespace EE::Animation
 
         if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
         {
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
+
+        return isDialogOpen;
     }
 
-    void AnimationGraphWorkspace::DrawDeleteParameterDialogWindow()
+    bool AnimationGraphWorkspace::DrawDeleteParameterDialogWindow( UpdateContext const& context )
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::DeleteParameter );
+        bool isDialogOpen = true;
 
         auto iter = m_cachedUses.find( m_currentOperationParameterID );
         ImGui::Text( "This parameter is used in %d places.", iter != m_cachedUses.end() ? (int32_t) iter->second.size() : 0 );
@@ -4333,20 +4225,22 @@ namespace EE::Animation
         if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
         {
             DestroyParameter( m_currentOperationParameterID );
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
 
         ImGui::SameLine( 0, 4 );
 
         if ( ImGui::Button( "No", ImVec2( 30, 0 ) ) )
         {
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
+
+        return isDialogOpen;
     }
 
-    void AnimationGraphWorkspace::DrawDeleteUnusedParameterDialogWindow()
+    bool AnimationGraphWorkspace::DrawDeleteUnusedParameterDialogWindow( UpdateContext const& context )
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::DeleteUnusedParameters );
+        bool isDialogOpen = true;
 
         ImGui::Text( "Are you sure you want to delete all unused parameters?" );
         ImGui::NewLine();
@@ -4374,15 +4268,17 @@ namespace EE::Animation
                 }
             }
 
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
 
         ImGui::SameLine( 0, 4 );
 
         if ( ImGui::Button( "No", ImVec2( 30, 0 ) ) )
         {
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
+
+        return isDialogOpen;
     }
 
     void AnimationGraphWorkspace::ControlParameterCategoryDragAndDropHandler( Category<GraphNodes::FlowToolsNode*>& category )
@@ -4444,7 +4340,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         ImGui::PushID( pParameterNode );
-        ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
@@ -4475,6 +4370,14 @@ namespace EE::Animation
                 }
 
                 ImGui::Separator();
+            }
+
+            if ( pCP )
+            {
+                if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy Parameter Name" ) )
+                {
+                    ImGui::SetClipboardText( parameterName.c_str() );
+                }
             }
 
             if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename" ) )
@@ -4512,7 +4415,9 @@ namespace EE::Animation
 
         auto ParameterUsesContextMenu = [&] ()
         {
+            EE_ASSERT( iter != m_cachedUses.end() );
             auto pRootGraph = GetEditedRootGraph();
+
             for ( auto const& nodeID : iter->second )
             {
                 auto pNode = pRootGraph->FindNode( nodeID, true );
@@ -4523,8 +4428,10 @@ namespace EE::Animation
             }
         };
 
-        InlineString const buttonLabel( InlineString::CtorSprintf(), "%d##%s", iter != m_cachedUses.end() ? (int32_t) iter->second.size() : 0, parameterName.c_str());
+        InlineString const buttonLabel( InlineString::CtorSprintf(), "%d##%s", iter != m_cachedUses.end() ? (int32_t) iter->second.size() : 0, parameterName.c_str() );
+        ImGui::BeginDisabled( iter == m_cachedUses.end() );
         ImGuiX::DropDownButton( buttonLabel.c_str(), ParameterUsesContextMenu, ImVec2( 30, 0 ) );
+        ImGui::EndDisabled();
         ImGuiX::ItemTooltip( "Number of uses" );
 
         ImGui::PopID();
@@ -4544,11 +4451,11 @@ namespace EE::Animation
 
         ImGui::SameLine();
 
-        ImGui::BeginDisabled( m_activeOperation != GraphOperationType::None );
+        ImGui::BeginDisabled( m_dialogManager.HasActiveModalDialog() );
         if ( ImGui::Button( EE_ICON_TRASH_CAN"##EraseUnused", ImVec2( eraseButtonWidth, 0 ) ) )
         {
             m_currentOperationParameterID = UUID();
-            m_activeOperation = GraphOperationType::DeleteUnusedParameters;
+            m_dialogManager.CreateModalDialog( "Rename IDs", [this] ( UpdateContext const& context ) { return DrawDeleteUnusedParameterDialogWindow( context ); }, ImVec2( 500, -1 ) );
         }
         ImGui::EndDisabled();
         ImGuiX::ItemTooltip( "Delete all unused parameters" );
@@ -5099,20 +5006,20 @@ namespace EE::Animation
     void AnimationGraphWorkspace::StartParameterCreate( GraphValueType valueType, ParameterType parameterType )
     {
         m_currentOperationParameterID = UUID();
-        m_activeOperation = GraphOperationType::CreateParameter;
         m_currentOperationParameterValueType = valueType;
         m_currentOperationParameterType = parameterType;
 
         Memory::MemsetZero( m_parameterNameBuffer, 255 );
         Memory::MemsetZero( m_parameterCategoryBuffer, 255 );
         strncpy_s( m_parameterNameBuffer, "Parameter", 9 );
+
+        m_dialogManager.CreateModalDialog( "Create Parameter", [this] ( UpdateContext const& context ) { return DrawCreateOrRenameParameterDialogWindow( context, false ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphWorkspace::StartParameterRename( UUID const& parameterID )
     {
         EE_ASSERT( parameterID.IsValid() );
         m_currentOperationParameterID = parameterID;
-        m_activeOperation = GraphOperationType::RenameParameter;
 
         if ( auto pControlParameter = FindControlParameter( parameterID ) )
         {
@@ -5128,12 +5035,14 @@ namespace EE::Animation
         {
             EE_UNREACHABLE_CODE();
         }
+
+        m_dialogManager.CreateModalDialog( "Rename Parameter", [this] ( UpdateContext const& context ) { return DrawCreateOrRenameParameterDialogWindow( context, true ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphWorkspace::StartParameterDelete( UUID const& parameterID )
     {
         m_currentOperationParameterID = parameterID;
-        m_activeOperation = GraphOperationType::DeleteParameter;
+        m_dialogManager.CreateModalDialog( "Delete Parameter", [this] ( UpdateContext const& context ) { return DrawDeleteParameterDialogWindow( context ); }, ImVec2( 300, -1 ) );
     }
 
     //-------------------------------------------------------------------------
@@ -5199,12 +5108,12 @@ namespace EE::Animation
             // Overrides
             //-------------------------------------------------------------------------
 
+            constexpr static float const overrideButtonSize = 30;
             ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
-            if ( ImGui::BeginTable( "SourceTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY ) )
+            if ( ImGui::BeginTable( "SourceTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY ) )
             {
-                ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 26 );
+                ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, overrideButtonSize );
                 ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 90 );
-                ImGui::TableSetupColumn( "Path", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupScrollFreeze( 1, 1 );
@@ -5262,11 +5171,11 @@ namespace EE::Animation
 
                     if ( !isDefaultVariationSelected )
                     {
-                        ImVec2 const buttonSize( 26, 24 );
+                        ImVec2 const buttonSize( overrideButtonSize, overrideButtonSize );
 
                         if ( pDataSlotNode->HasOverride( currentVariationID ) )
                         {
-                            if ( ImGuiX::FlatButtonColored( Colors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
+                            if ( ImGuiX::ColoredButton( ImGuiX::Style::s_colorGray3, Colors::MediumRed, EE_ICON_CLOSE, buttonSize ) )
                             {
                                 pDataSlotNode->RemoveOverride( currentVariationID );
                             }
@@ -5274,7 +5183,7 @@ namespace EE::Animation
                         }
                         else // Create an override
                         {
-                            if ( ImGuiX::FlatButtonColored( Colors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
+                            if ( ImGuiX::ColoredButton( ImGuiX::Style::s_colorGray3, Colors::LimeGreen, EE_ICON_PLUS, buttonSize ) )
                             {
                                 pDataSlotNode->CreateOverride( currentVariationID );
                             }
@@ -5299,30 +5208,10 @@ namespace EE::Animation
                         ImGui::Text( pDataSlotNode->GetTypeName() );
                     }
 
-                    // Node Path
+                    // Node Name/Path
                     //-------------------------------------------------------------------------
 
                     ImGui::TableNextColumn();
-                    {
-                        ImGuiX::ScopedFont sf( ImGuiX::Font::Small, Colors::LightGray );
-                        ImGui::SetNextItemWidth( -1 );
-                        ImGui::InputText( "##NodePath", const_cast<char*>( nodePath.c_str() ), nodePath.size(), ImGuiInputTextFlags_ReadOnly );
-                        if ( ImGui::BeginPopupContextItem( "##FilterOptions" ) )
-                        {
-                            if ( ImGui::MenuItem( "Set filter to this path" ) )
-                            {
-                                m_variationFilter.SetFilter( nodePath );
-                            }
-
-                            ImGui::EndPopup();
-                        }
-                    }
-
-                    // Node Name
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextColumn();
-                    ImGui::AlignTextToFramePadding();
 
                     Color labelColor = ImGuiX::Style::s_colorText;
                     if ( !isDefaultVariationSelected && hasOverrideForVariation )
@@ -5332,14 +5221,26 @@ namespace EE::Animation
 
                     {
                         ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold, labelColor );
-                        if ( ImGui::Selectable( pDataSlotNode->GetName(), false, ImGuiSelectableFlags_AllowDoubleClick ) )
+                        if ( ImGuiX::FlatButton( EE_ICON_IMAGE_FILTER_CENTER_FOCUS"##FilterPath" ) )
                         {
-                            if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
-                            {
-                                NavigateTo( pDataSlotNode );
-                            }
+                            NavigateTo( pDataSlotNode );
                         }
-                        ImGuiX::ItemTooltip( "Double-click to navigate to node!" );
+                        ImGuiX::ItemTooltip( "Navigate to node" );
+                        ImGui::SameLine();
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( pDataSlotNode->GetName() );
+                    }
+
+                    {
+                        ImGuiX::ScopedFont sf( ImGuiX::Font::Small, Colors::LightGray );
+                        if ( ImGuiX::FlatButton( EE_ICON_FILTER"##FilterPath" ) )
+                        {
+                            m_variationFilter.SetFilter( nodePath );
+                        }
+                        ImGuiX::ItemTooltip( "Filter by this path" );
+                        ImGui::SameLine();
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text( nodePath.c_str() );
                     }
 
                     // Resource Picker
@@ -5423,23 +5324,23 @@ namespace EE::Animation
     {
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
-        m_activeOperation = GraphOperationType::CreateVariation;
         strncpy_s( m_nameBuffer, "NewChildVariation", 255 );
+        m_dialogManager.CreateModalDialog( "Create Variation", [this] ( UpdateContext const& context ) { return DrawCreateVariationDialogWindow( context ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphWorkspace::StartRenameVariation( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
-        m_activeOperation = GraphOperationType::RenameVariation;
         strncpy_s( m_nameBuffer, variationID.c_str(), 255 );
+        m_dialogManager.CreateModalDialog( "Rename Variation", [this] ( UpdateContext const& context ) { return DrawRenameVariationDialogWindow( context ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphWorkspace::StartDeleteVariation( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
-        m_activeOperation = GraphOperationType::DeleteVariation;
+        m_dialogManager.CreateModalDialog( "Delete Variation", [this] ( UpdateContext const& context ) { return DrawDeleteVariationDialogWindow( context ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphWorkspace::CreateVariation( StringID newVariationID, StringID parentVariationID )
@@ -5511,7 +5412,7 @@ namespace EE::Animation
         bool isTreeNodeOpen = false;
         ImGui::SetNextItemOpen( true );
         {
-            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? Colors::LimeGreen : ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Medium, isSelected ? Colors::LimeGreen.m_color : ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
             isTreeNodeOpen = ImGui::TreeNodeEx( variationID.c_str(), flags );
         }
         ImGuiX::TextTooltip( "Right click for options" );
@@ -5585,15 +5486,14 @@ namespace EE::Animation
         ImGui::EndDisabled();
     }
 
-    bool AnimationGraphWorkspace::DrawVariationNameEditor()
+    bool AnimationGraphWorkspace::DrawVariationNameEditor( bool& isDialogOpen, bool isRenameOp )
     {
-        bool const isRenameOp = ( m_activeOperation == GraphOperationType::RenameVariation );
         bool nameChangeConfirmed = false;
 
         // Validate current buffer
         //-------------------------------------------------------------------------
 
-        auto ValidateVariationName = [this, isRenameOp] ()
+        auto ValidateVariationName = [this] ()
         {
             size_t const bufferLen = strlen( m_nameBuffer );
 
@@ -5630,7 +5530,9 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         bool isValidVariationName = ValidateVariationName();
-        ImGui::PushStyleColor( ImGuiCol_Text, isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : Colors::Red.ToFloat4() );
+        ImVec4 const textColor = isValidVariationName ? ImGui::GetStyle().Colors[ImGuiCol_Text] : ImVec4( Colors::Red.ToFloat4() );
+        ImGui::PushStyleColor( ImGuiCol_Text, textColor );
+        ImGui::SetNextItemWidth( -1 );
         if ( ImGui::InputText( "##VariationName", m_nameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars ) )
         {
             nameChangeConfirmed = true;
@@ -5639,13 +5541,16 @@ namespace EE::Animation
         ImGui::NewLine();
 
         float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
-        ImGui::SameLine( 0, dialogWidth - 104 );
 
         // Buttons
         //-------------------------------------------------------------------------
 
+        constexpr static float const buttonWidth = 65.0f;
+
+        ImGui::SameLine( 0, dialogWidth - ( buttonWidth * 2 ) - ImGui::GetStyle().ItemSpacing.x );
+
         ImGui::BeginDisabled( !isValidVariationName );
-        if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) )
+        if ( ImGui::Button( "Ok", ImVec2( buttonWidth, 0 ) ) )
         {
             nameChangeConfirmed = true;
         }
@@ -5653,10 +5558,10 @@ namespace EE::Animation
 
         ImGui::SameLine( 0, 4 );
 
-        if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
+        if ( ImGui::Button( "Cancel", ImVec2( buttonWidth, 0 ) ) )
         {
-            m_activeOperation = GraphOperationType::None;
             nameChangeConfirmed = false;
+            isDialogOpen = false;
         }
 
         // Final validation
@@ -5673,30 +5578,37 @@ namespace EE::Animation
         return nameChangeConfirmed;
     }
 
-    void AnimationGraphWorkspace::DrawCreateVariationDialogWindow()
+    bool AnimationGraphWorkspace::DrawCreateVariationDialogWindow( UpdateContext const& context )
     {
-        if ( DrawVariationNameEditor() )
+        bool isDialogOpen = true;
+        if ( DrawVariationNameEditor( isDialogOpen, false ) )
         {
             StringID newVariationID( m_nameBuffer );
             CreateVariation( newVariationID, m_activeOperationVariationID );
             m_activeOperationVariationID = StringID();
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
+
+        return isDialogOpen;
     }
 
-    void AnimationGraphWorkspace::DrawRenameVariationDialogWindow()
+    bool AnimationGraphWorkspace::DrawRenameVariationDialogWindow( UpdateContext const& context )
     {
-        if ( DrawVariationNameEditor() )
+        bool isDialogOpen = true;
+        if ( DrawVariationNameEditor( isDialogOpen, true ) )
         {
             StringID newVariationID( m_nameBuffer );
             RenameVariation( m_activeOperationVariationID, newVariationID );
             m_activeOperationVariationID = StringID();
-            m_activeOperation = GraphOperationType::None;
         }
+
+        return isDialogOpen;
     }
 
-    void AnimationGraphWorkspace::DrawDeleteVariationDialogWindow()
+    bool AnimationGraphWorkspace::DrawDeleteVariationDialogWindow( UpdateContext const& context )
     {
+        bool isDialogOpen = true;
+
         ImGui::Text( "Are you sure you want to delete this variation?" );
         ImGui::NewLine();
 
@@ -5715,7 +5627,7 @@ namespace EE::Animation
             // Destroy variation
             DeleteVariation( m_activeOperationVariationID );
             m_activeOperationVariationID = StringID();
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
 
         ImGui::SameLine( 0, 4 );
@@ -5723,8 +5635,10 @@ namespace EE::Animation
         if ( ImGui::Button( "No", ImVec2( 30, 0 ) ) )
         {
             m_activeOperationVariationID = StringID();
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
+
+        return isDialogOpen;
     }
 
     void AnimationGraphWorkspace::RefreshVariationEditor()
@@ -6099,15 +6013,14 @@ namespace EE::Animation
 
     void AnimationGraphWorkspace::StartRenameIDs()
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::None );
-        m_activeOperation = GraphOperationType::RenameIDs;
         memset( m_oldIDBuffer, 0, 255 );
         memset( m_newIDBuffer, 0, 255 );
+        m_dialogManager.CreateModalDialog( "Rename IDs", [this] ( UpdateContext const& context ) { return DrawRenameIDsDialog( context ); }, ImVec2( 400, 0 ), true );
     }
 
-    void AnimationGraphWorkspace::DrawRenameIDsDialog()
+    bool AnimationGraphWorkspace::DrawRenameIDsDialog( UpdateContext const& context )
     {
-        EE_ASSERT( m_activeOperation == GraphOperationType::RenameIDs );
+        bool isDialogOpen = true;
 
         constexpr float const comboWidth = 30;
         float const itemSpacingX = ImGui::GetStyle().ItemSpacing.x;
@@ -6203,8 +6116,6 @@ namespace EE::Animation
                     pFlowNode->RenameLogicAndEventIDs( oldID, newID );
                 }
             }
-
-            m_activeOperation = GraphOperationType::None;
         }
         ImGui::EndDisabled();
 
@@ -6212,8 +6123,10 @@ namespace EE::Animation
 
         if ( ImGui::Button( "Cancel", ImVec2( buttonWidth, 0 ) ) )
         {
-            m_activeOperation = GraphOperationType::None;
+            isDialogOpen = false;
         }
+
+        return isDialogOpen;
     }
 
     void AnimationGraphWorkspace::CopyAllParameterNamesToClipboard()

@@ -1,8 +1,6 @@
 #pragma once
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_UserContext.h"
 #include "EngineTools/Core/VisualGraph/VisualGraph_FlowGraph.h"
-#include "EngineTools/Core/VisualGraph/VisualGraph_StateMachineGraph.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 
 //-------------------------------------------------------------------------
 
@@ -27,8 +25,8 @@ namespace EE::Animation
 
 namespace EE::Animation::GraphNodes
 {
-    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width, PoseNodeDebugInfo const& debugInfo );
-    void DrawEmptyPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float width );
+    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo );
+    void DrawRuntimeNodeIndex( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, VisualGraph::BaseNode* pNode, int16_t runtimeNodeIdx );
     void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& vector );
     void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& target );
     void DrawValueDisplayText( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType );
@@ -61,6 +59,9 @@ namespace EE::Animation::GraphNodes
 
         // Compile this node into its runtime representation. Returns the node index of the compiled node.
         virtual int16_t Compile( GraphCompilationContext& context ) const { return int16_t(); }
+
+        // Is this an anim clip reference node - i.e. a node that represents a singular anim clip
+        virtual bool IsAnimationClipReferenceNode() const { return false; }
 
         // IDs
         //-------------------------------------------------------------------------

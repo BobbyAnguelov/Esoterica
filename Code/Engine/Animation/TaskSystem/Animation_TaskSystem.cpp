@@ -288,7 +288,7 @@ namespace EE::Animation
             if ( pResultPose->IsAdditivePose() )
             {
                 m_finalPose.Reset( Pose::Type::ReferencePose );
-                Blender::AdditiveBlend( &m_finalPose, pResultPose, 1.0f, nullptr, &m_finalPose );
+                Blender::AdditiveBlend( m_taskContext.m_skeletonLOD, &m_finalPose, pResultPose, 1.0f, nullptr, &m_finalPose );
             }
             else // Just copy the pose
             {
@@ -474,7 +474,7 @@ namespace EE::Animation
             if ( pPose->IsAdditivePose() )
             {
                 Pose tempPose( pPose->GetSkeleton(), Pose::Type::ReferencePose );
-                Blender::AdditiveBlend( &tempPose, pPose, 1.0f, nullptr, &tempPose );
+                Blender::AdditiveBlend( m_taskContext.m_skeletonLOD, &tempPose, pPose, 1.0f, nullptr, &tempPose );
                 tempPose.CalculateGlobalTransforms();
                 m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], &tempPose, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
             }
@@ -489,6 +489,14 @@ namespace EE::Animation
             {
                 drawingContext.DrawLine( taskTransforms[i].GetTranslation(), taskTransforms[dependencyIdx].GetTranslation(), m_tasks[i]->GetDebugColor(), 2.0f );
             }
+        }
+
+        // Draw LOD
+        //-------------------------------------------------------------------------
+
+        if ( m_taskContext.m_skeletonLOD == Skeleton::LOD::Low )
+        {
+            drawingContext.DrawTextBox3D( m_taskContext.m_worldTransform.GetTranslation() + Vector( 0, 0, 0.5f ), "Low LOD", Colors::Red, Drawing::FontSmall, Drawing::AlignMiddleCenter );
         }
     }
     #endif

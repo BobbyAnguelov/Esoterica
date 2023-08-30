@@ -13,7 +13,7 @@ namespace EE
 {
     EditorTool::EditorTool( ToolsContext const* pToolsContext, String const& displayName )
         : m_pToolsContext( pToolsContext )
-        , m_windowName( displayName )
+        , m_windowName( displayName ) // Temp storage for display name since we cant call virtuals from CTOR
     {
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
 
@@ -53,22 +53,22 @@ namespace EE
 
         if ( HasTitlebarIcon() )
         {
-            m_windowName.sprintf( "%s %s##%u", GetTitlebarIcon(), name.c_str() );
+            m_windowName.sprintf( "%s %s", GetTitlebarIcon(), name.c_str() );
         }
         else
         {
-            m_windowName.sprintf( "%s##%u", GetTitlebarIcon(), name.c_str() );
+            m_windowName = name;
         }
     }
 
-    void EditorTool::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding )
+    void EditorTool::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding, bool disableScrolling )
     {
         for ( auto const& toolWindow : m_toolWindows )
         {
             EE_ASSERT( toolWindow.m_name != name );
         }
 
-        m_toolWindows.emplace_back( name, drawFunction, windowPadding );
+        m_toolWindows.emplace_back( name, drawFunction, windowPadding, disableScrolling );
 
         eastl::sort( m_toolWindows.begin(), m_toolWindows.end(), [] ( ToolWindow const& lhs, ToolWindow const& rhs ) { return lhs.m_name < rhs.m_name; } );
     }
@@ -82,7 +82,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void EditorTool::DrawMenu( UpdateContext const& context )
+    void EditorTool::DrawSharedMenus()
     {
         if ( !IsSingleWindowTool() && !m_toolWindows.empty() )
         {
@@ -95,6 +95,50 @@ namespace EE
 
                 ImGui::EndMenu();
             }
+        }
+
+        if ( ImGui::BeginMenu( EE_ICON_HELP_CIRCLE_OUTLINE" Help" ) )
+        {
+            if ( ImGui::BeginTable( "HelpTable", 2 ) )
+            {
+                DrawHelpMenu();
+                ImGui::EndTable();
+            }
+
+            ImGui::EndMenu();
+        }
+    }
+
+    void EditorTool::DrawHelpTextRow( char const* pLabel, char const* pText ) const
+    {
+        ImGui::TableNextRow();
+
+        ImGui::TableNextColumn();
+        {
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+            ImGui::Text( pLabel );
+        }
+
+        ImGui::TableNextColumn();
+        {
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+            ImGui::Text( pText );
+        }
+    }
+
+    void EditorTool::DrawHelpTextRowCustom( char const* pLabel, TFunction<void()> const& function ) const
+    {
+        ImGui::TableNextRow();
+
+        ImGui::TableNextColumn();
+        {
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+            ImGui::Text( pLabel );
+        }
+
+        ImGui::TableNextColumn();
+        {
+            function();
         }
     }
 
@@ -159,7 +203,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void EditorTool::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void EditorTool::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         EE_ASSERT( !m_isHotReloading );
 
@@ -219,7 +263,7 @@ namespace EE
         }
     }
 
-    void EditorTool::EndHotReload()
+    void EditorTool::HotReload_ReloadResources()
     {
         bool const hasResourcesToReload = !m_reloadingResources.empty();
         if ( hasResourcesToReload )
@@ -231,10 +275,10 @@ namespace EE
             }
             m_reloadingResources.clear();
         }
+    }
 
-        //-------------------------------------------------------------------------
-
-        // Notify workspaces that the reload is complete
+    void EditorTool::HotReload_ReloadComplete()
+    {
         if ( m_isHotReloading )
         {
             OnHotReloadComplete();

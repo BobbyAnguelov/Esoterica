@@ -115,7 +115,7 @@ namespace EE::Animation
         // 100%
         else if ( w == 1.0f )
         {
-            return Color( 0xFF4CB369 );
+            return Colors::Lime;
         }
 
         return Colors::White;
@@ -309,6 +309,12 @@ namespace EE::Animation
     {
         EE_ASSERT( source.m_pSkeleton == m_pSkeleton && m_weights.size() == source.m_weights.size() && blendWeight >= 0.0f && blendWeight <= 1.0f );
 
+        // If we are blending with ourselves, do nothing
+        if ( &source == this )
+        {
+            return;
+        }
+
         // If this the mask types are the same and not mixed weight, then this is a no-op
         if ( source.m_weightInfo != WeightInfo::Mixed && source.m_weightInfo == m_weightInfo )
         {
@@ -351,6 +357,12 @@ namespace EE::Animation
     void BoneMask::BlendTo( BoneMask const& target, float blendWeight )
     {
         EE_ASSERT( target.m_pSkeleton == m_pSkeleton && m_weights.size() == target.m_weights.size() && blendWeight >= 0.0f && blendWeight <= 1.0f );
+
+        // If we are blending with ourselves, do nothing
+        if ( &target == this )
+        {
+            return;
+        }
 
         // If this the mask weights are the same and not mixed weight, then this is a no-op
         if ( target.m_weightInfo != WeightInfo::Mixed && target.m_weightInfo == m_weightInfo )
@@ -525,6 +537,46 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    BoneMaskTaskList::BoneMaskTaskList( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight )
+    {
+        EE_ASSERT( &sourceTaskList != this && &targetTaskList != this );
+
+        if ( blendWeight == 0 )
+        {
+            m_tasks = sourceTaskList.m_tasks;
+        }
+        else if ( blendWeight == 1 )
+        {
+            m_tasks = targetTaskList.m_tasks;
+        }
+        else // Blend
+        {
+            m_tasks = sourceTaskList.m_tasks;
+            BlendTo( targetTaskList, blendWeight );
+        }
+    }
+
+    int8_t BoneMaskTaskList::SetToBlendBetweenTaskLists( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight )
+    {
+        EE_ASSERT( &sourceTaskList != this && &targetTaskList != this );
+
+        if ( blendWeight == 0 )
+        {
+            m_tasks = sourceTaskList.m_tasks;
+        }
+        else if ( blendWeight == 1 )
+        {
+            m_tasks = targetTaskList.m_tasks;
+        }
+        else // Blend
+        {
+            m_tasks = sourceTaskList.m_tasks;
+            BlendTo( targetTaskList, blendWeight );
+        }
+
+        return GetLastTaskIdx();
+    }
+
     int8_t BoneMaskTaskList::AppendTaskListAndFixDependencies( BoneMaskTaskList const& taskList )
     {
         int8_t const dependencyOffset = GetLastTaskIdx() + 1;
@@ -544,48 +596,24 @@ namespace EE::Animation
         return GetLastTaskIdx();
     }
 
-    int8_t BoneMaskTaskList::CreateBlend( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight )
+    int8_t BoneMaskTaskList::BlendToGeneratedMask( float maskWeight, float blendWeight )
     {
-        EE_ASSERT( &sourceTaskList != this && &targetTaskList != this );
+        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
 
+        // If no weight, do nothing
         if ( blendWeight == 0 )
         {
-            m_tasks = sourceTaskList.m_tasks;
-            return GetLastTaskIdx();
+            // Do Nothing
         }
-        else if ( blendWeight == 1 )
-        {
-            m_tasks = targetTaskList.m_tasks;
-            return GetLastTaskIdx();
-        }
-        else // Blend
-        {
-            m_tasks = sourceTaskList.m_tasks;
-            return BlendTo( targetTaskList, blendWeight );
-        }
-    }
-
-    int8_t BoneMaskTaskList::CreateBlendToGeneratedMask( BoneMaskTaskList const& sourceTaskList, float maskWeight, float blendWeight )
-    {
-        EE_ASSERT( &sourceTaskList != this );
-
-        if ( blendWeight == 0 )
-        {
-            m_tasks = sourceTaskList.m_tasks;
-            return GetLastTaskIdx();
-        }
+        // If full weight, replace the task with the generated mask
         else if ( blendWeight == 1 )
         {
             m_tasks.clear();
             m_tasks.emplace_back( maskWeight );
-
-            return GetLastTaskIdx();
         }
         else // Blend
         {
-            m_tasks = sourceTaskList.m_tasks;
             int8_t const sourceTaskIdx = GetLastTaskIdx();
-
             m_tasks.emplace_back( maskWeight );
             int8_t const targetTaskIdx = GetLastTaskIdx();
 
@@ -593,34 +621,9 @@ namespace EE::Animation
 
             m_tasks.emplace_back( sourceTaskIdx, targetTaskIdx, blendWeight );
             EE_ASSERT( m_tasks.size() < s_maxTasks );
-
-            return GetLastTaskIdx();
         }
-    }
 
-    int8_t BoneMaskTaskList::CreateBlendFromGeneratedMask( BoneMaskTaskList const& targetTaskList, float maskWeight, float blendWeight )
-    {
-        EE_ASSERT( &targetTaskList != this );
-
-        if ( blendWeight == 0 )
-        {
-            m_tasks.clear();
-            m_tasks.emplace_back( maskWeight );
-
-            return GetLastTaskIdx();
-        }
-        else if ( blendWeight == 1 )
-        {
-            m_tasks = targetTaskList.m_tasks;
-            return GetLastTaskIdx();
-        }
-        else // Blend
-        {
-            m_tasks.emplace_back( maskWeight );
-            EE_ASSERT( m_tasks.size() < s_maxTasks );
-
-            return BlendTo( targetTaskList, blendWeight );
-        }
+        return GetLastTaskIdx();
     }
 
     BoneMaskTaskList::Result BoneMaskTaskList::GenerateBoneMask( BoneMaskPool& pool ) const
@@ -741,7 +744,8 @@ namespace EE::Animation
                         {
                             pResultMask->CombineWith( *pTargetMask );
                         }
-                        else
+                        // Blend - only if different ptrs
+                        else if ( pSourceMask != pTargetMask )
                         {
                             pResultMask->BlendTo( *pTargetMask, m_tasks[i].m_weight );
                         }
@@ -817,7 +821,7 @@ namespace EE::Animation
         {
             auto const& task = m_tasks[i];
 
-            archive.WriteUInt( (uint8_t) task.m_type, 2 );
+            archive.WriteUInt( (uint8_t) task.m_type, 3 );
 
             switch ( task.m_type )
             {
@@ -865,7 +869,7 @@ namespace EE::Animation
 
         for ( uint8_t i = 0; i < numTasks; i++ )
         {
-            auto type = (BoneMaskTask::Type) archive.ReadUInt( 2 );
+            auto type = (BoneMaskTask::Type) archive.ReadUInt( 3 );
 
             switch ( type )
             {
@@ -909,6 +913,7 @@ namespace EE::Animation
                     task.m_type = type;
                     task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
                     task.m_targetTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
+                    task.m_weight = -1.0f;
                 }
                 break;
             }

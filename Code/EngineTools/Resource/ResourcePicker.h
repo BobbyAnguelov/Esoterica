@@ -42,6 +42,9 @@ namespace EE::Resource
         // Generate the set of filtered options
         void GenerateFilteredOptionList();
 
+        // Try to update the resourceID from a paste operation - returns true if the value was updated
+        bool TryUpdateResourceFromClipboard();
+
     private:
 
         ToolsContext const&         m_toolsContext;

@@ -99,7 +99,7 @@ namespace EE::RawAssets
         return pRawMesh;
     }
 
-    TUniquePtr<RawSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+    TUniquePtr<RawSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName, TVector<StringID> const& listOfHighLODBones )
     {
         EE_ASSERT( sourceFilePath.IsValid() && ctx.IsValid() );
 
@@ -120,6 +120,8 @@ namespace EE::RawAssets
             Printf( buffer, 512, "unsupported extension: %s", sourceFilePath.c_str() );
             ctx.m_errorDelegate( buffer );
         }
+
+        pRawSkeleton->Finalize( listOfHighLODBones );
 
         //-------------------------------------------------------------------------
 

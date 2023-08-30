@@ -14,6 +14,7 @@ namespace EE::Animation::GraphNodes
 
         AnimationClipToolsNode();
 
+        virtual bool IsAnimationClipReferenceNode() const override { return true; }
         virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Animation Clip"; }
         virtual char const* GetCategory() const override { return "Animation"; }
@@ -27,13 +28,5 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT() bool         m_sampleRootMotion = true;
         EE_REFLECT() bool         m_allowLooping = false;
-    };
-
-    //-------------------------------------------------------------------------
-
-    // This is a base class for all nodes that directly reference an animation clip
-    class AnimationClipReferenceToolsNode : public FlowToolsNode
-    {
-        EE_REFLECT_TYPE( AnimationClipReferenceToolsNode );
     };
 }

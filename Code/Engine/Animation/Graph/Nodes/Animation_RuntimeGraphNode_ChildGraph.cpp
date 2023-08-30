@@ -63,11 +63,10 @@ namespace EE::Animation::GraphNodes
         if ( m_pGraphInstance != nullptr )
         {
             ReflectControlParameters( context );
+            m_pGraphInstance->ResetGraphState( initialTime );
 
             auto pRootNode = const_cast<PoseNode*>( m_pGraphInstance->GetRootNode() );
-            EE_ASSERT( !pRootNode->IsInitialized() );
-            pRootNode->Initialize( context, initialTime );
-
+            EE_ASSERT( pRootNode->IsInitialized() );
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
             m_duration = pRootNode->GetDuration();
@@ -163,22 +162,6 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void ChildGraphNode::TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result )
-    {
-        auto& localEventBuffer = context.m_sampledEventsBuffer;
-        auto const& externalEventBuffer = m_pGraphInstance->GetSampledEvents();
-        result.m_sampledEventRange = localEventBuffer.AppendBuffer( externalEventBuffer );
-
-        auto pRootNode = m_pGraphInstance->GetRootNode();
-        m_previousTime = pRootNode->GetCurrentTime();
-        m_currentTime = pRootNode->GetCurrentTime();
-        m_duration = pRootNode->GetDuration();
-
-        #if EE_DEVELOPMENT_TOOLS
-        context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
-        #endif
-    }
-
     //-------------------------------------------------------------------------
 
     GraphPoseNodeResult ChildGraphNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
@@ -190,13 +173,29 @@ namespace EE::Animation::GraphNodes
         if ( m_pGraphInstance == nullptr )
         {
             result.m_sampledEventRange = context.GetEmptySampledEventRange();
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
+            result.m_taskIdx = InvalidIndex;
         }
         else
         {
             ReflectControlParameters( context );
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange );
-            TransferGraphInstanceData( context, result );
+
+            // Evaluate child graph
+            result = m_pGraphInstance->EvaluateChildGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange, context.m_pLayerContext );
+
+            // Transfer graph state
+            auto pRootNode = m_pGraphInstance->GetRootNode();
+            m_previousTime = pRootNode->GetCurrentTime();
+            m_currentTime = pRootNode->GetCurrentTime();
+            m_duration = pRootNode->GetDuration();
+
+            // Transfer sampled events
+            auto const& childGraphEventBuffer = m_pGraphInstance->GetSampledEvents();
+            result.m_sampledEventRange = context.m_sampledEventsBuffer.AppendBuffer( childGraphEventBuffer );
+
+            // Transfer root motion debug
+            #if EE_DEVELOPMENT_TOOLS
+            context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
+            #endif
         }
         return result;
     }

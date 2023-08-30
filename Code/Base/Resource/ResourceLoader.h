@@ -53,6 +53,9 @@ namespace EE
 
             TVector<ResourceTypeID> const& GetLoadableTypes() const { return m_loadableTypes; }
 
+            // Can this loader proceed when an install dependency fails to load? Certain resource should still be loaded if some of their dependencies fail (i.e. still load a mesh if a material fails to load)
+            virtual bool CanProceedWithFailedInstallDependency() const { return false; }
+
             // This function loads is responsible to deserialize the compiled resource data, read the resource header for install dependencies and to create the new runtime resource object
             bool Load( ResourceID const& resourceID, Blob& rawData, ResourceRecord* pResourceRecord ) const;
 

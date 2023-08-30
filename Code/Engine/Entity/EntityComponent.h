@@ -67,7 +67,10 @@ namespace EE
     protected:
 
         EntityComponent() = default;
+        EntityComponent( EntityComponent const& ) = default;
         EntityComponent( StringID name ) : m_name( name ) {}
+
+        EntityComponent& operator=( EntityComponent const& rhs ) = default;
 
         // Request load of all component data - loading takes time
         virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) = 0;

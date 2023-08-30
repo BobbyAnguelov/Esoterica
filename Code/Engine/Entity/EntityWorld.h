@@ -264,10 +264,10 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         // Starts the hot-reload process - shuts down and unloads all specified entities
-        void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload );
+        void HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload );
 
         // Ends the hot-reload process - starts re-loading of unloaded entities
-        void EndHotReload();
+        void HotReload_ReloadEntities();
         #endif
 
     private:

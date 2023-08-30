@@ -63,7 +63,11 @@ namespace EE::Animation
 
         public:
 
+            Settings() = default;
+            Settings( Settings const& ) = default;
             virtual ~Settings() = default;
+
+            Settings& operator=( Settings const& rhs ) = default;
 
             // Factory method, will create the node instance and set all necessary node ptrs
             // NOTE!!! Node ptrs are not guaranteed to contain a constructed node so DO NOT ACCESS them in this function!!!
@@ -97,7 +101,10 @@ namespace EE::Animation
     public:
 
         GraphNode() = default;
+        GraphNode( GraphNode const& ) = default;
         virtual ~GraphNode();
+
+        GraphNode& operator=( GraphNode const& rhs ) = default;
 
         // Node state management
         //-------------------------------------------------------------------------

@@ -112,6 +112,9 @@ namespace EE
 
     private:
 
+        PropertyGrid( PropertyGrid const& ) = delete;
+        PropertyGrid& operator=( PropertyGrid const& rhs ) = delete;
+
         void RebuildGrid();
         void ApplyFilter();
 

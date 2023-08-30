@@ -31,7 +31,7 @@ namespace EE::Animation::GraphNodes
 
         // Create default state
         auto pDefaultStateNode = pStateMachineGraph->CreateNode<StateToolsNode>();
-        pDefaultStateNode->SetCanvasPosition( ImVec2( 0, 150 ) );
+        pDefaultStateNode->SetPosition( ImVec2( 0, 150 ) );
         pStateMachineGraph->SetDefaultEntryState( pDefaultStateNode->GetID() );
 
         // Update dependent nodes

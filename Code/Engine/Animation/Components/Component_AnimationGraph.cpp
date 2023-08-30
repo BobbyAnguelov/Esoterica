@@ -55,6 +55,7 @@ namespace EE::Animation
     {
         EE_ASSERT( HasGraph() );
 
+        m_pGraphInstance->SetSkeletonLOD( m_skeletonLOD );
         GraphPoseNodeResult const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsWorld, nullptr, m_graphStateResetRequested );
         m_graphStateResetRequested = false;
         m_rootMotionDelta = result.m_rootMotionDelta;

@@ -85,7 +85,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto DoComparision = [this, pSettings] ( float a, float b )
+        auto DoComparision = [pSettings] ( float a, float b )
         {
             switch ( pSettings->m_operator )
             {   

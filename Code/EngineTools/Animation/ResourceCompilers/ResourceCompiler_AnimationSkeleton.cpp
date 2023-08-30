@@ -34,7 +34,7 @@ namespace EE::Animation
         }
 
         RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<RawAssets::RawSkeleton> pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, resourceDescriptor.m_skeletonRootBoneName );
+        TUniquePtr<RawAssets::RawSkeleton> pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, resourceDescriptor.m_skeletonRootBoneName, resourceDescriptor.m_highLODBones );
         if ( pRawSkeleton == nullptr )
         {
             return Error( "Failed to read skeleton from source file" );
@@ -44,7 +44,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Skeleton skeleton;
-
         int32_t const numBones = pRawSkeleton->GetNumBones();
         for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
@@ -52,8 +51,8 @@ namespace EE::Animation
             skeleton.m_boneIDs.push_back( boneData.m_name );
             skeleton.m_parentIndices.push_back( boneData.m_parentBoneIdx );
             skeleton.m_localReferencePose.push_back( Transform( boneData.m_localTransform.GetRotation(), boneData.m_localTransform.GetTranslation(), boneData.m_localTransform.GetScale() ) );
+            skeleton.m_numBonesToSampleAtLowLOD = pRawSkeleton->GetNumBonesToSampleAtLowLOD();
         }
-
         // Serialize skeleton
         //-------------------------------------------------------------------------
 

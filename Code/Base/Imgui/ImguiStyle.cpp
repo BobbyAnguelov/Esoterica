@@ -109,7 +109,7 @@ namespace EE::ImGuiX
         style.GrabRounding = 0.0f;
         style.GrabMinSize = 8.0f;
         style.WindowRounding = 0.0f;
-        style.WindowBorderSize = 0.0f;
+        style.WindowBorderSize = 1.0f;
         style.FrameRounding = 3.0f;
         style.IndentSpacing = 8;
         style.ItemSpacing = ImVec2( 4, 6 );

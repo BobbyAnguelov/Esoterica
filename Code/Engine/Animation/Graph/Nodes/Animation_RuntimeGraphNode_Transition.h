@@ -119,7 +119,7 @@ namespace EE::Animation::GraphNodes
         GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult sourceNodeResult );
 
         // Updates the layer context for this transition and any source states
-        void UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext );
+        void UpdateLayerContext( GraphLayerContext* pSourceAndResultLayerContext, GraphLayerContext const* pTargetLayerContext );
 
         void StartCachingSourcePose( GraphContext& context );
         void RegisterSourceCachePoseTask( GraphContext& context, GraphPoseNodeResult& sourceNodeResult );

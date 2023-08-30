@@ -74,8 +74,8 @@ namespace EE::Platform
 
     #define EE_ASSERT( cond ) do { if( !(cond) ) { EE::Log::LogAssert( __FILE__, __LINE__, #cond ); EE_DEBUG_BREAK(); } } while( 0 )
     #define EE_HALT() { EE::Log::LogAssert( __FILE__, __LINE__, "HALT" ); EE_DEBUG_BREAK(); }
-    #define EE_TRACE_MSG( msgFormat, ... ) EE::Log::TraceMessage( msgFormat, __VA_ARGS__ )
-    #define EE_TRACE_HALT( msgFormat, ... ) { EE::Log::LogAssert( __FILE__, __LINE__, msgFormat, __VA_ARGS__ ); EE_DEBUG_BREAK(); }
+    #define EE_TRACE_MSG( msgFormat, ... ) EE::Log::TraceMessage( msgFormat, ## __VA_ARGS__ )
+    #define EE_TRACE_HALT( msgFormat, ... ) { EE::Log::LogAssert( __FILE__, __LINE__, msgFormat, ## __VA_ARGS__ ); EE_DEBUG_BREAK(); }
     #define EE_UNIMPLEMENTED_FUNCTION() EE_TRACE_HALT( "Function not implemented!" )
     #define EE_UNREACHABLE_CODE() EE_TRACE_HALT( "Unreachable code encountered!" )
 

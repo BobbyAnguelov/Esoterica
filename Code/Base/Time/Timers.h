@@ -86,9 +86,9 @@ namespace EE
             return Percentage( GetElapsedTimeSeconds() / m_countdownTime ).GetClamped( false );
         }
 
-    private:
-
         inline Seconds GetElapsedTimeSeconds() const { return ( Clock::GetTime() - m_startTime ).ToSeconds(); }
+
+        inline Seconds GetElapsedTimeMilliseconds() const { return ( Clock::GetTime() - m_startTime ).ToMilliseconds(); }
 
     private:
 

@@ -13,6 +13,8 @@ namespace EE
 
     class EE_ENGINETOOLS_API GamePreviewer final : public Workspace
     {
+        friend class EditorUI;
+
     public:
 
         GamePreviewer( ToolsContext const* pToolsContext, EntityWorld* pWorld );
@@ -35,9 +37,6 @@ namespace EE
         virtual void DrawMenu( UpdateContext const& context ) override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override {}
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
-        virtual void EndHotReload() override;
 
     private:
 

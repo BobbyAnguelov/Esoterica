@@ -1,5 +1,6 @@
 #include "Animation_RuntimeGraphNode_Layers.h"
 #include "Animation_RuntimeGraphNode_StateMachine.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_LayerData.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
@@ -198,19 +199,25 @@ namespace EE::Animation::GraphNodes
         int16_t rootMotionActionIdxLayer = rootMotionActionIdxCurrentBase;
         #endif
 
+        // If we are currently in a higher-level layer then cache it so that we can safely overwrite it
+        //-------------------------------------------------------------------------
+
+        if ( context.IsInLayer() )
+        {
+            m_pPreviousContext = context.m_pLayerContext;
+        }
+
+        // Handle layers
+        //-------------------------------------------------------------------------
+
         int32_t const numLayers = (int32_t) m_layers.size();
         for ( auto i = 0; i < numLayers; i++ )
         {
             // Start a new layer
             //-------------------------------------------------------------------------
 
-            // If we are currently in a higher-level layer then cache it so that we can safely overwrite it
-            if ( context.IsInLayer() )
-            {
-                m_previousContext = context.m_layerContext;
-            }
-
-            context.m_layerContext.BeginLayer();
+            GraphLayerContext layerContext;
+            context.m_pLayerContext = &layerContext;
 
             // Update layer
             //-------------------------------------------------------------------------
@@ -230,13 +237,13 @@ namespace EE::Animation::GraphNodes
                 // Layer Weight
                 if ( m_layers[i].m_pWeightValueNode != nullptr )
                 {
-                    context.m_layerContext.m_layerWeight = m_layers[i].m_pWeightValueNode->GetValue<float>( context );
+                    context.m_pLayerContext->m_layerWeight = m_layers[i].m_pWeightValueNode->GetValue<float>( context );
                 }
 
                 // Root Motion
                 if ( m_layers[i].m_pRootMotionWeightValueNode != nullptr )
                 {
-                    context.m_layerContext.m_rootMotionLayerWeight = m_layers[i].m_pRootMotionWeightValueNode->GetValue<float>( context );
+                    context.m_pLayerContext->m_rootMotionLayerWeight = m_layers[i].m_pRootMotionWeightValueNode->GetValue<float>( context );
                 }
 
                 // Bone Mask
@@ -245,7 +252,7 @@ namespace EE::Animation::GraphNodes
                     auto pBoneMaskTaskList = m_layers[i].m_pBoneMaskValueNode->GetValue<BoneMaskTaskList const*>( context );
                     if ( pBoneMaskTaskList != nullptr )
                     {
-                        context.m_layerContext.m_layerMaskTaskList.CopyFrom( *pBoneMaskTaskList );
+                        context.m_pLayerContext->m_layerMaskTaskList.CopyFrom( *pBoneMaskTaskList );
                     }
                 }
             }
@@ -254,7 +261,7 @@ namespace EE::Animation::GraphNodes
             // Always update SM layers as the transitions need to be evaluated
             // SM layers will calculate the final layer weight and store it in the layer context
             GraphPoseNodeResult layerResult;
-            if ( pSettings->m_layerSettings[i].m_isStateMachineLayer || context.m_layerContext.m_layerWeight > 0.0f )
+            if ( pSettings->m_layerSettings[i].m_isStateMachineLayer || context.m_pLayerContext->m_layerWeight > 0.0f )
             {
                 if ( pSettings->m_layerSettings[i].m_isSynchronized )
                 {
@@ -267,7 +274,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // We're done with the layer weight calculation at this stage
-            m_layers[i].m_weight = context.m_layerContext.m_layerWeight;
+            m_layers[i].m_weight = context.m_pLayerContext->m_layerWeight;
 
             // Register the blend tasks
             // If we registered a task for this layer, then we need to blend
@@ -279,33 +286,33 @@ namespace EE::Animation::GraphNodes
                     PoseBlendMode poseBlendMode = pSettings->m_layerSettings[i].m_blendMode;
 
                     // We cannot perform a global blend without a bone mask
-                    if ( poseBlendMode == PoseBlendMode::InterpolativeGlobalSpace && !context.m_layerContext.m_layerMaskTaskList.HasTasks() )
+                    if ( poseBlendMode == PoseBlendMode::GlobalSpace && !context.m_pLayerContext->m_layerMaskTaskList.HasTasks() )
                     {
                         #if EE_DEVELOPMENT_TOOLS
                         context.LogWarning( GetNodeIndex(), "Attempting to perform a global blend without a bone mask! This is not supported so falling back to a local blend!" );
                         #endif
 
-                        poseBlendMode = PoseBlendMode::Interpolative;
+                        poseBlendMode = PoseBlendMode::Overlay;
                     }
 
                     // Register blend tasks
                     switch ( poseBlendMode )
                     {
-                        case PoseBlendMode::Interpolative:
+                        case PoseBlendMode::Overlay:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_layerContext.m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
 
                         case PoseBlendMode::Additive:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::AdditiveBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_layerContext.m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::AdditiveBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
 
-                        case PoseBlendMode::InterpolativeGlobalSpace:
+                        case PoseBlendMode::GlobalSpace:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::GlobalBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, context.m_layerContext.m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::GlobalBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
                     }
@@ -314,7 +321,7 @@ namespace EE::Animation::GraphNodes
                     if ( !pSettings->m_onlySampleBaseRootMotion )
                     {
                         RootMotionBlendMode const rootMotionBlendMode = ( poseBlendMode == PoseBlendMode::Additive ) ? RootMotionBlendMode::Additive : RootMotionBlendMode::Blend;
-                        float const rootMotionWeight = m_layers[i].m_weight * context.m_layerContext.m_rootMotionLayerWeight;
+                        float const rootMotionWeight = m_layers[i].m_weight * context.m_pLayerContext->m_rootMotionLayerWeight;
                         nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, layerResult.m_rootMotionDelta, rootMotionWeight, rootMotionBlendMode );
 
                         #if EE_DEVELOPMENT_TOOLS
@@ -380,13 +387,15 @@ namespace EE::Animation::GraphNodes
             // End Layer
             //-------------------------------------------------------------------------
 
-            context.m_layerContext.EndLayer();
+            context.m_pLayerContext = nullptr;
+        }
 
-            // Restore previous context if it existed;
-            if ( m_previousContext.IsSet() )
-            {
-                context.m_layerContext = m_previousContext;
-            }
+        // Restore previous context if it existed
+        //-------------------------------------------------------------------------
+
+        if ( m_pPreviousContext )
+        {
+            context.m_pLayerContext = m_pPreviousContext;
         }
     }
 

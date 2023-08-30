@@ -34,7 +34,10 @@ namespace EE::Render
     public:
 
         RenderBuffer() = default;
+        RenderBuffer( RenderBuffer const& ) = default;
         ~RenderBuffer() { EE_ASSERT( !m_resourceHandle.IsValid() ); }
+
+        RenderBuffer& operator=( RenderBuffer const& ) = default;
 
         inline bool IsValid() const { return m_resourceHandle.IsValid(); }
 

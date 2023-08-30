@@ -29,7 +29,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Get ragdoll definition
-        pNode->m_pRagdollDefinition = context.GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
+        pNode->m_pRagdollDefinition = context.m_pDataSet->GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
     }
 
     bool SimulatedRagdollNode::IsValid() const

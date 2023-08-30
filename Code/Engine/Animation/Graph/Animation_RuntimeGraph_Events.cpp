@@ -217,6 +217,9 @@ namespace EE::Animation
         m_sampledEvents.reserve( m_sampledEvents.size() + otherBuffer.m_sampledEvents.size() );
         m_sampledEvents.insert( m_sampledEvents.end(), otherBuffer.m_sampledEvents.begin(), otherBuffer.m_sampledEvents.end() );
 
+        m_numAnimEventsSampled += otherBuffer.m_numAnimEventsSampled;
+        m_numStateEventsSampled += otherBuffer.m_numStateEventsSampled;
+
         //-------------------------------------------------------------------------
 
         newEventRange.m_endIdx = (uint16_t) m_sampledEvents.size();

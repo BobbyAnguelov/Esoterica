@@ -23,6 +23,7 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( pExternalGraphInstance != nullptr );
         EE_ASSERT( m_pGraphInstance == nullptr );
         m_pGraphInstance = pExternalGraphInstance;
+        m_shouldResetGraphInstance = true;
     }
 
     void ExternalGraphNode::DetachExternalGraphInstance( GraphContext& context )
@@ -41,14 +42,13 @@ namespace EE::Animation::GraphNodes
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
             m_duration = pRootNode->GetDuration();
+            m_shouldResetGraphInstance = true;
         }
         else
         {
             m_previousTime = m_currentTime = 0.0f;
             m_duration = 0.0f;
         }
-
-        m_isFirstUpdate = true;
     }
 
     //-------------------------------------------------------------------------
@@ -62,22 +62,6 @@ namespace EE::Animation::GraphNodes
         }
 
         return SyncTrack::s_defaultTrack;
-    }
-
-    void ExternalGraphNode::TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result )
-    {
-        auto& localEventBuffer = context.m_sampledEventsBuffer;
-        auto const& externalEventBuffer = m_pGraphInstance->GetSampledEvents();
-        result.m_sampledEventRange = localEventBuffer.AppendBuffer( externalEventBuffer );
-
-        auto pRootNode = m_pGraphInstance->GetRootNode();
-        m_previousTime = pRootNode->GetCurrentTime();
-        m_currentTime = pRootNode->GetCurrentTime();
-        m_duration = pRootNode->GetDuration();
-
-        #if EE_DEVELOPMENT_TOOLS
-        context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
-        #endif
     }
 
     //-------------------------------------------------------------------------
@@ -95,9 +79,25 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange, m_isFirstUpdate );
-            m_isFirstUpdate = false;
-            TransferGraphInstanceData( context, result );
+            // Evaluate external graph
+            result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange, m_shouldResetGraphInstance );
+            m_shouldResetGraphInstance = false;
+
+            // Transfer graph state
+            auto pRootNode = m_pGraphInstance->GetRootNode();
+            m_previousTime = pRootNode->GetCurrentTime();
+            m_currentTime = pRootNode->GetCurrentTime();
+            m_duration = pRootNode->GetDuration();
+
+            // Transfer sampled events
+            auto& localEventBuffer = context.m_sampledEventsBuffer;
+            auto const& externalEventBuffer = m_pGraphInstance->GetSampledEvents();
+            result.m_sampledEventRange = localEventBuffer.AppendBuffer( externalEventBuffer );
+
+            // Transfer root motion debug
+            #if EE_DEVELOPMENT_TOOLS
+            context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
+            #endif
         }
         return result;
     }

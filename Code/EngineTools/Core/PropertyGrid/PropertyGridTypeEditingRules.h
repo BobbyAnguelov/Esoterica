@@ -23,7 +23,11 @@ namespace EE::PG
     {
     public:
 
+        TypeEditingRules() = default;
+        TypeEditingRules( TypeEditingRules const& ) = default;
         virtual ~TypeEditingRules() = default;
+
+        TypeEditingRules& operator=( TypeEditingRules const& rhs ) = default;
 
     public:
 

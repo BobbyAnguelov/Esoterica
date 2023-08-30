@@ -1,6 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="Core\DialogManager.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\EditorTool.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\EditorTools\EditorTool_SystemLog.cpp">
+      <Filter>Core\EditorTools</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\EditorTools\EditorTool_ResourceBrowser.cpp">
+      <Filter>Resource\EditorTools</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\EditorTools\EditorTool_ResourceSystem.cpp">
+      <Filter>Resource\EditorTools</Filter>
+    </ClCompile>
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp">
       <Filter>Animation\ToolsGraph</Filter>
     </ClCompile>
@@ -115,7 +130,7 @@
     <ClCompile Include="Animation\Events\AnimationEventTracks.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Events\AnimationEventTrack.cpp">
+    <ClCompile Include="Animation\Events\AnimationEventTimeline.cpp">
       <Filter>Animation\Events</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationClip.cpp">
@@ -145,17 +160,17 @@
     <ClCompile Include="Core\Workspace.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\PropertyGrid\PropertyGridTypeEditingRules.cpp">
+    <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
-    <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp">
+    <ClCompile Include="Core\PropertyGrid\PropertyGridTypeEditingRules.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
     <ClCompile Include="Core\PropertyGrid\PropertyGrid.cpp">
       <Filter>Core\PropertyGrid</Filter>
     </ClCompile>
     <ClCompile Include="Core\CommonDialogs.cpp">
-      <Filter>Core\Helpers</Filter>
+      <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\Widgets\CurveEditor.cpp">
       <Filter>Core\Widgets</Filter>
@@ -182,10 +197,10 @@
       <Filter>Core\VisualGraph</Filter>
     </ClCompile>
     <ClCompile Include="Core\Timeline\Timeline.cpp">
-      <Filter>Core\TimelineEditor</Filter>
+      <Filter>Core\Timeline</Filter>
     </ClCompile>
     <ClCompile Include="Core\Timeline\TimelineEditor.cpp">
-      <Filter>Core\TimelineEditor</Filter>
+      <Filter>Core\Timeline</Filter>
     </ClCompile>
     <ClCompile Include="Physics\PropertyGrid\PropertyGrid_PhysicsBodySettings.cpp">
       <Filter>Physics\PropertyGrid</Filter>
@@ -193,10 +208,10 @@
     <ClCompile Include="Physics\PropertyGrid\PropertyGrid_Component_PhysicsCollision.cpp">
       <Filter>Physics\PropertyGrid</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp">
+    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.cpp">
       <Filter>Physics\ResourceCompilers</Filter>
     </ClCompile>
-    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.cpp">
+    <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp">
       <Filter>Physics\ResourceCompilers</Filter>
     </ClCompile>
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.cpp">
@@ -253,12 +268,6 @@
     <ClCompile Include="Render\Workspaces\Workspace_Material.cpp">
       <Filter>Render\Workspaces</Filter>
     </ClCompile>
-    <ClCompile Include="Render\Workspaces\Workspace_SkeletalMesh.cpp">
-      <Filter>Render\Workspaces</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Workspaces\Workspace_StaticMesh.cpp">
-      <Filter>Render\Workspaces</Filter>
-    </ClCompile>
     <ClCompile Include="Render\Workspaces\Workspace_Texture.cpp">
       <Filter>Render\Workspaces</Filter>
     </ClCompile>
@@ -307,9 +316,6 @@
     <ClCompile Include="Resource\ResourceDescriptor.cpp">
       <Filter>Resource</Filter>
     </ClCompile>
-    <ClCompile Include="Resource\RawFileInspector.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
     <ClCompile Include="Resource\ResourceDatabase.cpp">
       <Filter>Resource</Filter>
     </ClCompile>
@@ -317,23 +323,34 @@
       <Filter>Resource</Filter>
     </ClCompile>
     <ClCompile Include="Resource\ResourceDescriptorCreator.cpp">
-      <Filter>Resource\ResourceBrowser</Filter>
+      <Filter>Resource</Filter>
     </ClCompile>
-    <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_FBX.cpp">
-      <Filter>Resource\RawFileInspectors</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_GLTF.cpp">
-      <Filter>Resource\RawFileInspectors</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_Images.cpp">
-      <Filter>Resource\RawFileInspectors</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\EditorTool.cpp" />
-    <ClCompile Include="Core\EditorTools\EditorTool_SystemLog.cpp" />
-    <ClCompile Include="Resource\EditorTools\EditorTool_ResourceBrowser.cpp" />
-    <ClCompile Include="Resource\EditorTools\EditorTool_ResourceSystem.cpp" />
+    <ClCompile Include="Resource\EditorTools\EditorTool_RawFileInspector.cpp" />
+    <ClCompile Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_FBX.cpp" />
+    <ClCompile Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_GLTF.cpp" />
+    <ClCompile Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_Image.cpp" />
+    <ClCompile Include="Render\Workspaces\Workspace_Mesh.cpp" />
+    <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationClip.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Core\CommonToolTypes.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\DialogManager.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\EditorTool.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\EditorTools\EditorTool_SystemLog.h">
+      <Filter>Core\EditorTools</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\EditorTools\EditorTool_ResourceBrowser.h">
+      <Filter>Resource\EditorTools</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\EditorTools\EditorTool_ResourceSystem.h">
+      <Filter>Resource\EditorTools</Filter>
+    </ClInclude>
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.h">
       <Filter>Animation\ToolsGraph</Filter>
     </ClInclude>
@@ -448,7 +465,7 @@
     <ClInclude Include="Animation\Events\AnimationEventTracks.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Events\AnimationEventTrack.h">
+    <ClInclude Include="Animation\Events\AnimationEventTimeline.h">
       <Filter>Animation\Events</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationClip.h">
@@ -487,20 +504,20 @@
     <ClInclude Include="Core\Workspace.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h">
+    <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
-    <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h">
+    <ClInclude Include="Core\PropertyGrid\PropertyGridTypeEditingRules.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
     <ClInclude Include="Core\PropertyGrid\PropertyGrid.h">
       <Filter>Core\PropertyGrid</Filter>
     </ClInclude>
     <ClInclude Include="Core\CategoryTree.h">
-      <Filter>Core\Helpers</Filter>
+      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\CommonDialogs.h">
-      <Filter>Core\Helpers</Filter>
+      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Widgets\CurveEditor.h">
       <Filter>Core\Widgets</Filter>
@@ -530,15 +547,15 @@
       <Filter>Core\VisualGraph</Filter>
     </ClInclude>
     <ClInclude Include="Core\Timeline\Timeline.h">
-      <Filter>Core\TimelineEditor</Filter>
+      <Filter>Core\Timeline</Filter>
     </ClInclude>
     <ClInclude Include="Core\Timeline\TimelineEditor.h">
-      <Filter>Core\TimelineEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h">
-      <Filter>Physics\ResourceCompilers</Filter>
+      <Filter>Core\Timeline</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.h">
+      <Filter>Physics\ResourceCompilers</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h">
       <Filter>Physics\ResourceCompilers</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.h">
@@ -550,10 +567,10 @@
     <ClInclude Include="Physics\Workspaces\Workspace_Ragdoll.h">
       <Filter>Physics\Workspaces</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h">
+    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsCollisionMesh.h">
       <Filter>Physics\ResourceDescriptors</Filter>
     </ClInclude>
-    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsCollisionMesh.h">
+    <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h">
       <Filter>Physics\ResourceDescriptors</Filter>
     </ClInclude>
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsRagdoll.h">
@@ -628,12 +645,6 @@
     <ClInclude Include="Render\Workspaces\Workspace_Material.h">
       <Filter>Render\Workspaces</Filter>
     </ClInclude>
-    <ClInclude Include="Render\Workspaces\Workspace_SkeletalMesh.h">
-      <Filter>Render\Workspaces</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Workspaces\Workspace_StaticMesh.h">
-      <Filter>Render\Workspaces</Filter>
-    </ClInclude>
     <ClInclude Include="Render\Workspaces\Workspace_Texture.h">
       <Filter>Render\Workspaces</Filter>
     </ClInclude>
@@ -688,9 +699,6 @@
     <ClInclude Include="Resource\ResourceDescriptor.h">
       <Filter>Resource</Filter>
     </ClInclude>
-    <ClInclude Include="Resource\RawFileInspector.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
     <ClInclude Include="Resource\ResourceDatabase.h">
       <Filter>Resource</Filter>
     </ClInclude>
@@ -698,160 +706,146 @@
       <Filter>Resource</Filter>
     </ClInclude>
     <ClInclude Include="Resource\ResourceDescriptorCreator.h">
-      <Filter>Resource\ResourceBrowser</Filter>
+      <Filter>Resource</Filter>
     </ClInclude>
-    <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_FBX.h">
-      <Filter>Resource\RawFileInspectors</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_GLTF.h">
-      <Filter>Resource\RawFileInspectors</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_Images.h">
-      <Filter>Resource\RawFileInspectors</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\EditorTool.h" />
-    <ClInclude Include="Core\EditorTools\EditorTool_SystemLog.h" />
-    <ClInclude Include="Resource\EditorTools\EditorTool_ResourceBrowser.h" />
-    <ClInclude Include="Resource\EditorTools\EditorTool_ResourceSystem.h" />
+    <ClInclude Include="Resource\EditorTools\EditorTool_RawFileInspector.h" />
+    <ClInclude Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_FBX.h" />
+    <ClInclude Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_GLTF.h" />
+    <ClInclude Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_Image.h" />
+    <ClInclude Include="Render\Workspaces\Workspace_Mesh.h" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Animation">
-      <UniqueIdentifier>{b5096a4d-1e5f-4c01-a4a1-95fe112d1f3c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\ToolsGraph">
-      <UniqueIdentifier>{13ac76b7-7ebc-47ad-aab3-5bda07dd9841}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\ToolsGraph\Nodes">
-      <UniqueIdentifier>{c0fc1ca5-6560-4d50-9e0c-8e57aa1d2836}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\ToolsGraph\Graphs">
-      <UniqueIdentifier>{7eb080ed-3993-4eee-b7b2-e6216a92e47b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\Events">
-      <UniqueIdentifier>{1c4db1e0-eab1-4641-a62f-470796f246d5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\Workspaces">
-      <UniqueIdentifier>{1b0992c4-4a4a-4b46-99ec-85b39bd0ad5a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\ResourceCompilers">
-      <UniqueIdentifier>{73e92873-15c7-442f-8a4b-6b1e577fdb83}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Animation\ResourceDescriptors">
-      <UniqueIdentifier>{2bd11613-18cb-427f-86e7-70701ffb74fe}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Core">
-      <UniqueIdentifier>{da1428d6-8b20-4873-9e74-f185e9c347ae}</UniqueIdentifier>
+      <UniqueIdentifier>{db1f2b16-4926-44d8-bfdd-e3ae33e50a15}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\PropertyGrid">
-      <UniqueIdentifier>{b8032e07-05aa-46d1-93e4-806b24299edc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\Helpers">
-      <UniqueIdentifier>{67a646d7-0837-4972-b5b9-74b8dfa774e5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\Widgets">
-      <UniqueIdentifier>{abc149b9-637d-49bd-af42-530fe29c1d60}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\FileSystem">
-      <UniqueIdentifier>{7bf6c390-fc82-4c16-9176-cbcacf1bb712}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\VisualGraph">
-      <UniqueIdentifier>{6f2969d1-3858-4a61-b3dc-dc439944eb36}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\TimelineEditor">
-      <UniqueIdentifier>{e6517264-9351-493b-b062-008af69ef6b2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics">
-      <UniqueIdentifier>{a3b3ae62-b364-4b94-b58c-5a8d832a96e6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\PropertyGrid">
-      <UniqueIdentifier>{ef33baa4-6775-48e5-9f9f-f8dbb73237b2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\ResourceCompilers">
-      <UniqueIdentifier>{7e566f30-51df-4c6f-9ea3-8b2154e1fd98}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\Workspaces">
-      <UniqueIdentifier>{ef3909fb-619a-4842-bce8-accb5d4f8507}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Physics\ResourceDescriptors">
-      <UniqueIdentifier>{1b71986b-56cb-4acf-ad78-066a9b532aed}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="RawAssets">
-      <UniqueIdentifier>{3b9d55f3-07d1-4109-b615-84f1b538c5a0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="RawAssets\Formats">
-      <UniqueIdentifier>{5b77b080-4708-4b8f-9c33-b6c9f4d69cbf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty">
-      <UniqueIdentifier>{6ae3c2cb-66b3-47ed-8959-c2af030db67c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\delaunator">
-      <UniqueIdentifier>{766d74a7-96f2-4e9a-ae3a-fca3cce2f895}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\delabella">
-      <UniqueIdentifier>{e33f41ba-2fda-4291-a2e9-351fb5597916}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\pfd">
-      <UniqueIdentifier>{bec21951-7022-4936-9db4-594c7f68c2bd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\cgltf">
-      <UniqueIdentifier>{3d0c22d8-3c9f-4bad-bf07-57064d9ceb8e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\subprocess">
-      <UniqueIdentifier>{939f5dcd-53f8-4942-bad6-99687272842d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity">
-      <UniqueIdentifier>{c23b80a0-b8e7-499f-baef-c82995aed479}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\Workspaces">
-      <UniqueIdentifier>{34ef44e4-d46f-47c6-b9e6-12358ef46550}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\EntityEditor">
-      <UniqueIdentifier>{9b3385ca-5016-41c2-845a-1ca6a1dab1d1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\ResourceCompilers">
-      <UniqueIdentifier>{6ef3eda8-b0a4-4eda-bb7a-82390f646a1d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Entity\ResourceDescriptors">
-      <UniqueIdentifier>{6515a9b5-0d45-470b-9c20-a244133d1bb5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render">
-      <UniqueIdentifier>{c5d9d3bd-3c97-4626-b2ef-c534eaf93abb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Workspaces">
-      <UniqueIdentifier>{43ed6544-e154-4280-8279-253c68bbca38}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\TextureTools">
-      <UniqueIdentifier>{1a5cc6b2-45b1-4579-b057-9182dd670ae2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\TextureTools\ExtendedFormats">
-      <UniqueIdentifier>{f4b66f26-957f-4418-a23b-e164f7c5f5e0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\ResourceCompilers">
-      <UniqueIdentifier>{dd171954-8801-4238-9088-52643d3439d8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\ResourceDescriptors">
-      <UniqueIdentifier>{f64a5fe5-4433-4e1f-83b1-c44599f2eddd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh">
-      <UniqueIdentifier>{458015e8-cc6f-4647-8c90-797acaa8fd54}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Navmesh\ResourceCompilers">
-      <UniqueIdentifier>{f0a99541-7ee5-4d96-ba7b-79b0f49ee48b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module">
-      <UniqueIdentifier>{30d4cc43-310b-48aa-993a-83efad7578d3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module\_AutoGenerated">
-      <UniqueIdentifier>{285a24ad-9ef7-4983-8468-287c29a67a6d}</UniqueIdentifier>
+    <Filter Include="Core\EditorTools">
+      <UniqueIdentifier>{cc10852a-6da1-4d59-90c8-e98bb1c1f49b}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource">
-      <UniqueIdentifier>{93c71ab2-7802-41d5-b279-9b7f8589fff0}</UniqueIdentifier>
+      <UniqueIdentifier>{aaf81e9e-3baf-4b77-bfb8-7c81cb83a74b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource\ResourceBrowser">
-      <UniqueIdentifier>{251cee6a-b148-46d1-a16d-7baa8c49bf2a}</UniqueIdentifier>
+    <Filter Include="Resource\EditorTools">
+      <UniqueIdentifier>{35654a64-c524-4743-b975-f07672faa982}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation">
+      <UniqueIdentifier>{49740464-37d6-4f39-8fb0-b44119c0fe83}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\ToolsGraph">
+      <UniqueIdentifier>{99781a0e-e235-4743-8fa3-747e5801ca5f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\ToolsGraph\Nodes">
+      <UniqueIdentifier>{6a45d188-954c-42ca-b3ac-761541f38f73}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\ToolsGraph\Graphs">
+      <UniqueIdentifier>{83a80760-9f93-4e1e-a726-8aeff2c61a83}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\Events">
+      <UniqueIdentifier>{ea2e3e10-776b-40c7-be28-25a2f3f180d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\Workspaces">
+      <UniqueIdentifier>{cc920ddc-b2da-4499-8856-75164f161f9f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\ResourceCompilers">
+      <UniqueIdentifier>{3982bbcd-9d04-4a67-8bf4-29f67fa7e093}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation\ResourceDescriptors">
+      <UniqueIdentifier>{4d6e23f2-6c3c-41a7-8a2d-241b04a06d50}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\PropertyGrid">
+      <UniqueIdentifier>{0c722566-0b27-42b4-9add-df6b1f3ca2c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Widgets">
+      <UniqueIdentifier>{2cea57a8-0303-40be-aeed-45a2c57689d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\FileSystem">
+      <UniqueIdentifier>{f54472c0-04c4-47ce-b333-2f0b598584df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\VisualGraph">
+      <UniqueIdentifier>{8e3ad6bc-8eca-4224-b7ec-302ffd81e698}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Timeline">
+      <UniqueIdentifier>{7c60ae61-d56f-4668-8ef6-dfbda421a9ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics">
+      <UniqueIdentifier>{20039a9d-3400-4010-92bf-6065c411cd29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\PropertyGrid">
+      <UniqueIdentifier>{063eec5b-f755-4df0-9553-cc078a1d5a08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\ResourceCompilers">
+      <UniqueIdentifier>{2fac5769-aee3-4624-aae7-029c00449b28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\Workspaces">
+      <UniqueIdentifier>{56945fa5-0921-4fa3-932b-f355de58ae0e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\ResourceDescriptors">
+      <UniqueIdentifier>{26ef0fc4-2f77-4b8d-aad6-4a38254fbf09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RawAssets">
+      <UniqueIdentifier>{74ab8811-19e2-4bcf-b511-6239ae305bd9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RawAssets\Formats">
+      <UniqueIdentifier>{1c0c6417-cc59-4fb9-9b02-efd3445f0e0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty">
+      <UniqueIdentifier>{627f8b3f-a057-4612-9b90-c13c6ef45a20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\delabella">
+      <UniqueIdentifier>{d000efcd-20f3-4572-a736-3e4a668c2a05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pfd">
+      <UniqueIdentifier>{c8de9d03-3327-4ec9-892a-849633df032d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\cgltf">
+      <UniqueIdentifier>{7bef2722-c0bc-40fc-96bb-916d78f7ac26}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\subprocess">
+      <UniqueIdentifier>{5bc6bc08-6284-4086-a714-1489c085a7c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity">
+      <UniqueIdentifier>{2ea1d424-931b-4220-8591-1e229f9ead46}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity\Workspaces">
+      <UniqueIdentifier>{32521b1c-0776-46fe-ad3e-57c69d9e4ca2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity\ResourceCompilers">
+      <UniqueIdentifier>{dc0e8031-b4ac-4ac0-a891-3cfbd9eb4972}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity\ResourceDescriptors">
+      <UniqueIdentifier>{662dec11-99a7-42d5-b627-ef8d4d295d7e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{a9245f00-16ad-4878-b51f-bdec03b3ec0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Workspaces">
+      <UniqueIdentifier>{67131506-ae29-4af3-adfc-e2cff95ea5f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\TextureTools">
+      <UniqueIdentifier>{ec86acd5-e0e7-4ffc-a500-383e14118f77}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\TextureTools\ExtendedFormats">
+      <UniqueIdentifier>{028b111f-66c3-451b-92d3-37641e8a9b2b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\ResourceCompilers">
+      <UniqueIdentifier>{8af977c7-c8eb-43b4-9740-c4eedc843554}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\ResourceDescriptors">
+      <UniqueIdentifier>{70e27714-0fb8-46fb-a11b-7ae4d5ddb6a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh">
+      <UniqueIdentifier>{a579ead0-a2e3-4838-97e6-e9f235d70ebd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Navmesh\ResourceCompilers">
+      <UniqueIdentifier>{0004ff53-a145-48d4-a87f-60ff816adc49}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module">
+      <UniqueIdentifier>{f84a3595-07dd-4ab3-9d69-09eb3778101a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module\_AutoGenerated">
+      <UniqueIdentifier>{86d95663-2722-4266-a73b-6dd4c3d3af34}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource\RawFileInspectors">
-      <UniqueIdentifier>{f9b95a56-b082-4824-baa9-1f897fef49c3}</UniqueIdentifier>
+      <UniqueIdentifier>{467fc97d-b69f-4906-85d7-6330f788d7f8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

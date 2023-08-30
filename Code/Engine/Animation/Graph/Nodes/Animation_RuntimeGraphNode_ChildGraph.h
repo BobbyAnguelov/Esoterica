@@ -36,8 +36,6 @@ namespace EE::Animation::GraphNodes
 
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
-        void TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result );
-
         void ReflectControlParameters( GraphContext& context );
 
         #if EE_DEVELOPMENT_TOOLS

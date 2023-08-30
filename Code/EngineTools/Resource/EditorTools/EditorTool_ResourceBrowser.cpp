@@ -1,6 +1,5 @@
 #include "EditorTool_ResourceBrowser.h"
 #include "EngineTools/Resource/ResourceDescriptorCreator.h"
-#include "EngineTools/Resource/RawFileInspector.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/ToolsContext.h"
@@ -84,14 +83,26 @@ namespace EE::Resource
             }
             else if ( IsResourceFile() )
             {
-                displayName.sprintf( EE_ICON_FILE_OUTLINE" %s", GetNameID().c_str() );
+                displayName.sprintf( EE_ICON_FILE" %s", GetNameID().c_str() );
             }
             else if ( IsRawFile() )
             {
-                displayName.sprintf( EE_ICON_FILE_QUESTION_OUTLINE" %s", GetNameID().c_str() );
+                displayName.sprintf( EE_ICON_FILE_OUTLINE" %s", GetNameID().c_str() );
             }
 
             return displayName;
+        }
+
+        virtual Color GetDisplayColor( ItemState state ) const override
+        {
+            if ( IsFile() && IsRawFile() && ( state == TreeListViewItem::None ) )
+            {
+                return Colors::LightBlue;
+            }
+            else
+            {
+                return TreeListViewItem::GetDisplayColor( state );
+            }
         }
 
         // File Info
@@ -173,6 +184,8 @@ namespace EE::Resource
         , m_dataDirectoryPathDepth( m_pToolsContext->GetRawResourceDirectory().GetPathDepth() )
     {
         m_treeview.SetFlag( TreeListView::ExpandItemsOnlyViaArrow, true );
+        m_treeview.SetFlag( TreeListView::UseSmallFont, false );
+        m_treeview.SetFlag( TreeListView::SortTree, true );
 
         m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pResourceDatabase->OnFileSystemCacheUpdated().Bind( [this] () { m_rebuildTree = true; } );
 
@@ -218,6 +231,13 @@ namespace EE::Resource
 
     void ResourceBrowserEditorTool::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
+        if( m_pToolsContext->m_pResourceDatabase->IsBuildingCaches() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
         TreeListViewContext treeViewContext;
         treeViewContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildTreeView( pRootItem ); };
         treeViewContext.m_drawItemContextMenuFunction = [this] ( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) { DrawItemContextMenu( selectedItemsWithContextMenus ); };
@@ -240,6 +260,16 @@ namespace EE::Resource
             }
 
             m_navigationRequest.Clear();
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_pResourceDescriptorCreator != nullptr )
+        {
+            if ( !m_pResourceDescriptorCreator->Draw() )
+            {
+                EE::Delete( m_pResourceDescriptorCreator );
+            }
         }
     }
 
@@ -381,56 +411,40 @@ namespace EE::Resource
 
             if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
             {
-                m_showDeleteConfirmationDialog = true;
+                m_dialogManager.CreateModalDialog( "Delete Resource", [this] ( UpdateContext const& context ) { return DrawDeleteConfirmationDialog( context ); } );
             }
         }
     }
 
     //-------------------------------------------------------------------------
 
-    void ResourceBrowserEditorTool::DrawDialogs( UpdateContext const& context )
+    bool ResourceBrowserEditorTool::DrawDeleteConfirmationDialog( UpdateContext const& context )
     {
-        if ( m_showDeleteConfirmationDialog )
+        bool shouldClose = false;
+
+        ImGui::Text( "Are you sure you want to delete this file?" );
+        ImGui::Text( "This cannot be undone!" );
+
+        if ( ImGui::Button( "Ok", ImVec2( 143, 0 ) ) )
         {
-            ImGui::OpenPopup( "Delete Resource" );
-            m_showDeleteConfirmationDialog = false;
+            auto pResourceItem = (ResourceBrowserTreeItem*) m_treeview.GetSelection()[0];
+            FileSystem::Path const fileToDelete = pResourceItem->GetFilePath();
+            m_treeview.ClearSelection();
+            FileSystem::EraseFile( fileToDelete );
+            shouldClose = true;
         }
 
-        ImGui::SetNextWindowSize( ImVec2( 300, 96 ) );
-        if ( ImGui::BeginPopupModal( "Delete Resource", nullptr, ImGuiWindowFlags_NoResize ) )
+        ImGui::SameLine( 0, 6 );
+
+        if ( ImGui::Button( "Cancel", ImVec2( 143, 0 ) ) )
         {
-            ImGui::Text( "Are you sure you want to delete this file?" );
-            ImGui::Text( "This cannot be undone!" );
-
-            if ( ImGui::Button( "Ok", ImVec2( 143, 0 ) ) )
-            {
-                auto pResourceItem = (ResourceBrowserTreeItem*) m_treeview.GetSelection()[0];
-                FileSystem::Path const fileToDelete = pResourceItem->GetFilePath();
-                m_treeview.ClearSelection();
-                FileSystem::EraseFile( fileToDelete );
-                ImGui::CloseCurrentPopup();
-            }
-
-            ImGui::SameLine( 0, 6 );
-
-            if ( ImGui::Button( "Cancel", ImVec2( 143, 0 ) ) )
-            {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SetItemDefaultFocus();
-
-            ImGui::EndPopup();
+            shouldClose = true;
         }
+        ImGui::SetItemDefaultFocus();
 
         //-------------------------------------------------------------------------
 
-        if ( m_pResourceDescriptorCreator != nullptr )
-        {
-            if ( !m_pResourceDescriptorCreator->Draw() )
-            {
-                EE::Delete( m_pResourceDescriptorCreator );
-            }
-        }
+        return !shouldClose;
     }
 
     void ResourceBrowserEditorTool::DrawCreationControls( UpdateContext const& context )
@@ -501,8 +515,14 @@ namespace EE::Resource
         // Type Filter + Controls
         //-------------------------------------------------------------------------
 
+        if ( ImGuiX::ToggleButton( EE_ICON_RAW, EE_ICON_RAW_OFF, m_showRawFiles, ImVec2( buttonWidth, 0 ) ) )
+        {
+            shouldUpdateVisibility = true;
+        }
+
         float const availableWidth = ImGui::GetContentRegionAvail().x;
-        float const filterWidth = availableWidth - ( 2 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
+        float const filterWidth = availableWidth - ( 3 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
+        ImGui::SameLine();
         shouldUpdateVisibility |= DrawResourceTypeFilterMenu( filterWidth );
 
         ImGui::SameLine();
@@ -534,13 +554,6 @@ namespace EE::Resource
         ImGui::SetNextItemWidth( width );
         if ( ImGui::BeginCombo( "##ResourceTypeFilters", "Resource Filters", ImGuiComboFlags_HeightLarge ) )
         {
-            if ( ImGui::Checkbox( "Raw Files", &m_showRawFiles ) )
-            {
-                requiresVisibilityUpdate = true;
-            }
-
-            ImGui::Separator();
-
             for ( auto const& resourceInfo : m_pToolsContext->m_pTypeRegistry->GetRegisteredResourceTypes() )
             {
                 bool isChecked = VectorContains( m_typeFilter, resourceInfo.second.m_resourceTypeID );

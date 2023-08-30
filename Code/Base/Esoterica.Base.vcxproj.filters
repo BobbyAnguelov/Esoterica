@@ -362,6 +362,7 @@
     <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
     <ClCompile Include="Logging\Platform\Log_Win32.cpp" />
     <ClCompile Include="Logging\LoggingSystem.cpp" />
+    <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Imgui\ImguiGizmo.h">
@@ -1784,6 +1785,7 @@
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
     <ClInclude Include="Platform\Platform.h" />
     <ClInclude Include="Logging\LoggingSystem.h" />
+    <ClInclude Include="Imgui\ImguiXNotifications.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\cmdParser\LICENSE">

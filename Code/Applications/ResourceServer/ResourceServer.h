@@ -23,7 +23,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    class ResourceServer : public FileSystem::IFileSystemChangeListener
+    class ResourceServer
     {
     public:
 
@@ -120,11 +120,6 @@ namespace EE::Resource
         CompilationRequest* CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
         void ProcessCompletedRequests();
 
-        // File system listener
-        //-------------------------------------------------------------------------
-
-        virtual void OnFileModified( FileSystem::Path const& filePath ) override final;
-
     private:
 
         Network::IPC::Server                                        m_networkServer;
@@ -153,6 +148,6 @@ namespace EE::Resource
         PackagingStage                                              m_packagingStage = PackagingStage::None;
 
         // File System Watcher
-        FileSystem::FileSystemWatcher                               m_fileSystemWatcher;
+        FileSystem::Watcher                                         m_fileSystemWatcher;
     };
 }

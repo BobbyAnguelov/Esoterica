@@ -2,6 +2,7 @@
 #include "VisualGraph_UserContext.h"
 #include "Base/Serialization/TypeSerialization.h"
 #include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Math/Line.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,7 +23,7 @@ namespace EE::VisualGraph
     //-------------------------------------------------------------------------
 
     Color const BaseNode::s_genericNodeSeparatorColor = Color( 100, 100, 100 );
-    Color const BaseNode::s_genericNodeInternalRegionDefaultColor = Color( 60, 60, 60 );
+    Color const BaseNode::s_genericNodeInternalRegionDefaultColor = Color( 40, 40, 40 );
 
     //-------------------------------------------------------------------------
 
@@ -272,7 +273,7 @@ namespace EE::VisualGraph
         }
     }
 
-    void BaseNode::SetCanvasPosition( Float2 const& newPosition )
+    void BaseNode::SetPosition( Float2 const& newPosition )
     {
         BeginModification();
         m_canvasPosition = newPosition;
@@ -320,6 +321,14 @@ namespace EE::VisualGraph
         }
     }
 
+    ImRect BaseNode::GetRect() const
+    {
+        ImVec2 const nodeMargin = GetNodeMargin();
+        ImVec2 const rectMin = ImVec2( m_canvasPosition ) - nodeMargin;
+        ImVec2 const rectMax = ImVec2( m_canvasPosition ) + nodeMargin + m_size;
+        return ImRect( rectMin, rectMax );
+    }
+
     void BaseNode::OnDoubleClick( UserContext* pUserContext )
     {
         auto pChildGraph = GetChildGraph();
@@ -331,63 +340,298 @@ namespace EE::VisualGraph
         pUserContext->DoubleClick( this );
     }
 
-    ImRect BaseNode::GetCanvasRect() const
-    {
-        ImVec2 const nodeMargin = GetNodeMargin();
-        ImVec2 const rectMin = ImVec2( m_canvasPosition ) - nodeMargin;
-        ImVec2 const rectMax = ImVec2( m_canvasPosition ) + m_size + nodeMargin;
-        return ImRect( rectMin, rectMax );
-    }
-
-    ImRect BaseNode::GetWindowRect( Float2 const& canvasToWindowOffset ) const
-    {
-        ImVec2 const nodeMargin = GetNodeMargin();
-        ImVec2 const rectMin = ImVec2( m_canvasPosition ) - nodeMargin - canvasToWindowOffset;
-        ImVec2 const rectMax = ImVec2( m_canvasPosition ) + m_size + nodeMargin - canvasToWindowOffset;
-        return ImRect( rectMin, rectMax );
-    }
-
     void BaseNode::DrawInternalSeparator( DrawContext const& ctx, Color color, float preMarginY, float postMarginY ) const
     {
-        constexpr static float const minimumNodeWidth = 30;
-        float const separatorWidth = GetWidth() == 0 ? minimumNodeWidth : GetWidth();
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY );
-        ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
-        ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( separatorWidth, 0 ), color );
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + postMarginY + 1 );
+        auto const& style = ImGui::GetStyle();
+        float const scaledPreMargin = ctx.CanvasToWindow( ( preMarginY < 0 ) ? 0 : preMarginY );
+        float const scaledPostMargin = ctx.CanvasToWindow( ( postMarginY < 0 ) ? style.ItemSpacing.y : postMarginY );
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + scaledPreMargin );
+
+        float const nodeWindowWidth = ctx.CanvasToWindow( GetWidth() );
+        if ( nodeWindowWidth != 0 )
+        {
+            ImVec2 const cursorScreenPos = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
+            ctx.m_pDrawList->AddLine( cursorScreenPos, cursorScreenPos + ImVec2( nodeWindowWidth, 0 ), color );
+        }
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + scaledPostMargin + 1 );
     }
 
     void BaseNode::BeginDrawInternalRegion( DrawContext const& ctx, Color color, float preMarginY, float postMarginY ) const
     {
         EE_ASSERT( !m_regionStarted );
 
+        auto const& style = ImGui::GetStyle();
+        float const scaledPreMargin = ctx.CanvasToWindow( ( preMarginY < 0 ) ? 0 : preMarginY );
+        float const scaledPostMargin = ctx.CanvasToWindow( ( postMarginY < 0 ) ? 0 : postMarginY );
+
         m_internalRegionStartY = ImGui::GetCursorPosY();
         m_internalRegionColor = color;
-        m_internalRegionMargins[0] = preMarginY;
-        m_internalRegionMargins[1] = postMarginY;
+        m_internalRegionMargins[0] = scaledPreMargin;
+        m_internalRegionMargins[1] = scaledPostMargin;
         m_regionStarted = true;
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + preMarginY + ImGui::GetStyle().ItemSpacing.y );
+        //-------------------------------------------------------------------------
+
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + style.FramePadding.y + scaledPreMargin );
+        ImGui::Indent();
     }
 
     void BaseNode::EndDrawInternalRegion( DrawContext const& ctx ) const
     {
         EE_ASSERT( m_regionStarted );
 
-        ImVec2 const& framePadding = ImGui::GetStyle().FramePadding;
-        ImVec2 const rectMin = ctx.WindowToScreenPosition( ImVec2( ImGui::GetCursorPosX() - framePadding.x, m_internalRegionStartY + m_internalRegionMargins[0] ));
-        ImVec2 const rectMax = rectMin + ImVec2( GetWidth() + ( framePadding.x * 2 ), ImGui::GetCursorPosY() - m_internalRegionStartY + framePadding.y - m_internalRegionMargins[0] - 1 );
+        auto const& style = ImGui::GetStyle();
+
+        ImGui::SameLine();
+        ImGui::Dummy( ImVec2( style.IndentSpacing, 0 ) );
+        ImGui::Unindent();
+
+        //-------------------------------------------------------------------------
+
+        float const scaledRectRounding = ctx.CanvasToWindow( 3.0f );
+
+        ImVec2 const& scaledFramePadding = style.FramePadding;
+        float const nodeWindowWidth = ctx.CanvasToWindow( GetWidth() );
+        ImVec2 const nodeMargin = ctx.CanvasToWindow( GetNodeMargin() );
+
+        ImVec2 const rectMin = ctx.WindowToScreenPosition( ImVec2( ImGui::GetCursorPosX(), m_internalRegionStartY + m_internalRegionMargins[0] ) );
+        ImVec2 const rectMax = rectMin + ImVec2( nodeWindowWidth, ImGui::GetCursorPosY() - m_internalRegionStartY + scaledFramePadding.y - m_internalRegionMargins[0] );
         
         int32_t const previousChannel = ctx.m_pDrawList->_Splitter._Current;
         ctx.SetDrawChannel( (uint8_t) DrawChannel::ContentBackground );
-        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, m_internalRegionColor, 3.0f );
+        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, m_internalRegionColor, scaledRectRounding );
         ctx.m_pDrawList->ChannelsSetCurrent( previousChannel );
 
-        ImGui::Dummy( ImVec2( GetWidth(), framePadding.y + m_internalRegionMargins[1] ) );
+        ImGui::Dummy( ImVec2( nodeWindowWidth, scaledFramePadding.y + m_internalRegionMargins[1] ) );
 
         m_internalRegionStartY = -1.0f;
         m_internalRegionMargins[0] = m_internalRegionMargins[1] = 0.0f;
         m_regionStarted = false;
+    }
+
+    void BaseNode::ResetCalculatedNodeSizes()
+    {
+        m_size = m_titleRectSize = Float2::Zero;
+    }
+
+    //-------------------------------------------------------------------------
+
+    ResizeHandle CommentNode::GetHoveredResizeHandle( DrawContext const& ctx ) const
+    {
+        float const selectionThreshold = ctx.WindowToCanvas( CommentNode::s_resizeSelectionRadius );
+        float const cornerSelectionThreshold = selectionThreshold * 2;
+
+        ImRect nodeRect = GetRect();
+        nodeRect.Expand( selectionThreshold / 2 );
+
+        // Corner tests first
+        //-------------------------------------------------------------------------
+
+        Vector const mousePos( ctx.m_mouseCanvasPos );
+        float const distanceToCornerTL = mousePos.GetDistance2( nodeRect.GetTL() );
+        float const distanceToCornerBL = mousePos.GetDistance2( nodeRect.GetBL() );
+        float const distanceToCornerTR = mousePos.GetDistance2( nodeRect.GetTR() );
+        float const distanceToCornerBR = mousePos.GetDistance2( nodeRect.GetBR() );
+
+        if ( distanceToCornerBR < cornerSelectionThreshold )
+        {
+            return ResizeHandle::SE;
+        }
+        else if ( distanceToCornerBL < cornerSelectionThreshold )
+        {
+            return ResizeHandle::SW;
+        }
+        else if( distanceToCornerTR < cornerSelectionThreshold )
+        {
+            return ResizeHandle::NE;
+        }
+        else if ( distanceToCornerTL < cornerSelectionThreshold )
+        {
+            return ResizeHandle::NW;
+        }
+
+        // Edge tests
+        //-------------------------------------------------------------------------
+
+        ImVec2 const points[4] =
+        {
+            ImLineClosestPoint( nodeRect.GetTL(), nodeRect.GetTR(), ctx.m_mouseCanvasPos ),
+            ImLineClosestPoint( nodeRect.GetBL(), nodeRect.GetBR(), ctx.m_mouseCanvasPos ),
+            ImLineClosestPoint( nodeRect.GetTL(), nodeRect.GetBL(), ctx.m_mouseCanvasPos ),
+            ImLineClosestPoint( nodeRect.GetTR(), nodeRect.GetBR(), ctx.m_mouseCanvasPos )
+        };
+
+        float distancesSq[4] =
+        {
+            ImLengthSqr( points[0] - ctx.m_mouseCanvasPos ),
+            ImLengthSqr( points[1] - ctx.m_mouseCanvasPos ),
+            ImLengthSqr( points[2] - ctx.m_mouseCanvasPos ),
+            ImLengthSqr( points[3] - ctx.m_mouseCanvasPos )
+        };
+
+        float const detectionDistanceSq = Math::Sqr( selectionThreshold );
+
+        if ( distancesSq[0] < detectionDistanceSq )
+        {
+            return ResizeHandle::N;
+        }
+        else if( distancesSq[1] < detectionDistanceSq )
+        {
+            return ResizeHandle::S;
+        }
+        else if ( distancesSq[2] < detectionDistanceSq )
+        {
+            return ResizeHandle::W;
+        }
+        else if ( distancesSq[3] < detectionDistanceSq )
+        {
+            return ResizeHandle::E;
+        }
+
+        return ResizeHandle::None;
+    }
+
+    void CommentNode::AdjustSizeBasedOnMousePosition( DrawContext const& ctx, ResizeHandle handle )
+    {
+        Float2 const unscaledBoxTL = GetPosition();
+        Float2 const unscaledBoxBR = unscaledBoxTL + GetCommentBoxSize();
+
+        switch ( handle )
+        {
+            case ResizeHandle::N:
+            {
+                m_canvasPosition.m_y = ctx.m_mouseCanvasPos.y;
+                m_commentBoxSize.m_y = Math::Max( s_minBoxDimensions, unscaledBoxBR.m_y - m_canvasPosition.m_y );
+                m_canvasPosition.m_y = unscaledBoxBR.m_y - m_commentBoxSize.m_y;
+            }
+            break;
+
+            case ResizeHandle::NE:
+            {
+                m_canvasPosition.m_y = ctx.m_mouseCanvasPos.y;
+                m_commentBoxSize.m_y = Math::Max( s_minBoxDimensions, unscaledBoxBR.m_y - m_canvasPosition.m_y );
+                m_canvasPosition.m_y = unscaledBoxBR.m_y - m_commentBoxSize.m_y;
+                m_commentBoxSize.m_x = Math::Max( s_minBoxDimensions, ctx.m_mouseCanvasPos.x - unscaledBoxTL.m_x );
+            }
+            break;
+
+            case ResizeHandle::E:
+            {
+                m_commentBoxSize.m_x = Math::Max( s_minBoxDimensions, ctx.m_mouseCanvasPos.x - unscaledBoxTL.m_x );
+            }
+            break;
+
+            case ResizeHandle::SE:
+            {
+                m_commentBoxSize.m_x = Math::Max( s_minBoxDimensions, ctx.m_mouseCanvasPos.x - unscaledBoxTL.m_x );
+                m_commentBoxSize.m_y = Math::Max( s_minBoxDimensions, ctx.m_mouseCanvasPos.y - unscaledBoxTL.m_y );
+            }
+            break;
+
+            case ResizeHandle::S:
+            {
+                m_commentBoxSize.m_y = Math::Max( s_minBoxDimensions, ctx.m_mouseCanvasPos.y - unscaledBoxTL.m_y );
+            }
+            break;
+
+            case ResizeHandle::SW:
+            {
+                m_canvasPosition.m_x = ctx.m_mouseCanvasPos.x;
+                m_commentBoxSize.m_x = Math::Max( s_minBoxDimensions, unscaledBoxBR.m_x - m_canvasPosition.m_x );
+                m_canvasPosition.m_x = unscaledBoxBR.m_x - m_commentBoxSize.m_x;
+                m_commentBoxSize.m_y = Math::Max( s_minBoxDimensions, ctx.m_mouseCanvasPos.y - unscaledBoxTL.m_y );
+            }
+            break;
+
+            case ResizeHandle::W:
+            {
+                m_canvasPosition.m_x = ctx.m_mouseCanvasPos.x;
+                m_commentBoxSize.m_x = Math::Max( s_minBoxDimensions, unscaledBoxBR.m_x - m_canvasPosition.m_x );
+                m_canvasPosition.m_x = unscaledBoxBR.m_x - m_commentBoxSize.m_x;
+            }
+            break;
+
+            case ResizeHandle::NW:
+            {
+                m_canvasPosition.m_x = ctx.m_mouseCanvasPos.x;
+                m_commentBoxSize.m_x = Math::Max( s_minBoxDimensions, unscaledBoxBR.m_x - m_canvasPosition.m_x );
+                m_canvasPosition.m_x = unscaledBoxBR.m_x - m_commentBoxSize.m_x;
+
+                m_canvasPosition.m_y = ctx.m_mouseCanvasPos.y;
+                m_commentBoxSize.m_y = Math::Max( s_minBoxDimensions, unscaledBoxBR.m_y - m_canvasPosition.m_y );
+                m_canvasPosition.m_y = unscaledBoxBR.m_y - m_commentBoxSize.m_y;
+            }
+            break;
+
+            default:
+            EE_UNREACHABLE_CODE();
+            break;
+        }
+    }
+
+    Color CommentNode::GetCommentBoxColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const
+    {
+        if ( visualState == NodeVisualState::Hovered )
+        {
+            return m_nodeColor.GetScaledColor( 1.5f );
+        }
+        else if ( visualState == NodeVisualState::Selected )
+        {
+            return m_nodeColor.GetScaledColor( 1.25f );
+        }
+        else
+        {
+            return m_nodeColor;
+        }
+    }
+
+    bool CommentNode::DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos )
+    {
+        // Generate a default palette. The palette will persist and can be edited.
+        constexpr static int32_t const paletteSize = 32;
+        static bool wasPaletteInitialized = false;
+        static ImVec4 palette[paletteSize] = {};
+        if ( !wasPaletteInitialized )
+        {
+            palette[0] = Color( 0xFF4C4C4C ).ToFloat4();
+
+            for ( int32_t n = 1; n < paletteSize; n++ )
+            {
+                ImGui::ColorConvertHSVtoRGB( n / 31.0f, 0.8f, 0.8f, palette[n].x, palette[n].y, palette[n].z );
+            }
+            wasPaletteInitialized = true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        bool result = false;
+
+        if ( ImGui::BeginMenu( EE_ICON_PALETTE" Color" ) )
+        {
+            for ( int32_t n = 0; n < paletteSize; n++ )
+            {
+                ImGui::PushID( n );
+                if ( ( n % 8 ) != 0 )
+                {
+                    ImGui::SameLine( 0.0f, ImGui::GetStyle().ItemSpacing.y );
+                }
+
+                ImGuiColorEditFlags palette_button_flags = ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoTooltip;
+                if ( ImGui::ColorButton( "##paletteOption", palette[n], palette_button_flags, ImVec2( 20, 20 ) ) )
+                {
+                    m_nodeColor = Color( ImVec4( palette[n].x, palette[n].y, palette[n].z, 1.0f ) ); // Preserve alpha!
+                    result = true;
+                }
+
+                ImGui::PopID();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        return result;
     }
 
     //-------------------------------------------------------------------------

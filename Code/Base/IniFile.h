@@ -23,6 +23,8 @@ namespace EE
         IniFile( FileSystem::Path const& filePath );
         ~IniFile();
 
+        IniFile& operator=( IniFile const& ) = default;
+
         inline bool IsValid() const { return m_pDictionary != nullptr; }
         void SaveToFile( FileSystem::Path const& filePath ) const;
         bool HasEntry( char const* key ) const;

@@ -45,7 +45,6 @@ namespace EE::Resource
         virtual char const* GetDockingUniqueTypeName() const override { return "Resource Browser"; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
-        virtual void DrawDialogs( UpdateContext const& context ) override;
 
         void DrawBrowserWindow( UpdateContext const& context, bool isFocused );
 
@@ -60,13 +59,13 @@ namespace EE::Resource
         void DrawFilterOptions( UpdateContext const& context );
         bool DrawResourceTypeFilterMenu( float width );
         void DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category );
+        bool DrawDeleteConfirmationDialog( UpdateContext const& context );
 
     private:
 
         ImGuiX::FilterWidget                                m_filter;
         TVector<ResourceTypeID>                             m_typeFilter;
         bool                                                m_showRawFiles = false;
-        bool                                                m_showDeleteConfirmationDialog = false;
 
         EventBindingID                                      m_resourceDatabaseUpdateEventBindingID;
 

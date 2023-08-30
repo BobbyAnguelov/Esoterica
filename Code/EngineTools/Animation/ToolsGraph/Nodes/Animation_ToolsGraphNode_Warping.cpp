@@ -101,7 +101,7 @@ namespace EE::Animation::GraphNodes
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx == 0 )
         {
-            return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+            return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
         }
 
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
@@ -182,7 +182,7 @@ namespace EE::Animation::GraphNodes
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx == 0 )
         {
-            return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+            return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
         }
 
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );

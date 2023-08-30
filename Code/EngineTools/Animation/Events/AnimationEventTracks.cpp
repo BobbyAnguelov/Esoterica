@@ -287,20 +287,16 @@ namespace EE::Animation
         return GetNumItems() == 0;
     }
 
-    ImRect RagdollEventTrack::DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, Timeline::TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState )
+    void RagdollEventTrack::DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, Timeline::TrackItem* pItem )
     {
         constexpr static float const itemMarginY = 2;
-
-        ImVec2 const adjustedItemStartPos = ImVec2( itemStartPos ) + ImVec2( 0, itemMarginY );
-        ImVec2 const adjustedItemEndPos = ImVec2( itemEndPos ) - ImVec2( 0, itemMarginY );
-        ImRect const itemRect( adjustedItemStartPos, adjustedItemEndPos );
 
         // Draw background
         //-------------------------------------------------------------------------
 
         ImVec2 const mousePos = ImGui::GetMousePos();
         bool const isHovered = itemRect.Contains( mousePos );
-        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos, GetItemBackgroundColor( itemState, isHovered ) );
+        pDrawList->AddRectFilled( itemRect.GetTL(), itemRect.GetBR(), GetItemBackgroundColor( itemState ) );
 
         // Draw curve
         //-------------------------------------------------------------------------
@@ -314,16 +310,16 @@ namespace EE::Animation
             float const curveCanvasWidth = itemRect.GetWidth();
             float const curveCanvasHeight = itemRect.GetHeight();
 
-            pDrawList->PushClipRect( itemRect.Min, itemRect.Max );
+            pDrawList->PushClipRect( itemRect.Min, itemRect.Max, true );
             if ( curve.GetNumPoints() == 1 )
             {
                 float const value = curve.GetPoint( 0 ).m_value;
-                float const linePosY = adjustedItemEndPos.y - ( value * curveCanvasHeight );
-                pDrawList->AddLine( ImVec2( adjustedItemStartPos.x, linePosY ), ImVec2( adjustedItemEndPos.x, linePosY ), Colors::HotPink, lineWidth );
+                float const linePosY = itemRect.GetBR().y - ( value * curveCanvasHeight );
+                pDrawList->AddLine( ImVec2( itemRect.GetTL().x, linePosY ), ImVec2( itemRect.GetBR().x, linePosY ), Colors::HotPink, lineWidth );
 
                 if ( isHovered )
                 {
-                    pDrawList->AddLine( ImVec2( mousePos.x, adjustedItemStartPos.y ), ImVec2( mousePos.x, adjustedItemEndPos.y ), Colors::LightGray, 1.0f );
+                    pDrawList->AddLine( ImVec2( mousePos.x, itemRect.GetTL().y ), ImVec2( mousePos.x, itemRect.GetBR().y ), Colors::LightGray, 1.0f );
                     pDrawList->AddCircleFilled( ImVec2( mousePos.x, linePosY ), 3.0f, Colors::LimeGreen );
                     ImGui::SetTooltip( " %.2f ", value );
                 }
@@ -342,7 +338,7 @@ namespace EE::Animation
                     float const t = ( i * stepT );
                     Float2 curvePoint;
                     curvePoint.m_x = itemRect.GetTL().x + ( t * curveCanvasWidth );
-                    curvePoint.m_y = adjustedItemEndPos.y - ( curve.Evaluate( t ) * curveCanvasHeight );
+                    curvePoint.m_y = itemRect.GetBR().y - ( curve.Evaluate( t ) * curveCanvasHeight );
                     curvePoints.emplace_back( curvePoint );
                 }
 
@@ -350,21 +346,17 @@ namespace EE::Animation
 
                 if ( isHovered )
                 {
-                    Percentage const percentageThroughRange( ( mousePos.x - adjustedItemStartPos.x ) / itemRect.GetWidth() );
+                    Percentage const percentageThroughRange( ( mousePos.x - itemRect.GetTL().x ) / itemRect.GetWidth() );
                     float const value = curve.Evaluate( percentageThroughRange );
-                    float const valuePixelY = adjustedItemEndPos.y - ( value * curveCanvasHeight );
+                    float const valuePixelY = itemRect.GetBR().y - ( value * curveCanvasHeight );
 
-                    pDrawList->AddLine( ImVec2( mousePos.x, adjustedItemStartPos.y ), ImVec2( mousePos.x, adjustedItemEndPos.y ), Colors::LightGray, 1.0f );
+                    pDrawList->AddLine( ImVec2( mousePos.x, itemRect.GetTL().y ), ImVec2( mousePos.x, itemRect.GetBR().y ), Colors::LightGray, 1.0f );
                     pDrawList->AddCircleFilled( ImVec2( mousePos.x, valuePixelY ), 3.0f, Colors::LimeGreen );
                     ImGui::SetTooltip( " %.2f ", value );
                 }
             }
             pDrawList->PopClipRect();
         }
-
-        //-------------------------------------------------------------------------
-
-        return itemRect;
     }
 
     Timeline::Track::Status RagdollEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const

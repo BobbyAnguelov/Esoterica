@@ -129,7 +129,7 @@ namespace EE::Animation
         inline Seconds GetDuration() const { return m_duration; }
         inline Seconds GetTime( uint32_t frame ) const { return Seconds( GetPercentageThrough( frame ).ToFloat() * m_duration ); }
         inline Seconds GetTime( Percentage percentageThrough ) const { return Seconds( percentageThrough.ToFloat() * m_duration ); }
-        inline Percentage GetPercentageThrough( uint32_t frame ) const { return IsSingleFrameAnimation() ? 1.0f : Percentage( ( (float) frame ) / ( m_numFrames - 1 ) ); }
+        inline Percentage GetPercentageThrough( uint32_t frame ) const { return IsSingleFrameAnimation() ? Percentage( 1.0f ) : Percentage( ( (float) frame ) / ( m_numFrames - 1 ) ); }
         inline FrameTime GetFrameTime( Percentage const percentageThrough ) const { return FrameTime( percentageThrough, GetNumFrames() ); }
         inline FrameTime GetFrameTime( Seconds const timeThroughAnimation ) const { return GetFrameTime( IsSingleFrameAnimation() ? Percentage( 0.0f ) : Percentage( timeThroughAnimation / m_duration ) ); }
         inline SyncTrack const& GetSyncTrack() const{ return m_syncTrack; }
@@ -137,8 +137,8 @@ namespace EE::Animation
         // Pose
         //-------------------------------------------------------------------------
 
-        void GetPose( FrameTime const& frameTime, Pose* pOutPose ) const;
-        inline void GetPose( Percentage percentageThrough, Pose* pOutPose ) const { GetPose( GetFrameTime( percentageThrough ), pOutPose ); }
+        void GetPose( FrameTime const& frameTime, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High ) const;
+        inline void GetPose( Percentage percentageThrough, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High ) const { GetPose( GetFrameTime( percentageThrough ), pOutPose, lod ); }
 
         // Events
         //-------------------------------------------------------------------------

@@ -819,7 +819,7 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::Color:
                 {
                     Color const& value = *reinterpret_cast<Color const*>( pValue );
-                    strValue.sprintf( "%02X%02X%02X%02X", value.m_byteColor.m_r, value.m_byteColor.m_g, value.m_byteColor.m_b, value.m_byteColor.m_a );
+                    strValue.sprintf( "%02X%02X%02X%02X", value.m_byteColor.m_a, value.m_byteColor.m_b, value.m_byteColor.m_g, value.m_byteColor.m_r );
                 }
                 break;
 

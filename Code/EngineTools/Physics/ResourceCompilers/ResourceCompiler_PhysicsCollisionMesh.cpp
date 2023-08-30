@@ -72,14 +72,8 @@ namespace EE::Physics
             return Error( "Invalid source data path: %s", resourceDescriptor.m_sourcePath.c_str() );
         }
 
-        TVector<String> meshesToInclude;
-        if ( !resourceDescriptor.m_sourceItemName.empty() )
-        {
-            meshesToInclude.emplace_back( resourceDescriptor.m_sourceItemName );
-        }
-
         RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, meshesToInclude );
+        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude );
         if ( pRawMesh == nullptr )
         {
             return Error( "Failed to read mesh from source file" );
@@ -326,7 +320,7 @@ namespace EE::Physics
             Error( "Convex mesh cooking failed - Polygon limit reached" );
             return false;
         }
-        else if ( result == PxTriangleMeshCookingResult::eFAILURE )
+        else if ( result == PxConvexMeshCookingResult::eFAILURE )
         {
             Error( "Convex mesh cooking failed!" );
             return false;

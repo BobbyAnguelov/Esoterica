@@ -127,13 +127,13 @@ namespace EE::Animation
 
         if ( bShouldUpdate )
         {
-            m_pAnimation->GetPose( m_animTime, m_pPose );
+            m_pAnimation->GetPose( m_animTime, m_pPose, m_skeletonLOD );
 
             // No point displaying a pile of bones, so display an additive on top of the reference pose
             if ( m_pPose->IsAdditivePose() )
             {
                 Pose const refPose( m_pPose->GetSkeleton(), Pose::Type::ReferencePose );
-                Blender::AdditiveBlend( &refPose, m_pPose, 1.0f, nullptr, m_pPose );
+                Blender::AdditiveBlend( m_skeletonLOD, &refPose, m_pPose, 1.0f, nullptr, m_pPose );
             }
 
             m_pPose->CalculateGlobalTransforms();

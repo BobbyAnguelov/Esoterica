@@ -75,8 +75,11 @@ namespace EE
     public:
 
         DebugView() = default;
+        DebugView( DebugView const& ) = default;
         DebugView( String const& menuPath ) : m_menuPath( menuPath ) {}
         virtual ~DebugView() { EE_ASSERT( m_pWorld == nullptr ); }
+
+        DebugView& operator=( DebugView const& rhs ) = default;
 
         inline bool HasMenu() const { return !m_menuPath.empty(); }
 
@@ -87,12 +90,6 @@ namespace EE
 
         // Called at the end of the frame before we draw any windows
         virtual void Update( EntityWorldUpdateContext const& context ) {}
-
-        // Called before we hot-reload anything to allow you to clean your data
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) {}
-
-        // Called after hot-reload has completed
-        virtual void EndHotReload() {}
 
         // Called to draw the view's menu
         virtual void DrawMenu( EntityWorldUpdateContext const& context ) {};
@@ -117,6 +114,15 @@ namespace EE
 
         // Check if a window with this typeID and userdata exists
         inline bool HasDebugWindow( StringID typeID, uint64_t userData ) { return GetDebugWindow( typeID, userData ) != nullptr; }
+
+        // Called before we hot-reload anything to allow you to unload any resource that need to be reloaded
+        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) {}
+
+        // Called once all unloads are completed - user can reload their desired resources here
+        virtual void HotReload_ReloadResources() {}
+
+        // Called once all requested loads are complete
+        virtual void HotReload_ReloadComplete() {}
 
     protected:
 

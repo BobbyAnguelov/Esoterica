@@ -15,14 +15,17 @@ namespace EE::Animation::GraphNodes
         auto pNode = CreateNode<AnimationClipNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
         context.SetOptionalNodePtrFromIndex( m_resetTimeValueNodeIdx, pNode->m_pResetTimeValueNode );
-        
-        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
+
+        pNode->m_pAnimation = context.m_pDataSet->GetResource<AnimationClip>( m_dataSlotIdx );
 
         //-------------------------------------------------------------------------
 
-        if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+        if ( pNode->m_pAnimation != nullptr )
         {
-            pNode->m_pAnimation = nullptr;
+            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+            {
+                pNode->m_pAnimation = nullptr;
+            }
         }
     }
 

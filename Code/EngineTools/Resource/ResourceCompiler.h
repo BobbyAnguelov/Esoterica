@@ -163,7 +163,7 @@ namespace EE::Resource
         }
 
         // Combines two results together and keeps the most severe one
-        EE_FORCE_INLINE CompilationResult CombineResult( CompilationResult a, CompilationResult b ) const
+        EE_FORCE_INLINE CompilationResult CombineResultCode( CompilationResult a, CompilationResult b ) const
         {
             if ( a == Resource::CompilationResult::Failure || b == Resource::CompilationResult::Failure )
             {

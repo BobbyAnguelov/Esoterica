@@ -1,4 +1,4 @@
-#include "AnimationEventTrack.h"
+#include "AnimationEventTimeline.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 
@@ -93,25 +93,10 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    EventTimeline::EventTimeline( TFunction<void()>&& onBeginModification, TFunction<void()>&& onEndModification, TypeSystem::TypeRegistry const& typeRegistry )
-        : TimelineData( onBeginModification, onEndModification )
+    EventTimeline::EventTimeline( TypeSystem::TypeRegistry const& typeRegistry )
+        : TimelineData()
     {
         m_allowedTrackTypes = typeRegistry.GetAllDerivedTypes( EventTrack::GetStaticTypeID(), false, false, true );
-    }
-
-    void EventTimeline::SetAnimationInfo( uint32_t numFrames, float FPS )
-    {
-        EE_ASSERT( numFrames > 0.0f );
-        if ( m_length != (int32_t) numFrames - 1 )
-        {
-            SetLength( float( numFrames - 1 ) );
-        }
-
-        EE_ASSERT( FPS >= 0.0f );
-        if ( m_FPS != FPS )
-        {
-            m_FPS = FPS;
-        }
     }
 
     bool EventTimeline::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
@@ -141,6 +126,4 @@ namespace EE::Animation
 
         return true;
     }
-
-    
 }

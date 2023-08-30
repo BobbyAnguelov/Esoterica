@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
+#include "EngineTools/Core/CommonToolTypes.h"
 #include "VisualGraph_DrawingContext.h"
 #include "Base/Serialization/JsonSerialization.h"
 #include "Base/TypeSystem/ReflectedType.h"
@@ -18,6 +19,7 @@ namespace EE::VisualGraph
     //-------------------------------------------------------------------------
     // Node Base
     //-------------------------------------------------------------------------
+    // NOTE: All node sizes, positions, etc are in canvas coordinates where 1 canvas unit is 1 pixel with no view scaling
 
     enum class NodeVisualState
     {
@@ -41,10 +43,10 @@ namespace EE::VisualGraph
         constexpr static char const* const  s_childGraphKey = "ChildGraph";
         constexpr static char const* const  s_secondaryChildGraphKey = "SecondaryGraph";
 
+    public:
+
         // Colors
         //-------------------------------------------------------------------------
-
-    public:
 
         constexpr static uint32_t const     s_defaultTitleColor = IM_COL32( 28, 28, 28, 255 );
         constexpr static uint32_t const     s_defaultBackgroundColor = IM_COL32( 64, 64, 64, 255 );
@@ -60,6 +62,7 @@ namespace EE::VisualGraph
 
         static Color const                  s_genericNodeSeparatorColor;
         static Color const                  s_genericNodeInternalRegionDefaultColor;
+        
 
     public:
 
@@ -70,7 +73,10 @@ namespace EE::VisualGraph
     public:
 
         BaseNode() = default;
+        BaseNode( BaseNode const& ) = default;
         virtual ~BaseNode();
+
+        BaseNode& operator=( BaseNode const& rhs ) = default;
 
         // Lifetime
         //-------------------------------------------------------------------------
@@ -114,8 +120,14 @@ namespace EE::VisualGraph
         // Override this function to set a node's name
         virtual void SetName( String const& newName ) { EE_ASSERT( IsRenameable() ); }
 
+        // Optional function that can be overridden in derived classes to draw a border around the node to signify an active state
+        virtual bool IsActive( UserContext* pUserContext ) const { return false; }
+
         // Should this node be drawn?
         virtual bool IsVisible() const { return true; }
+
+        // Is this node currently hovered
+        EE_FORCE_INLINE bool IsHovered() const { return m_isHovered; }
 
         // Can this node be created and added to a graph by a user? i.e. Does it show up in the context menu
         virtual bool IsUserCreatable() const { return true; }
@@ -142,40 +154,41 @@ namespace EE::VisualGraph
         // Node Visuals
         //-------------------------------------------------------------------------
 
-        EE_FORCE_INLINE Float2 const& GetCanvasPosition() const { return m_canvasPosition; }
+        // Resets the node's calculated size and results in a recalculation
+        virtual void ResetCalculatedNodeSizes();
 
+        // Get the margin between the node contents (canvas units) and the outer border.
+        virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }
+
+        // Get the canvas position for this node (one canvas unit is one pixel when there is no scale)
+        EE_FORCE_INLINE Float2 GetPosition() const { return Float2( m_canvasPosition.m_x, m_canvasPosition.m_y ); }
+
+        // Get the rendered node size in canvas units (one canvas unit is one pixel when there is no scale) - this is calculated each frame
         EE_FORCE_INLINE Float2 const& GetSize() const { return m_size; }
 
+        // Get the calculated rendered node width
         EE_FORCE_INLINE float GetWidth() const { return m_size.m_x; }
 
+        // Get the calculated rendered node width
         EE_FORCE_INLINE float GetHeight() const { return m_size.m_y; }
 
-        // Get the rect (in canvas coords) that this node takes
-        ImRect GetCanvasRect() const;
+        // Get the rect (in canvas coords) that this node takes (one canvas unit is one pixel when there is no scale)
+        ImRect GetRect() const;
 
-        // Get the rect (in window coords) that this node takes.
-        ImRect GetWindowRect( Float2 const& canvasToWindowOffset ) const;
-
-        // Set the node's canvas position
-        void SetCanvasPosition( Float2 const& newPosition );
+        // Set the node's canvas position (one canvas unit is one pixel when there is no scale)
+        void SetPosition( Float2 const& newPosition );
 
         // Get node title bar color
         virtual Color GetTitleBarColor() const { return s_defaultTitleColor; }
 
-        // Optional function that can be overridden in derived classes to draw a border around the node to signify an active state
-        virtual bool IsActive( UserContext* pUserContext ) const { return false; }
-
         // Get node highlight color
         virtual Color GetNodeBorderColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
 
-        // Get the margin between the node contents and the outer border
-        virtual Float2 GetNodeMargin() const { return Float2( 8, 4 ); }
+        // Draw an internal separator - negative margin values = use ImGui defaults
+        void DrawInternalSeparator( DrawContext const& ctx, Color color = s_genericNodeSeparatorColor, float unscaledPreMarginY = -1, float unscaledPostMarginY = -1 ) const;
 
-        // Draw an internal separator
-        void DrawInternalSeparator( DrawContext const& ctx, Color color = s_genericNodeSeparatorColor, float preMarginY = 0.0f, float postMarginY = ImGui::GetStyle().ItemSpacing.y ) const;
-
-        // Start an internal box region
-        void BeginDrawInternalRegion( DrawContext const& ctx, Color color = s_genericNodeInternalRegionDefaultColor, float preMarginY = 0, float postMarginY = 0 ) const;
+        // Start an internal box region - negative margin values = use ImGui defaults
+        void BeginDrawInternalRegion( DrawContext const& ctx, Color color = s_genericNodeInternalRegionDefaultColor, float unscaledPreMarginY = -1, float unscaledPostMarginY = -1 ) const;
 
         // End an internal region
         void EndDrawInternalRegion( DrawContext const& ctx ) const;
@@ -268,19 +281,74 @@ namespace EE::VisualGraph
         EE_REFLECT( "IsToolsReadOnly" : true );
         Float2                      m_canvasPosition = Float2( 0, 0 ); // Updated each frame
 
-        Float2                      m_size = Float2( 0, 0 ); // Updated each frame
-        Float2                      m_titleRectSize = Float2( 0, 0 ); // Updated each frame
-        bool                        m_isHovered = false;
+        Float2                      m_size = Float2( 0, 0 ); // Updated each frame (its the actual rendered size in canvas units)
+        Float2                      m_titleRectSize = Float2( 0, 0 ); // Updated each frame (is the actual rendered size in canvas units)
 
     private:
 
         BaseGraph*                  m_pParentGraph = nullptr; // Private so that we can enforce how we add nodes to the graphs
         BaseGraph*                  m_pChildGraph = nullptr;
         BaseGraph*                  m_pSecondaryGraph = nullptr;
-        mutable bool                m_regionStarted = false;
         mutable float               m_internalRegionStartY = -1.0f;
         mutable Color               m_internalRegionColor;
         mutable float               m_internalRegionMargins[2] = {0, 0};
+        mutable bool                m_regionStarted = false;
+        bool                        m_isHovered = false;
+    };
+
+    //-------------------------------------------------------------------------
+    // Comment Node
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINETOOLS_API CommentNode final : public BaseNode
+    {
+        friend GraphView;
+
+        EE_REFLECT_TYPE( CommentNode );
+
+    public:
+
+        using BaseNode::BaseNode;
+
+        constexpr static float const s_resizeSelectionRadius = 10.0f;
+        constexpr static float const s_minBoxDimensions = ( s_resizeSelectionRadius * 2 ) + 20.0f;
+
+    protected:
+
+        virtual char const* GetTypeName() const override { return "Comment"; }
+
+        virtual bool IsRenameable() const override { return true; }
+        virtual char const* GetName() const override { return m_comment.c_str(); }
+        virtual void SetName( String const& newName ) override { m_comment = newName; }
+
+        Color GetCommentBoxColor( DrawContext const& ctx, UserContext* pUserContext, NodeVisualState visualState ) const;
+
+        // Draw the context menu options - returns true if the menu should be closed i.e. a custom selection or action has been made
+        bool DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos );
+
+        // Get the currently hovered resize handle
+        ResizeHandle GetHoveredResizeHandle( DrawContext const& ctx ) const;
+
+        // Get the comment box size (this is the actual full node size in canvas units - including title)
+        Float2 const& GetCommentBoxSize() const { return m_commentBoxSize; }
+
+    private:
+
+        CommentNode( CommentNode const& ) = delete;
+        CommentNode& operator=( CommentNode const& ) = delete;
+
+        void AdjustSizeBasedOnMousePosition( DrawContext const& ctx, ResizeHandle handle );
+
+    private:
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        Float2                      m_commentBoxSize = Float2( 0, 0 );
+
+        EE_REFLECT();
+        String                      m_comment;
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        Color                       m_nodeColor = Color( 0xFF4C4C4C );
     };
 
     //-------------------------------------------------------------------------
@@ -317,7 +385,10 @@ namespace EE::VisualGraph
     public:
 
         BaseGraph() = default;
+        BaseGraph( BaseGraph const& ) = default;
         virtual ~BaseGraph();
+
+        BaseGraph& operator=( BaseGraph const& rhs ) = default;
 
         // Lifetime
         //-------------------------------------------------------------------------
@@ -346,7 +417,10 @@ namespace EE::VisualGraph
         inline UUID const& GetID() const { return m_ID; }
 
         // Get the display title for this graph
-        virtual char const* GetTitle() const { return HasParentNode() ? m_pParentNode->GetName() : "Root Graph"; }
+        virtual char const* GetName() const { return HasParentNode() ? m_pParentNode->GetName() : "Root Graph"; }
+
+        // Does this graph support adding comment nodes
+        virtual bool SupportsComments() const { return true; }
 
         // Serialization
         void Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue );
@@ -578,6 +652,9 @@ namespace EE::VisualGraph
 
         EE_REFLECT( "IsToolsReadOnly" : true );
         Float2                                  m_viewOffset = Float2( 0, 0 ); // Updated each frame
+
+        EE_REFLECT( "IsToolsReadOnly" : true );
+        float                                   m_viewScaleFactor = 1.0f; // View zoom level
     };
 
     //-------------------------------------------------------------------------

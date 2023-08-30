@@ -35,13 +35,6 @@ namespace EE::Animation
             bool                            m_isExpanded = true;
         };
 
-        enum class OperationType
-        {
-            None,
-            RenameMask,
-            DeleteMask
-        };
-
     public:
 
         using TWorkspace::TWorkspace;
@@ -55,6 +48,8 @@ namespace EE::Animation
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
@@ -62,7 +57,6 @@ namespace EE::Animation
         virtual void OnHotReloadComplete() override;
 
         void CreatePreviewEntity();
-        virtual void DrawDialogs( UpdateContext const& context ) override;
 
         // Skeleton
         //-------------------------------------------------------------------------
@@ -75,6 +69,13 @@ namespace EE::Animation
         void DrawBoneRow( BoneInfo* pBone );
 
         void DrawSkeletonPreview();
+
+        // LOD
+        //-------------------------------------------------------------------------
+
+        void ValidateLODSetup();
+        Skeleton::LOD GetBoneLOD( StringID BoneID ) const;
+        void SetBoneHierarchyLOD( StringID BoneID, Skeleton::LOD lod );
 
         // Bone Masks
         //-------------------------------------------------------------------------
@@ -100,6 +101,9 @@ namespace EE::Animation
 
         void GenerateUniqueBoneMaskName( int32_t boneMaskIdx );
 
+        bool DrawDeleteBoneMaskDialog( UpdateContext const& context );
+        bool DrawRenameBoneMaskDialog( UpdateContext const& context );
+
     private:
 
         String                          m_skeletonWindowName;
@@ -116,8 +120,7 @@ namespace EE::Animation
         int32_t                         m_editedMaskIdx = InvalidIndex;
         TVector<float>                  m_editedBoneWeights;
         BoneMask                        m_previewBoneMask;
-        OperationType                   m_activeOperation = OperationType::None;
-        StringID                        m_operationID;
+        StringID                        m_dialogMaskID;
         char                            m_renameBuffer[255] = { 0 };
     };
 }

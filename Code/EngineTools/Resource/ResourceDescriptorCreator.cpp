@@ -100,8 +100,8 @@ namespace EE::Resource
         TInlineString<5> const resourceTypeIDString = resourceTypeID.ToString();
         TypeSystem::ResourceInfo const* pResourceInfo = m_pToolsContext->m_pTypeRegistry->GetResourceInfoForResourceType( resourceTypeID );
 
-        FileSystem::Path outPath = SaveDialog( resourceTypeID, m_startingPath, pResourceInfo->m_friendlyName );
-        if( !outPath.IsValid() )
+        FileSystem::Path outPath;
+        if( !SaveDialog( resourceTypeID, outPath, m_startingPath, pResourceInfo->m_friendlyName ) )
         {
             return;
         }

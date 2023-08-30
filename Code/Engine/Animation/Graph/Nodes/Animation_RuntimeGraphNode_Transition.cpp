@@ -83,11 +83,12 @@ namespace EE::Animation::GraphNodes
         // Layer context update
         //-------------------------------------------------------------------------
 
-        GraphLayerContext sourceLayerCtx;
+        GraphLayerContext targetLayerContext;
+        GraphLayerContext* pSourceLayerCtx = nullptr;
         if ( context.IsInLayer() )
         {
-            sourceLayerCtx = context.m_layerContext;
-            context.m_layerContext.ResetLayer();
+            pSourceLayerCtx = context.m_pLayerContext;
+            context.m_pLayerContext = &targetLayerContext;
         }
 
         // Cache source node pose
@@ -319,7 +320,15 @@ namespace EE::Animation::GraphNodes
 
         CalculateBlendWeight();
         RegisterPoseTasksAndUpdateRootMotion( context, sourceNodeResult, targetNodeResult, result );
-        UpdateLayerContext( context, sourceLayerCtx );
+
+        if ( context.IsInLayer() )
+        {
+            // Calculate the new layer weights based on the transition progress
+            UpdateLayerContext( pSourceLayerCtx, &targetLayerContext );
+
+            // Restore original context
+            context.m_pLayerContext = pSourceLayerCtx;
+        }
 
         // Update internal time and events
         //-------------------------------------------------------------------------
@@ -596,56 +605,48 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void TransitionNode::UpdateLayerContext( GraphContext& context, GraphLayerContext const& sourceLayerContext )
+    void TransitionNode::UpdateLayerContext( GraphLayerContext* pSourceAndResultLayerContext, GraphLayerContext const* pTargetLayerContext )
     {
-        EE_ASSERT( context.IsValid() );
-
-        // Early out if we are not in a layer
-        if ( !context.IsInLayer() )
-        {
-            return;
-        }
+        EE_ASSERT( pSourceAndResultLayerContext != nullptr && pTargetLayerContext != nullptr );
 
         // Update layer weights
         //-------------------------------------------------------------------------
 
-        context.m_layerContext.m_layerWeight = Math::Lerp( sourceLayerContext.m_layerWeight, context.m_layerContext.m_layerWeight, m_blendWeight );
-        context.m_layerContext.m_rootMotionLayerWeight = Math::Lerp( sourceLayerContext.m_rootMotionLayerWeight, context.m_layerContext.m_rootMotionLayerWeight, m_blendWeight );
+        pSourceAndResultLayerContext->m_layerWeight = Math::Lerp( pSourceAndResultLayerContext->m_layerWeight, pTargetLayerContext->m_layerWeight, m_blendWeight );
+        pSourceAndResultLayerContext->m_rootMotionLayerWeight = Math::Lerp( pSourceAndResultLayerContext->m_rootMotionLayerWeight, pTargetLayerContext->m_rootMotionLayerWeight, m_blendWeight );
 
         // Update final bone mask
         //-------------------------------------------------------------------------
 
-        auto const& targetLayerContext = context.m_layerContext;
-
-        if ( sourceLayerContext.m_layerMaskTaskList.HasTasks() && targetLayerContext.m_layerMaskTaskList.HasTasks() )
+        if ( pSourceAndResultLayerContext->m_layerMaskTaskList.HasTasks() && pTargetLayerContext->m_layerMaskTaskList.HasTasks() )
         {
-            BoneMaskTaskList const targetTaskList = targetLayerContext.m_layerMaskTaskList; // Make a copy since the target is the same as the output
-            context.m_layerContext.m_layerMaskTaskList.CreateBlend( sourceLayerContext.m_layerMaskTaskList, targetTaskList, m_blendWeight );
+            pSourceAndResultLayerContext->m_layerMaskTaskList.BlendTo( pTargetLayerContext->m_layerMaskTaskList, m_blendWeight );
         }
         else // Only one bone mask is set
         {
-            if ( sourceLayerContext.m_layerMaskTaskList.HasTasks() )
+            if ( pSourceAndResultLayerContext->m_layerMaskTaskList.HasTasks() )
             {
                 // Keep the source mask from the source state while blending out
                 if ( m_pTargetNode->IsOffState() )
                 {
-                    context.m_layerContext.m_layerMaskTaskList = sourceLayerContext.m_layerMaskTaskList;
+                    // Do nothing
                 }
                 else // Blend to no bone mask (all weights = 1.0f)
                 {
-                    context.m_layerContext.m_layerMaskTaskList.CreateBlendToGeneratedMask( sourceLayerContext.m_layerMaskTaskList, 1.0f, m_blendWeight );
+                    pSourceAndResultLayerContext->m_layerMaskTaskList.BlendToGeneratedMask( 1.0f, m_blendWeight );
                 }
             }
-            else if ( targetLayerContext.m_layerMaskTaskList.HasTasks() )
+            else if ( pTargetLayerContext->m_layerMaskTaskList.HasTasks() )
             {
                 // Keep the target bone mask on the whole way through the blend
                 if ( IsSourceAState() && GetSourceStateNode()->IsOffState() )
                 {
-                    context.m_layerContext.m_layerMaskTaskList = targetLayerContext.m_layerMaskTaskList;
+                    pSourceAndResultLayerContext->m_layerMaskTaskList = pTargetLayerContext->m_layerMaskTaskList;
                 }
                 else // Blend from no mask (From all weights = 1.0f)
                 {
-                    context.m_layerContext.m_layerMaskTaskList.CreateBlendFromGeneratedMask( targetLayerContext.m_layerMaskTaskList, 1.0f, m_blendWeight );
+                    pSourceAndResultLayerContext->m_layerMaskTaskList = pTargetLayerContext->m_layerMaskTaskList;
+                    pSourceAndResultLayerContext->m_layerMaskTaskList.BlendFromGeneratedMask( 1.0f, m_blendWeight );
                 }
             }
         }
@@ -679,7 +680,7 @@ namespace EE::Animation::GraphNodes
                 shouldRunSyncUpdate = true;
 
                 // Calculate the update range for this frame
-                Percentage const percentageTimeDelta = ( m_blendedDuration > 0.0f ) ? Percentage( context.m_deltaTime / m_blendedDuration ) : 0.0f;
+                Percentage const percentageTimeDelta = ( m_blendedDuration > 0.0f ) ? Percentage( context.m_deltaTime / m_blendedDuration ) : Percentage( 0.0f );
                 Percentage const toTime = Percentage::Clamp( m_currentTime + percentageTimeDelta, true );
                 updateRange.m_startTime = m_syncTrack.GetTime( m_currentTime );
                 updateRange.m_endTime = m_syncTrack.GetTime( toTime );
@@ -777,18 +778,25 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         // Record source layer ctx and reset the layer ctx for target state
-        GraphLayerContext sourceLayerCtx;
+        GraphLayerContext targetLayerContext;
+        GraphLayerContext* pSourceLayerCtx = nullptr;
         if ( context.IsInLayer() )
         {
-            sourceLayerCtx = context.m_layerContext;
-            context.m_layerContext.ResetLayer();
+            pSourceLayerCtx = context.m_pLayerContext;
+            context.m_pLayerContext = &targetLayerContext;
         }
 
         // Update target state node
         GraphPoseNodeResult const targetNodeResult = m_pTargetNode->Update( context, shouldRunSyncUpdate ? &updateRange : nullptr );
 
-        // Calculate the new layer weights based on the transition progress
-        UpdateLayerContext( context, sourceLayerCtx );
+        if ( context.IsInLayer() )
+        {
+            // Calculate the new layer weights based on the transition progress
+            UpdateLayerContext( pSourceLayerCtx, &targetLayerContext );
+
+            // Restore original context
+            context.m_pLayerContext = pSourceLayerCtx;
+        }
 
         #if EE_DEVELOPMENT_TOOLS
         m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();

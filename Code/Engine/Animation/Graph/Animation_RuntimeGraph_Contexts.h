@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Animation_RuntimeGraph_Events.h"
-#include "Engine/Animation/AnimationBoneMask.h"
-#include "Engine/Animation/AnimationSyncTrack.h"
 #include "Base/Math/Transform.h"
 #include "Base/Time/Time.h"
 #include "Base/Types/Arrays.h"
@@ -22,6 +20,8 @@ namespace EE::Animation
     class GraphNode;
     class GraphDataSet;
     class GraphInstance;
+    struct GraphLayerUpdateState;
+    struct GraphLayerContext;
     struct BoneMaskTaskList;
 
     //-------------------------------------------------------------------------
@@ -92,14 +92,6 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        template<typename T>
-        EE_FORCE_INLINE T const* GetResource( int16_t const& ID ) const
-        {
-            return m_pDataSet->GetResource<T>( ID );
-        }
-
-        //-------------------------------------------------------------------------
-
         #if EE_DEVELOPMENT_TOOLS
         void LogWarning( char const* pFormat, ... ) const;
         #endif
@@ -116,52 +108,6 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         TVector<GraphLogEntry>*                     m_pLog;
         #endif
-    };
-
-    //-------------------------------------------------------------------------
-    // Layer Context
-    //-------------------------------------------------------------------------
-
-    struct GraphLayerUpdateState
-    {
-        int16_t                                                     m_nodeIdx; // The index of the layer node
-        TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>         m_updateRanges; // The update range for each non-synchronized layer in order
-    };
-
-    struct GraphLayerContext final
-    {
-        EE_FORCE_INLINE bool IsSet() const { return m_isCurrentlyInLayer; }
-
-        EE_FORCE_INLINE void BeginLayer()
-        {
-            m_isCurrentlyInLayer = true;
-            m_layerWeight = 1.0f;
-            m_rootMotionLayerWeight = 1.0f;
-            m_layerMaskTaskList.Reset();
-        }
-
-        EE_FORCE_INLINE void ResetLayer()
-        {
-            EE_ASSERT( m_isCurrentlyInLayer );
-            m_layerWeight = 1.0f;
-            m_rootMotionLayerWeight = 1.0f;
-            m_layerMaskTaskList.Reset();
-        }
-
-        EE_FORCE_INLINE void EndLayer()
-        {
-            m_isCurrentlyInLayer = false;
-            m_layerWeight = 0.0f;
-            m_rootMotionLayerWeight = 0.0f;
-            m_layerMaskTaskList.Reset();
-        }
-
-    public:
-
-        BoneMaskTaskList                        m_layerMaskTaskList;
-        float                                   m_layerWeight = 0.0f;
-        float                                   m_rootMotionLayerWeight = 0.0f;
-        bool                                    m_isCurrentlyInLayer = false;
     };
 
     //-------------------------------------------------------------------------
@@ -190,7 +136,8 @@ namespace EE::Animation
         inline bool IsValid() const { return m_pSkeleton != nullptr && m_pTaskSystem != nullptr; }
         void Update( Seconds const deltaTime, Transform const& currentWorldTransform, Physics::PhysicsWorld* pPhysicsWorld );
 
-        inline bool IsInLayer() const { return m_layerContext.m_isCurrentlyInLayer; }
+        // Are we currently in a layer
+        EE_FORCE_INLINE bool IsInLayer() const { return m_pLayerContext != nullptr; }
 
         // Get an valid but empty range given the current state of the sampled event buffer
         EE_FORCE_INLINE SampledEventRange GetEmptySampledEventRange() const { return SampledEventRange( m_sampledEventsBuffer.GetNumSampledEvents() ); }
@@ -236,12 +183,12 @@ namespace EE::Animation
         TVector<GraphLayerUpdateState> const*       m_pLayerInitializationInfo = nullptr;
 
         // Runtime Values
-        Transform                                   m_worldTransform = Transform::Identity;
-        Transform                                   m_worldTransformInverse = Transform::Identity;
         uint32_t                                    m_updateID = 0;
         BranchState                                 m_branchState = BranchState::Active;
+        Transform                                   m_worldTransform = Transform::Identity;
+        Transform                                   m_worldTransformInverse = Transform::Identity;
         Physics::PhysicsWorld*                      m_pPhysicsWorld = nullptr;
-        GraphLayerContext                           m_layerContext;
+        GraphLayerContext*                          m_pLayerContext = nullptr;
         Seconds                                     m_deltaTime = 0.0f;
 
     private:

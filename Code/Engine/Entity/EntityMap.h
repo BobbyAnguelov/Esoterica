@@ -161,10 +161,10 @@ namespace EE
             void EndComponentEdit( LoadingContext const& loadingContext, InitializationContext& initializationContext, EntityID const& entityID );
 
             // Shutdown and unload all entities that are affected by the hot-reload
-            void BeginHotReload( LoadingContext const& loadingContext, InitializationContext& initializationContext, TVector<Resource::ResourceRequesterID> const& usersToReload );
+            void HotReload_UnloadEntities( LoadingContext const& loadingContext, InitializationContext& initializationContext, TVector<Resource::ResourceRequesterID> const& usersToReload );
 
             // Load all entities unloaded due to the hot-reload
-            void EndHotReload( LoadingContext const& loadingContext );
+            void HotReload_ReloadEntities( LoadingContext const& loadingContext );
             #endif
 
         private:

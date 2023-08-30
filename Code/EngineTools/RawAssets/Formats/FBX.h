@@ -34,13 +34,16 @@ namespace EE::Fbx
 
     // Unit conversion is handled when we convert from FBX to EE types, since FBX bakes the conversion into the FBX transforms and we have to remove it afterwards
 
-    class EE_ENGINETOOLS_API FbxSceneContext
+    class EE_ENGINETOOLS_API SceneContext
     {
 
     public:
 
-        FbxSceneContext( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
-        ~FbxSceneContext();
+        SceneContext() = default;
+        SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
+        ~SceneContext();
+
+        void LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
 
         inline bool IsValid() const { return m_pManager != nullptr && m_pScene != nullptr && m_error.empty(); }
 
@@ -136,21 +139,25 @@ namespace EE::Fbx
 
     private:
 
-        FbxSceneContext() = delete;
-        FbxSceneContext( FbxSceneContext const& ) = delete;
-        FbxSceneContext& operator=( FbxSceneContext const& ) = delete;
+        void Initialize( FileSystem::Path const& filePath, float additionalScalingFactor );
+        void Shutdown();
+
+        SceneContext( SceneContext const& ) = delete;
+        SceneContext& operator=( SceneContext const& ) = delete;
 
     public:
 
-        fbxsdk::FbxManager*         m_pManager = nullptr;
-        fbxsdk::FbxScene*           m_pScene = nullptr;
+        fbxsdk::FbxManager*                 m_pManager = nullptr;
+        fbxsdk::FbxScene*                   m_pScene = nullptr;
+        fbxsdk::FbxGeometryConverter*       m_pGeometryConvertor = nullptr;
 
     private:
 
-        String                      m_error;
-        String                      m_warning;
-        Axis                        m_originalUpAxis = Axis::Z;
-        float                       m_scaleConversionMultiplier = 1.0f;
+        FileSystem::Path                    m_filePath;
+        String                              m_error;
+        String                              m_warning;
+        Axis                                m_originalUpAxis = Axis::Z;
+        float                               m_scaleConversionMultiplier = 1.0f;
     };
 
     //-------------------------------------------------------------------------

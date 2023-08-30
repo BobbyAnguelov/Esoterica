@@ -29,7 +29,6 @@ namespace EE::Animation
 
         inline bool HasGraph() const { return m_pGraphVariation != nullptr; }
         inline bool HasGraphInstance() const { return m_pGraphInstance != nullptr; }
-        Skeleton const* GetSkeleton() const;
         Pose const* GetPose() const;
 
         // Does this component require a manual update via a custom entity system?
@@ -50,6 +49,15 @@ namespace EE::Animation
 
         // This function will change the graph and data-set used! Note: this can only be called for unloaded components
         void SetGraphVariation( ResourceID graphResourceID );
+
+        // Skeleton
+        //-------------------------------------------------------------------------
+
+        Skeleton const* GetSkeleton() const;
+
+        EE_FORCE_INLINE void SetSkeletonLOD( Skeleton::LOD lod ) { m_skeletonLOD = lod; }
+
+        EE_FORCE_INLINE Skeleton::LOD GetSkeletonLOD() const { return m_skeletonLOD; }
 
         // Graph evaluation
         //-------------------------------------------------------------------------
@@ -137,6 +145,7 @@ namespace EE::Animation
         GraphInstance*                                          m_pGraphInstance = nullptr;
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
+        Skeleton::LOD                                           m_skeletonLOD = Skeleton::LOD::High;
         EE_REFLECT() bool                                       m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
         EE_REFLECT() bool                                       m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
         bool                                                    m_graphStateResetRequested = false;

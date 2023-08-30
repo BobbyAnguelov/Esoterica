@@ -39,7 +39,7 @@ namespace EE::Render
     class StaticMeshCompiler : public MeshCompiler
     {
         EE_REFLECT_TYPE( StaticMeshCompiler );
-        static const int32_t s_version = 1;
+        static const int32_t s_version = 2;
 
     public:
 
@@ -52,7 +52,7 @@ namespace EE::Render
     class SkeletalMeshCompiler : public MeshCompiler
     {
         EE_REFLECT_TYPE( SkeletalMeshCompiler );
-        static const int32_t s_version = 4;
+        static const int32_t s_version = 5;
 
     public:
 

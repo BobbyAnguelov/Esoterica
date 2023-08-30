@@ -24,7 +24,7 @@ namespace EE::Resource
     //-------------------------------------------------------------------------
     // The way we load descriptors is pretty naive and can definitely be improved
 
-    class EE_ENGINETOOLS_API ResourceDatabase final : public FileSystem::IFileSystemChangeListener
+    class EE_ENGINETOOLS_API ResourceDatabase final
     {
     public:
 
@@ -88,6 +88,10 @@ namespace EE::Resource
 
         // Database State
         //-------------------------------------------------------------------------
+
+        // Request a full rebuild of the resource DB, this is currently needed only since we somehow fail to track newly created assets
+        // TODO: fix root cause and delete this
+        void RequestRebuild();
 
         // Did we finish building the file system cache?
         bool IsFileSystemCacheBuilt() const { return m_state > DatabaseState::BuildingFileSystemCache; }
@@ -164,15 +168,7 @@ namespace EE::Resource
         void RemoveFileRecord( FileSystem::Path const& path );
 
         // File system listener
-        virtual void OnFileCreated( FileSystem::Path const& path ) override final;
-        virtual void OnFileDeleted( FileSystem::Path const& path ) override final;
-        virtual void OnFileRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) override final;
-        virtual void OnFileModified( FileSystem::Path const& path ) override final;
-        virtual void OnDirectoryCreated( FileSystem::Path const& path ) override final;
-        virtual void OnDirectoryDeleted( FileSystem::Path const& path ) override final;
-        virtual void OnDirectoryRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) override final;
-
-        bool TempFileWatcherEventWarning();
+        void ProcessFileSystemChanges();
 
     private:
 
@@ -183,7 +179,7 @@ namespace EE::Resource
         int32_t                                                     m_dataDirectoryPathDepth;
 
         // File system watcher
-        FileSystem::FileSystemWatcher                               m_fileSystemWatcher;
+        FileSystem::Watcher                                         m_fileSystemWatcher;
 
         // Database data
         DirectoryEntry                                              m_reflectedDataDirectory;

@@ -36,18 +36,21 @@ namespace EE::Animation
     public:
 
         GraphCompilationContext() = default;
+        GraphCompilationContext( GraphCompilationContext const& ) = default;
         ~GraphCompilationContext();
+
+        GraphCompilationContext& operator=( GraphCompilationContext const& rhs ) = default;
 
         void Reset();
 
         // Logging
         //-------------------------------------------------------------------------
 
-        void LogMessage( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Message, pNode->GetID(), message ) ); }
+        void LogMessage( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Info, pNode->GetID(), message ) ); }
         void LogWarning( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Warning, pNode->GetID(), message ) ); }
         void LogError( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Error, pNode->GetID(), message ) ); }
 
-        void LogMessage( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Message, UUID(), message ) ); }
+        void LogMessage( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Info, UUID(), message ) ); }
         void LogWarning( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Warning, UUID(), message ) ); }
         void LogError( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Error, UUID(), message ) ); }
 
@@ -67,14 +70,14 @@ namespace EE::Animation
             auto foundIter = m_nodeIDToIndexMap.find( pNode->GetID() );
             if ( foundIter != m_nodeIDToIndexMap.end() )
             {
-                pOutSettings = (T::Settings*) m_nodeSettings[foundIter->second];
+                pOutSettings = (typename T::Settings*) m_nodeSettings[foundIter->second];
                 return NodeCompilationState::AlreadyCompiled;
             }
 
             //-------------------------------------------------------------------------
 
             EE_ASSERT( m_nodeSettings.size() < 0xFFFF );
-            pOutSettings = EE::New<T::Settings>();
+            pOutSettings = EE::New<typename T::Settings>();
             m_nodeSettings.emplace_back( pOutSettings );
             m_compiledNodePaths.emplace_back( pNode->GetStringPathFromRoot() );
             pOutSettings->m_nodeIdx = int16_t( m_nodeSettings.size() ) - 1;

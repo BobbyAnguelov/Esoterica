@@ -467,7 +467,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        BeginDrawInternalRegion( ctx );
 
         if ( isPreviewing && ( runtimeNodeIdx != InvalidIndex ) && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
         {

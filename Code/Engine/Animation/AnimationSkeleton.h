@@ -27,10 +27,18 @@ namespace EE::Animation
     class EE_ENGINE_API Skeleton : public Resource::IResource
     {
         EE_RESOURCE( 'skel', "Animation Skeleton" );
-        EE_SERIALIZE( m_boneIDs, m_localReferencePose, m_parentIndices, m_boneFlags );
+        EE_SERIALIZE( m_boneIDs, m_localReferencePose, m_parentIndices, m_boneFlags, m_numBonesToSampleAtLowLOD );
 
         friend class SkeletonCompiler;
         friend class SkeletonLoader;
+
+    public:
+
+        enum class LOD : uint8_t
+        {
+            Low,
+            High
+        };
 
     public:
 
@@ -41,7 +49,12 @@ namespace EE::Animation
     public:
 
         virtual bool IsValid() const final;
+
+        // Get the total number of bones in the skeleton
         inline int32_t GetNumBones() const { return (int32_t) m_boneIDs.size(); }
+
+        // Get the number of bones to sample at a specific LOD
+        inline int32_t GetNumBones( LOD lod ) const { return ( lod == LOD::Low ) ? m_numBonesToSampleAtLowLOD : GetNumBones(); }
 
         // Bone info
         //-------------------------------------------------------------------------
@@ -73,11 +86,14 @@ namespace EE::Animation
         // Returns whether the specified bone is a child of the specified parent bone
         EE_FORCE_INLINE bool AreBonesInTheSameHierarchy( int32_t boneIdx0, int32_t boneIdx1 ) const { return IsChildBoneOf( boneIdx0, boneIdx1) || IsChildBoneOf( boneIdx1, boneIdx0 ); }
 
+        // Returns whether or not the specified bone has children
+        EE_FORCE_INLINE bool IsLeafBone( int32_t boneIdx ) const { EE_ASSERT( IsValidBoneIndex( boneIdx ) ); return VectorContains( m_parentIndices, boneIdx ); }
+
         // Get the boneID for a specified bone index
-        EE_FORCE_INLINE StringID GetBoneID( int32_t idx ) const
+        EE_FORCE_INLINE StringID GetBoneID( int32_t boneIdx ) const
         {
-            EE_ASSERT( IsValidBoneIndex( idx ) );
-            return m_boneIDs[idx];
+            EE_ASSERT( IsValidBoneIndex( boneIdx ) );
+            return m_boneIDs[boneIdx];
         }
 
         // Pose info
@@ -117,5 +133,6 @@ namespace EE::Animation
         TVector<Transform>                  m_globalReferencePose;
         TVector<TBitFlags<BoneFlags>>       m_boneFlags;
         TVector<BoneMask>                   m_boneMasks;
+        int32_t                             m_numBonesToSampleAtLowLOD = 0; // The number of bones we should sample when operating at a low LOD
     };
 }

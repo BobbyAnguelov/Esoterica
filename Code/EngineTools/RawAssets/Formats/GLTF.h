@@ -29,15 +29,23 @@ namespace EE::gltf
 
     // Luckily all that's need to convert gltf scenes to EE is a -90 rotation on X
 
-    class EE_ENGINETOOLS_API gltfSceneContext
+    class EE_ENGINETOOLS_API SceneContext
     {
     public:
 
-        gltfSceneContext( FileSystem::Path const& filePath );
-        ~gltfSceneContext();
+        SceneContext() = default;
+        SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
+        ~SceneContext();
+
+        void LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
 
         inline bool IsValid() const { return m_pSceneData != nullptr; }
+
+        inline bool HasErrorOccurred() const { return !m_error.empty(); }
         inline String const& GetErrorMessage() const { return m_error; }
+
+        inline bool HasWarningOccurred() const { return !m_warning.empty(); }
+        inline String const& GetWarningMessage() const { return m_warning; }
 
         cgltf_data const* GetSceneData() const { return m_pSceneData; }
 
@@ -119,9 +127,16 @@ namespace EE::gltf
 
     private:
 
+        void Initialize( FileSystem::Path const& filePath, float additionalScalingFactor );
+        void Shutdown();
+
+    private:
+
         cgltf_data*                 m_pSceneData = nullptr;
         String                      m_error;
+        String                      m_warning;
         Transform                   m_upAxisCorrectionTransform = Transform( AxisAngle( Float3::UnitX, Degrees( 90 ) ) );
+        float                       m_scaleConversionMultiplier = 1.0f;
     };
 
     //-------------------------------------------------------------------------

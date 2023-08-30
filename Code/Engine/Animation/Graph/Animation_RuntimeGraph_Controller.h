@@ -3,7 +3,6 @@
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityLog.h"
-#include "Base/Encoding/Hash.h"
 #include "Base/Types/StringID.h"
 
 
@@ -23,7 +22,7 @@ namespace EE::Animation
     {
         class EE_ENGINE_API GraphControllerBase
         {
-            friend class GraphController;
+            friend class EE::Animation::GraphController;
 
         public:
 
@@ -104,7 +103,10 @@ namespace EE::Animation
         protected:
 
             GraphControllerBase( GraphInstance* pGraphInstance, Render::SkeletalMeshComponent* pMeshComponent );
+            GraphControllerBase( GraphControllerBase const& ) = default;
             virtual ~GraphControllerBase() = default;
+
+            GraphControllerBase& operator=( GraphControllerBase const& rhs ) = default;
 
             // Optional update that runs before the graph evaluation allowing you to set more parameters, etc...
             virtual void PreGraphUpdate( Seconds deltaTime ) {}
@@ -123,6 +125,11 @@ namespace EE::Animation
             EE_FORCE_INLINE Vector ConvertWorldSpaceVectorToCharacterSpace( Vector const& worldVector ) const
             {
                 return m_pAnimatedMeshComponent->GetWorldTransform().InverseTransformVector( worldVector );
+            }
+
+            EE_FORCE_INLINE Pose const* GetCurrentPose() const
+            {
+                return m_pGraphInstance->GetPose();
             }
 
             // Graph Info

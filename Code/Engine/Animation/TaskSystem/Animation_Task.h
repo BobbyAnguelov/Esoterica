@@ -46,6 +46,7 @@ namespace EE::Animation
         float                           m_deltaTime = 0;
         TaskUpdateStage                 m_updateStage = TaskUpdateStage::Any;
         int8_t                          m_currentTaskIdx = InvalidIndex;
+        Skeleton::LOD                   m_skeletonLOD = Skeleton::LOD::High;
     };
 
     //-------------------------------------------------------------------------

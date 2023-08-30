@@ -4,18 +4,13 @@
 #include "Base/Math/Plane.h"
 #include "Base/Math/BoundingVolumes.h"
 #include "Base/Types/Color.h"
-#include "Base/Time/Time.h"
 #include "Base/Memory/Memory.h"
 
-//-------------------------------------------------------------------------
-// WARNING!
-// Do not include this in any header with a reflected type!
-// Ideally try to always include this in CPP files!
 //-------------------------------------------------------------------------
 
 #if _MSC_VER
 #pragma warning( push, 0 )
-#pragma warning( disable : 4435 )
+#pragma warning( disable : 4435; disable : 4996 )
 #endif
 
 #include <PxPhysicsAPI.h>
@@ -26,6 +21,10 @@
 #pragma warning( pop )
 #endif
 
+//-------------------------------------------------------------------------
+// WARNING!
+// Do not include this in any header with a reflected type!
+// Ideally try to always include this in CPP files!
 //-------------------------------------------------------------------------
 
 namespace EE

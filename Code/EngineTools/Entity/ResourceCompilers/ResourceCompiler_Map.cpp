@@ -63,11 +63,26 @@ namespace EE::EntityModel
         }
 
         //-------------------------------------------------------------------------
+        // List of install dependencies
+        //-------------------------------------------------------------------------
+
+        // Get all referenced resources
+        TVector<ResourceID> referencedResources;
+        map.GetAllReferencedResources( referencedResources );
+
+        Resource::ResourceHeader hdr( s_version, SerializedEntityMap::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+
+        for ( auto const& referencedResourceID : referencedResources )
+        {
+            hdr.AddInstallDependency( referencedResourceID );
+        }
+
+        //-------------------------------------------------------------------------
         // Serialize
         //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, SerializedEntityMap::GetStaticResourceTypeID(), ctx.m_sourceResourceHash ) << map;
+        archive << hdr << map;
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {

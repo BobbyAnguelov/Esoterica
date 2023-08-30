@@ -49,19 +49,19 @@ namespace EE::Player
         inline bool IsMoving() const { return m_graphState == States::Move; }
         inline bool IsPlantingAndTurning() const { return m_graphState == States::PlantedTurn; }
         inline bool IsStopping() const { return m_graphState == States::Stop; }
-        
+
     private:
 
         virtual void PostGraphUpdate( Seconds deltaTime ) override;
 
     private:
 
-        ControlParameter<StringID>                          m_stateParam = ControlParameter<StringID>( "Locomotion_State" );
-        ControlParameter<bool>                              m_isCrouchParam = ControlParameter<bool>( "Locomotion_IsCrouched" );
-        ControlParameter<bool>                              m_isSlidingParam = ControlParameter<bool>( "Locomotion_IsSliding" );
-        ControlParameter<float>                             m_speedParam = ControlParameter<float>( "Locomotion_Speed" );
-        ControlParameter<Vector>                            m_movementVelocityParam = ControlParameter<Vector>( "Locomotion_MovementVelocity" );
-        ControlParameter<Vector>                            m_facingParam = ControlParameter<Vector>( "Locomotion_Facing" );
+        ControlParameter<StringID>                          m_stateParam = "Locomotion_State";
+        ControlParameter<bool>                              m_isCrouchParam = "Locomotion_IsCrouched";
+        ControlParameter<bool>                              m_isSlidingParam = "Locomotion_IsSliding";
+        ControlParameter<float>                             m_speedParam = "Locomotion_Speed";
+        ControlParameter<Vector>                            m_movementVelocityParam = "Locomotion_MovementVelocity";
+        ControlParameter<Vector>                            m_facingParam = "Locomotion_Facing";
 
         States                                              m_graphState = States::Unknown;
         bool                                                m_isAllowedToTransition = false;

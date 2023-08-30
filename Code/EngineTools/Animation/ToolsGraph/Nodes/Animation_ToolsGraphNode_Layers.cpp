@@ -34,9 +34,9 @@ namespace EE::Animation::GraphNodes
 
         switch ( m_blendMode )
         {
-            case PoseBlendMode::Interpolative:
+            case PoseBlendMode::Overlay:
             {
-                ImGui::Text( "Interpolate" );
+                ImGui::Text( "Overlay" );
             }
             break;
 
@@ -46,9 +46,9 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case PoseBlendMode::InterpolativeGlobalSpace:
+            case PoseBlendMode::GlobalSpace:
             {
-                ImGui::Text( "Interpolate (Global)" );
+                ImGui::Text( "Global Space" );
             }
             break;
         }
@@ -88,9 +88,9 @@ namespace EE::Animation::GraphNodes
 
         switch ( m_blendMode )
         {
-            case PoseBlendMode::Interpolative:
+            case PoseBlendMode::Overlay:
             {
-                ImGui::Text( "Interpolate" );
+                ImGui::Text( "Overlay" );
             }
             break;
 
@@ -100,9 +100,9 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case PoseBlendMode::InterpolativeGlobalSpace:
+            case PoseBlendMode::GlobalSpace:
             {
-                ImGui::Text( "Interpolate (Global)" );
+                ImGui::Text( "Global Space" );
             }
             break;
         }
@@ -305,7 +305,7 @@ namespace EE::Animation::GraphNodes
                     }
                     else // No Mask
                     {
-                        if ( layerSettings.m_blendMode == PoseBlendMode::InterpolativeGlobalSpace )
+                        if ( layerSettings.m_blendMode == PoseBlendMode::GlobalSpace )
                         {
                             context.LogError( this, "Bone Masks are not optional for global blends!" );
                             return InvalidIndex;

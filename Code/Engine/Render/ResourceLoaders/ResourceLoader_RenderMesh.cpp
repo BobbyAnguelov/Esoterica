@@ -74,13 +74,7 @@ namespace EE::Render
                 continue;
             }
 
-            // If the material is set, we need to retrieve it and ensure that it is correctly loaded
             pMaterial = GetInstallDependency( installDependencies, pMaterial.GetResourceID() );
-            if ( !pMaterial->IsValid() )
-            {
-                EE_LOG_ERROR( "Render", "Mesh Loader", "Failed to get dependent material: %s", resourceID.ToString().c_str() );
-                return Resource::InstallResult::Failed;
-            }
         }
 
         //-------------------------------------------------------------------------

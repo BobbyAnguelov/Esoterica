@@ -14,17 +14,42 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Option 1", GraphValueType::Bool );
     }
 
+    bool SelectorConditionToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    {
+        FlowToolsNode::DrawPinControls( ctx, pUserContext, pin );
+
+        if ( auto pParentSelectorNode = TryCast<SelectorBaseToolsNode>( GetParentNode() ) )
+        {
+            if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Bool ) )
+            {
+                int32_t const labelIdx = GetInputPinIndex( pin.m_ID );
+                String const& pinLabel = pParentSelectorNode->GetPinLabel( labelIdx );
+                if ( !pinLabel.empty() )
+                {
+                    ImGui::Text( "( %s )", pinLabel.c_str());
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     //-------------------------------------------------------------------------
 
-    SelectorToolsNode::SelectorToolsNode()
+    SelectorBaseToolsNode::SelectorBaseToolsNode()
         : FlowToolsNode()
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Option 0", GraphValueType::Pose );
         CreateInputPin( "Option 1", GraphValueType::Pose );
+
+        //-------------------------------------------------------------------------
+
+        m_optionLabels.resize( 2 );
     }
 
-    void SelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void SelectorBaseToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
         auto pConditionGraph = EE::New<FlowGraph>( GraphType::ValueTree );
@@ -32,6 +57,105 @@ namespace EE::Animation::GraphNodes
 
         SetSecondaryGraph( pConditionGraph );
     }
+
+    bool SelectorBaseToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    {
+        FlowToolsNode::DrawPinControls( ctx, pUserContext, pin );
+
+        char buff[255];
+
+        // Add parameter value input field
+        if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Pose ) )
+        {
+            int32_t const labelIdx = GetInputPinIndex( pin.m_ID );
+            EE_ASSERT( labelIdx >= 0 && labelIdx < m_optionLabels.size() );
+
+            Printf( buff, 255, "%s", m_optionLabels[labelIdx].c_str() );
+
+            ImGui::PushID( &m_optionLabels[labelIdx] );
+            ImGui::SetNextItemWidth( 50 * ctx.m_viewScaleFactor );
+            bool const wasEdited = ImGui::InputText( "##label", buff, 200, ImGuiInputTextFlags_EnterReturnsTrue );
+            if ( wasEdited || ImGui::IsItemDeactivatedAfterEdit() )
+            {
+                VisualGraph::ScopedNodeModification snm( this );
+                m_optionLabels[labelIdx] = buff;
+            }
+            ImGui::PopID();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    TInlineString<100> SelectorBaseToolsNode::GetNewDynamicInputPinName() const
+    {
+        int32_t const numOptions = GetNumInputPins();
+        TInlineString<100> pinName;
+        pinName.sprintf( "Option %d", numOptions );
+        return pinName;
+    }
+
+    void SelectorBaseToolsNode::OnDynamicPinCreation( UUID pinID )
+    {
+        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<SelectorConditionToolsNode>();
+        EE_ASSERT( conditionNodes.size() == 1 );
+        auto pConditionsNode = conditionNodes[0];
+
+        int32_t const numOptions = GetNumInputPins();
+        EE_ASSERT( pConditionsNode->GetNumInputPins() == ( numOptions - 1 ) );
+
+        TInlineString<100> pinName;
+        pinName.sprintf( "Option %d", numOptions );
+        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), GetPinTypeForValueType( GraphValueType::Bool ) );
+
+        m_optionLabels.emplace_back();
+    }
+
+    void SelectorBaseToolsNode::OnDynamicPinDestruction( UUID pinID )
+    {
+        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<SelectorConditionToolsNode>();
+        EE_ASSERT( conditionNodes.size() == 1 );
+        auto pConditionsNode = conditionNodes[0];
+
+        int32_t const numOptions = GetNumInputPins();
+        EE_ASSERT( pConditionsNode->GetNumInputPins() == numOptions );
+
+        int32_t const pintoBeRemovedIdx = GetInputPinIndex( pinID );
+        EE_ASSERT( pintoBeRemovedIdx != InvalidIndex );
+
+        // Rename all pins
+        //-------------------------------------------------------------------------
+
+        int32_t newPinIdx = 2;
+        for ( auto i = 2; i < numOptions; i++ )
+        {
+            if ( i == pintoBeRemovedIdx )
+            {
+                continue;
+            }
+
+            TInlineString<100> newPinName;
+            newPinName.sprintf( "Option %d", newPinIdx );
+
+            GetInputPin( i )->m_name = newPinName;
+            pConditionsNode->GetInputPin( i )->m_name = newPinName;
+            newPinIdx++;
+        }
+
+        // Destroy condition node pin
+        //-------------------------------------------------------------------------
+
+        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pintoBeRemovedIdx )->m_ID );
+    }
+
+    void SelectorBaseToolsNode::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue )
+    {
+        FlowToolsNode::SerializeCustom( typeRegistry, nodeObjectValue );
+        m_optionLabels.resize( GetNumInputPins() );
+    }
+
+    //-------------------------------------------------------------------------
 
     int16_t SelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
@@ -100,83 +224,7 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    TInlineString<100> SelectorToolsNode::GetNewDynamicInputPinName() const
-    {
-        int32_t const numOptions = GetNumInputPins();
-        TInlineString<100> pinName;
-        pinName.sprintf( "Option %d", numOptions - 1 );
-        return pinName;
-    }
-
-    void SelectorToolsNode::OnDynamicPinCreation( UUID pinID )
-    {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<SelectorConditionToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionsNode = conditionNodes[0];
-
-        int32_t const numOptions = GetNumInputPins();
-        EE_ASSERT( pConditionsNode->GetNumInputPins() == numOptions - 1 );
-
-        TInlineString<100> pinName;
-        pinName.sprintf( "Option %d", numOptions - 1 );
-        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), GetPinTypeForValueType( GraphValueType::Bool ) );
-    }
-
-    void SelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
-    {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<SelectorConditionToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionsNode = conditionNodes[0];
-
-        int32_t const numOptions = GetNumInputPins();
-        EE_ASSERT( pConditionsNode->GetNumInputPins() == numOptions );
-
-        int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
-        EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
-
-        // Rename all pins
-        //-------------------------------------------------------------------------
-
-        int32_t newPinIdx = 2;
-        for ( auto i = 2; i < numOptions; i++ )
-        {
-            if ( i == pinToBeRemovedIdx )
-            {
-                continue;
-            }
-
-            TInlineString<100> newPinName;
-            newPinName.sprintf( "Option %d", newPinIdx );
-
-            GetInputPin( i )->m_name = newPinName;
-            pConditionsNode->GetInputPin( i )->m_name = newPinName;
-            newPinIdx++;
-        }
-
-        // Destroy condition node pin
-        //-------------------------------------------------------------------------
-
-        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pinToBeRemovedIdx )->m_ID );
-    }
-
     //-------------------------------------------------------------------------
-
-    AnimationClipSelectorToolsNode::AnimationClipSelectorToolsNode()
-        : AnimationClipReferenceToolsNode()
-    {
-        CreateOutputPin( "Pose", GraphValueType::Pose );
-        CreateInputPin( "Option 0", GraphValueType::Pose );
-        CreateInputPin( "Option 1", GraphValueType::Pose );
-    }
-
-    void AnimationClipSelectorToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
-    {
-        FlowToolsNode::Initialize( pParent );
-        auto pConditionGraph = EE::New<FlowGraph>( GraphType::ValueTree );
-        pConditionGraph->CreateNode<SelectorConditionToolsNode>();
-
-        SetSecondaryGraph( pConditionGraph );
-    }
 
     int16_t AnimationClipSelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
@@ -245,71 +293,12 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    TInlineString<100> AnimationClipSelectorToolsNode::GetNewDynamicInputPinName() const
-    {
-        int32_t const numOptions = GetNumInputPins();
-        TInlineString<100> pinName;
-        pinName.sprintf( "Option %d", numOptions - 1 );
-        return pinName;
-    }
-
-    void AnimationClipSelectorToolsNode::OnDynamicPinCreation( UUID pinID )
-    {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<SelectorConditionToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionsNode = conditionNodes[0];
-
-        int32_t const numOptions = GetNumInputPins();
-        EE_ASSERT( pConditionsNode->GetNumInputPins() == numOptions - 1 );
-
-        TInlineString<100> pinName;
-        pinName.sprintf( "Option %d", numOptions - 1 );
-        pConditionsNode->CreateDynamicInputPin( pinName.c_str(), GetPinTypeForValueType( GraphValueType::Bool ) );
-    }
-
-    void AnimationClipSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
-    {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<SelectorConditionToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionsNode = conditionNodes[0];
-
-        int32_t const numOptions = GetNumInputPins();
-        EE_ASSERT( pConditionsNode->GetNumInputPins() == numOptions );
-
-        int32_t const pintoBeRemovedIdx = GetInputPinIndex( pinID );
-        EE_ASSERT( pintoBeRemovedIdx != InvalidIndex );
-
-        // Rename all pins
-        //-------------------------------------------------------------------------
-
-        int32_t newPinIdx = 2;
-        for ( auto i = 2; i < numOptions; i++ )
-        {
-            if ( i == pintoBeRemovedIdx )
-            {
-                continue;
-            }
-
-            TInlineString<100> newPinName;
-            newPinName.sprintf( "Option %d", newPinIdx );
-
-            GetInputPin( i )->m_name = newPinName;
-            pConditionsNode->GetInputPin( i )->m_name = newPinName;
-            newPinIdx++;
-        }
-
-        // Destroy condition node pin
-        //-------------------------------------------------------------------------
-
-        pConditionsNode->DestroyDynamicInputPin( pConditionsNode->GetInputPin( pintoBeRemovedIdx )->m_ID );
-    }
-
     bool AnimationClipSelectorToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
     {
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx >= 0 )
         {
-            return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+            return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
         }
 
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
@@ -434,7 +423,7 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     ParameterizedAnimationClipSelectorToolsNode::ParameterizedAnimationClipSelectorToolsNode()
-        : AnimationClipReferenceToolsNode()
+        : FlowToolsNode()
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Parameter", GraphValueType::Float );
@@ -552,7 +541,7 @@ namespace EE::Animation::GraphNodes
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx >= 1 )
         {
-            return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+            return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
         }
 
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );

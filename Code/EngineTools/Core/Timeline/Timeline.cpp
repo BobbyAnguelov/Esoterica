@@ -7,6 +7,36 @@
 namespace EE::Timeline
 {
     //-------------------------------------------------------------------------
+    // Track Context
+    //-------------------------------------------------------------------------
+
+    void TrackContext::BeginModification() const
+    {
+        if ( m_beginModificationCallCount == 0 )
+        {
+            if ( m_beginModification != nullptr )
+            {
+                m_beginModification();
+            }
+        }
+        m_beginModificationCallCount++;
+    }
+
+    void TrackContext::EndModification() const
+    {
+        EE_ASSERT( m_beginModificationCallCount > 0 );
+        m_beginModificationCallCount--;
+
+        if ( m_beginModificationCallCount == 0 )
+        {
+            if ( m_endModification != nullptr )
+            {
+                m_endModification();
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
     // Track Item
     //-------------------------------------------------------------------------
 
@@ -55,8 +85,9 @@ namespace EE::Timeline
 
     void Track::DrawHeader( TrackContext const& context, ImRect const& headerRect )
     {
+        auto const& style = ImGui::GetStyle();
         ImVec2 const initialCursorPos = ImGui::GetCursorPos();
-        float const lineHeight = ImGui::GetTextLineHeightWithSpacing();
+        float const lineHeight = ImGui::GetTextLineHeight();
         ImVec2 const availableRegion = ImGui::GetContentRegionAvail();
 
         // Set initial Cursor Pos
@@ -75,9 +106,9 @@ namespace EE::Timeline
         static Color statusColors[3] = { Colors::LimeGreen, Colors::Gold, Colors::Red };
         auto const status = GetValidationStatus( context );
 
-        float const iconWidth = ImGui::CalcTextSize( statusIcons[(int32_t) status] ).x + 2;
+        float const iconWidth = ImGui::CalcTextSize( statusIcons[(int32_t) status] ).x;
         ImGui::PushStyleColor( ImGuiCol_Text, statusColors[(int32_t) status] );
-        ImGui::SameLine( headerRect.GetWidth() - iconWidth );
+        ImGui::SameLine( style.WindowPadding.x + availableRegion.x - iconWidth );
         ImGui::Text( statusIcons[(int32_t) status] );
         ImGui::PopStyleColor();
         ImGuiX::TextTooltip( GetStatusMessage().c_str() );
@@ -86,10 +117,9 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         ImGui::SetCursorPos( initialCursorPos );
-        auto const labelSize = ImGui::CalcTextSize( pLabel ) + ImVec2( 8, 0 );
-        ImGui::SameLine( labelSize.x );
-
-        ImRect const widgetsRect( headerRect.Min + ImVec2( labelSize.x, 0 ), headerRect.Max - ImVec2( iconWidth, 0 ) );
+        ImVec2 const labelSize = ImGui::CalcTextSize( pLabel );
+        ImGui::SameLine( style.WindowPadding.x + labelSize.x + style.ItemSpacing.x );
+        ImRect const widgetsRect( headerRect.Min + ImVec2( style.WindowPadding.x + labelSize.x + style.ItemSpacing.x, style.WindowPadding.y ), headerRect.Max - ImVec2( style.WindowPadding.x + iconWidth + style.ItemSpacing.x, style.WindowPadding.y ) );
         DrawExtraHeaderWidgets( widgetsRect );
     }
 
@@ -177,15 +207,39 @@ namespace EE::Timeline
         return InvalidIndex;
     }
 
-    Color Track::GetItemBackgroundColor( ItemState itemState, bool isHovered )
+    Color Track::GetItemBackgroundColor( ItemState itemState )
     {
-        Color baseItemColor = ImGuiX::Style::s_colorGray0;
+        Color baseBackgroundColor = ImGuiX::Style::s_colorGray0;
      
-        if ( itemState == Track::ItemState::Selected || itemState == Track::ItemState::Edited )
+        if ( itemState == ItemState::SelectedAndHovered || itemState == ItemState::Edited )
         {
-            baseItemColor.ScaleColor( 1.45f );
+            baseBackgroundColor.ScaleColor( 1.35f );
         }
-        else if ( isHovered )
+        else if ( itemState == ItemState::Selected )
+        {
+            baseBackgroundColor.ScaleColor( 1.25f );
+        }
+        else if ( itemState == ItemState::Hovered  )
+        {
+            baseBackgroundColor.ScaleColor( 1.15f );
+        }
+
+        return baseBackgroundColor;
+    }
+
+    Color Track::GetItemDisplayColor( TrackItem const* pItem, ItemState itemState )
+    {
+        Color baseItemColor = GetItemColor( pItem );
+
+        if ( itemState == ItemState::SelectedAndHovered || itemState == ItemState::Edited )
+        {
+            baseItemColor.ScaleColor( 1.35f );
+        }
+        else if ( itemState == ItemState::Selected )
+        {
+            baseItemColor.ScaleColor( 1.25f );
+        }
+        else if ( itemState == ItemState::Hovered )
         {
             baseItemColor.ScaleColor( 1.15f );
         }
@@ -193,93 +247,86 @@ namespace EE::Timeline
         return baseItemColor;
     }
 
-    ImRect Track::DrawImmediateItem( TrackContext const& context, ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemPos, ItemState itemState )
+    ImRect Track::CalculateImmediateItemRect( TrackItem* pItem, Float2 const& itemPos ) const
     {
         EE_ASSERT( pItem != nullptr && Contains( pItem ) );
 
-        constexpr float itemHalfWidth = 5.0f;
-        constexpr static float const itemMarginY = 2;
-
-        float const itemPosTopY = itemPos.m_y + itemMarginY;
-        float const itemPosBottomY = itemPosTopY + GetTrackHeight() - itemMarginY;
-        ImRect const itemRect( ImVec2( itemPos.m_x - itemHalfWidth, itemPosTopY ), ImVec2( itemPos.m_x + itemHalfWidth, itemPosBottomY ) );
-
-        //-------------------------------------------------------------------------
-
-        ImVec2 const base( itemPos.m_x, itemPosBottomY );
-        ImVec2 const topLeft( itemPos.m_x - itemHalfWidth, itemPosTopY + 3 );
-        ImVec2 const topRight( itemPos.m_x + itemHalfWidth, itemPosTopY + 3 );
-
-        ImVec2 const capTopLeft( itemPos.m_x - itemHalfWidth, itemPosTopY );
-        ImVec2 const capBottomRight = topRight;
-
-        //-------------------------------------------------------------------------
-
-        Color const itemColor = GetItemColor( pItem );
-        pDrawList->AddRectFilled( capTopLeft, capBottomRight, itemColor );
-        pDrawList->AddTriangleFilled( topLeft, topRight, base, GetItemBackgroundColor( itemState, itemRect.Contains( ImGui::GetMousePos() ) ) );
-
-        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
-        InlineString const itemLabel = GetItemLabel( pItem );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, topRight + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
-
-        //-------------------------------------------------------------------------
-
-        return itemRect;
+        constexpr static float const itemMarginY = 4;
+        float const itemHalfSize = ( GetTrackHeight() - ( itemMarginY * 2 ) ) / 2;
+        ImVec2 const itemTL( itemPos.m_x - itemHalfSize, itemPos.m_y - itemHalfSize );
+        ImVec2 const itemBR( itemPos.m_x + itemHalfSize, itemPos.m_y + itemHalfSize );
+        return ImRect( itemTL, itemBR );
     }
 
-    ImRect Track::DrawDurationItem( TrackContext const& context, ImDrawList* pDrawList, TrackItem* pItem, Float2 const& itemStartPos, Float2 const& itemEndPos, ItemState itemState )
+    ImRect Track::CalculateDurationItemRect( TrackItem* pItem, Float2 const& itemStartPos, float itemWidth ) const
     {
         EE_ASSERT( pItem != nullptr && Contains( pItem ) );
 
-        constexpr static float const itemMarginY = 2;
-        constexpr static float const textMarginY = 3;
+        float const itemHalfSize = GetTrackHeight() / 2;
+        ImVec2 const itemTL( itemStartPos.m_x, itemStartPos.m_y - itemHalfSize );
+        ImVec2 const itemBR( itemStartPos.m_x + itemWidth, itemStartPos.m_y + itemHalfSize );
+        return ImRect( itemTL, itemBR );
+    }
 
-        ImVec2 const adjustedItemStartPos = ImVec2( itemStartPos ) + ImVec2( 1, itemMarginY );
-        ImVec2 const adjustedItemEndPos = ImVec2( itemEndPos ) - ImVec2( 1, itemMarginY );
-        ImRect const itemRect( adjustedItemStartPos, adjustedItemEndPos );
+    void Track::DrawImmediateItem( TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, TrackItem* pItem )
+    {
+        EE_ASSERT( pItem != nullptr && Contains( pItem ) );
 
-        ImVec2 const mousePos = ImGui::GetMousePos();
-        bool const isHovered = itemRect.Contains( mousePos );
+        ImVec2 const itemCenter = itemRect.GetCenter();
 
-        if ( isHovered )
+        ImVec2 points[4] =
         {
-            InlineString tooltipText = GetItemTooltip( pItem );
-            if ( !tooltipText.empty() )
-            {
-                ImGui::SetTooltip( tooltipText.c_str() );
-            }
+            ImVec2( itemCenter.x, itemRect.GetTL().y ),
+            ImVec2( itemRect.GetTL().x, itemCenter.y ),
+            ImVec2( itemCenter.x, itemRect.GetBR().y ),
+            ImVec2( itemRect.GetBR().x, itemCenter.y ),
+        };
+
+        //-------------------------------------------------------------------------
+
+        Color const itemColor = GetItemDisplayColor( pItem, itemState );
+        Color const backgroundColor = GetItemBackgroundColor( itemState );
+        pDrawList->AddConvexPolyFilled( points, 4, backgroundColor );
+
+        float const itemHalfSize = itemRect.GetHeight() / 2;
+        float const internalOffset = itemHalfSize - 5;
+        if ( internalOffset > 0 )
+        {
+            points[0] += ImVec2( 0, internalOffset );
+            points[1] += ImVec2( internalOffset, 0 );
+            points[2] -= ImVec2( 0, internalOffset );
+            points[3] -= ImVec2( internalOffset, 0 );
+
+            pDrawList->AddConvexPolyFilled( points, 4, itemColor );
         }
 
-        //-------------------------------------------------------------------------
-
-        Color const itemColor = GetItemColor( pItem );
-        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos, itemColor, 4.0f, ImDrawFlags_RoundCornersBottom );
-        pDrawList->AddRectFilled( adjustedItemStartPos, adjustedItemEndPos - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState, itemRect.Contains( ImGui::GetMousePos() ) ), 4.0f, ImDrawFlags_RoundCornersBottom );
-
-        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
         InlineString const itemLabel = GetItemLabel( pItem );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 5, textMarginY + 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, adjustedItemStartPos + ImVec2( 4, textMarginY ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
+        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
+        ImVec2 const textSize = pTinyFont->CalcTextSizeA( pTinyFont->FontSize, FLT_MAX, -1, itemLabel.c_str(), nullptr, NULL );
+        ImVec2 const textPos( itemRect.GetTR().x, itemCenter.y - ( textSize.y / 2 ) );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
+    }
 
-        //-------------------------------------------------------------------------
+    void Track::DrawDurationItem( TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, TrackItem* pItem )
+    {
+        EE_ASSERT( pItem != nullptr && Contains( pItem ) );
 
-        return itemRect;
+        ImVec2 const horizontalBorder( 1, 0 );
+        pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder, GetItemDisplayColor( pItem, itemState ), 2.0f, ImDrawFlags_RoundCornersBottom );
+        pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState ), 2.0f, ImDrawFlags_RoundCornersBottom );
+
+        InlineString const itemLabel = GetItemLabel( pItem );
+        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
+        ImVec2 const textSize = pTinyFont->CalcTextSizeA( pTinyFont->FontSize, FLT_MAX, -1, itemLabel.c_str(), nullptr, NULL );
+        ImVec2 const textPos( itemRect.GetTL().x, itemRect.GetCenter().y - ( textSize.y / 2 ) );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
+        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
     }
 
     //-------------------------------------------------------------------------
     // Timeline Data
     //-------------------------------------------------------------------------
-
-    TimelineData::TimelineData( TFunction<void()>& onBeginModification, TFunction<void()>& onEndModification )
-        : m_onBeginModification( onBeginModification )
-        , m_onEndModification( onEndModification )
-    {
-        // Set context modification function bindings
-        m_context.m_beginModification = [this] () { BeginModification(); };
-        m_context.m_endModification = [this] () { EndModification(); };
-    }
 
     TimelineData::~TimelineData()
     {
@@ -323,11 +370,11 @@ namespace EE::Timeline
         return GetTrackForItem( pItem ) != nullptr;
     }
 
-    Track::Status TimelineData::GetValidationStatus() const
+    Track::Status TimelineData::GetValidationStatus( TrackContext const& context ) const
     {
         for ( auto pTrack : m_tracks )
         {
-            Track::Status const status = pTrack->GetValidationStatus( m_context );
+            Track::Status const status = pTrack->GetValidationStatus( context );
             if ( status != Track::Status::Valid )
             {
                 return status;
@@ -337,11 +384,11 @@ namespace EE::Timeline
         return Track::Status::Valid;
     }
 
-    Track* TimelineData::CreateTrack( TypeSystem::TypeInfo const* pTrackTypeInfo, ItemType itemType )
+    Track* TimelineData::CreateTrack( TrackContext const& context, TypeSystem::TypeInfo const* pTrackTypeInfo, ItemType itemType )
     {
         EE_ASSERT( pTrackTypeInfo->IsDerivedFrom( Track::GetStaticTypeID() ) );
 
-        ScopedModification const stm( m_context );
+        ScopedModification const stm( context );
         auto pCreatedTrack = Cast<Track>( pTrackTypeInfo->CreateType() );
         pCreatedTrack->m_itemType = itemType;
         m_tracks.emplace_back( pCreatedTrack );
@@ -349,44 +396,44 @@ namespace EE::Timeline
         return pCreatedTrack;
     }
 
-    void TimelineData::DeleteTrack( Track* pTrack )
+    void TimelineData::DeleteTrack( TrackContext const& context, Track* pTrack )
     {
         EE_ASSERT( Contains( pTrack ) );
 
-        ScopedModification const stm( m_context );
+        ScopedModification const stm( context );
         m_tracks.erase_first( pTrack );
         EE::Delete( pTrack );
     }
 
-    void TimelineData::CreateItem( Track* pTrack, float itemStartTime )
+    void TimelineData::CreateItem( TrackContext const& context, Track* pTrack, float itemStartTime )
     {
         EE_ASSERT( pTrack != nullptr );
         EE_ASSERT( Contains( pTrack ) );
 
-        ScopedModification const stm( m_context );
-        pTrack->CreateItem( m_context, itemStartTime );
+        ScopedModification const stm( context );
+        pTrack->CreateItem( context, itemStartTime );
     }
 
-    void TimelineData::UpdateItemTimeRange( TrackItem* pItem, FloatRange const& newTimeRange )
+    void TimelineData::UpdateItemTimeRange( TrackContext const& context, TrackItem* pItem, FloatRange const& newTimeRange )
     {
         EE_ASSERT( pItem != nullptr );
         EE_ASSERT( Contains( pItem ) );
         EE_ASSERT( newTimeRange.IsSetAndValid() );
 
-        ScopedModification const stm( m_context );
+        ScopedModification const stm( context );
         pItem->SetTimeRange( newTimeRange );
     }
 
-    void TimelineData::DeleteItem( TrackItem* pItem )
+    void TimelineData::DeleteItem( TrackContext const& context, TrackItem* pItem )
     {
         EE_ASSERT( pItem != nullptr );
         EE_ASSERT( Contains( pItem ) );
 
-        ScopedModification const stm( m_context );
+        ScopedModification const stm( context );
 
         for ( auto pTrack : m_tracks )
         {
-            if ( pTrack->DeleteItem( m_context, pItem ) )
+            if ( pTrack->DeleteItem( context, pItem ) )
             {
                 break;
             }
@@ -539,31 +586,5 @@ namespace EE::Timeline
         //-------------------------------------------------------------------------
 
         writer.EndArray();
-    }
-
-    void TimelineData::BeginModification()
-    {
-        if ( m_beginModificationCallCount == 0 )
-        {
-            if ( m_onBeginModification != nullptr )
-            {
-                m_onBeginModification();
-            }
-        }
-        m_beginModificationCallCount++;
-    }
-
-    void TimelineData::EndModification()
-    {
-        EE_ASSERT( m_beginModificationCallCount > 0 );
-        m_beginModificationCallCount--;
-
-        if ( m_beginModificationCallCount == 0 )
-        {
-            if ( m_onEndModification != nullptr )
-            {
-                m_onEndModification();
-            }
-        }
     }
 }

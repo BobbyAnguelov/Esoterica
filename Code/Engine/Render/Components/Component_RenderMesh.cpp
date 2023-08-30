@@ -60,8 +60,7 @@ namespace EE::Render
             {
                 if ( defaultMaterials[i].IsSet() )
                 {
-                    EE_ASSERT( defaultMaterials[i].IsLoaded() );
-                    m_materials[i] = defaultMaterials[i].GetPtr();
+                    m_materials[i] = ( defaultMaterials[i].IsLoaded() ) ? defaultMaterials[i].GetPtr() : nullptr;
                 }
                 else
                 {

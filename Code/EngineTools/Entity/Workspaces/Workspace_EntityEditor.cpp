@@ -1261,13 +1261,6 @@ namespace EE::EntityModel
     // Operations
     //-------------------------------------------------------------------------
 
-    void EntityEditorWorkspace::StartEntityRename( Entity* pEntity )
-    {
-        EE_ASSERT( pEntity != nullptr );
-        Printf( m_operationBuffer, 256, pEntity->GetNameID().c_str() );
-        m_activeOperation = Operation::RenameEntity;
-    }
-
     void EntityEditorWorkspace::RequestDestroyEntity( Entity* pEntity )
     {
         EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() && m_pWorld->FindEntity( pEntity->GetID() ) != nullptr );
@@ -1294,31 +1287,20 @@ namespace EE::EntityModel
         m_spatialParentingRequests.emplace_back( pEntity, pNewParentEntity );
     }
 
-    void EntityEditorWorkspace::StartEntityOperation( Operation operation, EntityComponent* pTargetComponent /*= nullptr */ )
+    void EntityEditorWorkspace::StartAddComponentOrSystem( AddRequestType addRequestType, EntityComponent* pTargetComponent /*= nullptr */ )
     {
         Entity* pEditedEntity = GetEditedEntity();
 
         EE_ASSERT( pEditedEntity != nullptr );
-        EE_ASSERT( operation != Operation::None );
 
-        // Set operation common data
+        // Set action common data
         //-------------------------------------------------------------------------
 
-        m_activeOperation = operation;
         m_initializeFocus = true;
-        m_pOperationTargetComponent = pTargetComponent;
+        m_pActionTargetComponent = pTargetComponent;
         m_operationBuffer[0] = 0;
         m_operationOptions.clear();
         m_filteredOptions.clear();
-
-        // Initialize operation custom data
-        //-------------------------------------------------------------------------
-
-        if ( operation == Operation::EntityRenameComponent )
-        {
-            EE_ASSERT( m_pOperationTargetComponent != nullptr );
-            Printf( m_operationBuffer, 256, m_pOperationTargetComponent->GetNameID().c_str() );
-        }
 
         // Filter available selection options
         //-------------------------------------------------------------------------
@@ -1394,9 +1376,9 @@ namespace EE::EntityModel
 
         auto AddAvailableSpatialComponentOptions = [this, pEditedEntity] ()
         {
-            if ( m_pOperationTargetComponent != nullptr )
+            if ( m_pActionTargetComponent != nullptr )
             {
-                EE_ASSERT( IsOfType<SpatialEntityComponent>( m_pOperationTargetComponent ) );
+                EE_ASSERT( IsOfType<SpatialEntityComponent>( m_pActionTargetComponent ) );
             }
 
             //-------------------------------------------------------------------------
@@ -1439,32 +1421,55 @@ namespace EE::EntityModel
             }
         };
 
-        if ( operation == Operation::EntityAddSystemOrComponent )
+        if ( addRequestType == AddRequestType::Any )
         {
             AddAvailableSystemOptions();
             AddAvailableComponentOptions();
             AddAvailableSpatialComponentOptions();
         }
-        else if ( operation == Operation::EntityAddSystem )
+        else if ( addRequestType == AddRequestType::System )
         {
             AddAvailableSystemOptions();
         }
-        else if ( operation == Operation::EntityAddComponent )
+        else if ( addRequestType == AddRequestType::Component )
         {
             AddAvailableComponentOptions();
         }
-        else if ( operation == Operation::EntityAddSpatialComponent )
+        else if ( addRequestType == AddRequestType::SpatialComponent )
         {
             AddAvailableSpatialComponentOptions();
         }
 
         //-------------------------------------------------------------------------
 
-        if ( m_activeOperation != Operation::EntityRenameComponent )
+        char const* pDialogTitle = nullptr;
+
+        switch ( addRequestType )
         {
-            m_pOperationSelectedOption = m_operationOptions.front();
-            m_filteredOptions = m_operationOptions;
+            case AddRequestType::Any:
+            pDialogTitle = "Add System Or Component##ASC";
+            break;
+
+            case AddRequestType::System:
+            pDialogTitle = "Add System##ASC";
+            break;
+
+            case AddRequestType::SpatialComponent:
+            pDialogTitle = "Add Spatial Component##ASC";
+            break;
+
+            case AddRequestType::Component:
+            pDialogTitle = "Add Component##ASC";
+            break;
+
+            default:
+            break;
         }
+
+        EE_ASSERT( pDialogTitle != nullptr );
+
+        m_dialogManager.CreateModalDialog( pDialogTitle, [this] ( UpdateContext const& context ) { return DrawAddComponentOrSystemDialog( context ); }, ImVec2( 1200, 400 ), true );
+        m_dialogManager.SetActiveModalDialogSizeConstraints( ImVec2( 400, 400 ), ImVec2( FLT_MAX, FLT_MAX ) );
     }
 
     //-------------------------------------------------------------------------
@@ -2052,7 +2057,9 @@ namespace EE::EntityModel
                 if( selection.size() == 1 )
                 {
                     auto pSelectedItem = static_cast<OutlinerItem*>( selection[0] );
-                    StartEntityRename( pSelectedItem->m_pEntity );
+                    EE_ASSERT( pSelectedItem->m_pEntity != nullptr );
+                    Printf( m_operationBuffer, 256, pSelectedItem->m_pEntity->GetNameID().c_str() );
+                    m_dialogManager.CreateModalDialog( "Rename Entity", [this] ( UpdateContext const& context ) { return DrawRenameEntityDialog( context ); } );
                 }
             }
 
@@ -2098,7 +2105,7 @@ namespace EE::EntityModel
             if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename" ) )
             {
                 Printf( m_operationBuffer, 256, pEntityItem->m_pEntity->GetNameID().c_str() );
-                m_activeOperation = Operation::RenameEntity;
+                m_dialogManager.CreateModalDialog( "Rename Entity", [this] ( UpdateContext const& context ) { return DrawRenameEntityDialog( context ); } );
             }
 
             if ( pEntityItem->m_pEntity->HasSpatialParent() )
@@ -2333,7 +2340,7 @@ namespace EE::EntityModel
         {
             if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS" Add Component/System", ImVec2( -1, 0 ) ) )
             {
-                StartEntityOperation( Operation::EntityAddSystemOrComponent );
+                StartAddComponentOrSystem( AddRequestType::Any );
             }
 
             m_structureEditorTreeView.UpdateAndDraw( m_structureEditorContext );
@@ -2353,7 +2360,8 @@ namespace EE::EntityModel
                     auto pItem = static_cast<StructureEditorItem const*>( selection[0] );
                     if ( pItem->IsComponent() )
                     {
-                        StartEntityOperation( Operation::EntityRenameComponent, pItem->m_pComponent );
+                        m_pActionTargetComponent = pItem->m_pComponent;
+                        m_dialogManager.CreateModalDialog( "Rename Component", [this] ( UpdateContext const& context ) { return DrawRenameComponentDialog( context ); } );
                     }
                 }
             }
@@ -2461,21 +2469,21 @@ namespace EE::EntityModel
             {
                 if ( ImGui::MenuItem( EE_ICON_PLUS" Add Component" ) )
                 {
-                    StartEntityOperation( Operation::EntityAddSpatialComponent );
+                    StartAddComponentOrSystem( AddRequestType::SpatialComponent );
                 }
             }
             else if ( pItem->m_ID == StringID( StructureEditorItem::s_componentsHeaderID ) )
             {
                 if ( ImGui::MenuItem( EE_ICON_PLUS" Add Component" ) )
                 {
-                    StartEntityOperation( Operation::EntityAddComponent, pItem->m_pComponent );
+                    StartAddComponentOrSystem( AddRequestType::Component, pItem->m_pComponent );
                 }
             }
             else if ( pItem->m_ID == StringID( StructureEditorItem::s_systemsHeaderID ) )
             {
                 if ( ImGui::MenuItem( EE_ICON_PLUS" Add System" ) )
                 {
-                    StartEntityOperation( Operation::EntityAddSystem, pItem->m_pComponent );
+                    StartAddComponentOrSystem( AddRequestType::System, pItem->m_pComponent );
                 }
             }
         }
@@ -2490,7 +2498,10 @@ namespace EE::EntityModel
 
             if ( ImGui::MenuItem( EE_ICON_RENAME_BOX" Rename Component" ) )
             {
-                StartEntityOperation( Operation::EntityRenameComponent, pItem->m_pComponent );
+                EE_ASSERT( m_pActionTargetComponent != nullptr );
+                Printf( m_operationBuffer, 256, pItem->m_pComponent->GetNameID().c_str() );
+                m_pActionTargetComponent = pItem->m_pComponent;
+                m_dialogManager.CreateModalDialog( "Rename Component", [this] ( UpdateContext const& context ) { return DrawRenameComponentDialog( context ); } );
             }
 
             //-------------------------------------------------------------------------
@@ -2508,7 +2519,7 @@ namespace EE::EntityModel
 
                 if ( ImGui::MenuItem( EE_ICON_PLUS" Add Child Component" ) )
                 {
-                    StartEntityOperation( Operation::EntityAddSpatialComponent, pItem->m_pComponent );
+                    StartAddComponentOrSystem( AddRequestType::SpatialComponent, pItem->m_pComponent );
                 }
 
                 canRemoveItem = !isRootComponent || pItem->GetChildren().size() <= 1;
@@ -2727,8 +2738,6 @@ namespace EE::EntityModel
 
     bool EntityEditorWorkspace::DrawRenameEntityDialog( UpdateContext const& context )
     {
-        EE_ASSERT( m_activeOperation == Operation::RenameEntity );
-
         Entity* pEntityToRename = static_cast<OutlinerItem*>( m_outlinerTreeView.GetSelection()[0] )->m_pEntity;
         EntityMapID const& mapID = pEntityToRename->GetMapID();
         EE_ASSERT( mapID.IsValid() );
@@ -2753,55 +2762,45 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         bool isDialogOpen = true;
-        if ( ImGuiX::BeginViewportPopupModal( "Rename Entity", &isDialogOpen, ImVec2( 400, 110 ), ImGuiCond_Always, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar ) )
+        bool applyRename = false;
+        bool isValidName = ValidateName();
+
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Name: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( -1 );
+        ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText : Colors::Red );
+        applyRename = ImGui::InputText( "##Name", m_operationBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
+        isValidName = ValidateName();
+        ImGui::PopStyleColor();
+
+        ImGui::NewLine();
+        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
+
+        ImGui::BeginDisabled( !isValidName );
+        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
         {
-            bool applyRename = false;
-            bool isValidName = ValidateName();
+            applyRename = true;
+            isDialogOpen = false;
+        }
+        ImGui::EndDisabled();
 
-            // Draw UI
-            //-------------------------------------------------------------------------
+        ImGui::SameLine();
+        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
+        {
+            isDialogOpen = false;
+        }
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Name: " );
-            ImGui::SameLine();
+        //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red );
-            applyRename = ImGui::InputText( "##Name", m_operationBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
-            isValidName = ValidateName();
-            ImGui::PopStyleColor();
-
-            ImGui::NewLine();
-            ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
-
-            ImGui::BeginDisabled( !isValidName );
-            if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
-            {
-                applyRename = true;
-            }
-            ImGui::EndDisabled();
-
-            ImGui::SameLine();
-            if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
-            {
-                m_activeOperation = Operation::None;
-                ImGui::CloseCurrentPopup();
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( applyRename && isValidName )
-            {
-                StringID const desiredNameID = StringID( m_operationBuffer );
-                RenameEntity( pEntityToRename, desiredNameID );
-                m_activeOperation = Operation::None;
-            }
-
-            //-------------------------------------------------------------------------
-
-            isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-
-            ImGui::EndPopup();
+        if ( applyRename && isValidName )
+        {
+            StringID const desiredNameID = StringID( m_operationBuffer );
+            RenameEntity( pEntityToRename, desiredNameID );
         }
 
         return isDialogOpen;
@@ -2811,8 +2810,7 @@ namespace EE::EntityModel
     {
         Entity* pEditedEntity = GetEditedEntity();
 
-        EE_ASSERT( m_activeOperation == Operation::EntityRenameComponent );
-        EE_ASSERT( pEditedEntity != nullptr && m_pOperationTargetComponent != nullptr );
+        EE_ASSERT( pEditedEntity != nullptr && m_pActionTargetComponent != nullptr );
 
         //-------------------------------------------------------------------------
 
@@ -2822,7 +2820,7 @@ namespace EE::EntityModel
             if ( isValidName )
             {
                 StringID const desiredNameID = StringID( m_operationBuffer );
-                auto uniqueNameID = pEditedEntity->GenerateUniqueComponentNameID( m_pOperationTargetComponent, desiredNameID );
+                auto uniqueNameID = pEditedEntity->GenerateUniqueComponentNameID( m_pActionTargetComponent, desiredNameID );
                 isValidName = ( desiredNameID == uniqueNameID );
             }
 
@@ -2832,55 +2830,45 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         bool isDialogOpen = true;
-        if ( ImGuiX::BeginViewportPopupModal( "Rename Component", &isDialogOpen, ImVec2( 400, 110 ), ImGuiCond_Always, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar ) )
+        bool applyRename = false;
+        bool isValidName = ValidateName();
+
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Name: " );
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth( -1 );
+        ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText : Colors::Red );
+        applyRename = ImGui::InputText( "##Name", m_operationBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
+        isValidName = ValidateName();
+        ImGui::PopStyleColor();
+
+        ImGui::NewLine();
+        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
+
+        ImGui::BeginDisabled( !isValidName );
+        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
         {
-            bool applyRename = false;
-            bool isValidName = ValidateName();
+            applyRename = true;
+            isDialogOpen = false;
+        }
+        ImGui::EndDisabled();
 
-            // Draw UI
-            //-------------------------------------------------------------------------
+        ImGui::SameLine();
+        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
+        {
+            isDialogOpen = false;
+        }
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Name: " );
-            ImGui::SameLine();
+        //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? (uint32_t) ImGuiX::Style::s_colorText : Colors::Red );
-            applyRename = ImGui::InputText( "##Name", m_operationBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
-            isValidName = ValidateName();
-            ImGui::PopStyleColor();
-
-            ImGui::NewLine();
-            ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
-
-            ImGui::BeginDisabled( !isValidName );
-            if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
-            {
-                applyRename = true;
-            }
-            ImGui::EndDisabled();
-
-            ImGui::SameLine();
-            if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
-            {
-                m_activeOperation = Operation::None;
-                ImGui::CloseCurrentPopup();
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( applyRename && isValidName )
-            {
-                StringID const desiredNameID = StringID( m_operationBuffer );
-                RenameComponent( m_pOperationTargetComponent, desiredNameID );
-                m_activeOperation = Operation::None;
-            }
-
-            //-------------------------------------------------------------------------
-
-            isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-
-            ImGui::EndPopup();
+        if ( applyRename && isValidName )
+        {
+            StringID const desiredNameID = StringID( m_operationBuffer );
+            RenameComponent( m_pActionTargetComponent, desiredNameID );
         }
 
         return isDialogOpen;
@@ -2893,210 +2881,172 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        char const* pDialogTitle = nullptr;
+        ImVec2 const contentRegionAvailable = ImGui::GetContentRegionAvail();
 
-        switch ( m_activeOperation )
+        // Draw Filter
+        //-------------------------------------------------------------------------
+
+        if ( m_operationFilterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
         {
-            case Operation::EntityAddSystemOrComponent:
-                pDialogTitle = "Add System Or Component##ASC";
-            break;
+            if ( m_operationFilterWidget.HasFilterSet() )
+            {
+                m_filteredOptions.clear();
+                for ( auto const& pTypeInfo : m_operationOptions )
+                {
+                    if ( m_operationFilterWidget.MatchesFilter( pTypeInfo->GetTypeName() ) )
+                    {
+                        m_filteredOptions.emplace_back( pTypeInfo );
+                    }
+                }
+            }
+            else
+            {
+                m_filteredOptions = m_operationOptions;
+            }
 
-            case Operation::EntityAddSystem:
-                pDialogTitle = "Add System##ASC";
-            break;
-
-            case Operation::EntityAddSpatialComponent:
-                pDialogTitle = "Add Spatial Component##ASC";
-            break;
-
-            case Operation::EntityAddComponent:
-                pDialogTitle = "Add Component##ASC";
-            break;
-
-            default:
-            break;
+            m_pOperationSelectedOption = m_filteredOptions.empty() ? nullptr : m_filteredOptions.front();
         }
 
-        EE_ASSERT( pDialogTitle != nullptr );
+        // Draw results
+        //-------------------------------------------------------------------------
+
+        float const tableHeight = contentRegionAvailable.y - ImGui::GetFrameHeightWithSpacing() - ImGui::GetStyle().ItemSpacing.y;
+        ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray1 );
+        if ( ImGui::BeginTable( "Options List", 1, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( contentRegionAvailable.x, tableHeight ) ) )
+        {
+            ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthStretch, 1.0f );
+
+            //-------------------------------------------------------------------------
+
+            ImGuiListClipper clipper;
+            clipper.Begin( (int32_t) m_filteredOptions.size() );
+            while ( clipper.Step() )
+            {
+                for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
+                {
+                    ImGui::TableNextRow();
+
+                    ImGui::TableNextColumn();
+                    bool const wasSelected = ( m_pOperationSelectedOption == m_filteredOptions[i] );
+                    if ( wasSelected )
+                    {
+                        ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent0 );
+                    }
+
+                    bool isSelected = wasSelected;
+                    if ( ImGui::Selectable( m_filteredOptions[i]->GetFriendlyTypeName(), &isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
+                    {
+                        m_pOperationSelectedOption = m_filteredOptions[i];
+
+                        if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                        {
+                            shouldExecuteOperation = true;
+                        }
+                    }
+
+                    if ( wasSelected )
+                    {
+                        ImGui::PopStyleColor();
+                    }
+                }
+            }
+
+            ImGui::EndTable();
+        }
+        ImGui::PopStyleColor();
 
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextWindowSizeConstraints( ImVec2( 400, 400 ), ImVec2( FLT_MAX, FLT_MAX ) );
-        if ( ImGuiX::BeginViewportPopupModal( pDialogTitle, &isDialogOpen, ImVec2( 1000, 400 ), ImGuiCond_FirstUseEver, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs ) )
+        auto AdjustSelection = [this] ( bool increment )
         {
-            ImVec2 const contentRegionAvailable = ImGui::GetContentRegionAvail();
-
-            // Draw Filter
-            //-------------------------------------------------------------------------
-
-            if ( m_operationFilterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
+            int32_t const numOptions = (int32_t) m_filteredOptions.size();
+            if ( numOptions == 0 )
             {
-                if ( m_operationFilterWidget.HasFilterSet() )
-                {
-                    m_filteredOptions.clear();
-                    for ( auto const& pTypeInfo : m_operationOptions )
-                    {
-                        if ( m_operationFilterWidget.MatchesFilter( pTypeInfo->GetTypeName() ) )
-                        {
-                            m_filteredOptions.emplace_back( pTypeInfo );
-                        }
-                    }
-                }
-                else
-                {
-                    m_filteredOptions = m_operationOptions;
-                }
-
-                m_pOperationSelectedOption = m_filteredOptions.empty() ? nullptr : m_filteredOptions.front();
+                return;
             }
 
-            // Draw results
-            //-------------------------------------------------------------------------
-
-            float const tableHeight = contentRegionAvailable.y - ImGui::GetFrameHeightWithSpacing() - ImGui::GetStyle().ItemSpacing.y;
-            ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorGray1 );
-            if ( ImGui::BeginTable( "Options List", 1, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2( contentRegionAvailable.x, tableHeight ) ) )
+            int32_t optionIdx = InvalidIndex;
+            for ( auto i = 0; i < numOptions; i++ )
             {
-                ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthStretch, 1.0f );
-
-                //-------------------------------------------------------------------------
-
-                ImGuiListClipper clipper;
-                clipper.Begin( (int32_t) m_filteredOptions.size() );
-                while ( clipper.Step() )
+                if ( m_filteredOptions[i] == m_pOperationSelectedOption )
                 {
-                    for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
-                    {
-                        ImGui::TableNextRow();
-
-                        ImGui::TableNextColumn();
-                        bool const wasSelected = ( m_pOperationSelectedOption == m_filteredOptions[i] );
-                        if ( wasSelected )
-                        {
-                            ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent0 );
-                        }
-
-                        bool isSelected = wasSelected;
-                        if ( ImGui::Selectable( m_filteredOptions[i]->GetFriendlyTypeName(), &isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns ) )
-                        {
-                            m_pOperationSelectedOption = m_filteredOptions[i];
-
-                            if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
-                            {
-                                shouldExecuteOperation = true;
-                            }
-                        }
-
-                        if ( wasSelected )
-                        {
-                            ImGui::PopStyleColor();
-                        }
-                    }
-                }
-
-                ImGui::EndTable();
-            }
-            ImGui::PopStyleColor();
-
-            //-------------------------------------------------------------------------
-
-            auto AdjustSelection = [this] ( bool increment )
-            {
-                int32_t const numOptions = (int32_t) m_filteredOptions.size();
-                if ( numOptions == 0 )
-                {
-                    return;
-                }
-
-                int32_t optionIdx = InvalidIndex;
-                for ( auto i = 0; i < numOptions; i++ )
-                {
-                    if ( m_filteredOptions[i] == m_pOperationSelectedOption )
-                    {
-                        optionIdx = i;
-                        break;
-                    }
-                }
-
-                EE_ASSERT( optionIdx != InvalidIndex );
-
-                optionIdx += ( increment ? 1 : -1 );
-                if ( optionIdx < 0 )
-                {
-                    optionIdx += numOptions;
-                }
-                optionIdx = optionIdx % m_filteredOptions.size();
-                m_pOperationSelectedOption = m_filteredOptions[optionIdx];
-            };
-
-            if ( ImGui::IsKeyReleased( ImGuiKey_Enter ) )
-            {
-                shouldExecuteOperation = true;
-            }
-            else if ( ImGui::IsKeyReleased( ImGuiKey_Escape ) )
-            {
-                ImGui::CloseCurrentPopup();
-                isDialogOpen = false;
-            }
-            else if ( ImGui::IsKeyReleased( ImGuiKey_UpArrow ) )
-            {
-                if ( m_filteredOptions.size() > 0 )
-                {
-                    AdjustSelection( false );
-                    m_initializeFocus = true;
+                    optionIdx = i;
+                    break;
                 }
             }
-            else if ( ImGui::IsKeyReleased( ImGuiKey_DownArrow ) )
+
+            EE_ASSERT( optionIdx != InvalidIndex );
+
+            optionIdx += ( increment ? 1 : -1 );
+            if ( optionIdx < 0 )
             {
-                if ( m_filteredOptions.size() > 0 )
+                optionIdx += numOptions;
+            }
+            optionIdx = optionIdx % m_filteredOptions.size();
+            m_pOperationSelectedOption = m_filteredOptions[optionIdx];
+        };
+
+        if ( ImGui::IsKeyReleased( ImGuiKey_Enter ) )
+        {
+            shouldExecuteOperation = true;
+            isDialogOpen = false;
+        }
+        else if ( ImGui::IsKeyReleased( ImGuiKey_Escape ) )
+        {
+            isDialogOpen = false;
+        }
+        else if ( ImGui::IsKeyReleased( ImGuiKey_UpArrow ) )
+        {
+            if ( m_filteredOptions.size() > 0 )
+            {
+                AdjustSelection( false );
+                m_initializeFocus = true;
+            }
+        }
+        else if ( ImGui::IsKeyReleased( ImGuiKey_DownArrow ) )
+        {
+            if ( m_filteredOptions.size() > 0 )
+            {
+                AdjustSelection( true );
+                m_initializeFocus = true;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( shouldExecuteOperation && m_pOperationSelectedOption == nullptr )
+        {
+            shouldExecuteOperation = false;
+        }
+
+        if ( shouldExecuteOperation )
+        {
+            EE_ASSERT( m_pOperationSelectedOption != nullptr );
+
+            if ( VectorContains( m_allSystemTypes, m_pOperationSelectedOption ) )
+            {
+                CreateSystem( m_pOperationSelectedOption );
+            }
+            else if ( VectorContains( m_allComponentTypes, m_pOperationSelectedOption ) )
+            {
+                CreateComponent( m_pOperationSelectedOption );
+            }
+            else if ( VectorContains( m_allSpatialComponentTypes, m_pOperationSelectedOption ) )
+            {
+                ComponentID parentComponentID;
+                if ( m_pActionTargetComponent != nullptr )
                 {
-                    AdjustSelection( true );
-                    m_initializeFocus = true;
+                    EE_ASSERT( IsOfType<SpatialEntityComponent>( m_pActionTargetComponent ) );
+                    parentComponentID = m_pActionTargetComponent->GetID();
                 }
+                CreateComponent( m_pOperationSelectedOption, parentComponentID );
             }
 
             //-------------------------------------------------------------------------
 
-            if ( shouldExecuteOperation && m_pOperationSelectedOption == nullptr )
-            {
-                shouldExecuteOperation = false;
-            }
-
-            if ( shouldExecuteOperation )
-            {
-                EE_ASSERT( m_activeOperation != Operation::None );
-                EE_ASSERT( m_pOperationSelectedOption != nullptr );
-
-                if ( VectorContains( m_allSystemTypes, m_pOperationSelectedOption ) )
-                {
-                    CreateSystem( m_pOperationSelectedOption );
-                }
-                else if ( VectorContains( m_allComponentTypes, m_pOperationSelectedOption ) )
-                {
-                    CreateComponent( m_pOperationSelectedOption );
-                }
-                else if ( VectorContains( m_allSpatialComponentTypes, m_pOperationSelectedOption ) )
-                {
-                    ComponentID parentComponentID;
-                    if ( m_pOperationTargetComponent != nullptr )
-                    {
-                        EE_ASSERT( IsOfType<SpatialEntityComponent>( m_pOperationTargetComponent ) );
-                        parentComponentID = m_pOperationTargetComponent->GetID();
-                    }
-                    CreateComponent( m_pOperationSelectedOption, parentComponentID );
-                }
-
-                //-------------------------------------------------------------------------
-
-                m_activeOperation = Operation::None;
-                m_pOperationSelectedOption = nullptr;
-                m_pOperationTargetComponent = nullptr;
-                isDialogOpen = false;
-            }
-
-            isDialogOpen = ImGuiX::CancelDialogViaEsc( isDialogOpen );
-
-            ImGui::EndPopup();
+            m_pOperationSelectedOption = nullptr;
+            m_pActionTargetComponent = nullptr;
+            isDialogOpen = false;
         }
 
         //-------------------------------------------------------------------------
@@ -3322,43 +3272,6 @@ namespace EE::EntityModel
                     RequestDestroyEntity( pSelectedItem->m_pEntity );
                 }
             }
-        }
-    }
-
-    void EntityEditorWorkspace::DrawDialogs( UpdateContext const& context )
-    {
-        bool isDialogOpen = m_activeOperation != Operation::None;
-
-        switch ( m_activeOperation )
-        {
-            case Operation::None:
-            break;
-
-            case Operation::RenameEntity:
-            {
-                isDialogOpen = DrawRenameEntityDialog( context );
-            }
-            break;
-
-            case Operation::EntityRenameComponent:
-            {
-                isDialogOpen = DrawRenameComponentDialog( context );
-            }
-            break;
-
-            default: // Add Component/System
-            {
-                isDialogOpen = DrawAddComponentOrSystemDialog( context );
-            }
-            break;
-        }
-
-        //-------------------------------------------------------------------------
-
-        // If the dialog was closed (i.e. operation canceled)
-        if ( !isDialogOpen )
-        {
-            m_activeOperation = Operation::None;
         }
     }
 }

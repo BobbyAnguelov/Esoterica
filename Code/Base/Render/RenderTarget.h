@@ -25,6 +25,7 @@ namespace EE::Render
     public:
 
         RenderTarget() = default;
+        RenderTarget( RenderTarget const& ) = default;
         ~RenderTarget() { EE_ASSERT( !m_RT.IsValid() ); }
 
         inline bool IsValid() const { return m_RT.IsValid(); }
@@ -32,6 +33,7 @@ namespace EE::Render
         inline bool HasDepthStencil() const { return m_DS.IsValid(); }
         inline bool HasPickingRT() const { return m_pickingRT.IsValid(); }
 
+        RenderTarget& operator=( RenderTarget const& ) = default;
         inline bool operator==( RenderTarget const& rhs ) const { return m_RT == rhs.m_RT && m_DS == rhs.m_DS; }
         inline bool operator!=( RenderTarget const& rhs ) const { return m_RT != rhs.m_RT && m_DS != rhs.m_DS; }
 

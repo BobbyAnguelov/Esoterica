@@ -32,7 +32,27 @@ namespace EE::gltf
 
     //-------------------------------------------------------------------------
 
-    gltfSceneContext::gltfSceneContext( FileSystem::Path const& filePath )
+    SceneContext::SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor )
+    {
+        Initialize( filePath, additionalScalingFactor );
+    }
+
+    SceneContext::~SceneContext()
+    {
+        Shutdown();
+    }
+
+    //-------------------------------------------------------------------------
+
+    void SceneContext::LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor )
+    {
+        Shutdown();
+        Initialize( filePath, additionalScalingFactor );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void SceneContext::Initialize( FileSystem::Path const& filePath, float additionalScalingFactor )
     {
         cgltf_options options = { cgltf_file_type_invalid, 0 };
 
@@ -55,15 +75,19 @@ namespace EE::gltf
             m_error.sprintf( "Failed to load gltf file buffers ( %s ) : %s", filePath.c_str(), g_errorStrings[parseResult] );
             return;
         }
+
+        m_scaleConversionMultiplier *= additionalScalingFactor;
     }
 
-    gltfSceneContext::~gltfSceneContext()
+    void SceneContext::Shutdown()
     {
         if ( m_pSceneData != nullptr )
         {
             cgltf_free( m_pSceneData );
             m_pSceneData = nullptr;
         }
+
+        m_scaleConversionMultiplier = 1.0f;
     }
 }
 
@@ -95,7 +119,7 @@ namespace EE::gltf
 
             //-------------------------------------------------------------------------
 
-            gltf::gltfSceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 ReadSkeleton( sceneCtx, skeletonRootBoneName, *pRawSkeleton );
@@ -108,7 +132,7 @@ namespace EE::gltf
             return pSkeleton;
         }
 
-        static void ReadSkeleton( gltf::gltfSceneContext const& sceneCtx, String const& skeletonRootBoneName, gltfRawSkeleton& rawSkeleton )
+        static void ReadSkeleton( gltf::SceneContext const& sceneCtx, String const& skeletonRootBoneName, gltfRawSkeleton& rawSkeleton )
         {
             auto pSceneData = sceneCtx.GetSceneData();
 
@@ -162,12 +186,13 @@ namespace EE::gltf
             }
         }
 
-        static void ReadBoneHierarchy( gltfRawSkeleton& rawSkeleton, gltf::gltfSceneContext const& sceneCtx, cgltf_node* pNode, int32_t parentIdx )
+        static void ReadBoneHierarchy( gltfRawSkeleton& rawSkeleton, gltf::SceneContext const& sceneCtx, cgltf_node* pNode, int32_t parentIdx )
         {
             EE_ASSERT( pNode != nullptr );
 
             auto const boneIdx = (int32_t) rawSkeleton.m_bones.size();
             rawSkeleton.m_bones.push_back( RawSkeleton::BoneData( pNode->name ) );
+            rawSkeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? rawSkeleton.m_bones[parentIdx].m_name : StringID();
             rawSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Default Bone transform
@@ -221,7 +246,7 @@ namespace EE::gltf
             TUniquePtr<RawAnimation> pAnimation( EE::New<RawAnimation>( rawSkeleton ) );
             gltfRawAnimation* pRawAnimation = (gltfRawAnimation*) pAnimation.get();
 
-            gltf::gltfSceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 auto pSceneData = sceneCtx.GetSceneData();
@@ -290,7 +315,7 @@ namespace EE::gltf
             return pAnimation;
         }
 
-        static void ReadAnimationData( gltf::gltfSceneContext const& ctx, gltfRawAnimation& rawAnimation, cgltf_animation const* pAnimation )
+        static void ReadAnimationData( gltf::SceneContext const& ctx, gltfRawAnimation& rawAnimation, cgltf_animation const* pAnimation )
         {
             EE_ASSERT( pAnimation != nullptr );
 
@@ -441,7 +466,7 @@ namespace EE::gltf
             return true;
         }
 
-        static void ReadMeshGeometry( gltf::gltfSceneContext const& ctx, gltfRawMesh& rawMesh, cgltf_mesh const& meshData )
+        static void ReadMeshGeometry( gltf::SceneContext const& ctx, gltfRawMesh& rawMesh, cgltf_mesh const& meshData )
         {
             EE_ASSERT( IsValidTriangleMesh( meshData ) );
 
@@ -613,7 +638,7 @@ namespace EE::gltf
             }
         }
 
-        static TVector<SkinInfo> GetSkeletalMeshDefitions( gltf::gltfSceneContext const& ctx )
+        static TVector<SkinInfo> GetSkeletalMeshDefitions( gltf::SceneContext const& ctx )
         {
             TVector<SkinInfo> skeletalMeshes;
 
@@ -661,6 +686,7 @@ namespace EE::gltf
 
             auto const boneIdx = (int32_t) rawSkeleton.m_bones.size();
             rawSkeleton.m_bones.push_back( RawSkeleton::BoneData( pNode->name ) );
+            rawSkeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? rawSkeleton.m_bones[parentIdx].m_name : StringID();
             rawSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Default Bone transform
@@ -685,7 +711,7 @@ namespace EE::gltf
 
             //-------------------------------------------------------------------------
 
-            gltf::gltfSceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 auto pSceneData = sceneCtx.GetSceneData();
@@ -755,7 +781,7 @@ namespace EE::gltf
 
             //-------------------------------------------------------------------------
 
-            gltf::gltfSceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( sourceFilePath );
             if ( sceneCtx.IsValid() )
             {
                 TVector<SkinInfo> skins = GetSkeletalMeshDefitions( sceneCtx );

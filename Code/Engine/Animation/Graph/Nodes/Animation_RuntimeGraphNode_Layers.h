@@ -4,17 +4,26 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE::Animation
+{
+    struct GraphLayerContext;
+}
+
+//-------------------------------------------------------------------------
+
 namespace EE::Animation::GraphNodes
 {
     class StateMachineNode;
+
+    //-------------------------------------------------------------------------
 
     enum class PoseBlendMode : uint8_t
     {
         EE_REFLECT_ENUM
 
-        Interpolative = 0, // Regular blend
+        Overlay = 0, // Regular blend
         Additive,
-        InterpolativeGlobalSpace,
+        GlobalSpace,
     };
 
     //-------------------------------------------------------------------------
@@ -92,7 +101,7 @@ namespace EE::Animation::GraphNodes
 
         PoseNode*                                           m_pBaseLayerNode = nullptr;
         TInlineVector<Layer, 3>                             m_layers;
-        GraphLayerContext                                   m_previousContext;
+        GraphLayerContext*                                  m_pPreviousContext = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                             m_rootMotionActionIdxBase = InvalidIndex;

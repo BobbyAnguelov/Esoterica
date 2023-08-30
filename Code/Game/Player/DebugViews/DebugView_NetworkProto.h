@@ -34,7 +34,7 @@ namespace EE::Player
         virtual void Shutdown() override;
 
         virtual void Update( EntityWorldUpdateContext const& context ) override;
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override;
+        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override;
 
         void ProcessRecording( int32_t simulatedJoinInProgressFrame = -1, bool useLayerInitInfo = false );
         void ResetRecordingData();
@@ -62,7 +62,8 @@ namespace EE::Player
         float                                       m_maxSerializedParameterDataSize;
 
         TVector<float>                              m_serializedTaskSizes;
-        TVector<float>                              m_serializedTaskDeltas;
+        TVector<float>                              m_serializedTaskSizeDeltas;
+        TVector<float>                              m_serializedTaskSharedByteDeltas;
         float                                       m_minSerializedTaskDataSize;
         float                                       m_maxSerializedTaskDataSize;
 
@@ -72,6 +73,8 @@ namespace EE::Player
         Animation::Pose*                            m_pGeneratedPose = nullptr;
         TVector<Animation::Pose>                    m_actualPoses;
         TVector<Animation::Pose>                    m_replicatedPoses;
+        bool                                        m_showParameterPose = true;
+        bool                                        m_showTaskPose = true;
     };
 }
 #endif

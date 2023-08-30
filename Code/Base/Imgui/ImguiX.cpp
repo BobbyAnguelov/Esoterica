@@ -1,6 +1,7 @@
 #include "ImguiX.h"
-#if EE_DEVELOPMENT_TOOLS
 
+#if EE_DEVELOPMENT_TOOLS
+#include "Base/Imgui/ImguiXNotifications.h"
 #include "Base/Render/RenderTexture.h"
 #include "Base/Render/RenderViewport.h"
 #include "EASTL/sort.h"
@@ -231,11 +232,9 @@ namespace EE::ImGuiX
 
     bool Checkbox( char const* pLabel, bool* pValue )
     {
-        auto pWindow = ImGui::GetCurrentWindow();
-
         ImVec2 const newFramePadding( 2, 2 );
         float const offsetY = ImGui::GetStyle().FramePadding.y - newFramePadding.y;
-        ImGui::SetCursorPosY( Math::Min( pWindow->Size.y, ImGui::GetCursorPosY() + offsetY ) );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + offsetY );
 
         ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, newFramePadding );
         bool result = ImGui::Checkbox( pLabel, pValue );
@@ -604,19 +603,6 @@ namespace EE::ImGuiX
         return true;
     }
 
-    bool BeginComboButton( char const* pLabelAndID, ImGuiComboFlags flags )
-    {
-        ImGuiComboFlags const actualFlags = ( flags | ImGuiComboFlags_NoArrowButton ) & ~ImGuiComboFlags_NoPreview;
-
-        ImGui::PushStyleColor( ImGuiCol_FrameBg, ImGuiX::Style::s_colorGray3 );
-        ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGuiX::Style::s_colorGray2 );
-        ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGuiX::Style::s_colorGray1 );
-        bool const drawCombo = ImGui::BeginCombo( pLabelAndID, pLabelAndID, actualFlags );
-        ImGui::PopStyleColor( 3 );
-
-        return drawCombo;
-    }
-
     //-------------------------------------------------------------------------
 
     constexpr static float const g_labelWidth = 20.0f;
@@ -970,12 +956,12 @@ namespace EE::ImGuiX
         return true;
     }
 
-	void FilterWidget::SetFilter( String const& filterText )
-	{
+    void FilterWidget::SetFilter( String const& filterText )
+    {
         uint32_t const lengthToCopy = Math::Min( s_bufferSize, (uint32_t) filterText.length() );
         memcpy( m_buffer, filterText.c_str(), lengthToCopy );
         OnBufferUpdated();
-	}
+    }
 
     void FilterWidget::OnBufferUpdated()
     {

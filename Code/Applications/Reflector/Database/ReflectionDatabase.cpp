@@ -154,7 +154,7 @@ namespace EE::TypeSystem::Reflection
             }
         }
 
-        return nullptr;
+        return false;
     }
 
     ProjectInfo const* ReflectionDatabase::GetProjectDesc( ProjectID projectID ) const

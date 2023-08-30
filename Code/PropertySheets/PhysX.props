@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
+      <PreprocessorDefinitions Condition="$(Platform) == 'x64'">_SILENCE_CXX20_CISO646_REMOVED_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(PhysXDir)Include\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>

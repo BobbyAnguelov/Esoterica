@@ -62,6 +62,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline int32_t GetNumBones() const { return m_pSkeleton->GetNumBones(); }
+        inline int32_t GetNumBones( Skeleton::LOD lod ) const { return m_pSkeleton->GetNumBones( lod ); }
         inline Skeleton const* GetSkeleton() const { return m_pSkeleton; }
 
         // Pose state

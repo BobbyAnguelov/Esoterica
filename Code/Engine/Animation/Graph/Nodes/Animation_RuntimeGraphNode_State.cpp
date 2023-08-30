@@ -1,6 +1,7 @@
 #include "Animation_RuntimeGraphNode_State.h"
-#include "Base/Types/ScopedValue.h"
 #include "Engine/Animation/AnimationBoneMask.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_LayerData.h"
+#include "Base/Types/ScopedValue.h"
 
 //-------------------------------------------------------------------------
 
@@ -190,19 +191,19 @@ namespace EE::Animation::GraphNodes
         auto pStateSettings = GetSettings<StateNode>();
         if ( pStateSettings->m_isOffState )
         {
-            context.m_layerContext.m_layerWeight = 0.0f;
-            context.m_layerContext.m_rootMotionLayerWeight = 0.0f;
+            context.m_pLayerContext->m_layerWeight = 0.0f;
+            context.m_pLayerContext->m_rootMotionLayerWeight = 0.0f;
         }
         else
         {
             if ( m_pLayerWeightNode != nullptr )
             {
-                context.m_layerContext.m_layerWeight *= Math::Clamp( m_pLayerWeightNode->GetValue<float>( context ), 0.0f, 1.0f );
+                context.m_pLayerContext->m_layerWeight *= Math::Clamp( m_pLayerWeightNode->GetValue<float>( context ), 0.0f, 1.0f );
             }
 
             if ( m_pLayerRootMotionWeightNode != nullptr )
             {
-                context.m_layerContext.m_rootMotionLayerWeight *= Math::Clamp( m_pLayerRootMotionWeightNode->GetValue<float>( context ), 0.0f, 1.0f );
+                context.m_pLayerContext->m_rootMotionLayerWeight *= Math::Clamp( m_pLayerRootMotionWeightNode->GetValue<float>( context ), 0.0f, 1.0f );
             }
         }
 
@@ -215,13 +216,13 @@ namespace EE::Animation::GraphNodes
             if ( pBoneMaskTaskList != nullptr )
             {
                 // If we dont have a bone mask task list, use a copy of the state's task list
-                if ( !context.m_layerContext.m_layerMaskTaskList.HasTasks() )
+                if ( !context.m_pLayerContext->m_layerMaskTaskList.HasTasks() )
                 {
-                    context.m_layerContext.m_layerMaskTaskList.CopyFrom( *pBoneMaskTaskList );
+                    context.m_pLayerContext->m_layerMaskTaskList.CopyFrom( *pBoneMaskTaskList );
                 }
                 else // If we already have a bone mask set, combine the bone masks
                 {
-                    context.m_layerContext.m_layerMaskTaskList.CombineWith( *pBoneMaskTaskList );
+                    context.m_pLayerContext->m_layerMaskTaskList.CombineWith( *pBoneMaskTaskList );
                 }
             }
         }

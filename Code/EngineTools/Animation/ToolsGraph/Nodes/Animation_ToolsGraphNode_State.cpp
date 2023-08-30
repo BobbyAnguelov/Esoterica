@@ -64,11 +64,6 @@ namespace EE::Animation::GraphNodes
             break;
 
             case StateType::BlendTreeState:
-            {
-                return Colors::DarkSlateBlue;
-            }
-            break;
-
             case StateType::StateMachineState:
             {
                 return Colors::DarkCyan;
@@ -162,24 +157,17 @@ namespace EE::Animation::GraphNodes
 
     void StateToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        auto DrawStateTypeWindow = [] ( VisualGraph::DrawContext const& ctx, Color iconColor, Color fontColor, float width, char const* pIcon, char const* pLabel )
+        float const scaledVerticalGap = 6.0f * ctx.m_viewScaleFactor;
+        float const scaledExtraSpacing = 2.0f * ctx.m_viewScaleFactor;
+        float const scaledMinimumStateWidth = s_minimumStateNodeUnscaledWidth * ctx.m_viewScaleFactor;
+        float const scaledMinimumStateHeight = s_minimumStateNodeUnscaledHeight * ctx.m_viewScaleFactor;
+        float const scaledRounding = 3.0f * ctx.m_viewScaleFactor;
+
+        //-------------------------------------------------------------------------
+
+        auto DrawStateTypeWindow = [&] ( VisualGraph::DrawContext const& ctx, Color iconColor, Color fontColor, float width, char const* pIcon, char const* pLabel )
         {
-            if ( width <= 0 )
-            {
-                width = 26;
-            }
-
-            ImVec2 const size( width, 20 );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 2 );
-
-            ImVec2 const rectMin = ctx.WindowToScreenPosition( ImGui::GetCursorPos() );
-            ImVec2 const rectMax = rectMin + size;
-            ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, (uint32_t) ImGuiX::Style::s_colorGray6, 3.0f );
-
-            ImGui::SetCursorPos( ImVec2( ImGui::GetCursorPosX() + 2, ImGui::GetCursorPosY() + 2 ) );
+            BeginDrawInternalRegion( ctx );
 
             {
                 ImGuiX::ScopedFont font( ImGuiX::Font::Small, iconColor );
@@ -192,7 +180,7 @@ namespace EE::Animation::GraphNodes
                 ImGui::Text( pLabel );
             }
 
-            ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 8 );
+            EndDrawInternalRegion( ctx );
         };
 
         //-------------------------------------------------------------------------
@@ -275,51 +263,76 @@ namespace EE::Animation::GraphNodes
         };
 
         bool hasStateEvents = false;
-
-        if ( !m_entryEvents.empty() || !m_events.empty() )
         {
-            CreateEventString( m_events, m_entryEvents );
-            ImGui::Text( "Entry: %s", string.c_str() );
-            hasStateEvents = true;
+            ImGuiX::ScopedFont const eventFont( ImGuiX::Font::Medium );
+
+            if ( !m_entryEvents.empty() || !m_events.empty() )
+            {
+                CreateEventString( m_events, m_entryEvents );
+                {
+                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Lime );
+                    ImGui::Text( "Entry:", string.c_str() );
+                }
+                ImGui::SameLine();
+                ImGui::Text( "%s", string.c_str() );
+                hasStateEvents = true;
+            }
+
+            if ( !m_executeEvents.empty() || !m_events.empty() )
+            {
+                CreateEventString( m_events, m_executeEvents );
+                {
+                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Gold );
+                    ImGui::Text( "Execute:", string.c_str() );
+                }
+                ImGui::SameLine();
+                ImGui::Text( "%s", string.c_str() );
+                hasStateEvents = true;
+            }
+
+            if ( !m_exitEvents.empty() || !m_events.empty() )
+            {
+                CreateEventString( m_events, m_exitEvents );
+                {
+                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Tomato );
+                    ImGui::Text( "Exit:", string.c_str() );
+                }
+                ImGui::SameLine();
+                ImGui::Text( "%s", string.c_str() );
+                hasStateEvents = true;
+            }
+
+            if ( !m_timeRemainingEvents.empty() )
+            {
+                CreateTimedEventString( m_timeRemainingEvents );
+                {
+                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold );
+                    ImGui::Text( "Time Left: %s", string.c_str() );
+                }
+                ImGui::SameLine();
+                ImGui::Text( "%s", string.c_str() );
+                hasStateEvents = true;
+            }
+
+            if ( !m_timeElapsedEvents.empty() )
+            {
+                CreateTimedEventString( m_timeElapsedEvents );
+                {
+                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold );
+                    ImGui::Text( "Time Elapsed: %s", string.c_str() );
+                }
+                ImGui::SameLine();
+                ImGui::Text( "%s", string.c_str() );
+                hasStateEvents = true;
+            }
+
+            if ( !hasStateEvents )
+            {
+                ImGui::Text( "No State Events" );
+            }
         }
 
-        if ( !m_executeEvents.empty() || !m_events.empty() )
-        {
-            CreateEventString( m_events, m_executeEvents );
-            ImGui::Text( "Execute: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_exitEvents.empty() || !m_events.empty() )
-        {
-            CreateEventString( m_events, m_exitEvents );
-            ImGui::Text( "Exit: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_timeRemainingEvents.empty() )
-        {
-            CreateTimedEventString( m_timeRemainingEvents );
-            ImGui::Text( "Time Left: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !m_timeElapsedEvents.empty() )
-        {
-            CreateTimedEventString( m_timeElapsedEvents );
-            ImGui::Text( "Time Elapsed: %s", string.c_str() );
-            hasStateEvents = true;
-        }
-
-        if ( !hasStateEvents )
-        {
-            ImGui::Text( "No State Events" );
-        }
-
-        // Draw separator
-        //-------------------------------------------------------------------------
-
-        DrawInternalSeparator( ctx );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + scaledVerticalGap );
 
         // Draw runtime debug info
         //-------------------------------------------------------------------------
@@ -332,7 +345,7 @@ namespace EE::Animation::GraphNodes
             if ( runtimeNodeIdx != InvalidIndex && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
             {
                 PoseNodeDebugInfo const debugInfo = pGraphNodeContext->GetPoseNodeDebugInfo( runtimeNodeIdx );
-                DrawPoseNodeDebugInfo( ctx, GetWidth(), debugInfo );
+                DrawPoseNodeDebugInfo( ctx, GetWidth(), &debugInfo );
                 shouldDrawEmptyDebugInfoBlock = false;
             }
 
@@ -340,33 +353,16 @@ namespace EE::Animation::GraphNodes
 
             if ( pGraphNodeContext->m_showRuntimeIndices && runtimeNodeIdx != InvalidIndex )
             {
-                InlineString const idxStr( InlineString::CtorSprintf(), "%d", runtimeNodeIdx );
-                ImVec2 const textSize = ImGui::CalcTextSize( idxStr.c_str() );
-
-                //-------------------------------------------------------------------------
-
-                ImGuiStyle const& style = ImGui::GetStyle();
-                constexpr static float const verticalOffset = 10;
-                float const bubbleHeight = ImGui::GetFrameHeightWithSpacing();
-                float const bubbleWidth = textSize.x + 12;
-
-                ImVec2 const startRect( GetCanvasPosition().m_x, GetCanvasPosition().m_y - bubbleHeight - verticalOffset );
-                ImVec2 const endRect( startRect.x + bubbleWidth, startRect.y + bubbleHeight );
-                ImVec2 const canvasStartRect = ctx.CanvasPositionToScreenPosition( startRect );
-
-                ctx.m_pDrawList->AddRectFilled( canvasStartRect, ctx.CanvasPositionToScreenPosition( endRect ), Colors::MediumRed, 3 );
-
-                auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-                ctx.m_pDrawList->AddText( pFont, pFont->FontSize, canvasStartRect + ImVec2( 4, 2 ), Colors::White, idxStr.c_str() );
+                DrawRuntimeNodeIndex( ctx, pGraphNodeContext, this, runtimeNodeIdx );
             }
         }
 
         if ( shouldDrawEmptyDebugInfoBlock )
         {
-            DrawEmptyPoseNodeDebugInfo( ctx, GetWidth() );
+            DrawPoseNodeDebugInfo( ctx, GetWidth(), nullptr );
         }
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + scaledVerticalGap );
     }
 
     bool StateToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const
@@ -451,6 +447,11 @@ namespace EE::Animation::GraphNodes
 
     void StateToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
     {
+        for ( auto const ID : m_events )
+        {
+            outIDs.emplace_back( ID );
+        }
+
         for ( auto const ID : m_entryEvents )
         {
             outIDs.emplace_back( ID );

@@ -1,13 +1,13 @@
 // Copyright (c) 2013 Doug Binks
-// 
+//
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
 // arising from the use of this software.
-// 
+//
 // Permission is granted to anyone to use this software for any purpose,
 // including commercial applications, and to alter it and redistribute it
 // freely, subject to the following restrictions:
-// 
+//
 // 1. The origin of this software must not be misrepresented; you must not
 //    claim that you wrote the original software. If you use this software
 //    in a product, an acknowledgement in the product documentation would be
@@ -40,33 +40,67 @@ namespace
 #define ENKI_FILE_AND_LINE  gc_File, gc_Line
 #endif
 
+// UWP and MinGW don't have GetActiveProcessorCount
+#if defined(_WIN64) \
+    && !defined(__MINGW32__) \
+    && !(defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP))
+#define ENKI_USE_WINDOWS_PROCESSOR_API
+#endif
+
+#ifdef ENKI_USE_WINDOWS_PROCESSOR_API
+
+#ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifndef NOMINMAX
+    #define NOMINMAX
+#endif
+
+#include "Windows.h"
+#endif
+
+uint32_t enki::GetNumHardwareThreads()
+{
+#ifdef ENKI_USE_WINDOWS_PROCESSOR_API
+    return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+#else
+    return std::thread::hardware_concurrency();
+#endif
+}
+
 namespace enki
 {
-    static const int32_t  gc_TaskStartCount          = 2;
-    static const int32_t  gc_TaskAlmostCompleteCount = 1; // GetIsComplete() will return false, but execution is done and about to complete
-    static const uint32_t gc_PipeSizeLog2            = 8;
-    static const uint32_t gc_SpinCount               = 10;
-    static const uint32_t gc_SpinBackOffMulitplier   = 100;
-    static const uint32_t gc_MaxNumInitialPartitions = 8;
-    static const uint32_t gc_CacheLineSize           = 64;
+    static constexpr int32_t  gc_TaskStartCount          = 2;
+    static constexpr int32_t  gc_TaskAlmostCompleteCount = 1; // GetIsComplete() will return false, but execution is done and about to complete
+    static constexpr uint32_t gc_PipeSizeLog2            = 8;
+    static constexpr uint32_t gc_SpinCount               = 10;
+    static constexpr uint32_t gc_SpinBackOffMultiplier   = 100;
+    static constexpr uint32_t gc_MaxNumInitialPartitions = 8;
+    static constexpr uint32_t gc_MaxStolenPartitions     = 1 << gc_PipeSizeLog2;
+    static constexpr uint32_t gc_CacheLineSize           = 64;
     // awaiting std::hardware_constructive_interference_size
-};
+}
 
-// thread_local not well supported yet by C++11 compilers.
-#ifdef _MSC_VER
-    #if _MSC_VER <= 1800
-        #define thread_local __declspec(thread)
-    #endif
-#elif __APPLE__
-        // Apple thread_local currently not implemented despite it being in Clang.
-        #define thread_local __thread
+// thread_local not well supported yet by some older C++11 compilers.
+// For XCode before version 8 thread_local is not defined, so add to your compile defines: ENKI_THREAD_LOCAL __thread
+#ifndef ENKI_THREAD_LOCAL
+#if defined(_MSC_VER) && _MSC_VER <= 1800
+        #define ENKI_THREAD_LOCAL __declspec(thread)
+// Removed below as XCode supports thread_local since version 8
+// #elif __APPLE__
+//         // Apple thread_local currently not implemented in XCode before version 8 despite it being in Clang.
+//         #define ENKI_THREAD_LOCAL __thread
+#else
+        #define ENKI_THREAD_LOCAL thread_local
+#endif
 #endif
 
 
-// each software thread gets it's own copy of gtl_threadNum, so this is safe to use as a static variable
-static thread_local uint32_t                             gtl_threadNum       = 0;
+// each software thread gets its own copy of gtl_threadNum, so this is safe to use as a static variable
+static ENKI_THREAD_LOCAL uint32_t  gtl_threadNum             = enki::NO_THREAD_NUM;
 
-namespace enki 
+namespace enki
 {
     struct SubTaskSet
     {
@@ -75,7 +109,7 @@ namespace enki
     };
 
     // we derive class TaskPipe rather than typedef to get forward declaration working easily
-    class TaskPipe : public LockLessMultiReadPipe<gc_PipeSizeLog2,enki::SubTaskSet> {};
+    class TaskPipe : public LockLessMultiReadPipe<gc_PipeSizeLog2, enki::SubTaskSet> {};
 
     enum ThreadState : int32_t
     {
@@ -97,11 +131,12 @@ namespace enki
         TaskScheduler*           pTaskScheduler;
     };
 
-    struct alignas(enki::gc_CacheLineSize) ThreadDataStore 
+    struct alignas(enki::gc_CacheLineSize) ThreadDataStore
     {
         semaphoreid_t*           pWaitNewPinnedTaskSemaphore = nullptr;
         std::atomic<ThreadState> threadState = { ENKI_THREAD_STATE_NONE };
-        char prevent_false_Share[ enki::gc_CacheLineSize - sizeof(std::atomic<ThreadState>) - sizeof(semaphoreid_t*) ];
+        uint32_t                 rndSeed = 0;
+        char prevent_false_Share[ enki::gc_CacheLineSize - sizeof(std::atomic<ThreadState>) - sizeof(semaphoreid_t*) - sizeof( uint32_t ) ]; // required to prevent alignment padding warning
     };
     constexpr size_t SIZEOFTHREADDATASTORE = sizeof( ThreadDataStore ); // for easier inspection
     static_assert( SIZEOFTHREADDATASTORE == enki::gc_CacheLineSize, "ThreadDataStore may exhibit false sharing" );
@@ -120,11 +155,7 @@ namespace
     {
         SubTaskSet splitTask = subTask_;
         uint32_t rangeLeft = subTask_.partition.end - subTask_.partition.start;
-
-        if( rangeToSplit_ > rangeLeft )
-        {
-            rangeToSplit_ = rangeLeft;
-        }
+        rangeToSplit_ = std::min( rangeToSplit_, rangeLeft );
         splitTask.partition.end = subTask_.partition.start + rangeToSplit_;
         subTask_.partition.start = splitTask.partition.end;
         return splitTask;
@@ -132,37 +163,37 @@ namespace
 
     #if ( defined _WIN32 && ( defined _M_IX86  || defined _M_X64 ) ) || ( defined __i386__ || defined __x86_64__ )
     // Note: see https://software.intel.com/en-us/articles/a-common-construct-to-avoid-the-contention-of-threads-architecture-agnostic-spin-wait-loops
-    static void SpinWait( uint32_t spinCount_ )
+    void SpinWait( uint32_t spinCount_ )
     {
         uint64_t end = __rdtsc() + spinCount_;
         while( __rdtsc() < end )
         {
             _mm_pause();
-        }        
+        }
     }
     #else
-    static void SpinWait( uint32_t spinCount_ )
+    void SpinWait( uint32_t spinCount_ )
     {
         while( spinCount_ )
         {
             // TODO: may have NOP or yield equiv
             --spinCount_;
-        }        
+        }
     }
     #endif
-}
 
-static void SafeCallback( ProfilerCallbackFunc func_, uint32_t threadnum_ )
-{
-    if( func_ != nullptr )
+    void SafeCallback( ProfilerCallbackFunc func_, uint32_t threadnum_ )
     {
-        func_( threadnum_ );
+        if( func_ != nullptr )
+        {
+            func_( threadnum_ );
+        }
     }
 }
 
-   
+
 ENKITS_API void* enki::DefaultAllocFunc( size_t align_, size_t size_, void* userData_, const char* file_, int line_ )
-{ 
+{
     (void)userData_; (void)file_; (void)line_;
     void* pRet;
 #ifdef _WIN32
@@ -177,11 +208,11 @@ ENKITS_API void* enki::DefaultAllocFunc( size_t align_, size_t size_, void* user
     else
     {
         int retval = posix_memalign( &pRet, align_, size_ );
-        (void)retval;	//unused
+        (void)retval; // unused
     }
 #endif
     return pRet;
-};
+}
 
 ENKITS_API void  enki::DefaultFreeFunc(  void* ptr_,   size_t size_, void* userData_, const char* file_, int line_ )
 {
@@ -191,7 +222,7 @@ ENKITS_API void  enki::DefaultFreeFunc(  void* ptr_,   size_t size_, void* userD
 #else
     free( ptr_ );
 #endif
-};
+}
 
 bool TaskScheduler::RegisterExternalTaskThread()
 {
@@ -232,14 +263,15 @@ bool TaskScheduler::RegisterExternalTaskThread( uint32_t threadNumToRegister_ )
 
 void TaskScheduler::DeRegisterExternalTaskThread()
 {
-    ENKI_ASSERT( gtl_threadNum );
+    ENKI_ASSERT( gtl_threadNum != enki::NO_THREAD_NUM );
+    ENKI_ASSERT( gtl_threadNum >= GetNumFirstExternalTaskThread() );
     ThreadState threadState = m_pThreadDataStore[gtl_threadNum].threadState.load( std::memory_order_acquire );
     ENKI_ASSERT( threadState == ENKI_THREAD_STATE_EXTERNAL_REGISTERED );
     if( threadState == ENKI_THREAD_STATE_EXTERNAL_REGISTERED )
     {
         --m_NumExternalTaskThreadsRegistered;
         m_pThreadDataStore[gtl_threadNum].threadState.store( ENKI_THREAD_STATE_EXTERNAL_UNREGISTERED, std::memory_order_release );
-        gtl_threadNum = 0;
+        gtl_threadNum = enki::NO_THREAD_NUM;
     }
 }
 
@@ -258,7 +290,7 @@ void TaskScheduler::TaskingThreadFunction( const ThreadArgs& args_ )
     SafeCallback( pTS->m_Config.profilerCallbacks.threadStart, threadNum );
 
     uint32_t spinCount = 0;
-    uint32_t hintPipeToCheck_io = threadNum + 1;    // does not need to be clamped.
+    uint32_t hintPipeToCheck_io = threadNum + 1; // does not need to be clamped.
     while( pTS->GetIsRunning() )
     {
         if( !pTS->TryRunTask( threadNum, hintPipeToCheck_io ) )
@@ -271,7 +303,7 @@ void TaskScheduler::TaskingThreadFunction( const ThreadArgs& args_ )
             }
             else
             {
-                uint32_t spinBackoffCount = spinCount * gc_SpinBackOffMulitplier;
+                uint32_t spinBackoffCount = spinCount * gc_SpinBackOffMultiplier;
                 SpinWait( spinBackoffCount );
             }
         }
@@ -284,8 +316,6 @@ void TaskScheduler::TaskingThreadFunction( const ThreadArgs& args_ )
     pTS->m_NumInternalTaskThreadsRunning.fetch_sub( 1, std::memory_order_release );
     pTS->m_pThreadDataStore[threadNum].threadState.store( ENKI_THREAD_STATE_STOPPED, std::memory_order_release );
     SafeCallback( pTS->m_Config.profilerCallbacks.threadStop, threadNum );
-    return;
-
 }
 
 
@@ -312,6 +342,7 @@ void TaskScheduler::StartThreads()
     m_pThreads           = NewArray<std::thread>( m_NumThreads, ENKI_FILE_AND_LINE );
     m_bRunning = true;
     m_bWaitforAllCalled = false;
+    m_bShutdownRequested = false;
 
     // current thread is primary enkiTS thread
     m_pThreadDataStore[0].threadState = ENKI_THREAD_STATE_PRIMARY_REGISTERED;
@@ -332,14 +363,15 @@ void TaskScheduler::StartThreads()
         ++m_NumInternalTaskThreadsRunning;
     }
 
-    // Create Wait New Pinned Task Semaphores
+    // Create Wait New Pinned Task Semaphores and init rndSeed
     for( uint32_t threadNum = 0; threadNum < m_NumThreads; ++threadNum )
     {
         m_pThreadDataStore[threadNum].pWaitNewPinnedTaskSemaphore = SemaphoreNew();
+        m_pThreadDataStore[threadNum].rndSeed = threadNum;
     }
 
     // ensure we have sufficient tasks to equally fill either all threads including main
-    // or just the threads we've launched, this is outside the firstinit as we want to be able
+    // or just the threads we've launched, this is outside the first init as we want to be able
     // to runtime change it
     if( 1 == m_NumThreads )
     {
@@ -356,24 +388,77 @@ void TaskScheduler::StartThreads()
         // ensure m_NumPartitions, m_NumInitialPartitions non zero, can happen if m_NumThreads > 1 && GetNumHardwareThreads() == 1
         m_NumPartitions        = std::max( m_NumPartitions,              (uint32_t)1 );
         m_NumInitialPartitions = std::max( numThreadsToPartitionFor - 1, (uint32_t)1 );
-        if( m_NumInitialPartitions > gc_MaxNumInitialPartitions )
+        m_NumInitialPartitions = std::min( m_NumInitialPartitions, gc_MaxNumInitialPartitions );
+    }
+
+#ifdef ENKI_USE_WINDOWS_PROCESSOR_API
+    // x64 bit Windows may support >64 logical processors using processor groups, and only allocate threads to a default group.
+    // We need to detect this and distribute threads accordingly
+    if( GetNumHardwareThreads() > 64 &&                                    // only have processor groups if > 64 hardware threads
+        std::thread::hardware_concurrency() < GetNumHardwareThreads() &&   // if std::thread sees > 64 hardware threads no need to distribute
+        std::thread::hardware_concurrency() < m_NumThreads )               // no need to distribute if number of threads requested lower than std::thread sees
+    {
+        uint32_t numProcessorGroups = GetActiveProcessorGroupCount();
+        GROUP_AFFINITY mainThreadAffinity;
+        BOOL success = GetThreadGroupAffinity( GetCurrentThread(), &mainThreadAffinity );
+        ENKI_ASSERT( success );
+        if( success )
         {
-            m_NumInitialPartitions = gc_MaxNumInitialPartitions;
+            uint32_t mainProcessorGroup = mainThreadAffinity.Group;
+            uint32_t currLogicalProcess = GetActiveProcessorCount( (WORD) mainProcessorGroup ); // we start iteration at end of current process group's threads
+
+            // If more threads are created than there are logical processors then we still want to distribute them evenly amongst groups
+            // so we iterate continuously around the groups until we reach m_NumThreads
+            uint32_t group = 0;
+            while( currLogicalProcess < m_NumThreads )
+            {
+                ++group; // start at group 1 since we set currLogicalProcess to start of next group
+                uint32_t currGroup = ( group + mainProcessorGroup ) % numProcessorGroups; // we start at mainProcessorGroup, go round in circles
+                uint32_t groupNumLogicalProcessors = GetActiveProcessorCount( (WORD) currGroup );
+                ENKI_ASSERT( groupNumLogicalProcessors <= 64 );
+                uint64_t GROUPMASK = 0xFFFFFFFFFFFFFFFFULL >> (64-groupNumLogicalProcessors); // group mask should not have 1's where there are no processors
+                for( uint32_t groupLogicalProcess = 0; ( groupLogicalProcess < groupNumLogicalProcessors ) && ( currLogicalProcess < m_NumThreads ); ++groupLogicalProcess, ++currLogicalProcess )
+                {
+                    if( currLogicalProcess > m_Config.numExternalTaskThreads + GetNumFirstExternalTaskThread() )
+                    {
+                        auto thread_handle = m_pThreads[currLogicalProcess].native_handle();
+
+                        // From https://learn.microsoft.com/en-us/windows/win32/procthread/processor-groups
+                        // If a thread is assigned to a different group than the process, the process's affinity is updated to include the thread's affinity
+                        // and the process becomes a multi-group process.
+                        GROUP_AFFINITY threadAffinity;
+                        success = GetThreadGroupAffinity( thread_handle, &threadAffinity );
+                        ENKI_ASSERT(success); (void)success;
+                        if( threadAffinity.Group != currGroup )
+                        {
+                            threadAffinity.Group = (WORD) currGroup;
+                            threadAffinity.Mask  = GROUPMASK;
+                            success = SetThreadGroupAffinity( thread_handle, &threadAffinity, nullptr );
+                            ENKI_ASSERT( success ); (void)success;
+                        }
+                    }
+                }
+            }
         }
     }
+#endif
 
     m_bHaveThreads = true;
 }
 
 void TaskScheduler::StopThreads( bool bWait_ )
 {
+    // we set m_bWaitforAllCalled to true to ensure any task which loop using this status exit
+    m_bWaitforAllCalled.store( true, std::memory_order_release );
+
+    // set status
+    m_bShutdownRequested.store( true, std::memory_order_release );
+    m_bRunning.store( false, std::memory_order_release );
+
     if( m_bHaveThreads )
     {
-        // wait for them threads quit before deleting data
-        m_bRunning.store( false, std::memory_order_release );
-        m_bWaitforAllCalled.store( false, std::memory_order_release );
 
-
+        // wait for threads to quit before deleting data
         while( bWait_ && m_NumInternalTaskThreadsRunning )
         {
             // keep firing event to ensure all threads pick up state of m_bRunning
@@ -438,6 +523,39 @@ bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t& hintPipeToCheck_i
     return false;
 }
 
+static inline uint32_t RotateLeft( uint32_t value, int32_t count )
+{
+    return ( value << count ) | ( value >> ( 32 - count ));
+}
+/*  xxHash variant based on documentation on
+    https://github.com/Cyan4973/xxHash/blob/eec5700f4d62113b47ee548edbc4746f61ffb098/doc/xxhash_spec.md
+
+    Copyright (c) Yann Collet
+
+    Permission is granted to copy and distribute this document for any purpose and without charge, including translations into other languages and incorporation into compilations, provided that the copyright notice and this notice are preserved, and that any substantive changes or deletions from the original are clearly marked. Distribution of this document is unlimited.
+*/
+static inline uint32_t Hash32( uint32_t in_ )
+{
+    static const uint32_t PRIME32_1 = 2654435761U;  // 0b10011110001101110111100110110001
+    static const uint32_t PRIME32_2 = 2246822519U;  // 0b10000101111010111100101001110111
+    static const uint32_t PRIME32_3 = 3266489917U;  // 0b11000010101100101010111000111101
+    static const uint32_t PRIME32_4 =  668265263U;  // 0b00100111110101001110101100101111
+    static const uint32_t PRIME32_5 =  374761393U;  // 0b00010110010101100110011110110001
+    static const uint32_t SEED      = 0; // can configure seed if needed
+
+    // simple hash of nodes, does not check if nodePool is compressed or not.
+    uint32_t acc = SEED + PRIME32_5;
+
+    // add node types to map, and also ensure that fully empty nodes are well distributed by hashing the pointer.
+    acc += in_;
+    acc = acc ^ (acc >> 15);
+    acc = acc * PRIME32_2;
+    acc = acc ^ (acc >> 13);
+    acc = acc * PRIME32_3;
+    acc = acc ^ (acc >> 16);
+    return (std::size_t)acc;
+}
+
 bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t priority_, uint32_t& hintPipeToCheck_io_ )
 {
     // Run any tasks for this thread
@@ -447,18 +565,31 @@ bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t priority_, uint32_
     SubTaskSet subTask;
     bool bHaveTask = m_pPipesPerThread[ priority_ ][ threadNum_ ].WriterTryReadFront( &subTask );
 
-    uint32_t threadToCheck = hintPipeToCheck_io_;
+    uint32_t threadToCheckStart = hintPipeToCheck_io_ % m_NumThreads;
+    uint32_t threadToCheck      = threadToCheckStart;
     uint32_t checkCount = 0;
-    while( !bHaveTask && checkCount < m_NumThreads )
+    if( !bHaveTask )
     {
-        threadToCheck = ( hintPipeToCheck_io_ + checkCount ) % m_NumThreads;
-        if( threadToCheck != threadNum_ )
+        bHaveTask = m_pPipesPerThread[ priority_ ][ threadToCheck ].ReaderTryReadBack( &subTask );
+        if( !bHaveTask )
         {
-            bHaveTask = m_pPipesPerThread[ priority_ ][ threadToCheck ].ReaderTryReadBack( &subTask );
+            // To prevent many threads checking the same task pipe for work we pseudorandomly distribute
+            // the starting thread which we start checking for tasks to run
+            uint32_t& rndSeed = m_pThreadDataStore[threadNum_].rndSeed;
+            ++rndSeed;
+            uint32_t threadToCheckOffset = Hash32( rndSeed * threadNum_ );
+            while( !bHaveTask && checkCount < m_NumThreads )
+            {
+                threadToCheck = ( threadToCheckOffset + checkCount ) % m_NumThreads;
+                if( threadToCheck != threadNum_ && threadToCheckOffset != threadToCheckStart )
+                {
+                    bHaveTask = m_pPipesPerThread[ priority_ ][ threadToCheck ].ReaderTryReadBack( &subTask );
+                }
+                ++checkCount;
+            }
         }
-        ++checkCount;
     }
-        
+
     if( bHaveTask )
     {
         // update hint, will preserve value unless actually got task from another thread.
@@ -468,9 +599,18 @@ bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t priority_, uint32_
         if( subTask.pTask->m_RangeToRun < partitionSize )
         {
             SubTaskSet taskToRun = SplitTask( subTask, subTask.pTask->m_RangeToRun );
-            SplitAndAddTask( threadNum_, subTask, subTask.pTask->m_RangeToRun );
+            uint32_t rangeToSplit = subTask.pTask->m_RangeToRun;
+            if( threadNum_ != threadToCheck )
+            {
+                // task was stolen from another thread
+                // in order to ensure other threads can get enough work we need to split into larger ranges
+                // these larger splits are then stolen and split themselves
+                // otherwise other threads must keep stealing from this thread, which may stall when pipe is full
+                rangeToSplit = std::max( rangeToSplit, (subTask.partition.end - subTask.partition.start) / gc_MaxStolenPartitions );
+            }
+            SplitAndAddTask( threadNum_, subTask, rangeToSplit );
             taskToRun.pTask->ExecuteRange( taskToRun.partition, threadNum_ );
-            int prevCount = taskToRun.pTask->m_RunningCount.fetch_sub(1,std::memory_order_release );
+            int prevCount = taskToRun.pTask->m_RunningCount.fetch_sub(1,std::memory_order_acq_rel );
             if( gc_TaskStartCount == prevCount )
             {
                 TaskComplete( taskToRun.pTask, true, threadNum_ );
@@ -480,7 +620,7 @@ bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t priority_, uint32_
         {
             // the task has already been divided up by AddTaskSetToPipe, so just run it
             subTask.pTask->ExecuteRange( subTask.partition, threadNum_ );
-            int prevCount = subTask.pTask->m_RunningCount.fetch_sub(1,std::memory_order_release );
+            int prevCount = subTask.pTask->m_RunningCount.fetch_sub(1,std::memory_order_acq_rel );
             if( gc_TaskStartCount == prevCount )
             {
                 TaskComplete( subTask.pTask, true, threadNum_ );
@@ -495,7 +635,7 @@ bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t priority_, uint32_
 void TaskScheduler::TaskComplete( ICompletable* pTask_, bool bWakeThreads_, uint32_t threadNum_ )
 {
     // It must be impossible for a thread to enter the sleeping wait prior to the load of m_WaitingForTaskCount
-    // in this function, so we introduce an gc_TaskAlmostCompleteCount to prevent this.
+    // in this function, so we introduce a gc_TaskAlmostCompleteCount to prevent this.
     ENKI_ASSERT( gc_TaskAlmostCompleteCount == pTask_->m_RunningCount.load( std::memory_order_acquire ) );
     bool bCallWakeThreads = bWakeThreads_ && pTask_->m_WaitingForTaskCount.load( std::memory_order_acquire );
 
@@ -511,22 +651,23 @@ void TaskScheduler::TaskComplete( ICompletable* pTask_, bool bWakeThreads_, uint
 
     while( pDependent )
     {
-        int prevDeps = pDependent->pTaskToRunOnCompletion->m_DependenciesCompletedCount.fetch_add( 1, std::memory_order_release );
-        ENKI_ASSERT( prevDeps < pDependent->pTaskToRunOnCompletion->m_DependenciesCount );
-        if( pDependent->pTaskToRunOnCompletion->m_DependenciesCount == ( prevDeps + 1 ) )
+        // access pTaskToRunOnCompletion member data before incrementing m_DependenciesCompletedCount so
+        // they do not get deleted when another thread completes the pTaskToRunOnCompletion
+        int32_t dependenciesCount  = pDependent->pTaskToRunOnCompletion->m_DependenciesCount;
+        // get temp copy of pDependent so OnDependenciesComplete can delete task if needed.
+        Dependency* pDependentCurr = pDependent;
+        pDependent                 = pDependent->pNext;
+        int32_t prevDeps = pDependentCurr->pTaskToRunOnCompletion->m_DependenciesCompletedCount.fetch_add( 1, std::memory_order_release );
+        ENKI_ASSERT( prevDeps < dependenciesCount );
+        if( dependenciesCount == ( prevDeps + 1 ) )
         {
-            // get temp copy of pDependent so OnDependenciesComplete can delete task if needed.
-            Dependency* pDependentCurr = pDependent;
-            pDependent = pDependent->pNext;
             // reset dependencies
+            // only safe to access pDependentCurr here after above fetch_add because this is the thread
+            // which calls OnDependenciesComplete after store with memory_order_release
             pDependentCurr->pTaskToRunOnCompletion->m_DependenciesCompletedCount.store(
                 0,
                 std::memory_order_release );
             pDependentCurr->pTaskToRunOnCompletion->OnDependenciesComplete( this, threadNum_ );
-        }
-        else
-        {
-            pDependent = pDependent->pNext;
         }
     }
 }
@@ -555,12 +696,12 @@ void TaskScheduler::WaitForNewTasks( uint32_t threadNum_ )
     // We don't want to suspend this thread if there are task threads
     // with pinned tasks suspended, as it could result in this thread
     // being unsuspended and not the thread with pinned tasks
-    if( WakeSuspendedThreadsWithPinnedTasks() )
+    if( WakeSuspendedThreadsWithPinnedTasks( threadNum_ ) )
     {
         return;
     }
 
-    // We incrememt the number of threads waiting here in order
+    // We increment the number of threads waiting here in order
     // to ensure that the check for tasks occurs after the increment
     // to prevent a task being added after a check, then the thread waiting.
     // This will occasionally result in threads being mistakenly awoken,
@@ -588,20 +729,20 @@ void TaskScheduler::WaitForTaskCompletion( const ICompletable* pCompletable_, ui
     // We don't want to suspend this thread if there are task threads
     // with pinned tasks suspended, as the completable could be a pinned task
     // or it could be waiting on one.
-    if( WakeSuspendedThreadsWithPinnedTasks() )
+    if( WakeSuspendedThreadsWithPinnedTasks( threadNum_ ) )
     {
         return;
     }
 
-    m_NumThreadsWaitingForTaskCompletion.fetch_add( 1, std::memory_order_acquire );
-    pCompletable_->m_WaitingForTaskCount.fetch_add( 1, std::memory_order_acquire );
+    m_NumThreadsWaitingForTaskCompletion.fetch_add( 1, std::memory_order_acq_rel );
+    pCompletable_->m_WaitingForTaskCount.fetch_add( 1, std::memory_order_acq_rel );
     ThreadState prevThreadState = m_pThreadDataStore[threadNum_].threadState.load( std::memory_order_relaxed );
     m_pThreadDataStore[threadNum_].threadState.store( ENKI_THREAD_STATE_WAIT_TASK_COMPLETION, std::memory_order_seq_cst );
 
     // do not wait on semaphore if task in gc_TaskAlmostCompleteCount state.
     if( gc_TaskAlmostCompleteCount >= pCompletable_->m_RunningCount.load( std::memory_order_acquire ) || HaveTasks( threadNum_ ) )
     {
-        m_NumThreadsWaitingForTaskCompletion.fetch_sub( 1, std::memory_order_release );
+        m_NumThreadsWaitingForTaskCompletion.fetch_sub( 1, std::memory_order_acq_rel );
     }
     else
     {
@@ -618,7 +759,7 @@ void TaskScheduler::WaitForTaskCompletion( const ICompletable* pCompletable_, ui
     }
 
     m_pThreadDataStore[threadNum_].threadState.store( prevThreadState, std::memory_order_release );
-    pCompletable_->m_WaitingForTaskCount.fetch_sub( 1, std::memory_order_release );
+    pCompletable_->m_WaitingForTaskCount.fetch_sub( 1, std::memory_order_acq_rel );
 }
 
 void TaskScheduler::WakeThreadsForNewTasks()
@@ -648,16 +789,15 @@ void TaskScheduler::WakeThreadsForTaskCompletion()
     }
 }
 
-bool TaskScheduler::WakeSuspendedThreadsWithPinnedTasks()
+bool TaskScheduler::WakeSuspendedThreadsWithPinnedTasks( uint32_t threadNum_ )
 {
-    uint32_t threadNum = gtl_threadNum;
     for( uint32_t t = 1; t < m_NumThreads; ++t )
     {
         // distribute thread checks more evenly by starting at our thread number rather than 0.
-        uint32_t thread = ( threadNum + t ) % m_NumThreads;
+        uint32_t thread = ( threadNum_ + t ) % m_NumThreads;
 
         ThreadState state = m_pThreadDataStore[ thread ].threadState.load( std::memory_order_acquire );
-            
+
         ENKI_ASSERT( state != ENKI_THREAD_STATE_NONE );
 
         if( state == ENKI_THREAD_STATE_WAIT_NEW_TASKS || state == ENKI_THREAD_STATE_WAIT_TASK_COMPLETION )
@@ -679,23 +819,27 @@ bool TaskScheduler::WakeSuspendedThreadsWithPinnedTasks()
 void TaskScheduler::SplitAndAddTask( uint32_t threadNum_, SubTaskSet subTask_, uint32_t rangeToSplit_ )
 {
     int32_t numAdded = 0;
+    int32_t numNewTasksSinceNotification = 0;
     int32_t numRun   = 0;
+
+    int32_t upperBoundNumToAdd = 2 + (int32_t)( ( subTask_.partition.end - subTask_.partition.start ) / rangeToSplit_ );
+
     // ensure that an artificial completion is not registered whilst adding tasks by incrementing count
-    subTask_.pTask->m_RunningCount.fetch_add( 1, std::memory_order_acquire );
+    subTask_.pTask->m_RunningCount.fetch_add( upperBoundNumToAdd, std::memory_order_acquire );
     while( subTask_.partition.start != subTask_.partition.end )
     {
         SubTaskSet taskToAdd = SplitTask( subTask_, rangeToSplit_ );
 
         // add the partition to the pipe
-        ++numAdded;
-        subTask_.pTask->m_RunningCount.fetch_add( 1, std::memory_order_acquire );
+        ++numAdded; ++numNewTasksSinceNotification;
         if( !m_pPipesPerThread[ subTask_.pTask->m_Priority ][ threadNum_ ].WriterTryWriteFront( taskToAdd ) )
         {
-            if( numAdded > 1 )
+            --numAdded; // we were unable to add the task
+            if( numNewTasksSinceNotification > 1 )
             {
                 WakeThreadsForNewTasks();
             }
-            numAdded = 0;
+            numNewTasksSinceNotification = 0;
             // alter range to run the appropriate fraction
             if( taskToAdd.pTask->m_RangeToRun < taskToAdd.partition.end - taskToAdd.partition.start )
             {
@@ -707,8 +851,10 @@ void TaskScheduler::SplitAndAddTask( uint32_t threadNum_, SubTaskSet subTask_, u
             ++numRun;
         }
     }
-    int prevCount = subTask_.pTask->m_RunningCount.fetch_sub( numRun + 1, std::memory_order_release );
-    if( numRun + gc_TaskStartCount == prevCount )
+    int32_t countToRemove = upperBoundNumToAdd - numAdded;
+    ENKI_ASSERT( countToRemove > 0 );
+    int prevCount = subTask_.pTask->m_RunningCount.fetch_sub( countToRemove, std::memory_order_acq_rel );
+    if( countToRemove-1 + gc_TaskStartCount == prevCount )
     {
         TaskComplete( subTask_.pTask, false, threadNum_ );
     }
@@ -732,17 +878,18 @@ void TaskScheduler::AddTaskSetToPipeInt( ITaskSet* pTaskSet_, uint32_t threadNum
 
     // divide task up and add to pipe
     pTaskSet_->m_RangeToRun = pTaskSet_->m_SetSize / m_NumPartitions;
-    if( pTaskSet_->m_RangeToRun < pTaskSet_->m_MinRange ) { pTaskSet_->m_RangeToRun = pTaskSet_->m_MinRange; }
+    pTaskSet_->m_RangeToRun = std::max( pTaskSet_->m_RangeToRun, pTaskSet_->m_MinRange );
+    // Note: if m_SetSize is < m_RangeToRun this will be handled by SplitTask and so does not need to be handled here
 
     uint32_t rangeToSplit = pTaskSet_->m_SetSize / m_NumInitialPartitions;
-    if( rangeToSplit < pTaskSet_->m_MinRange ) { rangeToSplit = pTaskSet_->m_MinRange; }
+    rangeToSplit = std::max( rangeToSplit, pTaskSet_->m_MinRange );
 
     SubTaskSet subTask;
     subTask.pTask = pTaskSet_;
     subTask.partition.start = 0;
     subTask.partition.end = pTaskSet_->m_SetSize;
     SplitAndAddTask( threadNum_, subTask, rangeToSplit );
-    int prevCount = pTaskSet_->m_RunningCount.fetch_sub(1, std::memory_order_release );
+    int prevCount = pTaskSet_->m_RunningCount.fetch_sub(1, std::memory_order_acq_rel );
     if( gc_TaskStartCount == prevCount )
     {
         TaskComplete( pTaskSet_, true, threadNum_ );
@@ -785,8 +932,8 @@ void TaskScheduler::AddPinnedTask( IPinnedTask* pTask_ )
 
 void TaskScheduler::InitDependencies( ICompletable* pCompletable_ )
 {
-    // go through any dependencies and set thier running count so they show as not complete
-    // and increment depedency count
+    // go through any dependencies and set their running count so they show as not complete
+    // and increment dependency count
     if( pCompletable_->m_RunningCount.load( std::memory_order_relaxed ) )
     {
         // already initialized
@@ -804,6 +951,7 @@ void TaskScheduler::InitDependencies( ICompletable* pCompletable_ )
 
 void TaskScheduler::RunPinnedTasks()
 {
+    ENKI_ASSERT( gtl_threadNum != enki::NO_THREAD_NUM );
     uint32_t threadNum = gtl_threadNum;
     ThreadState prevThreadState = m_pThreadDataStore[threadNum].threadState.load( std::memory_order_relaxed );
     m_pThreadDataStore[threadNum].threadState.store( ENKI_THREAD_STATE_RUNNING, std::memory_order_relaxed );
@@ -824,7 +972,7 @@ void TaskScheduler::RunPinnedTasks( uint32_t threadNum_, uint32_t priority_ )
         if( pPinnedTaskSet )
         {
             pPinnedTaskSet->Execute();
-            pPinnedTaskSet->m_RunningCount.fetch_sub(1,std::memory_order_release);
+            pPinnedTaskSet->m_RunningCount.fetch_sub(1,std::memory_order_acq_rel);
             TaskComplete( pPinnedTaskSet, true, threadNum_ );
         }
     } while( pPinnedTaskSet );
@@ -832,6 +980,7 @@ void TaskScheduler::RunPinnedTasks( uint32_t threadNum_, uint32_t priority_ )
 
 void    TaskScheduler::WaitforTask( const ICompletable* pCompletable_, enki::TaskPriority priorityOfLowestToRun_ )
 {
+    ENKI_ASSERT( gtl_threadNum != enki::NO_THREAD_NUM );
     uint32_t threadNum = gtl_threadNum;
     uint32_t hintPipeToCheck_io = threadNum + 1;    // does not need to be clamped.
 
@@ -848,7 +997,7 @@ void    TaskScheduler::WaitforTask( const ICompletable* pCompletable_, enki::Tas
         // so we clamp the priorityOfLowestToRun_ to no smaller than the task we're waiting for
         priorityOfLowestToRun_ = std::max( priorityOfLowestToRun_, pCompletable_->m_Priority );
         uint32_t spinCount = 0;
-        while( !pCompletable_->GetIsComplete() )
+        while( !pCompletable_->GetIsComplete() && GetIsRunning() )
         {
             ++spinCount;
             for( int priority = 0; priority <= priorityOfLowestToRun_; ++priority )
@@ -866,17 +1015,17 @@ void    TaskScheduler::WaitforTask( const ICompletable* pCompletable_, enki::Tas
             }
             else
             {
-                uint32_t spinBackoffCount = spinCount * gc_SpinBackOffMulitplier;
+                uint32_t spinBackoffCount = spinCount * gc_SpinBackOffMultiplier;
                 SpinWait( spinBackoffCount );
             }
         }
         SafeCallback( m_Config.profilerCallbacks.waitForTaskCompleteStop, threadNum );
     }
-    else
+    else if( nullptr == pCompletable_ )
     {
             for( int priority = 0; priority <= priorityOfLowestToRun_; ++priority )
             {
-                if( TryRunTask( gtl_threadNum, priority, hintPipeToCheck_io ) )
+                if( TryRunTask( threadNum, priority, hintPipeToCheck_io ) )
                 {
                     break;
                 }
@@ -897,6 +1046,7 @@ class TaskSchedulerWaitTask : public IPinnedTask
 
 void TaskScheduler::WaitforAll()
 {
+    ENKI_ASSERT( gtl_threadNum != enki::NO_THREAD_NUM );
     m_bWaitforAllCalled.store( true, std::memory_order_release );
 
     bool bHaveTasks = true;
@@ -906,7 +1056,7 @@ void TaskScheduler::WaitforAll()
     uint32_t spinCount = 0;
     TaskSchedulerWaitTask dummyWaitTask;
     dummyWaitTask.threadNum = 0;
-    while( bHaveTasks || otherThreadsRunning )
+    while( GetIsRunning() && ( bHaveTasks || otherThreadsRunning ) )
     {
         bHaveTasks = TryRunTask( ourThreadNum, hintPipeToCheck_io );
         ++spinCount;
@@ -925,7 +1075,7 @@ void TaskScheduler::WaitforAll()
                 dummyWaitTask.threadNum = ( dummyWaitTask.threadNum + 1 ) % m_NumThreads;
 
                 // We can only add a pinned task to wait on if we find an enki Task Thread which isn't this thread.
-                // Otherwise we have to busy wait.
+                // Otherwise, we have to busy wait.
                 if( dummyWaitTask.threadNum != ourThreadNum && dummyWaitTask.threadNum > m_Config.numExternalTaskThreads )
                 {
                     ThreadState state = m_pThreadDataStore[ dummyWaitTask.threadNum ].threadState.load( std::memory_order_acquire );
@@ -947,7 +1097,7 @@ void TaskScheduler::WaitforAll()
         }
         else
         {
-            uint32_t spinBackoffCount = spinCount * gc_SpinBackOffMulitplier;
+            uint32_t spinBackoffCount = spinCount * gc_SpinBackOffMultiplier;
             SpinWait( spinBackoffCount );
         }
 
@@ -978,7 +1128,7 @@ void TaskScheduler::WaitforAll()
                 case ENKI_THREAD_STATE_WAIT_NEW_TASKS:
                 case ENKI_THREAD_STATE_STOPPED:
                     break;
-                 };
+                }
             }
         }
         if( !otherThreadsRunning )
@@ -998,8 +1148,10 @@ void TaskScheduler::WaitforAll()
     m_bWaitforAllCalled.store( false, std::memory_order_release );
 }
 
-void    TaskScheduler::WaitforAllAndShutdown()
+void TaskScheduler::WaitforAllAndShutdown()
 {
+    m_bWaitforAllCalled.store( true, std::memory_order_release );
+    m_bShutdownRequested.store( true, std::memory_order_release );
     if( m_bHaveThreads )
     {
         WaitforAll();
@@ -1007,8 +1159,19 @@ void    TaskScheduler::WaitforAllAndShutdown()
     }
 }
 
+void TaskScheduler::ShutdownNow()
+{
+    m_bWaitforAllCalled.store( true, std::memory_order_release );
+    m_bShutdownRequested.store( true, std::memory_order_release );
+    if( m_bHaveThreads )
+    {
+        StopThreads(true);
+    }
+}
+
 void TaskScheduler::WaitForNewPinnedTasks()
 {
+    ENKI_ASSERT( gtl_threadNum != enki::NO_THREAD_NUM );
     uint32_t threadNum = gtl_threadNum;
     ThreadState prevThreadState = m_pThreadDataStore[threadNum].threadState.load( std::memory_order_relaxed );
     m_pThreadDataStore[threadNum].threadState.store( ENKI_THREAD_STATE_WAIT_NEW_PINNED_TASKS, std::memory_order_seq_cst );
@@ -1050,14 +1213,14 @@ template<typename T>
 T* TaskScheduler::NewArray( size_t num_, const char* file_, int line_  )
 {
     T* pRet = (T*)m_Config.customAllocator.alloc( alignof(T), num_*sizeof(T), m_Config.customAllocator.userData, file_, line_ );
-    if( !std::is_pod<T>::value )
+    if( !std::is_trivial<T>::value )
     {
-		T* pCurr = pRet;
+        T* pCurr = pRet;
         for( size_t i = 0; i < num_; ++i )
         {
-			void* pBuffer = pCurr;
+            void* pBuffer = pCurr;
             pCurr = new(pBuffer) T;
-			++pCurr;
+            ++pCurr;
         }
     }
     return pRet;
@@ -1066,7 +1229,7 @@ T* TaskScheduler::NewArray( size_t num_, const char* file_, int line_  )
 template<typename T>
 void TaskScheduler::DeleteArray( T* p_, size_t num_, const char* file_, int line_ )
 {
-    if( !std::is_pod<T>::value )
+    if( !std::is_trivially_destructible<T>::value )
     {
         size_t i = num_;
         while(i)
@@ -1087,7 +1250,7 @@ T* TaskScheduler::New( const char* file_, int line_, Args&&... args_ )
 template< typename T >
 void TaskScheduler::Delete( T* p_, const char* file_, int line_  )
 {
-    p_->~T(); 
+    p_->~T();
     this->Free(p_, file_, line_ );
 }
 
@@ -1110,7 +1273,7 @@ TaskScheduler::TaskScheduler()
         , m_NumThreads(0)
         , m_pThreadDataStore(NULL)
         , m_pThreads(NULL)
-        , m_bRunning(0)
+        , m_bRunning(false)
         , m_NumInternalTaskThreadsRunning(0)
         , m_NumThreadsWaitingForNewTasks(0)
         , m_NumThreadsWaitingForTaskCompletion(0)
@@ -1165,7 +1328,7 @@ namespace enki
     {
         HANDLE      sem;
     };
-    
+
     inline void SemaphoreCreate( semaphoreid_t& semaphoreid )
     {
 #ifdef _XBOX_ONE
@@ -1200,7 +1363,7 @@ namespace enki
 
 // OS X does not have POSIX semaphores
 // Mach semaphores can now only be created by the kernel
-// Named sempahores work, but would require unique name construction to ensure
+// Named semaphores work, but would require unique name construction to ensure
 // they are isolated to this process.
 // Dispatch semaphores appear to be the way other developers use OSX Semaphores, e.g. Boost
 // However the API could change
@@ -1210,27 +1373,27 @@ namespace enki
 
 namespace enki
 {
-    
+
     struct semaphoreid_t
     {
         dispatch_semaphore_t   sem;
     };
-    
+
     inline void SemaphoreCreate( semaphoreid_t& semaphoreid )
     {
         semaphoreid.sem = dispatch_semaphore_create(0);
     }
-    
+
     inline void SemaphoreClose( semaphoreid_t& semaphoreid )
     {
         dispatch_release( semaphoreid.sem );
     }
-    
+
     inline void SemaphoreWait( semaphoreid_t& semaphoreid  )
     {
         dispatch_semaphore_wait( semaphoreid.sem, DISPATCH_TIME_FOREVER );
     }
-    
+
     inline void SemaphoreSignal( semaphoreid_t& semaphoreid, int32_t countWaiting )
     {
         while( countWaiting-- > 0 )
@@ -1247,29 +1410,29 @@ namespace enki
 
 namespace enki
 {
-    
+
     struct semaphoreid_t
     {
         sem_t   sem;
     };
-    
+
     inline void SemaphoreCreate( semaphoreid_t& semaphoreid )
     {
         int err = sem_init( &semaphoreid.sem, 0, 0 );
         ENKI_ASSERT( err == 0 );
         (void)err;
     }
-    
+
     inline void SemaphoreClose( semaphoreid_t& semaphoreid )
     {
         sem_destroy( &semaphoreid.sem );
     }
-    
+
     inline void SemaphoreWait( semaphoreid_t& semaphoreid  )
     {
         while( sem_wait( &semaphoreid.sem ) == -1 && errno == EINTR ) {}
     }
-    
+
     inline void SemaphoreSignal( semaphoreid_t& semaphoreid, int32_t countWaiting )
     {
         while( countWaiting-- > 0 )
@@ -1298,7 +1461,7 @@ void TaskScheduler::SetCustomAllocator( CustomAllocator customAllocator_ )
     m_Config.customAllocator = customAllocator_;
 }
 
-Dependency::Dependency( const ICompletable* pDependencyTask_, ICompletable* pTaskToRunOnCompletion_ ) 
+Dependency::Dependency( const ICompletable* pDependencyTask_, ICompletable* pTaskToRunOnCompletion_ )
     : pTaskToRunOnCompletion( pTaskToRunOnCompletion_ )
     , pDependencyTask( pDependencyTask_ )
     , pNext( pDependencyTask->m_pDependents )

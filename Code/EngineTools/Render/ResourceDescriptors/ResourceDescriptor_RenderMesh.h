@@ -39,13 +39,17 @@ namespace EE::Render
         EE_REFLECT();
         ResourcePath                            m_meshPath;
 
-        // Optional value that specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
+        // Optional: specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
         EE_REFLECT();
         TVector<String>                         m_meshesToInclude;
 
         // Default materials - TODO: extract from source files
         EE_REFLECT();
         TVector<TResourcePtr<Material>>         m_materials;
+
+        // Should all mesh-sections with the same materials be merged together?
+        EE_REFLECT();
+        bool                                    m_mergeSectionsByMaterial = true;
     };
 
     //-------------------------------------------------------------------------
@@ -60,7 +64,8 @@ namespace EE::Render
     public:
 
         // This allows you to perform non-uniform scaling/mirroring at import time since the engine does not support non-uniform scaling
-        EE_REFLECT() Float3                               m_scale = Float3( 1.0f, 1.0f, 1.0f );
+        EE_REFLECT();
+        Float3                                  m_scale = Float3( 1.0f, 1.0f, 1.0f );
     };
 
     //-------------------------------------------------------------------------

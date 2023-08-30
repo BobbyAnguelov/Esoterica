@@ -34,7 +34,24 @@ For further examples, see https://github.com/dougbinks/enkiTSExamples
 
 ## Building
 
-Building enkiTS is simple, just add the files in enkiTS/src to your build system (_c.* files can be ignored if you only need C++ interface), and add enkiTS/src to your include path. Unix / Linux builds will require the pthreads library.
+Building enkiTS is simple, just add the files in enkiTS/src to your build system (_c.* files can be ignored if you only need C++ interface), and add enkiTS/src to your include path. Unix / Linux builds will likely require the pthreads library.
+
+For C++
+
+  - Use `#include "TaskScheduler.h"`
+  - Add enkiTS/src to your include path
+  - Compile / Add to project: 
+    - `TaskScheduler.cpp`
+  - Unix / Linux builds will likely require the pthreads library.
+
+For C
+
+  - Use `#include "TaskScheduler_c.h"`
+  - Add enkiTS/src to your include path
+  - Compile / Add to project:
+    - `TaskScheduler.cpp`
+    - `TaskScheduler_c.cpp`
+  - Unix / Linux builds will likely require the pthreads library.
 
 For cmake, on Windows / Mac OS X / Linux with cmake installed, open a prompt in the enkiTS directory and:
 
@@ -53,12 +70,13 @@ For cmake, on Windows / Mac OS X / Linux with cmake installed, open a prompt in 
 1. *Can set task priorities* - Up to 5 task priorities can be configured via define ENKITS_TASK_PRIORITIES_NUM (defaults to 3). Higher priority tasks are run before lower priority ones.
 1. *Can register external threads to use with enkiTS* - Can configure enkiTS with numExternalTaskThreads which can be registered to use with the enkiTS API.
 1. *Custom allocator API* - can configure enkiTS with custom allocators, see [example/CustomAllocator.cpp](example/CustomAllocator.cpp) and [example/CustomAllocator_c.c](example/CustomAllocator_c.c).
-1. **NEW** *Dependencies* - can set dependendencies between tasks see [example/Dependencies.cpp](example/Dependencies.cpp) and [example/Dependencies_c.c](example/Dependencies_c.c).
-1. **NEW** *Completion Actions* - can perform an action on task completion. This avoids the expensive action of adding the task to the scheduler, and can be used to safely delete a completed task. See [example/CompletionAction.cpp](example/CompletionAction.cpp) and [example/CompletionAction_c.c](example/CompletionAction_c.c)
+1. *Dependencies* - can set dependendencies between tasks see [example/Dependencies.cpp](example/Dependencies.cpp) and [example/Dependencies_c.c](example/Dependencies_c.c).
+1. *Completion Actions* - can perform an action on task completion. This avoids the expensive action of adding the task to the scheduler, and can be used to safely delete a completed task. See [example/CompletionAction.cpp](example/CompletionAction.cpp) and [example/CompletionAction_c.c](example/CompletionAction_c.c)
+1. **NEW** *Can wait for pinned tasks* - Can wait for pinned tasks, useful for creating IO threads which do no other work. See [example/WaitForPinnedTasks.cpp](example/WaitForPinnedTasks.cpp) and [example/WaitForPinnedTasks_c.c](example/WaitForPinnedTasks_c.c).
 
-## Usage
+## Using enkiTS
 
-C++ usage:
+### C++ usage
 - full example in [example/ParallelSum.cpp](example/ParallelSum.cpp)
 - C example in [example/ParallelSum_c.c](example/ParallelSum_c.c)
 ```C
@@ -79,13 +97,13 @@ int main(int argc, const char * argv[]) {
     g_TS.AddTaskSetToPipe( &task );
 
     // wait for task set (running tasks if they exist)
-    since we've just added it and it has no range we'll likely run it.
+    // since we've just added it and it has no range we'll likely run it.
     g_TS.WaitforTask( &task );
     return 0;
 }
 ```
 
-C++ 11 lambda usage:
+### C++ 11 lambda usage
 - full example in [example/LambdaTask.cpp](example/LambdaTask.cpp)
 ```C
 #include "TaskScheduler.h"
@@ -105,7 +123,7 @@ int main(int argc, const char * argv[]) {
 }
 ```
 
-Task priorities usage in C++:
+### Task priorities usage in C++
 - full example in [example/Priorities.cpp](example/Priorities.cpp)
 - C example in [example/Priorities_c.c](example/Priorities_c.c)
 ```C
@@ -152,7 +170,7 @@ int main(int argc, const char * argv[])
 }
 ```
 
-Pinned Tasks usage in C++:
+### Pinned Tasks usage in C++
 - full example in [example/PinnedTask.cpp](example/PinnedTask.cpp)
 - C example in [example/PinnedTask_c.c](example/PinnedTask_c.c)
 ```C
@@ -183,7 +201,7 @@ int main(int argc, const char * argv[]) {
 }
 ```
 
-Dependency usage in C++:
+### Dependency usage in C++
 - full example in [example/Dependencies.cpp](example/Dependencies.cpp)
 - C example in [example/Dependencies_c.c](example/Dependencies_c.c)
 ```C
@@ -219,7 +237,7 @@ int main(int argc, const char * argv[]) {
 }
 ```
 
-External thread usage in C++:
+### External task thread usage in C++
 - full example in [example/ExternalTaskThread.cpp](example/ExternalTaskThread.cpp)
 - C example in [example/ExternalTaskThread_c.c](example/ExternalTaskThread_c.c)
 ```C
@@ -262,35 +280,59 @@ int main(int argc, const char * argv[])
 }
 ```
 
-C usage:
-```C
-#include "TaskScheduler_c.h"
+### WaitForPinnedTasks thread usage in C++ (useful for IO threads)
+- full example in [example/WaitForPinnedTasks.cpp](example/WaitForPinnedTasks.cpp)
+- C example in [example/WaitForPinnedTasks_c.c](example/WaitForPinnedTasks_c.c)
+```C++
+#include "TaskScheduler.h"
 
-enkiTaskScheduler*	g_pTS;
+enki::TaskScheduler g_TS;
 
-void ParalleTaskSetFunc( uint32_t start_, uint32_t end_, uint32_t threadnum_, void* pArgs_ ) {
-   /* Do something here, can issue tasks with g_pTS */
-}
+struct RunPinnedTaskLoopTask : enki::IPinnedTask
+{
+    void Execute() override
+    {
+        while( g_TS.GetIsRunning() )
+        {
+            g_TS.WaitForNewPinnedTasks(); // this thread will 'sleep' until there are new pinned tasks
+            g_TS.RunPinnedTasks();
+        }
+    }
+};
 
-int main(int argc, const char * argv[]) {
-   enkiTaskSet* pTask;
-   g_pTS = enkiNewTaskScheduler();
-   enkiInitTaskScheduler( g_pTS );
+struct PretendDoFileIO : enki::IPinnedTask
+{
+    void Execute() override
+    {
+        // Do file IO
+    }
+};
 
-   // create a task, can re-use this to get allocation occurring on startup
-   pTask = enkiCreateTaskSet( g_pTS, ParalleTaskSetFunc );
+int main(int argc, const char * argv[])
+{
+    enki::TaskSchedulerConfig config;
 
-   enkiAddTaskSetToPipe( g_pTS, pTask); // defaults are NULL args, setsize of 1
+    // In this example we create more threads than the hardware can run,
+    // because the IO thread will spend most of it's time idle or blocked
+    // and therefore not scheduled for CPU time by the OS
+    config.numTaskThreadsToCreate += 1;
 
-   // wait for task set (running tasks if they exist)
-   // since we've just added it and it has no range we'll likely run it.
-   enkiWaitForTaskSet( g_pTS, pTask );
-   
-   enkiDeleteTaskSet( g_pTS, pTask );
-   
-   enkiDeleteTaskScheduler( g_pTS );
-   
-   return 0;
+    g_TS.Initialize( config );
+
+    // in this example we place our IO threads at the end
+    RunPinnedTaskLoopTask runPinnedTaskLoopTasks;
+    runPinnedTaskLoopTasks.threadNum = g_TS.GetNumTaskThreads() - 1;
+    g_TS.AddPinnedTask( &runPinnedTaskLoopTasks );
+
+    // Send pretend file IO task to external thread FILE_IO
+    PretendDoFileIO pretendDoFileIO;
+    pretendDoFileIO.threadNum = runPinnedTaskLoopTasks.threadNum;
+    g_TS.AddPinnedTask( &pretendDoFileIO );
+
+    // ensure runPinnedTaskLoopTasks complete by explicitly calling shutdown
+    g_TS.WaitforAllAndShutdown();
+
+    return 0;
 }
 ```
 
@@ -303,7 +345,7 @@ int main(int argc, const char * argv[]) {
 
 [The C++98 compatible branch](https://github.com/dougbinks/enkiTS/tree/C++98) has been deprecated as I'm not aware of anyone needing it.
 
-The user thread versions are no longer being maintained as they are no longer in use.
+The user thread versions are no longer being maintained as they are no longer in use. Similar functionality can be obtained with the externalTaskThreads
 * [User thread version  on Branch UserThread](https://github.com/dougbinks/enkiTS/tree/UserThread) for running enkiTS on other tasking / threading systems, so it can be used as in other engines as well as standalone for example.
 * [C++ 11 version of user threads on Branch UserThread_C++11](https://github.com/dougbinks/enkiTS/tree/UserThread_C++11)
 

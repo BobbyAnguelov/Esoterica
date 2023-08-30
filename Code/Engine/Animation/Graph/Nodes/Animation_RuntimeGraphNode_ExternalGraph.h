@@ -36,11 +36,9 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
-        void TransferGraphInstanceData( GraphContext& context, GraphPoseNodeResult& result );
-
     private:
 
         GraphInstance*          m_pGraphInstance = nullptr;
-        bool                    m_isFirstUpdate = false;
+        bool                    m_shouldResetGraphInstance = false;
     };
 }

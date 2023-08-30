@@ -58,7 +58,8 @@ namespace EE::FileSystem
                 if ( numExtensionFilters > 0 && path.has_extension() )
                 {
                     // Todo: there's likely a more efficient way to do a case insensitive compare
-                    fileLowercaseExtension = TInlineString<15>( path.extension().u8string().c_str() + 1 );
+                    auto pPathExtension = (char const*) path.extension().u8string().c_str() + 1;
+                    fileLowercaseExtension = TInlineString<15>( pPathExtension );
                     fileLowercaseExtension.make_lower();
 
                     for ( auto i = 0u; i < numExtensionFilters; i++ )

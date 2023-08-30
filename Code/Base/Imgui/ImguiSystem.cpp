@@ -1,6 +1,7 @@
 #include "ImguiSystem.h"
 
 #if EE_DEVELOPMENT_TOOLS
+#include "ImguiXNotifications.h"
 #include "Base/Render/RenderDevice.h"
 #include "Base/Fonts/FontDecompressor.h"
 #include "Base/Fonts/FontData_Lexend.h"
@@ -63,6 +64,7 @@ namespace EE::ImGuiX
         InitializeFonts();
 
         m_imageCache.Initialize( pRenderDevice );
+        NotificationSystem::Initialize();
 
         //-------------------------------------------------------------------------
 
@@ -73,6 +75,7 @@ namespace EE::ImGuiX
 
     void ImguiSystem::Shutdown()
     {
+        NotificationSystem::Shutdown();
         m_imageCache.Shutdown();
 
         //-------------------------------------------------------------------------
@@ -186,6 +189,7 @@ namespace EE::ImGuiX
 
     void ImguiSystem::EndFrame()
     {
+        NotificationSystem::Render();
         ImGui::EndFrame();
     }
 }

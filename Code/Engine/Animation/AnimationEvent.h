@@ -28,7 +28,10 @@ namespace EE::Animation
     public:
 
         Event() = default;
+        Event( Event const& ) = default;
         virtual ~Event() = default;
+
+        Event& operator=( Event const& rhs ) = default;
 
         virtual bool IsValid() const { return true; }
 

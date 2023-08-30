@@ -144,7 +144,8 @@ namespace EE::Animation::GraphNodes
 
         virtual bool IsHidden( StringID const& propertyID ) override
         {
-            if ( propertyID == EE_REFLECT_GET_PROPERTY_ID( TransitionToolsNode, m_boneMaskBlendInTimePercentage ) )
+            StringID const boneMaskBlendPropertyID( "m_boneMaskBlendInTimePercentage" );
+            if ( propertyID == boneMaskBlendPropertyID )
             {
                 return m_pTypeInstance->GetConnectedInputNode<FlowToolsNode>( 3 ) == nullptr;
             }

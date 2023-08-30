@@ -85,7 +85,11 @@ namespace EE::Resource
 
     public:
 
+        ResourceDescriptor() = default;
+        ResourceDescriptor( ResourceDescriptor const& ) = default;
         virtual ~ResourceDescriptor() = default;
+
+        ResourceDescriptor& operator=( ResourceDescriptor const& rhs ) = default;
 
         // Get all the resources that are required for the compilation of the resource
         virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) = 0;

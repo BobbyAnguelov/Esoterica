@@ -930,7 +930,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    void EntityMap::BeginHotReload( LoadingContext const& loadingContext, InitializationContext& initializationContext, TVector<Resource::ResourceRequesterID> const& usersToReload )
+    void EntityMap::HotReload_UnloadEntities( LoadingContext const& loadingContext, InitializationContext& initializationContext, TVector<Resource::ResourceRequesterID> const& usersToReload )
     {
         EE_ASSERT( Threading::IsMainThread() );
         EE_ASSERT( !usersToReload.empty() );
@@ -986,7 +986,7 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityMap::EndHotReload( LoadingContext const& loadingContext )
+    void EntityMap::HotReload_ReloadEntities( LoadingContext const& loadingContext )
     {
         EE_ASSERT( Threading::IsMainThread() );
 

@@ -62,7 +62,5 @@ namespace EE::Physics
         // Should we override the collision settings coming from the resource?
         EE_REFLECT( "Category" : "Colliision" )
         bool                                            m_overrideCollisionSettings = false;
-
-        
     };
 }

@@ -87,7 +87,7 @@ namespace EE::Animation
         {
             VisualGraph::ScopedGraphModification sgm( this );
             auto pStateNode = CreateNode<StateToolsNode>( type );
-            pStateNode->SetCanvasPosition( mouseCanvasPos );
+            pStateNode->SetPosition( mouseCanvasPos );
             UpdateDependentNodes();
             return true;
         };
@@ -130,19 +130,28 @@ namespace EE::Animation
 
     void StateMachineGraph::DrawExtraInformation( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
+        float const scaledIconOffset = ctx.CanvasToWindow( 4.0f );
+
         auto const stateNodes = FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
         for ( auto pStateNode : stateNodes )
         {
-            ImRect const nodeRect = pStateNode->GetWindowRect( ctx.m_viewOffset );
+            ImRect const nodeRect = ctx.CanvasToWindow( pStateNode->GetRect() );
             ImVec2 const iconSize = ImGui::CalcTextSize( EE_ICON_ARROW_DOWN_CIRCLE );
-            ImVec2 iconOffset( 0, iconSize.y + 4.0f );
+            ImVec2 iconOffset( 0, iconSize.y + scaledIconOffset );
+
+            // Draw entry override marker
+            if ( GetDefaultEntryStateID() == pStateNode->GetID() )
+            {
+                ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, Colors::Gold, EE_ICON_STAR );
+                iconOffset.x -= iconSize.x + scaledIconOffset;
+            }
 
             // Draw entry override marker
             EntryStateOverrideConduitToolsNode const* pEntryOverrideConduit = GetEntryStateOverrideConduit();
             if ( pEntryOverrideConduit->HasEntryOverrideForState( pStateNode->GetID() ) )
             {
                 ctx.m_pDrawList->AddText( nodeRect.Min + ctx.m_windowRect.Min - iconOffset, Colors::LimeGreen, EE_ICON_ARROW_DOWN_CIRCLE );
-                iconOffset.x -= iconSize.x + 4.0f;
+                iconOffset.x -= iconSize.x + scaledIconOffset;
             }
 
             // Draw global transition marker

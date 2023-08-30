@@ -68,7 +68,8 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemGroup>
     <ClCompile Include="Animation\Events\AnimationEventTracks.cpp" />
-    <ClCompile Include="Animation\Events\AnimationEventTrack.cpp" />
+    <ClCompile Include="Animation\Events\AnimationEventTimeline.cpp" />
+    <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationClip.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.cpp" />
@@ -112,6 +113,7 @@
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationClip.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_AnimationGraph.cpp" />
     <ClCompile Include="Animation\Workspaces\Workspace_Skeleton.cpp" />
+    <ClCompile Include="Core\DialogManager.cpp" />
     <ClCompile Include="Core\EditorTool.cpp" />
     <ClCompile Include="Core\EditorTools\EditorTool_SystemLog.cpp" />
     <ClCompile Include="Core\PropertyGrid\PropertyGridEditor.cpp" />
@@ -148,11 +150,14 @@
     <ClCompile Include="Render\TextureTools\ExtendedFormats\PortablePixMap.cpp" />
     <ClCompile Include="Render\TextureTools\TextureConverter.cpp" />
     <ClCompile Include="Render\Workspaces\Workspace_Material.cpp" />
-    <ClCompile Include="Render\Workspaces\Workspace_SkeletalMesh.cpp" />
-    <ClCompile Include="Render\Workspaces\Workspace_StaticMesh.cpp" />
+    <ClCompile Include="Render\Workspaces\Workspace_Mesh.cpp" />
     <ClCompile Include="Render\Workspaces\Workspace_Texture.cpp" />
     <ClCompile Include="Resource\EditorTools\EditorTool_ResourceBrowser.cpp" />
     <ClCompile Include="Resource\EditorTools\EditorTool_ResourceSystem.cpp" />
+    <ClCompile Include="Resource\EditorTools\EditorTool_RawFileInspector.cpp" />
+    <ClCompile Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_FBX.cpp" />
+    <ClCompile Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_GLTF.cpp" />
+    <ClCompile Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_Image.cpp" />
     <ClCompile Include="Resource\ResourceCompiler.cpp" />
     <ClCompile Include="Resource\ResourceCompilerRegistry.cpp" />
     <ClCompile Include="Resource\ResourceDescriptor.cpp" />
@@ -160,10 +165,6 @@
     <ClCompile Include="RawAssets\RawAssetReader.cpp" />
     <ClCompile Include="RawAssets\RawMesh.cpp" />
     <ClCompile Include="RawAssets\RawSkeleton.cpp" />
-    <ClCompile Include="Resource\RawFileInspector.cpp" />
-    <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_FBX.cpp" />
-    <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_GLTF.cpp" />
-    <ClCompile Include="Resource\RawFileInspectors\RawFileInspector_Images.cpp" />
     <ClCompile Include="Resource\ResourceDescriptorCreator.cpp" />
     <ClCompile Include="Resource\ResourceDatabase.cpp" />
     <ClCompile Include="Resource\ResourcePicker.cpp" />
@@ -183,7 +184,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\Events\AnimationEventTracks.h" />
-    <ClInclude Include="Animation\Events\AnimationEventTrack.h" />
+    <ClInclude Include="Animation\Events\AnimationEventTimeline.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.h" />
@@ -230,6 +231,8 @@
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationClip.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_AnimationGraph.h" />
     <ClInclude Include="Animation\Workspaces\Workspace_Skeleton.h" />
+    <ClInclude Include="Core\CommonToolTypes.h" />
+    <ClInclude Include="Core\DialogManager.h" />
     <ClInclude Include="Core\EditorTool.h" />
     <ClInclude Include="Core\EditorTools\EditorTool_SystemLog.h" />
     <ClInclude Include="Core\PropertyGrid\PropertyGridEditor.h" />
@@ -271,11 +274,14 @@
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderTexture.h" />
     <ClInclude Include="Render\TextureTools\TextureTools.h" />
     <ClInclude Include="Render\Workspaces\Workspace_Material.h" />
-    <ClInclude Include="Render\Workspaces\Workspace_SkeletalMesh.h" />
-    <ClInclude Include="Render\Workspaces\Workspace_StaticMesh.h" />
+    <ClInclude Include="Render\Workspaces\Workspace_Mesh.h" />
     <ClInclude Include="Render\Workspaces\Workspace_Texture.h" />
     <ClInclude Include="Resource\EditorTools\EditorTool_ResourceBrowser.h" />
     <ClInclude Include="Resource\EditorTools\EditorTool_ResourceSystem.h" />
+    <ClInclude Include="Resource\EditorTools\EditorTool_RawFileInspector.h" />
+    <ClInclude Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_FBX.h" />
+    <ClInclude Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_GLTF.h" />
+    <ClInclude Include="Resource\EditorTools\RawFileInspectors\EditorTool_RawFileInspector_Image.h" />
     <ClInclude Include="Resource\ResourceCompiler.h" />
     <ClInclude Include="Resource\ResourceCompilerRegistry.h" />
     <ClInclude Include="Resource\ResourceDescriptor.h" />
@@ -284,10 +290,6 @@
     <ClInclude Include="RawAssets\RawAssetReader.h" />
     <ClInclude Include="RawAssets\RawMesh.h" />
     <ClInclude Include="RawAssets\RawSkeleton.h" />
-    <ClInclude Include="Resource\RawFileInspector.h" />
-    <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_FBX.h" />
-    <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_GLTF.h" />
-    <ClInclude Include="Resource\RawFileInspectors\RawFileInspector_Images.h" />
     <ClInclude Include="Resource\ResourceDescriptorCreator.h" />
     <ClInclude Include="Resource\ResourceDatabase.h" />
     <ClInclude Include="Resource\ResourcePicker.h" />

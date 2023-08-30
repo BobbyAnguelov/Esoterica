@@ -26,7 +26,7 @@ namespace EE::RawAssets
 
     //-------------------------------------------------------------------------
 
-    EE_ENGINETOOLS_API TUniquePtr<RawAssets::RawSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName = String() );
+    EE_ENGINETOOLS_API TUniquePtr<RawAssets::RawSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName = String(), TVector<StringID> const& listOfHighLODBones = TVector<StringID>() );
     EE_ENGINETOOLS_API TUniquePtr<RawAssets::RawAnimation> ReadAnimation( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, RawAssets::RawSkeleton const& rawSkeleton, String const& animationName = String(), StringID const& rootMotionBoneID = StringID() );
     EE_ENGINETOOLS_API TUniquePtr<RawAssets::RawMesh> ReadStaticMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude = TVector<String>() );
     EE_ENGINETOOLS_API TUniquePtr<RawAssets::RawMesh> ReadSkeletalMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude = TVector<String>(), int32_t maxBoneInfluences = 4 );

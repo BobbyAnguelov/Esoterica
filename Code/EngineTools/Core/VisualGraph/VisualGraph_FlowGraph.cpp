@@ -319,6 +319,19 @@ namespace EE::VisualGraph::Flow
 
         return originalID;
     }
+
+    void Node::ResetCalculatedNodeSizes()
+    {
+        BaseNode::ResetCalculatedNodeSizes();
+        for ( auto& pin : m_inputPins )
+        {
+            pin.ResetCalculatedSizes();
+        }
+        for ( auto& pin : m_outputPins )
+        {
+            pin.ResetCalculatedSizes();
+        }
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -339,6 +352,13 @@ namespace EE::VisualGraph
     {
         for ( auto pNode : m_nodes )
         {
+            if ( auto pCommentNode = TryCast<CommentNode>( pNode ) )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
             auto pFlowNode = Cast<Flow::Node>( pNode );
             if ( pFlowNode->HasPin( pinID ) )
             {

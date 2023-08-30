@@ -30,7 +30,10 @@ namespace EE::TypeSystem
     public:
 
         TypeInfo() = default;
+        TypeInfo( TypeInfo const& ) = default;
         virtual ~TypeInfo() = default;
+
+        TypeInfo& operator=( TypeInfo const& rhs ) = default;
 
         inline IReflectedType const* GetDefaultInstance() const { return m_pDefaultInstance; }
 

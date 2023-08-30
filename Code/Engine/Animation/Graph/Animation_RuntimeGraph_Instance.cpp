@@ -186,6 +186,16 @@ namespace EE::Animation
         return m_pTaskSystem->GetPose();
     }
 
+    void GraphInstance::SetSkeletonLOD( Skeleton::LOD lod )
+    {
+        m_pTaskSystem->SetSkeletonLOD( lod );
+    }
+
+    Skeleton::LOD GraphInstance::GetSkeletonLOD() const
+    {
+        return m_pTaskSystem->GetSkeletonLOD();
+    }
+
     bool GraphInstance::DoesTaskSystemNeedUpdate() const
     {
         return m_pTaskSystem->RequiresUpdate();
@@ -331,6 +341,8 @@ namespace EE::Animation
 
     void GraphInstance::ResetGraphState( SyncTrackTime initTime, TVector<GraphLayerUpdateState> const* pLayerInitInfo )
     {
+        EE_ASSERT( initTime.m_percentageThrough >= 0.0f && initTime.m_percentageThrough <= 1.0f );
+
         if ( m_pRootNode->IsInitialized() )
         {
             m_pRootNode->Shutdown( m_graphContext );
@@ -390,6 +402,15 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         RecordPostGraphEvaluateState( nullptr );
         #endif
+
+        return result;
+    }
+
+    GraphPoseNodeResult GraphInstance::EvaluateChildGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext )
+    {
+        m_graphContext.m_pLayerContext = pLayerContext;
+        GraphPoseNodeResult result = EvaluateGraph( deltaTime, startWorldTransform, pPhysicsWorld, pUpdateRange );
+        m_graphContext.m_pLayerContext = nullptr;
 
         return result;
     }

@@ -15,11 +15,13 @@ namespace EE
 
         ScopedLPPAgent()
         {
-            lpp::LppProjectPreferences preferences = lpp::LppCreateDefaultProjectPreferences();
-            preferences.unitySplitting.isEnabled = false;
-            preferences.exceptionHandler.isEnabled = false;
+            lpp::LppLocalPreferences localPreferences = lpp::LppCreateDefaultLocalPreferences();
 
-            m_agent = lpp::LppCreateDefaultAgentWithPreferences( L"../../External/LivePP", &preferences );
+            lpp::LppProjectPreferences projectPreferences = lpp::LppCreateDefaultProjectPreferences();
+            projectPreferences.unitySplitting.isEnabled = false;
+            projectPreferences.exceptionHandler.isEnabled = false;
+
+            m_agent = lpp::LppCreateDefaultAgentWithPreferences( &localPreferences, L"../../External/LivePP", &projectPreferences );
             m_agent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES, nullptr, nullptr );
         }
 

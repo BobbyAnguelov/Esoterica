@@ -26,7 +26,11 @@ namespace EE::ImGuiX
     {
     public:
 
+        IDevelopmentToolsUI() = default;
+        IDevelopmentToolsUI( IDevelopmentToolsUI const& ) = default;
         virtual ~IDevelopmentToolsUI() = default;
+
+        IDevelopmentToolsUI& operator=( IDevelopmentToolsUI const& rhs ) = default;
 
         virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) = 0;
         virtual void Shutdown( UpdateContext const& context ) = 0;
@@ -42,8 +46,16 @@ namespace EE::ImGuiX
         virtual void EndFrame( UpdateContext const& context ) {}
 
         // Hot Reload Support
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) = 0;
-        virtual void EndHotReload() = 0;
+        //-------------------------------------------------------------------------
+
+        // Start a hot-reload operation by unloading all resource about to be reloaded
+        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) = 0;
+
+        // Request a load on all unloaded resources
+        virtual void HotReload_ReloadResources() = 0;
+
+        // Notify UI that all load requests are complete
+        virtual void HotReload_ReloadComplete() = 0;
     };
 }
 #endif

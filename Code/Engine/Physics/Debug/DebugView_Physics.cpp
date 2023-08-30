@@ -80,7 +80,7 @@ namespace EE::Physics
     {
         DebugView::Initialize( systemRegistry, pWorld );
         m_pPhysicsWorldSystem = pWorld->GetWorldSystem<PhysicsWorldSystem>();
-        m_windows.emplace_back( "Physics Material Database", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawMaterialDatabaseView( context ); } );
+        m_windows.emplace_back( "Physics Material Database", [] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawMaterialDatabaseView( context ); } );
     }
 
     void PhysicsDebugView::Shutdown()

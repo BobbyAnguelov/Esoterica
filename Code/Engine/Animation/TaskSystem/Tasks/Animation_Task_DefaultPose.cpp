@@ -13,7 +13,7 @@ namespace EE::Animation::Tasks
 
     void DefaultPoseTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pResultBuffer = GetNewPoseBuffer( context );
         pResultBuffer->m_pose.Reset( m_type );
         MarkTaskComplete( context );

@@ -46,14 +46,6 @@ namespace EE::Physics
             JointEditor
         };
 
-        enum class Operation
-        {
-            None,
-            CreateProfile,
-            DuplicateProfile,
-            RenameProfile,
-        };
-
         struct CollisionActor
         {
             physx::PxRigidDynamic*  m_pActor;
@@ -82,12 +74,9 @@ namespace EE::Physics
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_HUMAN_GREETING; }
 
-        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawMenu( UpdateContext const& context ) override;
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-
-        virtual void DrawDialogs( UpdateContext const& context ) override;
 
         // Resource Management
         //-------------------------------------------------------------------------
@@ -148,6 +137,10 @@ namespace EE::Physics
         void DestroyProfile( StringID profileID );
         String GetUniqueProfileName( String const& desiredName ) const;
 
+        bool DrawCreateProfileDialog( UpdateContext const& context );
+        bool DrawDuplicateProfileDialog( UpdateContext const& context );
+        bool DrawRenameProfileDialog( UpdateContext const& context );
+
         // Preview
         //-------------------------------------------------------------------------
 
@@ -165,7 +158,6 @@ namespace EE::Physics
         TResourcePtr<Animation::Skeleton>               m_skeleton;
         RagdollDefinition                               m_ragdollDefinition;
         bool                                            m_needToCreateEditorState = false;
-        Operation                                       m_activeOperation = Operation::None;
 
         // Body/Joint editor
         Mode                                            m_editorMode;

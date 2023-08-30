@@ -53,7 +53,7 @@ namespace EE::TypeSystem::Reflection
         int32_t const numIncludePaths = sizeof( Settings::g_includePaths ) / sizeof( Settings::g_includePaths[0] );
         for ( auto i = 0; i < numIncludePaths; i++ )
         {
-            String const fullPath = m_context.m_pSolution->m_path + Settings::g_includePaths[i];
+            String const fullPath = m_context.m_pSolution->m_path.GetString() + Settings::g_includePaths[i];
             String const shortPath = Platform::Win32::GetShortPath( fullPath );
             fullIncludePaths.push_back( "-I" + shortPath );
             clangArgs.push_back( fullIncludePaths.back().c_str() );
@@ -73,6 +73,8 @@ namespace EE::TypeSystem::Reflection
         clangArgs.push_back( "-Werror" );
         clangArgs.push_back( "-Wno-deprecated-builtins" );
         clangArgs.push_back( "-fparse-all-comments" );
+        clangArgs.push_back( "-fms-extensions" );
+        clangArgs.push_back( "-fms-compatibility" );
         clangArgs.push_back( "-Wno-unknown-warning-option" );
         clangArgs.push_back( "-Wno-return-type-c-linkage" );
         clangArgs.push_back( "-Wno-gnu-folding-constant" );

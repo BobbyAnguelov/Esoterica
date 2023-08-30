@@ -15,7 +15,11 @@ namespace EE
         {
             friend class RenderDevice;
 
+            RasterizerState() = default;
+            RasterizerState( RasterizerState const& ) = default;
             ~RasterizerState() { EE_ASSERT( !m_resourceHandle.IsValid() ); }
+
+            RasterizerState& operator=( RasterizerState const& rhs ) = default;
 
             inline bool IsValid() const { return m_resourceHandle.IsValid(); }
 
@@ -39,7 +43,11 @@ namespace EE
         {
             friend class RenderDevice;
 
+            BlendState() = default;
+            BlendState( BlendState const& ) = default;
             ~BlendState() { EE_ASSERT( !m_resourceHandle.IsValid() ); }
+
+            BlendState& operator=( BlendState const& rhs ) = default;
 
             inline bool IsValid() const { return m_resourceHandle.IsValid(); }
 

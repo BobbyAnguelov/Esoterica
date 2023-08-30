@@ -23,7 +23,11 @@ namespace EE::ImGuiX
     {
     public:
 
+        ImageCache() = default;
+        ImageCache( ImageCache const& ) = default;
         ~ImageCache();
+
+        ImageCache& operator=( ImageCache const& ) = default;
 
         inline bool IsInitialized() const { return m_pRenderDevice != nullptr; }
         void Initialize( Render::RenderDevice* pRenderDevice );

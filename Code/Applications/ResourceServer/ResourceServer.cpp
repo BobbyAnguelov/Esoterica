@@ -249,11 +249,7 @@ namespace EE::Resource
 
         m_settings.m_rawResourcePath.EnsureDirectoryExists();
         m_settings.m_compiledResourcePath.EnsureDirectoryExists();
-
-        if ( m_fileSystemWatcher.StartWatching( m_settings.m_rawResourcePath ) )
-        {
-            m_fileSystemWatcher.RegisterChangeListener( this );
-        }
+        m_fileSystemWatcher.StartWatching( m_settings.m_rawResourcePath );
 
         // Create Workers
         //-------------------------------------------------------------------------
@@ -302,7 +298,6 @@ namespace EE::Resource
         if ( m_fileSystemWatcher.IsWatching() )
         {
             m_fileSystemWatcher.StopWatching();
-            m_fileSystemWatcher.UnregisterChangeListener( this );
         }
 
         // Delete requests
@@ -417,33 +412,41 @@ namespace EE::Resource
 
         if ( m_fileSystemWatcher.IsWatching() )
         {
-            m_fileSystemWatcher.Update();
+            if ( m_fileSystemWatcher.Update() )
+            {
+                for ( FileSystem::Watcher::Event const& fsEvent : m_fileSystemWatcher.GetFileSystemChangeEvents() )
+                {
+                    if ( fsEvent.m_type != FileSystem::Watcher::Event::FileModified )
+                    {
+                        continue;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    EE_ASSERT( fsEvent.m_path.IsValid() && fsEvent.m_path.IsFilePath() );
+
+                    ResourcePath resourcePath = ResourcePath::FromFileSystemPath( m_settings.m_rawResourcePath, fsEvent.m_path );
+                    if ( !resourcePath.IsValid() )
+                    {
+                        return;
+                    }
+
+                    ResourceID resourceID( resourcePath );
+                    if ( !resourceID.IsValid() )
+                    {
+                        return;
+                    }
+
+                    // If we have a record, then schedule a recompile task
+                    CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::FileWatcher );
+                }
+            }
         }
     }
 
     bool ResourceServer::IsBusy() const
     {
         return IsPackaging() || m_numScheduledTasks != 0;
-    }
-
-    void ResourceServer::OnFileModified( FileSystem::Path const& filePath )
-    {
-        EE_ASSERT( filePath.IsValid() && filePath.IsFilePath() );
-
-        ResourcePath resourcePath = ResourcePath::FromFileSystemPath( m_settings.m_rawResourcePath, filePath );
-        if ( !resourcePath.IsValid() )
-        {
-            return;
-        }
-
-        ResourceID resourceID( resourcePath );
-        if ( !resourceID.IsValid() )
-        {
-            return;
-        }
-
-        // If we have a record, then schedule a recompile task
-        CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::FileWatcher );
     }
 
     //-------------------------------------------------------------------------
@@ -568,15 +571,13 @@ namespace EE::Resource
                     if ( pRequest->IsInternalRequest() )
                     {
                         // No need to notify the client for internal requests resources that are up to date
-                        if ( pRequest->m_status == CompilationRequest::Status::SucceededUpToDate )
+                        if ( pRequest->m_status != CompilationRequest::Status::SucceededUpToDate )
                         {
-                            return;
-                        }
-
-                        // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
-                        for ( auto& clientBucket : clientBuckets )
-                        {
-                            clientBucket.AddUpdateResponse( pRequest->GetResourceID(), pRequest->HasSucceeded() ? pRequest->GetDestinationFilePath().ToString() : String() );
+                            // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
+                            for ( auto& clientBucket : clientBuckets )
+                            {
+                                clientBucket.AddUpdateResponse( pRequest->GetResourceID(), pRequest->HasSucceeded() ? pRequest->GetDestinationFilePath().ToString() : String() );
+                            }
                         }
                     }
                     else // Notify single client

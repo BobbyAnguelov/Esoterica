@@ -49,6 +49,8 @@ namespace EE::ImGuiX
         ScopedFont( Font font, Color const& color );
         ~ScopedFont();
 
+        ScopedFont& operator=( ScopedFont const& ) = default;
+
     private:
 
         bool m_fontApplied = false;

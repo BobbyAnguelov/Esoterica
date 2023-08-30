@@ -279,19 +279,19 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void EntityWorldManager::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload )
+    void EntityWorldManager::HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload )
     {
         for ( auto const& pWorld : m_worlds )
         {
-            pWorld->BeginHotReload( usersToReload );
+            pWorld->HotReload_UnloadEntities( usersToReload );
         }
     }
 
-    void EntityWorldManager::EndHotReload()
+    void EntityWorldManager::HotReload_ReloadEntities()
     {
         for ( auto const& pWorld : m_worlds )
         {
-            pWorld->EndHotReload();
+            pWorld->HotReload_ReloadEntities();
         }
     }
     #endif

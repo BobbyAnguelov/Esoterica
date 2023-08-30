@@ -47,14 +47,19 @@ namespace EE::VisualGraph
             inline float GetWidth() const { return m_size.m_x; }
             inline float GetHeight() const { return m_size.m_y; }
 
+            void ResetCalculatedSizes()
+            {
+                m_position = Float2::Zero;
+                m_size = Float2( -1, -1 );
+            }
         public:
 
             UUID                    m_ID = UUID::GenerateID();
             String                  m_name;
             StringID                m_type;
             Direction               m_direction;
-            Float2                  m_screenPosition = Float2( 0, 0 ); // Updated each frame (Screen Space)
-            Float2                  m_size = Float2( -1, -1 ); // Updated each frame
+            Float2                  m_position = Float2( 0, 0 ); // Updated each frame ( rendered window space )
+            Float2                  m_size = Float2( -1, -1 ); // Updated each frame ( rendered window space ) - used to render offset correctly;
             bool                    m_isDynamic = false; // Only relevant for input pins
             bool                    m_allowMultipleOutConnections = false; // Only relevant for output pins
         };
@@ -72,8 +77,9 @@ namespace EE::VisualGraph
 
             EE_REFLECT_TYPE( Node );
 
-            constexpr static char const* const s_inputPinsKey = "InputPins";
-            constexpr static char const* const s_outputPinsKey = "OutputPins";
+            constexpr static char const* const  s_inputPinsKey = "InputPins";
+            constexpr static char const* const  s_outputPinsKey = "OutputPins";
+            constexpr static float const        s_pinSelectionExtraRadius = 10.0f;
 
         public:
 
@@ -186,11 +192,12 @@ namespace EE::VisualGraph
             virtual Color GetPinColor( Pin const& pin ) const { return 0x888888FF; }
 
         protected:
+            virtual void ResetCalculatedNodeSizes() override;
 
             virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
 
             // Override this if you want custom UI after/before the pin. Returns true if something was drawn, false otherwise
-            virtual bool DrawPinControls( UserContext* pUserContext, Pin const& pin ) { return false; }
+            virtual bool DrawPinControls( DrawContext const& ctx, UserContext* pUserContext, Pin const& pin ) { return false; }
 
             // Override this if you want to provide additional context menu options
             virtual void DrawContextMenuOptions( DrawContext const& ctx, UserContext* pUserContext, Float2 const& mouseCanvasPos, Pin* pHoveredPin ) {}

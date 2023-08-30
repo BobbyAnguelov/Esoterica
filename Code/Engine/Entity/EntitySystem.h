@@ -22,7 +22,11 @@ namespace EE
 
     public:
 
+        EntitySystem() = default;
+        EntitySystem( EntitySystem const& ) = default;
         virtual ~EntitySystem() {}
+
+        EntitySystem& operator=( EntitySystem const& rhs ) = default;
 
         // Get the name for this system
         virtual char const* GetName() const = 0;

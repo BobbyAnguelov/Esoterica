@@ -100,18 +100,22 @@
 #include "Base/Types/Color.h"
 
 #define IM_VEC2_CLASS_EXTRA                                                 \
-        ImVec2(const EE::Float2& f) { x = f.m_x; y = f.m_y; }\
+        ImVec2(EE::Float2 const& f) { x = f.m_x; y = f.m_y; }\
+        ImVec2(EE::Float2&& f) { x = f.m_x; y = f.m_y; }\
         operator EE::Float2() const { return EE::Float2(x,y); }\
-        ImVec2(const EE::Vector& f) { x = f.GetX(); y = f.GetY(); }\
+        ImVec2(EE::Vector const& f) { x = f.GetX(); y = f.GetY(); }\
+        ImVec2(EE::Vector&& f) { x = f.GetX(); y = f.GetY(); }\
         operator EE::Vector() const { return EE::Vector(x,y,0,0); }
 
 #define IM_VEC4_CLASS_EXTRA                                                 \
-        ImVec4(const EE::Float4& f) { x = f.m_x; y = f.m_y; z = f.m_z; w = f.m_w; }\
+        ImVec4(EE::Float4 const& f) { x = f.m_x; y = f.m_y; z = f.m_z; w = f.m_w; }\
+        ImVec4(EE::Float4&& f) { x = f.m_x; y = f.m_y; z = f.m_z; w = f.m_w; }\
         operator EE::Float4() const { return EE::Float4(x,y,z,w); }\
-        ImVec4(const EE::Vector& f) { x = f.GetX(); y = f.GetY(); z = f.GetZ(); w = f.GetW(); }\
+        ImVec4(EE::Vector const& f) { x = f.GetX(); y = f.GetY(); z = f.GetZ(); w = f.GetW(); }\
+        ImVec4(EE::Vector&& f) { x = f.GetX(); y = f.GetY(); z = f.GetZ(); w = f.GetW(); }\
         operator EE::Vector() const { return EE::Vector(x,y,z,w); }\
         explicit ImVec4( EE::Color const& c) : ImVec4( c.ToFloat4() ) {}\
-        ImVec4& operator=( EE::Color const& c ) { *this = c.ToFloat4(); return *this; }
+        ImVec4& operator=( EE::Color const& c ) { *this = ImVec4( c.ToFloat4() ); return *this; }
 
 
 #define IMGUI_DEFINE_MATH_OPERATORS

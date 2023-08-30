@@ -1,15 +1,9 @@
 #pragma once
-#include "UndoStack.h"
-#include "ToolsContext.h"
-#include "PropertyGrid/PropertyGrid.h"
-#include "EngineTools/Resource/ResourceDatabase.h"
-#include "Base/Imgui/ImguiX.h"
-#include "Base/Imgui/ImguiGizmo.h"
+
+#include "EditorTool.h"
 #include "Base/Render/RenderTarget.h"
 #include "Base/Resource/ResourceRequesterID.h"
-#include "Base/Resource/ResourcePtr.h"
 #include "Base/FileSystem/FileSystemPath.h"
-#include "Base/Utils/GlobalRegistryBase.h"
 #include "Base/Serialization/JsonSerialization.h"
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Types/Function.h"
@@ -18,7 +12,6 @@
 
 namespace EE
 {
-    class UpdateContext;
     class Entity;
     class EntityWorld;
     class EntityWorldUpdateContext;
@@ -35,20 +28,17 @@ namespace EE
 // Assumes you will have some file that you read/write to and an entity world for preview.
 // Provides a lot of utility functions for loading resource/creating entities that must be used!
 
+// Note:    Workspace uses editor-tool as a base since there is a lot of shared functionality but workspaces ARE NOT editor tools.
+//          There are various distinctions in terms of creation/destruction and so on.
+
 namespace EE
 {
-    class EE_ENGINETOOLS_API Workspace
+    class EE_ENGINETOOLS_API Workspace : public EditorTool
     {
         friend class EditorUI;
         friend class ScopedDescriptorModification;
         friend ResourceDescriptorUndoableAction;
-
-        // Create the tool window name
-        EE_FORCE_INLINE static InlineString GetToolWindowName( char const* pToolWindowName, ImGuiID dockspaceID )
-        {
-            EE_ASSERT( pToolWindowName != nullptr );
-            return InlineString( InlineString::CtorSprintf(), "%s##%08X", pToolWindowName, dockspaceID );
-        }
+        template<class T> friend class TWorkspace;
 
     public:
 
@@ -56,43 +46,6 @@ namespace EE
         {
             ImTextureID                                     m_pViewportRenderTargetTexture = nullptr;
             TFunction<Render::PickingID( Int2 const& )>     m_retrievePickingID;
-        };
-
-        class ToolWindow
-        {
-            friend class Workspace;
-            friend class EditorUI;
-
-            enum class Type : uint8_t
-            {
-                Viewport,
-                Descriptor,
-                Tool
-            };
-
-        public:
-
-            ToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ) )
-                : m_name( name )
-                , m_drawFunction( drawFunction )
-                , m_windowPadding( windowPadding )
-            {
-                EE_ASSERT( !name.empty() );
-                EE_ASSERT( m_drawFunction != nullptr );
-            }
-
-            inline bool HasUserSpecifiedWindowPadding() const
-            {
-                return m_windowPadding.x >= 0 && m_windowPadding.y >= 0;
-            }
-
-        private:
-
-            String                                          m_name;
-            TFunction<void(UpdateContext const&, bool)>     m_drawFunction;
-            ImVec2                                          m_windowPadding;
-            Type                                            m_type = Type::Tool;
-            bool                                            m_isOpen = true;
         };
 
     public:
@@ -104,20 +57,11 @@ namespace EE
         // Workspace
         //-------------------------------------------------------------------------
 
-        // Get the display name for this workspace (shown on tab, dialogs, etc...)
-        inline char const* GetDisplayName() const { return m_windowName.c_str(); }
-
-        // Does this workspace have a title bar icon
-        virtual bool HasTitlebarIcon() const { return false; }
-
-        // Get this workspace's title bar icon
-        virtual char const* GetTitlebarIcon() const { EE_ASSERT( HasTitlebarIcon() ); return nullptr; }
-
         // Does this workspace have a toolbar?
-        virtual bool HasMenu() const { return true; }
+        virtual bool HasMenu() const override { return true; }
 
         // Draws the workspace toolbar menu - by default will draw the default items and descriptor items
-        virtual void DrawMenu( UpdateContext const& context );
+        virtual void DrawMenu( UpdateContext const& context ) override;
 
         // Does this workspace operate on a resource descriptor?
         inline bool IsADescriptorWorkspace() const { return m_descriptorID.IsValid(); }
@@ -125,11 +69,11 @@ namespace EE
         // Has the descriptor been loaded (only valid for descriptor workspaces)
         inline bool IsDescriptorLoaded() const { return m_pDescriptor != nullptr; }
 
-        // Was the initialization function called
-        inline bool IsInitialized() const { return m_isInitialized; }
+        // Docking
+        //-------------------------------------------------------------------------
 
-        // Draw any open dialogs that this workspace has
-        virtual void DrawDialogs( UpdateContext const& context ) {}
+        // Set up initial docking layout
+        virtual void InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const override;
 
         // Viewport
         //-------------------------------------------------------------------------
@@ -150,15 +94,6 @@ namespace EE
         // Draw the viewport for this workspace - returns true if this viewport is currently focused
         void DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo );
 
-        // Docking
-        //-------------------------------------------------------------------------
-
-        // Get the unique typename for this workspace to be used for docking
-        virtual char const* GetDockingUniqueTypeName() const = 0;
-
-        // Set up initial docking layout
-        virtual void InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const;
-
         // Resource Dependencies
         //-------------------------------------------------------------------------
 
@@ -175,19 +110,13 @@ namespace EE
 
         // Initialize the workspace: initialize window IDs, create preview entities, load descriptor etc...
         // NOTE: Derived classes MUST call base implementation!
-        virtual void Initialize( UpdateContext const& context );
-
-        // Shutdown the workspace, free loaded descriptor, etc...
-        virtual void Shutdown( UpdateContext const& context );
+        virtual void Initialize( UpdateContext const& context ) override;
 
         // Called just before the world is updated per update stage
         virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) {}
 
         // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
         void SharedUpdate( UpdateContext const& context, bool isVisible, bool isFocused );
-
-        // Frame update and draw any tool windows needed for the workspace
-        virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) {}
 
         // Preview World
         //-------------------------------------------------------------------------
@@ -252,15 +181,6 @@ namespace EE
         // Optional: Save functionality for files that support it
         virtual bool Save();
 
-        // Hot-reload
-        //-------------------------------------------------------------------------
-
-        // Called whenever a hot-reload operation occurs
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded );
-
-        // Called after hot-reloading completes.
-        virtual void EndHotReload();
-
     protected:
 
         // Called whenever we click inside a workspace viewport and get a non-zero picking ID
@@ -270,20 +190,19 @@ namespace EE
         Drawing::DrawContext GetDrawingContext();
 
         // Set the workspace tab-title
-        void SetDisplayName( String name );
+        virtual void SetDisplayName( String name ) override final;
 
         // Tool Windows
         //-------------------------------------------------------------------------
 
-        ImGuiWindowClass* GetToolWindowClass() { return &m_toolWindowClass; }
-
-        void CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ) );
-
-        EE_FORCE_INLINE TVector<ToolWindow> const& GetToolWindows() const { return m_toolWindows; }
-
-        EE_FORCE_INLINE InlineString GetToolWindowName( String const& name ) const { return GetToolWindowName( name.c_str(), m_currentDockspaceID ); }
-
         void HideDescriptorWindow();
+
+        // Resource Helpers
+        //-------------------------------------------------------------------------
+
+        // Called before we start a hot-reload operation (before we actually unload anything, allows workspaces to clean up any dependent data)
+        // This is only called if any of the resources that workspace has explicitly loaded (or the descriptor) needs a reload
+        virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) {}
 
         // Viewport
         //-------------------------------------------------------------------------
@@ -314,50 +233,6 @@ namespace EE
 
         // Draw the viewport time controls toolbar
         void DrawViewportToolBar_TimeControls();
-
-        // Resource Helpers
-        //-------------------------------------------------------------------------
-
-        inline FileSystem::Path const& GetRawResourceDirectoryPath() const { return m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(); }
-
-        inline FileSystem::Path const& GetCompiledResourceDirectoryPath() const { return m_pToolsContext->m_pResourceDatabase->GetCompiledResourceDirectoryPath(); }
-
-        inline FileSystem::Path GetFileSystemPath( ResourcePath const& resourcePath ) const
-        {
-            EE_ASSERT( resourcePath.IsValid() );
-            return resourcePath.ToFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
-        }
-
-        inline FileSystem::Path GetFileSystemPath( ResourceID const& resourceID ) const
-        {
-            EE_ASSERT( resourceID.IsValid() );
-            return resourceID.GetResourcePath().ToFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
-        }
-
-        inline ResourcePath GetResourcePath( FileSystem::Path const& path ) const
-        {
-            EE_ASSERT( path.IsValid() );
-            return ResourcePath::FromFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(), path );
-        }
-
-        // Use this function to load a resource required for this workspace (hot-reload aware)
-        void LoadResource( Resource::ResourcePtr* pResourcePtr );
-
-        // Use this function to unload a required resource for this workspace (hot-reload aware)
-        void UnloadResource( Resource::ResourcePtr* pResourcePtr );
-
-        // Called before we start a hot-reload operation (before we actually unload anything, allows workspaces to clean up any dependent data)
-        // This is only called if any of the resources that workspace has explicitly loaded (or the descriptor) needs a reload
-        virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) {}
-
-        // Called after hot-reloading completes (you will always get this call if you get the 'OnHotReloadStarted' call, unless a fatal occurs)
-        // This only gets called if we needed to reload anything and the reload was successful
-        // If the descriptor fails to reload, this is considered a fatal error and this function will not be called and the workspace will be closed instead
-        virtual void OnHotReloadComplete() {}
-
-        // Blocking call to force a recompile of a resource outside of the regular resource server flow, this is needed when you need to ensure a resource has been recompiled in advance of loading
-        // Will also flag the resource for hot-reload if there are any current users
-        bool RequestImmediateResourceCompilation( ResourceID const& resourceID );
 
         // Entity Helpers
         //-------------------------------------------------------------------------
@@ -404,6 +279,19 @@ private:
         Workspace& operator=( Workspace const& ) = delete;
         Workspace( Workspace const& ) = delete;
 
+        // Editor Tool
+        //-------------------------------------------------------------------------
+
+        virtual uint32_t GetToolTypeID() const override final { return 0xFFFFFFFF; }
+        virtual bool IsSingleton() const override final { return false; }
+        virtual bool IsSingleWindowTool() const override final { return false; }
+        virtual void OnHotReloadStarted( TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override final {}
+        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override final;
+        virtual void HotReload_ReloadComplete() override final;
+
+        // Workspace internals
+        //-------------------------------------------------------------------------
+
         // Loads the specified descriptor in the descriptor ID member
         void LoadDescriptor();
 
@@ -419,16 +307,15 @@ private:
             return dockspaceID;
         }
 
+        // For TWorkspaces
+        virtual void PrivateInternalUpdate( UpdateContext const& context ) {}
+
     protected:
 
-        ImGuiID                                     m_ID = 0; // Document identifier (unique)
         EntityWorld*                                m_pWorld = nullptr;
-        ToolsContext const*                         m_pToolsContext = nullptr;
-
         DebugCameraComponent*                       m_pCamera = nullptr;
 
         UndoStack                                   m_undoStack;
-        String                                      m_windowName;
         bool                                        m_isViewportFocused = false;
         bool                                        m_isViewportHovered = false;
 
@@ -445,27 +332,13 @@ private:
 
     private:
 
-        ImGuiID                                     m_currentDockID = 0;        // The doc we are currently in
-        ImGuiID                                     m_desiredDockID = 0;        // The dock we wish to be in
-        ImGuiID                                     m_currentLocationID = 0;    // Current Dock node we are docked into _OR_ window ID if floating window
-        ImGuiID                                     m_previousLocationID = 0;   // Previous dock node we are docked into _OR_ window ID if floating window
-        ImGuiID                                     m_currentDockspaceID = 0;   // Dockspace ID ~~ Hash of LocationID + WorkspaceType
-        ImGuiID                                     m_previousDockspaceID = 0;
-        TVector<ToolWindow>                         m_toolWindows;
-        ImGuiWindowClass                            m_toolWindowClass;          // All our tools windows will share the same WindowClass (based on ID) to avoid mixing tools from different top-level window
-
-        Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         bool                                        m_isDirty = false;
-        bool                                        m_isInitialized = false;
-        bool                                        m_isHotReloading = false;
 
         // Time controls
         float                                       m_worldTimeScale = 1.0f;
 
         // Hot-reloading
-        TVector<Resource::ResourcePtr*>             m_requestedResources;
         TVector<Entity*>                            m_addedEntities;
-        TVector<Resource::ResourcePtr*>             m_reloadingResources;
     };
 
     //-------------------------------------------------------------------------
@@ -559,6 +432,8 @@ private:
         virtual bool HasViewportWindow() const override { return true; }
 
         // Resource Status
+        //-------------------------------------------------------------------------
+
         inline bool IsLoading() const { return m_workspaceResource.IsLoading(); }
         inline bool IsUnloaded() const { return m_workspaceResource.IsUnloaded(); }
         inline bool IsResourceLoaded() const { return m_workspaceResource.IsLoaded(); }
@@ -567,8 +442,31 @@ private:
 
     protected:
 
+        // Called the first time we load this resource - all subsequent re-loads need to be handled via the hot-reload path
+        virtual void OnInitialResourceLoadCompleted() {}
+
+    private:
+
+        virtual void PrivateInternalUpdate( UpdateContext const& context ) final
+        {
+            if ( !m_hasCompletedInitialLoad )
+            {
+                if ( IsResourceLoaded() || HasLoadingFailed() )
+                {
+                    OnInitialResourceLoadCompleted();
+                    m_hasCompletedInitialLoad = true;
+                }
+            }
+        }
+
+    protected:
+
         TResourcePtr<T>                     m_workspaceResource;
         bool                                m_shouldAutoLoadResource = true;
+
+    private:
+
+        bool                                m_hasCompletedInitialLoad = false;
     };
 
     //-------------------------------------------------------------------------

@@ -45,6 +45,13 @@ namespace EE
             return currentAverage + ( ( newValue - currentAverage ) / float( numCurrentSamples + 1 ) );
         }
 
+        EE_FORCE_INLINE float Abs( float a ) { return fabsf( a ); }
+        EE_FORCE_INLINE double Abs( double a ) { return fabs( a ); }
+        EE_FORCE_INLINE int8_t Abs( int8_t a ) { return (int8_t) abs( a ); }
+        EE_FORCE_INLINE int16_t Abs( int16_t a ) { return (int16_t) abs( a ); }
+        EE_FORCE_INLINE int32_t Abs( int32_t a ) { return labs( a ); }
+        EE_FORCE_INLINE int64_t Abs( int64_t a ) { return llabs( a ); }
+
         EE_FORCE_INLINE float Reciprocal( float r ) { return 1.0f / r; }
         EE_FORCE_INLINE double Reciprocal( double r ) { return 1.0 / r; }
 
@@ -55,13 +62,10 @@ namespace EE
         EE_FORCE_INLINE T Max( T a, T b ) { return a >= b ? a : b; }
 
         template<typename T>
-        EE_FORCE_INLINE T AbsMin( T a, T b ) { return abs( a ) <= abs( b ) ? a : b; }
+        EE_FORCE_INLINE T AbsMin( T a, T b ) { return Abs( a ) <= Abs( b ) ? a : b; }
 
         template<typename T>
-        EE_FORCE_INLINE T AbsMax( T a, T b ) { return abs( a ) >= abs( b ) ? a : b; }
-
-        template<typename T>
-        EE_FORCE_INLINE T Abs( T a ) { return abs( a ); }
+        EE_FORCE_INLINE T AbsMax( T a, T b ) { return Abs( a ) >= Abs( b ) ? a : b; }
 
         template<typename T>
         EE_FORCE_INLINE T Sqrt( T a ) { return sqrt( a ); }
@@ -105,23 +109,30 @@ namespace EE
             return A + ( B - A ) * t;
         }
 
-        template<typename T>
-        EE_FORCE_INLINE T PercentageThroughRange( T value, T lowerBound, T upperBound )
+        EE_FORCE_INLINE float PercentageThroughRange( float value, float lowerBound, float upperBound )
         {
             EE_ASSERT( lowerBound < upperBound );
             return Clamp( value, lowerBound, upperBound ) / ( upperBound - lowerBound );
         }
 
-        template<typename T>
-        EE_FORCE_INLINE bool IsNearEqual( T value, T comparand, float epsilon = Epsilon )
+        EE_FORCE_INLINE bool IsNearEqual( float value, float comparand, float epsilon = Epsilon )
         {
-            return abs( (double) value - comparand ) <= epsilon;
+            return fabsf( value - comparand ) <= epsilon;
         }
 
-        template<typename T>
-        EE_FORCE_INLINE bool IsNearZero( T value, float epsilon = Epsilon )
+        EE_FORCE_INLINE bool IsNearZero( float value, float epsilon = Epsilon )
         {
-            return abs( value ) <= epsilon;
+            return fabsf( value ) <= epsilon;
+        }
+
+        EE_FORCE_INLINE bool IsNearEqual( double value, double comparand, double epsilon = Epsilon )
+        {
+            return fabs( value - comparand ) <= epsilon;
+        }
+
+        EE_FORCE_INLINE bool IsNearZero( double value, double epsilon = Epsilon )
+        {
+            return fabs( value ) <= epsilon;
         }
 
         EE_FORCE_INLINE float Ceiling( float value )
@@ -204,20 +215,17 @@ namespace EE
             return IsEven( n ) ? n : n + 1;
         }
 
-        template<typename T>
-        EE_FORCE_INLINE bool IsNaN( T n )
+        EE_FORCE_INLINE bool IsNaN( float n )
         {
             return isnan( n );
         }
 
-        template<typename T>
-        EE_FORCE_INLINE bool IsInf( T n )
+        EE_FORCE_INLINE bool IsInf( float n )
         {
             return isinf( n );
         }
 
-        template<typename T>
-        EE_FORCE_INLINE bool IsNaNOrInf( T n )
+        EE_FORCE_INLINE bool IsNaNOrInf( float n )
         {
             return isnan( n ) || isinf( n );
         }
@@ -405,6 +413,8 @@ namespace EE
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
 
+        EE_FORCE_INLINE Float2 operator-() const { return Float2( -m_x, -m_y ); }
+
         inline bool operator==( Float2 const rhs ) const { return m_x == rhs.m_x && m_y == rhs.m_y; }
         inline bool operator!=( Float2 const rhs ) const { return m_x != rhs.m_x || m_y != rhs.m_y; }
 
@@ -460,6 +470,8 @@ namespace EE
 
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
+
+        EE_FORCE_INLINE Float3 operator-() const { return Float3( -m_x, -m_y, -m_z ); }
 
         inline bool operator==( Float3 const rhs ) const { return m_x == rhs.m_x && m_y == rhs.m_y && m_z == rhs.m_z; }
         inline bool operator!=( Float3 const rhs ) const { return m_x != rhs.m_x || m_y != rhs.m_y || m_z != rhs.m_z; }
@@ -519,6 +531,8 @@ namespace EE
 
         float& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }
         float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }
+
+        EE_FORCE_INLINE Float4 operator-() const { return Float4( -m_x, -m_y, -m_z, -m_w ); }
 
         bool operator==( Float4 const rhs ) const { return m_x == rhs.m_x && m_y == rhs.m_y && m_z == rhs.m_z && m_w == rhs.m_w; }
         bool operator!=( Float4 const rhs ) const { return m_x != rhs.m_x || m_y != rhs.m_y || m_z != rhs.m_z || m_w != rhs.m_w; }

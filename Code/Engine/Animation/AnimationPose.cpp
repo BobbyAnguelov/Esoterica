@@ -228,16 +228,16 @@ namespace EE::Animation
                         }
                         else // Just draw the weights
                         {
-                            detailsStr.sprintf( "%.2f", m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneWeight );
+                            detailsStr.sprintf( "%.2f", boneWeight );
                         }
 
-                        ctx.DrawTextBox3D( boneTransform.GetTranslation(), detailsStr.c_str(), boneColor );
+                        ctx.DrawTextBox3D( boneTransform.GetTranslation(), detailsStr.c_str(), boneColor, Drawing::FontSmall );
                     }
                     else // No Mask
                     {
                         if ( drawFlags.IsFlagSet( DrawFlags::DrawBoneNames ) )
                         {
-                            ctx.DrawTextBox3D( boneTransform.GetTranslation(), m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneColor );
+                            ctx.DrawTextBox3D( boneTransform.GetTranslation(), m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneColor, Drawing::FontSmall );
                         }
                     }
                 }

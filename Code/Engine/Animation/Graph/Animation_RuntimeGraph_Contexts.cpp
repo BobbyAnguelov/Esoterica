@@ -1,5 +1,6 @@
 #include "Animation_RuntimeGraph_Contexts.h"
 #include "Animation_RuntimeGraph_Events.h"
+#include "Animation_RuntimeGraph_LayerData.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 

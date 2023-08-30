@@ -1,7 +1,7 @@
 #include "ResourceCompiler_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/Animation/Events/AnimationEventTrack.h"
+#include "EngineTools/Animation/Events/AnimationEventTimeline.h"
 #include "EngineTools/RawAssets/RawAssetReader.h"
 #include "EngineTools/RawAssets/RawAnimation.h"
 #include "EngineTools/Core/Timeline/Timeline.h"
@@ -54,7 +54,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         TUniquePtr<RawAssets::RawAnimation> pRawAnimation = nullptr;
-        result = CombineResult( result, ReadRawAnimation( ctx, resourceDescriptor, pRawAnimation ) );
+        result = CombineResultCode( result, ReadRawAnimation( ctx, resourceDescriptor, pRawAnimation ) );
         if ( result == Resource::CompilationResult::Failure )
         {
             return Error( "Failed to read raw animation data!" );
@@ -86,7 +86,7 @@ namespace EE::Animation
         {
             {
                 ScopedTimer<PlatformClock> timer( timeTaken );
-                result = CombineResult( result, RegenerateRootMotion( resourceDescriptor, pRawAnimation.get() ) );
+                result = CombineResultCode( result, RegenerateRootMotion( resourceDescriptor, pRawAnimation.get() ) );
                 if ( result == Resource::CompilationResult::Failure )
                 {
                     return Error( "Failed to generate root motion data!" );
@@ -102,7 +102,7 @@ namespace EE::Animation
         {
             {
                 ScopedTimer<PlatformClock> timer( timeTaken );
-                result = CombineResult( result, MakeAdditive( ctx, resourceDescriptor, *pRawAnimation ) );
+                result = CombineResultCode( result, MakeAdditive( ctx, resourceDescriptor, *pRawAnimation ) );
                 if ( result == Resource::CompilationResult::Failure )
                 {
                     return Error( "Failed to generate additive animation data!" );
@@ -119,7 +119,7 @@ namespace EE::Animation
 
         {
             ScopedTimer<PlatformClock> timer( timeTaken );
-            result = CombineResult( result, TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange ) );
+            result = CombineResultCode( result, TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to compress animation!" );
@@ -133,7 +133,7 @@ namespace EE::Animation
         AnimationClipEventData eventData;
         {
             ScopedTimer<PlatformClock> timer( timeTaken );
-            result = CombineResult( result, ReadEventsData( ctx, descriptorDocument, *pRawAnimation, eventData ) );
+            result = CombineResultCode( result, ReadEventsData( ctx, descriptorDocument, *pRawAnimation, eventData ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to read animation events!" );
@@ -194,7 +194,7 @@ namespace EE::Animation
         }
 
         RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        auto pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName );
+        auto pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName, skeletonResourceDescriptor.m_highLODBones );
         if ( pRawSkeleton == nullptr || !pRawSkeleton->IsValid() )
         {
             return Error( "Failed to read skeleton file: %s", skeletonFilePath.ToString().c_str() );
@@ -374,7 +374,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         float const FPS = ( numOriginalFrames - 1 ) / rawAnimData.GetDuration().ToFloat();
-        animClip.m_duration = ( animClip.IsSingleFrameAnimation() ) ? 0.0f : Seconds( ( animClip.m_numFrames - 1 ) / FPS );
+        animClip.m_duration = ( animClip.IsSingleFrameAnimation() ) ? Seconds( 0.0f ) : Seconds( ( animClip.m_numFrames - 1 ) / FPS );
         animClip.m_isAdditive = rawAnimData.IsAdditive();
 
         // Transfer root motion
@@ -558,16 +558,16 @@ namespace EE::Animation
         // Read event track data
         //-------------------------------------------------------------------------
 
-        EventTimeline eventTimeline( nullptr, nullptr, *m_pTypeRegistry );
+        EventTimeline eventTimeline( *m_pTypeRegistry );
         if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
         {
             result = Error( "Malformed event track data" );
             return result;
         }
 
-        float const numIntervals = float( rawAnimData.GetNumFrames() - 1 );
-        eventTimeline.SetAnimationInfo( uint32_t( numIntervals ), rawAnimData.GetSamplingFrameRate() );
-        FloatRange const animationTimeRange( 0, eventTimeline.GetLength() );
+        float const lastFrameIdx = float( rawAnimData.GetNumFrames() - 1 );
+        FloatRange const animationTimeRange( 0, lastFrameIdx );
+        Timeline::TrackContext trackContext( lastFrameIdx );
 
         // Reflect into runtime events
         //-------------------------------------------------------------------------
@@ -577,7 +577,7 @@ namespace EE::Animation
         TVector<Event*> events;
         for ( Timeline::Track* pTrack : eventTimeline.GetTracks() )
         {
-            auto trackStatus = pTrack->GetValidationStatus( eventTimeline.GetTrackContext() );
+            auto trackStatus = pTrack->GetValidationStatus( trackContext );
 
             //-------------------------------------------------------------------------
 
@@ -651,8 +651,8 @@ namespace EE::Animation
                 }
 
                 // Set event time (in Seconds) and add new event
-                pEvent->m_startTime = ( eventTimeRange.m_begin / numIntervals ) * rawAnimData.GetDuration();
-                pEvent->m_duration = ( eventTimeRange.GetLength() / numIntervals ) * rawAnimData.GetDuration();
+                pEvent->m_startTime = ( eventTimeRange.m_begin / lastFrameIdx ) * rawAnimData.GetDuration();
+                pEvent->m_duration = ( eventTimeRange.GetLength() / lastFrameIdx ) * rawAnimData.GetDuration();
                 events.emplace_back( pEvent );
 
                 // Create sync event
@@ -707,7 +707,7 @@ namespace EE::Animation
         }
 
         auto& document = typeReader.GetDocument();
-        EventTimeline eventTimeline( nullptr, nullptr, *m_pTypeRegistry );
+        EventTimeline eventTimeline( *m_pTypeRegistry );
         if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
         {
             Error( "Malformed event track data" );

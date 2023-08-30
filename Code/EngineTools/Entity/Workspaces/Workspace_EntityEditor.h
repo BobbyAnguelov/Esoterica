@@ -18,19 +18,12 @@ namespace EE::EntityModel
 
     protected:
 
-        enum class Operation
+        enum class AddRequestType : uint8_t
         {
-            None = 0,
-
-            // World operations
-            RenameEntity,
-
-            // Entity operations
-            EntityAddSystemOrComponent,
-            EntityAddSystem,
-            EntityAddSpatialComponent,
-            EntityAddComponent,
-            EntityRenameComponent
+            Any,
+            System,
+            SpatialComponent,
+            Component,
         };
 
         struct ReparentRequest
@@ -90,13 +83,10 @@ namespace EE::EntityModel
         virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) override;
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
-        virtual void DrawDialogs( UpdateContext const& context ) override;
 
         // Operations/Requests
         //-------------------------------------------------------------------------
         // These start or request actions that are deferred to a subsequent update or require addition user input
-
-        void StartEntityRename( Entity* pEntity );
 
         void RequestDestroyEntity( Entity* pEntity );
 
@@ -104,7 +94,7 @@ namespace EE::EntityModel
 
         void RequestEntityReparent( Entity* pEntity, Entity* pNewParentEntity );
 
-        void StartEntityOperation( Operation operation, EntityComponent* pTargetComponent = nullptr );
+        void StartAddComponentOrSystem( AddRequestType addRequestType, EntityComponent* pTargetComponent = nullptr );
 
         // Commands
         //-------------------------------------------------------------------------
@@ -189,11 +179,10 @@ namespace EE::EntityModel
 
         SelectionSwitchRequest                          m_selectionSwitchRequest;
 
-        // Operations
+        // Actions
         //-------------------------------------------------------------------------
 
-        Operation                                       m_activeOperation = Operation::None;
-        EntityComponent*                                m_pOperationTargetComponent = nullptr;
+        EntityComponent*                                m_pActionTargetComponent = nullptr;
         ImGuiX::FilterWidget                            m_operationFilterWidget;
         char                                            m_operationBuffer[256];
         TVector<TypeSystem::TypeInfo const*>            m_operationOptions;

@@ -105,9 +105,9 @@ namespace EE::Animation::GraphNodes
         return pSettings->m_nodeIdx;
     }
 
-    bool Blend1DToolsNode::DrawPinControls( VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    bool Blend1DToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
     {
-        ParameterizedBlendToolsNode::DrawPinControls( pUserContext, pin );
+        ParameterizedBlendToolsNode::DrawPinControls( ctx, pUserContext, pin );
 
         // Add parameter value input field
         if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Pose ) )
@@ -117,7 +117,7 @@ namespace EE::Animation::GraphNodes
             EE_ASSERT( parameterIdx >= 0 && parameterIdx < m_parameterValues.size() );
 
             ImGui::PushID( &m_parameterValues[parameterIdx] );
-            ImGui::SetNextItemWidth( 50 );
+            ImGui::SetNextItemWidth( 50 * ctx.m_viewScaleFactor );
             ImGui::InputFloat( "##parameter", &m_parameterValues[parameterIdx], 0.0f, 0.0f, "%.2f" );
             ImGui::PopID();
 
@@ -164,7 +164,7 @@ namespace EE::Animation::GraphNodes
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx > 0 )
         {
-            return IsOfType<AnimationClipToolsNode>( pOutputPinNode ) || IsOfType<AnimationClipReferenceToolsNode>( pOutputPinNode );
+            return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
         }
 
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );

@@ -85,22 +85,22 @@ namespace EE::Animation
 
         // Basic local space blend - the early out is a useful optimization for non-additive blends
         template<typename BlendFunction>
-        static inline void LocalBlend( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canEarlyOutOfBlend );
+        static inline void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canEarlyOutOfBlend );
 
         // Basic local space masked blend - the early out is a useful optimization for non-additive blends
         template<typename BlendFunction>
-        static inline void LocalBlendMasked( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canEarlyOutOfPerBoneBlend );
+        static inline void LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canEarlyOutOfPerBoneBlend );
 
     public:
 
         // Local Interpolative Blend
-        EE_FORCE_INLINE static void LocalBlend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool useNLerp = false );
+        EE_FORCE_INLINE static void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool useNLerp = false );
 
         // Global Space Interpolative Blend
-        static void GlobalBlend( Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        static void GlobalBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Local Additive Blend
-        EE_FORCE_INLINE static void AdditiveBlend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        EE_FORCE_INLINE static void AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Blend two root motion deltas together
         EE_FORCE_INLINE static Transform BlendRootMotionDeltas( Transform const& source, Transform const& target, float blendWeight, RootMotionBlendMode blendMode = RootMotionBlendMode::Blend );
@@ -108,7 +108,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE void Blender::LocalBlend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool useFastSLerp )
+    EE_FORCE_INLINE void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool useFastSLerp )
     {
         // Fully in Source
         if ( blendWeight == 0.0f )
@@ -129,28 +129,28 @@ namespace EE::Animation
             {
                 if ( pBoneMask != nullptr )
                 {
-                    LocalBlendMasked<BlendFunctionFastSLerp>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
+                    LocalBlendMasked<BlendFunctionFastSLerp>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
                 }
                 else
                 {
-                    LocalBlend<BlendFunctionFastSLerp>( pSourcePose, pTargetPose, blendWeight, pResultPose, true );
+                    LocalBlend<BlendFunctionFastSLerp>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
                 }
             }
             else
             {
                 if ( pBoneMask != nullptr )
                 {
-                    LocalBlendMasked<BlendFunction>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
+                    LocalBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
                 }
                 else
                 {
-                    LocalBlend<BlendFunction>( pSourcePose, pTargetPose, blendWeight, pResultPose, true );
+                    LocalBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
                 }
             }
         }
     }
 
-    EE_FORCE_INLINE void Blender::AdditiveBlend( Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    EE_FORCE_INLINE void Blender::AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         // Fully in Source
         if ( blendWeight == 0.0f )
@@ -169,11 +169,11 @@ namespace EE::Animation
         {
             if ( pBoneMask != nullptr )
             {
-                LocalBlendMasked<AdditiveBlendFunction>( pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
+                LocalBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
             }
             else
             {
-                LocalBlend<AdditiveBlendFunction>( pSourcePose, pTargetPose, blendWeight, pResultPose, false );
+                LocalBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
             }
         }
     }
@@ -213,7 +213,7 @@ namespace EE::Animation
 
     // Local Blend
     template<typename BlendFunction>
-    void Blender::LocalBlend( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canEarlyOutOfBlend )
+    void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canEarlyOutOfBlend )
     {
         EE_ASSERT( blendWeight > 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
@@ -231,7 +231,7 @@ namespace EE::Animation
         }
         else // Blend
         {
-            int32_t const numBones = pResultPose->GetNumBones();
+            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
                 Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
@@ -250,13 +250,13 @@ namespace EE::Animation
 
     // Masked Local Blend
     template<typename BlendFunction>
-    void Blender::LocalBlendMasked( Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canEarlyOutOfPerBoneBlend )
+    void Blender::LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canEarlyOutOfPerBoneBlend )
     {
         EE_ASSERT( blendWeight > 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
         EE_ASSERT( pBoneMask != nullptr );
 
-        int32_t const numBones = pResultPose->GetNumBones();
+        int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
         for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
             // If the bone has been masked out

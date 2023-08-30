@@ -2,6 +2,7 @@
 #include "PlayerGraphController_InAir.h"
 #include "PlayerGraphController_Locomotion.h"
 #include "PlayerGraphController_Ability.h"
+#include "PlayerGraphController_Weapon.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,8 +14,8 @@ namespace EE::Player
         CreateSubGraphController<LocomotionGraphController>();
         CreateSubGraphController<AbilityGraphController>();
         CreateSubGraphController<InAirGraphController>();
+        CreateSubGraphController<WeaponGraphController>();
         m_characterStateParam.TryBind( this );
-        m_weaponAimParam.TryBind( this );
     }
 
     void AnimationController::SetCharacterState( CharacterAnimationState state )

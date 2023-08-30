@@ -4,7 +4,18 @@
 #include "Engine/Entity/EntityIDs.h"
 #include "Base/Math/Vector.h"
 
+//-------------------------------------------------------------------------
+
+#if _MSC_VER
+#pragma warning( push, 0 )
+#pragma warning( disable : 4435; disable : 4996 )
+#endif
+
 #include <PxQueryFiltering.h>
+
+#if _MSC_VER
+#pragma warning( pop )
+#endif
 
 //-------------------------------------------------------------------------
 

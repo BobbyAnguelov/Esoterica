@@ -45,7 +45,11 @@ namespace EE::Network
 
     public:
 
+        ServerConnection() = default;
+        ServerConnection( ServerConnection const& ) = default;
         virtual ~ServerConnection();
+
+        ServerConnection& operator=( ServerConnection const& ) = delete;
 
         // Server Info
         //-------------------------------------------------------------------------
@@ -114,7 +118,11 @@ namespace EE::Network
 
     public:
 
+        ClientConnection() = default;
+        ClientConnection( ClientConnection const& ) = default;
         virtual ~ClientConnection();
+
+        ClientConnection& operator=( ClientConnection const& ) = delete;
 
         inline bool IsConnected() const { return m_status == Status::Connected; }
         inline bool IsConnecting() const { return m_status == Status::Connecting || m_status == Status::Reconnecting; };

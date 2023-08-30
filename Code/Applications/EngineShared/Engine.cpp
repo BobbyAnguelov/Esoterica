@@ -33,7 +33,7 @@ namespace EE
 
     bool Engine::Initialize( Int2 const& windowDimensions )
     {
-        EE_LOG_MESSAGE( "System", nullptr, "Engine Application Startup" );
+        EE_LOG_INFO( "System", nullptr, "Engine Application Startup" );
 
         //-------------------------------------------------------------------------
         // Read INI file
@@ -160,7 +160,7 @@ namespace EE
 
     bool Engine::Shutdown()
     {
-        EE_LOG_MESSAGE( "System", nullptr, "Engine Application Shutdown Started" );
+        EE_LOG_INFO( "System", nullptr, "Engine Application Shutdown Started" );
 
         if ( m_pTaskSystem != nullptr )
         {
@@ -332,19 +332,28 @@ namespace EE
                     #if EE_DEVELOPMENT_TOOLS
                     if ( m_pResourceSystem->RequiresHotReloading() )
                     {
-                        m_pToolsUI->BeginHotReload( m_pResourceSystem->GetUsersToBeReloaded(), m_pResourceSystem->GetResourcesToBeReloaded() );
-                        m_pEntityWorldManager->BeginHotReload( m_pResourceSystem->GetUsersToBeReloaded() );
-                        m_pResourceSystem->ClearHotReloadRequests();
+                        m_pToolsUI->HotReload_UnloadResources( m_pResourceSystem->GetUsersToBeReloaded(), m_pResourceSystem->GetResourcesToBeReloaded() );
+                        m_pEntityWorldManager->HotReload_UnloadEntities( m_pResourceSystem->GetUsersToBeReloaded() );
 
                         // Ensure that all resource requests (both load/unload are completed before continuing with the hot-reload)
+                        m_pResourceSystem->ClearHotReloadRequests();
                         while ( m_pResourceSystem->IsBusy() )
                         {
                             Network::NetworkSystem::Update();
                             m_pResourceSystem->Update( true );
                         }
 
-                        m_pEntityWorldManager->EndHotReload();
-                        m_pToolsUI->EndHotReload();
+                        m_pToolsUI->HotReload_ReloadResources();
+                        m_pEntityWorldManager->HotReload_ReloadEntities();
+
+                        // Wait for all load requests to complete
+                        while ( m_pResourceSystem->IsBusy() )
+                        {
+                            Network::NetworkSystem::Update();
+                            m_pResourceSystem->Update( true );
+                        }
+
+                        m_pToolsUI->HotReload_ReloadComplete();
                     }
                     #endif
                 }

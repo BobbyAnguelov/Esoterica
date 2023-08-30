@@ -151,8 +151,8 @@ namespace EE::EntityModel
         // Get new map filename
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const mapFilePath = SaveDialog( "Map", GetFileSystemPath( m_loadedMap ).GetParentDirectory().c_str(), "Map File");
-        if ( !mapFilePath.IsValid() )
+        FileSystem::Path mapFilePath;
+        if ( !SaveDialog( "Map", mapFilePath, GetFileSystemPath( m_loadedMap ).GetParentDirectory().c_str(), "Map File" ) )
         {
             return;
         }
@@ -282,43 +282,14 @@ namespace EE::EntityModel
 
             ImGui::EndMenu();
         }
+    }
 
-        // Help
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::BeginMenu( EE_ICON_HELP_CIRCLE_OUTLINE" Help" ) )
-        {
-            auto DrawHelpRow = []( char const* pLabel, char const* pHotkey )
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
-                    ImGui::Text( pLabel );
-                }
-
-                ImGui::TableNextColumn();
-                {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                    ImGui::Text( pHotkey );
-                }
-            };
-
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::BeginTable( "HelpTable", 2 ) )
-            {
-                DrawHelpRow( "Switch Gizmo Mode", "Spacebar" );
-                DrawHelpRow( "Multi Select", "Ctrl/Shift + Left Click" );
-                DrawHelpRow( "Directly Select Component", "Alt + Left Click" );
-                DrawHelpRow( "Duplicate Selected Entities", "Alt + translate" );
-
-                ImGui::EndTable();
-            }
-
-            ImGui::EndMenu();
-        }
+    void EntityMapEditor::DrawHelpMenu() const
+    {
+        DrawHelpTextRow( "Switch Gizmo Mode", "Spacebar" );
+        DrawHelpTextRow( "Multi Select", "Ctrl/Shift + Left Click" );
+        DrawHelpTextRow( "Directly Select Component", "Alt + Left Click" );
+        DrawHelpTextRow( "Duplicate Selected Entities", "Alt + translate" );
     }
 
     void EntityMapEditor::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )

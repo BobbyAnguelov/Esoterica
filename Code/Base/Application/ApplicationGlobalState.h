@@ -23,6 +23,8 @@ namespace EE
         ApplicationGlobalState( char const* pMainThreadName = nullptr );
         ~ApplicationGlobalState();
 
+        ApplicationGlobalState& operator=( ApplicationGlobalState const& ) = default;
+
     private:
 
         bool m_initialized = false;

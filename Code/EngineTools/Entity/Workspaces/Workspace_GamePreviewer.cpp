@@ -76,16 +76,4 @@ namespace EE
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
         m_pDebugUI->EditorPreviewUpdate( context, GetToolWindowClass() );
     }
-
-    void GamePreviewer::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
-    {
-        Workspace::BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
-        m_pDebugUI->BeginHotReload( usersToBeReloaded, resourcesToBeReloaded );
-    }
-
-    void GamePreviewer::EndHotReload()
-    {
-        m_pDebugUI->EndHotReload();
-        Workspace::EndHotReload();
-    }
 }

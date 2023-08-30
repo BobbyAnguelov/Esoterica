@@ -23,7 +23,12 @@ namespace EE
     {
     public:
 
+        ISystem() = default;
+        ISystem( ISystem const& ) = default;
         virtual ~ISystem() = default;
+
+        ISystem& operator=( ISystem const& ) = default;
+
         virtual uint32_t GetSystemID() const = 0;
     };
 

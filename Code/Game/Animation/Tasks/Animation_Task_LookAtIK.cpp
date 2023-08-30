@@ -15,7 +15,7 @@ namespace EE::Animation::Tasks
 
     void LookAtIKTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
 
         // Generate Effector Data

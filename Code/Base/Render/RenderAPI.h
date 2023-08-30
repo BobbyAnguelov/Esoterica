@@ -228,6 +228,8 @@ namespace EE::Render
     public:
 
         ObjectHandle() = default;
+        ObjectHandle( ObjectHandle const& ) = default;
+        ObjectHandle& operator=( ObjectHandle const& ) = default;
 
         inline ~ObjectHandle()
         {

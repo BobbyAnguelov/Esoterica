@@ -23,8 +23,8 @@ namespace EE::AI
 
     private:
 
-        ControlParameter<float>     m_speedParam = ControlParameter<float>( "Locomotion_Speed" );
-        ControlParameter<Vector>    m_movementVelocityParam = ControlParameter<Vector>( "Locomotion_MovementVelocity" );
-        ControlParameter<Vector>    m_facingParam = ControlParameter<Vector>( "Locomotion_Facing" );
+        ControlParameter<float>     m_speedParam = "Locomotion_Speed";
+        ControlParameter<Vector>    m_movementVelocityParam = "Locomotion_MovementVelocity";
+        ControlParameter<Vector>    m_facingParam = "Locomotion_Facing";
     };
 }

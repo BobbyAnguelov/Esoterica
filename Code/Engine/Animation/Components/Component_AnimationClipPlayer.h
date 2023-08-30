@@ -33,7 +33,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline bool HasAnimationSet() const { return m_pAnimation != nullptr; }
-        Skeleton const* GetSkeleton() const;
         Pose const* GetPose() const { return m_pPose; }
 
         // Does this component require a manual update via a custom entity system?
@@ -45,6 +44,12 @@ namespace EE::Animation
 
         // Gets the root motion delta for the last update (Note: this delta is in character space!)
         inline Transform const& GetRootMotionDelta() const { return m_rootMotionDelta; }
+
+        // Skeleton
+        //-------------------------------------------------------------------------
+
+        Skeleton const* GetSkeleton() const;
+        void SetSkeletonLOD( Skeleton::LOD lod ) { m_skeletonLOD = lod; }
 
         //-------------------------------------------------------------------------
 
@@ -75,14 +80,24 @@ namespace EE::Animation
 
     private:
 
-        EE_REFLECT() TResourcePtr<AnimationClip>          m_pAnimation = nullptr;
-        EE_REFLECT() PlayMode                             m_playMode = PlayMode::Loop;
+        EE_REFLECT();
+        TResourcePtr<AnimationClip>             m_pAnimation = nullptr;
 
-        Transform                                       m_rootMotionDelta = Transform::Identity;
-        Pose*                                           m_pPose = nullptr;
-        Percentage                                      m_previousAnimTime = Percentage( 0.0f );
-        Percentage                                      m_animTime = Percentage( 0.0f );
-        EE_REFLECT() bool                                 m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
-        EE_REFLECT() bool                                 m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+        EE_REFLECT();
+        PlayMode                                m_playMode = PlayMode::Loop;
+
+        EE_REFLECT();
+        bool                                    m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
+
+        EE_REFLECT();
+        bool                                    m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+
+        //-------------------------------------------------------------------------
+
+        Skeleton::LOD                           m_skeletonLOD = Skeleton::LOD::High;
+        Pose*                                   m_pPose = nullptr;
+        Percentage                              m_previousAnimTime = Percentage( 0.0f );
+        Percentage                              m_animTime = Percentage( 0.0f );
+        Transform                               m_rootMotionDelta = Transform::Identity;
     };
 }

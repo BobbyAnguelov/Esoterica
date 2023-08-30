@@ -244,7 +244,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            Percentage const deltaPercentage = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : 0.0f;
+            Percentage const deltaPercentage = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : Percentage( 0.0f );
             Percentage const fromTime = m_currentTime;
             Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage );
 

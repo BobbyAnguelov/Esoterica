@@ -1,5 +1,4 @@
 #include "Entity.h"
-#include "EntitySystem.h"
 #include "EntityWorldUpdateContext.h"
 #include "EntityContexts.h"
 #include "EntityDescriptors.h"

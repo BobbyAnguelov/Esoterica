@@ -25,6 +25,7 @@ namespace EE::EntityModel
     private:
 
         virtual bool LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const final;
+        virtual bool CanProceedWithFailedInstallDependency() const override { return true; }
 
     private:
 

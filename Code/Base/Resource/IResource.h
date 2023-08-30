@@ -24,6 +24,8 @@ namespace EE::Resource
         IResource( IResource const& ) = default;
         virtual ~IResource() = default;
 
+        IResource& operator=( IResource const& ) = default;
+
         inline ResourceID const& GetResourceID() const { return m_resourceID; }
         inline ResourcePath const& GetResourcePath() const { return m_resourceID.GetResourcePath(); }
 

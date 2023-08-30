@@ -3743,35 +3743,47 @@ namespace EE::Render
         // Set up arguments
         //-------------------------------------------------------------------------
 
-        wchar_t* args[] = 
-        { 
+        eastl::wstring argsStr[] =
+        {
             L"",
             L"-f",
             L"",
             wcFilename.data(),
-            L"-nologo" 
+            L"-nologo"
         };
 
         switch ( type )
         {
             case TextureType::TangentSpaceNormals:
             {
-                args[2] = L"BC5_UNORM";
+                argsStr[2] = L"BC5_UNORM";
             }
             break;
 
             case TextureType::AmbientOcclusion:
             {
-                args[2] = L"BC4_UNORM";
+                argsStr[2] = L"BC4_UNORM";
             }
             break;
 
             default:
             {
-                args[2] = L"B8G8R8A8_UNORM_SRGB";
+                argsStr[2] = L"B8G8R8A8_UNORM_SRGB";
             }
             break;
         }
+
+        // Get args ptrs
+        //-------------------------------------------------------------------------
+
+        wchar_t* args[] =
+        { 
+            argsStr[0].data(),
+            argsStr[1].data(),
+            argsStr[2].data(),
+            argsStr[3].data(),
+            argsStr[4].data(),
+        };
 
         size_t const numArgs = sizeof( args ) / sizeof( args[0] );
 

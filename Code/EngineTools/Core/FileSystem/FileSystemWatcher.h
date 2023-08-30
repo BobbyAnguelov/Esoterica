@@ -11,51 +11,45 @@
 // The OS level function (ReadDirectoryChangesW) will trigger a modification event for multiple operations that are part of a logical operation
 //-------------------------------------------------------------------------
 
-// TODO: change this to collect all events and provide them to the user in a batch, this will allow users to defer events to specific points in time
 // TODO: API to retrieve events can process and concatenate events together (i.e. a create, move, rename into a create with the final name) 
 
 #if _WIN32
 namespace EE::FileSystem
 {
-    class EE_ENGINETOOLS_API IFileSystemChangeListener
+    class EE_ENGINETOOLS_API Watcher final
     {
+        static constexpr uint32_t const s_resultBufferSize = 32768;
+
     public:
 
-        virtual ~IFileSystemChangeListener() = default;
-
-        virtual void OnFileCreated( FileSystem::Path const& path ) {};
-        virtual void OnFileDeleted( FileSystem::Path const& path ) {};
-        virtual void OnFileRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) {};
-
-        virtual void OnFileModified( FileSystem::Path const& path ) {};
-
-        virtual void OnDirectoryCreated( FileSystem::Path const& path ) {};
-        virtual void OnDirectoryDeleted( FileSystem::Path const& path ) {};
-        virtual void OnDirectoryRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath ) {};
-    };
-
-    //-------------------------------------------------------------------------
-
-    class EE_ENGINETOOLS_API FileSystemWatcher final
-    {
-        static constexpr uint32_t const ResultBufferSize = 16384;
-        static constexpr float const FileModificationBatchTimeout = 250; // How long to wait between the start of the first modification event and notifying the event listeners
-
-        struct FileModificationEvent
+        struct Event
         {
-            FileModificationEvent( FileSystem::Path const& path ) : m_path( path ) { EE_ASSERT( path.IsValid() && path.IsFilePath() ); }
+            enum Type
+            {
+                Unknown = 0,
 
-            FileSystem::Path                            m_path;
-            Milliseconds                                m_startTime = PlatformClock::GetTimeInMilliseconds();
+                FileCreated,
+                FileDeleted,
+                FileRenamed,
+                FileModified,
+
+                DirectoryCreated,
+                DirectoryDeleted,
+                DirectoryRenamed,
+                DirectoryModified,
+            };
+
+        public:
+
+            Type                    m_type = Unknown;
+            FileSystem::Path        m_path;
+            FileSystem::Path        m_oldPath; // Only set for rename events
         };
 
     public:
 
-        FileSystemWatcher();
-        ~FileSystemWatcher();
-
-        void RegisterChangeListener( IFileSystemChangeListener* pListener );
-        void UnregisterChangeListener( IFileSystemChangeListener* pListener );
+        Watcher();
+        ~Watcher();
 
         bool StartWatching( FileSystem::Path const& directoryToWatch );
         bool IsWatching() const { return m_pDirectoryHandle != nullptr; }
@@ -64,27 +58,30 @@ namespace EE::FileSystem
         // Returns true if any filesystem changes detected!
         bool Update();
 
+        // Did any filesystem changes occur?
+        inline bool HasFilesystemChangeEvents() const { return !m_unhandledEvents.empty(); }
+
+        // Get all the file system changes since the last update - the event buffer is cleared on each update
+        TInlineVector<Event, 50> const& GetFileSystemChangeEvents() const { return m_unhandledEvents; }
+
     private:
 
-        void ProcessResults();
-        void ProcessPendingModificationEvents();
+        void RequestListOfDirectoryChanges();
+        void ProcessListOfDirectoryChanges();
 
     private:
 
         FileSystem::Path                                m_directoryToWatch;
         void*                                           m_pDirectoryHandle = nullptr;
 
-        // Listeners
-        TInlineVector<IFileSystemChangeListener*, 5>    m_changeListeners;
-
         // Request Data
         void*                                           m_pOverlappedEvent = nullptr;
-        uint8_t                                         m_resultBuffer[ResultBufferSize] = { 0 };
+        uint8_t                                         m_resultBuffer[s_resultBufferSize] = { 0 };
         unsigned long                                   m_numBytesReturned = 0;
         bool                                            m_requestPending = false;
 
         // File Modification buffers
-        TVector<FileModificationEvent>                  m_pendingFileModificationEvents;
+        TInlineVector<Event, 50>                        m_unhandledEvents;
     };
 }
 #endif

@@ -4,7 +4,7 @@
 
 namespace EE::Animation
 {
-    void Blender::GlobalBlend( Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    void Blender::GlobalBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         EE_ASSERT( pBoneMask != nullptr ); // Global space blends require a bone mask!
         EE_ASSERT( pBasePose != nullptr && pLayerPose != nullptr && pResultPose != nullptr );
@@ -33,7 +33,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         TVector<int32_t> const& parentIndices = pBasePose->GetSkeleton()->GetParentBoneIndices();
-        int32_t const numBones = pResultPose->GetNumBones();
+        int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
 
         TInlineVector<Quaternion, 200> baseRotations;
         TInlineVector<Quaternion, 200> layerRotations;
@@ -102,7 +102,7 @@ namespace EE::Animation
         // Blend the results of the global mask onto the base pose
         //-------------------------------------------------------------------------
 
-        LocalBlend<BlendFunctionFastSLerp>( pBasePose, pResultPose, layerWeight, pResultPose, true );
+        LocalBlend<BlendFunctionFastSLerp>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, true );
         pResultPose->ClearGlobalTransforms();
         pResultPose->m_state = Pose::State::Pose;
     }

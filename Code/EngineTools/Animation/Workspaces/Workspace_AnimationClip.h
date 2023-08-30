@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Animation/Events/AnimationEventTrack.h"
+#include "EngineTools/Animation/Events/AnimationEventTimeline.h"
 #include "EngineTools/Core/Timeline/TimelineEditor.h"
 #include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Core/Workspace.h"
@@ -35,12 +35,14 @@ namespace EE::Animation
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void OnHotReloadStarted( bool descriptorNeedsReload, TInlineVector<Resource::ResourcePtr*, 10> const& resourcesToBeReloaded ) override;
         virtual void OnHotReloadComplete() override;
+        virtual void OnInitialResourceLoadCompleted() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
 
         virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual void DrawMenu( UpdateContext const& context ) override;
+        virtual void DrawHelpMenu() const override;
 
         virtual bool HasViewportToolbarTimeControls() const override { return true; }
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
@@ -92,6 +94,7 @@ namespace EE::Animation
         bool                            m_isPreviewCapsuleDrawingEnabled = false;
         float                           m_previewCapsuleHalfHeight = 0.65f;
         float                           m_previewCapsuleRadius = 0.35f;
+        Skeleton::LOD                   m_skeletonLOD = Skeleton::LOD::High;
 
         bool                            m_isDetailsWindowFocused = false;
     };

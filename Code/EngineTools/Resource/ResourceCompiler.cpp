@@ -65,7 +65,7 @@ namespace EE::Resource
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Message, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
+        Log::AddEntryVarArgs( Log::Severity::Info, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
         va_end( args );
         return CompilationResult::Success;
     }

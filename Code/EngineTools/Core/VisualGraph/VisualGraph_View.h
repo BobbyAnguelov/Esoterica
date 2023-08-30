@@ -2,7 +2,6 @@
 #include "VisualGraph_StateMachineGraph.h"
 #include "VisualGraph_FlowGraph.h"
 #include "VisualGraph_UserContext.h"
-#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,7 +13,8 @@ namespace EE::VisualGraph
 
         constexpr static char const* const s_copiedNodesKey = "Copied Visual Graph Nodes";
         constexpr static char const* const s_copiedConnectionsKey = "Copied Visual Graph Connections";
-        constexpr static char const* const s_dialogID_Rename = "Rename Dialog";
+        constexpr static char const* const s_dialogID_Rename = "Rename ";
+        constexpr static char const* const s_dialogID_Comment = "Comment";
 
     protected:
 
@@ -25,6 +25,7 @@ namespace EE::VisualGraph
             Selection,
             Node,
             Connection,
+            ResizeComment,
         };
 
         // Drag state
@@ -34,24 +35,18 @@ namespace EE::VisualGraph
         {
             inline Flow::Node* GetAsFlowNode() const{ return Cast<Flow::Node> ( m_pNode ); }
             inline SM::Node* GetAsStateMachineNode() const{ return Cast<SM::Node> ( m_pNode ); }
-
-            void Reset()
-            {
-                m_mode = DragMode::None;
-                m_startValue = m_lastFrameDragDelta = ImVec2( 0, 0 );
-                m_pNode = nullptr;
-                m_pPin = nullptr;
-            }
+            inline void Reset() { *this = DragState(); }
 
         public:
 
-            DragMode                m_mode = DragMode::None;
-            ImVec2                  m_startValue = ImVec2( 0, 0 );
-            ImVec2                  m_lastFrameDragDelta = ImVec2( 0, 0 );
-            BaseNode*               m_pNode = nullptr;
-            Flow::Pin*              m_pPin = nullptr;
-            bool                    m_primaryMouseClickDetected = false;
-            bool                    m_secondaryMouseClickDetected = false;
+            DragMode                        m_mode = DragMode::None;
+            ImVec2                          m_startValue = ImVec2( 0, 0 );
+            ImVec2                          m_lastFrameDragDelta = ImVec2( 0, 0 );
+            BaseNode*                       m_pNode = nullptr;
+            Flow::Pin*                      m_pPin = nullptr;
+            TInlineVector<BaseNode*, 10>    m_draggedNodes;
+            ResizeHandle                    m_resizeHandle = ResizeHandle::None;
+            bool                            m_dragReadyToStart = false;
         };
 
         // Context menu state
@@ -82,6 +77,7 @@ namespace EE::VisualGraph
             bool                    m_requestOpenMenu = false;
             bool                    m_menuOpened = false;
             bool                    m_isAutoConnectMenu = false;
+            bool                    m_isDragReady = false;
             ImGuiX::FilterWidget    m_filterWidget;
         };
 
@@ -148,6 +144,7 @@ namespace EE::VisualGraph
         //-------------------------------------------------------------------------
 
         void DestroySelectedNodes();
+        void CreateCommentAroundSelectedNodes();
 
         // Visual
         //-------------------------------------------------------------------------
@@ -161,26 +158,31 @@ namespace EE::VisualGraph
         inline DragMode GetDragMode() const { return m_dragState.m_mode; }
 
         inline bool IsNotDragging() const { return GetDragMode() == DragMode::None; }
-        inline bool IsDraggingView() const { return GetDragMode() == DragMode::View; }
-        inline bool IsDraggingSelection() const { return GetDragMode() == DragMode::Selection; }
-        inline bool IsDraggingNode() const { return GetDragMode() == DragMode::Node; }
-        inline bool IsDraggingConnection() const { return GetDragMode() == DragMode::Connection; }
 
+        inline bool IsDraggingView() const { return GetDragMode() == DragMode::View; }
         virtual void StartDraggingView( DrawContext const& ctx );
         virtual void OnDragView( DrawContext const& ctx );
         virtual void StopDraggingView( DrawContext const& ctx );
 
+        inline bool IsDraggingSelection() const { return GetDragMode() == DragMode::Selection; }
         virtual void StartDraggingSelection( DrawContext const& ctx );
         virtual void OnDragSelection( DrawContext const& ctx );
         virtual void StopDraggingSelection( DrawContext const& ctx );
 
+        inline bool IsDraggingNode() const { return GetDragMode() == DragMode::Node; }
         virtual void StartDraggingNode( DrawContext const& ctx );
         virtual void OnDragNode( DrawContext const& ctx );
         virtual void StopDraggingNode( DrawContext const& ctx );
 
+        inline bool IsDraggingConnection() const { return GetDragMode() == DragMode::Connection; }
         virtual void StartDraggingConnection( DrawContext const& ctx );
         virtual void OnDragConnection( DrawContext const& ctx );
         virtual void StopDraggingConnection( DrawContext const& ctx );
+
+        inline bool IsResizingCommentBox() const { return GetDragMode() == DragMode::ResizeComment; }
+        virtual void StartResizingCommentBox( DrawContext const& ctx );
+        virtual void OnResizeCommentBox( DrawContext const& ctx );
+        virtual void StopResizingCommentBox( DrawContext const& ctx );
 
         // Selection
         //-------------------------------------------------------------------------
@@ -195,17 +197,19 @@ namespace EE::VisualGraph
 
         void OnGraphModified( VisualGraph::BaseGraph* pGraph );
 
+        // View
+        //-------------------------------------------------------------------------
+
+        inline float GetViewScaleFactor() const { return ( m_pGraph == nullptr ) ? 1.0f : m_pGraph->m_viewScaleFactor; }
+        void ChangeViewScale( DrawContext const& ctx, float newViewScale );
+
         // Node Drawing
         //-------------------------------------------------------------------------
 
-        void DrawStateMachineNodeTitle( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize );
-        void DrawStateMachineNodeBackground( DrawContext const& ctx, SM::Node* pNode, ImVec2& newNodeSize );
         void DrawStateMachineNode( DrawContext const& ctx, SM::Node* pNode );
         void DrawStateMachineTransitionConduit( DrawContext const& ctx, SM::TransitionConduit* pTransition );
-        void DrawFlowNodeTitle( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNodePins( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
-        void DrawFlowNodeBackground( DrawContext const& ctx, Flow::Node* pNode, ImVec2& newNodeSize );
         void DrawFlowNode( DrawContext const& ctx, Flow::Node* pNode );
+        void DrawCommentNode( DrawContext const& ctx, CommentNode* pNode );
 
         // Node Ops
         //-------------------------------------------------------------------------
@@ -221,6 +225,10 @@ namespace EE::VisualGraph
         void HandleInput( TypeSystem::TypeRegistry const& typeRegistry, DrawContext const& ctx );
 
         void HandleContextMenu( DrawContext const& ctx );
+
+        void DrawSharedContextMenuOptions( DrawContext const& ctx );
+
+        void DrawCommentContextMenu( DrawContext const& ctx );
 
         void DrawFlowGraphContextMenu( DrawContext const& ctx );
 
@@ -242,6 +250,7 @@ namespace EE::VisualGraph
         bool                            m_isViewHovered = false;
         bool                            m_selectionChanged = false;
         bool                            m_isReadOnly = false;
+        bool                            m_requestFocus = false;
 
         DragState                       m_dragState;
         ContextMenuState                m_contextMenuState;
@@ -250,9 +259,9 @@ namespace EE::VisualGraph
         Flow::Pin*                      m_pHoveredPin = nullptr;
         UUID                            m_hoveredConnectionID;
 
-        // Rename 
-        char                            m_renameBuffer[255] = { 0 };
-        BaseNode*                       m_pNodeBeingRenamed = nullptr;
+        // Rename / Comments
+        char                            m_textBuffer[255] = { 0 };
+        BaseNode*                       m_pNodeBeingOperatedOn = nullptr;
 
         // Event bindings
         EventBindingID                  m_graphEndModificationBindingID;

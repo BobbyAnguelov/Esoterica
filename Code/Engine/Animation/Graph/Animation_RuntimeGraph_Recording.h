@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "Animation_RuntimeGraph_Contexts.h"
+#include "Animation_RuntimeGraph_LayerData.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Base/Time/Time.h"

@@ -23,9 +23,9 @@ namespace EE::Player
 
     private:
 
-        ControlParameter<StringID>      m_abilityID = ControlParameter<StringID>( "Ability_ID" );
-        ControlParameter<float>         m_speedParam = ControlParameter<float>( "Ability_Speed" );
-        ControlParameter<Vector>        m_movementVelocityParam = ControlParameter<Vector>( "Ability_MovementVelocity" );
-        ControlParameter<Vector>        m_facingParam = ControlParameter<Vector>( "Ability_Facing" );
+        ControlParameter<StringID>      m_abilityID = "Ability_ID";
+        ControlParameter<float>         m_speedParam = "Ability_Speed";
+        ControlParameter<Vector>        m_movementVelocityParam =  "Ability_MovementVelocity";
+        ControlParameter<Vector>        m_facingParam = "Ability_Facing";
     };
 }

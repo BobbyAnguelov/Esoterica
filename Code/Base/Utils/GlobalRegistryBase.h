@@ -68,6 +68,9 @@ namespace EE
             }
         }
 
+        TGlobalRegistryBase( TGlobalRegistryBase const& ) = default;
+        TGlobalRegistryBase& operator=( TGlobalRegistryBase const& rhs ) = default;
+
     protected:
 
         inline T* GetNextItem() const { return m_pNext; }

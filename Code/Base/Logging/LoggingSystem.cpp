@@ -210,7 +210,7 @@ namespace EE::Log
             // Track unhandled warnings and errors
             //-------------------------------------------------------------------------
 
-            if ( entry.m_severity > Severity::Message )
+            if ( entry.m_severity > Severity::Info )
             {
                 g_pLog->m_numWarnings += ( entry.m_severity == Severity::Warning ) ? 1 : 0;
                 g_pLog->m_numErrors += ( entry.m_severity == Severity::Error ) ? 1 : 0;

@@ -473,20 +473,20 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void EntityWorld::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload )
+    void EntityWorld::HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload )
     {
         EE_ASSERT( !usersToReload.empty() );
         for ( auto& pMap : m_maps )
         {
-            pMap->BeginHotReload( m_loadingContext, m_initializationContext, usersToReload );
+            pMap->HotReload_UnloadEntities( m_loadingContext, m_initializationContext, usersToReload );
         }
     }
 
-    void EntityWorld::EndHotReload()
+    void EntityWorld::HotReload_ReloadEntities()
     {
         for ( auto& pMap : m_maps )
         {
-            pMap->EndHotReload( m_loadingContext );
+            pMap->HotReload_ReloadEntities( m_loadingContext );
         }
     }
     #endif

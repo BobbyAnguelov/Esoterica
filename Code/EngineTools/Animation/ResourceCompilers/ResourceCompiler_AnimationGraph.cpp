@@ -62,7 +62,7 @@ namespace EE::Animation
                 {
                     Warning( "%s", logEntry.m_message.c_str() );
                 }
-                else if ( logEntry.m_severity == Log::Severity::Message )
+                else if ( logEntry.m_severity == Log::Severity::Info )
                 {
                     Message( "%s", logEntry.m_message.c_str() );
                 }

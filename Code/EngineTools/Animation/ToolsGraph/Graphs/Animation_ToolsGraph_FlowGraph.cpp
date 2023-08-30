@@ -107,7 +107,7 @@ namespace EE::Animation
 
         if ( !category.HasItemsThatMatchFilter( NodeFilter ) )
         {
-            return false;
+            return nullptr;
         }
 
         //-------------------------------------------------------------------------
@@ -374,7 +374,7 @@ namespace EE::Animation
             }
 
             // Set node position
-            pTargetNode->SetCanvasPosition( mouseCanvasPos );
+            pTargetNode->SetPosition( mouseCanvasPos );
 
             // Try to auto-connect nodes
             if ( pSourceNode != nullptr )
@@ -471,7 +471,7 @@ namespace EE::Animation
             auto pDataSlotNode = Cast<GraphNodes::DataSlotToolsNode>( CreateNode( pFoundNodeTypeInfo ) );
             pDataSlotNode->SetName( resourceID.GetFileNameWithoutExtension() );
             pDataSlotNode->SetDefaultResourceID( resourceID );
-            pDataSlotNode->SetCanvasPosition( mouseCanvasPos );
+            pDataSlotNode->SetPosition( mouseCanvasPos );
         }
 
         // Handle dropped parameters
@@ -492,7 +492,7 @@ namespace EE::Animation
                 {
                     VisualGraph::ScopedGraphModification sgm( this );
                     auto pNode = CreateParameterReference( this, pControlParameter );
-                    pNode->SetCanvasPosition( mouseCanvasPos );
+                    pNode->SetPosition( mouseCanvasPos );
                     return;
                 }
             }
@@ -503,7 +503,7 @@ namespace EE::Animation
                 {
                     VisualGraph::ScopedGraphModification sgm( this );
                     auto pNode = CreateParameterReference( this, pVirtualParameter );
-                    pNode->SetCanvasPosition( mouseCanvasPos );
+                    pNode->SetPosition( mouseCanvasPos );
                     return;
                 }
             }

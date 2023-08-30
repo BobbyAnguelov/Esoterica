@@ -428,7 +428,7 @@ namespace EE
         float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
 
         TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", Log::System::GetNumWarnings() );
-        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT_CIRCLE_OUTLINE" %d", Log::System::GetNumErrors() );
+        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_CLOSE_CIRCLE" %d", Log::System::GetNumErrors() );
         TInlineString<40> const perfStatsStr( TInlineString<40>::CtorSprintf(), "FPS: %3.0f", currentFPS );
         TInlineString<40> const memStatsStr( TInlineString<40>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
 
@@ -608,19 +608,27 @@ namespace EE
         }
     }
 
-    void EngineDebugUI::BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
+    void EngineDebugUI::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
     {
         for ( auto pDebugView : m_debugViews )
         {
-            pDebugView->BeginHotReload( usersToReload, resourcesToBeReloaded );
+            pDebugView->HotReload_UnloadResources( usersToReload, resourcesToBeReloaded );
         }
     }
 
-    void EngineDebugUI::EndHotReload()
+    void EngineDebugUI::HotReload_ReloadResources()
     {
         for ( auto pDebugView : m_debugViews )
         {
-            pDebugView->EndHotReload();
+            pDebugView->HotReload_ReloadResources();
+        }
+    }
+
+    void EngineDebugUI::HotReload_ReloadComplete()
+    {
+        for ( auto pDebugView : m_debugViews )
+        {
+            pDebugView->HotReload_ReloadComplete();
         }
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "UndoStack.h"
 #include "ToolsContext.h"
+#include "DialogManager.h"
 #include "PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "Base/Imgui/ImguiX.h"
@@ -26,13 +27,7 @@ namespace EE
     class EE_ENGINETOOLS_API EditorTool
     {
         friend class EditorUI;
-
-        // Create the tool window name
-        EE_FORCE_INLINE static InlineString GetToolWindowName( char const* pToolWindowName, ImGuiID dockspaceID )
-        {
-            EE_ASSERT( pToolWindowName != nullptr );
-            return InlineString( InlineString::CtorSprintf(), "%s##%08X", pToolWindowName, dockspaceID );
-        }
+        friend class Workspace;
 
     public:
 
@@ -40,13 +35,15 @@ namespace EE
         {
             friend class EditorTool;
             friend class EditorUI;
+            friend class Workspace;
 
         public:
 
-            ToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ) )
+            ToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ), bool disableScrolling = false )
                 : m_name( name )
                 , m_drawFunction( drawFunction )
                 , m_windowPadding( windowPadding )
+                , m_disableScrolling( disableScrolling )
             {
                 EE_ASSERT( !name.empty() );
                 EE_ASSERT( m_drawFunction != nullptr );
@@ -57,13 +54,30 @@ namespace EE
                 return m_windowPadding.x >= 0 && m_windowPadding.y >= 0;
             }
 
-        private:
+            inline bool IsScrollingDisabled() const
+            {
+                return m_disableScrolling;
+            }
+
+        protected:
 
             String                                          m_name;
+            uint64_t                                        m_userData = 0;
             TFunction<void(UpdateContext const&, bool)>     m_drawFunction;
             ImVec2                                          m_windowPadding;
+            bool                                            m_disableScrolling = false;
+            bool                                            m_isViewport = false;
             bool                                            m_isOpen = true;
         };
+
+    protected:
+
+        // Create the tool window name
+        EE_FORCE_INLINE static InlineString GetToolWindowName( char const* pToolWindowName, ImGuiID dockspaceID )
+        {
+            EE_ASSERT( pToolWindowName != nullptr );
+            return InlineString( InlineString::CtorSprintf(), "%s##%08X", pToolWindowName, dockspaceID );
+        }
 
     public:
 
@@ -92,14 +106,11 @@ namespace EE
         // Does this tool have a toolbar?
         virtual bool HasMenu() const { return !IsSingleWindowTool(); }
 
-        // Draws the tool toolbar menu - by default will draw the default items
-        virtual void DrawMenu( UpdateContext const& context );
+        // Draws the tool toolbar menu
+        virtual void DrawMenu( UpdateContext const& context ) {}
 
         // Was the initialization function called
         inline bool IsInitialized() const { return m_isInitialized; }
-
-        // Draw any open dialogs that this tool has
-        virtual void DrawDialogs( UpdateContext const& context ) {}
 
         // Docking
         //-------------------------------------------------------------------------
@@ -123,33 +134,36 @@ namespace EE
         // Frame update and draw any tool windows needed for the tool
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) {}
 
-        // Hot-reload
-        //-------------------------------------------------------------------------
-
-        // Called whenever a hot-reload operation occurs
-        virtual void BeginHotReload( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded );
-
-        // Called after hot-reloading completes.
-        virtual void EndHotReload();
-
     protected:
 
         // Require derived tools to define a ctor
         EditorTool( ToolsContext const* pToolsContext, String const& displayName );
 
         // Set the tool tab-title (pass by value is intentional)
-        void SetDisplayName( String name );
+        virtual void SetDisplayName( String name );
 
         // Tool Windows
         //-------------------------------------------------------------------------
 
         ImGuiWindowClass* GetToolWindowClass() { return &m_toolWindowClass; }
 
-        void CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ) );
+        void CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ), bool disableScrolling = false );
 
         EE_FORCE_INLINE TVector<ToolWindow> const& GetToolWindows() const { return m_toolWindows; }
 
         EE_FORCE_INLINE InlineString GetToolWindowName( String const& name ) const { return GetToolWindowName( name.c_str(), m_currentDockspaceID ); }
+
+        // Help Menu
+        //-------------------------------------------------------------------------
+
+        // Call this to draw a help menu row ( label + comes text )
+        void DrawHelpTextRow( char const* pLabel, char const* pText ) const;
+
+        // Call this to draw a custom help text row (i.e. not just some text)
+        void DrawHelpTextRowCustom( char const* pLabel, TFunction<void()> const& function ) const;
+
+        // Override this function to fill out the help text menu
+        virtual void DrawHelpMenu() const { DrawHelpTextRow( "No Help Available", "" ); }
 
         // Resource Helpers
         //-------------------------------------------------------------------------
@@ -208,16 +222,27 @@ private:
             return dockspaceID;
         }
 
+        // Draw the workspace windows and help menus
+        void DrawSharedMenus();
+
+        // Hot-reload
+        //-------------------------------------------------------------------------
+
+        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded );
+        virtual void HotReload_ReloadResources();
+        virtual void HotReload_ReloadComplete();
+
     protected:
 
         ImGuiID                                     m_ID = 0; // Document identifier (unique)
         ToolsContext const*                         m_pToolsContext = nullptr;
         Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         String                                      m_windowName;
+        DialogManager                               m_dialogManager;
 
     private:
 
-        ImGuiID                                     m_currentDockID = 0;        // The doc we are currently in
+        ImGuiID                                     m_currentDockID = 0;        // The dock we are currently in
         ImGuiID                                     m_desiredDockID = 0;        // The dock we wish to be in
         ImGuiID                                     m_currentLocationID = 0;    // Current Dock node we are docked into _OR_ window ID if floating window
         ImGuiID                                     m_previousLocationID = 0;   // Previous dock node we are docked into _OR_ window ID if floating window

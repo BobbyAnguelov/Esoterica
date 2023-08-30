@@ -36,7 +36,11 @@ namespace EE
 
         public:
 
+            Shader() = default;
+            Shader( Shader const& ) = default;
             virtual ~Shader() { EE_ASSERT( !m_shaderHandle.IsValid() ); }
+
+            Shader& operator=( Shader const& ) = default;
 
             inline PipelineStage GetPipelineStage() const { return m_pipelineStage; }
 

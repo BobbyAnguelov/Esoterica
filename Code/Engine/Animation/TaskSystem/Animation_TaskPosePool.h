@@ -61,7 +61,10 @@ namespace EE::Animation
     public:
 
         PoseBufferPool( Skeleton const* pSkeleton );
+        PoseBufferPool( PoseBufferPool const& ) = delete;
         ~PoseBufferPool();
+
+        PoseBufferPool& operator=( PoseBufferPool const& rhs ) = delete;
 
         void Reset();
 

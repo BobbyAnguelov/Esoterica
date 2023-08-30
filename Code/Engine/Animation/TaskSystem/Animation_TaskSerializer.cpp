@@ -12,6 +12,8 @@ namespace EE::Animation
         , m_LUTs( LUTs )
         , m_numSerializedTasks( numTasksToSerialize )
     {
+        GenerateResourceMappings();
+
         m_maxBitsForDependencies = Math::GetMostSignificantBit( m_numSerializedTasks ) + 1;
         EE_ASSERT( m_maxBitsForDependencies <= 8 );
 
@@ -27,6 +29,8 @@ namespace EE::Animation
         : BitArchive<1280>( inData )
         , m_LUTs( LUTs )
     {
+        GenerateResourceMappings();
+
         m_maxBitsForDependencies = (uint8_t) ReadUInt( 4 );
         EE_ASSERT( m_maxBitsForDependencies <= 8 );
 
@@ -34,6 +38,33 @@ namespace EE::Animation
         EE_ASSERT( m_maxBitsForBoneMask <= 8 );
 
         m_numSerializedTasks = (uint8_t) ReadUInt( m_maxBitsForDependencies );
+    }
+
+    void TaskSerializer::GenerateResourceMappings()
+    {
+        m_resourceIDToIdxMap.clear();
+        m_resourceIdxToIDMap.clear();
+        m_maxBitsForResourceIDs = 0;
+
+        //-------------------------------------------------------------------------
+
+        uint32_t resourceIdx = 0;
+        for ( auto const& pLUT : m_LUTs )
+        {
+            for ( auto const& pair : *pLUT )
+            {
+                auto iter = m_resourceIDToIdxMap.find( pair.first );
+                if ( iter == m_resourceIDToIdxMap.end() )
+                {
+                    m_resourceIDToIdxMap.insert( TPair<uint32_t, uint32_t>( pair.first, resourceIdx ) );
+                    m_resourceIdxToIDMap.insert( TPair<uint32_t, uint32_t>( resourceIdx, pair.first ) );
+                    resourceIdx++;
+                }
+            }
+        }
+
+        m_maxBitsForResourceIDs = Math::GetMostSignificantBit( (uint32_t) m_resourceIDToIdxMap.size() ) + 1;
+        EE_ASSERT( m_maxBitsForResourceIDs > 0 && m_maxBitsForResourceIDs <= 16 );
     }
 
     //-------------------------------------------------------------------------

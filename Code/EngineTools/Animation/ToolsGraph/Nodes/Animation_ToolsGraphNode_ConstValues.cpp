@@ -25,7 +25,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstBoolToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        BeginDrawInternalRegion( ctx );
         ImGui::Text( m_value ? "True" : "False" );
         EndDrawInternalRegion( ctx );
     }
@@ -50,7 +50,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        BeginDrawInternalRegion( ctx );
         ImGui::Text( m_value.IsValid() ? m_value.c_str() : "" );
         EndDrawInternalRegion( ctx );
     }
@@ -75,7 +75,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstFloatToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        BeginDrawInternalRegion( ctx );
         ImGui::Text( "%.3f", m_value );
         EndDrawInternalRegion( ctx );
     }
@@ -100,7 +100,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstVectorToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        BeginDrawInternalRegion( ctx );
         DrawVectorInfoText( ctx, m_value );
         EndDrawInternalRegion( ctx );
     }
@@ -125,7 +125,7 @@ namespace EE::Animation::GraphNodes
 
     void ConstTargetToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        BeginDrawInternalRegion( ctx, Color( 40, 40, 40 ) );
+        BeginDrawInternalRegion( ctx );
         DrawTargetInfoText( ctx, Target( m_value ) );
         EndDrawInternalRegion( ctx );
     }

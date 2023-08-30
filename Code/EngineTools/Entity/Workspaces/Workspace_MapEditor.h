@@ -49,6 +49,7 @@ namespace EE::EntityModel
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_EARTH; }
         virtual void DrawMenu( UpdateContext const& context ) override;
+        virtual void DrawHelpMenu() const override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
@@ -59,7 +60,6 @@ namespace EE::EntityModel
         void BeginNavmeshGeneration( UpdateContext const& context );
         void UpdateNavmeshGeneration( UpdateContext const& context );
         void EndNavmeshGeneration( UpdateContext const& context );
-
     private:
 
         ResourceID                                      m_loadedMap;

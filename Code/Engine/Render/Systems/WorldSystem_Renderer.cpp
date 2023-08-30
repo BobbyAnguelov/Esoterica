@@ -12,7 +12,6 @@
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Profiling.h"
 
-
 //-------------------------------------------------------------------------
 
 namespace EE::Render

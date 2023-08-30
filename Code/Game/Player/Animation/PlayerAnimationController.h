@@ -29,7 +29,7 @@ namespace EE::Player
         virtual void PostGraphUpdate( Seconds deltaTime ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual char const* GetName() const { return "Player Graph Controller"; }
+        virtual char const* GetName() const override { return "Player Graph Controller"; }
         #endif
 
         // General Player State
@@ -45,15 +45,9 @@ namespace EE::Player
         inline bool IsTransitionFullyAllowed() const { return m_transitionMarker == Animation::TransitionMarker::AllowTransition; }
         inline bool IsTransitionConditionallyAllowed() const { return m_transitionMarker == Animation::TransitionMarker::ConditionallyAllowTransition; }
 
-        // HACK
-        //-------------------------------------------------------------------------
-
-        void SetWeaponAim( bool value ) { m_weaponAimParam.Set( value ); }
-
     private:
 
         ControlParameter<StringID>      m_characterStateParam = "CharacterState";
-        ControlParameter<bool>          m_weaponAimParam = "Weapon_Aim";
         Animation::TransitionMarker     m_transitionMarker = Animation::TransitionMarker::BlockTransition;
         bool                            m_hasTransitionMarker = false;
     };

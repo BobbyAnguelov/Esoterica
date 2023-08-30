@@ -16,7 +16,7 @@ namespace EE::Animation::Tasks
 
     void SampleTask::Execute( TaskContext const& context )
     {
-        EE_PROFILE_FUNCTION_ANIMATION();
+        //EE_PROFILE_FUNCTION_ANIMATION();
         EE_ASSERT( m_pAnimation != nullptr );
 
         auto pResultBuffer = GetNewPoseBuffer( context );

@@ -107,7 +107,6 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         EE_ASSERT( !m_fileSystemWatcher.IsWatching() );
-        m_fileSystemWatcher.RegisterChangeListener( this );
         m_fileSystemWatcher.StartWatching( m_rawResourceDirPath );
     }
 
@@ -119,7 +118,6 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_fileSystemWatcher.StopWatching();
-        m_fileSystemWatcher.UnregisterChangeListener( this );
 
         //-------------------------------------------------------------------------
 
@@ -180,23 +178,26 @@ namespace EE::Resource
 
         // Update file watcher
         //-------------------------------------------------------------------------
-        // Note: file watcher atm is not collecting events so we can miss events that occurring due the caches rebuild
-        // This will be fixed once we upgrade the filesystem watcher to batch events
 
-        bool const fileSystemChangesDetected = m_fileSystemWatcher.Update();
-
-        if ( fileSystemChangesDetected )
+        if ( m_fileSystemWatcher.Update() )
         {
-            if ( m_filesystemCacheUpdatedEvent.HasBoundUsers() )
-            {
-                m_filesystemCacheUpdatedEvent.Execute();
-            }
+            ProcessFileSystemChanges();
+            return true;
         }
 
-        return fileSystemChangesDetected;
+        //-------------------------------------------------------------------------
+
+        return false;
     }
 
     //-------------------------------------------------------------------------
+
+    void ResourceDatabase::RequestRebuild()
+    {
+        CancelDatabaseBuild();
+        ClearDatabase();
+        StartFilesystemCacheBuild();
+    }
 
     void ResourceDatabase::ClearDatabase()
     {
@@ -204,6 +205,7 @@ namespace EE::Resource
         m_resourcesPerPath.clear();
         m_reflectedDataDirectory.Clear();
         m_descriptorsToLoad.empty();
+        m_numItemsProcessed = m_totalItemsToProcess = 0;
         m_state = DatabaseState::Empty;
     }
 
@@ -592,157 +594,184 @@ namespace EE::Resource
     // Watcher Events
     //-------------------------------------------------------------------------
 
-    bool ResourceDatabase::TempFileWatcherEventWarning()
+    void ResourceDatabase::ProcessFileSystemChanges()
     {
-        if ( IsBuildingCaches() )
+        if ( m_filesystemCacheUpdatedEvent.HasBoundUsers() )
         {
-            EE_LOG_ERROR( "Resource", "Resource Database", "Filesystem Watcher event occurred while building cache and was ignored! Please fix the watcher!!!" );
-            return true;
-        }
-
-        return false;
-    }
-
-    void ResourceDatabase::OnFileCreated( FileSystem::Path const& path )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        AddFileRecord( path, true );
-    }
-
-    void ResourceDatabase::OnFileDeleted( FileSystem::Path const& path )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        RemoveFileRecord( path );
-    }
-
-    void ResourceDatabase::OnFileRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        RemoveFileRecord( oldPath );
-        AddFileRecord( newPath, true );
-    }
-
-    void ResourceDatabase::OnFileModified( FileSystem::Path const& path )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        DirectoryEntry* pDirectory = FindDirectory( path.GetParentDirectory() );
-        EE_ASSERT( pDirectory != nullptr );
-
-        int32_t const numFiles = (int32_t) pDirectory->m_files.size();
-        for ( int32_t i = 0; i < numFiles; i++ )
-        {
-            if ( pDirectory->m_files[i]->m_filePath == path )
-            {
-                if ( pDirectory->m_files[i]->m_isRegisteredResourceType )
-                {
-                    pDirectory->m_files[i]->ReloadDescriptor( *m_pTypeRegistry );
-                }
-
-                break;
-            }
-        }
-    }
-
-    void ResourceDatabase::OnDirectoryCreated( FileSystem::Path const& newDirectoryPath )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        TVector<FileSystem::Path> foundPaths;
-        if ( !FileSystem::GetDirectoryContents( newDirectoryPath, foundPaths, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Expand ) )
-        {
-            EE_HALT();
-        }
-
-        // If this is an empty directory, add to the directory list
-        if ( foundPaths.empty() )
-        {
-            DirectoryEntry* pDirectory = FindOrCreateDirectory( newDirectoryPath );
-            EE_ASSERT( pDirectory != nullptr );
-        }
-        else // Add file records (this will automatically create the directory record)
-        {
-            for ( auto const& filePath : foundPaths )
-            {
-                AddFileRecord( filePath, true );
-            }
-        }
-    }
-
-    void ResourceDatabase::OnDirectoryDeleted( FileSystem::Path const& path )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        auto pParentDirectory = FindDirectory( path.GetParentDirectory() );
-        EE_ASSERT( pParentDirectory != nullptr );
-
-        int32_t const numDirectories = (int32_t) pParentDirectory->m_directories.size();
-        for ( int32_t i = 0; i < numDirectories; i++ )
-        {
-            if ( pParentDirectory->m_directories[i].m_filePath == path )
-            {
-                // Delete all children and remove directory
-                pParentDirectory->m_directories[i].Clear();
-                pParentDirectory->m_directories.erase_unsorted( pParentDirectory->m_directories.begin() + i );
-                break;
-            }
-        }
-    }
-
-    void ResourceDatabase::OnDirectoryRenamed( FileSystem::Path const& oldPath, FileSystem::Path const& newPath )
-    {
-        if ( TempFileWatcherEventWarning() ) return;
-
-        EE_ASSERT( oldPath.IsDirectoryPath() );
-        EE_ASSERT( newPath.IsDirectoryPath() );
-
-        DirectoryEntry* pDirectory = nullptr;
-
-        // Check if the directory was also moved
-        FileSystem::Path const oldParentPath = oldPath.GetParentDirectory();
-        FileSystem::Path const newParentPath = newPath.GetParentDirectory();
-        if ( oldParentPath != newParentPath )
-        {
-            auto pOldParentDirectory = FindDirectory( oldParentPath );
-            EE_ASSERT( pOldParentDirectory != nullptr );
-
-            auto pNewParentDirectory = FindOrCreateDirectory( newParentPath );
-            EE_ASSERT( pNewParentDirectory );
-
-            // Move directory to new parent
-            //-------------------------------------------------------------------------
-
-            bool directoryMoved = false;
-            int32_t const numOldDirectories = (int32_t) pOldParentDirectory->m_directories.size();
-            for ( int32_t i = 0; i < numOldDirectories; i++ )
-            {
-                if ( pOldParentDirectory->m_directories[i].m_filePath == oldPath )
-                {
-                    pNewParentDirectory->m_directories.emplace_back( pOldParentDirectory->m_directories[i] );
-                    pOldParentDirectory->m_directories.erase_unsorted( pOldParentDirectory->m_directories.begin() + i );
-                    directoryMoved = true;
-                    break;
-                }
-            }
-
-            EE_ASSERT( directoryMoved );
-
-            // Update directory
-            //-------------------------------------------------------------------------
-
-            pDirectory = &pNewParentDirectory->m_directories.back();
-        }
-        else
-        {
-            pDirectory = FindDirectory( oldPath );
+            m_filesystemCacheUpdatedEvent.Execute();
         }
 
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( pDirectory != nullptr );
-        pDirectory->ChangePath( m_rawResourceDirPath, newPath );
+        auto const& fsEvents = m_fileSystemWatcher.GetFileSystemChangeEvents();
+        for ( auto const& fsEvent : fsEvents )
+        {
+            switch ( fsEvent.m_type )
+            {
+                case FileSystem::Watcher::Event::FileCreated:
+                {
+                    AddFileRecord( fsEvent.m_path, true );
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::FileDeleted:
+                {
+                    RemoveFileRecord( fsEvent.m_path );
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::FileRenamed:
+                {
+                    RemoveFileRecord( fsEvent.m_oldPath );
+                    AddFileRecord( fsEvent.m_path, true );
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::FileModified:
+                {
+                    DirectoryEntry* pDirectory = FindDirectory( fsEvent.m_path.GetParentDirectory() );
+                    EE_ASSERT( pDirectory != nullptr );
+
+                    int32_t const numFiles = (int32_t) pDirectory->m_files.size();
+                    for ( int32_t i = 0; i < numFiles; i++ )
+                    {
+                        if ( pDirectory->m_files[i]->m_filePath == fsEvent.m_path )
+                        {
+                            if ( pDirectory->m_files[i]->m_isRegisteredResourceType )
+                            {
+                                pDirectory->m_files[i]->ReloadDescriptor( *m_pTypeRegistry );
+                            }
+
+                            break;
+                        }
+                    }
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::DirectoryCreated:
+                {
+                    TVector<FileSystem::Path> foundPaths;
+                    if ( !FileSystem::GetDirectoryContents( fsEvent.m_path, foundPaths, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Expand ) )
+                    {
+                        EE_HALT();
+                    }
+
+                    // If this is an empty directory, add to the directory list
+                    if ( foundPaths.empty() )
+                    {
+                        DirectoryEntry* pDirectory = FindOrCreateDirectory( fsEvent.m_path );
+                        EE_ASSERT( pDirectory != nullptr );
+                    }
+                    else // Add file records (this will automatically create the directory record)
+                    {
+                        for ( auto const& filePath : foundPaths )
+                        {
+                            AddFileRecord( filePath, true );
+                        }
+                    }
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::DirectoryDeleted:
+                {
+                    auto pParentDirectory = FindDirectory( fsEvent.m_path.GetParentDirectory() );
+                    EE_ASSERT( pParentDirectory != nullptr );
+
+                    int32_t const numDirectories = (int32_t) pParentDirectory->m_directories.size();
+                    for ( int32_t i = 0; i < numDirectories; i++ )
+                    {
+                        if ( pParentDirectory->m_directories[i].m_filePath == fsEvent.m_path )
+                        {
+                            // Delete all children and remove directory
+                            pParentDirectory->m_directories[i].Clear();
+                            pParentDirectory->m_directories.erase_unsorted( pParentDirectory->m_directories.begin() + i );
+                            break;
+                        }
+                    }
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::DirectoryRenamed:
+                {
+                    EE_ASSERT( fsEvent.m_oldPath.IsDirectoryPath() );
+                    EE_ASSERT( fsEvent.m_path.IsDirectoryPath() );
+
+                    DirectoryEntry* pDirectory = nullptr;
+
+                    // Check if the directory was also moved
+                    FileSystem::Path const oldParentPath = fsEvent.m_oldPath.GetParentDirectory();
+                    FileSystem::Path const newParentPath = fsEvent.m_path.GetParentDirectory();
+                    if ( oldParentPath != newParentPath )
+                    {
+                        auto pOldParentDirectory = FindDirectory( oldParentPath );
+                        EE_ASSERT( pOldParentDirectory != nullptr );
+
+                        auto pNewParentDirectory = FindOrCreateDirectory( newParentPath );
+                        EE_ASSERT( pNewParentDirectory );
+
+                        // Move directory to new parent
+                        //-------------------------------------------------------------------------
+
+                        bool directoryMoved = false;
+                        int32_t const numOldDirectories = (int32_t) pOldParentDirectory->m_directories.size();
+                        for ( int32_t i = 0; i < numOldDirectories; i++ )
+                        {
+                            if ( pOldParentDirectory->m_directories[i].m_filePath == fsEvent.m_oldPath )
+                            {
+                                pNewParentDirectory->m_directories.emplace_back( pOldParentDirectory->m_directories[i] );
+                                pOldParentDirectory->m_directories.erase_unsorted( pOldParentDirectory->m_directories.begin() + i );
+                                directoryMoved = true;
+                                break;
+                            }
+                        }
+
+                        EE_ASSERT( directoryMoved );
+
+                        // Update directory
+                        //-------------------------------------------------------------------------
+
+                        pDirectory = &pNewParentDirectory->m_directories.back();
+                    }
+                    else
+                    {
+                        pDirectory = FindDirectory( fsEvent.m_oldPath );
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    EE_ASSERT( pDirectory != nullptr );
+                    pDirectory->ChangePath( m_rawResourceDirPath, fsEvent.m_path );
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                case FileSystem::Watcher::Event::DirectoryModified:
+                {
+                    // Do Nothing
+                }
+                break;
+
+                //-------------------------------------------------------------------------
+
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+        }
     }
 }

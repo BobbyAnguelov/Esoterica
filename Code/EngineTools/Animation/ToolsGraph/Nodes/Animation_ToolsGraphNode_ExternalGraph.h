@@ -37,7 +37,8 @@ namespace EE::Animation::GraphNodes
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
         #endif
 
-        String GetUniqueSlotName( String const& desiredName );
+        String GetUniqueSlotName( VisualGraph::BaseGraph* pRootGraph, String const& desiredName );
+
     private:
 
         EE_REFLECT() String                       m_name;
