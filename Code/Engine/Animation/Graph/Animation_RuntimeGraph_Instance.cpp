@@ -353,22 +353,6 @@ namespace EE::Animation
         m_graphContext.m_pLayerInitializationInfo = nullptr;
     }
 
-    void GraphInstance::GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges )
-    {
-        for ( auto activeNodeIdx : m_activeNodes )
-        {
-            auto pNodeSettings = m_pGraphVariation->GetDefinition()->m_nodeSettings[activeNodeIdx];
-            if ( IsOfType<GraphNodes::LayerBlendNode::Settings>( pNodeSettings ) )
-            {
-                auto& layerUpdateRange = outRanges.emplace_back();
-                layerUpdateRange.m_nodeIdx = activeNodeIdx;
-
-                auto pNode = static_cast<GraphNodes::LayerBlendNode*>( m_nodes[activeNodeIdx] );
-                pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerUpdateRange.m_updateRanges );
-            }
-        }
-    }
-
     GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, bool resetGraphState )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
@@ -458,6 +442,22 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void GraphInstance::GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges )
+    {
+        for ( auto activeNodeIdx : m_activeNodes )
+        {
+            auto pNodeSettings = m_pGraphVariation->GetDefinition()->m_nodeSettings[activeNodeIdx];
+            if ( IsOfType<GraphNodes::LayerBlendNode::Settings>( pNodeSettings ) )
+            {
+                auto& layerUpdateRange = outRanges.emplace_back();
+                layerUpdateRange.m_nodeIdx = activeNodeIdx;
+
+                auto pNode = static_cast<GraphNodes::LayerBlendNode*>( m_nodes[activeNodeIdx] );
+                pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerUpdateRange.m_updateRanges );
+            }
+        }
+    }
+
     TaskSystemDebugMode GraphInstance::GetTaskSystemDebugMode() const
     {
         EE_ASSERT( m_pTaskSystem != nullptr );

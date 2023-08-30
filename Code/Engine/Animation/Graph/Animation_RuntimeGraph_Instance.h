@@ -121,9 +121,6 @@ namespace EE::Animation
         // Get the current graph updateID
         inline uint32_t GetUpdateID() const { return m_graphContext.m_updateID; }
 
-        // Get the current active layer states
-        void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges );
-
         // Run the graph logic
         // If the sync track update range is set, this will perform a synchronized update
         // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
@@ -299,6 +296,9 @@ namespace EE::Animation
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
             return m_nodes[nodeIdx];
         }
+
+        // Get the current active layer states - to be promoted to a full-runtime feature at some point, requires moving active node tracking out of debug
+        void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges );
 
         // Get the runtime log for this graph instance
         TVector<GraphLogEntry> const& GetLog() const { return m_log; }
