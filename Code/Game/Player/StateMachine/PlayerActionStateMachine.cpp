@@ -9,6 +9,7 @@
 #include "Game/Player/StateMachine/Actions/PlayerAction_Dash.h"
 #include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Shoot.h"
 #include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Aim.h"
+#include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_MeleeAttack.h"
 #include "Actions/PlayerAction_Slide.h"
 #include "Actions/PlayerAction_Ghost.h"
 #include "Actions/PlayerAction_Interact.h"
@@ -26,6 +27,7 @@ namespace EE::Player
 
         m_overlayActions.emplace_back( EE::New<ShootOverlayAction>() );
         m_overlayActions.emplace_back( EE::New<AimOverlayAction>() );
+        m_overlayActions.emplace_back( EE::New<MeleeAttackAction>() );
 
         //-------------------------------------------------------------------------
         // Base Actions
@@ -226,7 +228,7 @@ namespace EE::Player
             else if ( pOverlayAction->TryStart( m_actionContext ) )
             {
                 Action::Status const newActionStatus = pOverlayAction->Update( m_actionContext );
-                EE_ASSERT( newActionStatus == Action::Status::Interruptible ); // Why did you instantly completed the action you just started, this is likely a mistake!
+                EE_ASSERT( newActionStatus != Action::Status::Completed ); // Why did you instantly complete the action you just started, this is likely a mistake!
 
                 #if EE_DEVELOPMENT_TOOLS
                 m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), pOverlayAction->GetName(), LoggedStatus::ActionStarted, false );

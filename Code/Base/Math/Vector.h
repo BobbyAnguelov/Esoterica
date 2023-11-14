@@ -157,7 +157,7 @@ namespace EE
         EE_FORCE_INLINE Vector() {}
         EE_FORCE_INLINE explicit Vector( Axis axis );
         EE_FORCE_INLINE explicit Vector( ZeroInit_t ) { memset( this, 0, sizeof( Vector ) ); }
-        EE_FORCE_INLINE explicit Vector( float v ) { m_data = _mm_shuffle_ps( _mm_load_ss( &v ), _mm_load_ss( &v ), _MM_SHUFFLE( 0, 0, 0, 0 ) ); }
+        EE_FORCE_INLINE explicit Vector( float v ) { m_data = _mm_set1_ps( v ); }
         EE_FORCE_INLINE Vector( __m128 v ) : m_data( v ) {}
         EE_FORCE_INLINE Vector( float ix, float iy, float iz, float iw = 1.0f ) { m_data = _mm_set_ps( iw, iz, iy, ix ); }
 
@@ -1816,11 +1816,12 @@ namespace EE
     {
         EE_ASSERT( t >= 0.0f && t <= 1.0f );
 
+        Vector L = _mm_sub_ps( to, from );
+        Vector S = _mm_set_ps1( t );
+
         Vector result;
-        auto L = _mm_sub_ps( to, from );
-        auto S = _mm_set_ps1( t );
-        auto Result = _mm_mul_ps( L, S );
-        result = _mm_add_ps( Result, from );
+        result = _mm_mul_ps( L, S );
+        result = _mm_add_ps( result, from );
         return result;
     }
     

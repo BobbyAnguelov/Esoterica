@@ -9,7 +9,7 @@ namespace EE::Animation::GraphNodes
     void DataSlotToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
     {
         FlowToolsNode::Initialize( pParent );
-        m_name = GetUniqueSlotName( GetDefaultSlotName() );
+        SetName( GetDefaultSlotName() );
     }
 
     ResourceID DataSlotToolsNode::GetResourceID( VariationHierarchy const& variationHierarchy, StringID variationID ) const
@@ -70,9 +70,16 @@ namespace EE::Animation::GraphNodes
 
     void DataSlotToolsNode::SetName( String const& newName )
     {
-        EE_ASSERT( IsRenameable() );
+        EE_ASSERT( IsRenameable() && HasParentGraph() );
         VisualGraph::ScopedNodeModification const snm( this );
-        m_name = GetUniqueSlotName( newName );
+        if ( HasParentGraph() )
+        {
+            m_name = GetParentGraph()->GetUniqueNameForRenameableNode( newName, this );
+        }
+        else
+        {
+            m_name = newName;
+        }
     }
 
     void DataSlotToolsNode::SetDefaultValue( ResourceID const& resourceID )
@@ -205,36 +212,6 @@ namespace EE::Animation::GraphNodes
         FlowToolsNode::DrawExtraControls( ctx, pUserContext );
     }
 
-    String DataSlotToolsNode::GetUniqueSlotName( String const& desiredName )
-    {
-        // Ensure that the slot name is unique within the same graph
-        int32_t cnt = 0;
-        String uniqueName = desiredName;
-        auto const dataSlotNodes = GetParentGraph()->FindAllNodesOfType<DataSlotToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        for ( int32_t i = 0; i < (int32_t) dataSlotNodes.size(); i++ )
-        {
-            if ( dataSlotNodes[i] == this )
-            {
-                continue;
-            }
-
-            if ( dataSlotNodes[i]->GetName() == uniqueName )
-            {
-                uniqueName = String( String::CtorSprintf(), "%s_%d", desiredName.c_str(), cnt );
-                cnt++;
-                i = 0;
-            }
-        }
-
-        return uniqueName;
-    }
-
-    void DataSlotToolsNode::PostPaste()
-    {
-        FlowToolsNode::PostPaste();
-        m_name = GetUniqueSlotName( m_name );
-    }
-
     void DataSlotToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
@@ -249,7 +226,7 @@ namespace EE::Animation::GraphNodes
     void DataSlotToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
     {
         FlowToolsNode::PostPropertyEdit( pPropertyEdited );
-        m_name = GetUniqueSlotName( m_name );
+        m_name = GetParentGraph()->GetUniqueNameForRenameableNode( m_name, this );
     }
     #endif
 }

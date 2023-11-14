@@ -6,18 +6,37 @@
 
 namespace EE::Animation::Tasks
 {
-    class DefaultPoseTask : public Task
+    class ReferencePoseTask : public Task
     {
-        EE_REFLECT_TYPE( DefaultPoseTask );
+        EE_REFLECT_TYPE( ReferencePoseTask );
 
     public:
 
-        DefaultPoseTask( TaskSourceID sourceID, Pose::Type type );
+        ReferencePoseTask( TaskSourceID sourceID ) : Task( sourceID ) {}
         virtual void Execute( TaskContext const& context ) override;
-
         virtual bool AllowsSerialization() const override { return true; }
-        virtual void Serialize( TaskSerializer& serializer ) const override;
-        virtual void Deserialize( TaskSerializer& serializer ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual String GetDebugText() const override { return "Default Pose Task"; }
+        virtual Color GetDebugColor() const override { return Colors::LightYellow; }
+        #endif
+
+    private:
+
+        ReferencePoseTask() : Task( 0xFF ) {}
+    };
+
+    //-------------------------------------------------------------------------
+
+    class ZeroPoseTask : public Task
+    {
+        EE_REFLECT_TYPE( ZeroPoseTask );
+
+    public:
+
+        ZeroPoseTask( TaskSourceID sourceID ) : Task( sourceID ) {}
+        virtual void Execute( TaskContext const& context ) override;
+        virtual bool AllowsSerialization() const override { return true; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const override { return "Default Pose Task"; }
@@ -26,10 +45,6 @@ namespace EE::Animation::Tasks
 
     private:
 
-        DefaultPoseTask() : Task( 0xFF ) {}
-
-    private:
-
-        Pose::Type m_type = Pose::Type::None;
+        ZeroPoseTask() : Task( 0xFF ) {}
     };
 }

@@ -20,7 +20,8 @@ namespace EE::Animation
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return GraphDefinition::GetStaticResourceTypeID(); }
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override {}
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override {}
+        virtual void Clear() override {}
     };
 
     //-------------------------------------------------------------------------
@@ -31,13 +32,20 @@ namespace EE::Animation
 
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return false; }
-        
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return GraphVariation::GetStaticResourceTypeID(); }
+
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             if ( m_graphPath.IsValid() )
             {
                 outDependencies.emplace_back( m_graphPath );
             }
+        }
+
+        virtual void Clear() override
+        {
+            m_graphPath.Clear();
+            m_variationID.Clear();
         }
 
     public:

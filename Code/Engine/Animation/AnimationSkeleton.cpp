@@ -107,7 +107,7 @@ namespace EE::Animation
         static constexpr float const axisLength = 0.05f;
 
         ctx.DrawLine( charPos, charPos, Colors::Yellow, 2 );
-        ctx.DrawArrow( charPos, charPos + fwdDir * forwardAxisLength, Colors::Lime, 4 );
+        ctx.DrawArrow( charPos, charPos + fwdDir * forwardAxisLength, Colors::Green, 4 );
         ctx.DrawLine( charPos, charPos + upDir * axisLength, Colors::Blue, 3 );
         ctx.DrawLine( charPos, charPos + rightDir * axisLength, Colors::Red, 3 );
         ctx.DrawPoint( charPos, Colors::HotPink, 10 );

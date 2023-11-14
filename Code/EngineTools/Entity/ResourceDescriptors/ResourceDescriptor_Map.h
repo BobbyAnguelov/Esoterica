@@ -15,6 +15,7 @@ namespace EE::EntityModel
         virtual bool IsValid() const override { return true; }
         virtual bool IsUserCreateableDescriptor() const override { return false; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return SerializedEntityMap::GetStaticResourceTypeID(); }
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override {}
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override {}
+        virtual void Clear() override {}
     };
 }

@@ -1,36 +1,126 @@
 #include "PlayerAnimationController.h"
-#include "PlayerGraphController_InAir.h"
-#include "PlayerGraphController_Locomotion.h"
-#include "PlayerGraphController_Ability.h"
-#include "PlayerGraphController_Weapon.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Player
 {
+    StringID const AnimationController::s_characterStateIDs[] =
+    {
+        StringID( "CS_Locomotion" ),
+        StringID( "CS_InAir" ),
+        StringID( "CS_Ability" ),
+        StringID( "CS_Interaction" ),
+        StringID( "CS_GhostMode" ),
+    };
+
+    StringID const AnimationController::s_locomotionStateIDs[] =
+    {
+        StringID( "Locomotion_Idle" ),
+        StringID( "Locomotion_TurnOnSpot" ),
+        StringID( "Locomotion_Start" ),
+        StringID( "Locomotion_Move" ),
+        StringID( "Locomotion_PlantedTurn" ),
+        StringID( "Locomotion_Stop" ),
+    };
+
+    StringID const AnimationController::s_inAirStateParameterIDs[] =
+    {
+        StringID( "InAir_Falling" ),
+        StringID( "InAir_SoftLanding" ),
+        StringID( "InAir_HardLanding" ),
+    };
+
+    StringID const AnimationController::s_weaponStateIDs[] =
+    {
+        StringID( "Weapon_None" ),
+        StringID( "Weapon_Draw" ),
+        StringID( "Weapon_Drawn" ),
+        StringID( "Weapon_Aimed" ),
+        StringID( "Weapon_Holster" ),
+        StringID( "Weapon_WeaponAttack" ),
+    };
+
+    namespace AbilityIDs
+    {
+        static StringID g_jumpID( "Ability_Jump" );
+        static StringID g_dashID( "Ability_Dash" );
+        static StringID g_slideID( "Ability_Slide" );
+    }
+
+    static StringID const g_locomotionTransitionMarkerID( "Locomotion" );
+
+    //-------------------------------------------------------------------------
+
     AnimationController::AnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
         : Animation::GraphController( pGraphComponent, pMeshComponent )
     {
-        CreateSubGraphController<LocomotionGraphController>();
-        CreateSubGraphController<AbilityGraphController>();
-        CreateSubGraphController<InAirGraphController>();
-        CreateSubGraphController<WeaponGraphController>();
-        m_characterStateParam.TryBind( this );
+        m_characterState.TryBind( this );
+
+        //-------------------------------------------------------------------------
+
+        m_locomotionState.TryBind( this );
+        m_locomotionSpeed.TryBind( this );
+        m_locomotionMoveVelocity.TryBind( this );
+        m_locomotionMoveDir.TryBind( this );
+        m_locomotionFacing.TryBind( this );
+        m_locomotionCrouchState.TryBind( this );
+        m_locomotionAutoSlidingState.TryBind( this );
+
+        //-------------------------------------------------------------------------
+
+        m_inAirState.TryBind( this );
+        m_inAirSpeed.TryBind( this );
+        m_inAirMoveDir.TryBind( this );
+        m_inAirMoveVelocity.TryBind( this );
+        m_inAirFacing.TryBind( this );
+
+        //-------------------------------------------------------------------------
+
+        m_weaponState.TryBind( this );
+        m_weaponFireSignal.TryBind( this );
+        m_weaponAimAngleHorizontal.TryBind( this );
+        m_weaponAimAngleVertical.TryBind( this );
+
+        //-------------------------------------------------------------------------
+
+        m_abilityState.TryBind( this );
+        m_abilitySpeed.TryBind( this );
+        m_abilityMoveDir.TryBind( this );
+        m_abilityMoveVelocity.TryBind( this );
+        m_abilityFacing.TryBind( this );
+
+        //-------------------------------------------------------------------------
+
+        m_hitReactionState.TryBind( this );
     }
 
-    void AnimationController::SetCharacterState( CharacterAnimationState state )
-    {
-        static StringID const characterStates[(uint8_t) CharacterAnimationState::NumStates] =
-        {
-            StringID( "Locomotion" ),
-            StringID( "InAir" ),
-            StringID( "Ability" ),
-            StringID( "Interaction" ),
-            StringID( "GhostMode" ),
-        };
+    //-------------------------------------------------------------------------
 
-        EE_ASSERT( state < CharacterAnimationState::NumStates );
-        m_characterStateParam.Set( characterStates[(uint8_t) state] );
+    bool AnimationController::IsTransitionFullyAllowed( StringID specificID ) const
+    {
+        for ( auto const& sampledMarker : m_transitionMarkers )
+        {
+            if ( sampledMarker.m_ID == specificID && sampledMarker.m_marker == Animation::TransitionMarker::AllowTransition )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool AnimationController::IsTransitionConditionallyAllowed( StringID specificID ) const
+    {
+        for ( auto const& sampledMarker : m_transitionMarkers )
+        {
+            if ( sampledMarker.m_ID == specificID && sampledMarker.m_marker == Animation::TransitionMarker::ConditionallyAllowTransition )
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void AnimationController::PostGraphUpdate( Seconds deltaTime )
@@ -39,8 +129,17 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        m_transitionMarker = Animation::TransitionMarker::BlockTransition;
-        m_hasTransitionMarker = false;
+        m_transitionMarkers.clear();
+
+        //-------------------------------------------------------------------------
+
+        m_graphState = LocomotionState::Unknown;
+        m_isAllowedToTransition = false;
+
+        m_weaponFireSignal.Set( false );
+        m_isWeaponDrawn = false;
+        m_isInMeleeAttack = false;
+        m_isHitReactionComplete = false;
 
         //-------------------------------------------------------------------------
 
@@ -59,14 +158,313 @@ namespace EE::Player
                 {
                     if ( auto pTransitionEvent = sampledEvent.TryGetEvent<Animation::TransitionEvent>() )
                     {
-                        if ( pTransitionEvent->GetMarker() < m_transitionMarker )
-                        {
-                            m_transitionMarker = pTransitionEvent->GetMarker();
-                            m_hasTransitionMarker = true;
-                        }
+                        m_transitionMarkers.emplace_back( pTransitionEvent->GetMarker(), pTransitionEvent->GetMarkerID() );
                     }
                 }
             }
+            else // State events
+            {
+                StringID const stateID = sampledEvent.GetStateEventID();
+
+                // Locomotion
+                if ( sampledEvent.IsEntryEvent() || sampledEvent.IsFullyInStateEvent() )
+                {
+                    if ( stateID == s_locomotionStateIDs[(int8_t) LocomotionState::Idle] )
+                    {
+                        m_graphState = LocomotionState::Idle;
+                    }
+                    else if ( stateID == s_locomotionStateIDs[(int8_t) LocomotionState::TurnOnSpot] )
+                    {
+                        m_graphState = LocomotionState::TurnOnSpot;
+                    }
+                    else if ( stateID == s_locomotionStateIDs[(int8_t) LocomotionState::Start] )
+                    {
+                        m_graphState = LocomotionState::Start;
+                    }
+                    else if ( stateID == s_locomotionStateIDs[(int8_t) LocomotionState::Move] )
+                    {
+                        m_graphState = LocomotionState::Move;
+                    }
+                    else if ( stateID == s_locomotionStateIDs[(int8_t) LocomotionState::PlantedTurn] )
+                    {
+                        m_graphState = LocomotionState::PlantedTurn;
+                    }
+                    else if ( stateID == s_locomotionStateIDs[(int8_t) LocomotionState::Stop] )
+                    {
+                        m_graphState = LocomotionState::Stop;
+                    }
+                }
+
+                // Weapon
+                //-------------------------------------------------------------------------
+
+                if ( stateID == s_weaponStateIDs[(uint8_t) WeaponState::Drawn] || stateID == s_weaponStateIDs[(uint8_t) WeaponState::Aimed] )
+                {
+                    m_isWeaponDrawn = true;
+                }
+
+                if ( sampledEvent.IsFullyInStateEvent() && stateID == s_weaponStateIDs[(uint8_t) WeaponState::MeleeAttack] )
+                {
+                    m_isInMeleeAttack = true;
+                }
+
+                // Hit Reactions
+                //-------------------------------------------------------------------------
+
+                static StringID const hitReactionCompleteStateEventID( "HR_HitReactionComplete" );
+                if ( sampledEvent.IsTimedEvent() && stateID == hitReactionCompleteStateEventID )
+                {
+                    m_isHitReactionComplete = true;
+                }
+            }
         }
+    }
+
+    //-------------------------------------------------------------------------
+    // General
+    //-------------------------------------------------------------------------
+
+    void AnimationController::SetCharacterState( CharacterState state )
+    {
+        EE_ASSERT( state < CharacterState::NumStates );
+        m_characterState.Set( s_characterStateIDs[(uint8_t) state] );
+    }
+
+    //-------------------------------------------------------------------------
+    // Locomotion
+    //-------------------------------------------------------------------------
+
+    void AnimationController::RequestIdle()
+    {
+        m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::Idle] );
+        m_locomotionMoveVelocity.Set( Vector::Zero );
+        m_locomotionMoveDir.Set( Vector::Zero );
+        m_locomotionFacing.Set( Vector::WorldForward );
+        m_locomotionSpeed.Set( 0.0f );
+    }
+
+    void AnimationController::RequestTurnOnSpot( Vector const& directionWS )
+    {
+        m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::TurnOnSpot] );
+        m_locomotionMoveVelocity.Set( Vector::Zero );
+        m_locomotionMoveDir.Set( Vector::Zero );
+        m_locomotionFacing.Set( ConvertWorldSpaceVectorToCharacterSpace( directionWS ) );
+        m_locomotionSpeed.Set( 0.0f );
+    }
+
+    void AnimationController::RequestStart( Vector const& movementVelocityWS )
+    {
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+
+        float speed;
+        Vector movementDirCS;
+        movementVelocityCS.ToDirectionAndLength3( movementDirCS, speed );
+
+        //-------------------------------------------------------------------------
+
+        m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::Start] );
+        m_locomotionMoveVelocity.Set( movementVelocityCS );
+        m_locomotionMoveDir.Set( movementDirCS );
+        m_locomotionFacing.Set( Vector::WorldForward );
+        m_locomotionSpeed.Set( speed );
+    }
+
+    void AnimationController::RequestMove( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
+    {
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+
+        float speed;
+        Vector movementDirCS;
+        movementVelocityCS.ToDirectionAndLength3( movementDirCS, speed );
+
+        //-------------------------------------------------------------------------
+
+        Vector facingCS = Vector::WorldForward;
+        if ( !facingDirectionWS.IsZero3() )
+        {
+            EE_ASSERT( facingDirectionWS.IsNormalized3() );
+            facingCS = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
+        }
+
+        //-------------------------------------------------------------------------
+
+        m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::Move] );
+        m_locomotionMoveVelocity.Set( movementVelocityCS );
+        m_locomotionMoveDir.Set( movementDirCS );
+        m_locomotionFacing.Set( facingCS );
+        m_locomotionSpeed.Set( speed );
+    }
+
+    void AnimationController::RequestPlantedTurn( Vector const& directionWS )
+    {
+        EE_ASSERT( directionWS.IsNormalized3() );
+        m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::PlantedTurn] );
+        m_locomotionMoveVelocity.Set( directionWS );
+        m_locomotionMoveDir.Set( directionWS );
+    }
+
+    void AnimationController::RequestStop( Transform const& target )
+    {
+        m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::Stop] );
+        m_locomotionMoveVelocity.Set( Vector::Zero );
+        m_locomotionMoveDir.Set( Vector::Zero );
+        m_locomotionFacing.Set( Vector::WorldForward );
+        m_locomotionSpeed.Set( 0.0f );
+    }
+
+    void AnimationController::SetCrouch( bool isCrouch )
+    {
+        m_locomotionCrouchState.Set( isCrouch );
+    }
+
+    void AnimationController::SetSliding( bool isSliding )
+    {
+        m_locomotionAutoSlidingState.Set( isSliding );
+    }
+
+    bool AnimationController::IsLocomotionTransitionFullyAllowed() const
+    {
+        return IsTransitionFullyAllowed( g_locomotionTransitionMarkerID );
+    }
+
+    bool AnimationController::IsLocomotionTransitionConditionallyAllowed() const
+    {
+        return IsTransitionFullyAllowed( g_locomotionTransitionMarkerID );
+    }
+
+    //-------------------------------------------------------------------------
+    // In Air
+    //-------------------------------------------------------------------------
+
+    void AnimationController::SetInAirDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
+    {
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+      
+        float speed;
+        Vector movementDirCS;
+        movementVelocityCS.ToDirectionAndLength3( movementDirCS, speed );
+        m_inAirMoveDir.Set( movementDirCS );
+        m_inAirMoveVelocity.Set( movementVelocityCS );
+        m_inAirSpeed.Set( speed );
+
+        //-------------------------------------------------------------------------
+
+        if ( facingDirectionWS.IsZero3() )
+        {
+            m_inAirFacing.Set( Vector::WorldForward );
+        }
+        else
+        {
+            EE_ASSERT( facingDirectionWS.IsNormalized3() );
+            Vector const characterSpaceFacing = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
+            m_inAirFacing.Set( characterSpaceFacing );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Weapons
+    //-------------------------------------------------------------------------
+
+    void AnimationController::FireWeapon()
+    {
+        m_weaponFireSignal.Set( true );
+    }
+
+    void AnimationController::DrawWeapon()
+    {
+        m_weaponState.Set( s_weaponStateIDs[(uint8_t) WeaponState::Drawing] );
+    }
+
+    void AnimationController::HolsterWeapon()
+    {
+        m_weaponState.Set( s_weaponStateIDs[(uint8_t) WeaponState::Holstering] );
+    }
+
+    void AnimationController::AimWeapon( Vector const& targetWS )
+    {
+        float angleH = 0.0f;
+        float angleV = 0.0f;
+        m_weaponState.Set( s_weaponStateIDs[(uint8_t) WeaponState::Aimed] );
+
+        // This is stupid but it's a demo
+        Animation::Pose const* pPose = GetCurrentPose();
+        int32_t const headIdx = pPose->GetSkeleton()->GetBoneIndex( StringID( "head" ) );
+        if ( headIdx != InvalidIndex )
+        {
+            Vector headPos = pPose->GetGlobalTransform( headIdx ).GetTranslation();
+            Vector targetPosCS = ConvertWorldSpacePointToCharacterSpace( targetWS );
+            Vector aimDir = ( targetPosCS - headPos ).GetNormalized3();
+
+            angleH = Math::GetYawAngleBetweenNormalizedVectors( Vector::WorldForward, aimDir ).ToDegrees().ToFloat();
+            angleV = Math::GetPitchAngleBetweenNormalizedVectors( Vector::WorldForward, aimDir ).ToDegrees().ToFloat();
+        }
+
+        m_weaponAimAngleHorizontal.Set( angleH );
+        m_weaponAimAngleVertical.Set( angleV );
+    }
+
+    void AnimationController::StartMeleeAttack()
+    {
+        static StringID const meleeAttackID( "MeleeAttack" );
+        m_weaponState.Set( meleeAttackID );
+    }
+
+    //-------------------------------------------------------------------------
+    // Abilities
+    //-------------------------------------------------------------------------
+
+    void AnimationController::StartJump()
+    {
+        m_abilityState.Set( AbilityIDs::g_jumpID );
+    }
+
+    void AnimationController::StartDash()
+    {
+        m_abilityState.Set( AbilityIDs::g_dashID );
+    }
+
+    void AnimationController::StartSlide()
+    {
+        m_abilityState.Set( AbilityIDs::g_slideID );
+    }
+
+    void AnimationController::SetAbilityDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
+    {
+        Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
+        
+        float speed;
+        Vector movementDirCS;
+        movementVelocityCS.ToDirectionAndLength3( movementDirCS, speed );
+
+        m_abilityMoveVelocity.Set( movementVelocityCS );
+        m_abilityMoveDir.Set( movementDirCS );
+        m_abilitySpeed.Set( speed );
+
+        //-------------------------------------------------------------------------
+
+        if ( facingDirectionWS.IsZero3() )
+        {
+            m_abilityFacing.Set( Vector::WorldForward );
+        }
+        else
+        {
+            EE_ASSERT( facingDirectionWS.IsNormalized3() );
+            Vector const characterSpaceFacing = ConvertWorldSpaceVectorToCharacterSpace( facingDirectionWS ).GetNormalized2();
+            m_abilityFacing.Set( characterSpaceFacing );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Hit Reactions
+    //-------------------------------------------------------------------------
+
+    void AnimationController::TriggerHitReaction()
+    {
+        m_hitReactionState.Set( StringID( "HR_Flinch" ) );
+    }
+
+    void AnimationController::ClearHitReaction()
+    {
+        m_hitReactionState.Set( StringID() );
     }
 }

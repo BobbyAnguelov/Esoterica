@@ -116,10 +116,10 @@ namespace EE::Animation
         : m_posePool( pSkeleton )
         , m_boneMaskPool( pSkeleton )
         , m_taskContext( m_posePool, m_boneMaskPool )
-        , m_finalPose( pSkeleton )
+        , m_finalPoseBuffer( pSkeleton, SecondarySkeletonList() )
     {
         EE_ASSERT( pSkeleton != nullptr );
-        m_finalPose.CalculateGlobalTransforms();
+        m_finalPoseBuffer.CalculateGlobalTransforms();
     }
 
     TaskSystem::~TaskSystem()
@@ -137,6 +137,27 @@ namespace EE::Animation
         m_tasks.clear();
         m_posePool.Reset();
         m_hasPhysicsDependency = false;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void TaskSystem::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
+    {
+        m_posePool.SetSecondarySkeletons( secondarySkeletons );
+        m_finalPoseBuffer.UpdateSecondarySkeletonList( secondarySkeletons );
+    }
+
+    TInlineVector<Pose const*, 1> TaskSystem::GetSecondaryPoses() const
+    {
+        TInlineVector<Pose const*, 1> secondaryPoses;
+
+        int8_t const numPoses = (int8_t) m_finalPoseBuffer.m_poses.size();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            secondaryPoses.emplace_back( &m_finalPoseBuffer.m_poses[poseIdx] );
+        }
+
+        return secondaryPoses;
     }
 
     //-------------------------------------------------------------------------
@@ -226,7 +247,7 @@ namespace EE::Animation
             if ( m_hasCodependentPhysicsTasks )
             {
                 EE_LOG_WARNING( "Animation", "TODO", "Co-dependent physics tasks detected!" );
-                RegisterTask<Tasks::DefaultPoseTask>( (int16_t) InvalidIndex, Pose::Type::ReferencePose );
+                RegisterTask<Tasks::ReferencePoseTask>( (int16_t) InvalidIndex );
                 m_tasks.back()->Execute( m_taskContext );
             }
             else // Execute pre-physics tasks
@@ -282,26 +303,28 @@ namespace EE::Animation
             auto pFinalTask = m_tasks.back();
             EE_ASSERT( pFinalTask->IsComplete() );
             PoseBuffer const* pResultPoseBuffer = m_posePool.GetBuffer( pFinalTask->GetResultBufferIndex() );
-            Pose const* pResultPose = &pResultPoseBuffer->m_pose;
 
             // Always return a non-additive pose
-            if ( pResultPose->IsAdditivePose() )
+            if ( pResultPoseBuffer->IsAdditive() )
             {
-                m_finalPose.Reset( Pose::Type::ReferencePose );
-                Blender::AdditiveBlend( m_taskContext.m_skeletonLOD, &m_finalPose, pResultPose, 1.0f, nullptr, &m_finalPose );
+                int8_t const numPoses = (int8_t) m_finalPoseBuffer.m_poses.size();
+                for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
+                {
+                    Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pResultPoseBuffer->m_poses[poseIdx], 1.0f, nullptr, &m_finalPoseBuffer.m_poses[poseIdx] );
+                }
             }
             else // Just copy the pose
             {
-                m_finalPose.CopyFrom( pResultPoseBuffer->m_pose );
+                m_finalPoseBuffer.CopyFrom( pResultPoseBuffer );
             }
 
             // Calculate the global transforms and release the task pose buffer
-            m_finalPose.CalculateGlobalTransforms();
+            m_finalPoseBuffer.CalculateGlobalTransforms();
             m_posePool.ReleasePoseBuffer( pFinalTask->GetResultBufferIndex() );
         }
         else
         {
-            m_finalPose.Reset( Pose::Type::ReferencePose, true );
+            m_finalPoseBuffer.Release( Pose::Type::ReferencePose, true );
         }
     }
 
@@ -448,55 +471,64 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        int8_t const numPoses = (int8_t) m_finalPoseBuffer.m_poses.size();
+
+        // Only draw the final pose
         if ( m_debugMode == TaskSystemDebugMode::FinalPose )
         {
             auto const& pFinalTask = m_tasks.back();
             EE_ASSERT( pFinalTask->IsComplete() );
-            auto pPose = m_posePool.GetRecordedPoseForTask( (int8_t) m_tasks.size() - 1 );
-            pPose->DrawDebug( drawingContext, m_taskContext.m_worldTransform );
-            return;
+
+            auto pPoseBuffer = m_posePool.GetRecordedPoseBufferForTask( (int8_t) m_tasks.size() - 1 );
+
+            // Primary Pose
+            pPoseBuffer->m_poses[0].DrawDebug( drawingContext, m_taskContext.m_worldTransform );
+            Task::DrawSecondaryPoses( drawingContext, m_taskContext.m_worldTransform, pPoseBuffer );
         }
-
-        // Calculate task tree offsets
-        //-------------------------------------------------------------------------
-
-        TInlineVector<Transform, 16> taskTransforms;
-        CalculateTaskTreeOffsets( m_tasks, m_taskContext.m_worldTransform, taskTransforms );
-
-        // Draw tree
-        //-------------------------------------------------------------------------
-
-        for ( int8_t i = (int8_t) m_tasks.size() - 1; i >= 0; i-- )
+        else // Draw Tree
         {
-            auto pPose = m_posePool.GetRecordedPoseForTask( i );
+            // Calculate task tree offsets
+            //-------------------------------------------------------------------------
 
-            // No point displaying a pile of bones, so display an additive on top of the reference pose
-            if ( pPose->IsAdditivePose() )
+            TInlineVector<Transform, 16> taskTransforms;
+            CalculateTaskTreeOffsets( m_tasks, m_taskContext.m_worldTransform, taskTransforms );
+
+            // Draw tree
+            //-------------------------------------------------------------------------
+
+            for ( int8_t i = (int8_t) m_tasks.size() - 1; i >= 0; i-- )
             {
-                Pose tempPose( pPose->GetSkeleton(), Pose::Type::ReferencePose );
-                Blender::AdditiveBlend( m_taskContext.m_skeletonLOD, &tempPose, pPose, 1.0f, nullptr, &tempPose );
-                tempPose.CalculateGlobalTransforms();
-                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], &tempPose, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+                auto pPoseBuffer = m_posePool.GetRecordedPoseBufferForTask( i );
+                EE_ASSERT( pPoseBuffer != nullptr );
+
+                // No point displaying a pile of bones, so display additives on top of their skeleton's reference pose
+                if ( pPoseBuffer->IsAdditive() )
+                {
+                    for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
+                    {
+                        Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pPoseBuffer->m_poses[poseIdx], 1.0f, nullptr, &pPoseBuffer->m_poses[poseIdx] );
+                        pPoseBuffer->m_poses[poseIdx].CalculateGlobalTransforms();
+                    }
+                }
+
+                //-------------------------------------------------------------------------
+
+                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+                drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
+
+                for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )
+                {
+                    drawingContext.DrawLine( taskTransforms[i].GetTranslation(), taskTransforms[dependencyIdx].GetTranslation(), m_tasks[i]->GetDebugColor(), 2.0f );
+                }
             }
-            else // Just use the recorded pose
+
+            // Draw LOD
+            //-------------------------------------------------------------------------
+
+            if ( m_taskContext.m_skeletonLOD == Skeleton::LOD::Low )
             {
-                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], pPose, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+                drawingContext.DrawTextBox3D( m_taskContext.m_worldTransform.GetTranslation() + Vector( 0, 0, 0.5f ), "Low LOD", Colors::Red, Drawing::FontSmall, Drawing::AlignMiddleCenter );
             }
-
-            drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
-
-            for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )
-            {
-                drawingContext.DrawLine( taskTransforms[i].GetTranslation(), taskTransforms[dependencyIdx].GetTranslation(), m_tasks[i]->GetDebugColor(), 2.0f );
-            }
-        }
-
-        // Draw LOD
-        //-------------------------------------------------------------------------
-
-        if ( m_taskContext.m_skeletonLOD == Skeleton::LOD::Low )
-        {
-            drawingContext.DrawTextBox3D( m_taskContext.m_worldTransform.GetTranslation() + Vector( 0, 0, 0.5f ), "Low LOD", Colors::Red, Drawing::FontSmall, Drawing::AlignMiddleCenter );
         }
     }
     #endif

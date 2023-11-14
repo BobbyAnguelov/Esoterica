@@ -2,7 +2,6 @@
 
 #include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Core/EditorTool.h"
 #include "Engine/ToolsUI/IDevelopmentToolsUI.h"
 #include "Engine/DebugViews/DebugView_System.h"
 
@@ -10,7 +9,6 @@
 
 namespace EE
 {
-    class Workspace;
     class EditorTool;
     class EntityWorldManager;
     class GamePreviewer;
@@ -21,19 +19,24 @@ namespace EE
 
     class EditorUI final : public ImGuiX::IDevelopmentToolsUI, public ToolsContext
     {
-        struct WorkspaceCreationRequest
+        struct ToolCreationRequest
         {
             enum Type
             {
                 MapEditor,
                 GamePreview,
-                ResourceWorkspace,
+                ResourceEditor,
+                UninitializedTool,
             };
+
+            ToolCreationRequest() = default;
+            ToolCreationRequest( EditorTool* pEditorTool ) : m_pEditorTool( pEditorTool ), m_type( UninitializedTool ) { EE_ASSERT( m_pEditorTool != nullptr ); }
 
         public:
 
             ResourceID          m_resourceID;
-            Type                m_type = ResourceWorkspace;
+            EditorTool*          m_pEditorTool = nullptr;
+            Type                m_type = ResourceEditor;
         };
 
     public:
@@ -54,83 +57,63 @@ namespace EE
         virtual void Update( UpdateContext const& context ) override final;
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
         virtual bool TryOpenResource( ResourceID const& resourceID ) const override;
-        virtual bool TryOpenRawResource( FileSystem::Path const& resourcePath ) const override;
         virtual bool TryFindInResourceBrowser( ResourceID const& resourceID ) const override;
 
         // Title bar
         //-------------------------------------------------------------------------
 
         void DrawTitleBarMenu( UpdateContext const& context );
-        void DrawTitleBarPerformanceStats( UpdateContext const& context );
+        void DrawTitleBarInfoStats( UpdateContext const& context );
 
         // Hot Reload
         //-------------------------------------------------------------------------
 
         virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
         virtual void HotReload_ReloadResources() override;
-        virtual void HotReload_ReloadComplete() override;
 
         // Resource Management
         //-------------------------------------------------------------------------
 
         void OnResourceDeleted( ResourceID const& resourceID );
 
-        // Workspace Management
-        //-------------------------------------------------------------------------
-
-        // Immediately destroy a workspace
-        void DestroyWorkspace( UpdateContext const& context, Workspace* pWorkspace, bool isEditorShutdown = false );
-
-        // Queues a workspace destruction request till the next update
-        void QueueDestroyWorkspace( Workspace* pWorkspace );
-
-        // Tries to immediately create a workspace
-        bool TryCreateWorkspace( UpdateContext const& context, WorkspaceCreationRequest const& request );
-
-        // Queues a workspace creation request till the next update
-        void QueueCreateWorkspace( ResourceID const& resourceID );
-
-        // Submit a workspace so we can retrieve/update its docking location
-        bool SubmitWorkspaceWindow( UpdateContext const& context, Workspace* pWorkspace, ImGuiID editorDockspaceID );
-
-        // Draw workspace child windows
-        void DrawWorkspaceContents( UpdateContext const& context, Workspace* pWorkspace );
-
-        // Create a game preview workspace
-        void CreateGamePreviewWorkspace( UpdateContext const& context );
-
-        // Queues the preview workspace for destruction
-        void DestroyGamePreviewWorkspace( UpdateContext const& context );
-
-        // Copy the layout from one workspace to the other
-        void WorkspaceLayoutCopy( Workspace* pSourceWorkspace );
-
         // Editor Tool Management
         //-------------------------------------------------------------------------
 
-        // Immediately destroy an editor tool
-        void DestroyEditorTool( UpdateContext const& context, EditorTool* pEditorTool, bool isEditorShutdown = false );
+        // Immediately destroy a editor tool
+        void DestroyTool( UpdateContext const& context, EditorTool* pEditorTool, bool isEditorShutdown = false );
 
-        // Queues an editor tool destruction request till the next update
-        void QueueDestroyEditorTool( EditorTool* pEditorTool );
+        // Queues a editor tool destruction request till the next update
+        void QueueDestroyTool( EditorTool* pEditorTool );
 
-        // Submit an Editor Tool window so we can retrieve/update its docking location
-        bool SubmitEditorToolWindow( UpdateContext const& context, EditorTool* pEditorTool, ImGuiID editorDockspaceID );
+        // Tries to immediately create a editor tool
+        bool TryCreateTool( UpdateContext const& context, ToolCreationRequest const& request );
 
-        // Draw Editor Tool child windows
-        void DrawEditorToolContents( UpdateContext const& context, EditorTool* pEditorTool );
+        // Queues a editor tool creation request till the next update
+        void QueueCreateTool( ResourceID const& resourceID );
 
-        // Copy the layout from one workspace to the other
-        void EditorToolLayoutCopy( EditorTool* pEditorTool );
+        // Submit a editor tool so we can retrieve/update its docking location
+        bool SubmitToolMainWindow( UpdateContext const& context, EditorTool* pEditorTool, ImGuiID editorDockspaceID );
+
+        // Draw editor tool child windows
+        void DrawToolContents( UpdateContext const& context, EditorTool* pEditorTool );
+
+        // Create a game preview editor tool
+        void CreateGamePreviewTool( UpdateContext const& context );
+
+        // Queues the preview editor tool for destruction
+        void DestroyGamePreviewTool( UpdateContext const& context );
+
+        // Copy the layout from one editor tool to the other
+        void ToolLayoutCopy( EditorTool* pSourceTool );
 
         // Get the first created editor tool of a specified type
         template<typename T>
-        inline T* GetEditorTool() const
+        inline T* GetTool() const
         {
             static_assert( std::is_base_of<EE::EditorTool, T>::value, "T is not derived from EditorTool" );
             for ( auto pEditorTool : m_editorTools )
             {
-                if ( pEditorTool->GetToolTypeID() == T::s_toolTypeID )
+                if ( pEditorTool->GetUniqueTypeID() == T::s_toolTypeID )
                 {
                     return static_cast<T*>( pEditorTool );
                 }
@@ -141,13 +124,13 @@ namespace EE
 
         // Create a new editor tool
         template<typename T, typename... ConstructorParams>
-        inline T* CreateEditorTool( ConstructorParams&&... params )
+        inline T* CreateTool( ConstructorParams&&... params )
         {
             static_assert( std::is_base_of<EE::EditorTool, T>::value, "T is not derived from EditorTool" );
 
             if ( T::s_isSingleton )
             {
-                auto pExistingTool = GetEditorTool<T>();
+                auto pExistingTool = GetTool<T>();
                 if( pExistingTool != nullptr )
                 {
                     return pExistingTool;
@@ -157,7 +140,10 @@ namespace EE
             //-------------------------------------------------------------------------
 
             T* pEditorTool = EE::New<T>( eastl::forward<ConstructorParams>( params )... );
-            m_editorToolsPendingInitialization.emplace_back( pEditorTool );
+            ToolCreationRequest& creationRequest = m_editorToolCreationRequests.emplace_back();
+            creationRequest.m_type = ToolCreationRequest::UninitializedTool;
+            creationRequest.m_pEditorTool = pEditorTool;
+
             return pEditorTool;
         }
 
@@ -187,15 +173,11 @@ namespace EE
         EventBindingID                                  m_resourceDeletedEventID;
         float                                           m_resourceBrowserViewWidth = 150;
 
-        // Editor Tools and Workspaces
+        // Tools
         TVector<EditorTool*>                            m_editorTools;
-        TVector<EditorTool*>                            m_editorToolsPendingInitialization;
+        TVector<ToolCreationRequest>                    m_editorToolCreationRequests;
         TVector<EditorTool*>                            m_editorToolDestructionRequests;
-
-        TVector<Workspace*>                             m_workspaces;
-        TVector<WorkspaceCreationRequest>               m_workspaceCreationRequests;
-        TVector<Workspace*>                             m_workspaceDestructionRequests;
-        void*                                           m_pLastActiveWorkspaceOrEditorTool = nullptr;
+        void*                                           m_pLastActiveTool = nullptr;
         bool                                            m_hasOpenModalDialog = false;
 
         // Map Editor and Game Preview

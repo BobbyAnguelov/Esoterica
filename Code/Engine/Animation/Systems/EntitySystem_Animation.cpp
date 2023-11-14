@@ -142,24 +142,22 @@ namespace EE::Animation
                     }
                 }
 
+                // Transfer primary pose
                 //-------------------------------------------------------------------------
 
-                auto const* pPose = pAnimComponent->GetPose();
-                EE_ASSERT( pPose->HasGlobalTransforms() );
+                auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
+                EE_ASSERT( pPrimaryPose->HasGlobalTransforms() );
+                TransferAnimationPoseToMesh( pPrimaryPose );
 
-                for ( auto pMeshComponent : m_meshComponents )
+                // Transfer secondary poses
+                //-------------------------------------------------------------------------
+
+                if ( pAnimComponent->HasSecondaryPoses() )
                 {
-                    if ( !pMeshComponent->HasMeshResourceSet() )
+                    for ( auto pSecondaryPose : pAnimComponent->GetSecondaryPoses() )
                     {
-                        continue;
+                        TransferAnimationPoseToMesh( pSecondaryPose );
                     }
-
-                    if ( pPose->GetSkeleton() != pMeshComponent->GetSkeleton() )
-                    {
-                        continue;
-                    }
-
-                    pMeshComponent->SetPose( pPose );
                 }
             }
         }
@@ -219,29 +217,44 @@ namespace EE::Animation
                     pAnimComponent->ExecutePostPhysicsTasks();
                 }
 
-                // Set poses
+                // Set PrimaryPose
                 //-------------------------------------------------------------------------
                 // Note:    for components requiring manual update, the users need to ensure the manual update occurs before this update
                 //          This update is already set to the lowest priority so in general users wont need to do anything
 
-                auto const* pPose = pAnimComponent->GetPose();
-                EE_ASSERT( pPose->HasGlobalTransforms() );
+                auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
+                EE_ASSERT( pPrimaryPose->HasGlobalTransforms() );
+                TransferAnimationPoseToMesh( pPrimaryPose );
 
-                for ( auto pMeshComponent : m_meshComponents )
+                // Transfer secondary poses
+                //-------------------------------------------------------------------------
+
+                if ( pAnimComponent->HasSecondaryPoses() )
                 {
-                    if ( !pMeshComponent->HasMeshResourceSet() )
+                    for ( auto pSecondaryPose : pAnimComponent->GetSecondaryPoses() )
                     {
-                        continue;
+                        TransferAnimationPoseToMesh( pSecondaryPose );
                     }
-
-                    if ( pPose->GetSkeleton() != pMeshComponent->GetSkeleton() )
-                    {
-                        continue;
-                    }
-
-                    pMeshComponent->SetPose( pPose );
                 }
             }
+        }
+    }
+
+    void AnimationSystem::TransferAnimationPoseToMesh( Pose const * pPose )
+    {
+        for ( auto pMeshComponent : m_meshComponents )
+        {
+            if ( !pMeshComponent->HasMeshResourceSet() )
+            {
+                continue;
+            }
+
+            if ( pPose->GetSkeleton() != pMeshComponent->GetSkeleton() )
+            {
+                continue;
+            }
+
+            pMeshComponent->SetPose( pPose );
         }
     }
 }

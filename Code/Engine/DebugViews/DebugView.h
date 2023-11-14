@@ -121,9 +121,6 @@ namespace EE
         // Called once all unloads are completed - user can reload their desired resources here
         virtual void HotReload_ReloadResources() {}
 
-        // Called once all requested loads are complete
-        virtual void HotReload_ReloadComplete() {}
-
     protected:
 
         EntityWorld const*      m_pWorld = nullptr;

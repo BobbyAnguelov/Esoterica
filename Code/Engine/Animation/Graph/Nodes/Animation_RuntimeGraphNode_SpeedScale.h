@@ -48,11 +48,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Settings final : public PassthroughNode::Settings
         {
             EE_REFLECT_TYPE ( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS ( PassthroughNode::Settings, m_durationValueNodeIdx );
+            EE_SERIALIZE_GRAPHNODESETTINGS ( PassthroughNode::Settings, m_durationValueNodeIdx, m_desiredDuration );
 
             virtual void InstantiateNode ( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                 m_durationValueNodeIdx = InvalidIndex;
+            float                   m_desiredDuration = 0.0f;
         };
 
     private:

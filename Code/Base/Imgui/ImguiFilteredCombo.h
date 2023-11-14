@@ -89,7 +89,7 @@ namespace EE::ImGuiX
 
         ImGui::PushID( this );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-        if ( ImGui::BeginChild( "FilterLayout", ImVec2( width, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NoScrollbar ) )
+        if ( ImGui::BeginChild( "FilterLayout", ImVec2( width, ImGui::GetFrameHeight() ), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar ) )
         {
             bool const hidePreviewSection = m_flags.IsFlagSet( Flags::HidePreview );
             uint32_t const comboFlags = ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft | ( hidePreviewSection ? ImGuiComboFlags_NoPreview : ImGuiComboFlags_CustomPreview );

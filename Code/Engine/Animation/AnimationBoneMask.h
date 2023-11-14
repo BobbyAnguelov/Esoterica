@@ -21,7 +21,7 @@ namespace EE::Animation
 
     struct EE_ENGINE_API BoneMaskDefinition final : public IReflectedType
     {
-        friend class SkeletonWorkspace;
+        friend class SkeletonEditor;
 
         EE_REFLECT_TYPE( BoneMaskDefinition )
         EE_SERIALIZE( m_ID, m_weights );
@@ -61,9 +61,6 @@ namespace EE::Animation
 
         EE_REFLECT( "IsToolsReadOnly" : true );
         TVector<BoneWeight>     m_weights;
-
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        float                   m_rootMotionWeight = 0.0f;
     };
 
     //-------------------------------------------------------------------------

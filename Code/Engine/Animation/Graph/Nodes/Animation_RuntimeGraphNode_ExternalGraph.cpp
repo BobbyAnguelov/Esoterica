@@ -71,14 +71,21 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
 
+        //-------------------------------------------------------------------------
+
         GraphPoseNodeResult result;
-        if ( m_pGraphInstance == nullptr )
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        result.m_taskIdx = InvalidIndex;
+
+        //-------------------------------------------------------------------------
+
+        if ( m_pGraphInstance != nullptr )
         {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
-        }
-        else
-        {
+            // Push the current node idx into the event debug path
+            #if EE_DEVELOPMENT_TOOLS
+            context.m_pSampledEventsBuffer->PushDebugGraphPathElement( GetNodeIndex() );
+            #endif
+
             // Evaluate external graph
             result = m_pGraphInstance->EvaluateGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange, m_shouldResetGraphInstance );
             m_shouldResetGraphInstance = false;
@@ -89,16 +96,20 @@ namespace EE::Animation::GraphNodes
             m_currentTime = pRootNode->GetCurrentTime();
             m_duration = pRootNode->GetDuration();
 
-            // Transfer sampled events
-            auto& localEventBuffer = context.m_sampledEventsBuffer;
-            auto const& externalEventBuffer = m_pGraphInstance->GetSampledEvents();
-            result.m_sampledEventRange = localEventBuffer.AppendBuffer( externalEventBuffer );
+            // Update sampled event range
+            result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
 
             // Transfer root motion debug
             #if EE_DEVELOPMENT_TOOLS
             context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
             #endif
+
+            // Pop debug path element
+            #if EE_DEVELOPMENT_TOOLS
+            context.m_pSampledEventsBuffer->PopDebugGraphPathElement();
+            #endif
         }
+
         return result;
     }
 }

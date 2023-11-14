@@ -624,14 +624,6 @@ namespace EE
         }
     }
 
-    void EngineDebugUI::HotReload_ReloadComplete()
-    {
-        for ( auto pDebugView : m_debugViews )
-        {
-            pDebugView->HotReload_ReloadComplete();
-        }
-    }
-
     void EngineDebugUI::DrawPlayerDebugOptionsMenu( UpdateContext const& context )
     {
         auto pPlayerManager = m_pGameWorld->GetWorldSystem<PlayerManager>();

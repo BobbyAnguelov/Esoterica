@@ -97,7 +97,7 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT();
         bool                                   m_switchDynamically = false;
 
-        EE_REFLECT();
+        EE_REFLECT( "ShowAsStaticArray" : true );
         TVector<StringID>                      m_parameterValues;
 
         EE_REFLECT();

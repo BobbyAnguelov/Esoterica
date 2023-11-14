@@ -28,6 +28,17 @@ namespace EE::ImGuiX
     // General helpers
     //-------------------------------------------------------------------------
 
+    bool BeginViewportPopupModal( char const* pPopupName, bool* pIsPopupOpen, ImVec2 const& size, ImGuiCond windowSizeCond, ImGuiWindowFlags windowFlags )
+    {
+        ImGui::OpenPopup( pPopupName );
+        if ( size.x != 0 || size.y != 0 )
+        {
+            ImGui::SetNextWindowSize( size, windowSizeCond );
+        }
+        ImGui::SetNextWindowViewport( ImGui::GetWindowViewport()->ID );
+        return ImGui::BeginPopupModal( pPopupName, pIsPopupOpen, windowFlags );
+    }
+
     void MakeTabVisible( char const* const pWindowName )
     {
         EE_ASSERT( pWindowName != nullptr );
@@ -171,7 +182,7 @@ namespace EE::ImGuiX
 
     void SameLineSeparator( float width, Color const& color )
     {
-        Color const separatorColor = ( (int) color == 0 ) ? Color( ImGui::GetStyleColorVec4( ImGuiCol_Separator ) ) : Color( color );
+        Color const separatorColor = ( color == Colors::Transparent ) ? Color( ImGui::GetStyleColorVec4( ImGuiCol_Separator ) ) : Color( color );
         ImVec2 const seperatorSize( width <= 0 ? ( ImGui::GetStyle().ItemSpacing.x * 2 ) + 1 : width, ImGui::GetFrameHeight() );
 
         ImGui::SameLine( 0, 0 );
@@ -347,8 +358,8 @@ namespace EE::ImGuiX
         Color const activeColor = backgroundColor.GetScaledColor( 1.25f );
 
         ImGui::PushStyleColor( ImGuiCol_Button, backgroundColor.ToFloat4() );
-        ImGui::PushStyleColor( ImGuiCol_ButtonHovered, hoveredColor );
-        ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
+        ImGui::PushStyleColor( ImGuiCol_ButtonHovered, ImVec4( hoveredColor ) );
+        ImGui::PushStyleColor( ImGuiCol_ButtonActive, ImVec4( activeColor ) );
         ImGui::PushStyleColor( ImGuiCol_Text, foregroundColor.ToFloat4() );
         bool const result = ImGui::Button( label, size );
         ImGui::PopStyleColor( 4 );
@@ -553,7 +564,7 @@ namespace EE::ImGuiX
         return result;
     }
 
-    bool DrawSpinner( const char* pLabel, Color const& color, float radius, float thickness )
+    bool DrawSpinner( char const* pLabel, Color const& color, ImVec2 size, float thickness, float padding )
     {
         static float const numSegments = 30.0f;
 
@@ -568,19 +579,52 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImGuiStyle const& style = ImGui::GetStyle();
-        ImGuiID const id = pWindow->GetID( pLabel );
 
-        ImVec2 const pos = pWindow->DC.CursorPos;
-        ImVec2 const size( ( radius ) * 2, ( radius + style.FramePadding.y ) * 2 );
+        // Calculate final size
+        //-------------------------------------------------------------------------
 
-        ImRect const bb( pos, ImVec2( pos.x + size.x, pos.y + size.y ) );
-        ImGui::ItemSize( bb, style.FramePadding.y );
-        if ( !ImGui::ItemAdd( bb, id ) )
+        if ( size.x == 0 )
+        {
+            size.x = ImGui::GetFrameHeight();
+        }
+        else if ( size.x <= 0 )
+        {
+            size.x = ImGui::GetContentRegionAvail().x;
+        }
+
+        if ( size.y == 0 )
+        {
+            size.y = ImGui::GetFrameHeight();
+        }
+        else if ( size.y <= 0 )
+        {
+            size.y = ImGui::GetContentRegionAvail().y;
+        }
+
+        if ( size.x < 0 || size.y < 0 )
         {
             return false;
         }
 
+        // Calculate pos, radius and bounding box
         //-------------------------------------------------------------------------
+
+        ImVec2 const pos = pWindow->DC.CursorPos;
+        float const radius = ( ( Math::Min( size.x, size.y ) - thickness ) / 2 ) - padding;
+        ImRect const bb( pos, ImVec2( pos.x + size.x, pos.y + size.y ) );
+
+        // Add invisible button
+        //-------------------------------------------------------------------------
+
+        bool buttonResult = ImGui::InvisibleButton( pLabel, size );
+
+        // Draw
+        //-------------------------------------------------------------------------
+
+        // Debug Only
+        {
+            //pWindow->DrawList->AddRect( bb.Min, bb.Max, Colors::Pink.ToUInt32() );
+        }
 
         pWindow->DrawList->PathClear();
 
@@ -589,7 +633,7 @@ namespace EE::ImGuiX
         float const min = Math::Pi * 2.0f * ( start ) / numSegments;
         float const max = Math::Pi * 2.0f * ( numSegments - 3 ) / numSegments;
 
-        ImVec2 const center = ImVec2( pos.x + radius, pos.y + radius + style.FramePadding.y );
+        ImVec2 const center = ImVec2( pos.x + radius + padding + ( thickness / 2 ), pos.y + radius + padding + ( thickness / 2 ) );
 
         for ( float i = 0; i < numSegments; i++ )
         {
@@ -600,7 +644,7 @@ namespace EE::ImGuiX
 
         pWindow->DrawList->PathStroke( color, false, thickness );
 
-        return true;
+        return buttonResult;
     }
 
     //-------------------------------------------------------------------------
@@ -613,7 +657,7 @@ namespace EE::ImGuiX
         ImGui::PushStyleVar( ImGuiStyleVar_ChildBorderSize, 0.0f );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
 
-        if ( ImGui::BeginChild( pLabel, size, true, ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
+        if ( ImGui::BeginChild( pLabel, size, ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
             ImGui::AlignTextToFramePadding();
             ImGui::SetCursorPosX( 3 );
@@ -836,7 +880,7 @@ namespace EE::ImGuiX
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
         ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, ImGui::GetStyle().FrameRounding );
         ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg] );
-        if ( ImGui::BeginChild( "FilterLayout", ImVec2( width, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NoScrollbar ) )
+        if ( ImGui::BeginChild( "FilterLayout", ImVec2( width, ImGui::GetFrameHeight() ), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NavFlattened ) )
         {
             if ( flags.IsFlagSet( Flags::TakeInitialFocus ) )
             {

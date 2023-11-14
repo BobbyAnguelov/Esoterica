@@ -1,7 +1,7 @@
 #include "ResourceCompiler_RenderMesh.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderMesh.h"
-#include "EngineTools/RawAssets/RawMesh.h"
-#include "EngineTools/RawAssets/RawAssetReader.h"
+#include "EngineTools/Import/ImportedMesh.h"
+#include "EngineTools/Import/Importer.h"
 #include "Engine/Render/Mesh/StaticMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 #include "Base/FileSystem/FileSystem.h"
@@ -13,7 +13,7 @@
 
 namespace EE::Render
 {
-    void MeshCompiler::TransferMeshGeometry( RawAssets::RawMesh const& rawMesh, Mesh& mesh, int32_t maxBoneInfluences ) const
+    void MeshCompiler::TransferMeshGeometry( Import::ImportedMesh const& ImportedMesh, Mesh& mesh, int32_t maxBoneInfluences ) const
     {
         EE_ASSERT( maxBoneInfluences > 0 && maxBoneInfluences <= 8 );
         EE_ASSERT( maxBoneInfluences <= 4 );// TEMP HACK - we dont support 8 bones for now
@@ -24,7 +24,7 @@ namespace EE::Render
         uint32_t numVertices = 0;
         uint32_t numIndices = 0;
 
-        for ( auto const& geometrySection : rawMesh.GetGeometrySections() )
+        for ( auto const& geometrySection : ImportedMesh.GetGeometrySections() )
         {
             // Add sub-mesh record
             mesh.m_sections.push_back( Mesh::GeometrySection( StringID( geometrySection.m_name ), numIndices, (uint32_t) geometrySection.m_indices.size() ) );
@@ -45,7 +45,7 @@ namespace EE::Render
         int32_t vertexSize = 0;
         int32_t vertexBufferSize = 0;
 
-        if ( rawMesh.IsSkeletalMesh() )
+        if ( ImportedMesh.IsSkeletalMesh() )
         {
             mesh.m_vertexBuffer.m_vertexFormat = VertexFormat::SkeletalMesh;
             vertexSize = VertexLayoutRegistry::GetDescriptorForFormat( mesh.m_vertexBuffer.m_vertexFormat ).m_byteSize;
@@ -55,7 +55,7 @@ namespace EE::Render
             mesh.m_vertices.resize( vertexBufferSize );
             auto pVertexMemory = (SkeletalMeshVertex*) mesh.m_vertices.data();
 
-            for ( auto const& geometrySection : rawMesh.GetGeometrySections() )
+            for ( auto const& geometrySection : ImportedMesh.GetGeometrySections() )
             {
                 for ( auto const& vert : geometrySection.m_vertices )
                 {
@@ -106,7 +106,7 @@ namespace EE::Render
             mesh.m_vertices.resize( vertexBufferSize );
             auto pVertexMemory = (StaticMeshVertex*) mesh.m_vertices.data();
 
-            for ( auto const& geometrySection : rawMesh.GetGeometrySections() )
+            for ( auto const& geometrySection : ImportedMesh.GetGeometrySections() )
             {
                 for ( auto const& vert : geometrySection.m_vertices )
                 {
@@ -243,20 +243,20 @@ namespace EE::Render
             return Error( "Invalid mesh data path: %s", resourceDescriptor.m_meshPath.c_str() );
         }
 
-        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude );
-        if ( pRawMesh == nullptr )
+        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude );
+        if ( pImportedMesh == nullptr )
         {
             return Error( "Failed to read mesh from source file" );
         }
 
-        EE_ASSERT( pRawMesh->IsValid() );
+        EE_ASSERT( pImportedMesh->IsValid() );
 
-        pRawMesh->ApplyScale( resourceDescriptor.m_scale );
+        pImportedMesh->ApplyScale( resourceDescriptor.m_scale );
 
         if ( resourceDescriptor.m_mergeSectionsByMaterial )
         {
-            pRawMesh->MergeGeometrySectionsByMaterial();
+            pImportedMesh->MergeGeometrySectionsByMaterial();
         }
 
         // Reflect FBX data into runtime format
@@ -264,7 +264,7 @@ namespace EE::Render
 
         StaticMesh staticMesh;
 
-        TransferMeshGeometry( *pRawMesh, staticMesh, 4 );
+        TransferMeshGeometry( *pImportedMesh, staticMesh, 4 );
         OptimizeMeshGeometry( staticMesh );
         SetMeshDefaultMaterials( resourceDescriptor, staticMesh );
 
@@ -279,7 +279,7 @@ namespace EE::Render
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
-            if ( pRawMesh->HasWarnings() )
+            if ( pImportedMesh->HasWarnings() )
             {
                 return CompilationSucceededWithWarnings( ctx );
             }
@@ -319,28 +319,28 @@ namespace EE::Render
             return Error( "Invalid mesh data path: %s", resourceDescriptor.m_meshPath.c_str() );
         }
 
-        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
         int32_t const maxBoneInfluences = 4;
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadSkeletalMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude, maxBoneInfluences );
-        if ( pRawMesh == nullptr )
+        TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadSkeletalMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude, maxBoneInfluences );
+        if ( pImportedMesh == nullptr )
         {
             return Error( "Failed to read mesh from source file" );
         }
 
-        EE_ASSERT( pRawMesh->IsValid() );
+        EE_ASSERT( pImportedMesh->IsValid() );
 
         if ( resourceDescriptor.m_mergeSectionsByMaterial )
         {
-            pRawMesh->MergeGeometrySectionsByMaterial();
+            pImportedMesh->MergeGeometrySectionsByMaterial();
         }
 
         // Reflect FBX data into runtime format
         //-------------------------------------------------------------------------
 
         SkeletalMesh skeletalMesh;
-        TransferMeshGeometry( *pRawMesh, skeletalMesh, maxBoneInfluences );
+        TransferMeshGeometry( *pImportedMesh, skeletalMesh, maxBoneInfluences );
         OptimizeMeshGeometry( skeletalMesh );
-        TransferSkeletalMeshData( *pRawMesh, skeletalMesh );
+        TransferSkeletalMeshData( *pImportedMesh, skeletalMesh );
         SetMeshDefaultMaterials( resourceDescriptor, skeletalMesh );
 
         // Serialize
@@ -354,7 +354,7 @@ namespace EE::Render
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
-            if ( pRawMesh->HasWarnings() )
+            if ( pImportedMesh->HasWarnings() )
             {
                 return CompilationSucceededWithWarnings( ctx );
             }
@@ -369,11 +369,11 @@ namespace EE::Render
         }
     }
 
-    void SkeletalMeshCompiler::TransferSkeletalMeshData( RawAssets::RawMesh const& rawMesh, SkeletalMesh& mesh ) const
+    void SkeletalMeshCompiler::TransferSkeletalMeshData( Import::ImportedMesh const& ImportedMesh, SkeletalMesh& mesh ) const
     {
-        EE_ASSERT( rawMesh.IsSkeletalMesh() );
+        EE_ASSERT( ImportedMesh.IsSkeletalMesh() );
 
-        auto const& skeleton = rawMesh.GetSkeleton();
+        auto const& skeleton = ImportedMesh.GetSkeleton();
         auto const& boneData = skeleton.GetBoneData();
 
         auto const numBones = skeleton.GetNumBones();

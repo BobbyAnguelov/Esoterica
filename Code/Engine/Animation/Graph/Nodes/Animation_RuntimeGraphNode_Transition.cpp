@@ -355,7 +355,7 @@ namespace EE::Animation::GraphNodes
         m_duration = m_pTargetNode->GetDuration();
 
         // Generate the blended event range
-        result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
 
         return result;
     }
@@ -841,7 +841,7 @@ namespace EE::Animation::GraphNodes
         m_duration = m_pTargetNode->GetDuration();
 
         // Calculate the blended sampled event range
-        finalResult.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        finalResult.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
 
         //-------------------------------------------------------------------------
 

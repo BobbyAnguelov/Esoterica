@@ -4,7 +4,7 @@
 #include "Base/Serialization/BinarySerialization.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Profiling.h"
-
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -173,8 +173,14 @@ namespace EE::Resource
                 continue;
             }
 
+            // Trigger tools notification on failure
+            if( result.m_filePath.empty() )
+            {
+                ImGuiX::NotifyError( "%s failed to Compile!\n\nLog: %s", result.m_resourceID.c_str(), result.m_log.c_str() );
+            }
+
             // If the request has a filepath set, the compilation was a success
-            pFoundRequest->OnRawResourceRequestComplete( result.m_filePath );
+            pFoundRequest->OnRawResourceRequestComplete( result.m_filePath, result.m_log );
 
             // Remove from request list
             m_sentRequests.erase_unsorted( foundIter );

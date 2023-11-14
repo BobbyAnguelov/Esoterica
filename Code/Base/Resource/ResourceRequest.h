@@ -87,7 +87,7 @@ namespace EE::Resource
         bool Update( RequestContext& requestContext );
 
         // Called by the resource provider once the request operation completes and provides the raw resource data
-        void OnRawResourceRequestComplete( String const& filePath );
+        void OnRawResourceRequestComplete( String const& filePath, String const& log );
 
         // This will interrupt a load task and convert it into an unload task
         void SwitchToLoadTask();

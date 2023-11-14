@@ -8,7 +8,7 @@ namespace EE::Animation::GraphNodes
     void BoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskNode>( context, options );
-        int32_t const maskIdx = context.m_pDataSet->GetSkeleton()->GetBoneMaskIndex( m_boneMaskID );
+        int32_t const maskIdx = context.m_pDataSet->GetPrimarySkeleton()->GetBoneMaskIndex( m_boneMaskID );
         if ( maskIdx != InvalidIndex )
         {
             EE_ASSERT( maskIdx >= 0 && maskIdx < 255 );

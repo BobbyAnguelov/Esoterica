@@ -32,7 +32,7 @@ namespace EE::Resource
         inline ResourceID const& GetResourceID() const { return m_resourceID; }
         inline ResourceTypeID GetResourceTypeID() const { return m_resourceID.GetResourceTypeID(); }
 
-        inline void SetLoadingStatus( LoadingStatus status ) { m_loadingStatus = status; }
+        inline void SetLoadingStatus( LoadingStatus status ) { m_loadingStatus = status; EE_DEVELOPMENT_TOOLS_ONLY( m_compilationLog.clear() ); }
         inline LoadingStatus GetLoadingStatus() const { return m_loadingStatus; }
 
         inline IResource* GetResourceData() { return m_pResource; }
@@ -75,6 +75,10 @@ namespace EE::Resource
         inline Milliseconds GetLoadTime() const { return m_loadTime; }
         inline Milliseconds GetDependenciesWaitTime() const { return m_waitForDependenciesTime; }
         inline Milliseconds GetInstallTime() const { return m_installTime; }
+
+        inline void SetCompilationLog( String const& log ) { m_compilationLog = log; }
+        inline void ClearCompilationLog() { m_compilationLog.clear(); }
+        String const& GetCompilationLog() const { return m_compilationLog; }
         #endif
 
     protected:
@@ -91,6 +95,7 @@ namespace EE::Resource
         Milliseconds                            m_loadTime = 0;
         Milliseconds                            m_waitForDependenciesTime = 0;
         Milliseconds                            m_installTime = 0;
+        String                                  m_compilationLog;
         #endif
     };
 }

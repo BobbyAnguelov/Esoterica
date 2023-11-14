@@ -988,9 +988,26 @@ namespace EE::VisualGraph
 
     String BaseGraph::GetUniqueNameForRenameableNode( String const& desiredName, BaseNode const* m_pNodeToIgnore ) const
     {
-        String uniqueName = desiredName;
+        auto GeneratePotentiallyUniqueName = [] ( InlineString const& baseName, int32_t counterValue )
+        {
+            int32_t suffixLength = 0;
+            while ( isdigit( baseName[ baseName.length() - 1 - suffixLength ] ) )
+            {
+                suffixLength++;
+            }
+
+            InlineString finalName = baseName.substr( 0, baseName.length() - suffixLength );
+            finalName.append_sprintf( "%u", counterValue );
+            return finalName;
+        };
+
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( !desiredName.empty() );
+
+        String uniqueName = desiredName.c_str();
         bool isNameUnique = false;
-        int32_t suffix = 0;
+        int32_t suffixCounter = 0;
 
         while ( !isNameUnique )
         {
@@ -1020,8 +1037,8 @@ namespace EE::VisualGraph
 
             if ( !isNameUnique )
             {
-                uniqueName.sprintf( "%s_%d", desiredName.c_str(), suffix);
-                suffix++;
+                uniqueName = GeneratePotentiallyUniqueName( desiredName.c_str(), suffixCounter ).c_str();
+                suffixCounter++;
             }
         }
 

@@ -16,7 +16,7 @@ namespace EE::Physics
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return MaterialDatabase::GetStaticResourceTypeID(); }
 
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             for( auto const& matLibPath : m_materialLibraries )
             {
@@ -25,6 +25,11 @@ namespace EE::Physics
                     outDependencies.emplace_back( matLibPath );
                 }
             }
+        }
+
+        virtual void Clear() override
+        {
+            m_materialLibraries.clear();
         }
 
     public:

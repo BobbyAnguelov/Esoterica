@@ -4,36 +4,84 @@
 
 namespace EE::Animation
 {
-    PoseBuffer::PoseBuffer( Skeleton const* pSkeleton )
-        : m_pose( pSkeleton )
-    {}
-
-    void PoseBuffer::Reset()
+    PoseBuffer::PoseBuffer( Skeleton const* pSkeleton, SecondarySkeletonList const& secondarySkeletons )
     {
-        m_pose.Reset( Pose::Type::None );
+        m_poses.emplace_back( pSkeleton );
+        UpdateSecondarySkeletonList( secondarySkeletons );
+    }
+
+    void PoseBuffer::ResetPose( Pose::Type poseType, bool calculateGlobalPose )
+    {
+        for ( Pose& pose : m_poses )
+        {
+            pose.Reset( poseType, calculateGlobalPose );
+        }
+    }
+
+    void PoseBuffer::Release( Pose::Type poseType, bool calculateGlobalPose )
+    {
+        ResetPose( poseType, calculateGlobalPose );
         m_isUsed = false;
+    }
+
+    void PoseBuffer::CalculateGlobalTransforms()
+    {
+        for ( Pose& pose : m_poses )
+        {
+            pose.CalculateGlobalTransforms();
+        }
     }
 
     void PoseBuffer::CopyFrom( PoseBuffer const& rhs )
     {
-        EE_ASSERT( m_pose.GetSkeleton() == rhs.m_pose.GetSkeleton() );
-        m_pose.CopyFrom( rhs.m_pose );
+        EE_ASSERT( rhs.m_poses.size() == m_poses.size() );
+
+        int8_t const numPoses = (int8_t) m_poses.size();
+        for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
+        {
+            EE_ASSERT( m_poses[poseIdx].GetSkeleton() == rhs.m_poses[poseIdx].GetSkeleton());
+            m_poses[poseIdx].CopyFrom( rhs.m_poses[poseIdx] );
+        }
+    }
+
+    void PoseBuffer::UpdateSecondarySkeletonList( SecondarySkeletonList const& secondarySkeletons )
+    {
+        // TODO: see how we can do this in a smarter way
+
+        // Remove all secondary poses
+        while ( m_poses.size() > 1 )
+        {
+            m_poses.pop_back();
+        }
+
+        // Create required secondary poses
+        for ( auto pSecondarySkeleton : secondarySkeletons )
+        {
+            m_poses.emplace_back( pSecondarySkeleton );
+        }
     }
 
     //-------------------------------------------------------------------------
 
-    PoseBufferPool::PoseBufferPool( Skeleton const* pSkeleton )
-        : m_pSkeleton( pSkeleton )
+    PoseBufferPool::PoseBufferPool( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons )
+        : m_pPrimarySkeleton( pPrimarySkeleton )
+        , m_secondarySkeletons( secondarySkeletons )
     {
-        EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_pPrimarySkeleton != nullptr );
+
+        #if EE_DEVELOPMENT_TOOLS
+        ValidateSetOfSecondarySkeletons( m_pPrimarySkeleton, secondarySkeletons );
+        #endif
+
+        //-------------------------------------------------------------------------
 
         for ( auto i = 0; i < s_numInitialBuffers; i++ )
         {
-            m_poseBuffers.emplace_back( PoseBuffer( m_pSkeleton ) );
-            m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pSkeleton ) );
+            m_poseBuffers.emplace_back( PoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
+            m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
 
             #if EE_DEVELOPMENT_TOOLS
-            m_debugBuffers.emplace_back( Pose( m_pSkeleton ) );
+            m_debugPoseBuffers.emplace_back( PoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
             m_debugBufferTaskIdxMapping.emplace_back( int8_t( 0 ) );
             #endif
         }
@@ -49,7 +97,7 @@ namespace EE::Animation
         // Reset all buffers
         for ( auto& poseBuffer : m_poseBuffers )
         {
-            poseBuffer.Reset();
+            poseBuffer.Release();
         }
 
         m_firstFreeBuffer = 0;
@@ -58,9 +106,9 @@ namespace EE::Animation
         int8_t const numCachedBuffers = (int8_t) m_cachedBuffers.size();
         for ( int8_t i = 0; i < numCachedBuffers; i++ )
         {
-            if ( m_cachedBuffers[i].m_shouldBeDestroyed )
+            if ( m_cachedBuffers[i].m_shouldBeReset )
             {
-                m_cachedBuffers[i].Reset();
+                m_cachedBuffers[i].Release();
                 m_firstFreeCachedBuffer = Math::Min( m_firstFreeCachedBuffer, i );
             }
         }
@@ -74,13 +122,52 @@ namespace EE::Animation
         #endif
     }
 
+    void PoseBufferPool::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        ValidateSetOfSecondarySkeletons( m_pPrimarySkeleton, secondarySkeletons );
+        #endif
+
+        m_secondarySkeletons = secondarySkeletons;
+
+        for ( PoseBuffer& poseBuffer : m_poseBuffers )
+        {
+            poseBuffer.UpdateSecondarySkeletonList( m_secondarySkeletons );
+        }
+
+        #if EE_DEVELOPMENT_TOOLS
+        for ( PoseBuffer& debugPoseBuffer : m_debugPoseBuffers )
+        {
+            debugPoseBuffer.UpdateSecondarySkeletonList( m_secondarySkeletons );
+        }
+        #endif
+    }
+
+    int32_t PoseBufferPool::GetPoseIndexForSkeleton( Skeleton const* pSkeleton ) const
+    {
+        EE_ASSERT( pSkeleton != nullptr );
+
+        int32_t poseIdx = InvalidIndex;
+        int32_t const numSecondarySkeletons = (int32_t) m_secondarySkeletons.size();
+        for ( int32_t i = 0; i < numSecondarySkeletons; i++ )
+        {
+            if ( m_secondarySkeletons[i] == pSkeleton )
+            {
+                poseIdx = i;
+                break;
+            }
+        }
+
+        return poseIdx;
+    }
+
     int8_t PoseBufferPool::RequestPoseBuffer()
     {
         if ( m_firstFreeBuffer == m_poseBuffers.size() )
         {
             for ( auto i = 0; i < s_bufferGrowAmount; i++ )
             {
-                m_poseBuffers.emplace_back( PoseBuffer( m_pSkeleton ) );
+                m_poseBuffers.emplace_back( PoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
             }
             EE_ASSERT( m_poseBuffers.size() < 255 );
         }
@@ -117,7 +204,7 @@ namespace EE::Animation
         {
             for ( auto i = 0; i < s_bufferGrowAmount; i++ )
             {
-                pCachedPoseBuffer = &m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pSkeleton ) );
+                pCachedPoseBuffer = &m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
             }
 
             EE_ASSERT( m_cachedBuffers.size() < 255 );
@@ -158,7 +245,7 @@ namespace EE::Animation
             if ( cachedBuffer.m_ID == cachedPoseID )
             {
                 // Cached buffer destruction is deferred to the next frame since we may already have tasks reading from it already
-                cachedBuffer.m_shouldBeDestroyed = true;
+                cachedBuffer.m_shouldBeReset = true;
                 return;
             }
         }
@@ -173,7 +260,7 @@ namespace EE::Animation
             if ( cachedBuffer.m_ID == cachedPoseID )
             {
                 // Cached buffer destruction is deferred to the next frame since we may already have tasks reading from it already
-                cachedBuffer.m_pose.Reset( Pose::Type::ReferencePose );
+                cachedBuffer.Release();
                 return;
             }
         }
@@ -200,6 +287,23 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void PoseBufferPool::ValidateSetOfSecondarySkeletons( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons )
+    {
+        EE_ASSERT( pPrimarySkeleton != nullptr );
+
+        int32_t const numSkeletons = (int32_t) secondarySkeletons.size();
+        for ( auto i = 0; i < numSkeletons; i++ )
+        {
+            EE_ASSERT( secondarySkeletons[i] != nullptr );
+            EE_ASSERT( secondarySkeletons[i] != pPrimarySkeleton );
+
+            for ( auto j = i + 1; j < numSkeletons; j++ )
+            {
+                EE_ASSERT( secondarySkeletons[j] != secondarySkeletons[i] );
+            }
+        }
+    }
+
     void PoseBufferPool::RecordPose( int8_t taskIdx, int8_t poseBufferIdx )
     {
         if ( !m_isDebugRecordingEnabled )
@@ -208,24 +312,24 @@ namespace EE::Animation
         }
 
         // If we are out of buffers, add additional debug buffers
-        if ( m_firstFreeDebugBuffer == m_debugBuffers.size() )
+        if ( m_firstFreeDebugBuffer == m_debugPoseBuffers.size() )
         {
             for ( auto i = 0; i < s_bufferGrowAmount; i++ )
             {
-                m_debugBuffers.emplace_back( Pose( m_pSkeleton ) );
+                m_debugPoseBuffers.emplace_back( PoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
                 m_debugBufferTaskIdxMapping.emplace_back( int8_t( -1 ) );
             }
 
-            EE_ASSERT( m_debugBuffers.size() < 255 );
+            EE_ASSERT( m_debugPoseBuffers.size() < 255 );
         }
 
         EE_ASSERT( m_poseBuffers[poseBufferIdx].m_isUsed );
-        m_debugBuffers[m_firstFreeDebugBuffer].CopyFrom( m_poseBuffers[poseBufferIdx].m_pose );
+        m_debugPoseBuffers[m_firstFreeDebugBuffer].CopyFrom( m_poseBuffers[poseBufferIdx] );
         m_debugBufferTaskIdxMapping[m_firstFreeDebugBuffer] = taskIdx;
         m_firstFreeDebugBuffer++;
     }
 
-    Pose const* PoseBufferPool::GetRecordedPoseForTask( int8_t taskIdx ) const
+    PoseBuffer* PoseBufferPool::GetRecordedPoseBufferForTask( int8_t taskIdx ) const
     {
         EE_ASSERT( taskIdx >= 0 && taskIdx < m_debugBufferTaskIdxMapping.size() );
 
@@ -233,7 +337,7 @@ namespace EE::Animation
         {
             if ( m_debugBufferTaskIdxMapping[i] == taskIdx )
             {
-                return &m_debugBuffers[i];
+                return const_cast<PoseBuffer*>( &m_debugPoseBuffers[i] );
             }
         }
 

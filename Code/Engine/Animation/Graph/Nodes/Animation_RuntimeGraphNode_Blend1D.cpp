@@ -296,7 +296,7 @@ namespace EE::Animation::GraphNodes
                 result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
             }
 
-            result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeight );
+            result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeight );
 
             // Update internal time
             //-------------------------------------------------------------------------

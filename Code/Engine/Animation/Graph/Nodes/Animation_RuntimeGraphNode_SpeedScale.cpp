@@ -131,23 +131,31 @@ namespace EE::Animation::GraphNodes
     void DurationScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<DurationScaleNode>( context, options );
-        context.SetNodePtrFromIndex( m_durationValueNodeIdx, pNode->m_pDurationValueNode );
+        context.SetOptionalNodePtrFromIndex( m_durationValueNodeIdx, pNode->m_pDurationValueNode );
         PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void DurationScaleNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() );
-        EE_ASSERT( m_pDurationValueNode != nullptr );
+
         PassthroughNode::InitializeInternal( context, initialTime );
-        m_pDurationValueNode->Initialize( context );
+
+        if ( m_pDurationValueNode != nullptr )
+        {
+            m_pDurationValueNode->Initialize( context );
+        }
     }
 
     void DurationScaleNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        EE_ASSERT( m_pDurationValueNode != nullptr );
-        m_pDurationValueNode->Shutdown( context );
+
+        if ( m_pDurationValueNode != nullptr )
+        {
+            m_pDurationValueNode->Shutdown( context );
+        }
+
         PassthroughNode::ShutdownInternal( context );
     }
 
@@ -177,7 +185,7 @@ namespace EE::Animation::GraphNodes
             if ( m_pChildNode->IsValid() )
             {
                 // Get expected scale
-                float desiredDuration = m_pDurationValueNode->GetValue<float>( context );
+                float desiredDuration = ( m_pDurationValueNode != nullptr ) ? m_pDurationValueNode->GetValue<float>( context ) : GetSettings<DurationScaleNode>()->m_desiredDuration;
                 if ( desiredDuration < 0.0f )
                 {
                     desiredDuration = 0.0f;
@@ -195,9 +203,17 @@ namespace EE::Animation::GraphNodes
                 }
                 else // Apply scale
                 {
-                    float const scaleMultiplier = desiredDuration * m_pChildNode->GetDuration();
-                    context.m_deltaTime *= scaleMultiplier;
-                    actualDuration = desiredDuration;
+                    float const childDuration = m_pChildNode->GetDuration();
+                    if ( childDuration <= 0.0f )
+                    {
+                        actualDuration = childDuration;
+                    }
+                    else // Calculate scaling factor and apply it
+                    {
+                        float const scaleMultiplier = childDuration / desiredDuration;
+                        context.m_deltaTime *= scaleMultiplier;
+                        actualDuration = desiredDuration;
+                    }
                 }
             }
 

@@ -74,6 +74,7 @@
     <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Common.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
@@ -224,6 +225,8 @@
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Common.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_LayerData.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />

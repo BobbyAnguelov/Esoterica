@@ -22,10 +22,16 @@ namespace EE::Animation
 
         EE_ASSERT( m_pGraphVariation.IsLoaded() );
         m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_value );
+
+        if ( !m_secondarySkeletons.empty() )
+        {
+            m_pGraphInstance->SetSecondarySkeletons( m_secondarySkeletons );
+        }
     }
 
     void GraphComponent::Shutdown()
     {
+        m_secondarySkeletons.clear();
         EE::Delete( m_pGraphInstance );
         EntityComponent::Shutdown();
     }
@@ -39,16 +45,46 @@ namespace EE::Animation
         m_pGraphVariation = graphResourceID;
     }
 
-    //-------------------------------------------------------------------------
-
-    Skeleton const* GraphComponent::GetSkeleton() const
+    void GraphComponent::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
     {
-        return ( m_pGraphVariation != nullptr ) ? m_pGraphVariation->GetSkeleton() : nullptr;
+        #if EE_DEVELOPMENT_TOOLS
+        int32_t numSkeletons = (int32_t) secondarySkeletons.size();
+        for ( int32_t i = 0; i < numSkeletons; i++ )
+        {
+            EE_ASSERT( secondarySkeletons[i] != nullptr );
+
+            for ( int32_t j = i + 1; j < numSkeletons; j++ )
+            {
+                EE_ASSERT( secondarySkeletons[j] != secondarySkeletons[i] );
+            }
+        }
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        m_secondarySkeletons = secondarySkeletons;
+
+        if( m_pGraphInstance != nullptr )
+        {
+            m_pGraphInstance->SetSecondarySkeletons( secondarySkeletons ); 
+        }
     }
 
-    Pose const* GraphComponent::GetPose() const
+    //-------------------------------------------------------------------------
+
+    Skeleton const* GraphComponent::GetPrimarySkeleton() const
     {
-        return m_pGraphInstance->GetPose();
+        return ( m_pGraphVariation != nullptr ) ? m_pGraphVariation->GetPrimarySkeleton() : nullptr;
+    }
+
+    Pose const* GraphComponent::GetPrimaryPose() const
+    {
+        return m_pGraphInstance->GetPrimaryPose();
+    }
+
+    TInlineVector<Pose const*, 1> GraphComponent::GetSecondaryPoses() const
+    {
+        return m_pGraphInstance->GetSecondaryPoses();
     }
 
     void GraphComponent::EvaluateGraph( Seconds deltaTime, Transform const& characterWorldTransform, Physics::PhysicsWorld* pPhysicsWorld )

@@ -11,7 +11,7 @@ namespace EE
     #if EE_DEVELOPMENT_TOOLS
     namespace EntityModel
     {
-        class EntityEditorWorkspace;
+        class EntityEditor;
     }
     #endif
 
@@ -28,7 +28,7 @@ namespace EE
         friend EntityModel::EntityCollection;
 
         #if EE_DEVELOPMENT_TOOLS
-        friend EntityModel::EntityEditorWorkspace;
+        friend EntityModel::EntityEditor;
         #endif
 
         struct AttachmentSocketTransformResult

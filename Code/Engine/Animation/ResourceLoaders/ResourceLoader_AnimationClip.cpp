@@ -42,18 +42,37 @@ namespace EE::Animation
         collectionDesc.CalculateCollectionRequirements( *m_pTypeRegistry );
         TypeSystem::TypeDescriptorCollection::InstantiateStaticCollection( *m_pTypeRegistry, collectionDesc, pAnimation->m_events );
 
+        // Read secondary animations
+        //-------------------------------------------------------------------------
+
+        int32_t numSecondaryAnimations = 0;
+        archive << numSecondaryAnimations;
+
+        for ( int32_t secondaryAnimIdx = 0; secondaryAnimIdx < numSecondaryAnimations; secondaryAnimIdx++ )
+        {
+            auto pSecondaryAnimation = EE::New<AnimationClip>();
+            archive << *pSecondaryAnimation;
+            pAnimation->m_secondaryAnimations.emplace_back( pSecondaryAnimation );
+        }
+
         return true;
     }
 
     void AnimationClipLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
     {
-        auto pAnimation = pResourceRecord->GetResourceData<AnimationClip>();
-        if ( pAnimation != nullptr )
+        auto pAnimClip = pResourceRecord->GetResourceData<AnimationClip>();
+        if ( pAnimClip != nullptr )
         {
-            // Release allocated events collection
-            if ( !pAnimation->m_events.empty() )
+            // Delete all secondary animations
+            for ( auto pSecondaryAnimation : pAnimClip->m_secondaryAnimations )
             {
-                TypeSystem::TypeDescriptorCollection::DestroyStaticCollection( pAnimation->m_events );
+                EE::Delete( pSecondaryAnimation );
+            }
+
+            // Release allocated events collection
+            if ( !pAnimClip->m_events.empty() )
+            {
+                TypeSystem::TypeDescriptorCollection::DestroyStaticCollection( pAnimClip->m_events );
             }
         }
 
@@ -62,11 +81,19 @@ namespace EE::Animation
 
     Resource::InstallResult AnimationClipLoader::Install( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
     {
-        auto pAnimData = pResourceRecord->GetResourceData<AnimationClip>();
-        EE_ASSERT( pAnimData->m_skeleton.GetResourceID().IsValid() );
+        auto pAnimClip = pResourceRecord->GetResourceData<AnimationClip>();
+        EE_ASSERT( pAnimClip->m_skeleton.GetResourceID().IsValid() );
 
-        pAnimData->m_skeleton = GetInstallDependency( installDependencies, pAnimData->m_skeleton.GetResourceID() );
-        EE_ASSERT( pAnimData->IsValid() );
+        // Set primary skeleton
+        pAnimClip->m_skeleton = GetInstallDependency( installDependencies, pAnimClip->m_skeleton.GetResourceID() );
+        EE_ASSERT( pAnimClip->IsValid() );
+
+        // Set secondary skeletons
+        for ( auto pSecondaryAnimation : pAnimClip->m_secondaryAnimations )
+        {
+            const_cast<AnimationClip*>( pSecondaryAnimation )->m_skeleton = GetInstallDependency( installDependencies, pSecondaryAnimation->m_skeleton.GetResourceID() );
+            EE_ASSERT( pSecondaryAnimation->IsValid() );
+        }
 
         ResourceLoader::Install( resID, pResourceRecord, installDependencies );
 

@@ -23,6 +23,7 @@ namespace EE::Animation
     struct GraphLayerUpdateState;
     struct GraphLayerContext;
     struct BoneMaskTaskList;
+    struct PoseBuffer;
 
     //-------------------------------------------------------------------------
 
@@ -127,20 +128,26 @@ namespace EE::Animation
 
     public:
 
-        GraphContext( uint64_t userID, Skeleton const* pSkeleton );
+        GraphContext( uint64_t ownerID, Skeleton const* pSkeleton );
         ~GraphContext();
 
-        void Initialize( TaskSystem* pTaskSystem );
+        void Initialize( TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer );
         void Shutdown();
 
         inline bool IsValid() const { return m_pSkeleton != nullptr && m_pTaskSystem != nullptr; }
         void Update( Seconds const deltaTime, Transform const& currentWorldTransform, Physics::PhysicsWorld* pPhysicsWorld );
 
+        // Get the previous frame's pose buffer
+        PoseBuffer const* GetPreviousPoseBuffer() const;
+
+        // Get the previous frame's primary skeleton pose
+        Pose const* GetPreviousPrimaryPose() const;
+
         // Are we currently in a layer
         EE_FORCE_INLINE bool IsInLayer() const { return m_pLayerContext != nullptr; }
 
         // Get an valid but empty range given the current state of the sampled event buffer
-        EE_FORCE_INLINE SampledEventRange GetEmptySampledEventRange() const { return SampledEventRange( m_sampledEventsBuffer.GetNumSampledEvents() ); }
+        EE_FORCE_INLINE SampledEventRange GetEmptySampledEventRange() const { return SampledEventRange( m_pSampledEventsBuffer->GetNumSampledEvents() ); }
 
         // Debugging
         //-------------------------------------------------------------------------
@@ -173,9 +180,9 @@ namespace EE::Animation
         // Set at construction
         uint64_t                                    m_graphUserID = 0; // The entity ID that owns this graph.
         Skeleton const*                             m_pSkeleton = nullptr;
-        SampledEventsBuffer                         m_sampledEventsBuffer;
 
         // Set at initialization time
+        SampledEventsBuffer*                        m_pSampledEventsBuffer = nullptr;
         TaskSystem*                                 m_pTaskSystem = nullptr;
         Pose const*                                 m_pPreviousPose = nullptr;
 

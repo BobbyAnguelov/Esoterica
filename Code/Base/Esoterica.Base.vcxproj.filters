@@ -363,6 +363,7 @@
     <ClCompile Include="Logging\Platform\Log_Win32.cpp" />
     <ClCompile Include="Logging\LoggingSystem.cpp" />
     <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
+    <ClCompile Include="FileSystem\FileSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Imgui\ImguiGizmo.h">

@@ -52,6 +52,7 @@ namespace EE::Player
             Dash,
             Slide,
             Interact,
+            MeleeAttack,
 
             #if EE_DEVELOPMENT_TOOLS
             DebugMode,

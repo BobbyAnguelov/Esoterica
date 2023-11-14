@@ -206,15 +206,38 @@ namespace EE
         // Operators
         //-------------------------------------------------------------------------
 
-        inline bool operator==( Transform const& rhs ) const
+        inline bool IsNearEqual( Transform const& rhs, Radians const angleThreshold = Math::DegreesToRadians, float translationScaleThreshold = Math::Epsilon ) const
         {
-            return m_translationScale.IsNearEqual4( rhs.m_translationScale );
+            if ( !m_rotation.IsNearEqual( rhs.m_rotation, angleThreshold ) )
+            {
+                return false;
+            }
+
+            if ( !m_translationScale.IsNearEqual4( rhs.m_translationScale, translationScaleThreshold ) )
+            {
+                return false;
+            }
+
+            return true;
         }
 
-        inline bool operator!=( Transform const& rhs ) const
+        // Exact equality
+        inline bool operator==( Transform const& rhs ) const
         {
-            return !operator==( rhs);
+            if ( m_translationScale != rhs.m_translationScale )
+            {
+                return false;
+            }
+
+            if ( m_rotation != rhs.m_rotation )
+            {
+                return false;
+            }
+
+            return true;
         }
+
+        inline bool operator!=( Transform const& rhs ) const { return !operator==( rhs); }
 
     private:
 

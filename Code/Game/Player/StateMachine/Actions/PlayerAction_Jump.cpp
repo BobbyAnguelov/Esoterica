@@ -2,7 +2,6 @@
 #include "Game/Player/Components/Component_MainPlayer.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Game/Player/Animation/PlayerGraphController_Ability.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Input/InputSystem.h"
 
@@ -48,9 +47,8 @@ namespace EE::Player
     {
         if( ctx.m_pInputState->GetControllerState()->WasReleased( Input::ControllerButton::FaceButtonDown ) )
         {
-            ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Ability );
-            auto pAbilityAnimController = ctx.GetAnimSubGraphController<AbilityGraphController>();
-            pAbilityAnimController->StartJump();
+            ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Ability );
+            ctx.m_pAnimationController->StartJump();
 
             ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::NoGravity, 0.0f );
             m_jumpTimer.Start();
@@ -81,10 +79,13 @@ namespace EE::Player
 
     Action::Status JumpAction::UpdateInternal( ActionContext const& ctx )
     {
+        static StringID const jumpTransitionMarkerID( "Jump" );
+
         // check if we had a collision
         //-------------------------------------------------------------------------
+
         float const jumpTime = ( m_isChargedJumpReady ? g_bigJumpTimeToApex : g_smallJumpTimeToApex );
-        if( m_jumpTimer.GetElapsedTimeSeconds() >= jumpTime )
+        if( m_jumpTimer.GetElapsedTimeSeconds() >= jumpTime || ctx.m_pAnimationController->IsTransitionFullyAllowed( jumpTransitionMarkerID ) )
         {
             return Status::Completed;
         }
@@ -127,14 +128,13 @@ namespace EE::Player
             // Update animation controller
             //-------------------------------------------------------------------------
 
-            auto pAbilityGraphController = ctx.GetAnimSubGraphController<AbilityGraphController>();
-            pAbilityGraphController->SetDesiredMovement( ctx.GetDeltaTime(), resultingVelocity, facing );
+            ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), resultingVelocity, facing );
         }
 
         //-------------------------------------------------------------------------
 
         // Wait for the jump anim to complete
-        if ( ctx.m_pAnimationController->IsAnyTransitionAllowed() )
+        if ( ctx.m_pAnimationController->IsAnyTransitionAllowed( jumpTransitionMarkerID ) )
         {
             return Status::Interruptible;
         }

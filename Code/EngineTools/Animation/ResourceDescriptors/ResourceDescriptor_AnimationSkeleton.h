@@ -17,7 +17,7 @@ namespace EE::Animation
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return Skeleton::GetStaticResourceTypeID(); }
 
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             if ( m_skeletonPath.IsValid() )
             {
@@ -35,6 +35,16 @@ namespace EE::Animation
             return boneMaskIDs;
         }
 
+        virtual void Clear() override
+        {
+            m_skeletonPath.Clear();
+            m_skeletonRootBoneName.clear();
+            m_boneMaskDefinitions.clear();
+            m_highLODBones.clear();
+            m_previewMesh.Clear();
+            m_previewAttachmentSocketID.Clear();
+        }
+
     public:
 
         EE_REFLECT();
@@ -44,15 +54,22 @@ namespace EE::Animation
         EE_REFLECT();
         String                                      m_skeletonRootBoneName;
 
-        // Editor-only preview mesh
-        EE_REFLECT();
-        TResourcePtr<Render::SkeletalMesh>          m_previewMesh;
-
-        EE_REFLECT();
+        EE_REFLECT( "IsToolsReadOnly" : "True" );
         TVector<BoneMaskDefinition>                 m_boneMaskDefinitions;
 
         // The set of bones that only matter when working with this skeleton at high LOD
         EE_REFLECT( "IsToolsReadOnly" : "True" );
         TVector<StringID>                           m_highLODBones;
+
+        // Preview
+        //-------------------------------------------------------------------------
+
+        // Preview Only: the mesh to use to preview
+        EE_REFLECT( "Category" : "Preview" );
+        TResourcePtr<Render::SkeletalMesh>          m_previewMesh;
+
+        // Preview Only: The default attachment bone ID that we use when attaching to a parent skeleton
+        EE_REFLECT( "Category" : "Preview" );
+        StringID                                    m_previewAttachmentSocketID;
     };
 }

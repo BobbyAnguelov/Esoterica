@@ -459,7 +459,7 @@ namespace EE::Physics
         {
             case ControllerFloorType::Floor:
             {
-                ImGuiX::ScopedFont sf( Colors::Lime );
+                ImGuiX::ScopedFont sf( Colors::Green );
                 ImGui::Text( "Floor Type: Navigable" );
             }
             break;
@@ -484,7 +484,7 @@ namespace EE::Physics
         if ( m_debugCapsule )
         {
             ctx.DrawCapsule( m_debugPreMoveTransform, m_radius, m_halfHeight, Colors::White, 2.0f );
-            ctx.DrawCapsule( m_debugPostMoveTransform, m_radius, m_halfHeight, Colors::Lime, 2.0f );
+            ctx.DrawCapsule( m_debugPostMoveTransform, m_radius, m_halfHeight, Colors::Green, 2.0f );
         }
 
         //-------------------------------------------------------------------------

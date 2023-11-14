@@ -608,8 +608,18 @@ namespace EE::VisualGraph
             EE_ASSERT( pNode != nullptr && pNode->m_ID.IsValid() );
             EE_ASSERT( FindNode( pNode->m_ID ) == nullptr );
             EE_ASSERT( pNode->m_pParentGraph == this );
+
             BeginModification();
-            m_nodes.emplace_back( pNode );
+            {
+                // Ensure unique name
+                if ( pNode->IsRenameable() )
+                {
+                    pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
+                }
+
+                // Add to the graph
+                m_nodes.emplace_back( pNode );
+            }
             EndModification();
         }
 

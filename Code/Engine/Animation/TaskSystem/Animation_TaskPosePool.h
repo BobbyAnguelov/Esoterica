@@ -6,26 +6,49 @@
 
 namespace EE::Animation
 {
+    using SecondarySkeletonList = TInlineVector<Skeleton const*, 3>;
+
+    //-------------------------------------------------------------------------
+
     struct EE_ENGINE_API PoseBuffer
     {
         friend class PoseBufferPool;
+        friend class TaskSystem;
 
     public:
 
-        PoseBuffer( Skeleton const* pSkeleton );
+        PoseBuffer( Skeleton const* pSkeleton, SecondarySkeletonList const& secondarySkeletons );
 
-        void Reset();
+        // Data
+        //-------------------------------------------------------------------------
 
         void CopyFrom( PoseBuffer const& RHS );
         inline void CopyFrom( PoseBuffer const* RHS ) { CopyFrom( *RHS ); }
 
+        // Pose State
+        //-------------------------------------------------------------------------
+
+        inline bool IsPoseSet() const { return m_poses[0].IsPoseSet(); }
+        inline bool IsAdditive() const { return m_poses[0].IsAdditivePose(); }
+        inline Pose* GetPrimaryPose() { return &m_poses[0]; }
+        void ResetPose( Pose::Type poseType = Pose::Type::None, bool calculateGlobalPose = false );
+        void CalculateGlobalTransforms();
+
+    protected:
+
+        // Releases this buffer and resets the poses
+        void Release( Pose::Type poseType = Pose::Type::None, bool calculateGlobalPose = false );
+
+        // Changes the set of poses we store
+        void UpdateSecondarySkeletonList( SecondarySkeletonList const& secondarySkeletons );
+    
     public:
 
-        Pose								m_pose;
+        TInlineVector<Pose, 10>             m_poses;
 
     private:
 
-        bool								m_isUsed = false;
+        bool                                m_isUsed = false;
     };
 
     //-------------------------------------------------------------------------
@@ -38,29 +61,36 @@ namespace EE::Animation
 
         using PoseBuffer::PoseBuffer;
 
-        inline void Reset()
+    private:
+
+        inline void Release( Pose::Type poseType = Pose::Type::None )
         {
-            PoseBuffer::Reset();
+            PoseBuffer::Release( poseType );
             m_ID.Clear();
-            m_shouldBeDestroyed = false;
+            m_shouldBeReset = false;
         }
 
     public:
 
-        UUID							m_ID;
-        bool							m_shouldBeDestroyed = false;
+        UUID                                m_ID;
+        bool                                m_shouldBeReset = false;
     };
 
     //-------------------------------------------------------------------------
+    // TODO: Store all poses in a contiguos block of memory and profile if this is in fact faster or not
 
     class EE_ENGINE_API PoseBufferPool
     {
         constexpr static int8_t const s_numInitialBuffers = 6;
         constexpr static int8_t const s_bufferGrowAmount = 3;
 
+        #if EE_DEVELOPMENT_TOOLS
+        static void ValidateSetOfSecondarySkeletons( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons );
+        #endif
+
     public:
 
-        PoseBufferPool( Skeleton const* pSkeleton );
+        PoseBufferPool( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons = SecondarySkeletonList() );
         PoseBufferPool( PoseBufferPool const& ) = delete;
         ~PoseBufferPool();
 
@@ -68,10 +98,26 @@ namespace EE::Animation
 
         void Reset();
 
+        // Skeletons
+        //-------------------------------------------------------------------------
+
+        // Get the primary skeleton for this pool
+        Skeleton const* GetPrimarySkeleton() const { return m_pPrimarySkeleton; }
+
+        // Set the secondary skeletons that we can animate
+        void SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons );
+
+        // Get the number of secondary skeletons set
+        inline int32_t GetNumSecondarySkeletons() const { return (int32_t) m_secondarySkeletons.size(); }
+
+        // Get the index of the pose for a specific skeleton
+        int32_t GetPoseIndexForSkeleton( Skeleton const* pSkeleton ) const;
+
         // Poses
         //-------------------------------------------------------------------------
 
         int8_t RequestPoseBuffer();
+
         void ReleasePoseBuffer( int8_t bufferIdx );
 
         inline PoseBuffer* GetBuffer( int8_t bufferIdx )
@@ -96,20 +142,22 @@ namespace EE::Animation
         inline void EnableRecording( bool enabled ) const { m_isDebugRecordingEnabled = enabled; }
         inline bool HasRecordedData() const { return m_firstFreeDebugBuffer != 0; }
         void RecordPose( int8_t taskIdx, int8_t poseBufferIdx );
-        Pose const* GetRecordedPoseForTask( int8_t taskIdx ) const;
+        PoseBuffer* GetRecordedPoseBufferForTask( int8_t taskIdx ) const;
         #endif
 
     private:
 
-        Skeleton const*                             m_pSkeleton = nullptr;
         TInlineVector<PoseBuffer, 10>               m_poseBuffers;
         TInlineVector<CachedPoseBuffer, 10>         m_cachedBuffers;
         TInlineVector<UUID, 5>                      m_cachedPoseBuffersToDestroy;
         int8_t                                      m_firstFreeCachedBuffer = 0;
         int8_t                                      m_firstFreeBuffer = 0;
 
+        Skeleton const*                             m_pPrimarySkeleton = nullptr;
+        SecondarySkeletonList                       m_secondarySkeletons;
+
         #if EE_DEVELOPMENT_TOOLS
-        TVector<Pose>                               m_debugBuffers;
+        TVector<PoseBuffer>                         m_debugPoseBuffers;
         TVector<int8_t>                             m_debugBufferTaskIdxMapping; // The task index for each debug buffer
         int8_t                                      m_firstFreeDebugBuffer = 0;
         mutable bool                                m_isDebugRecordingEnabled = false;

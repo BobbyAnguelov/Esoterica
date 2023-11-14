@@ -92,6 +92,12 @@ namespace EE::Physics
         inline bool operator==( CollisionSettings const& rhs ) const { return m_category == rhs.m_category && m_collidesWithMask == rhs.m_collidesWithMask; }
         inline bool operator!=( CollisionSettings const& rhs ) const { return m_category != rhs.m_category || m_collidesWithMask != rhs.m_collidesWithMask; }
 
+        inline void Clear()
+        {
+            m_category = CollisionCategory::Environment;
+            m_collidesWithMask = 0xFFFFFFFF;
+        }
+
     public:
 
         // What type of physics object are we

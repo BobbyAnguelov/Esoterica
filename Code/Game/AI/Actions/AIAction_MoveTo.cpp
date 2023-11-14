@@ -1,6 +1,5 @@
 #include "AIAction_MoveTo.h"
 #include "Game/AI/Behaviors/AIBehavior.h"
-#include "Game/AI/Animation/AIGraphController_Locomotion.h"
 #include "Game/AI/Animation/AIAnimationController.h"
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
@@ -147,9 +146,7 @@ namespace EE::AI
         Vector const desiredDelta = ( goalPosition - currentPosition );
         Vector const movementVelocity = desiredDelta / ctx.GetDeltaTime();
         facingDir = facingDir.GetNormalized2();
-
-        auto pLocomotionController = ctx.m_pAnimationController->GetSubGraphController<LocomotionGraphController>();
-        pLocomotionController->SetLocomotionDesires( ctx.GetDeltaTime(), movementVelocity, facingDir );
+        ctx.m_pAnimationController->SetLocomotionDesires( ctx.GetDeltaTime(), movementVelocity, facingDir );
 
         // Check if we are at the end of the path
         //-------------------------------------------------------------------------

@@ -103,6 +103,12 @@ namespace EE::TypeSystem::Reflection
                 m_isToolsReadOnly = toolsReadOnlyValueIter->value.GetBool();
             }
 
+            auto const showAsStaticArrayValueIter = metaDataObject.FindMember( "ShowAsStaticArray" );
+            if ( showAsStaticArrayValueIter != metaDataObject.MemberEnd() )
+            {
+                m_showInRestrictedMode = showAsStaticArrayValueIter->value.GetBool();
+            }
+
             auto const customEditorValueIter = metaDataObject.FindMember( "CustomEditor" );
             if ( customEditorValueIter != metaDataObject.MemberEnd() )
             {

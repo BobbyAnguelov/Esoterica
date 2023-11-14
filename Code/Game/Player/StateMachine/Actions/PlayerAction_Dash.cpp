@@ -2,13 +2,9 @@
 #include "Game/Player/Components/Component_MainPlayer.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Game/Player/Animation/PlayerGraphController_Ability.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Input/InputSystem.h"
 #include "Base/Drawing/DebugDrawing.h"
-
-// hack for now
-#include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
 
 //-------------------------------------------------------------------------
 
@@ -62,9 +58,8 @@ namespace EE::Player
             m_dashDurationTimer.Start();
             m_isInSettle = false;
 
-            ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Ability );
-            auto pAbilityAnimController = ctx.GetAnimSubGraphController<AbilityGraphController>();
-            pAbilityAnimController->StartDash();
+            ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Ability );
+            ctx.m_pAnimationController->StartDash();
 
             #if EE_DEVELOPMENT_TOOLS
             m_debugStartPosition = ctx.m_pCharacterComponent->GetPosition();
@@ -92,8 +87,8 @@ namespace EE::Player
         
         // Update animation controller
         //-------------------------------------------------------------------------
-        auto pGraphController = ctx.GetAnimSubGraphController<AbilityGraphController>();
-        pGraphController->SetDesiredMovement(ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
+
+        ctx.m_pAnimationController->SetAbilityDesiredMovement(ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
 
         if( m_dashDurationTimer.Update( ctx.GetDeltaTime() ) > g_dashDuration && !m_isInSettle )
         {
@@ -103,7 +98,7 @@ namespace EE::Player
 
         if( m_isInSettle )
         {
-            pGraphController->SetDesiredMovement( ctx.GetDeltaTime(), m_initialVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
+            ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), m_initialVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
 
             if( m_hackSettleTimer.Update( ctx.GetDeltaTime() ) > 0.1f )
             {

@@ -9,7 +9,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::RawAssets { class RawMesh; }
+namespace EE::Import { class ImportedMesh; }
 
 //-------------------------------------------------------------------------
 
@@ -25,12 +25,22 @@ namespace EE::Render
 
         virtual bool IsValid() const override { return m_meshPath.IsValid(); }
 
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             if ( m_meshPath.IsValid() )
             {
                 outDependencies.emplace_back( m_meshPath );
             }
+        }
+
+        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Mesh::GetStaticResourceTypeID(); }
+
+        virtual void Clear() override
+        {
+            m_meshPath.Clear();
+            m_meshesToInclude.clear();
+            m_materials.clear();
+            m_mergeSectionsByMaterial = true;
         }
 
     public:
@@ -43,7 +53,7 @@ namespace EE::Render
         EE_REFLECT();
         TVector<String>                         m_meshesToInclude;
 
-        // Default materials - TODO: extract from source files
+        // Default materials
         EE_REFLECT();
         TVector<TResourcePtr<Material>>         m_materials;
 
@@ -60,6 +70,12 @@ namespace EE::Render
 
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return StaticMesh::GetStaticResourceTypeID(); }
+
+        virtual void Clear() override
+        {
+            MeshResourceDescriptor::Clear();
+            m_scale = Float3( 1.0f, 1.0f, 1.0f );
+        }
 
     public:
 

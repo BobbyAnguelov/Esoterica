@@ -39,13 +39,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Esoterica.Applications.Edit
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5. Property Sheets", "5. Property Sheets", "{CE2201AC-CE64-4BD9-8317-4E4E5B370CD9}"
 	ProjectSection(SolutionItems) = preProject
-		Code\PropertySheets\DirectXTex.props = Code\PropertySheets\DirectXTex.props
 		Code\PropertySheets\EA.props = Code\PropertySheets\EA.props
 		Code\PropertySheets\Esoterica.props = Code\PropertySheets\Esoterica.props
 		Code\PropertySheets\FBXSDK.props = Code\PropertySheets\FBXSDK.props
 		Code\PropertySheets\FreeType.props = Code\PropertySheets\FreeType.props
 		Code\PropertySheets\GameNetworkingSockets.props = Code\PropertySheets\GameNetworkingSockets.props
 		Code\PropertySheets\Imgui.props = Code\PropertySheets\Imgui.props
+		Code\PropertySheets\ISPCTextureCompressor.props = Code\PropertySheets\ISPCTextureCompressor.props
 		Code\PropertySheets\LivePP.props = Code\PropertySheets\LivePP.props
 		Code\PropertySheets\LLVM.props = Code\PropertySheets\LLVM.props
 		Code\PropertySheets\MeshOptimizer.props = Code\PropertySheets\MeshOptimizer.props
@@ -65,6 +65,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "6. Docs", "6. Docs", "{B55A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "7. Misc", "7. Misc", "{8E9AF613-7A92-4B6D-A33D-E1C858BBAD9B}"
 	ProjectSection(SolutionItems) = preProject
+		Code\.editorconfig = Code\.editorconfig
 		Code\cpp.hint = Code\cpp.hint
 		Code\Esoterica.ini = Code\Esoterica.ini
 		Code\Esoterica.natvis = Code\Esoterica.natvis

@@ -91,8 +91,10 @@ namespace EE::Resource
 
         ResourceDescriptor& operator=( ResourceDescriptor const& rhs ) = default;
 
+        virtual void Clear() = 0;
+
         // Get all the resources that are required for the compilation of the resource
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) = 0;
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) = 0;
 
         // Is this a valid descriptor - This only signifies whether all the required data is set and not whether the resource or any other authored data within the descriptor is valid
         virtual bool IsValid() const = 0;
@@ -101,6 +103,6 @@ namespace EE::Resource
         virtual bool IsUserCreateableDescriptor() const { return false; }
 
         // What is the compiled resource type for this descriptor - Only needed for user createable descriptors
-        virtual ResourceTypeID GetCompiledResourceTypeID() const { return ResourceTypeID(); }
+        virtual ResourceTypeID GetCompiledResourceTypeID() const = 0;
     };
 }

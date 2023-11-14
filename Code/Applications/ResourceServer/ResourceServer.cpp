@@ -62,6 +62,7 @@ namespace EE::Resource
                 // Start compiler process
                 //-------------------------------------------------------------------------
 
+                m_pRequest->m_status = CompilationRequest::Status::Compiling;
                 m_pRequest->m_compilationTimeStarted = PlatformClock::GetTime();
 
                 int32_t result = subprocess_create( processCommandLineArgs, subprocess_option_combined_stdout_stderr | subprocess_option_inherit_environment | subprocess_option_no_window, &m_subProcess );
@@ -128,6 +129,14 @@ namespace EE::Resource
                 while ( fgets( readBuffer, 512, subprocess_stdout( &m_subProcess ) ) )
                 {
                     m_pRequest->m_log += readBuffer;
+                }
+
+                // Strip the process preamble and delimiter
+                size_t const delimiterPos = m_pRequest->m_log.find_first_of( CompilationLog::s_delimiter );
+                if ( delimiterPos != String::npos )
+                {
+                    size_t const delimiterLength = strlen( CompilationLog::s_delimiter );
+                    m_pRequest->m_log = m_pRequest->m_log.substr( delimiterLength + 1, m_pRequest->m_log.length() - delimiterLength - 1 );
                 }
 
                 //-------------------------------------------------------------------------
@@ -512,14 +521,14 @@ namespace EE::Resource
 
         struct Bucket
         {
-            void AddUpdateResponse( ResourceID const& ID, String const& filePath )
+            void AddUpdateResponse( ResourceID const& ID, String const& filePath, String const& log = String() )
             {
                 if ( m_updateResponses.empty() )
                 {
                     m_updateResponses.push_back();
                 }
 
-                m_updateResponses.back().m_results.emplace_back( ID, filePath );
+                m_updateResponses.back().m_results.emplace_back( ID, filePath, log );
 
                 if ( m_updateResponses.size() == 64 )
                 {
@@ -527,14 +536,14 @@ namespace EE::Resource
                 }
             }
 
-            void AddRequestResponse( ResourceID const& ID, String const& filePath )
+            void AddRequestResponse( ResourceID const& ID, String const& filePath, String const& log = String() )
             {
                 if ( m_requestResponses.empty() )
                 {
                     m_requestResponses.push_back();
                 }
 
-                m_requestResponses.back().m_results.emplace_back( ID, filePath );
+                m_requestResponses.back().m_results.emplace_back( ID, filePath, log );
 
                 if ( m_requestResponses.size() == 64 )
                 {
@@ -576,7 +585,14 @@ namespace EE::Resource
                             // Bulk notify all connected client that a resource has been recompiled so that they can reload it if necessary
                             for ( auto& clientBucket : clientBuckets )
                             {
-                                clientBucket.AddUpdateResponse( pRequest->GetResourceID(), pRequest->HasSucceeded() ? pRequest->GetDestinationFilePath().ToString() : String() );
+                                if ( pRequest->HasSucceeded() )
+                                {
+                                    clientBucket.AddUpdateResponse( pRequest->GetResourceID(), pRequest->GetDestinationFilePath().ToString() );
+                                }
+                                else
+                                {
+                                    clientBucket.AddUpdateResponse( pRequest->GetResourceID(), "", pRequest->GetLog() );
+                                }
                             }
                         }
                     }
@@ -586,7 +602,14 @@ namespace EE::Resource
                         {
                             if ( connectedClients[clientIdx].m_ID == pRequest->GetClientID() )
                             {
-                                clientBuckets[clientIdx].AddRequestResponse( pRequest->GetResourceID(), pRequest->HasSucceeded() ? pRequest->GetDestinationFilePath().ToString() : String() );
+                                if ( pRequest->HasSucceeded() )
+                                {
+                                    clientBuckets[clientIdx].AddRequestResponse( pRequest->GetResourceID(), pRequest->GetDestinationFilePath().ToString() );
+                                }
+                                else
+                                {
+                                    clientBuckets[clientIdx].AddRequestResponse( pRequest->GetResourceID(), "", pRequest->GetLog() );
+                                }
                             }
                         }
                     }

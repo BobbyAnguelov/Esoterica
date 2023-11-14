@@ -85,7 +85,7 @@ namespace EE::Animation::GraphNodes
 
         SampledEvent const* pSampledEvent = nullptr;
 
-        for ( auto const& sampledEvent : context.m_sampledEventsBuffer )
+        for ( auto const& sampledEvent : *context.m_pSampledEventsBuffer )
         {
             if ( sampledEvent.IsIgnored() || !sampledEvent.IsFromActiveBranch() || sampledEvent.IsStateEvent() )
             {

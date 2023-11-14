@@ -32,6 +32,22 @@ namespace EE::Animation
         Blocked,
     };
 
+    struct SampledTransitionMarker
+    {
+        SampledTransitionMarker() = default;
+
+        SampledTransitionMarker( Animation::TransitionMarker marker, StringID ID )
+            : m_marker( marker )
+            , m_ID( ID )
+        {
+        }
+
+        Animation::TransitionMarker     m_marker = Animation::TransitionMarker::BlockTransition;
+        StringID                        m_ID;
+    };
+
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
     EE_ENGINE_API char const* GetTransitionMarkerName( TransitionMarker marker );
     EE_ENGINE_API char const* GetTransitionMarkerConditionName( TransitionMarkerCondition markerCondition );

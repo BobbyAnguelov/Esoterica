@@ -5,28 +5,6 @@
 
 namespace EE
 {
-    static size_t FindExtensionStartIdx( String const& path )
-    {
-        size_t const pathDelimiterIdx = path.find_last_of( ResourcePath::s_pathDelimiter );
-
-        size_t idx = path.rfind( '.' );
-        size_t prevIdx = idx;
-        while ( idx != String::npos && idx > pathDelimiterIdx )
-        {
-            prevIdx = idx;
-            idx = path.rfind( '.', idx - 1 );
-        }
-
-        if ( prevIdx != String::npos )
-        {
-            prevIdx++;
-        }
-
-        return prevIdx;
-    }
-
-    //-------------------------------------------------------------------------
-
     // Extremely naive data path validation function, this is definitely not robust!
     bool ResourcePath::IsValidPath( char const* pPath )
     {
@@ -166,7 +144,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        size_t extStartIdx = FindExtensionStartIdx( m_path );
+        size_t extStartIdx = FileSystem::FindExtensionStartIdx( m_path, ResourcePath::s_pathDelimiter );
         if ( extStartIdx != String::npos )
         {
             return m_path.substr( filenameStartIdx, extStartIdx - filenameStartIdx - 1 );
@@ -235,7 +213,7 @@ namespace EE
     {
         EE_ASSERT( IsValid() && IsFile() );
 
-        size_t const extIdx = FindExtensionStartIdx( m_path.c_str() );
+        size_t const extIdx = FileSystem::FindExtensionStartIdx( m_path.c_str(), ResourcePath::s_pathDelimiter );
         if ( extIdx != String::npos )
         {
             return &m_path.c_str()[extIdx];
@@ -251,7 +229,7 @@ namespace EE
         EE_ASSERT( IsValid() && IsFile() && pExtension != nullptr );
         EE_ASSERT( pExtension[0] != 0 && pExtension[0] != '.' );
 
-        size_t const extIdx = FindExtensionStartIdx( m_path.c_str() );
+        size_t const extIdx = FileSystem::FindExtensionStartIdx( m_path.c_str(), ResourcePath::s_pathDelimiter );
         if ( extIdx != String::npos )
         {
             m_path = m_path.substr( 0, extIdx ) + pExtension;

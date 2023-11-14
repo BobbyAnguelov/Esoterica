@@ -16,11 +16,12 @@ namespace EE::Animation::Tasks
     void CachedPoseWriteTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
+
         auto pCachedPoseBuffer = context.m_posePool.GetCachedPoseBuffer( m_cachedPoseID );
         PoseBuffer const* pPoseBuffer = TransferDependencyPoseBuffer( context, 0 );
-        EE_ASSERT( pPoseBuffer->m_pose.IsPoseSet() );
+        EE_ASSERT( pPoseBuffer->IsPoseSet() );
         pCachedPoseBuffer->CopyFrom( pPoseBuffer );
-        EE_ASSERT( pCachedPoseBuffer->m_pose.IsPoseSet() );
+        EE_ASSERT( pCachedPoseBuffer->IsPoseSet() );
         MarkTaskComplete( context );
     }
 
@@ -40,13 +41,13 @@ namespace EE::Animation::Tasks
         auto pPoseBuffer = GetNewPoseBuffer( context );
 
         // If the cached buffer contains a valid pose copy it
-        if ( pCachedPoseBuffer->m_pose.IsPoseSet() )
+        if ( pCachedPoseBuffer->IsPoseSet() )
         {
             pPoseBuffer->CopyFrom( pCachedPoseBuffer );
         }
         else // Set the result buffer to reference
         {
-            pPoseBuffer->m_pose.Reset( Pose::Type::ReferencePose );
+            pPoseBuffer->ResetPose( Pose::Type::ReferencePose );
         }
 
         MarkTaskComplete( context );

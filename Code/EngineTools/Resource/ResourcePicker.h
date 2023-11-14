@@ -45,6 +45,9 @@ namespace EE::Resource
         // Try to update the resourceID from a paste operation - returns true if the value was updated
         bool TryUpdateResourceFromClipboard();
 
+        // Try to update the resourceID from a drag and drop operation - returns true if the value was updated
+        bool TryUpdateResourceFromDragAndDrop();
+
     private:
 
         ToolsContext const&         m_toolsContext;
@@ -77,6 +80,9 @@ namespace EE::Resource
 
         // Get the resource path that was set
         inline ResourcePath const& GetPath() const { return m_resourcePath; }
+
+        // Try to update the path from a drag and drop operation - returns true if the value was updated
+        bool TrySetPathFromDragAndDrop();
 
     private:
 

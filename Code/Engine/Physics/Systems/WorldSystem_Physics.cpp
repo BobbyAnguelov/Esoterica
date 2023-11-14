@@ -216,7 +216,7 @@ namespace EE::Physics
                 }
                 else
                 {
-                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Lime, 2.0f );
+                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Green, 2.0f );
                 }*/
 
                 //-------------------------------------------------------------------------
@@ -248,7 +248,7 @@ namespace EE::Physics
                 }
                 else
                 {
-                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Lime, 2.0f );
+                    drawingContext.DrawLine( rayStart, rayEnd, Colors::Green, 2.0f );
                 }*/
 
                 //-------------------------------------------------------------------------

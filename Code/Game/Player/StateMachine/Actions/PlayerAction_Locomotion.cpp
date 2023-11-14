@@ -2,7 +2,6 @@
 #include "Game/Player/Components/Component_MainPlayer.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Game/Player/Animation/PlayerGraphController_Locomotion.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Drawing/DebugDrawingSystem.h"
 #include "Base/Input/InputSystem.h"
@@ -41,7 +40,7 @@ namespace EE::Player
     {
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
-        ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Locomotion );
+        ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Locomotion );
         ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::Acceleration );
         ctx.m_pCharacterComponent->TryMaintainVerticalMomentum();
         SetCrouchState( ctx, ctx.m_pPlayerComponent->m_crouchFlag );
@@ -144,9 +143,8 @@ namespace EE::Player
         // Update animation controller
         //-------------------------------------------------------------------------
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->SetSliding( isSliding );
-        pAnimController->SetCrouch( ctx.m_pPlayerComponent->m_crouchFlag );
+        ctx.m_pAnimationController->SetSliding( isSliding );
+        ctx.m_pAnimationController->SetCrouch( ctx.m_pPlayerComponent->m_crouchFlag );
 
         // Debug drawing
         //-------------------------------------------------------------------------
@@ -197,8 +195,7 @@ namespace EE::Player
         m_desiredTurnDirection = Vector::Zero;
         m_desiredFacing = characterWorldTransform.GetForwardVector();
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestIdle();
+        ctx.m_pAnimationController->RequestIdle();
 
         m_state = LocomotionState::Idle;
     }
@@ -211,7 +208,7 @@ namespace EE::Player
 
         auto const pControllerState = ctx.m_pInputState->GetControllerState();
         EE_ASSERT( pControllerState != nullptr );
-        if ( pControllerState->WasPressed( Input::ControllerButton::FaceButtonLeft ) )
+        if ( pControllerState->WasPressed( Input::ControllerButton::ThumbstickRight ) )
         {
             SetCrouchState( ctx, !ctx.m_pPlayerComponent->m_crouchFlag );
         }
@@ -226,8 +223,7 @@ namespace EE::Player
         // If the stick direction is in the same direction the character is facing, go directly to start
         if ( stickAmplitude < g_idle_minimumStickAmplitudeThreshold )
         {
-            auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-            pAnimController->RequestIdle();
+            ctx.m_pAnimationController->RequestIdle();
         }
         else // Trigger a turn on spot
         {
@@ -252,8 +248,7 @@ namespace EE::Player
         m_desiredFacing = m_desiredTurnDirection = desiredFacingDirection.GetNormalized2();
         m_cachedFacing = Vector::Zero;
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestTurnOnSpot( m_desiredFacing );
+        ctx.m_pAnimationController->RequestTurnOnSpot( m_desiredFacing );
 
         // Start the interruption timer
         m_startDetectionTimer.Start( g_turnOnSpotInterruptionTime );
@@ -301,8 +296,7 @@ namespace EE::Player
         //-------------------------------------------------------------------------
 
         auto pGraphController = ctx.m_pAnimationController;
-        auto pLocomotionGraphController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pLocomotionGraphController->IsTurningOnSpot() && pGraphController->IsAnyTransitionAllowed() )
+        if ( ctx.m_pAnimationController->IsTurningOnSpot() && pGraphController->IsLocomotionTransitionAllowed() )
         {
             RequestIdle( ctx );
         }
@@ -320,8 +314,7 @@ namespace EE::Player
         m_desiredFacing = stickInputVector;
 
         float const speed = ConvertStickAmplitudeToSpeed( ctx, stickAmplitude );
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestStart( stickInputVector * speed );
+        ctx.m_pAnimationController->RequestStart( stickInputVector * speed );
 
         m_state = LocomotionState::Starting;
     }
@@ -330,8 +323,7 @@ namespace EE::Player
     {
         EE_ASSERT( m_state == LocomotionState::Starting );
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pAnimController->IsStarting() && pAnimController->IsTransitionAllowed() )
+        if ( ctx.m_pAnimationController->IsStarting() && ctx.m_pAnimationController->IsLocomotionTransitionAllowed() )
         {
             float const speed = ConvertStickAmplitudeToSpeed( ctx, stickAmplitude );
             if ( speed > 0.0f )
@@ -365,8 +357,7 @@ namespace EE::Player
         m_desiredTurnDirection = Vector::Zero;
         m_desiredFacing = m_desiredMovementVelocity.GetNormalized3();
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
+        ctx.m_pAnimationController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
 
         m_state = LocomotionState::Moving;
     }
@@ -375,8 +366,6 @@ namespace EE::Player
     {
         auto const pControllerState = ctx.m_pInputState->GetControllerState();
         EE_ASSERT( pControllerState != nullptr );
-
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
 
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
@@ -400,7 +389,7 @@ namespace EE::Player
             }
 
             // Keep existing locomotion parameters when we have no input
-            pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
+            ctx.m_pAnimationController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
         }
         else
         {
@@ -426,7 +415,7 @@ namespace EE::Player
                     SetCrouchState( ctx, false );
                 }
 
-                if ( !ctx.m_pPlayerComponent->m_sprintFlag && pControllerState->WasPressed( Input::ControllerButton::FaceButtonLeft ) )
+                if ( !ctx.m_pPlayerComponent->m_sprintFlag && pControllerState->WasPressed( Input::ControllerButton::ThumbstickRight ) )
                 {
                     SetCrouchState( ctx, !ctx.m_pPlayerComponent->m_crouchFlag );
                 }
@@ -464,7 +453,7 @@ namespace EE::Player
 
             m_desiredFacing = m_desiredMovementVelocity.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : m_desiredMovementVelocity.GetNormalized2();
 
-            pAnimController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
+            ctx.m_pAnimationController->RequestMove( ctx.GetDeltaTime(), m_desiredMovementVelocity, m_desiredFacing );
         }
     }
 
@@ -480,21 +469,18 @@ namespace EE::Player
         m_desiredFacing = characterWorldTransform.GetForwardVector();
         ctx.m_pPlayerComponent->m_sprintFlag = false;
 
-        auto pAnimController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        pAnimController->RequestStop( characterWorldTransform );
+        ctx.m_pAnimationController->RequestStop( characterWorldTransform );
 
         m_state = LocomotionState::Stopping;
     }
 
     void LocomotionAction::UpdateStopping( ActionContext const& ctx, Vector const& stickInputVectorWS, float stickAmplitude )
     {
-        auto pGraphController = ctx.m_pAnimationController;
-        auto pLocomotionController = ctx.GetAnimSubGraphController<LocomotionGraphController>();
-        if ( pLocomotionController->IsIdle() )
+        if ( ctx.m_pAnimationController->IsIdle() )
         {
             RequestIdle( ctx );
         }
-        else if ( stickAmplitude > 0.1f && pGraphController->IsAnyTransitionAllowed() )
+        else if ( stickAmplitude > 0.1f && ctx.m_pAnimationController->IsLocomotionTransitionAllowed() )
         {
             // TODO: handle starting directly from here
             RequestIdle( ctx );

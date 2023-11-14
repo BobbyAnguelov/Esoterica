@@ -1255,18 +1255,20 @@ namespace EE::Render
 
             // Map the staging texture and read back the value
             D3D11_MAPPED_SUBRESOURCE msr = {};
-            m_immediateContext.m_pDeviceContext->Map( pStagingTexture, 0, D3D11_MAP::D3D11_MAP_READ, 0, &msr );
+            HRESULT result = m_immediateContext.m_pDeviceContext->Map( pStagingTexture, 0, D3D11_MAP::D3D11_MAP_READ, 0, &msr );
+            if ( SUCCEEDED( result ) )
+            {
+                uint32_t* pData = reinterpret_cast<uint32_t*>( msr.pData );
+                pickingID.m_0 = pData[1];
+                pickingID.m_0 = pickingID.m_0 << 32;
+                pickingID.m_0 |= pData[0];
 
-            uint32_t* pData = reinterpret_cast<uint32_t*>( msr.pData );
-            pickingID.m_0 = pData[1];
-            pickingID.m_0 = pickingID.m_0 << 32;
-            pickingID.m_0 |= pData[0];
+                pickingID.m_1 = pData[3];
+                pickingID.m_1 = pickingID.m_1 << 32;
+                pickingID.m_1 |= pData[2];
 
-            pickingID.m_1 = pData[3];
-            pickingID.m_1 = pickingID.m_1 << 32;
-            pickingID.m_1 |= pData[2];
-
-            m_immediateContext.m_pDeviceContext->Unmap( pStagingTexture, 0 );
+                m_immediateContext.m_pDeviceContext->Unmap( pStagingTexture, 0 );
+            }
         }
         UnlockDevice();
 

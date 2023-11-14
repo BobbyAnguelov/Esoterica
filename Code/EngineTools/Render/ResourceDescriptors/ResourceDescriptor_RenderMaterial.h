@@ -16,7 +16,20 @@ namespace EE::Render
         virtual bool IsValid() const override { return m_albedoTexture.IsSet(); }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Material::GetStaticResourceTypeID(); }
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override {}
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override {}
+
+        virtual void Clear() override
+        {
+            m_albedoTexture.Clear();
+            m_metalnessTexture.Clear();
+            m_roughnessTexture.Clear();
+            m_normalMapTexture.Clear();
+            m_aoTexture.Clear();
+            m_albedo = Colors::Black;
+            m_metalness = 0.0f;
+            m_roughness = 0.0f;
+            m_normalScaler = 1.0f;
+        }
 
     public:
 

@@ -74,7 +74,7 @@ namespace EE::Player
         TVector<Animation::Pose>                    m_actualPoses;
         TVector<Animation::Pose>                    m_replicatedPoses;
         bool                                        m_showParameterPose = true;
-        bool                                        m_showTaskPose = true;
+        bool                                        m_showTaskPose = false;
     };
 }
 #endif

@@ -61,6 +61,8 @@ namespace EE::Resource
                 case LoadingStatus::Failed:
                 {
                     ImGui::TextColored( Colors::Red.ToFloat4(), "Failed" );
+                    ImGui::SameLine();
+                    ImGuiX::HelpMarker( pRecord->GetCompilationLog().c_str() );
                 }
                 break;
             }
@@ -74,11 +76,11 @@ namespace EE::Resource
                 {
                     if ( requesterID.IsManualRequest() )
                     {
-                        ImGui::TextColored( Colors::Aqua.ToFloat4(), "Manual Request" );
+                        ImGui::TextColored( Colors::Cyan.ToFloat4(), "Manual Request" );
                     }
                     else if ( requesterID.IsToolsRequest() )
                     {
-                        ImGui::TextColored( Colors::Aqua.ToFloat4(), "Tools Request" );
+                        ImGui::TextColored( Colors::Cyan.ToFloat4(), "Tools Request" );
                     }
                     else if ( requesterID.IsInstallDependencyRequest() )
                     {
@@ -86,7 +88,7 @@ namespace EE::Resource
                     }
                     else // Normal request
                     {
-                        ImGui::TextColored( Colors::Lime.ToFloat4(), "Entity: %u", requesterID.GetID() );
+                        ImGui::TextColored( Colors::Green.ToFloat4(), "Entity: %u", requesterID.GetID() );
                     }
                 }
 

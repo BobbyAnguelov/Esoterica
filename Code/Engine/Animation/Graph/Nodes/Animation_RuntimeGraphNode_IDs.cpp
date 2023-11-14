@@ -39,7 +39,14 @@ namespace EE::Animation::GraphNodes
             {
                 case Comparison::Matches:
                 {
-                    m_result = VectorContains( pSettings->m_comparisionIDs, inputID );
+                    if ( pSettings->m_comparisionIDs.empty() )
+                    {
+                        m_result = !inputID.IsValid();
+                    }
+                    else
+                    {
+                        m_result = VectorContains( pSettings->m_comparisionIDs, inputID );
+                    }
                 }
                 break;
 

@@ -1,7 +1,6 @@
 #include "PlayerAction_Ghost.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Game/Player/Animation/PlayerGraphController_Ability.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Input/InputSystem.h"
 
@@ -62,12 +61,12 @@ namespace EE::Player
         // Run physic Prediction if required
         //-------------------------------------------------------------------------
         // nothing for now
-        
+
         // Update animation controller
         //-------------------------------------------------------------------------
-        ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::GhostMode );
-        auto pGraphController = ctx.GetAnimSubGraphController<AbilityGraphController>();
-        pGraphController->SetDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, camFwd.GetNormalized2() );
+
+        ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::GhostMode );
+        ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, camFwd.GetNormalized2() );
         
         bool isThumbstickLeftDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickLeft ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickLeft );
         bool isThumbstickRightDown = ctx.m_pInputState->GetControllerState()->WasPressed( Input::ControllerButton::ThumbstickRight ) || ctx.m_pInputState->GetControllerState()->IsHeldDown( Input::ControllerButton::ThumbstickRight );

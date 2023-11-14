@@ -122,7 +122,7 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -265,7 +265,7 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -416,7 +416,7 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -539,7 +539,7 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {

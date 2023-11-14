@@ -26,7 +26,7 @@ namespace EE::AI
             return false;
         }
 
-        if ( m_pAnimationController == nullptr || !m_pAnimationController->HasSubGraphControllers() )
+        if ( m_pAnimationController == nullptr )
         {
             return false;
         }

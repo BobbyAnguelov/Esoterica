@@ -21,6 +21,14 @@ namespace EE::Animation
         TVector<BoneMaskDefinition> boneMaskDefinitions;
         archive << boneMaskDefinitions;
 
+        // Preview
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        archive << pSkeleton->m_previewMeshID;
+        archive << pSkeleton->m_previewAttachmentSocketID;
+        #endif
+
         // Create bone masks
         //-------------------------------------------------------------------------
 

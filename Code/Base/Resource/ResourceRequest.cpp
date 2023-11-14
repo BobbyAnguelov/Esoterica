@@ -44,14 +44,18 @@ namespace EE::Resource
         }
     }
 
-    void ResourceRequest::OnRawResourceRequestComplete( String const& filePath )
+    void ResourceRequest::OnRawResourceRequestComplete( String const& filePath, String const& log )
     {
         // Raw resource failed to load
         if ( filePath.empty() )
         {
-            EE_LOG_ERROR( "Resource", "Resource Request", "Failed to find/compile resource file (%s)", m_pResourceRecord->GetResourceID().c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Request", "Failed to find/compile resource file (%s) - %s", m_pResourceRecord->GetResourceID().c_str(), log.c_str() );
             m_stage = ResourceRequest::Stage::Complete;
             m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_pResourceRecord->SetCompilationLog( log );
+            #endif
         }
         else // Continue the load operation
         {

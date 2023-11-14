@@ -117,7 +117,8 @@ namespace EE
 // Currently Supported Meta Data:
 // * "Category" : "Lorem Ipsum" - Create a category for this property
 // * "Description" : "Lorem Ipsum" - Provides tooltip help text for this property
-// * "IsToolsReadOnly" : "true/false" - Allows the tools to edit this property, by default all properties are writable
+// * "IsToolsReadOnly" : true/false - Allows the tools to edit this property, by default all properties are writable
+// * "ShowAsStaticArray" : true/false - Removes the resizing controls from a dynamic array
 // * "CustomEditor" : "MyEditorID" - Allows for a custom editor to be used in the property grid without creating a new type
 #define EE_REFLECT( ... )
 

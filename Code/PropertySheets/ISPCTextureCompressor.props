@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <ISPCTC_DIR>$(SolutionDir)External\ISPCTextureCompressor\</ISPCTC_DIR>
+    <ISPCTC_INCLUDE_DIR>$(ISPCTC_DIR)ispc_texcomp\</ISPCTC_INCLUDE_DIR>
+    <ISPCTC_LIB_DIR>$(ISPCTC_DIR)ISPC Texture Compressor\x64\Release\</ISPCTC_LIB_DIR>
+    <DIRECTXTEX_DIR>$(ISPCTC_DIR)ISPC Texture Compressor\DirectXTex\</DIRECTXTEX_DIR>
+    <DIRECTXTEX_LIB_DIR>$(DIRECTXTEX_DIR)DirectXTex\Bin\Desktop_2017_win10\x64\Release\</DIRECTXTEX_LIB_DIR>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ISPCTC_INCLUDE_DIR);$(DIRECTXTEX_DIR)DirectXTex/;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(ISPCTC_LIB_DIR);$(DIRECTXTEX_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ispc_texcomp.lib;directxtex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="ISPCTC_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(ISPCTC_LIB_DIR)ispc_texcomp.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="ISPCTC_CleanDLL" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)ispc_texcomp.dll" />
+  </Target>
+</Project>

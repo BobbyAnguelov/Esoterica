@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::RawAssets { class RawMesh; }
+namespace EE::Import { class ImportedMesh; }
 
 //-------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ namespace EE::Render
 
     protected:
 
-        void TransferMeshGeometry( RawAssets::RawMesh const& rawMesh, Mesh& mesh, int32_t maxBoneInfluences ) const;
+        void TransferMeshGeometry( Import::ImportedMesh const& ImportedMesh, Mesh& mesh, int32_t maxBoneInfluences ) const;
         void OptimizeMeshGeometry( Mesh& mesh ) const;
         void SetMeshDefaultMaterials( MeshResourceDescriptor const& descriptor, Mesh& mesh ) const;
         void SetMeshInstallDependencies( Mesh const& mesh, Resource::ResourceHeader& hdr ) const;
@@ -61,6 +61,6 @@ namespace EE::Render
 
     private:
 
-        void TransferSkeletalMeshData( RawAssets::RawMesh const& rawMesh, SkeletalMesh& mesh ) const;
+        void TransferSkeletalMeshData( Import::ImportedMesh const& ImportedMesh, SkeletalMesh& mesh ) const;
     };
 }

@@ -62,7 +62,7 @@ namespace EE::Animation::GraphNodes
         String                                        m_name = "Transition";
 
         EE_REFLECT();
-        Math::Easing::Type                            m_blendWeightEasingType = Math::Easing::Type::Linear; // Should we use a easing mode for the blend weight calculation?
+        Math::Easing::Type                            m_blendWeightEasingType = Math::Easing::Type::Linear; // Should we use a easing mode for the blend weight calculation? Go to http://easings.net as a reference for all the curves.
 
         EE_REFLECT();
         RootMotionBlendMode                           m_rootMotionBlend = RootMotionBlendMode::Blend; // How should we blend the root motion for this transition

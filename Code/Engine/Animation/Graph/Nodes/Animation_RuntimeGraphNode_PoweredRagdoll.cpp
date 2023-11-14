@@ -108,7 +108,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
+            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
         }
 
         //-------------------------------------------------------------------------

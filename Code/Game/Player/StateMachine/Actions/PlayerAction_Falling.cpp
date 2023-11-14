@@ -1,7 +1,6 @@
 #include "PlayerAction_Falling.h"
 #include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Game/Player/Animation/PlayerGraphController_InAir.h"
 #include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/PhysicsWorld.h"
@@ -39,7 +38,7 @@ namespace EE::Player
                 return false;
             }
 
-            ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::InAir );
+            ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::InAir );
             ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::Acceleration );
 
             return true;
@@ -82,8 +81,7 @@ namespace EE::Player
         // Update animation controller
         //-------------------------------------------------------------------------
 
-        auto pGraphController = ctx.GetAnimSubGraphController<InAirGraphController>();
-        pGraphController->SetDesiredMovement( ctx.GetDeltaTime(), resultingVelocity, facing );
+        ctx.m_pAnimationController->SetInAirDesiredMovement( ctx.GetDeltaTime(), resultingVelocity, facing );
         
         if( ctx.m_pCharacterComponent->HasFloor() )
         {

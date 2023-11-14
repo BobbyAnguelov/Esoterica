@@ -382,7 +382,7 @@ namespace EE::Animation::GraphNodes
                 result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
             }
 
-            result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeightBetween0And1 );
+            result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeightBetween0And1 );
 
             // Update internal time and events
             //-------------------------------------------------------------------------
@@ -421,7 +421,7 @@ namespace EE::Animation::GraphNodes
                 result = ( baseResult.HasRegisteredTasks() ) ? baseResult : sourceResult2;
             }
 
-            result.m_sampledEventRange = context.m_sampledEventsBuffer.BlendEventRanges( baseResult.m_sampledEventRange, sourceResult2.m_sampledEventRange, m_bsr.m_blendWeightBetween1And2 );
+            result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( baseResult.m_sampledEventRange, sourceResult2.m_sampledEventRange, m_bsr.m_blendWeightBetween1And2 );
 
             // Update internal time and events
             //-------------------------------------------------------------------------

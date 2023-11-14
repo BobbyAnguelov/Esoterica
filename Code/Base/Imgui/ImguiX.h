@@ -56,13 +56,7 @@ namespace EE::ImGuiX
     }
 
     // Display a modal popup that is restricted to the current window's viewport
-    inline bool BeginViewportPopupModal( char const* pPopupName, bool* pIsPopupOpen, ImVec2 const& size = ImVec2( -1, -1 ), ImGuiCond windowSizeCond = ImGuiCond_Always, ImGuiWindowFlags windowFlags = ( ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) )
-    {
-        ImGui::OpenPopup( pPopupName );
-        ImGui::SetNextWindowSize( size, windowSizeCond );
-        ImGui::SetNextWindowViewport( ImGui::GetWindowViewport()->ID );
-        return ImGui::BeginPopupModal( pPopupName, pIsPopupOpen, windowFlags );
-    }
+    EE_BASE_API bool BeginViewportPopupModal( char const* pPopupName, bool* pIsPopupOpen, ImVec2 const& size = ImVec2( 0, 0 ), ImGuiCond windowSizeCond = ImGuiCond_Always, ImGuiWindowFlags windowFlags = ( ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize ) );
 
     // Cancels an option dialog via ESC
     inline bool CancelDialogViaEsc( bool isDialogOpen )
@@ -84,7 +78,7 @@ namespace EE::ImGuiX
     EE_BASE_API void TextSeparator( char const* text, float preWidth = 10.0f, float desiredWidth = 0 );
 
     // Same as the Imgui::SameLine except it also draws a vertical separator.
-    EE_BASE_API void SameLineSeparator( float width = 0, Color const& color = 0 );
+    EE_BASE_API void SameLineSeparator( float width = 0, Color const& color = Colors::Transparent );
 
     //-------------------------------------------------------------------------
     // Basic Widgets
@@ -118,7 +112,7 @@ namespace EE::ImGuiX
     EE_FORCE_INLINE bool FlatButtonColored( Color const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) )
     {
         ImGui::PushStyleColor( ImGuiCol_Button, 0 );
-        ImGui::PushStyleColor( ImGuiCol_Text, foregroundColor );
+        ImGui::PushStyleColor( ImGuiCol_Text, ImVec4( foregroundColor ) );
         bool const result = ImGui::Button( label, size );
         ImGui::PopStyleColor( 2 );
 
@@ -144,7 +138,7 @@ namespace EE::ImGuiX
     EE_BASE_API bool DrawOverlayIcon( ImVec2 const& iconPos, char icon[4], void* iconID, bool isSelected = false, Color const& selectedColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] ) );
 
     // Draw a basic spinner
-    EE_BASE_API bool DrawSpinner( char const* pLabel, Color const& color = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), float radius = 6.0f, float thickness = 3.0f );
+    EE_BASE_API bool DrawSpinner( char const* pLabel, Color const& color = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 size = ImVec2( 0, 0 ), float thickness = 3.0f, float padding = ImGui::GetStyle().FramePadding.y );
 
     //-------------------------------------------------------------------------
 
@@ -198,12 +192,12 @@ namespace EE::ImGuiX
 
     EE_FORCE_INLINE void Image( ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), Color const& tintColor = Colors::White, Color const& borderColor = Colors::Transparent )
     {
-        ImGui::Image( img.m_ID, img.m_size, uv0, uv1, ImGui::ColorConvertU32ToFloat4( tintColor ), ImGui::ColorConvertU32ToFloat4( borderColor ) );
+        ImGui::Image( img.m_ID, img.m_size, uv0, uv1, ImVec4( tintColor ), ImVec4( borderColor ) );
     }
 
     EE_FORCE_INLINE void ImageButton( char const* pButtonID, ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), Color const& backgroundColor = Colors::Transparent, Color const& tintColor = Colors::White )
     {
-        ImGui::ImageButton( pButtonID, img.m_ID, img.m_size, uv0, uv1, ImGui::ColorConvertU32ToFloat4( backgroundColor ), ImGui::ColorConvertU32ToFloat4( tintColor ) );
+        ImGui::ImageButton( pButtonID, img.m_ID, img.m_size, uv0, uv1, ImVec4( backgroundColor ), ImVec4( tintColor ) );
     }
 
     //-------------------------------------------------------------------------

@@ -82,7 +82,7 @@ namespace EE
         void SetTypeToEdit( nullptr_t );
 
         // Display the grid
-        void DrawGrid();
+        void DrawGrid( bool shouldFillRemainingSpace = true );
 
         // Has the type been modified
         inline bool IsDirty() const { return m_isDirty; }

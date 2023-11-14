@@ -295,35 +295,43 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
-    void NotifyInfo( const char* format, ... )
+    EE_BASE_API void NotifyInfo( const char* pFormat, ... )
     {
         va_list args;
-        va_start( args, format );
-        g_notifications.emplace_back( Notification::Type::Info, InlineString( InlineString::CtorSprintf(), format, args ) );
+        va_start( args, pFormat );
+        InlineString str;
+        str.append_sprintf_va_list( pFormat, args );
+        g_notifications.emplace_back( Notification::Type::Info, str.c_str() );
         va_end( args );
     }
 
-    void NotifySuccess( const char* format, ... )
+    EE_BASE_API void NotifySuccess( const char* pFormat, ... )
     {
         va_list args;
-        va_start( args, format );
-        g_notifications.emplace_back( Notification::Type::Success, InlineString( InlineString::CtorSprintf(), format, args ) );
+        va_start( args, pFormat );
+        InlineString str;
+        str.append_sprintf_va_list( pFormat, args );
+        g_notifications.emplace_back( Notification::Type::Success, str.c_str() );
         va_end( args );
     }
 
-    void NotifyWarning( const char* format, ... )
+    EE_BASE_API void NotifyWarning( const char* pFormat, ... )
     {
         va_list args;
-        va_start( args, format );
-        g_notifications.emplace_back( Notification::Type::Warning, InlineString( InlineString::CtorSprintf(), format, args ) );
+        va_start( args, pFormat );
+        InlineString str;
+        str.append_sprintf_va_list( pFormat, args );
+        g_notifications.emplace_back( Notification::Type::Warning, str.c_str() );
         va_end( args );
     }
 
-    void NotifyError( const char* format, ... )
+    EE_BASE_API void NotifyError( const char* pFormat, ... )
     {
         va_list args;
-        va_start( args, format );
-        g_notifications.emplace_back( Notification::Type::Error, InlineString( InlineString::CtorSprintf(), format, args ) );
+        va_start( args, pFormat );
+        InlineString str;
+        str.append_sprintf_va_list( pFormat, args );
+        g_notifications.emplace_back( Notification::Type::Error, str.c_str() );
         va_end( args );
     }
 }

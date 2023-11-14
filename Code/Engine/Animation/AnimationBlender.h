@@ -45,19 +45,6 @@ namespace EE::Animation
         {
             EE_FORCE_INLINE static Quaternion BlendRotation( Quaternion const& quat0, Quaternion const& quat1, float t )
             {
-                return Quaternion::SLerp( quat0, quat1, t );
-            }
-
-            EE_FORCE_INLINE static Vector BlendTranslationAndScale( Vector const& translationScale0, Vector const& translationScale1, float t )
-            {
-                return Vector::Lerp( translationScale0, translationScale1, t );
-            }
-        };
-
-        struct BlendFunctionFastSLerp
-        {
-            EE_FORCE_INLINE static Quaternion BlendRotation( Quaternion const& quat0, Quaternion const& quat1, float t )
-            {
                 return Quaternion::FastSLerp( quat0, quat1, t );
             }
 
@@ -83,18 +70,38 @@ namespace EE::Animation
 
     private:
 
-        // Basic local space blend - the early out is a useful optimization for non-additive blends
+        // Basic local space blend
         template<typename BlendFunction>
-        static inline void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canEarlyOutOfBlend );
+        static inline void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool isLayeredBlend );
 
-        // Basic local space masked blend - the early out is a useful optimization for non-additive blends
+        // Basic local space masked blend
         template<typename BlendFunction>
-        static inline void LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canEarlyOutOfPerBoneBlend );
+        static inline void LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend );
+
+        // Blend to a reference pose
+        template<typename BlendFunction>
+        static EE_FORCE_INLINE void LocalBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+
+        // Blend from a reference pose
+        template<typename BlendFunction>
+        static EE_FORCE_INLINE void LocalBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
     public:
 
         // Local Interpolative Blend
-        EE_FORCE_INLINE static void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool useNLerp = false );
+        EE_FORCE_INLINE static void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+
+        // Blend to a reference pose
+        EE_FORCE_INLINE static void LocalBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        {
+            LocalBlendToReferencePose<BlendFunction>( skeletonLOD, pSourcePose, blendWeight, pBoneMask, pResultPose );
+        }
+
+        // Blend from a reference pose
+        EE_FORCE_INLINE static void LocalBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        {
+            LocalBlendFromReferencePose<BlendFunction>( skeletonLOD, pTargetPose, blendWeight, pBoneMask, pResultPose );
+        }
 
         // Global Space Interpolative Blend
         static void GlobalBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose );
@@ -102,79 +109,36 @@ namespace EE::Animation
         // Local Additive Blend
         EE_FORCE_INLINE static void AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
+        // Local Additive Blend
+        EE_FORCE_INLINE static void ApplyAdditiveToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pAdditivePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+
         // Blend two root motion deltas together
         EE_FORCE_INLINE static Transform BlendRootMotionDeltas( Transform const& source, Transform const& target, float blendWeight, RootMotionBlendMode blendMode = RootMotionBlendMode::Blend );
     };
 
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool useFastSLerp )
+    EE_FORCE_INLINE void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
-        // Fully in Source
-        if ( blendWeight == 0.0f )
+        if ( pBoneMask != nullptr )
         {
-            Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
-
-            // If the source pose is different from the result pose then copy the transforms
-            if ( pSourcePose != pResultPose )
-            {
-                pResultPose->CopyFrom( pSourcePose );
-            }
-
-            pResultPose->m_state = finalState;
+            LocalBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
         }
-        else // Perform the blend
+        else
         {
-            if ( useFastSLerp )
-            {
-                if ( pBoneMask != nullptr )
-                {
-                    LocalBlendMasked<BlendFunctionFastSLerp>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
-                }
-                else
-                {
-                    LocalBlend<BlendFunctionFastSLerp>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
-                }
-            }
-            else
-            {
-                if ( pBoneMask != nullptr )
-                {
-                    LocalBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
-                }
-                else
-                {
-                    LocalBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
-                }
-            }
+            LocalBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
         }
     }
 
     EE_FORCE_INLINE void Blender::AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
-        // Fully in Source
-        if ( blendWeight == 0.0f )
+        if ( pBoneMask != nullptr )
         {
-            Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
-
-            // If the source pose is different from the result pose then copy the transforms
-            if ( pSourcePose != pResultPose )
-            {
-                pResultPose->CopyFrom( pSourcePose );
-            }
-
-            pResultPose->m_state = finalState;
+            LocalBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
         }
-        else // Perform the blend
+        else
         {
-            if ( pBoneMask != nullptr )
-            {
-                LocalBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
-            }
-            else
-            {
-                LocalBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
-            }
+            LocalBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
         }
     }
 
@@ -213,15 +177,24 @@ namespace EE::Animation
 
     // Local Blend
     template<typename BlendFunction>
-    void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool canEarlyOutOfBlend )
+    void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool isLayeredBlend )
     {
-        EE_ASSERT( blendWeight > 0.0f && blendWeight <= 1.0f );
+        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
 
         Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
 
-        // Fully in target
-        if ( canEarlyOutOfBlend && blendWeight == 1.0f )
+        // Full in source
+        if ( blendWeight == 0.0f )
+        {
+            // If the source pose is different from the result pose then copy the transforms
+            if ( pSourcePose != pResultPose )
+            {
+                pResultPose->CopyFrom( pSourcePose );
+            }
+        }
+        // Fully in target - If we're not blending on top of a pose, then we can skip the blend
+        else if ( !isLayeredBlend && blendWeight == 1.0f )
         {
             // If the source pose is different from the result pose then copy
             if ( pTargetPose != pResultPose )
@@ -250,37 +223,172 @@ namespace EE::Animation
 
     // Masked Local Blend
     template<typename BlendFunction>
-    void Blender::LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool canEarlyOutOfPerBoneBlend )
+    void Blender::LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend )
     {
-        EE_ASSERT( blendWeight > 0.0f && blendWeight <= 1.0f );
+        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
         EE_ASSERT( pBoneMask != nullptr );
 
-        int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
-        for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
+
+        // Fully in Source
+        if ( blendWeight == 0.0f )
         {
-            // If the bone has been masked out
-            float const boneBlendWeight = blendWeight * pBoneMask->GetWeight( boneIdx );
-            if ( boneBlendWeight == 0.0f )
+            // If the source pose is different from the result pose then copy the transforms
+            if ( pSourcePose != pResultPose )
             {
-                pResultPose->SetTransform( boneIdx, pSourcePose->GetTransform( boneIdx ) );
+                pResultPose->CopyFrom( pSourcePose );
             }
-            else if ( canEarlyOutOfPerBoneBlend && boneBlendWeight == 1.0f )
+        }
+        else // Perform blend
+        {
+            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
+            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
-                pResultPose->SetTransform( boneIdx, pTargetPose->GetTransform( boneIdx ) );
+                // If the bone has been masked out
+                float const boneBlendWeight = blendWeight * pBoneMask->GetWeight( boneIdx );
+                if ( boneBlendWeight == 0.0f )
+                {
+                    pResultPose->SetTransform( boneIdx, pSourcePose->GetTransform( boneIdx ) );
+                }
+                // If we're not blending on top of a pose, then we can skip the blend
+                else if ( !isLayeredBlend && boneBlendWeight == 1.0f )
+                {
+                    pResultPose->SetTransform( boneIdx, pTargetPose->GetTransform( boneIdx ) );
+                }
+                else // Perform Blend
+                {
+                    Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
+                    Transform const& targetTransform = pTargetPose->m_localTransforms[boneIdx];
+                    Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), boneBlendWeight ) );
+                    Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), boneBlendWeight ) );
+                }
             }
-            else // Perform Blend
-            {
-                Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
-                Transform const& targetTransform = pTargetPose->m_localTransforms[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), boneBlendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), boneBlendWeight ) );
-            }
+
+            pResultPose->ClearGlobalTransforms();
         }
 
         //-------------------------------------------------------------------------
 
-        pResultPose->ClearGlobalTransforms();
-        pResultPose->m_state = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
+        pResultPose->m_state = finalState;
+    }
+
+    // Blend to a reference pose
+    template<typename BlendFunction>
+    void Blender::LocalBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    {
+        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
+        EE_ASSERT( pSourcePose != nullptr && pResultPose != nullptr );
+
+        Pose::State const finalState = ( pSourcePose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
+
+        // Fully in source pose
+        if ( blendWeight == 0.0f )
+        {
+            // If the source pose is different from the result pose then copy
+            if ( pSourcePose != pResultPose )
+            {
+                pResultPose->CopyFrom( pSourcePose );
+            }
+        }
+        // Fully in reference pose
+        else if ( blendWeight == 1.0f )
+        {
+            pResultPose->Reset( ( finalState == Pose::State::AdditivePose ) ? Pose::Type::ZeroPose : Pose::Type::ReferencePose );
+        }
+        else // Blend
+        {
+            TVector<Transform> const& referencePose = pSourcePose->GetSkeleton()->GetLocalReferencePose();
+            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
+            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            {
+                Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
+                Transform const& targetTransform = referencePose[boneIdx];
+                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+            }
+
+            pResultPose->ClearGlobalTransforms();
+        }
+
+        //-------------------------------------------------------------------------
+
+        pResultPose->m_state = finalState;
+    }
+
+    // Blend from a reference pose
+    template<typename BlendFunction>
+    void Blender::LocalBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    {
+        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
+        EE_ASSERT( pTargetPose != nullptr && pResultPose != nullptr );
+
+        Pose::State const finalState = ( pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
+
+        // Fully in reference pose
+        if ( blendWeight == 0.0f )
+        {
+            pResultPose->Reset( ( finalState == Pose::State::AdditivePose ) ? Pose::Type::ZeroPose : Pose::Type::ReferencePose );
+        }
+        // Fully in target pose
+        else if ( blendWeight == 1.0f )
+        {
+            // If the source pose is different from the result pose then copy
+            if ( pTargetPose != pResultPose )
+            {
+                pResultPose->CopyFrom( pTargetPose );
+            }
+        }
+        else // Blend
+        {
+            TVector<Transform> const& referencePose = pTargetPose->GetSkeleton()->GetLocalReferencePose();
+            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
+            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            {
+                Transform const& sourceTransform = referencePose[boneIdx];
+                Transform const& targetTransform = pTargetPose->m_localTransforms[boneIdx];
+                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+            }
+
+            pResultPose->ClearGlobalTransforms();
+        }
+
+        //-------------------------------------------------------------------------
+
+        pResultPose->m_state = finalState;
+    }
+
+    //-------------------------------------------------------------------------
+
+    EE_FORCE_INLINE void Blender::ApplyAdditiveToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pAdditivePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    {
+        EE_ASSERT( blendWeight > 0.0f && blendWeight <= 1.0f );
+        EE_ASSERT( pAdditivePose != nullptr && pResultPose != nullptr );
+        EE_ASSERT( pAdditivePose->IsAdditivePose() );
+
+        // Fully in reference pose
+        if ( blendWeight == 0.0f )
+        {
+            pResultPose->Reset( Pose::Type::ReferencePose );
+        }
+        else // Blend
+        {
+            TVector<Transform> const& referencePose = pAdditivePose->GetSkeleton()->GetLocalReferencePose();
+            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
+            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            {
+                Transform const& sourceTransform = referencePose[boneIdx];
+                Transform const& targetTransform = pAdditivePose->m_localTransforms[boneIdx];
+                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], AdditiveBlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], AdditiveBlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+            }
+
+            pResultPose->ClearGlobalTransforms();
+        }
+
+        //-------------------------------------------------------------------------
+
+        pResultPose->m_state = Pose::State::Pose;
     }
 }

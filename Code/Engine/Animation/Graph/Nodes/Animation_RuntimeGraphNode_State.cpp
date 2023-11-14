@@ -106,10 +106,10 @@ namespace EE::Animation::GraphNodes
         m_transitionState = TransitionState::TransitioningOut;
 
         // Since we update states before we register transitions, we need to ignore all previously sampled state events for this frame
-        context.m_sampledEventsBuffer.MarkOnlyStateEventsAsIgnored( m_sampledEventRange );
+        context.m_pSampledEventsBuffer->MarkOnlyStateEventsAsIgnored( m_sampledEventRange );
 
         // Since we update states before we register transitions, we need to mark all previous events as from the inactive branch
-        context.m_sampledEventsBuffer.MarkEventsAsFromInactiveBranch( m_sampledEventRange );
+        context.m_pSampledEventsBuffer->MarkEventsAsFromInactiveBranch( m_sampledEventRange );
 
         // Resample state events
         SampleStateEvents( context );
@@ -131,21 +131,33 @@ namespace EE::Animation::GraphNodes
         {
             for ( auto const& entryEventID : pStateSettings->m_entryEvents )
             {
-                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), StateEventType::Entry, entryEventID, isInActiveBranch );
+                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Entry, entryEventID, isInActiveBranch );
+
+                #if EE_DEVELOPMENT_TOOLS
+                evt.SetSourceNodeIndex( GetNodeIndex() );
+                #endif
             }
         }
         else if ( m_transitionState == TransitionState::None && isInActiveBranch )
         {
             for ( auto const& executeEventID : pStateSettings->m_executeEvents )
             {
-                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), StateEventType::FullyInState, executeEventID, isInActiveBranch );
+                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::FullyInState, executeEventID, isInActiveBranch );
+
+                #if EE_DEVELOPMENT_TOOLS
+                evt.SetSourceNodeIndex( GetNodeIndex() );
+                #endif
             }
         }
         else if ( m_transitionState == TransitionState::TransitioningOut || !isInActiveBranch )
         {
             for ( auto const& exitEventID : pStateSettings->m_exitEvents )
             {
-                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), StateEventType::Exit, exitEventID, isInActiveBranch );
+                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Exit, exitEventID, isInActiveBranch );
+
+                #if EE_DEVELOPMENT_TOOLS
+                evt.SetSourceNodeIndex( GetNodeIndex() );
+                #endif
             }
         }
 
@@ -157,7 +169,11 @@ namespace EE::Animation::GraphNodes
         {
             if ( currentTimeElapsed >= timedEvent.m_timeValue )
             {
-                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+
+                #if EE_DEVELOPMENT_TOOLS
+                evt.SetSourceNodeIndex( GetNodeIndex() );
+                #endif
             }
         }
 
@@ -166,13 +182,17 @@ namespace EE::Animation::GraphNodes
         {
             if ( currentTimeRemaining <= timedEvent.m_timeValue )
             {
-                context.m_sampledEventsBuffer.EmplaceStateEvent( GetNodeIndex(), StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+
+                #if EE_DEVELOPMENT_TOOLS
+                evt.SetSourceNodeIndex( GetNodeIndex() );
+                #endif
             }
         }
 
         //-------------------------------------------------------------------------
 
-        m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
     }
 
     void StateNode::UpdateLayerContext( GraphContext& context )

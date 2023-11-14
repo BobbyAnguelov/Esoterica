@@ -1,7 +1,6 @@
 #include "AIAction_Idle.h"
 #include "Game/AI/Behaviors/AIBehavior.h"
 #include "Game/AI/Animation/AIAnimationController.h"
-#include "Game/AI/Animation/AIGraphController_Locomotion.h"
 #include "Base/Math/MathRandom.h"
 
 //-------------------------------------------------------------------------
@@ -11,11 +10,7 @@ namespace EE::AI
     void IdleAction::Start( BehaviorContext const& ctx )
     {
         ctx.m_pAnimationController->SetCharacterState( CharacterAnimationState::Locomotion );
-
-        //-------------------------------------------------------------------------
-
-        auto pLocomotionController = ctx.m_pAnimationController->GetSubGraphController<LocomotionGraphController>();
-        pLocomotionController->SetIdle();
+        ctx.m_pAnimationController->SetIdle();
 
         ResetIdleBreakerTimer();
     }

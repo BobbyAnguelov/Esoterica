@@ -57,22 +57,29 @@ namespace EE::Animation
         {
             EE_ASSERT( m_pAnimation.IsLoaded() );
             m_pPose = EE::New<Pose>( m_pAnimation->GetSkeleton() );
+
+            for ( auto pSecondaryAnimation : m_pAnimation->GetSecondaryAnimations() )
+            {
+                m_secondaryPoses.emplace_back( EE::New<Pose>( pSecondaryAnimation->GetSkeleton() ) );
+            }
         }
     }
 
     void AnimationClipPlayerComponent::Shutdown()
     {
         EE::Delete( m_pPose );
+
+        for ( auto pSecondaryPose : m_secondaryPoses )
+        {
+            EE::Delete( pSecondaryPose );
+        }
+        m_secondaryPoses.clear();
+
         m_previousAnimTime = -1.0f;
         EntityComponent::Shutdown();
     }
 
     //-------------------------------------------------------------------------
-
-    Skeleton const* AnimationClipPlayerComponent::GetSkeleton() const
-    {
-        return ( m_pAnimation != nullptr ) ? m_pAnimation->GetSkeleton() : nullptr;
-    }
 
     void AnimationClipPlayerComponent::Update( Seconds deltaTime, Transform const& characterTransform )
     {
@@ -127,16 +134,32 @@ namespace EE::Animation
 
         if ( bShouldUpdate )
         {
+            // Sample primary pose
+            //-------------------------------------------------------------------------
+
             m_pAnimation->GetPose( m_animTime, m_pPose, m_skeletonLOD );
 
             // No point displaying a pile of bones, so display an additive on top of the reference pose
             if ( m_pPose->IsAdditivePose() )
             {
-                Pose const refPose( m_pPose->GetSkeleton(), Pose::Type::ReferencePose );
-                Blender::AdditiveBlend( m_skeletonLOD, &refPose, m_pPose, 1.0f, nullptr, m_pPose );
+                Blender::ApplyAdditiveToReferencePose( m_skeletonLOD, m_pPose, 1.0f, nullptr, m_pPose );
             }
 
             m_pPose->CalculateGlobalTransforms();
+
+            // Sample secondary animations
+            //-------------------------------------------------------------------------
+
+            int32_t const numChildAnimations = m_pAnimation->GetNumSecondaryAnimations();
+            for ( int32_t i = 0; i < numChildAnimations; i++ )
+            {
+                m_pAnimation->GetSecondaryAnimations()[i]->GetPose( m_animTime, m_secondaryPoses[i], m_skeletonLOD );
+                m_secondaryPoses[i]->CalculateGlobalTransforms();
+            }
+
+            // Sample root motion
+            //-------------------------------------------------------------------------
+
             m_rootMotionDelta = m_pAnimation->GetRootMotionDelta( m_previousAnimTime, m_animTime );
         }
         else // Clear the root motion delta

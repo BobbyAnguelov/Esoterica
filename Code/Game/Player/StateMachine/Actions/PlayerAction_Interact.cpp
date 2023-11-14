@@ -55,7 +55,7 @@ namespace EE::Player
             m_pController = ctx.m_pAnimationController->TryCreateExternalGraphController<ExternalController>( StringID( "Interaction" ), ctx.m_pPlayerComponent->m_pAvailableInteraction, true );
             if ( m_pController != nullptr )
             {
-                ctx.m_pAnimationController->SetCharacterState( Player::CharacterAnimationState::Interaction );
+                ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Interaction );
                 return true;
             }
         }

@@ -47,6 +47,7 @@ namespace EE::Animation
 
         static void DrawTaskTreeRow( TaskSystem* pTaskSystem, TaskIndex currentTaskIdx );
         static void DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx );
+        static InlineString ResolveEventDebugPath( GraphInstance const* pGraphInstance, int32_t sampledEventIdx );
 
     public:
 

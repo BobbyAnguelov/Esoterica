@@ -440,6 +440,29 @@ namespace EE::Resource
         return results;
     }
 
+
+    TVector<ResourcePath> ResourceDatabase::GetAllDependentResources( ResourcePath sourceFile ) const
+    {
+        TVector<ResourcePath> dependentResources;
+        TVector<ResourcePath> compileDependencies;
+        for ( auto const& fileEntryPair : m_resourcesPerPath )
+        {
+            compileDependencies.clear();
+
+            auto pDescriptor = fileEntryPair.second->m_pDescriptor;
+            if ( pDescriptor != nullptr )
+            {
+                pDescriptor->GetCompileDependencies( compileDependencies );
+                if ( VectorContains( compileDependencies, sourceFile ) )
+                {
+                    dependentResources.emplace_back( fileEntryPair.first );
+                }
+            }
+        }
+
+        return dependentResources;
+    }
+
     //-------------------------------------------------------------------------
 
     ResourceDatabase::DirectoryEntry* ResourceDatabase::FindDirectory( FileSystem::Path const& dirPathToFind )
@@ -596,13 +619,6 @@ namespace EE::Resource
 
     void ResourceDatabase::ProcessFileSystemChanges()
     {
-        if ( m_filesystemCacheUpdatedEvent.HasBoundUsers() )
-        {
-            m_filesystemCacheUpdatedEvent.Execute();
-        }
-
-        //-------------------------------------------------------------------------
-
         auto const& fsEvents = m_fileSystemWatcher.GetFileSystemChangeEvents();
         for ( auto const& fsEvent : fsEvents )
         {
@@ -772,6 +788,13 @@ namespace EE::Resource
                 }
                 break;
             }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_filesystemCacheUpdatedEvent.HasBoundUsers() )
+        {
+            m_filesystemCacheUpdatedEvent.Execute();
         }
     }
 }

@@ -22,6 +22,7 @@ namespace EE::Animation
 {
     class GraphComponent;
     class AnimationClipPlayerComponent;
+    class Pose;
 
     //-------------------------------------------------------------------------
 
@@ -41,6 +42,8 @@ namespace EE::Animation
 
         void UpdateAnimPlayers( EntityWorldUpdateContext const& ctx, Transform const& characterWorldTransform );
         void UpdateAnimGraphs( EntityWorldUpdateContext const& ctx, Transform const& characterWorldTransform );
+
+        void TransferAnimationPoseToMesh( Pose const * pPose );
 
     private:
 

@@ -2,6 +2,7 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
+#include "EngineTools/Resource/ResourceToolDefines.h"
 #include "EngineTools/Core/CategoryTree.h"
 #include "EASTL/sort.h"
 #include "Base/TypeSystem/TypeRegistry.h"
@@ -12,14 +13,14 @@ namespace EE::Animation
 {
     static bool MatchesFilter( TVector<String> const& filterTokens, String string )
     {
-        if ( string.empty() )
-        {
-            return false;
-        }
-
         if ( filterTokens.empty() )
         {
             return true;
+        }
+
+        if ( string.empty() )
+        {
+            return false;
         }
 
         //-------------------------------------------------------------------------
@@ -38,98 +39,134 @@ namespace EE::Animation
         return true;
     }
 
-    static TypeSystem::TypeInfo const* DrawNodeTypeCategoryContextMenu( FlowGraph* pFlowGraph, ImVec2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Pin* pFilterPin, Category<TypeSystem::TypeInfo const*> const& category )
+    //-------------------------------------------------------------------------
+
+    static bool IsNodeTypeValidForSelection( FlowGraph* pFlowGraph, CategoryItem<TypeSystem::TypeInfo const*> const& item, TVector<String> const& filterTokens = TVector<String>(), VisualGraph::Flow::Pin* pFilterPin = nullptr )
     {
-        EE_ASSERT( pFlowGraph != nullptr );
-
-        bool const hasAdvancedFilter = !filterTokens.empty() || pFilterPin != nullptr;
-
-        //-------------------------------------------------------------------------
-
-        auto NodeFilter = [pFlowGraph, pFilterPin, &filterTokens] ( CategoryItem<TypeSystem::TypeInfo const*> const& item )
+        // Parameter references are already handled
+        if ( item.m_data->IsDerivedFrom( GraphNodes::ParameterReferenceToolsNode::GetStaticTypeID() ) )
         {
-            // Parameter references are already handled
-            if ( item.m_data->IsDerivedFrom( GraphNodes::ParameterReferenceToolsNode::GetStaticTypeID() ) )
-            {
-                return false;
-            }
+            return false;
+        }
 
-            // Is this a valid node for this graph
-            if ( !pFlowGraph->CanCreateNode( item.m_data ) )
-            {
-                return false;
-            }
+        // Is this a valid node for this graph
+        if ( !pFlowGraph->CanCreateNode( item.m_data ) )
+        {
+            return false;
+        }
 
-            // Check the graphs specific restrictions
-            auto pDefaultNode = Cast<GraphNodes::FlowToolsNode>( item.m_data->m_pDefaultInstance );
-            if ( !pDefaultNode->GetAllowedParentGraphTypes().AreAnyFlagsSet( pFlowGraph->GetType() ) )
-            {
-                return false;
-            }
+        // Check the graphs specific restrictions
+        auto pDefaultNode = Cast<GraphNodes::FlowToolsNode>( item.m_data->m_pDefaultInstance );
+        if ( !pDefaultNode->GetAllowedParentGraphTypes().AreAnyFlagsSet( pFlowGraph->GetType() ) )
+        {
+            return false;
+        }
 
-            // Filter based on pin
-            if ( pFilterPin != nullptr )
+        // Filter based on pin
+        if ( pFilterPin != nullptr )
+        {
+            if ( pFilterPin->IsInputPin() )
             {
-                if ( pFilterPin->IsInputPin() )
+                if ( !pDefaultNode->HasOutputPin() || pDefaultNode->GetOutputPin( 0 )->m_type != pFilterPin->m_type )
                 {
-                    if ( !pDefaultNode->HasOutputPin() || pDefaultNode->GetOutputPin( 0 )->m_type != pFilterPin->m_type )
-                    {
-                        return false;
-                    }
-                }
-                else // Check all inputs for matching types
-                {
-                    bool foundValidPin = false;
-                    for ( auto const& inputPin : pDefaultNode->GetInputPins() )
-                    {
-                        if ( inputPin.m_type == pFilterPin->m_type )
-                        {
-                            foundValidPin = true;
-                            break;
-                        }
-                    }
-
-                    if ( !foundValidPin )
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
-
-            // User text filter
-            if ( !MatchesFilter( filterTokens, item.m_name ) )
+            else // Check all inputs for matching types
             {
-                return false;
+                bool foundValidPin = false;
+                for ( auto const& inputPin : pDefaultNode->GetInputPins() )
+                {
+                    if ( inputPin.m_type == pFilterPin->m_type )
+                    {
+                        foundValidPin = true;
+                        break;
+                    }
+                }
+
+                if ( !foundValidPin )
+                {
+                    return false;
+                }
             }
+        }
 
-            return true;
-        };
-
-        if ( !category.HasItemsThatMatchFilter( NodeFilter ) )
+        // User text filter
+        if ( !MatchesFilter( filterTokens, item.m_name ) )
         {
-            return nullptr;
+            return false;
         }
 
         //-------------------------------------------------------------------------
 
-        auto DrawItems = [pFlowGraph, &NodeFilter, &pFilterPin, &category, &mouseCanvasPos, &filterTokens] () -> TypeSystem::TypeInfo const*
+        return true;
+    }
+
+    static void CollectFilteredNodeTypeItems( FlowGraph* pFlowGraph, TVector<String> const& filterTokens, VisualGraph::Flow::Pin* pFilterPin, Category<TypeSystem::TypeInfo const*> const& category, CategoryTree<TypeSystem::TypeInfo const*>& outItems )
+    {
+        for ( auto const& childCategory : category.m_childCategories )
         {
-            for ( auto const& childCategory : category.m_childCategories )
+            CollectFilteredNodeTypeItems( pFlowGraph, filterTokens, pFilterPin, childCategory, outItems );
+        }
+
+        //-------------------------------------------------------------------------
+
+        bool const hasUserFilter = !filterTokens.empty() || pFilterPin != nullptr;
+
+        for ( auto const& item : category.m_items )
+        {
+            if ( !IsNodeTypeValidForSelection( pFlowGraph, item, filterTokens, pFilterPin ) )
             {
-                auto pNodeTypeToCreate = DrawNodeTypeCategoryContextMenu( pFlowGraph, mouseCanvasPos, filterTokens, pFilterPin, childCategory );
-                if ( pNodeTypeToCreate != nullptr )
-                {
-                    return pNodeTypeToCreate;
-                }
+                continue;
             }
 
+            if ( hasUserFilter )
+            {
+                outItems.GetRootCategory().AddItem( item );
+            }
+            else
+            {
+                auto pDefaultNode = Cast<GraphNodes::FlowToolsNode const>( item.m_data->m_pDefaultInstance );
+                outItems.AddItem( pDefaultNode->GetCategory(), pDefaultNode->GetTypeName(), item.m_data );
+            }
+        }
+    }
+
+    static TypeSystem::TypeInfo const* DrawCategory( Category<TypeSystem::TypeInfo const*> const& category )
+    {
+        TypeSystem::TypeInfo const* pNodeTypeToCreate = nullptr;
+
+        // Header
+        //-------------------------------------------------------------------------
+
+        if ( category.m_depth == 0 )
+        {
+            ImGuiX::TextSeparator( category.m_name.c_str() );
+        }
+        else if ( category.m_depth > 0 )
+        {
+            if ( !ImGui::BeginMenu( category.m_name.c_str() ) )
+            {
+                return pNodeTypeToCreate;
+            }
+        }
+
+        // Contents
+        //-------------------------------------------------------------------------
+
+        for ( auto const& childCategory : category.m_childCategories )
+        {
+            auto pSelectedNodeToCreate = DrawCategory( childCategory );
+            if ( pSelectedNodeToCreate != nullptr )
+            {
+                pNodeTypeToCreate = pSelectedNodeToCreate;
+            }
+        }
+
+        if ( pNodeTypeToCreate == nullptr )
+        {
             for ( auto const& item : category.m_items )
             {
-                if ( !NodeFilter( item ) )
-                {
-                    continue;
-                }
-
                 auto pDefaultNode = Cast<GraphNodes::FlowToolsNode>( item.m_data->m_pDefaultInstance );
                 ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pDefaultNode->GetTitleBarColor() );
                 ImGui::Bullet();
@@ -140,46 +177,56 @@ namespace EE::Animation
                 bool isMenuItemTriggered = ImGui::MenuItem( item.m_name.c_str() );
                 if ( isMenuItemTriggered || ( ImGui::IsItemFocused() && ImGui::IsKeyReleased( ImGuiKey_Enter ) ) )
                 {
-                    return item.m_data;
+                    if ( pNodeTypeToCreate == nullptr )
+                    {
+                        pNodeTypeToCreate = item.m_data;
+                    }
                 }
             }
+        }
 
-            return nullptr;
-        };
-
+        // Footer
         //-------------------------------------------------------------------------
 
-        TypeSystem::TypeInfo const* pNodeTypeToCreate = nullptr;
-
-        if ( category.m_depth == -1 )
+        if ( category.m_depth > 0 )
         {
-            pNodeTypeToCreate = DrawItems();
-        }
-        else if ( category.m_depth == 0 )
-        {
-            ImGuiX::TextSeparator( category.m_name.c_str() );
-            pNodeTypeToCreate = DrawItems();
-        }
-        else
-        {
-            if ( hasAdvancedFilter )
-            {
-                pNodeTypeToCreate = DrawItems();
-            }
-            else
-            {
-                if ( ImGui::BeginMenu( category.m_name.c_str() ) )
-                {
-                    pNodeTypeToCreate = DrawItems();
-                    ImGui::EndMenu();
-                }
-            }
+            ImGui::EndMenu();
         }
 
         //-------------------------------------------------------------------------
 
         return pNodeTypeToCreate;
     }
+
+    static TypeSystem::TypeInfo const* DrawNodeTypeCategoryContextMenu( FlowGraph* pFlowGraph, ImVec2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Pin* pFilterPin, Category<TypeSystem::TypeInfo const*> const& rootCategory )
+    {
+        EE_ASSERT( pFlowGraph != nullptr );
+
+        // Collect all relevant items
+        //-------------------------------------------------------------------------
+
+        CategoryTree<TypeSystem::TypeInfo const*> contextMenuItems;
+        CollectFilteredNodeTypeItems( pFlowGraph, filterTokens, pFilterPin, rootCategory, contextMenuItems );
+        Category<TypeSystem::TypeInfo const*> const& rootCategoryToDraw = contextMenuItems.GetRootCategory();
+
+        // Draw
+        //-------------------------------------------------------------------------
+
+        if ( !filterTokens.empty() || pFilterPin != nullptr )
+        {
+            ImGuiX::TextSeparator( "Filtered Nodes" );
+        }
+
+        if ( contextMenuItems.GetRootCategory().IsEmpty() )
+        {
+            ImGui::Text( "Nothing Found" );
+        }
+
+        TypeSystem::TypeInfo const* pNodeTypeToCreate = DrawCategory( contextMenuItems.GetRootCategory() );
+        return pNodeTypeToCreate;
+    }
+
+    //-------------------------------------------------------------------------
 
     template<typename T>
     static GraphNodes::ParameterReferenceToolsNode* CreateParameterReference( FlowGraph* pGraph, T* pParameter )
@@ -428,7 +475,7 @@ namespace EE::Animation
         // Handle dropped resources
         //-------------------------------------------------------------------------
 
-        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( "ResourceFile", ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( Resource::DragAndDrop::s_payloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
         {
             InlineString payloadStr = (char*) payload->Data;
 

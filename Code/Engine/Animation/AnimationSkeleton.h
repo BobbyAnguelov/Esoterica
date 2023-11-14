@@ -118,11 +118,13 @@ namespace EE::Animation
         BoneMask const* GetBoneMask( int32_t maskIdx ) const { return &m_boneMasks[maskIdx]; }
         BoneMask const* GetBoneMask( StringID maskID ) const;
 
-        // Debug
+        // Debug & Preview
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
         void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform ) const;
+        inline ResourceID const& GetPreviewMeshID() const { return m_previewMeshID; }
+        inline StringID GetPreviewAttachmentSocketID() const { return m_previewAttachmentSocketID; }
         #endif
 
     private:
@@ -134,5 +136,10 @@ namespace EE::Animation
         TVector<TBitFlags<BoneFlags>>       m_boneFlags;
         TVector<BoneMask>                   m_boneMasks;
         int32_t                             m_numBonesToSampleAtLowLOD = 0; // The number of bones we should sample when operating at a low LOD
+
+        #if EE_DEVELOPMENT_TOOLS
+        ResourceID                          m_previewMeshID;
+        StringID                            m_previewAttachmentSocketID;
+        #endif
     };
 }

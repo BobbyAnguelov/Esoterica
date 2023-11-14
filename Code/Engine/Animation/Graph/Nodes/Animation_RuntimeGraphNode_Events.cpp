@@ -73,7 +73,7 @@ namespace EE::Animation::GraphNodes
         // Perform search
         //-------------------------------------------------------------------------
 
-        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pNodeSettings->m_rules );
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeSettings->m_rules );
         bool const ignoreInactiveEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
         bool const searchAnimEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
         bool const searchStateEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchOnlyStateEvents );
@@ -83,7 +83,7 @@ namespace EE::Animation::GraphNodes
         {
             StringID foundID;
 
-            SampledEvent const& sampledEvent = context.m_sampledEventsBuffer[i];
+            SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
 
             if ( sampledEvent.IsIgnored() )
             {
@@ -195,13 +195,13 @@ namespace EE::Animation::GraphNodes
         // Perform search
         //-------------------------------------------------------------------------
 
-        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pNodeSettings->m_rules );
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeSettings->m_rules );
         bool const ignoreInactiveEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
         bool const operatorOr = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
 
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
-            SampledEvent const& sampledEvent = context.m_sampledEventsBuffer[i];
+            SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
 
             if ( sampledEvent.IsIgnored() )
             {
@@ -294,13 +294,13 @@ namespace EE::Animation::GraphNodes
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
             bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
             bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
                 {
                     continue;
@@ -409,10 +409,10 @@ namespace EE::Animation::GraphNodes
             m_result = false;
 
             bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
                 {
                     continue;
@@ -526,10 +526,10 @@ namespace EE::Animation::GraphNodes
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
                 {
                     continue;
@@ -695,10 +695,10 @@ namespace EE::Animation::GraphNodes
             StringID foundID;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
                 {
                     continue;
@@ -942,10 +942,10 @@ namespace EE::Animation::GraphNodes
             bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
             bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, context.m_sampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_sampledEventsBuffer[i];
+                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
                 {
                     continue;

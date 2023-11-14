@@ -56,8 +56,14 @@ namespace EE::Animation
         Pose& operator=( Pose&& rhs );
         Pose& operator=( Pose const& rhs );
 
+        // Copy pose
         void CopyFrom( Pose const& rhs );
+
+        // Copy pose
         EE_FORCE_INLINE void CopyFrom( Pose const* pRhs ) { CopyFrom( *pRhs ); }
+
+        // Swap all internals with another pose
+        void SwapWith( Pose& rhs );
 
         //-------------------------------------------------------------------------
 

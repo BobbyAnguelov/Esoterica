@@ -39,12 +39,6 @@ namespace EE::Animation
 
             AddNode( pNode );
 
-            // Ensure unique name
-            if ( pNode->IsRenameable() )
-            {
-                pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
-            }
-
             return pNode;
         }
 
@@ -58,12 +52,6 @@ namespace EE::Animation
             pNode->Initialize( this );
 
             AddNode( pNode );
-
-            // Ensure unique name
-            if ( pNode->IsRenameable() )
-            {
-                pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
-            }
 
             return pNode;
         }

@@ -345,15 +345,6 @@ namespace EE
 
                         m_pToolsUI->HotReload_ReloadResources();
                         m_pEntityWorldManager->HotReload_ReloadEntities();
-
-                        // Wait for all load requests to complete
-                        while ( m_pResourceSystem->IsBusy() )
-                        {
-                            Network::NetworkSystem::Update();
-                            m_pResourceSystem->Update( true );
-                        }
-
-                        m_pToolsUI->HotReload_ReloadComplete();
                     }
                     #endif
                 }

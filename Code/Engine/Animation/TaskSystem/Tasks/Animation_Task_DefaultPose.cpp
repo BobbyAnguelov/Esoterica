@@ -6,26 +6,23 @@
 
 namespace EE::Animation::Tasks
 {
-    DefaultPoseTask::DefaultPoseTask( TaskSourceID sourceID, Pose::Type type )
-        : Task( sourceID )
-        , m_type( type )
-    {}
-
-    void DefaultPoseTask::Execute( TaskContext const& context )
+    void ReferencePoseTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
+
         auto pResultBuffer = GetNewPoseBuffer( context );
-        pResultBuffer->m_pose.Reset( m_type );
+        pResultBuffer->ResetPose( Pose::Type::ReferencePose );
         MarkTaskComplete( context );
     }
 
-    void DefaultPoseTask::Serialize( TaskSerializer& serializer ) const
-    {
-        serializer.WriteUInt( (uint32_t) m_type, 3 );
-    }
+    //-------------------------------------------------------------------------
 
-    void DefaultPoseTask::Deserialize( TaskSerializer& serializer )
+    void ZeroPoseTask::Execute( TaskContext const& context )
     {
-        m_type = (Pose::Type) serializer.ReadUInt( 3 );
+        //EE_PROFILE_FUNCTION_ANIMATION();
+
+        auto pResultBuffer = GetNewPoseBuffer( context );
+        pResultBuffer->ResetPose( Pose::Type::ZeroPose );
+        MarkTaskComplete( context );
     }
 }

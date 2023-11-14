@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Animation_RuntimeGraph_Common.h"
 #include "Animation_RuntimeGraph_Events.h"
 #include "Animation_RuntimeGraph_Contexts.h"
 #include "Animation_RuntimeGraph_Recording.h"
@@ -18,33 +19,8 @@ namespace EE::Drawing { class DrawContext; }
 
 namespace EE::Animation
 {
-    class AnimationClip;
-    class GraphDataSet;
     class GraphContext;
     struct BoneMaskTaskList;
-
-    //-------------------------------------------------------------------------
-
-    enum class GraphValueType : uint8_t
-    {
-        EE_REFLECT_ENUM
-
-        Unknown = 0,
-        Bool,
-        ID,
-        Float,
-        Vector,
-        Target,
-        BoneMask,
-        Pose,
-        Special, // Only used for custom graph pin types
-    };
-
-    #if EE_DEVELOPMENT_TOOLS
-    EE_ENGINE_API Color GetColorForValueType( GraphValueType type );
-    EE_ENGINE_API char const* GetNameForValueType( GraphValueType type );
-    #endif
-
 
     //-------------------------------------------------------------------------
 
@@ -121,10 +97,10 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Is this node active i.e. was it updated this frame
-        bool IsNodeActive( GraphContext& context ) const;
+        EE_FORCE_INLINE bool IsNodeActive( uint32_t updateID ) const { return m_lastUpdateID == updateID; }
 
         // Was this node updated this frame, this is syntactic sugar for value nodes
-        EE_FORCE_INLINE bool WasUpdated( GraphContext& context ) const { return IsNodeActive( context ); }
+        EE_FORCE_INLINE bool WasUpdated( GraphContext& context ) const { return IsNodeActive( context.m_updateID ); }
 
         // Mark a node as being updated - value nodes will use this to cache values
         void MarkNodeActive( GraphContext& context );

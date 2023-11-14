@@ -323,7 +323,7 @@ namespace EE::Math
     void AABBTree::DrawLeaf( Drawing::DrawContext& drawingContext, int32_t nodeIdx ) const
     {
         EE_ASSERT( m_nodes[nodeIdx].IsLeafNode() );
-        drawingContext.DrawWireBox( m_nodes[nodeIdx].m_bounds, Colors::Lime, 2.0f, Drawing::DepthTest::Enable );
+        drawingContext.DrawWireBox( m_nodes[nodeIdx].m_bounds, Colors::Green, 2.0f, Drawing::DepthTest::Enable );
     }
     #endif
 }

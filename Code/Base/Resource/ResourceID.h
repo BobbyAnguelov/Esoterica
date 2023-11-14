@@ -45,7 +45,8 @@ namespace EE
         inline ResourceID( String const& path ) : m_path( path ) { OnPathChanged(); }
         inline ResourceID( char const* pPath ) : m_path( pPath ) { OnPathChanged(); }
 
-        inline bool IsValid() const { return m_type.IsValid(); }
+        inline bool IsValid() const { return m_path.IsValid() && m_type.IsValid(); }
+        inline bool IsPathSet() const { return m_path.IsValid(); }
         inline uint32_t GetPathID() const { return m_path.GetID(); }
 
         inline ResourcePath const& GetResourcePath() const { return m_path; }

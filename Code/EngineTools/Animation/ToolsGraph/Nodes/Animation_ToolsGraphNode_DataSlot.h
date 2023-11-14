@@ -31,7 +31,6 @@ namespace EE::Animation::GraphNodes
         virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
         virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
         virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
-        virtual void PostPaste() override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
@@ -71,10 +70,6 @@ namespace EE::Animation::GraphNodes
         void CreateOverride( StringID variationID );
         void RenameOverride( StringID oldVariationID, StringID newVariationID );
         void RemoveOverride( StringID variationID );
-
-    private:
-
-        String GetUniqueSlotName( String const& desiredName );
 
     protected:
 

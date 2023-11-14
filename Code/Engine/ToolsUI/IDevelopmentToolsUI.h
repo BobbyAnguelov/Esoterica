@@ -53,9 +53,6 @@ namespace EE::ImGuiX
 
         // Request a load on all unloaded resources
         virtual void HotReload_ReloadResources() = 0;
-
-        // Notify UI that all load requests are complete
-        virtual void HotReload_ReloadComplete() = 0;
     };
 }
 #endif

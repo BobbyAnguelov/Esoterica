@@ -125,7 +125,6 @@ namespace EE::TypeSystem
 
         #if EE_DEVELOPMENT_TOOLS
         bool                                    m_isForDevelopmentUseOnly = false;      // Whether this property only exists in development builds
-        bool                                    m_isToolsReadOnly = false; // Whether this property can be modified by any tools or if it's just a serializable value
         String                                  m_friendlyName;
         String                                  m_category;
         #endif

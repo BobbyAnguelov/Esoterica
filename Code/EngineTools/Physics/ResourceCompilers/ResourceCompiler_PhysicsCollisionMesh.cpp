@@ -1,7 +1,7 @@
 #include "ResourceCompiler_PhysicsCollisionMesh.h"
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsCollisionMesh.h"
-#include "EngineTools/RawAssets/RawAssetReader.h"
-#include "EngineTools/RawAssets/RawMesh.h"
+#include "EngineTools/Import/Importer.h"
+#include "EngineTools/Import/ImportedMesh.h"
 #include "Engine/Physics/PhysicsCollisionMesh.h"
 #include "Engine/Physics/Physics.h"
 #include "Base/FileSystem/FileSystem.h"
@@ -72,15 +72,15 @@ namespace EE::Physics
             return Error( "Invalid source data path: %s", resourceDescriptor.m_sourcePath.c_str() );
         }
 
-        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude );
-        if ( pRawMesh == nullptr )
+        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadStaticMesh( readerCtx, meshFilePath, resourceDescriptor.m_meshesToInclude );
+        if ( pImportedMesh == nullptr )
         {
             return Error( "Failed to read mesh from source file" );
         }
 
-        EE_ASSERT( pRawMesh->IsValid() );
-        pRawMesh->ApplyScale( resourceDescriptor.m_scale );
+        EE_ASSERT( pImportedMesh->IsValid() );
+        pImportedMesh->ApplyScale( resourceDescriptor.m_scale );
 
         // Reflect FBX data into physics format
         //-------------------------------------------------------------------------
@@ -89,7 +89,7 @@ namespace EE::Physics
 
         if ( resourceDescriptor.m_isConvexMesh )
         {
-            if ( !CookConvexMeshData( *pRawMesh, cookedMeshData ) )
+            if ( !CookConvexMeshData( *pImportedMesh, cookedMeshData ) )
             {
                 return CompilationFailed( ctx );
             }
@@ -98,7 +98,7 @@ namespace EE::Physics
         }
         else
         {
-            if ( !CookTriangleMeshData( *pRawMesh, cookedMeshData ) )
+            if ( !CookTriangleMeshData( *pImportedMesh, cookedMeshData ) )
             {
                 return CompilationFailed( ctx );
             }
@@ -117,7 +117,7 @@ namespace EE::Physics
         }
         else // One material per geometry section
         {
-            for ( auto i = 0; i < pRawMesh->GetNumGeometrySections(); i++ )
+            for ( auto i = 0; i < pImportedMesh->GetNumGeometrySections(); i++ )
             {
                 physicsMesh.m_materialIDs.emplace_back( defaultMaterialID );
             }
@@ -132,7 +132,7 @@ namespace EE::Physics
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
-            if ( pRawMesh->HasWarnings() )
+            if ( pImportedMesh->HasWarnings() )
             {
                 return CompilationSucceededWithWarnings( ctx );
             }
@@ -147,7 +147,7 @@ namespace EE::Physics
         }
     }
 
-    bool CollisionMeshCompiler::CookTriangleMeshData( RawAssets::RawMesh const& rawMesh, Blob& outCookedData ) const
+    bool CollisionMeshCompiler::CookTriangleMeshData( Import::ImportedMesh const& ImportedMesh, Blob& outCookedData ) const
     {
         PX::Allocator allocator;
         PX::UserErrorCallback errorCallback;
@@ -180,7 +180,7 @@ namespace EE::Physics
         TVector<PxMaterialTableIndex> materialIndexData;
 
         PxMaterialTableIndex materialIdx = 0;
-        for ( auto const& geometrySection : rawMesh.GetGeometrySections() )
+        for ( auto const& geometrySection : ImportedMesh.GetGeometrySections() )
         {
             // Add the verts
             for ( auto const& vert : geometrySection.m_vertices )
@@ -239,7 +239,7 @@ namespace EE::Physics
         return true;
     }
 
-    bool CollisionMeshCompiler::CookConvexMeshData( RawAssets::RawMesh const& rawMesh, Blob& outCookedData ) const
+    bool CollisionMeshCompiler::CookConvexMeshData( Import::ImportedMesh const& ImportedMesh, Blob& outCookedData ) const
     {
         PX::Allocator allocator;
         PX::UserErrorCallback errorCallback;
@@ -265,7 +265,7 @@ namespace EE::Physics
         TVector<uint32_t> indexData;
         uint32_t indexOffset = 0;
 
-        for ( auto const& geometrySection : rawMesh.GetGeometrySections() )
+        for ( auto const& geometrySection : ImportedMesh.GetGeometrySections() )
         {
             // Add the verts
             for ( auto const& vert : geometrySection.m_vertices )

@@ -250,7 +250,7 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         #if EE_DEVELOPMENT_TOOLS
-        int16_t const startSampledEventIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        int16_t const startSampledEventIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
         #endif
 
         // Check active transition
@@ -285,7 +285,7 @@ namespace EE::Animation::GraphNodes
             m_currentTime = m_pActiveTransition->GetCurrentTime();
         }
 
-        EE_ASSERT( context.m_sampledEventsBuffer.IsValidRange( result.m_sampledEventRange ) );
+        EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
 
         // Check for a valid transition, if one exists start it
         if ( context.m_branchState == BranchState::Active )

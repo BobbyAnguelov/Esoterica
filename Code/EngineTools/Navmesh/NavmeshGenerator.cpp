@@ -1,8 +1,8 @@
 #if EE_ENABLE_NAVPOWER
 #include "NavmeshGenerator.h"
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsCollisionMesh.h"
-#include "EngineTools/RawAssets/RawAssetReader.h"
-#include "EngineTools/RawAssets/RawMesh.h"
+#include "EngineTools/Import/Importer.h"
+#include "EngineTools/Import/ImportedMesh.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Navmesh/NavmeshData.h"
@@ -217,7 +217,7 @@ namespace EE::Navmesh
                 return LogError( "Invalid source data path (%) in physics collision descriptor: %s", resourceDescriptor.m_sourcePath.c_str(), meshDescriptorFilePath.c_str() );
             }
 
-            RawAssets::ReaderContext readerCtx = 
+            Import::ReaderContext readerCtx = 
             { 
                 [this] ( char const* pString ) { EE_LOG_WARNING( "Navmesh", "Generation", pString ); },
                 [this] ( char const* pString ) { EE_LOG_ERROR( "Navmesh", "Generation", pString ); }
@@ -229,13 +229,13 @@ namespace EE::Navmesh
                 meshesToInclude.emplace_back( resourceDescriptor.m_sourceItemName );
             }
 
-            TUniquePtr<RawAssets::RawMesh> pRawMesh = RawAssets::ReadStaticMesh( readerCtx, meshFilePath, meshesToInclude );
-            if ( pRawMesh == nullptr )
+            TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadStaticMesh( readerCtx, meshFilePath, meshesToInclude );
+            if ( pImportedMesh == nullptr )
             {
                 return LogError( "Failed to read mesh from source file: %s" );
             }
 
-            EE_ASSERT( pRawMesh->IsValid() );
+            EE_ASSERT( pImportedMesh->IsValid() );
 
             // Add triangles
             //-------------------------------------------------------------------------
@@ -257,7 +257,7 @@ namespace EE::Navmesh
 
                 //-------------------------------------------------------------------------
 
-                for ( auto const& geometrySection : pRawMesh->GetGeometrySections() )
+                for ( auto const& geometrySection : pImportedMesh->GetGeometrySections() )
                 {
                     // NavPower expects counterclockwise winding
                     bool flipWinding = geometrySection.m_clockwiseWinding ? true : false;

@@ -85,7 +85,7 @@ namespace EE::Animation
     class EE_ENGINE_API AnimationClip : public Resource::IResource
     {
         EE_RESOURCE( 'anim', "Animation Clip" );
-        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData2, m_compressedPoseOffsets, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
+        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData, m_compressedPoseOffsets, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
 
         friend class AnimationClipCompiler;
         friend class AnimationClipLoader;
@@ -125,11 +125,11 @@ namespace EE::Animation
         inline bool IsSingleFrameAnimation() const { return m_numFrames == 1; }
         inline bool IsAdditive() const { return m_isAdditive; }
         inline float GetFPS() const { return IsSingleFrameAnimation() ? 0 : float( m_numFrames - 1 ) / m_duration; }
-        inline uint32_t GetNumFrames() const { return m_numFrames; }
+        inline int32_t GetNumFrames() const { return m_numFrames; }
         inline Seconds GetDuration() const { return m_duration; }
-        inline Seconds GetTime( uint32_t frame ) const { return Seconds( GetPercentageThrough( frame ).ToFloat() * m_duration ); }
+        inline Seconds GetTime( int32_t frame ) const { return Seconds( GetPercentageThrough( frame ).ToFloat() * m_duration ); }
         inline Seconds GetTime( Percentage percentageThrough ) const { return Seconds( percentageThrough.ToFloat() * m_duration ); }
-        inline Percentage GetPercentageThrough( uint32_t frame ) const { return IsSingleFrameAnimation() ? Percentage( 1.0f ) : Percentage( ( (float) frame ) / ( m_numFrames - 1 ) ); }
+        inline Percentage GetPercentageThrough( int32_t frame ) const { return IsSingleFrameAnimation() ? Percentage( 1.0f ) : Percentage( ( (float) frame ) / ( m_numFrames - 1 ) ); }
         inline FrameTime GetFrameTime( Percentage const percentageThrough ) const { return FrameTime( percentageThrough, GetNumFrames() ); }
         inline FrameTime GetFrameTime( Seconds const timeThroughAnimation ) const { return GetFrameTime( IsSingleFrameAnimation() ? Percentage( 0.0f ) : Percentage( timeThroughAnimation / m_duration ) ); }
         inline SyncTrack const& GetSyncTrack() const{ return m_syncTrack; }
@@ -139,6 +139,34 @@ namespace EE::Animation
 
         void GetPose( FrameTime const& frameTime, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High ) const;
         inline void GetPose( Percentage percentageThrough, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High ) const { GetPose( GetFrameTime( percentageThrough ), pOutPose, lod ); }
+
+        // Secondary Animations
+        //-------------------------------------------------------------------------
+
+        // Does this animation have any secondary animations attached
+        bool HasSecondaryAnimations() const { return !m_secondaryAnimations.empty(); }
+
+        // Get the number of secondary animations attached
+        int32_t GetNumSecondaryAnimations() const { return (int32_t) m_secondaryAnimations.size(); }
+
+        // Get the secondary animations
+        TInlineVector<AnimationClip const*, 1> const& GetSecondaryAnimations() const { return m_secondaryAnimations; }
+
+        // Try get an secondary animation for a specified skeleton
+        AnimationClip const* GetSecondaryAnimation( Skeleton const* pSkeleton ) const
+        {
+            for ( auto pSecondaryAnimation : m_secondaryAnimations )
+            {
+                if ( pSecondaryAnimation->GetSkeleton() == pSkeleton )
+                {
+                    return pSecondaryAnimation; 
+                }
+            }
+            return nullptr;
+        }
+
+        // Get the set of secondary skeletons this animation animates
+        TInlineVector<Skeleton const*,1> GetSecondarySkeletons() const;
 
         // Events
         //-------------------------------------------------------------------------
@@ -196,15 +224,16 @@ namespace EE::Animation
     private:
 
         TResourcePtr<Skeleton>                  m_skeleton;
-        uint32_t                                m_numFrames = 0;
+        int32_t                                 m_numFrames = 0;
         Seconds                                 m_duration = 0.0f;
-        TVector<uint16_t>                       m_compressedPoseData2;
+        TVector<uint16_t>                       m_compressedPoseData;
         TVector<TrackCompressionSettings>       m_trackCompressionSettings;
         TVector<uint32_t>                       m_compressedPoseOffsets;
         TVector<Event*>                         m_events;
+        TInlineVector<AnimationClip const*,1>   m_secondaryAnimations;
         SyncTrack                               m_syncTrack;
-        RootMotionData                          m_rootMotion;
         bool                                    m_isAdditive = false;
+        RootMotionData                          m_rootMotion;
     };
 }
 

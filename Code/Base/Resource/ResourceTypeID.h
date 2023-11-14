@@ -33,7 +33,7 @@ namespace EE
 
     public:
 
-        inline ResourceTypeID() : m_ID( 0 ) {}
+        inline ResourceTypeID() = default;
         inline ResourceTypeID( uint32_t ID ) : m_ID( ID ) { EE_ASSERT( IsValidResourceFourCC( m_ID ) ); }
         explicit ResourceTypeID( char const* pStr );
         inline explicit ResourceTypeID( String const& str ) : ResourceTypeID( str.c_str() ) {}
@@ -89,7 +89,7 @@ namespace EE
 
     public:
 
-        uint32_t                 m_ID;
+        uint32_t                 m_ID = 0;
     };
 }
 

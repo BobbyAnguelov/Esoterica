@@ -417,6 +417,7 @@
     <ClCompile Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.cpp" />
     <ClCompile Include="Animation\AnimationBlender.cpp" />
     <ClCompile Include="DebugViews\DebugView.cpp" />
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Common.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Component_SerializationTest.h" />
@@ -910,6 +911,8 @@
     <ClInclude Include="Entity\Components\Component_EntityCollection.h" />
     <ClInclude Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_SnapToFrame.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_LayerData.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Common.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">

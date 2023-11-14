@@ -67,8 +67,19 @@ namespace EE
         m_pActiveDialog->m_title = title;
         m_pActiveDialog->m_drawFunction = drawFunction;
         m_pActiveDialog->m_windowSize = windowSize;
-        m_pActiveDialog->m_windowSizeCond = isResizable ? ImGuiCond_FirstUseEver : ImGuiCond_Always;
-        m_pActiveDialog->m_windowFlags = isResizable ? ImGuiWindowFlags_NoSavedSettings : ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize;
+
+        // If we provide any auto size values, then switch to an auto sized window
+        if ( windowSize.x <= 0 && windowSize.y <= 0 )
+        {
+            m_pActiveDialog->m_windowSizeCond = ImGuiCond_FirstUseEver;
+            m_pActiveDialog->m_windowFlags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize;
+        }
+        else // We provided a valid window size
+        {
+            m_pActiveDialog->m_windowSizeCond = isResizable ? ImGuiCond_FirstUseEver : ImGuiCond_Always;
+            m_pActiveDialog->m_windowFlags = isResizable ? ImGuiWindowFlags_NoSavedSettings : ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize;
+        }
+
         m_pActiveDialog->m_isOpen = true;
     }
 

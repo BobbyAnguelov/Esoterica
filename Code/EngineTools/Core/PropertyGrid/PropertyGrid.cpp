@@ -189,7 +189,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void PropertyGrid::DrawGrid()
+    void PropertyGrid::DrawGrid( bool shouldFillRemainingSpace )
     {
         if ( m_pTypeInstance == nullptr )
         {
@@ -241,9 +241,10 @@ namespace EE
         // Grid Rows
         //-------------------------------------------------------------------------
 
+        ImVec2 const tableSize = ImVec2( ImGui::GetContentRegionAvail().x - 1, ( shouldFillRemainingSpace ? ImGui::GetContentRegionAvail().y : 0 ) - 1 );
         ImGuiTableFlags const flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_NoBordersInBodyUntilResize | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY;
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 8 ) );
-        if ( ImGui::BeginTable( "GridTable", 2, flags, ImGui::GetContentRegionAvail() ) )
+        if ( ImGui::BeginTable( "GridTable", 2, flags, tableSize ) )
         {
             ImGui::TableSetupColumn( "##Header", ImGuiTableColumnFlags_WidthFixed, 200 );
             ImGui::TableSetupColumn( "##Editor", ImGuiTableColumnFlags_WidthStretch );
@@ -697,7 +698,7 @@ namespace EE::PG
 
     bool ArrayRow::HasExtraControls() const
     {
-        return m_propertyInfo.IsDynamicArrayProperty();
+        return m_propertyInfo.IsDynamicArrayProperty() && !m_propertyInfo.m_showInRestrictedMode;
     }
 
     float ArrayRow::GetExtraControlsSectionWidth() const
@@ -857,6 +858,10 @@ namespace EE::PG
             {
                 ImGuiX::TextTooltip( m_propertyInfo.m_description.c_str() );
             }
+            else
+            {
+                ImGuiX::TextTooltip( m_name.c_str() );
+            }
         }
         else if ( m_propertyInfo.IsStructureProperty() )
         {
@@ -909,7 +914,13 @@ namespace EE::PG
             return false;
         }
 
-        return m_arrayElementIdx != InvalidIndex;
+        bool const isDynamicArrayElement = ( m_arrayElementIdx != InvalidIndex );
+        if ( isDynamicArrayElement )
+        {
+            return !m_propertyInfo.m_showInRestrictedMode;
+        }
+
+        return false;
     }
 
     float PropertyRow::GetExtraControlsSectionWidth() const

@@ -15,6 +15,7 @@ namespace EE::Render
         Default,
         AmbientOcclusion,
         TangentSpaceNormals,
+        Uncompressed
     };
 
     //-------------------------------------------------------------------------
@@ -27,12 +28,19 @@ namespace EE::Render
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Texture::GetStaticResourceTypeID(); }
 
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             if ( m_path.IsValid() )
             {
                 outDependencies.emplace_back( m_path );
             }
+        }
+
+        virtual void Clear() override
+        {
+            m_path.Clear();
+            m_type = TextureType::Default;
+            m_name.clear();
         }
 
     public:
@@ -52,12 +60,17 @@ namespace EE::Render
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return CubemapTexture::GetStaticResourceTypeID(); }
 
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             if ( m_path.IsValid() )
             {
                 outDependencies.emplace_back( m_path );
             }
+        }
+
+        virtual void Clear() override
+        {
+            m_path.Clear();
         }
 
     public:

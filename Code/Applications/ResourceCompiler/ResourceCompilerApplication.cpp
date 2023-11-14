@@ -248,7 +248,7 @@ namespace EE::Resource
         // Check compile dependency and if this resource needs compilation
         m_uniqueCompileDependencies.clear();
         m_compileDependencyTreeRoot.Reset();
-        if ( !FillCompileDependencyNode( &m_compileDependencyTreeRoot, m_compileContext.m_resourceID ) )
+        if ( !FillCompileDependencyNode( &m_compileDependencyTreeRoot, m_compileContext.m_resourceID.GetResourcePath() ) )
         {
             EE_LOG_ERROR( "Resource", "Resource Compiler", "Failed to create dependency tree: %s", m_errorMessage.c_str() );
             return Resource::CompilationResult::Failure;
@@ -290,12 +290,14 @@ namespace EE::Resource
         m_errorMessage.clear();
         m_uniqueCompileDependencies.clear();
         m_compileDependencyTreeRoot.Reset();
-        return FillCompileDependencyNode( &m_compileDependencyTreeRoot, resourceID );
+        return FillCompileDependencyNode( &m_compileDependencyTreeRoot, resourceID.GetResourcePath() );
     }
 
-    bool ResourceCompilerApplication::TryReadCompileDependencies( FileSystem::Path const& resourceFilePath, TVector<ResourceID>& outDependencies ) const
+    bool ResourceCompilerApplication::TryReadCompileDependencies( ResourceID const& resourceID, TVector<ResourcePath>& outDependencies ) const
     {
-        EE_ASSERT( resourceFilePath.IsValid() );
+        EE_ASSERT( resourceID.IsValid() );
+
+        FileSystem::Path const resourceFilePath = resourceID.ToFileSystemPath( m_compileContext.m_rawResourceDirectoryPath );
 
         auto pDescriptor = ResourceDescriptor::TryReadFromFile( m_typeRegistry, resourceFilePath );
         if ( pDescriptor == nullptr )
@@ -310,38 +312,46 @@ namespace EE::Resource
         return true;
     }
 
-    bool ResourceCompilerApplication::FillCompileDependencyNode( CompileDependencyNode* pNode, ResourceID const& resourceID )
+    bool ResourceCompilerApplication::FillCompileDependencyNode( CompileDependencyNode* pNode, ResourcePath const& resourcePath )
     {
         EE_ASSERT( pNode != nullptr );
+        EE_ASSERT( resourcePath.IsValid() );
 
         // Basic resource info
         //-------------------------------------------------------------------------
 
-        pNode->m_ID = resourceID;
-
-        pNode->m_sourcePath = ResourcePath::ToFileSystemPath( m_compileContext.m_rawResourceDirectoryPath, resourceID.GetResourcePath() );
+        pNode->m_ID = resourcePath;
+        pNode->m_sourcePath = ResourcePath::ToFileSystemPath( m_compileContext.m_rawResourceDirectoryPath, resourcePath );
         pNode->m_sourceExists = FileSystem::Exists( pNode->m_sourcePath );
         pNode->m_timestamp = pNode->m_sourceExists ? FileSystem::GetFileModifiedTime( pNode->m_sourcePath ) : 0;
+
+        bool const isPotentiallyCompilableResource = pNode->m_ID.IsValid() && m_typeRegistry.IsRegisteredResourceType( pNode->m_ID.GetResourceTypeID() );
+        bool skipDependencyCheck = true;
 
         // Handle compilable resources
         //-------------------------------------------------------------------------
 
-        auto pCompiler = m_pCompilerRegistry->GetCompilerForResourceType( resourceID.GetResourceTypeID() );
-        bool const isCompilableResource = pCompiler != nullptr;
-        bool skipDependencyCheck = !isCompilableResource || !ShouldCheckCompileDependenciesForResourceType( resourceID );
-        if ( isCompilableResource )
+        if ( isPotentiallyCompilableResource )
         {
-            pNode->m_targetPath = ResourcePath::ToFileSystemPath( m_compileContext.m_compiledResourceDirectoryPath, resourceID.GetResourcePath() );
-            pNode->m_targetExists = FileSystem::Exists( pNode->m_targetPath );
+            EE_ASSERT( pNode->m_ID.IsValid() );
 
-            pNode->m_compilerVersion = pCompiler->GetVersion();
-            m_compiledResourceDB.GetRecord( resourceID, pNode->m_compiledRecord );
-
-            // Some compilers dont require an input file to run - these resources should always be recompiled!
-            if ( !pNode->m_sourceExists && !pCompiler->IsInputFileRequired() )
+            Compiler const* pCompiler = m_pCompilerRegistry->GetCompilerForResourceType( pNode->m_ID.GetResourceTypeID() );
+            bool const isCompilableResource = pCompiler != nullptr;
+            skipDependencyCheck = !isCompilableResource || !ShouldCheckCompileDependenciesForResourceType( pNode->m_ID );
+            if ( isCompilableResource )
             {
-                pNode->m_forceRecompile = true;
-                skipDependencyCheck = true;
+                pNode->m_targetPath = ResourcePath::ToFileSystemPath( m_compileContext.m_compiledResourceDirectoryPath, resourcePath );
+                pNode->m_targetExists = FileSystem::Exists( pNode->m_targetPath );
+
+                pNode->m_compilerVersion = pCompiler->GetVersion();
+                m_compiledResourceDB.GetRecord( pNode->m_ID, pNode->m_compiledRecord );
+
+                // Some compilers dont require an input file to run - these resources should always be recompiled!
+                if ( !pNode->m_sourceExists && !pCompiler->IsInputFileRequired() )
+                {
+                    pNode->m_forceRecompile = true;
+                    skipDependencyCheck = true;
+                }
             }
         }
 
@@ -350,8 +360,8 @@ namespace EE::Resource
 
         if ( !skipDependencyCheck )
         {
-            TVector<ResourceID> dependencies;
-            if ( TryReadCompileDependencies( pNode->m_sourcePath, dependencies ) )
+            TVector<ResourcePath> dependencies;
+            if ( TryReadCompileDependencies( resourcePath, dependencies ) )
             {
                 for ( auto const& dependencyResourceID : dependencies )
                 {
@@ -417,18 +427,23 @@ int main( int argc, char* argv[] )
 {
     ApplicationGlobalState State;
 
+    // Print log delimiter
+    //-------------------------------------------------------------------------
+
+    std::cout << EE::Resource::CompilationLog::s_delimiter;
+
     // Read CMD line arguments and process request
     //-------------------------------------------------------------------------
 
     CommandLineArgumentParser argParser( argc, argv );
 
-    for ( int i = 0; i < argc; i++ )
-    {
-        std::cout << argv[i] << std::endl;
-    }
-
     if ( !argParser.IsValid() )
     {
+        for ( int i = 0; i < argc; i++ )
+        {
+            std::cout << argv[i] << std::endl;
+        }
+
         EE_LOG_ERROR( "Resource", "Resource Compiler", "Invalid command line arguments" );
         return -1;
     }

@@ -270,7 +270,7 @@ namespace EE::Animation::GraphNodes
             {
                 CreateEventString( m_events, m_entryEvents );
                 {
-                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Lime );
+                    ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Green );
                     ImGui::Text( "Entry:", string.c_str() );
                 }
                 ImGui::SameLine();
@@ -309,8 +309,6 @@ namespace EE::Animation::GraphNodes
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold );
                     ImGui::Text( "Time Left: %s", string.c_str() );
                 }
-                ImGui::SameLine();
-                ImGui::Text( "%s", string.c_str() );
                 hasStateEvents = true;
             }
 
@@ -321,8 +319,6 @@ namespace EE::Animation::GraphNodes
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold );
                     ImGui::Text( "Time Elapsed: %s", string.c_str() );
                 }
-                ImGui::SameLine();
-                ImGui::Text( "%s", string.c_str() );
                 hasStateEvents = true;
             }
 

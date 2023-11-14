@@ -416,7 +416,7 @@ namespace EE::Animation::GraphNodes
                 section.m_debugPoints[3] = hermiteEndTangent;
                 #endif
 
-                Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, hermiteStartTangent );
+                Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, hermiteStartTangent.GetNormalized3() );
                 Vector const scaledUnwarpedEndPoint = unwarpedEndPoint * rootMotionScaleFactor;
                 int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
 
@@ -475,7 +475,7 @@ namespace EE::Animation::GraphNodes
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
 
-        uint32_t const numFrames = (uint32_t) pAnimation->GetNumFrames();
+        int32_t const numFrames = pAnimation->GetNumFrames();
         EE_ASSERT( numFrames > 0 );
 
         RootMotionData const& originalRM = pAnimation->GetRootMotion();
@@ -503,7 +503,7 @@ namespace EE::Animation::GraphNodes
             }
 
             // Create a section per warp event
-            auto pWarpEvent = Cast<TargetWarpEvent>( pEvent );
+            auto pWarpEvent = TryCast<TargetWarpEvent>( pEvent );
             if ( pWarpEvent != nullptr )
             {
                 WarpSection section;
@@ -605,7 +605,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Calculate the relevant deltas
-        for ( uint32_t i = minimumStartFrameForFirstSection; i < numFrames; i++ )
+        for ( int32_t i = minimumStartFrameForFirstSection; i < numFrames; i++ )
         {
             m_deltaTransforms.emplace_back( Transform::DeltaNoScale( originalRM.m_transforms[i - 1], originalRM.m_transforms[i] ) );
             m_inverseDeltaTransforms.emplace_back( m_deltaTransforms.back().GetInverse() );

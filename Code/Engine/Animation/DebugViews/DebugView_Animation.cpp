@@ -253,6 +253,40 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    InlineString AnimationDebugView::ResolveEventDebugPath( GraphInstance const* pGraphInstance, int32_t sampledEventIdx )
+    {
+        SampledEventsBuffer const& sampledEvents = pGraphInstance->GetSampledEvents();
+        SampledEvent const& sampledEvent = sampledEvents.GetEvent( sampledEventIdx );
+
+        //-------------------------------------------------------------------------
+
+        InlineString pathStr;
+
+        GraphInstance const* pFinalGraphInstance = pGraphInstance;
+
+        // Resolve debug path to the final graph instance
+        TInlineVector<int16_t, 5> const& graphDebugPath = sampledEvents.m_eventDebugGraphPaths[sampledEventIdx];
+        if ( !graphDebugPath.empty() )
+        {
+            for ( int16_t pathNodeIdx : graphDebugPath )
+            {
+                pathStr.append_sprintf( "%s/", pFinalGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( pathNodeIdx ).c_str() );
+                pFinalGraphInstance = pFinalGraphInstance->GetChildOrExternalGraphDebugInstance( pathNodeIdx );
+
+                // This should only ever happen if we detach an external graph directly after updating a graph instance and before drawing this debug display
+                if ( pFinalGraphInstance == nullptr )
+                {
+                    pathStr.append( "UNKNOWN GRAPH" );
+                    return pathStr;
+                }
+            }
+        }
+
+        // Add node name
+        pathStr += pFinalGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() ).c_str();
+        return pathStr;
+    }
+
     void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
@@ -282,8 +316,10 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             bool hasAnimEvent = false;
-            for ( SampledEvent const& sampledEvent : pGraphInstance->GetSampledEvents() )
+            SampledEventsBuffer const& sampledEvents = pGraphInstance->GetSampledEvents();
+            for ( int32_t i = 0; i < sampledEvents.GetNumSampledEvents(); i++ )
             {
+                SampledEvent const& sampledEvent = sampledEvents.GetEvent( i );
                 if ( sampledEvent.IsStateEvent() )
                 {
                     continue;
@@ -335,9 +371,9 @@ namespace EE::Animation
                 ImGuiX::TextTooltip( debugString.c_str() );
 
                 ImGui::TableNextColumn();
-                String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
-                ImGui::Text( nodePath.c_str() );
-                ImGuiX::TextTooltip( nodePath.c_str() );
+                InlineString const sourcePath = ResolveEventDebugPath( pGraphInstance, i );
+                ImGui::Text( sourcePath.c_str() );
+                ImGuiX::TextTooltip( sourcePath.c_str() );
             }
 
             ImGui::EndTable();
@@ -377,8 +413,11 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             bool hasStateEvent = false;
-            for ( SampledEvent const& sampledEvent : pGraphInstance->GetSampledEvents() )
+            SampledEventsBuffer const& sampledEvents = pGraphInstance->GetSampledEvents();
+            for ( int32_t i = 0; i < sampledEvents.GetNumSampledEvents(); i++ )
             {
+                SampledEvent const& sampledEvent = sampledEvents.GetEvent( i );
+
                 if ( sampledEvent.IsAnimationEvent() )
                 {
                     continue;
@@ -433,9 +472,9 @@ namespace EE::Animation
                 }
 
                 ImGui::TableNextColumn();
-                String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() );
-                ImGui::Text( nodePath.c_str() );
-                ImGuiX::TextTooltip( nodePath.c_str() );
+                InlineString const sourcePath = ResolveEventDebugPath( pGraphInstance, i );
+                ImGui::Text( sourcePath.c_str() );
+                ImGuiX::TextTooltip( sourcePath.c_str() );
             }
 
             if ( !hasStateEvent )

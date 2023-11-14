@@ -51,7 +51,7 @@ namespace EE::Resource
         // Status
         inline Status GetStatus() const { return m_status; }
         inline bool IsPending() const { return m_status == Status::Pending; }
-        inline bool IsExecuting() const { return m_status == Status::Compiling; }
+        inline bool IsCompiling() const { return m_status == Status::Compiling; }
         inline bool HasSucceeded() const { return m_status == Status::Succeeded || m_status == Status::SucceededWithWarnings || m_status == Status::SucceededUpToDate; }
         inline bool HasFailed() const { return m_status == Status::Failed; }
         inline bool IsComplete() const { return HasSucceeded() || HasFailed(); }

@@ -51,7 +51,7 @@ namespace EE::Animation
         EE_ASSERT( rhs.IsValid() );
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights = rhs.m_weights;
-        m_weightInfo = m_weightInfo;
+        m_weightInfo = rhs.m_weightInfo;
     }
 
     BoneMask::BoneMask( BoneMask&& rhs )
@@ -60,7 +60,7 @@ namespace EE::Animation
         EE_ASSERT( rhs.m_pSkeleton != nullptr && rhs.m_pSkeleton->GetNumBones() > 0 );
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights.swap( rhs.m_weights );
-        m_weightInfo = m_weightInfo;
+        m_weightInfo = rhs.m_weightInfo;
     }
 
     BoneMask::BoneMask( Skeleton const* pSkeleton, BoneMaskDefinition const& definition )
@@ -115,7 +115,7 @@ namespace EE::Animation
         // 100%
         else if ( w == 1.0f )
         {
-            return Colors::Lime;
+            return Colors::Green;
         }
 
         return Colors::White;
@@ -184,16 +184,16 @@ namespace EE::Animation
     {
         EE_ASSERT( m_pSkeleton != nullptr );
 
+        TInlineVector<float, 255> originalWeights;
+
         if ( shouldFeatherIntermediateBones )
         {
             // Set all weights to -1 so we know what needs to be feathered!
             for ( auto& weight : m_weights )
             {
                 weight = -1.0f;
+                originalWeights.emplace_back( -1.0f );
             }
-
-            // Root cannot be set to -1, since we cannot guarantee it will be part of the supplied weights
-            m_weights[0] = 0.0f;
         }
         else
         {
@@ -202,7 +202,6 @@ namespace EE::Animation
 
         // Relatively expensive remap
         m_weightInfo = WeightInfo::Zero;
-        float fixedWeight = definition.m_weights.empty() ? 0.0f : definition.m_weights[0].m_weight;
         for ( auto const& boneWeight : definition.m_weights )
         {
             EE_ASSERT( boneWeight.m_weight >= 0.0f && boneWeight.m_weight <= 1.0f );
@@ -210,18 +209,10 @@ namespace EE::Animation
             EE_ASSERT( boneIdx != InvalidIndex );
             m_weights[boneIdx] = boneWeight.m_weight;
 
-            if ( boneWeight.m_weight != fixedWeight )
+            if ( shouldFeatherIntermediateBones )
             {
-                m_weightInfo = WeightInfo::Mixed;
+                originalWeights[boneIdx] = boneWeight.m_weight;
             }
-        }
-
-        //-------------------------------------------------------------------------
-
-        // Set weight info
-        if ( m_weightInfo != WeightInfo::Mixed )
-        {
-            SetWeightInfo( fixedWeight );
         }
 
         //-------------------------------------------------------------------------
@@ -239,12 +230,14 @@ namespace EE::Animation
                     boneChainIndices.clear();
                     boneChainIndices.emplace_back( boneIdx );
 
+                    float chainWeight = 0.0f;
                     int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
                     while ( parentBoneIdx != InvalidIndex )
                     {
                         // Exit when we encounter the first parent with a weight
-                        if ( m_weights[parentBoneIdx] != -1 )
+                        if ( originalWeights[parentBoneIdx] != -1 )
                         {
+                            chainWeight = originalWeights[parentBoneIdx];
                             break;
                         }
 
@@ -252,10 +245,16 @@ namespace EE::Animation
                         parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
                     }
 
+                    // Do not update the root bone via this operation
+                    if ( parentBoneIdx == InvalidIndex )
+                    {
+                        boneChainIndices.pop_back();
+                    }
+
                     // Set all weights in the chain to 0.0f
                     for ( auto i : boneChainIndices )
                     {
-                        m_weights[i] = 0.0f;
+                        m_weights[i] = chainWeight;
                     }
                 }
                 // Check for feather chains
@@ -263,7 +262,7 @@ namespace EE::Animation
                 {
                     float endWeight = m_weights[boneIdx];
                     EE_ASSERT( endWeight != -1.0f );
-                    float startWeight = 0.0f;
+                    float startWeight = -1.0f;
 
                     boneChainIndices.clear();
                     boneChainIndices.emplace_back( boneIdx );
@@ -274,9 +273,9 @@ namespace EE::Animation
                         boneChainIndices.emplace_back( parentBoneIdx );
 
                         // Exit when we encounter the first parent with a weight
-                        if ( m_weights[parentBoneIdx] != -1 )
+                        if ( originalWeights[parentBoneIdx] != -1 )
                         {
-                            startWeight = m_weights[parentBoneIdx];
+                            startWeight = originalWeights[parentBoneIdx];
                             break;
                         }
 
@@ -288,9 +287,44 @@ namespace EE::Animation
                     for ( int32_t i = numBonesInChain - 2; i > 0; i-- )
                     {
                         float const percentageThrough = float( i ) / ( numBonesInChain - 1 );
-                        m_weights[boneChainIndices[i]] = Math::Lerp( endWeight, startWeight, percentageThrough );
+                        if ( startWeight != -1 )
+                        {
+                            m_weights[boneChainIndices[i]] = Math::Lerp( endWeight, startWeight, percentageThrough );
+                        }
+                        else
+                        {
+                            m_weights[boneChainIndices[i]] = 0.0f;
+                        }
                     }
                 }
+            }
+        }
+
+        // Explicitly update root weight since user may have left it unset
+        if ( m_weights[0] == -1.0f )
+        {
+            m_weights[0] = 0.0f;
+        }
+
+        // Weight info
+        //-------------------------------------------------------------------------
+
+        SetWeightInfo( m_weights[0] );
+        if ( m_weightInfo != WeightInfo::Mixed )
+        {
+            float fixedWeight = m_weights[0];
+            for ( int32_t i = 1; i < m_weights.size(); i++ )
+            {
+                if ( m_weights[i] != fixedWeight )
+                {
+                    m_weightInfo = WeightInfo::Mixed;
+                    break;
+                }
+            }
+
+            if ( m_weightInfo != WeightInfo::Mixed )
+            {
+                SetWeightInfo( fixedWeight );
             }
         }
     }

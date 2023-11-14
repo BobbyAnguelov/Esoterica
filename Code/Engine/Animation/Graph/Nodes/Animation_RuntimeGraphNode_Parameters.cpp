@@ -19,11 +19,6 @@ namespace EE::Animation::GraphNodes
         *( (bool*) pOutValue ) = m_value;
     }
 
-    void ControlParameterBoolNode::SetValueInternal( void const* pInValue )
-    {
-        m_value = *(bool*) pInValue;
-    }
-
     #if EE_DEVELOPMENT_TOOLS
     void ControlParameterBoolNode::RecordGraphState( RecordedGraphState& outState )
     {
@@ -53,11 +48,6 @@ namespace EE::Animation::GraphNodes
         }
 
         *( (StringID*) pOutValue ) = m_value;
-    }
-
-    void ControlParameterIDNode::SetValueInternal( void const* pInValue )
-    {
-        m_value = *(StringID*) pInValue;
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -91,11 +81,6 @@ namespace EE::Animation::GraphNodes
         *( (float*) pOutValue ) = m_value;
     }
 
-    void ControlParameterFloatNode::SetValueInternal( void const* pInValue )
-    {
-        m_value = *(float*) pInValue;
-    }
-
     #if EE_DEVELOPMENT_TOOLS
     void ControlParameterFloatNode::RecordGraphState( RecordedGraphState& outState )
     {
@@ -127,11 +112,6 @@ namespace EE::Animation::GraphNodes
         *( (Vector*) pOutValue ) = m_value;
     }
 
-    void ControlParameterVectorNode::SetValueInternal( void const* pInValue )
-    {
-        m_value = *(Vector*) pInValue;
-    }
-
     #if EE_DEVELOPMENT_TOOLS
     void ControlParameterVectorNode::RecordGraphState( RecordedGraphState& outState )
     {
@@ -161,11 +141,6 @@ namespace EE::Animation::GraphNodes
         }
 
         *( (Target*) pOutValue ) = m_value;
-    }
-
-    void ControlParameterTargetNode::SetValueInternal( void const* pInValue )
-    {
-        m_value = *(Target*) pInValue;
     }
 
     #if EE_DEVELOPMENT_TOOLS

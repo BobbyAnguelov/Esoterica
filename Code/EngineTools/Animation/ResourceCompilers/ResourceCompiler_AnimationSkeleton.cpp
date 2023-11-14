@@ -1,7 +1,7 @@
 #include "ResourceCompiler_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/RawAssets/RawSkeleton.h"
-#include "EngineTools/RawAssets/RawAssetReader.h"
+#include "EngineTools/Import/ImportedSkeleton.h"
+#include "EngineTools/Import/Importer.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Serialization/BinarySerialization.h"
@@ -33,9 +33,9 @@ namespace EE::Animation
             return Error( "Invalid skeleton data path: %s", resourceDescriptor.m_skeletonPath.c_str() );
         }
 
-        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<RawAssets::RawSkeleton> pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, resourceDescriptor.m_skeletonRootBoneName, resourceDescriptor.m_highLODBones );
-        if ( pRawSkeleton == nullptr )
+        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        TUniquePtr<Import::ImportedSkeleton> pImportedSkeleton = Import::ReadSkeleton( readerCtx, skeletonFilePath, resourceDescriptor.m_skeletonRootBoneName, resourceDescriptor.m_highLODBones );
+        if ( pImportedSkeleton == nullptr )
         {
             return Error( "Failed to read skeleton from source file" );
         }
@@ -44,14 +44,14 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Skeleton skeleton;
-        int32_t const numBones = pRawSkeleton->GetNumBones();
+        int32_t const numBones = pImportedSkeleton->GetNumBones();
         for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
-            auto const& boneData = pRawSkeleton->GetBoneData( boneIdx );
+            auto const& boneData = pImportedSkeleton->GetBoneData( boneIdx );
             skeleton.m_boneIDs.push_back( boneData.m_name );
             skeleton.m_parentIndices.push_back( boneData.m_parentBoneIdx );
             skeleton.m_localReferencePose.push_back( Transform( boneData.m_localTransform.GetRotation(), boneData.m_localTransform.GetTranslation(), boneData.m_localTransform.GetScale() ) );
-            skeleton.m_numBonesToSampleAtLowLOD = pRawSkeleton->GetNumBonesToSampleAtLowLOD();
+            skeleton.m_numBonesToSampleAtLowLOD = pImportedSkeleton->GetNumBonesToSampleAtLowLOD();
         }
         // Serialize skeleton
         //-------------------------------------------------------------------------
@@ -60,6 +60,13 @@ namespace EE::Animation
         archive << Resource::ResourceHeader( s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         archive << skeleton;
         archive << resourceDescriptor.m_boneMaskDefinitions;
+
+        // Write preview data
+        if ( ctx.IsCompilingForDevelopmentBuild() )
+        {
+            archive << resourceDescriptor.m_previewMesh.GetResourceID();
+            archive << resourceDescriptor.m_previewAttachmentSocketID;
+        }
 
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {

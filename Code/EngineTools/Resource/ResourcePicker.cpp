@@ -5,6 +5,7 @@
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
+#include "ResourceToolDefines.h"
 
 //-------------------------------------------------------------------------
 
@@ -117,6 +118,13 @@ namespace EE::Resource
                 ImGui::InputText( "##ResourcePathText", const_cast<char*>( pathString.c_str() ), pathString.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
                 ImGui::PopStyleColor();
 
+                // Drag and drop
+                if ( ImGui::BeginDragDropTarget() )
+                {
+                    valueUpdated = TryUpdateResourceFromDragAndDrop();
+                    ImGui::EndDragDropTarget();
+                }
+
                 // Tooltip
                 if ( m_resourceID.IsValid() )
                 {
@@ -128,7 +136,7 @@ namespace EE::Resource
                 {
                     if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
                     {
-                        valueUpdated = TryUpdateResourceFromClipboard();
+                        valueUpdated |= TryUpdateResourceFromClipboard();
                     }
                 }
 
@@ -151,6 +159,7 @@ namespace EE::Resource
                 }
 
                 // Draw combo if open
+                bool shouldUpdateNavID = false;
                 if ( m_isComboOpen )
                 {
                     float const cursorPosYPreFilter = ImGui::GetCursorPosY();
@@ -161,10 +170,14 @@ namespace EE::Resource
                     float const cursorPosYPostFilter = ImGui::GetCursorPosY();
                     float const filterHeight = cursorPosYPostFilter;
 
+                    ImVec2 const previousCursorPos = ImGui::GetCursorPos();
+                    ImVec2 const childSize( ImGui::GetContentRegionAvail().x, comboDropDownSize.y - filterHeight - style.ItemSpacing.y - style.WindowPadding.y );
+                    ImGui::Dummy( childSize );
+                    ImGui::SetCursorPos( previousCursorPos );
+
                     //-------------------------------------------------------------------------
 
-                    ImVec2 const childSize( ImGui::GetContentRegionAvail().x, comboDropDownSize.y - filterHeight - style.ItemSpacing.y - style.WindowPadding.y );
-                    if ( ImGui::BeginChild( "##ResList", childSize ) )
+                    if ( ImGui::BeginChild( "##ResList", childSize, false, ImGuiWindowFlags_NavFlattened ) )
                     {
                         ImGuiX::ScopedFont const sfo( ImGuiX::Font::Medium );
 
@@ -174,7 +187,7 @@ namespace EE::Resource
                         {
                             for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                             {
-                                if ( ImGui::MenuItem( m_filteredResourceIDs[i].c_str() + 7 ) )
+                                if ( ImGui::Selectable( m_filteredResourceIDs[i].c_str() + 7 ) )
                                 {
                                     m_resourceID = m_filteredResourceIDs[i];
                                     valueUpdated = true;
@@ -378,6 +391,24 @@ namespace EE::Resource
         return true;
     }
 
+    bool ResourcePicker::TryUpdateResourceFromDragAndDrop()
+    {
+        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( Resource::DragAndDrop::s_payloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+        {
+            if ( payload->IsDelivery() )
+            {
+                ResourceID const droppedResourceID( (char*) payload->Data );
+                if ( droppedResourceID.IsValid() && droppedResourceID.GetResourceTypeID() == m_resourceTypeID )
+                {
+                    m_resourceID = droppedResourceID;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     //-------------------------------------------------------------------------
 
     bool ResourcePathPicker::UpdateAndDraw()
@@ -413,6 +444,13 @@ namespace EE::Resource
                 ImGui::PushStyleColor( ImGuiCol_Text, validPath ? ImGuiX::Style::s_colorText : Colors::Red );
                 ImGui::InputText( "##DataPath", const_cast<char*>( resourcePathStr.c_str() ), resourcePathStr.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
                 ImGui::PopStyleColor();
+
+                // Drag and drop
+                if ( ImGui::BeginDragDropTarget() )
+                {
+                    valueUpdated = TrySetPathFromDragAndDrop();
+                    ImGui::EndDragDropTarget();
+                }
 
                 // Allow pasting valid paths
                 if ( ImGui::IsItemFocused() )
@@ -517,5 +555,23 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         return valueUpdated;
+    }
+
+    bool ResourcePathPicker::TrySetPathFromDragAndDrop()
+    {
+        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( Resource::DragAndDrop::s_payloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+        {
+            if ( payload->IsDelivery() )
+            {
+                ResourceID const droppedResourceID( (char*) payload->Data );
+                if ( droppedResourceID.IsValid() )
+                {
+                    m_resourcePath = droppedResourceID.GetResourcePath();
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

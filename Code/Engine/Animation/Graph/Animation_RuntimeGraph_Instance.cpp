@@ -2,29 +2,35 @@
 #include "Animation_RuntimeGraph_Node.h"
 #include "Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
 #include "Nodes/Animation_RuntimeGraphNode_Layers.h"
-
 #include "Base/Profiling.h"
-#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    GraphInstance::GraphInstance( GraphVariation const* pGraphVariation, uint64_t userID, TaskSystem* pTaskSystem )
+    GraphInstance::GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer )
         : m_pGraphVariation( pGraphVariation )
-        , m_userID( userID )
-        , m_graphContext( userID, pGraphVariation->GetSkeleton() )
+        , m_ownerID( ownerID )
+        , m_graphContext( ownerID, pGraphVariation->GetPrimarySkeleton() )
     {
         EE_ASSERT( pGraphVariation != nullptr );
 
         //-------------------------------------------------------------------------
 
+        TaskSystem* pFinalTaskSystem = pTaskSystem;
+        SampledEventsBuffer* pFinalSampledEventsBuffer = pSampledEventsBuffer;
+
         // If the supplied task system is null, then this is a standalone graph instance
-        bool const isStandaloneGraphInstance = ( pTaskSystem == nullptr );
-        if ( isStandaloneGraphInstance )
+        if ( pTaskSystem == nullptr )
         {
-            m_pTaskSystem = EE::New<TaskSystem>( m_pGraphVariation->GetSkeleton() );
+            m_isStandaloneGraph = true;
+            pFinalTaskSystem = m_pTaskSystem = EE::New<TaskSystem>( m_pGraphVariation->GetPrimarySkeleton() );
+            pFinalSampledEventsBuffer = m_pSampledEventsBuffer = EE::New<SampledEventsBuffer>();
+        }
+        else // This is either a child graph or external graph instance
+        {
+            m_isStandaloneGraph = false;
+            EE_ASSERT( pSampledEventsBuffer != nullptr );
         }
 
         // Allocate memory
@@ -59,11 +65,11 @@ namespace EE::Animation
             auto pChildGraphVariation = m_pGraphVariation->m_dataSet.GetResource<GraphVariation>( childGraphSlot.m_dataSlotIdx );
             if ( pChildGraphVariation != nullptr )
             {
-                if ( pChildGraphVariation->GetSkeleton() == pGraphVariation->GetSkeleton() )
+                if ( pChildGraphVariation->GetPrimarySkeleton() == pGraphVariation->GetPrimarySkeleton() )
                 {
                     ChildGraph cg;
                     cg.m_nodeIdx = childGraphSlot.m_nodeIdx;
-                    cg.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pChildGraphVariation, m_userID, isStandaloneGraphInstance ? m_pTaskSystem : pTaskSystem );
+                    cg.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pChildGraphVariation, m_ownerID, pFinalTaskSystem, pFinalSampledEventsBuffer );
                     m_childGraphs.emplace_back( cg );
 
                     createdChildGraphInstances.emplace_back( cg.m_pInstance );
@@ -84,7 +90,7 @@ namespace EE::Animation
         // Instantiate individual nodes
         //-------------------------------------------------------------------------
 
-        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, &m_pGraphVariation->m_dataSet, m_userID };
+        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, &m_pGraphVariation->m_dataSet, m_ownerID };
 
         #if EE_DEVELOPMENT_TOOLS
         instantiationContext.m_pLog = &m_log;
@@ -100,7 +106,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Initialize context
-        m_graphContext.Initialize( isStandaloneGraphInstance ? m_pTaskSystem : pTaskSystem );
+        m_graphContext.Initialize( pFinalTaskSystem, pFinalSampledEventsBuffer );
         EE_ASSERT( m_graphContext.IsValid() );
 
         #if EE_DEVELOPMENT_TOOLS
@@ -166,6 +172,7 @@ namespace EE::Animation
 
         EE::Free( m_pAllocatedInstanceMemory );
         EE::Delete( m_pTaskSystem );
+        EE::Delete( m_pSampledEventsBuffer );
     }
 
     //-------------------------------------------------------------------------
@@ -178,37 +185,6 @@ namespace EE::Animation
         {
             externalGraph.m_pInstance->GetResourceLookupTables( LUTs );
         }
-    }
-
-    Pose const* GraphInstance::GetPose()
-    {
-        EE_ASSERT( m_pTaskSystem != nullptr );
-        return m_pTaskSystem->GetPose();
-    }
-
-    void GraphInstance::SetSkeletonLOD( Skeleton::LOD lod )
-    {
-        m_pTaskSystem->SetSkeletonLOD( lod );
-    }
-
-    Skeleton::LOD GraphInstance::GetSkeletonLOD() const
-    {
-        return m_pTaskSystem->GetSkeletonLOD();
-    }
-
-    bool GraphInstance::DoesTaskSystemNeedUpdate() const
-    {
-        return m_pTaskSystem->RequiresUpdate();
-    }
-
-    void GraphInstance::EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry )
-    {
-        m_pTaskSystem->EnableSerialization( typeRegistry );
-    }
-
-    void GraphInstance::DisableTaskSystemSerialization()
-    {
-        m_pTaskSystem->DisableSerialization();
     }
 
     void GraphInstance::SerializeTaskList( Blob& outBlob ) const
@@ -274,10 +250,10 @@ namespace EE::Animation
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Connect External Graph" );
 
-        if ( pExternalGraphVariation->GetSkeleton() != m_pGraphVariation->GetSkeleton() )
+        if ( pExternalGraphVariation->GetPrimarySkeleton() != m_pGraphVariation->GetPrimarySkeleton() )
         {
             // TODO: switch to internal error tracking
-            EE_LOG_ERROR( "Animation", "Graph Instance", "Cannot insert extrenal graph since skeletons dont match! Expected: %s, supplied: %s", m_pGraphVariation->GetSkeleton()->GetResourceID().c_str(), pExternalGraphVariation->GetSkeleton()->GetResourceID().c_str() );
+            EE_LOG_ERROR( "Animation", "Graph Instance", "Cannot insert extrenal graph since skeletons dont match! Expected: %s, supplied: %s", m_pGraphVariation->GetPrimarySkeleton()->GetResourceID().c_str(), pExternalGraphVariation->GetPrimarySkeleton()->GetResourceID().c_str() );
             return nullptr;
         }
 
@@ -297,7 +273,7 @@ namespace EE::Animation
         // Create graph instance
         //-------------------------------------------------------------------------
 
-        connectedGraph.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pExternalGraphVariation, m_userID, m_pTaskSystem );
+        connectedGraph.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pExternalGraphVariation, m_ownerID, m_pTaskSystem, m_pSampledEventsBuffer );
         EE_ASSERT( connectedGraph.m_pInstance != nullptr );
 
         // Attach instance to the node
@@ -365,9 +341,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( m_pTaskSystem != nullptr )
+        if ( m_isStandaloneGraph )
         {
             m_pTaskSystem->Reset();
+            m_pSampledEventsBuffer->Clear();
         }
 
         m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsWorld );
@@ -385,6 +362,11 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         RecordPostGraphEvaluateState( nullptr );
+
+        if ( m_isStandaloneGraph )
+        {
+            EE_ASSERT( m_pSampledEventsBuffer->IsCurrentDebugGraphPathEmpty() );
+        }
         #endif
 
         return result;
@@ -529,6 +511,30 @@ namespace EE::Animation
         }
 
         return m_externalGraphs[connectedGraphIdx].m_pInstance;
+    }
+
+    GraphInstance const* GraphInstance::GetChildOrExternalGraphDebugInstance( int16_t nodeIdx ) const
+    {
+        EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
+
+        for ( auto const& childGraphRecord : m_childGraphs )
+        {
+            if ( childGraphRecord.m_nodeIdx == nodeIdx )
+            {
+                return childGraphRecord.m_pInstance;
+            }
+        }
+
+        for ( auto const& externalGraphRecord : m_externalGraphs )
+        {
+            if ( externalGraphRecord.m_nodeIdx == nodeIdx )
+            {
+                return externalGraphRecord.m_pInstance;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return nullptr;
     }
 
     void GraphInstance::DrawDebug( Drawing::DrawContext& drawContext )

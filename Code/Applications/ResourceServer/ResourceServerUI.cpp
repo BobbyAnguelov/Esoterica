@@ -190,8 +190,7 @@ namespace EE::Resource
 
                             case CompilationRequest::Status::Compiling:
                             {
-                                itemColor = Colors::Cyan.ToFloat4();
-                                ImGui::TextColored( itemColor, EE_ICON_COG );
+                                ImGuiX::DrawSpinner( "##Compiling", Colors::Cyan, ImVec2( 16, 16 ), 3.0f, 0.0f );
                                 HandleContextMenuOpening();
                                 ImGuiX::TextTooltip( "Compiling" );
                             }
@@ -280,7 +279,7 @@ namespace EE::Resource
 
                         ImGui::TableSetColumnIndex( 3 );
                         bool const isItemSelected = ( pRequest == m_pSelectedRequest );
-                        if ( ImGui::Selectable( pRequest->GetDestinationFilePath().c_str(), isItemSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap, ImVec2( 0, 0 ) ) )
+                        if ( ImGui::Selectable( pRequest->GetDestinationFilePath().c_str(), isItemSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2( 0, 0 ) ) )
                         {
                             if ( pRequest->IsComplete() )
                             {

@@ -539,12 +539,13 @@ namespace EE::Render
         for ( StaticMeshComponent const* pMeshComponent : data.m_staticMeshComponents )
         {
             auto pMesh = pMeshComponent->GetMesh();
-            Vector const finalScale = pMeshComponent->GetLocalScale() * pMeshComponent->GetWorldTransform().GetScale();
-            Matrix const worldTransform = Matrix( pMeshComponent->GetWorldTransform().GetRotation(), pMeshComponent->GetWorldTransform().GetTranslation(), finalScale );
+            Transform const& worldTransform = pMeshComponent->GetWorldTransform();
+            Vector const finalScale = pMeshComponent->GetLocalScale() * worldTransform.GetScale();
+            Matrix const worldTransformMatrix = Matrix( worldTransform.GetRotation(), worldTransform.GetTranslation(), finalScale );
 
             ObjectTransforms transforms = data.m_transforms;
-            transforms.m_worldTransform = worldTransform;
-            transforms.m_worldTransform.SetTranslation( worldTransform.GetTranslation() );
+            transforms.m_worldTransform = worldTransformMatrix;
+            transforms.m_worldTransform.SetTranslation( worldTransformMatrix.GetTranslation() );
             transforms.m_normalTransform = transforms.m_worldTransform.GetInverse().Transpose();
             renderContext.WriteToBuffer( m_vertexShaderStatic.GetConstBuffer( 0 ), &transforms, sizeof( transforms ) );
 

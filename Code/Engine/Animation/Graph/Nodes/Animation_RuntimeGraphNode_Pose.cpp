@@ -28,7 +28,7 @@ namespace EE::Animation::GraphNodes
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ZeroPose );
+        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ZeroPoseTask>( GetNodeIndex() );
         return result;
     }
 
@@ -54,7 +54,7 @@ namespace EE::Animation::GraphNodes
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
+        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
         return result;
     }
 
@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
 
         if ( pNode->m_pAnimation != nullptr )
         {
-            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetPrimarySkeleton() )
             {
                 pNode->m_pAnimation = nullptr;
             }

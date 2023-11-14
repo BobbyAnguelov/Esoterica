@@ -111,7 +111,7 @@ namespace EE
         }
         else
         {
-            pNewWorld->SetDebugName( "Workspace" );
+            pNewWorld->SetDebugName( "Editor" );
         }
         #endif
 

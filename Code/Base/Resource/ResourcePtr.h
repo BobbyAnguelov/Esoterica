@@ -161,5 +161,15 @@ namespace EE
 
         template <typename U>
         inline bool operator!=( const TResourcePtr<U>& rhs ) { return m_resourceID != rhs.m_resourceID; }
+
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        inline String const& GetResourceCompilationLog() const
+        {
+            EE_ASSERT( IsSet() && WasRequested() && m_pResourceRecord != nullptr );
+            return m_pResourceRecord->GetCompilationLog();
+        }
+        #endif
     };
 }

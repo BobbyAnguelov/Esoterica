@@ -22,7 +22,7 @@ namespace EE::Animation::GraphNodes
 
         if ( pNode->m_pAnimation != nullptr )
         {
-            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetSkeleton() )
+            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetPrimarySkeleton() )
             {
                 pNode->m_pAnimation = nullptr;
             }
@@ -227,10 +227,14 @@ namespace EE::Animation::GraphNodes
                 frameSelectionMode = pSnapFrameEvent->GetFrameSelectionMode();
             }
 
-            context.m_sampledEventsBuffer.EmplaceAnimationEvent( GetNodeIndex(), pEvent, percentageThroughEvent, isFromActiveBranch );
+            SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceAnimationEvent( pEvent, percentageThroughEvent, isFromActiveBranch );
+
+            #if EE_DEVELOPMENT_TOOLS
+            evt.SetSourceNodeIndex( GetNodeIndex() );
+            #endif
         }
 
-        result.m_sampledEventRange.m_endIdx = context.m_sampledEventsBuffer.GetNumSampledEvents();
+        result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
 
         // Root Motion
         //-------------------------------------------------------------------------

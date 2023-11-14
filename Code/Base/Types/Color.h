@@ -93,11 +93,14 @@ namespace EE
             return c;
         }
 
+        // Equality
+        inline bool operator==( Color const& rhs ) const { return m_color == rhs.m_color; }
+        inline bool operator!=( Color const& rhs ) const { return m_color != rhs.m_color; }
+
         //-------------------------------------------------------------------------
 
         // Returns a uint32_t color with this byte format: 0xAAGGBBRR
         EE_FORCE_INLINE uint32_t ToUInt32() const { return m_color; }
-
 
         // Returns a uint32_t color with this byte format: 0xAAGGBBRR
         EE_FORCE_INLINE operator uint32_t() const { return ToUInt32(); }

@@ -61,7 +61,7 @@ namespace EE::ImGuiX
                 ImGui::SetCursorPos( menuSectionStartPos );
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
                 ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImGui::GetStyle().FramePadding + ImVec2( 0, 2 ) );
-                bool const drawMenuSection = ImGui::BeginChild( "Left", ImVec2( menuSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_MenuBar );
+                bool const drawMenuSection = ImGui::BeginChild( "Left", ImVec2( menuSectionFinalWidth, titleBarHeight ), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar );
                 ImGui::PopStyleVar( 2 );
 
                 if ( drawMenuSection )
@@ -89,7 +89,7 @@ namespace EE::ImGuiX
 
                 ImGui::SetCursorPos( controlSectionStartPos );
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-                bool const drawControlsSection = ImGui::BeginChild( "Right", ImVec2( controlSectionFinalWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysUseWindowPadding );
+                bool const drawControlsSection = ImGui::BeginChild( "Right", ImVec2( controlSectionFinalWidth, titleBarHeight ), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoDecoration );
                 ImGui::PopStyleVar();
 
                 if ( drawControlsSection )

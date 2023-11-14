@@ -57,6 +57,12 @@ namespace EE::Animation
 
     public:
 
+        #if EE_DEVELOPMENT_TOOLS
+        static void DrawSecondaryPoses( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer );
+        #endif
+
+    public:
+
         Task( TaskSourceID sourceID, TaskUpdateStage updateStage = TaskUpdateStage::Any, TaskDependencies const& dependencies = TaskDependencies() );
         virtual ~Task() {}
         virtual void Execute( TaskContext const& context ) = 0;
@@ -96,7 +102,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const { return String(); }
         virtual Color GetDebugColor() const { return Colors::White; }
-        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const;
+        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const;
         #endif
 
     protected:

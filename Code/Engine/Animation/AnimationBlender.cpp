@@ -60,7 +60,7 @@ namespace EE::Animation
         if ( boneBlendWeight != 0.0f )
         {
             Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[0], BlendFunction::BlendTranslationAndScale( pBasePose->m_localTransforms[0].GetTranslationAndScale(), pLayerPose->m_localTransforms[0].GetTranslationAndScale(), boneBlendWeight ) );
-            resultRotations[0] = BlendFunctionFastSLerp::BlendRotation( pBasePose->m_localTransforms[0].GetRotation(), pLayerPose->m_localTransforms[0].GetRotation(), boneBlendWeight );
+            resultRotations[0] = BlendFunction::BlendRotation( pBasePose->m_localTransforms[0].GetRotation(), pLayerPose->m_localTransforms[0].GetRotation(), boneBlendWeight );
         }
         else
         {
@@ -90,7 +90,7 @@ namespace EE::Animation
                 // Blend Rotation
                 //-------------------------------------------------------------------------
 
-                resultRotations[boneIdx] = BlendFunctionFastSLerp::BlendRotation( baseRotations[boneIdx], layerRotations[boneIdx], boneBlendWeight);
+                resultRotations[boneIdx] = BlendFunction::BlendRotation( baseRotations[boneIdx], layerRotations[boneIdx], boneBlendWeight);
 
                 // Convert blended global space rotation to local space for the result pose
                 int32_t const parentIdx = parentIndices[boneIdx];
@@ -102,7 +102,7 @@ namespace EE::Animation
         // Blend the results of the global mask onto the base pose
         //-------------------------------------------------------------------------
 
-        LocalBlend<BlendFunctionFastSLerp>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, true );
+        LocalBlend<BlendFunction>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, false );
         pResultPose->ClearGlobalTransforms();
         pResultPose->m_state = Pose::State::Pose;
     }

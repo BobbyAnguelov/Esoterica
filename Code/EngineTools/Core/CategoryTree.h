@@ -70,6 +70,24 @@ namespace EE
             return false;
         }
 
+        void AddItem( CategoryItem<T> const& itemToAdd, bool sortedInsert = true )
+        {
+            if ( sortedInsert )
+            {
+                auto Comparision = [] ( CategoryItem<T> const& existingItem, String const& name )
+                {
+                    return existingItem.m_name < name;
+                };
+
+                auto insertionPosition = eastl::lower_bound( m_items.begin(), m_items.end(), itemToAdd.m_name, Comparision );
+                m_items.insert( insertionPosition, itemToAdd );
+            }
+            else
+            {
+                m_items.emplace_back( itemToAdd );
+            }
+        }
+
         void RemoveAllItems()
         {
             for ( auto& childCategory : m_childCategories )
@@ -136,14 +154,7 @@ namespace EE
                 TVector<String> splitPath = SplitPathString( path );
                 Category<T>* pFoundCategory = FindOrCreateCategory( m_rootCategory, splitPath, 0 );
                 EE_ASSERT( pFoundCategory != nullptr );
-
-                auto Comparision = [] ( CategoryItem<T> const& item, String const& name )
-                {
-                    return item.m_name < name;
-                };
-
-                auto insertionPosition = eastl::lower_bound( pFoundCategory->m_items.begin(), pFoundCategory->m_items.end(), itemName, Comparision );
-                pFoundCategory->m_items.insert( insertionPosition, CategoryItem<T>( itemName, item ) );
+                pFoundCategory->AddItem( CategoryItem<T>( itemName, item ) );
             }
         }
 

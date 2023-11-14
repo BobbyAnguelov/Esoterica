@@ -297,8 +297,10 @@ namespace EE::Animation::GraphNodes
 
     void BoneMaskSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
     {
-        int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
-        EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
+        int32_t const pinIdx = GetInputPinIndex( pinID );
+        EE_ASSERT( pinIdx != InvalidIndex );
+        int32_t const optionIdx = pinIdx - 2;
+        EE_ASSERT( optionIdx > 0 );
 
         //-------------------------------------------------------------------------
 
@@ -306,16 +308,16 @@ namespace EE::Animation::GraphNodes
         int32_t const numOptions = ( numInputPins - 2 );
         if ( m_parameterValues.size() == numOptions )
         {
-            m_parameterValues.erase( m_parameterValues.begin() + pinToBeRemovedIdx - 2 );
+            m_parameterValues.erase( m_parameterValues.begin() + optionIdx );
         }
 
         // Rename Pins
         //-------------------------------------------------------------------------
 
-        int32_t newPinIdx = 1;
+        int32_t newPinIdx = 0;
         for ( auto i = 2; i < numInputPins; i++ )
         {
-            if ( i == pinToBeRemovedIdx )
+            if ( i == pinIdx )
             {
                 continue;
             }

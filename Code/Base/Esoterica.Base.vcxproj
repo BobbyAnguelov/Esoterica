@@ -501,6 +501,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Encoding\Hash.cpp" />
+    <ClCompile Include="FileSystem\FileSystem.cpp" />
     <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
     <ClCompile Include="Logging\LoggingSystem.cpp" />
     <ClCompile Include="Logging\Platform\Log_Win32.cpp" />

@@ -47,6 +47,7 @@ namespace EE::Resource
             FileEntry& operator=( FileEntry const& ) = delete;
 
             // Descriptor
+            inline bool HasDescriptor() const { return m_pDescriptor != nullptr; }
             void LoadDescriptor( TypeSystem::TypeRegistry const& typeRegistry );
             void ReloadDescriptor( TypeSystem::TypeRegistry const& typeRegistry );
 
@@ -145,8 +146,26 @@ namespace EE::Resource
         // Get a list of all known resource of the specified type
         TVector<ResourceID> GetAllResourcesOfTypeFiltered( ResourceTypeID resourceTypeID, TFunction<bool( ResourceDescriptor const*)> const& filter, bool includeDerivedTypes = false ) const;
 
+        // Get all dependent resources - note: this is a very slow function so use sparingly
+        TVector<ResourcePath> GetAllDependentResources( ResourcePath sourceFile ) const;
+
         // Event that fires whenever a resource is deleted
         TEventHandle<ResourceID> OnResourceDeleted() const { return m_resourceDeletedEvent; }
+
+        template<typename T>
+        inline T const* GetCachedDescriptor( ResourceID const& resourceID ) const
+        {
+            EE_ASSERT( IsDescriptorCacheBuilt() );
+
+            auto pFileEntry = GetFileEntry( resourceID );
+            if ( pFileEntry != nullptr )
+            {
+                EE_ASSERT( pFileEntry->m_pDescriptor != nullptr );
+                return Cast<T>( pFileEntry->m_pDescriptor );
+            }
+
+            return nullptr;
+        }
 
     private:
 

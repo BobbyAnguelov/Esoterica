@@ -2,6 +2,8 @@
 #include "Animation_RuntimeGraph_Definition.h"
 #include "Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Animation_RuntimeGraph_Contexts.h"
+#include "Nodes/Animation_RuntimeGraphNode_Parameters.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Base/Types/PointerID.h"
 
 //-------------------------------------------------------------------------
@@ -65,7 +67,7 @@ namespace EE::Animation
     public:
 
         // Main instance
-        inline GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID ) : GraphInstance( pGraphVariation, ownerID, nullptr ) {}
+        inline GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID ) : GraphInstance( pGraphVariation, ownerID, nullptr, nullptr ) {}
         ~GraphInstance();
 
         // Info
@@ -82,26 +84,38 @@ namespace EE::Animation
         // Pose
         //-------------------------------------------------------------------------
 
-        // Get the final pose from the task system
-        Pose const* GetPose();
+        // Get the final primary pose from the task system
+        inline Pose const* GetPrimaryPose() { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetPrimaryPose(); }
+
+        // Do we have any secondary poses
+        inline bool HasSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetNumSecondarySkeletons() > 0; }
+
+        // Get the number of secondary poses
+        inline int32_t GetNumSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetNumSecondarySkeletons(); }
+
+        // Get all sampled secondary poses
+        inline TInlineVector<Pose const*, 1> GetSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetSecondaryPoses(); }
 
         // Set the skeleton LOD for the result pose
-        void SetSkeletonLOD( Skeleton::LOD lod );
+        inline void SetSkeletonLOD( Skeleton::LOD lod ) { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->SetSkeletonLOD( lod ); }
 
         // Get the current skeleton LOD we are using
-        Skeleton::LOD GetSkeletonLOD() const;
+        inline Skeleton::LOD GetSkeletonLOD() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetSkeletonLOD(); }
+
+        // Set the list of secondary skeletons we should try to animate
+        inline void SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons ) { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->SetSecondarySkeletons( secondarySkeletons ); }
 
         // Task System
         //-------------------------------------------------------------------------
 
         // Enable task serialization
-        void EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry );
+        inline void EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry ) { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->EnableSerialization( typeRegistry ); }
 
         // Disable task serialization
-        void DisableTaskSystemSerialization();
+        inline void DisableTaskSystemSerialization() { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->DisableSerialization(); }
 
         // Does the task system have any pending pose tasks
-        bool DoesTaskSystemNeedUpdate() const;
+        inline bool DoesTaskSystemNeedUpdate() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->RequiresUpdate(); }
 
         // Serialize the currently registered pose tasks. Note: This can only be done after the task system has executed!
         void SerializeTaskList( Blob& outBlob ) const;
@@ -138,7 +152,7 @@ namespace EE::Animation
         void ExecutePostPhysicsPoseTasks();
 
         // Get the sampled events for the last update
-        SampledEventsBuffer const& GetSampledEvents() const { return m_graphContext.m_sampledEventsBuffer; }
+        SampledEventsBuffer const& GetSampledEvents() const { EE_ASSERT( m_isStandaloneGraph ); return *m_pSampledEventsBuffer; }
 
         // General Node Info
         //-------------------------------------------------------------------------
@@ -149,7 +163,7 @@ namespace EE::Animation
         inline bool IsNodeActive( int16_t nodeIdx ) const
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
-            return m_nodes[nodeIdx]->IsNodeActive( const_cast<GraphContext&>( m_graphContext ) );
+            return m_nodes[nodeIdx]->IsNodeActive( m_graphContext.m_updateID );
         }
 
         inline bool IsValidNodeIndex( int16_t nodeIdx ) const 
@@ -164,13 +178,11 @@ namespace EE::Animation
 
         inline int16_t GetControlParameterIndex( StringID parameterID ) const
         {
-            int32_t const numParams = GetNumControlParameters();
-            for ( int16_t i = 0; i < numParams; i++ )
+            auto const& parameterLookupMap = m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap;
+            auto const foundIter = parameterLookupMap.find( parameterID );
+            if ( foundIter != parameterLookupMap.end() )
             {
-                if ( m_pGraphVariation->m_pGraphDefinition->m_controlParameterIDs[i] == parameterID )
-                {
-                    return i;
-                }
+                return foundIter->second;
             }
 
             return InvalidIndex;
@@ -189,17 +201,59 @@ namespace EE::Animation
         }
 
         template<typename T>
-        inline void SetControlParameterValue( int16_t parameterNodeIdx, T const& value )
-        {
-            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->SetValue<T>( value );
-        }
-
-        template<typename T>
         inline T GetControlParameterValue( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
             return reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
+        }
+
+        template<typename T>
+        void SetControlParameterValue( int16_t parameterNodeIdx, T const& value ) 
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            EE_UNIMPLEMENTED_FUNCTION();
+        }
+
+        template<>
+        void SetControlParameterValue<bool>( int16_t parameterNodeIdx, bool const& value )
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            reinterpret_cast<GraphNodes::ControlParameterBoolNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+        }
+
+        template<>
+        void SetControlParameterValue<StringID>( int16_t parameterNodeIdx, StringID const& value )
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            reinterpret_cast<GraphNodes::ControlParameterIDNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+        }
+
+        template<>
+        void SetControlParameterValue<float>( int16_t parameterNodeIdx, float const& value )
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            reinterpret_cast<GraphNodes::ControlParameterFloatNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+        }
+
+        template<>
+        void SetControlParameterValue<Vector>( int16_t parameterNodeIdx, Vector const& value )
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            reinterpret_cast<GraphNodes::ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+        }
+
+        template<>
+        void SetControlParameterValue<Float4>( int16_t parameterNodeIdx, Float4 const& value )
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            reinterpret_cast<GraphNodes::ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( Vector( value ) );
+        }
+
+        template<>
+        void SetControlParameterValue<Target>( int16_t parameterNodeIdx, Target const& value )
+        {
+            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
+            reinterpret_cast<GraphNodes::ControlParameterTargetNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         // External Graphs
@@ -281,6 +335,9 @@ namespace EE::Animation
         // Get all connected external graphs
         inline TVector<ExternalGraph> const& GetExternalGraphsForDebug() const { return m_externalGraphs; }
 
+        // Get the connected external graph instance
+        GraphInstance const* GetChildOrExternalGraphDebugInstance( int16_t nodeIdx ) const;
+
         // Get the value of a specified value node
         template<typename T>
         inline T GetRuntimeNodeDebugValue( int16_t nodeIdx ) const
@@ -335,7 +392,7 @@ namespace EE::Animation
 
     private:
 
-        explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem );
+        explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer );
 
         EE_FORCE_INLINE bool IsControlParameter( int16_t nodeIdx ) const { return nodeIdx < GetNumControlParameters(); }
         int32_t GetExternalGraphSlotIndex( StringID slotID ) const;
@@ -365,9 +422,11 @@ namespace EE::Animation
         TVector<GraphNode*>                     m_nodes;
         uint8_t*                                m_pAllocatedInstanceMemory = nullptr;
         PoseNode*                               m_pRootNode = nullptr;
-        uint64_t                                m_userID = 0; // An idea identifying the owner of this instance (usually the entity ID)
+        uint64_t                                m_ownerID = 0; // An idea identifying the owner of this instance (usually the entity ID)
+        bool                                    m_isStandaloneGraph = true;
 
         TaskSystem*                             m_pTaskSystem = nullptr;
+        SampledEventsBuffer*                    m_pSampledEventsBuffer = nullptr;
         GraphContext                            m_graphContext;
         TVector<ChildGraph>                     m_childGraphs;
         TVector<ExternalGraph>                  m_externalGraphs;

@@ -53,6 +53,20 @@ namespace EE::Animation
         m_state = rhs.m_state;
     }
 
+    void Pose::SwapWith( Pose& rhs )
+    {
+        Skeleton const* const pTempSkeleton = m_pSkeleton;
+        m_pSkeleton = rhs.m_pSkeleton;
+        rhs.m_pSkeleton = pTempSkeleton;
+
+        State const tempState = m_state;
+        m_state = rhs.m_state;
+        rhs.m_state = tempState;
+
+        m_localTransforms.swap( rhs.m_localTransforms );
+        m_globalTransforms.swap( rhs.m_globalTransforms );
+    }
+
     //-------------------------------------------------------------------------
 
     void Pose::Reset( Type initialState, bool calcGlobalPose )

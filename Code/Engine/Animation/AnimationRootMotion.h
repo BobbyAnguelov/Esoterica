@@ -16,7 +16,7 @@ namespace EE::Animation
 {
     struct EE_ENGINE_API RootMotionData
     {
-        EE_SERIALIZE( m_transforms, m_averageLinearVelocity, m_averageAngularVelocity, m_totalDelta );
+        EE_SERIALIZE( m_transforms, m_numFrames, m_averageLinearVelocity, m_averageAngularVelocity, m_totalDelta );
 
     public:
 
@@ -30,12 +30,12 @@ namespace EE::Animation
 
     public:
 
-        inline bool IsValid() const { return !m_transforms.empty(); }
+        inline bool IsValid() const { return m_numFrames > 0; }
 
         void Clear();
 
         // Get the number of root motion transforms
-        inline int32_t GetNumFrames() const { return (int32_t) m_transforms.size(); }
+        inline int32_t GetNumFrames() const { return m_numFrames; }
 
         // Get the root transform at the given frame time
         Transform GetTransform( FrameTime const& frameTime ) const;
@@ -98,6 +98,7 @@ namespace EE::Animation
     public:
 
         TVector<Transform>                      m_transforms;
+        int32_t                                 m_numFrames = 0;
         float                                   m_averageLinearVelocity = 0.0f; // In m/s
         Radians                                 m_averageAngularVelocity = 0.0f; // In rad/s, only on the X/Y plane
         Transform                               m_totalDelta;
@@ -108,9 +109,9 @@ namespace EE::Animation
     inline Transform RootMotionData::GetTransform( FrameTime const& frameTime ) const
     {
         EE_ASSERT( IsValid() );
-        EE_ASSERT( frameTime.GetFrameIndex() < m_transforms.size() );
+        EE_ASSERT( frameTime.GetFrameIndex() < m_numFrames );
 
-        Transform displacementTransform;
+        Transform displacementTransform( NoInit );
 
         if ( m_transforms.empty() )
         {
@@ -135,23 +136,42 @@ namespace EE::Animation
 
     EE_FORCE_INLINE Transform RootMotionData::GetDeltaNoLooping( Percentage fromTime, Percentage toTime ) const
     {
-        Transform const startTransform = GetTransform( fromTime );
-        Transform const endTransform = GetTransform( toTime );
-        return Transform::DeltaNoScale( startTransform, endTransform );
+        Transform delta( NoInit );
+
+        if ( m_transforms.empty() )
+        {
+            delta = Transform::Identity;
+        }
+        else
+        {
+            Transform const startTransform = GetTransform( fromTime );
+            Transform const endTransform = GetTransform( toTime );
+            delta = Transform::DeltaNoScale( startTransform, endTransform );
+        }
+
+        return delta;
     }
 
     EE_FORCE_INLINE Transform RootMotionData::GetDelta( Percentage fromTime, Percentage toTime ) const
     {
         Transform delta( NoInit );
-        if ( fromTime <= toTime )
+
+        if ( m_transforms.empty() )
         {
-            delta = GetDeltaNoLooping( fromTime, toTime );
+            delta = Transform::Identity;
         }
         else
         {
-            Transform const preLoopDelta = GetDeltaNoLooping( fromTime, 1.0f );
-            Transform const postLoopDelta = GetDeltaNoLooping( 0.0f, toTime );
-            delta = postLoopDelta * preLoopDelta;
+            if ( fromTime <= toTime )
+            {
+                delta = GetDeltaNoLooping( fromTime, toTime );
+            }
+            else
+            {
+                Transform const preLoopDelta = GetDeltaNoLooping( fromTime, 1.0f );
+                Transform const postLoopDelta = GetDeltaNoLooping( 0.0f, toTime );
+                delta = postLoopDelta * preLoopDelta;
+            }
         }
 
         return delta;
@@ -159,16 +179,23 @@ namespace EE::Animation
 
     inline Transform RootMotionData::SampleRootMotion( SamplingMode mode, Transform const& currentWorldTransform, Percentage startTime, Percentage endTime ) const
     {
-        Transform delta;
+        Transform delta( NoInit );
 
-        if ( mode == SamplingMode::WorldSpace )
+        if ( m_transforms.empty() )
         {
-            Transform const desiredFinalTransform = GetTransform( endTime );
-            delta = Transform::Delta( currentWorldTransform, desiredFinalTransform );
+            delta = Transform::Identity;
         }
         else
         {
-            delta = GetDelta( startTime, endTime );
+            if ( mode == SamplingMode::WorldSpace )
+            {
+                Transform const desiredFinalTransform = GetTransform( endTime );
+                delta = Transform::DeltaNoScale( currentWorldTransform, desiredFinalTransform );
+            }
+            else
+            {
+                delta = GetDelta( startTime, endTime );
+            }
         }
 
         return delta;

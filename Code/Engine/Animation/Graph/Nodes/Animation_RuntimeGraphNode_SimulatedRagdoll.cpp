@@ -176,7 +176,7 @@ namespace EE::Animation::GraphNodes
         else
         {
             result.m_sampledEventRange = context.GetEmptySampledEventRange();
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
+            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
         }
 
         //-------------------------------------------------------------------------
@@ -200,7 +200,8 @@ namespace EE::Animation::GraphNodes
         {
             for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
             {
-                if ( context.m_sampledEventsBuffer[i].IsAnimationEvent() && context.m_sampledEventsBuffer[i].IsEventOfType<RagdollEvent>() )
+                SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent(i);
+                if ( sampledEvent.IsAnimationEvent() && sampledEvent.IsEventOfType<RagdollEvent>() )
                 {
                     m_stage = Stage::BlendToRagdoll;
                     break;
@@ -218,7 +219,7 @@ namespace EE::Animation::GraphNodes
             // Try get ragdoll event and the blend weight from it
             for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
             {
-                auto const& sampledEvent = context.m_sampledEventsBuffer[i];
+                SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( sampledEvent.IsAnimationEvent() && sampledEvent.IsEventOfType<RagdollEvent>() )
                 {
                     auto pRagDollEvent = sampledEvent.GetEvent<RagdollEvent>();

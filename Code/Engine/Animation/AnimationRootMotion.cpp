@@ -8,6 +8,7 @@ namespace EE::Animation
     void RootMotionData::Clear()
     {
         m_transforms.clear();
+        m_numFrames = 0;
         m_averageLinearVelocity = 0.0f;
         m_averageAngularVelocity = 0.0f;
         m_totalDelta = Transform::Identity;
@@ -15,24 +16,31 @@ namespace EE::Animation
 
     Vector RootMotionData::GetIncomingMovementDirection2DAtFrame( int32_t frameIdx ) const
     {
-        EE_ASSERT( frameIdx >= 0 && frameIdx < m_transforms.size() );
+        EE_ASSERT( frameIdx >= 0 && frameIdx < m_numFrames );
 
         Vector result;
 
-        if ( frameIdx == 0 )
+        if ( m_transforms.empty() )
         {
-            result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+            result = Vector::WorldForward;
         }
         else
         {
-            Vector const movementDelta = m_transforms[frameIdx].GetTranslation() - m_transforms[frameIdx - 1].GetTranslation();
-            if ( movementDelta.IsNearZero2() )
+            if ( frameIdx == 0 )
             {
                 result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
             }
             else
             {
-                result = movementDelta.GetNormalized2();
+                Vector const movementDelta = m_transforms[frameIdx].GetTranslation() - m_transforms[frameIdx - 1].GetTranslation();
+                if ( movementDelta.IsNearZero2() )
+                {
+                    result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+                }
+                else
+                {
+                    result = movementDelta.GetNormalized2();
+                }
             }
         }
 
@@ -41,24 +49,31 @@ namespace EE::Animation
 
     Quaternion RootMotionData::GetIncomingMovementOrientation2DAtFrame( int32_t frameIdx ) const
     {
-        EE_ASSERT( frameIdx >= 0 && frameIdx < m_transforms.size() );
+        EE_ASSERT( frameIdx >= 0 && frameIdx < m_numFrames );
 
         Quaternion result;
 
-        if ( frameIdx == 0 )
+        if ( m_transforms.empty() )
         {
-            result = m_transforms[frameIdx].GetRotation();
+            result == Quaternion::Identity;
         }
         else
         {
-            Vector const movementDelta = m_transforms[frameIdx].GetTranslation() - m_transforms[frameIdx - 1].GetTranslation();
-            if ( movementDelta.IsNearZero2() )
+            if ( frameIdx == 0 )
             {
                 result = m_transforms[frameIdx].GetRotation();
             }
             else
             {
-                result = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, movementDelta.GetNormalized2() );
+                Vector const movementDelta = m_transforms[frameIdx].GetTranslation() - m_transforms[frameIdx - 1].GetTranslation();
+                if ( movementDelta.IsNearZero2() )
+                {
+                    result = m_transforms[frameIdx].GetRotation();
+                }
+                else
+                {
+                    result = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, movementDelta.GetNormalized2() );
+                }
             }
         }
 
@@ -67,25 +82,31 @@ namespace EE::Animation
 
     Vector RootMotionData::GetOutgoingMovementDirection2DAtFrame( int32_t frameIdx ) const
     {
-        int32_t const numFrames = (int32_t) m_transforms.size();
-        EE_ASSERT( frameIdx >= 0 && frameIdx < numFrames );
+        EE_ASSERT( frameIdx >= 0 && frameIdx < m_numFrames );
 
         Vector result;
 
-        if ( frameIdx == ( numFrames - 1 ) )
+        if ( m_transforms.empty() )
         {
-            result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+            result = Vector::WorldForward;
         }
         else
         {
-            Vector const movementDelta = m_transforms[frameIdx + 1].GetTranslation() - m_transforms[frameIdx].GetTranslation();
-            if ( movementDelta.IsNearZero2() )
+            if ( frameIdx == ( m_numFrames - 1 ) )
             {
                 result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
             }
             else
             {
-                result = movementDelta.GetNormalized2();
+                Vector const movementDelta = m_transforms[frameIdx + 1].GetTranslation() - m_transforms[frameIdx].GetTranslation();
+                if ( movementDelta.IsNearZero2() )
+                {
+                    result = m_transforms[frameIdx].GetRotation().RotateVector( Vector::WorldForward );
+                }
+                else
+                {
+                    result = movementDelta.GetNormalized2();
+                }
             }
         }
 
@@ -94,25 +115,31 @@ namespace EE::Animation
 
     Quaternion RootMotionData::GetOutgoingMovementOrientation2DAtFrame( int32_t frameIdx ) const
     {
-        int32_t const numFrames = (int32_t) m_transforms.size();
-        EE_ASSERT( frameIdx >= 0 && frameIdx < numFrames );
+        EE_ASSERT( frameIdx >= 0 && frameIdx < m_numFrames );
 
         Quaternion result;
 
-        if ( frameIdx == ( numFrames - 1 ) )
+        if ( m_transforms.empty() )
         {
-            result = m_transforms[frameIdx].GetRotation();
+            result = Quaternion::Identity;
         }
         else
         {
-            Vector const movementDelta = m_transforms[frameIdx + 1].GetTranslation() - m_transforms[frameIdx].GetTranslation();
-            if ( movementDelta.IsNearZero2() )
+            if ( frameIdx == ( m_numFrames - 1 ) )
             {
                 result = m_transforms[frameIdx].GetRotation();
             }
             else
             {
-                result = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, movementDelta.GetNormalized2() );
+                Vector const movementDelta = m_transforms[frameIdx + 1].GetTranslation() - m_transforms[frameIdx].GetTranslation();
+                if ( movementDelta.IsNearZero2() )
+                {
+                    result = m_transforms[frameIdx].GetRotation();
+                }
+                else
+                {
+                    result = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, movementDelta.GetNormalized2() );
+                }
             }
         }
 

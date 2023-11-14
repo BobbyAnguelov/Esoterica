@@ -262,6 +262,6 @@ namespace EE::Animation
     private:
 
         TInlineVector<Event, 10>        m_syncEvents;                   // The number and position of the sync periods
-        int32_t                           m_startEventOffset = 0;       // The offset for which event signifies the track of the track
+        int32_t                         m_startEventOffset = 0;         // The offset for which event signifies the track of the track
     };
 }

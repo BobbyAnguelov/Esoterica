@@ -4,6 +4,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityLog.h"
 #include "Base/Types/StringID.h"
+#include "../Events/AnimationEvent_Transition.h"
 
 
 //-------------------------------------------------------------------------
@@ -23,7 +24,6 @@ namespace EE::Animation
         class EE_ENGINE_API GraphControllerBase
         {
             friend class EE::Animation::GraphController;
-
         public:
 
             template<typename ParameterType>
@@ -81,12 +81,6 @@ namespace EE::Animation
                     {
                         m_pBoundGraphInstance->SetControlParameterValue<ParameterType>( m_index, value );
                     }
-                    else
-                    {
-                        #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", m_controllerName.c_str(), "Trying to use unbound control parameter: %s", m_ID.c_str() );
-                        #endif
-                    }
                 }
 
             private:
@@ -129,7 +123,7 @@ namespace EE::Animation
 
             EE_FORCE_INLINE Pose const* GetCurrentPose() const
             {
-                return m_pGraphInstance->GetPose();
+                return m_pGraphInstance->GetPrimaryPose();
             }
 
             // Graph Info
@@ -146,29 +140,10 @@ namespace EE::Animation
 
         private:
 
-            GraphInstance*                      m_pGraphInstance = nullptr;
-            Render::SkeletalMeshComponent*      m_pAnimatedMeshComponent = nullptr;
+            GraphInstance*                                  m_pGraphInstance = nullptr;
+            Render::SkeletalMeshComponent*                  m_pAnimatedMeshComponent = nullptr;
         };
     }
-
-    //-------------------------------------------------------------------------
-    // Sub Graph Controller
-    //-------------------------------------------------------------------------
-
-    class EE_ENGINE_API SubGraphController : public Internal::GraphControllerBase
-    {
-        friend class GraphController;
-
-    public:
-
-        template<typename T> using ControlParameter = Internal::GraphControllerBase::ControlParameter<T>;
-        using GraphControllerBase::GraphControllerBase;
-
-    protected:
-
-        // Get the ID for this controller
-        virtual uint32_t GetSubGraphControllerID() const = 0;
-    };
 
     //-------------------------------------------------------------------------
     // External Graph Controller
@@ -204,34 +179,6 @@ namespace EE::Animation
 
         GraphController( GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
         virtual ~GraphController();
-
-        // Sub-graph Controllers
-        //-------------------------------------------------------------------------
-
-        inline bool HasSubGraphControllers() const { return !m_subGraphControllers.empty(); }
-
-        // Create subgraph controller
-        template<typename T>
-        void CreateSubGraphController()
-        {
-            m_subGraphControllers.emplace_back( EE::New<T>( m_pGraphInstance, m_pAnimatedMeshComponent ) );
-        }
-
-        // Get a specific graph controller
-        template<typename T>
-        inline T* GetSubGraphController() const
-        {
-            static_assert( std::is_base_of<EE::Animation::SubGraphController, T>::value, "T is not derived from SubGraphController" );
-
-            for ( auto pController : m_subGraphControllers )
-            {
-                if ( pController->GetSubGraphControllerID() == T::s_subGraphControllerID )
-                {
-                    return reinterpret_cast<T*>( pController );
-                }
-            }
-            return nullptr;
-        }
 
         // External Graph Controllers
         //-------------------------------------------------------------------------
@@ -296,15 +243,8 @@ namespace EE::Animation
 
     private:
 
-        GraphComponent*                        m_pGraphComponent = nullptr;
-        TInlineVector<SubGraphController*, 6>           m_subGraphControllers;
+        GraphComponent*                                 m_pGraphComponent = nullptr;
         TInlineVector<ExternalGraphController*, 6>      m_externalGraphControllers;
+        TInlineVector<SampledTransitionMarker, 10>      m_sampledtransitionMarkers;
     };
 }
-
-//-------------------------------------------------------------------------
-
-#define EE_ANIMATION_SUBGRAPH_CONTROLLER_ID( TypeName ) \
-constexpr static uint32_t const s_subGraphControllerID = Hash::FNV1a::GetHash32( #TypeName ); \
-virtual uint32_t GetSubGraphControllerID() const override final { return TypeName::s_subGraphControllerID; }\
-EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( char const* GetName() const override final { return #TypeName; } )

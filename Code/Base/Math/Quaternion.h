@@ -79,6 +79,9 @@ namespace EE
         EE_FORCE_INLINE operator __m128&() { return m_data; }
         EE_FORCE_INLINE operator __m128 const&() const { return m_data; }
 
+        EE_FORCE_INLINE Float4 ToFloat4() const { Float4 v; _mm_storeu_ps( &v.m_x, m_data ); return v; }
+        EE_FORCE_INLINE Vector ToVector() const { return Vector( m_data ); }
+
         inline Vector Length() { return ToVector().Length4(); }
 
         inline float GetLength() const { return ToVector().GetLength4(); }
@@ -86,8 +89,6 @@ namespace EE
         // Get the angle this rotation represents around the specified axis
         inline Radians GetAngle() const { return Radians( 2.0f * Math::ACos( GetW() ) ); }
 
-        inline Float4 ToFloat4() const { Float4 v; _mm_storeu_ps( &v.m_x, m_data ); return v; }
-        inline Vector ToVector() const { return Vector( m_data ); }
         inline AxisAngle ToAxisAngle() const;
         EulerAngles ToEulerAngles() const;
 
@@ -127,8 +128,17 @@ namespace EE
         inline Quaternion operator*( Quaternion const& rhs ) const;
         inline Quaternion& operator*=( Quaternion const& rhs ) { *this = *this * rhs; return *this; }
 
+        // Is the distance between this quaternion and another one under the threshold?
+        inline bool IsNearEqual( Quaternion const& rhs, Radians const threshold = Math::DegreesToRadians ) const
+        {
+            return Quaternion::Distance( *this, rhs ) <= threshold;
+        }
+
+        // Exact equality
         inline bool operator==( Quaternion const& rhs ) const { return ToVector() == rhs.ToVector(); }
-        inline bool operator!=( Quaternion const& rhs ) const { return ToVector() != rhs.ToVector(); }
+
+        // Exact equality
+        inline bool operator!=( Quaternion const& rhs ) const { return !operator==( rhs ); }
 
     private:
 

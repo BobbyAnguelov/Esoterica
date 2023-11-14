@@ -89,10 +89,10 @@ namespace EE::Animation
             return m_pGraphDefinition.IsLoaded() && m_dataSet.IsValid();
         }
 
-        inline Skeleton const* GetSkeleton() const 
+        inline Skeleton const* GetPrimarySkeleton() const 
         {
             EE_ASSERT( IsValid() );
-            return m_dataSet.GetSkeleton();
+            return m_dataSet.GetPrimarySkeleton();
         }
 
         inline GraphDefinition const* GetDefinition() const 

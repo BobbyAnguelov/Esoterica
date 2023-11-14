@@ -61,8 +61,8 @@ namespace EE::Resource
     private:
 
         bool BuildCompileDependencyTree( ResourceID const& resourceID );
-        bool TryReadCompileDependencies( FileSystem::Path const& resourceFilePath, TVector<ResourceID>& outDependencies ) const;
-        bool FillCompileDependencyNode( CompileDependencyNode* pNode, ResourceID const& resourceID );
+        bool TryReadCompileDependencies( ResourceID const& resourceID, TVector<ResourcePath>& outDependencies ) const;
+        bool FillCompileDependencyNode( CompileDependencyNode* pNode, ResourcePath const& resourceID );
 
     private:
 

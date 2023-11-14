@@ -23,7 +23,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() float                   m_blendInTime = 0.2f; // How long should we take to initially blend in this speed modification
+        EE_REFLECT();
+        float                   m_blendInTime = 0.2f; // How long should we take to initially blend in this speed modification
     };
 
     //-------------------------------------------------------------------------
@@ -41,6 +42,12 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Animation/Speed Scale"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+
+    private:
+
+        EE_REFLECT();
+        float                   m_desiredDuration = 1.0f; // The desired duration for the input
     };
 
     //-------------------------------------------------------------------------
@@ -61,6 +68,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT() float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
+        EE_REFLECT();
+        float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
     };
 }

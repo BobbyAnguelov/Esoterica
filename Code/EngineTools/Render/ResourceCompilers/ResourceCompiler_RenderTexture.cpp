@@ -1,9 +1,14 @@
 #include "ResourceCompiler_RenderTexture.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderTexture.h"
-#include "EngineTools/Render/TextureTools/TextureTools.h"
+#include "EngineTools/Import/Importer.h"
+#include "EngineTools/Import/ImportedImage.h"
 #include "Base/Render/RenderTexture.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Serialization/BinarySerialization.h"
+
+#include <DirectXTex.h>
+#include <ispc_texcomp.h>
+#include <dxgiformat.h>
 
 //-------------------------------------------------------------------------
 
@@ -48,13 +53,137 @@ namespace EE::Render
             return Error( "Invalid texture data path: %s", resourceDescriptor.m_path.c_str() );
         }
 
+        // Try to load the texture file
+        //-------------------------------------------------------------------------
+
+        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        TUniquePtr<Import::ImportedImage> importedImage = Import::ReadImage( readerCtx, textureFilePath );
+
+        rgba_surface surface;
+        surface.ptr = const_cast<uint8_t*>( importedImage->GetImageData() );
+        surface.width = importedImage->GetWidth();
+        surface.height = importedImage->GetHeight();
+        surface.stride = importedImage->GetStride();
+
+        // Run texture compression
+        //-------------------------------------------------------------------------
+
+        auto GetBytesPerBlock = [] ( DXGI_FORMAT format )
+        {
+            switch ( format )
+            {
+                case DXGI_FORMAT_BC1_UNORM_SRGB:
+                case DXGI_FORMAT_BC4_UNORM:
+                return 8;
+
+                case DXGI_FORMAT_BC3_UNORM_SRGB:
+                case DXGI_FORMAT_BC5_UNORM:
+                case DXGI_FORMAT_BC7_UNORM:
+                case DXGI_FORMAT_BC7_UNORM_SRGB:
+                case DXGI_FORMAT_BC6H_UF16:
+                return 16;
+
+                case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+                return 0;
+
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+            }
+        };
+
+        auto IntegerDivideCeiling = [] ( int n, int d ) 
+        {
+            return ( n + d - 1 ) / d;
+        };
+
+        int32_t const blockSize = 4;
+
+        TVector<uint8_t> compressedData;
+
+        int32_t const numCols = IntegerDivideCeiling( surface.width, blockSize );
+        int32_t const numRows = IntegerDivideCeiling( surface.height, blockSize );
+        int32_t const numBlocks = numCols * numRows;
+        int32_t bytesPerBlock = 0;
+
+        DXGI_FORMAT compressedFormat;
+        switch ( resourceDescriptor.m_type )
+        {
+            case TextureType::AmbientOcclusion:
+            {
+                compressedFormat = DXGI_FORMAT_BC4_UNORM;
+                bytesPerBlock = GetBytesPerBlock( compressedFormat );
+                compressedData.resize( numBlocks * bytesPerBlock );
+
+                CompressBlocksBC4( &surface, compressedData.data() );
+            }
+            break;
+
+            case TextureType::TangentSpaceNormals:
+            {
+                compressedFormat = DXGI_FORMAT_BC5_UNORM;
+                bytesPerBlock = GetBytesPerBlock( compressedFormat );
+                compressedData.resize( numBlocks * bytesPerBlock );
+
+                CompressBlocksBC5( &surface, compressedData.data() );
+            }
+            break;
+
+            case TextureType::Uncompressed:
+            {
+                compressedFormat = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+                size_t const requiredSize = 4 * surface.width * surface.height;
+                compressedData.resize( 4 * surface.width * surface.height );
+                memcpy( compressedData.data(), surface.ptr, requiredSize );
+                
+            }
+            break;
+
+            default:
+            {
+                compressedFormat = DXGI_FORMAT_BC7_UNORM;
+                bytesPerBlock = GetBytesPerBlock( compressedFormat );
+                compressedData.resize( numBlocks * bytesPerBlock );
+
+                bc7_enc_settings encoderSettings;
+                GetProfile_alpha_veryfast( &encoderSettings );
+                CompressBlocksBC7( &surface, compressedData.data(), &encoderSettings );
+            }
+            break;
+        }
+
+        // Create DDS container and store it in the texture
+        //-------------------------------------------------------------------------
+
+        DirectX::TexMetadata texMetaData;
+        texMetaData.width = surface.width;
+        texMetaData.height = surface.height;
+        texMetaData.format = compressedFormat;
+        texMetaData.arraySize = 1;
+        texMetaData.miscFlags = 0;
+        texMetaData.miscFlags2 = 0;
+        texMetaData.depth = 1;
+        texMetaData.mipLevels = 1;
+        texMetaData.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
+
+        DirectX::Image image;
+        image.width = surface.width;
+        image.height = surface.height;
+        image.format = compressedFormat;
+        image.pixels = compressedData.data();
+        DirectX::ComputePitch( compressedFormat, surface.width, surface.height, image.rowPitch, image.slicePitch );
+
+        DirectX::Blob ddsData;
+        if ( FAILED( DirectX::SaveToDDSMemory( &image, 1, texMetaData, DirectX::DDS_FLAGS_NONE, ddsData ) ) )
+        {
+            return Error( "Failed to create DDS container: %s", "ERROR" );
+        }
+
         Texture texture;
         texture.m_format = TextureFormat::DDS;
-
-        if ( !ConvertTexture( textureFilePath, resourceDescriptor.m_type, texture.m_rawData ) )
-        {
-            return Error( "Failed to convert texture!" );
-        }
+        texture.m_rawData.resize( ddsData.GetBufferSize() );
+        memcpy( texture.m_rawData.data(), ddsData.GetBufferPointer(), ddsData.GetBufferSize() );
 
         //-------------------------------------------------------------------------
 

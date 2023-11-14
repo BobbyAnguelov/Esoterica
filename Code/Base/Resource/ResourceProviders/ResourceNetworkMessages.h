@@ -30,7 +30,7 @@ namespace EE
         {
             struct Result
             {
-                EE_SERIALIZE( m_resourceID, m_filePath );
+                EE_SERIALIZE( m_resourceID, m_filePath, m_log );
 
                 Result() = default;
 
@@ -39,8 +39,15 @@ namespace EE
                     , m_filePath( path )
                 {}
 
+                Result( ResourceID const& ID, String const& path, String const& log )
+                    : m_resourceID( ID )
+                    , m_filePath( path )
+                    , m_log( log )
+                {}
+
                 ResourceID              m_resourceID;
                 String                  m_filePath;
+                String                  m_log;
             };
 
         public:

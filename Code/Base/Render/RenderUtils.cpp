@@ -17,7 +17,7 @@ namespace EE::Render::Utils
         //-------------------------------------------------------------------------
 
         int32_t width, height, channels;
-        uint8_t* pImage = stbi_load( path.c_str(), &width, &height, &channels, 4 );
+        uint8_t* pImage = stbi_load( path.c_str(), &width, &height, &channels, STBI_rgb_alpha );
         if ( pImage == nullptr )
         {
             return false;

@@ -82,10 +82,7 @@ namespace EE::Resource
                 }
 
                 // Add unique users to the list
-                if ( !VectorContains( userIDs, requesterID ) )
-                {
-                    userIDs.emplace_back( requesterID );
-                }
+                VectorEmplaceBackUnique( userIDs, requesterID );
             }
         }
     }
@@ -437,7 +434,7 @@ namespace EE::Resource
         GetUsersForResource( pRecord, m_usersThatRequireReload );
 
         // Add to list of resources to be reloaded
-        m_externallyUpdatedResources.emplace_back( resourceID );
+        VectorEmplaceBackUnique( m_externallyUpdatedResources, resourceID );
     }
 
     void ResourceSystem::ClearHotReloadRequests()

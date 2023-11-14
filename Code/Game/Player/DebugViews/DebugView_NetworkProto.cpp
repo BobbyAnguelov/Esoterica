@@ -100,9 +100,9 @@ namespace EE::Player
 
                 m_pActualInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 1 );
                 m_pReplicatedInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 2 );
-                m_pGeneratedPose = EE::New<Animation::Pose>( m_pPlayerGraphComponent->GetSkeleton() );
+                m_pGeneratedPose = EE::New<Animation::Pose>( m_pPlayerGraphComponent->GetPrimarySkeleton() );
 
-                m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetSkeleton() );
+                m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetPrimarySkeleton() );
                 m_pTaskSystem->EnableSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
 
                 ProcessRecording();
@@ -133,8 +133,8 @@ namespace EE::Player
         //-------------------------------------------------------------------------
 
         {
-            ImGui::SameLine();
             ImGuiX::ScopedFont sf( Colors::LimeGreen );
+            ImGui::AlignTextToFramePadding();
             ImGui::BulletText( "Server Pose" );
         }
 
@@ -170,6 +170,7 @@ namespace EE::Player
             ImGuiX::TextSeparator( "Recorded Data" );
 
             // Timeline
+            ImGui::BeginDisabled( m_isRecording );
             ImGui::AlignTextToFramePadding();
             ImGui::Text( "Recorded Frame: " );
             ImGui::SameLine();
@@ -205,80 +206,100 @@ namespace EE::Player
                 ProcessRecording( m_updateFrameIdx, true );
             }
             ImGui::EndDisabled();
-
-            // Serialized Parameter Plots
-            //-------------------------------------------------------------------------
-
-            if ( !m_isRecording )
-            {
-                ImGuiX::TextSeparator( "Parameter Data" );
-
-                if ( ImPlot::BeginPlot( "Recorded Parameter Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
-                {
-                    ImPlot::SetupAxes( "Time", "Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
-                    ImPlot::PlotBars( "Vertical", m_serializedParameterSizes.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
-                    double x = (double) m_updateFrameIdx;
-                    if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
-                    {
-                        UpdateFrameIndex( (int32_t) x );
-                    }
-                    ImPlot::EndPlot();
-                }
-
-                if ( ImPlot::BeginPlot( "Recorded Parameter Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
-                {
-                    ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
-                    ImPlot::PlotBars( "Vertical", m_serializedParameterDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
-                    double x = (double) m_updateFrameIdx;
-                    if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
-                    {
-                        UpdateFrameIndex( (int32_t) x );
-                    }
-                    ImPlot::EndPlot();
-                }
-            }
+            ImGui::EndDisabled();
 
             // Serialized Task Plots
             //-------------------------------------------------------------------------
 
             if ( !m_isRecording )
             {
-                ImGuiX::TextSeparator( "Task Data" );
-
-                if ( ImPlot::BeginPlot( "Recorded Task Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+                if ( ImGui::CollapsingHeader( "Task Data" ) )
                 {
-                    ImPlot::SetupAxes( "Time", "Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
-                    ImPlot::PlotBars( "Vertical", m_serializedTaskSizes.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
-                    double x = (double) m_updateFrameIdx;
-                    if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                    if ( ImPlot::BeginPlot( "Recorded Task Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
                     {
-                        UpdateFrameIndex( (int32_t) x );
+                        ImPlot::SetupAxes( "Time", "Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                        ImPlot::PlotBars( "Vertical", m_serializedTaskSizes.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            UpdateFrameIndex( (int32_t) x );
+                        }
+                        ImPlot::EndPlot();
                     }
-                    ImPlot::EndPlot();
+
+                    if ( ImPlot::BeginPlot( "Recorded Task Size Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                    {
+                        ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                        ImPlot::PlotBars( "Vertical", m_serializedTaskSizeDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            UpdateFrameIndex( (int32_t) x );
+                        }
+                        ImPlot::EndPlot();
+                    }
+
+                    if ( ImPlot::BeginPlot( "Recorded Task Shared Byte Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                    {
+                        ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                        ImPlot::PlotBars( "Vertical", m_serializedTaskSharedByteDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            UpdateFrameIndex( (int32_t) x );
+                        }
+                        ImPlot::EndPlot();
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( m_updateFrameIdx != InvalidIndex )
+                    {
+                        auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
+
+                        ImGui::Text( "Serialized Task Size: %d bytes", frameData.m_serializedTaskData.size() );
+
+                        ImGui::Text( "Size Delta from previous frame : % d bytes", (int32_t) m_serializedTaskSizeDeltas[m_updateFrameIdx] );
+
+                        ImGui::Text( "Shared byte Delta from previous frame : % d bytes", (int32_t) m_serializedTaskSharedByteDeltas[m_updateFrameIdx] );
+                    }
                 }
+            }
 
-                if ( ImPlot::BeginPlot( "Recorded Task Size Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
-                {
-                    ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
-                    ImPlot::PlotBars( "Vertical", m_serializedTaskSizeDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
-                    double x = (double) m_updateFrameIdx;
-                    if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
-                    {
-                        UpdateFrameIndex( (int32_t) x );
-                    }
-                    ImPlot::EndPlot();
-                }
+            // Serialized Parameter Plots
+            //-------------------------------------------------------------------------
 
-                if ( ImPlot::BeginPlot( "Recorded Task Shared Byte Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+            if ( !m_isRecording )
+            {
+                ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+                if ( ImGui::CollapsingHeader( "Parameter Data" ) )
                 {
-                    ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
-                    ImPlot::PlotBars( "Vertical", m_serializedTaskSharedByteDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
-                    double x = (double) m_updateFrameIdx;
-                    if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                    ImGuiX::TextSeparator( "Parameter Data" );
+
+                    if ( ImPlot::BeginPlot( "Recorded Parameter Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
                     {
-                        UpdateFrameIndex( (int32_t) x );
+                        ImPlot::SetupAxes( "Time", "Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                        ImPlot::PlotBars( "Vertical", m_serializedParameterSizes.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            UpdateFrameIndex( (int32_t) x );
+                        }
+                        ImPlot::EndPlot();
                     }
-                    ImPlot::EndPlot();
+
+                    if ( ImPlot::BeginPlot( "Recorded Parameter Delta", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
+                    {
+                        ImPlot::SetupAxes( "Time", EE_ICON_DELTA" Bytes", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoLabel, ImPlotAxisFlags_AutoFit );
+                        ImPlot::PlotBars( "Vertical", m_serializedParameterDeltas.data(), m_graphRecorder.GetNumRecordedFrames(), 1.0f );
+                        double x = (double) m_updateFrameIdx;
+                        if ( ImPlot::DragLineX( 0, &x, ImVec4( 1, 0, 0, 1 ), 2, 0 ) )
+                        {
+                            UpdateFrameIndex( (int32_t) x );
+                        }
+                        ImPlot::EndPlot();
+                    }
                 }
             }
 
@@ -287,120 +308,113 @@ namespace EE::Player
 
             if ( m_updateFrameIdx != InvalidIndex )
             {
-                auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
-
-                InlineString str( InlineString::CtorSprintf(), "Frame Data: %d", m_updateFrameIdx );
-                ImGuiX::TextSeparator( str.c_str() );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::Text( "Sync Range: ( %d, %.2f%% ) -> (%d, %.2f%%)", frameData.m_updateRange.m_startTime.m_eventIdx, frameData.m_updateRange.m_startTime.m_percentageThrough.ToFloat() * 100, frameData.m_updateRange.m_endTime.m_eventIdx, frameData.m_updateRange.m_endTime.m_percentageThrough.ToFloat() * 100 );
-
-                ImGui::Text( "Serialized Task Size: %d bytes", frameData.m_serializedTaskData.size() );
-
-                ImGui::Text( "Size Delta from previous frame : % d bytes",  (int32_t) m_serializedTaskSizeDeltas[m_updateFrameIdx] );
-
-                ImGui::Text( "Shared byte Delta from previous frame : % d bytes", (int32_t) m_serializedTaskSharedByteDeltas[m_updateFrameIdx] );
-
-                ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
-                bool const drawMainTable = ImGui::BeginTable( "RecData", 2, ImGuiTableFlags_Borders );
-                ImGui::PopStyleVar();
-
-                if ( drawMainTable )
+                InlineString str( InlineString::CtorSprintf(), "Frame Data: %d###FrameData", m_updateFrameIdx );
+                if ( ImGui::CollapsingHeader( str.c_str() ) )
                 {
-                   
-                    ImGui::TableSetupColumn( "Parameters", ImGuiTableColumnFlags_WidthStretch, 0.5f );
-                    ImGui::TableSetupColumn( "Tasks", ImGuiTableColumnFlags_WidthStretch, 0.5f );
-                    ImGui::TableHeadersRow();
+                    auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
 
-                    // Draw Control Parameters
-                    //-------------------------------------------------------------------------
+                    ImGui::Text( "Sync Range: ( %d, %.2f%% ) -> (%d, %.2f%%)", frameData.m_updateRange.m_startTime.m_eventIdx, frameData.m_updateRange.m_startTime.m_percentageThrough.ToFloat() * 100, frameData.m_updateRange.m_endTime.m_eventIdx, frameData.m_updateRange.m_endTime.m_percentageThrough.ToFloat() * 100 );
 
-                    ImGui::TableNextRow();
-                    ImGui::TableNextColumn();
+                    ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
+                    bool const drawMainTable = ImGui::BeginTable( "RecData", 2, ImGuiTableFlags_Borders );
+                    ImGui::PopStyleVar();
 
-                    if ( ImGui::BeginTable( "Params", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable ) )
+                    if ( drawMainTable )
                     {
-                        ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 300.0f );
-                        ImGui::TableSetupColumn( "Value", ImGuiTableColumnFlags_WidthStretch );
 
-                        int32_t const numParameters = m_pActualInstance->GetNumControlParameters();
-                        for ( int32_t i = 0; i < numParameters; i++ )
+                        ImGui::TableSetupColumn( "Parameters", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+                        ImGui::TableSetupColumn( "Tasks", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+                        ImGui::TableHeadersRow();
+
+                        // Draw Control Parameters
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+
+                        if ( ImGui::BeginTable( "Params", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable ) )
                         {
-                            ImGui::TableNextRow();
+                            ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthFixed, 300.0f );
+                            ImGui::TableSetupColumn( "Value", ImGuiTableColumnFlags_WidthStretch );
 
-                            ImGui::TableNextColumn();
-                            ImGui::Text( m_pActualInstance->GetControlParameterID( (int16_t) i ).c_str() );
-
-                            ImGui::TableNextColumn();
-                            switch ( m_pActualInstance->GetControlParameterType( (int16_t) i ) )
+                            int32_t const numParameters = m_pActualInstance->GetNumControlParameters();
+                            for ( int32_t i = 0; i < numParameters; i++ )
                             {
-                                case Animation::GraphValueType::Bool:
-                                {
-                                    ImGui::Text( frameData.m_parameterData[i].m_bool ? "True" : "False" );
-                                }
-                                break;
+                                ImGui::TableNextRow();
 
-                                case Animation::GraphValueType::ID:
-                                {
-                                    if ( frameData.m_parameterData[i].m_ID.IsValid() )
-                                    {
-                                        ImGui::Text( frameData.m_parameterData[i].m_ID.c_str() );
-                                    }
-                                    else
-                                    {
-                                        ImGui::Text( "" );
-                                    }
-                                }
-                                break;
+                                ImGui::TableNextColumn();
+                                ImGui::Text( m_pActualInstance->GetControlParameterID( (int16_t) i ).c_str() );
 
-                                case Animation::GraphValueType::Float:
+                                ImGui::TableNextColumn();
+                                switch ( m_pActualInstance->GetControlParameterType( (int16_t) i ) )
                                 {
-                                    ImGui::Text( "%f", frameData.m_parameterData[i].m_float );
-                                }
-                                break;
-
-                                case Animation::GraphValueType::Vector:
-                                {
-                                    ImGui::Text( Math::ToString( frameData.m_parameterData[i].m_vector ).c_str() );
-                                }
-                                break;
-
-                                case Animation::GraphValueType::Target:
-                                {
-                                    InlineString stringValue;
-                                    Animation::Target const value = frameData.m_parameterData[i].m_target;
-                                    if ( !value.IsTargetSet() )
+                                    case Animation::GraphValueType::Bool:
                                     {
-                                        stringValue = "Unset";
+                                        ImGui::Text( frameData.m_parameterData[i].m_bool ? "True" : "False" );
                                     }
-                                    else if ( value.IsBoneTarget() )
-                                    {
-                                        stringValue.sprintf( "Bone: %s", value.GetBoneID().c_str() );
-                                    }
-                                    else
-                                    {
-                                        stringValue = "TODO";
-                                    }
-                                    ImGui::Text( stringValue.c_str() );
-                                }
-                                break;
+                                    break;
 
-                                default:
-                                break;
+                                    case Animation::GraphValueType::ID:
+                                    {
+                                        if ( frameData.m_parameterData[i].m_ID.IsValid() )
+                                        {
+                                            ImGui::Text( frameData.m_parameterData[i].m_ID.c_str() );
+                                        }
+                                        else
+                                        {
+                                            ImGui::Text( "" );
+                                        }
+                                    }
+                                    break;
+
+                                    case Animation::GraphValueType::Float:
+                                    {
+                                        ImGui::Text( "%f", frameData.m_parameterData[i].m_float );
+                                    }
+                                    break;
+
+                                    case Animation::GraphValueType::Vector:
+                                    {
+                                        ImGui::Text( Math::ToString( frameData.m_parameterData[i].m_vector ).c_str() );
+                                    }
+                                    break;
+
+                                    case Animation::GraphValueType::Target:
+                                    {
+                                        InlineString stringValue;
+                                        Animation::Target const value = frameData.m_parameterData[i].m_target;
+                                        if ( !value.IsTargetSet() )
+                                        {
+                                            stringValue = "Unset";
+                                        }
+                                        else if ( value.IsBoneTarget() )
+                                        {
+                                            stringValue.sprintf( "Bone: %s", value.GetBoneID().c_str() );
+                                        }
+                                        else
+                                        {
+                                            stringValue = "TODO";
+                                        }
+                                        ImGui::Text( stringValue.c_str() );
+                                    }
+                                    break;
+
+                                    default:
+                                    break;
+                                }
                             }
+
+                            ImGui::EndTable();
                         }
+
+                        // Draw task list
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextColumn();
+                        Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pTaskSystem );
 
                         ImGui::EndTable();
                     }
-
-                    // Draw task list
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextColumn();
-                    Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pTaskSystem );
-
-                    ImGui::EndTable();
                 }
             }
         }
@@ -655,8 +669,8 @@ namespace EE::Player
             m_pActualInstance->ExecutePrePhysicsPoseTasks( nextRecordedFrameData.m_characterWorldTransform );
             m_pActualInstance->ExecutePostPhysicsPoseTasks();
 
-            auto& pose = m_actualPoses.emplace_back( Animation::Pose( m_pActualInstance->GetPose()->GetSkeleton() ) );
-            pose.CopyFrom( *m_pActualInstance->GetPose() );
+            auto& pose = m_actualPoses.emplace_back( Animation::Pose( m_pActualInstance->GetPrimaryPose()->GetSkeleton() ) );
+            pose.CopyFrom( *m_pActualInstance->GetPrimaryPose() );
         }
 
         // Replicated Recording
@@ -670,7 +684,7 @@ namespace EE::Player
 
             for ( int32_t i = 0; i < simulatedJoinInProgressFrame; i++ )
             {
-                m_replicatedPoses.emplace_back( Animation::Pose( m_pReplicatedInstance->GetPose()->GetSkeleton(), Animation::Pose::Type::ReferencePose ) );
+                m_replicatedPoses.emplace_back( Animation::Pose( m_pReplicatedInstance->GetPrimaryPose()->GetSkeleton(), Animation::Pose::Type::ReferencePose ) );
             }
 
             startFrameIdx = simulatedJoinInProgressFrame;
@@ -694,8 +708,8 @@ namespace EE::Player
             m_pReplicatedInstance->ExecutePrePhysicsPoseTasks( nextRecordedFrameData.m_characterWorldTransform );
             m_pReplicatedInstance->ExecutePostPhysicsPoseTasks();
 
-            auto& pose = m_replicatedPoses.emplace_back( Animation::Pose( m_pReplicatedInstance->GetPose()->GetSkeleton() ) );
-            pose.CopyFrom( *m_pReplicatedInstance->GetPose() );
+            auto& pose = m_replicatedPoses.emplace_back( Animation::Pose( m_pReplicatedInstance->GetPrimaryPose()->GetSkeleton() ) );
+            pose.CopyFrom( *m_pReplicatedInstance->GetPrimaryPose() );
         }
     }
 
@@ -720,7 +734,7 @@ namespace EE::Player
             m_pTaskSystem->DeserializeTasks( LUTs, frameData.m_serializedTaskData );
             m_pTaskSystem->UpdatePrePhysics( frameData.m_deltaTime, frameData.m_characterWorldTransform, frameData.m_characterWorldTransform.GetInverse() );
             m_pTaskSystem->UpdatePostPhysics();
-            m_pGeneratedPose->CopyFrom( m_pTaskSystem->GetPose() );
+            m_pGeneratedPose->CopyFrom( m_pTaskSystem->GetPrimaryPose() );
         }
     }
 }

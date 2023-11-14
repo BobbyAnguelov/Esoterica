@@ -12,10 +12,42 @@ namespace EE::Animation
         EE_ASSERT( sourceID != InvalidIndex );
     }
 
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
-    void Task::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
+    void Task::DrawSecondaryPoses( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer )
     {
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f );
+        Pose const* pPrimaryPose = &pRecordedPoseBuffer->m_poses[0];
+        Skeleton const* pPrimarySkeleton = pPrimaryPose->GetSkeleton();
+
+        int32_t numPoses = (int32_t) pRecordedPoseBuffer->m_poses.size();
+        for ( int32_t i = 1; i < numPoses; i++ )
+        {
+            Pose const* pSecondaryPose = &pRecordedPoseBuffer->m_poses[i];
+            Skeleton const* pSecondarySkeleton = pSecondaryPose->GetSkeleton();
+
+            // Offset pose based on default preview attachment socketID
+            Transform poseWorldTransform = worldTransform;
+            if ( pSecondarySkeleton->GetPreviewAttachmentSocketID().IsValid() )
+            {
+                int32_t const boneIdx = pPrimarySkeleton->GetBoneIndex( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
+                if ( boneIdx != InvalidIndex )
+                {
+                    poseWorldTransform = pPrimaryPose->GetGlobalTransform( boneIdx ) * worldTransform;
+                }
+            }
+
+            // Draw pose
+            pSecondaryPose->DrawDebug( drawingContext, poseWorldTransform, pSecondaryPose->IsPoseSet() ? Colors::Cyan : Colors::LightGray.GetAlphaVersion( 0.25f ), 3.0f );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void Task::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    {
+        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f );
+        DrawSecondaryPoses( drawingContext, worldTransform, pRecordedPoseBuffer );
     }
     #endif
 }

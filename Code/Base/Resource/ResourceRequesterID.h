@@ -38,7 +38,7 @@ namespace EE::Resource
             return m_ID == s_manualRequestID;
         }
 
-        // This ID refers to a request originating from the tools workspaces, this allows for the workspaces to reload resources that they are editing
+        // This ID refers to a request originating from the tools, this allows for the tools to reload resources that they are editing
         inline bool IsToolsRequest() const
         {
             return m_ID == s_toolsRequestID;

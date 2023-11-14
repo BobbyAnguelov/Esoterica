@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::RawAssets { class RawMesh; }
+namespace EE::Import { class ImportedMesh; }
 
 //-------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ namespace EE::Physics
 
     private:
 
-        bool CookTriangleMeshData( RawAssets::RawMesh const& rawMesh, Blob& outCookedData ) const;
-        bool CookConvexMeshData( RawAssets::RawMesh const& rawMesh, Blob& outCookedData ) const;
+        bool CookTriangleMeshData( Import::ImportedMesh const& ImportedMesh, Blob& outCookedData ) const;
+        bool CookConvexMeshData( Import::ImportedMesh const& ImportedMesh, Blob& outCookedData ) const;
     };
 }

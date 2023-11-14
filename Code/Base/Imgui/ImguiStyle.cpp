@@ -41,6 +41,9 @@ namespace EE::ImGuiX
         colors[ImGuiCol_TitleBgActive] = s_colorGray8;
         colors[ImGuiCol_TitleBgCollapsed] = s_colorGray8;
 
+        ImVec4 col = s_colorGray6;
+        ImVec4 col2 = s_colorGray6.ToFloat4();
+
         colors[ImGuiCol_WindowBg] = s_colorGray6;
         colors[ImGuiCol_ChildBg] = s_colorGray6;
         colors[ImGuiCol_PopupBg] = s_colorGray6;

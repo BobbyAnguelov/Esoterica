@@ -7,10 +7,63 @@
 
 namespace EE::Animation::Tasks
 {
-    BlendTask::BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
-        : Task( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
-        , m_blendWeight( blendWeight )
+    void BlendTaskBase::Serialize( TaskSerializer& serializer ) const
     {
+        serializer.WriteDependencyIndex( m_dependencies[0] );
+        serializer.WriteDependencyIndex( m_dependencies[1] );
+        serializer.WriteNormalizedFloat8Bit( m_blendWeight );
+
+        // Bone Mask Task List
+        bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
+        serializer.WriteBool( hasBoneMaskTasks );
+        if ( hasBoneMaskTasks )
+        {
+            m_boneMaskTaskList.Serialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
+        }
+    }
+
+    void BlendTaskBase::Deserialize( TaskSerializer& serializer )
+    {
+        m_dependencies.resize( 2 );
+        m_dependencies[0] = serializer.ReadDependencyIndex();
+        m_dependencies[1] = serializer.ReadDependencyIndex();
+        m_blendWeight = serializer.ReadNormalizedFloat8Bit();
+
+        // Bone Mask Task List
+        bool const hasBoneMaskTasks = serializer.ReadBool();
+        if ( hasBoneMaskTasks )
+        {
+            m_boneMaskTaskList.Deserialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
+        }
+    }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void BlendTaskBase::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    {
+        TBitFlags<Pose::DrawFlags> drawFlags;
+        if ( isDetailedViewEnabled )
+        {
+            if ( m_debugBoneMask.IsValid() )
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
+            }
+            else
+            {
+                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+            }
+        }
+
+        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
+        DrawSecondaryPoses( drawingContext, worldTransform, pRecordedPoseBuffer );
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
+    BlendTask::BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
+        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
+    {
+        m_blendWeight = blendWeight;
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
 
         // Ensure that blend weights very close to 1.0f are set to 1.0f since the blend code will optimize away unnecessary blend operations
@@ -28,65 +81,74 @@ namespace EE::Animation::Tasks
     void BlendTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
+
+        // Get working buffers
+        //-------------------------------------------------------------------------
+
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
 
+        // Primary Pose
+        //-------------------------------------------------------------------------
+
         // If we have a bone mask task list, execute it
+        // Note: Bone masks only apply to the primary skeleton
         if ( m_boneMaskTaskList.HasTasks() )
         {
-            auto const result = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, result.m_pBoneMask, &pFinalBuffer->m_pose, true );
+            auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
+            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+
+            //-------------------------------------------------------------------------
 
             #if EE_DEVELOPMENT_TOOLS
             if ( context.m_posePool.IsRecordingEnabled() )
             {
-                m_debugBoneMask = *result.m_pBoneMask;
+                m_debugBoneMask = *boneMaskResult.m_pBoneMask;
             }
             #endif
 
-            if ( result.m_maskPoolIdx != InvalidIndex )
+            if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
             {
-                context.m_boneMaskPool.ReleaseMask( result.m_maskPoolIdx );
+                context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
             }
         }
         else // Perform a simple blend
         {
-            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, nullptr, &pFinalBuffer->m_pose, true );
+            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
         }
+
+        // Secondary Poses
+        //-------------------------------------------------------------------------
+
+        int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
+            bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
+
+            if ( !hasSourcePose && !hasTargetPose )
+            {
+                // Do Nothing
+            }
+            else if ( !hasSourcePose && hasTargetPose )
+            {
+                Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+            }
+            else if ( hasSourcePose && !hasTargetPose )
+            {
+                Blender::LocalBlendToReferencePose( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+            }
+            else // has both poses
+            {
+                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+            }
+        }
+
+        //-------------------------------------------------------------------------
 
         ReleaseDependencyPoseBuffer( context, 1 );
         MarkTaskComplete( context );
-    }
-
-    void BlendTask::Serialize( TaskSerializer& serializer ) const
-    {
-        serializer.WriteDependencyIndex( m_dependencies[0] );
-        serializer.WriteDependencyIndex( m_dependencies[1] );
-        serializer.WriteNormalizedFloat8Bit( m_blendWeight );
-
-        // Bone Mask Task List
-        bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
-        serializer.WriteBool( hasBoneMaskTasks );
-        if ( hasBoneMaskTasks )
-        {
-            m_boneMaskTaskList.Serialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
-        }
-    }
-
-    void BlendTask::Deserialize( TaskSerializer& serializer )
-    {
-        m_dependencies.resize( 2 );
-        m_dependencies[0] = serializer.ReadDependencyIndex();
-        m_dependencies[1] = serializer.ReadDependencyIndex();
-        m_blendWeight = serializer.ReadNormalizedFloat8Bit();
-
-        // Bone Mask Task List
-        bool const hasBoneMaskTasks = serializer.ReadBool();
-        if ( hasBoneMaskTasks )
-        {
-            m_boneMaskTaskList.Deserialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
-        }
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -101,32 +163,120 @@ namespace EE::Animation::Tasks
             return String( String::CtorSprintf(), "Blend: %.2f%%", m_blendWeight * 100 );
         }
     }
+    #endif
 
-    void BlendTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
+    //-------------------------------------------------------------------------
+
+    OverlayBlendTask::OverlayBlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
+        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
     {
-        TBitFlags<Pose::DrawFlags> drawFlags;
-        if ( isDetailedViewEnabled )
+        m_blendWeight = blendWeight;
+        EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
+
+        // Ensure that blend weights very close to 1.0f are set to 1.0f since the blend code will optimize away unnecessary blend operations
+        if ( Math::IsNearEqual( m_blendWeight, 1.0f ) )
         {
-            if ( m_debugBoneMask.IsValid() )
+            m_blendWeight = 1.0f;
+        }
+
+        if ( pBoneMaskTaskList != nullptr )
+        {
+            m_boneMaskTaskList.CopyFrom( *pBoneMaskTaskList );
+        }
+    }
+
+    void OverlayBlendTask::Execute( TaskContext const& context )
+    {
+        //EE_PROFILE_FUNCTION_ANIMATION();
+
+        // Get working buffers
+        //-------------------------------------------------------------------------
+
+        auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
+        auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
+        auto pFinalBuffer = pSourceBuffer;
+
+        // Primary Pose
+        //-------------------------------------------------------------------------
+
+        // If we have a bone mask task list, execute it
+        // Note: Bone masks only apply to the primary skeleton
+        if ( m_boneMaskTaskList.HasTasks() )
+        {
+            auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
+            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+
+            //-------------------------------------------------------------------------
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( context.m_posePool.IsRecordingEnabled() )
             {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
+                m_debugBoneMask = *boneMaskResult.m_pBoneMask;
             }
-            else
+            #endif
+
+            if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
             {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+                context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
+            }
+        }
+        else // Perform a simple blend
+        {
+            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
+        }
+
+        // Secondary Pose
+        //-------------------------------------------------------------------------
+
+        // Since this is an overlay blend - if a secondary pose is not set in the overlay, then we ignore the blend
+        int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
+            if ( !hasTargetPose )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
+            if ( hasSourcePose )
+            {
+                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+            }
+            else // Apply overlay to the reference pose
+            {
+                Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
             }
         }
 
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
+        //-------------------------------------------------------------------------
+
+        ReleaseDependencyPoseBuffer( context, 1 );
+        MarkTaskComplete( context );
+    }
+
+    #if EE_DEVELOPMENT_TOOLS
+    String OverlayBlendTask::GetDebugText() const
+    {
+        if ( m_boneMaskTaskList.HasTasks() )
+        {
+            return String( String::CtorSprintf(), "Overlay Blend (Masked): %.2f%%", m_blendWeight * 100 );
+        }
+        else
+        {
+            return String( String::CtorSprintf(), "Overlay Blend: %.2f%%", m_blendWeight * 100 );
+        }
     }
     #endif
 
     //-------------------------------------------------------------------------
 
     AdditiveBlendTask::AdditiveBlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
-        : Task( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
-        , m_blendWeight( blendWeight )
+        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
     {
+        m_blendWeight = blendWeight;
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
 
         // Ensure that blend weights very close to 1.0f are set to 1.0f since the blend code will optimize away unnecessary blend operations
@@ -144,65 +294,78 @@ namespace EE::Animation::Tasks
     void AdditiveBlendTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
+
+        // Get working buffers
+        //-------------------------------------------------------------------------
+
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
 
-        // If we have a bone mask task list, execute it
-        if ( m_boneMaskTaskList.HasTasks() )
+        // Primary Pose
+        //-------------------------------------------------------------------------
+
+        if ( !pTargetBuffer->m_poses[0].IsZeroPose() )
         {
-            auto const result = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, result.m_pBoneMask, &pFinalBuffer->m_pose );
-
-            #if EE_DEVELOPMENT_TOOLS
-            if ( context.m_posePool.IsRecordingEnabled() )
+            // If we have a bone mask task list, execute it 
+            // Note: Bone masks only apply to the primary skeleton
+            if ( m_boneMaskTaskList.HasTasks() )
             {
-                m_debugBoneMask = *result.m_pBoneMask;
+                auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
+
+                //-------------------------------------------------------------------------
+
+                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+
+                //-------------------------------------------------------------------------
+
+                #if EE_DEVELOPMENT_TOOLS
+                if ( context.m_posePool.IsRecordingEnabled() )
+                {
+                    m_debugBoneMask = *boneMaskResult.m_pBoneMask;
+                }
+                #endif
+
+                if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
+                {
+                    context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
+                }
             }
-            #endif
-
-            if ( result.m_maskPoolIdx != InvalidIndex )
+            else // Perform a simple blend
             {
-                context.m_boneMaskPool.ReleaseMask( result.m_maskPoolIdx );
+                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
             }
         }
-        else // Perform a simple blend
+
+        // Secondary Pose
+        //-------------------------------------------------------------------------
+
+        int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
         {
-            Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_blendWeight, nullptr, &pFinalBuffer->m_pose );
+            // Skip any unset or zero additives
+            if ( pTargetBuffer->m_poses[poseIdx].IsZeroPose() || !pTargetBuffer->m_poses[poseIdx].IsPoseSet() )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
+            if ( hasSourcePose )
+            {
+                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+            }
+            else // Apply the additive to the reference pose
+            {
+                Blender::ApplyAdditiveToReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+            }
         }
+
+        //-------------------------------------------------------------------------
 
         ReleaseDependencyPoseBuffer( context, 1 );
         MarkTaskComplete( context );
-    }
-
-    void AdditiveBlendTask::Serialize( TaskSerializer& serializer ) const
-    {
-        serializer.WriteDependencyIndex( m_dependencies[0] );
-        serializer.WriteDependencyIndex( m_dependencies[1] );
-        serializer.WriteNormalizedFloat8Bit( m_blendWeight );
-
-        // Bone Mask Task List
-        bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
-        serializer.WriteBool( hasBoneMaskTasks );
-        if ( hasBoneMaskTasks )
-        {
-            m_boneMaskTaskList.Serialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
-        }
-    }
-
-    void AdditiveBlendTask::Deserialize( TaskSerializer& serializer )
-    {
-        m_dependencies.resize( 2 );
-        m_dependencies[0] = serializer.ReadDependencyIndex();
-        m_dependencies[1] = serializer.ReadDependencyIndex();
-        m_blendWeight = serializer.ReadNormalizedFloat8Bit();
-
-        // Bone Mask Task List
-        bool const hasBoneMaskTasks = serializer.ReadBool();
-        if ( hasBoneMaskTasks )
-        {
-            m_boneMaskTaskList.Deserialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
-        }
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -217,33 +380,15 @@ namespace EE::Animation::Tasks
             return String( String::CtorSprintf(), "Additive Blend: %.2f%%", m_blendWeight * 100 );
         }
     }
-
-    void AdditiveBlendTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
-    {
-        TBitFlags<Pose::DrawFlags> drawFlags;
-        if ( isDetailedViewEnabled )
-        {
-            if ( m_debugBoneMask.IsValid() )
-            {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
-            }
-            else
-            {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
-            }
-        }
-
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
-    }
     #endif
 
     //-------------------------------------------------------------------------
 
-    GlobalBlendTask::GlobalBlendTask( TaskSourceID sourceID, TaskIndex baseTaskIdx, TaskIndex layerTaskIdx, float const layerWeight, BoneMaskTaskList const& boneMaskTaskList )
-        : Task( sourceID, TaskUpdateStage::Any, { baseTaskIdx, layerTaskIdx } )
-        , m_layerWeight( layerWeight )
+    GlobalBlendTask::GlobalBlendTask( TaskSourceID sourceID, TaskIndex baseTaskIdx, TaskIndex layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList )
+        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { baseTaskIdx, layerTaskIdx } )
     {
-        EE_ASSERT( m_layerWeight >= 0.0f && m_layerWeight <= 1.0f );
+        m_blendWeight = blendWeight;
+        EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
         EE_ASSERT( boneMaskTaskList.HasTasks() );
         m_boneMaskTaskList.CopyFrom( boneMaskTaskList );
     }
@@ -251,81 +396,70 @@ namespace EE::Animation::Tasks
     void GlobalBlendTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
+
+        // Get working buffers
+        //-------------------------------------------------------------------------
+
         auto pSourceBuffer = AccessDependencyPoseBuffer( context, 0 );
         auto pTargetBuffer = TransferDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pTargetBuffer;
 
-        // If we have a bone mask task list, execute it
-        if ( m_boneMaskTaskList.HasTasks() )
-        {
-            auto const result = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
+        // Primary Pose
+        //-------------------------------------------------------------------------
 
-            Blender::GlobalBlend( context.m_skeletonLOD, &pSourceBuffer->m_pose, &pTargetBuffer->m_pose, m_layerWeight, result.m_pBoneMask, &pFinalBuffer->m_pose );
+        bool shouldRunBlend = m_boneMaskTaskList.HasTasks();
+
+        // If we have a bone mask task list, execute it
+        if ( shouldRunBlend )
+        {
+            auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
+            Blender::GlobalBlend( context.m_skeletonLOD, pSourceBuffer->GetPrimaryPose(), pTargetBuffer->GetPrimaryPose(), m_blendWeight, boneMaskResult.m_pBoneMask, pFinalBuffer->GetPrimaryPose() );
 
             #if EE_DEVELOPMENT_TOOLS
             if ( context.m_posePool.IsRecordingEnabled() )
             {
-                m_debugBoneMask = *result.m_pBoneMask;
+                m_debugBoneMask = *boneMaskResult.m_pBoneMask;
             }
             #endif
 
-            if ( result.m_maskPoolIdx != InvalidIndex )
+            if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
             {
-                context.m_boneMaskPool.ReleaseMask( result.m_maskPoolIdx );
+                context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
             }
         }
+
+        // Secondary Pose
+        //-------------------------------------------------------------------------
+
+        if ( shouldRunBlend )
+        {
+            // Since a global blend is an overlay blend - if a secondary pose is not set in the overlay, then we ignore the blend
+            int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
+            for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+            {
+                bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
+                if ( !hasTargetPose )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
+                if ( hasSourcePose )
+                {
+                    Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                }
+                else // Apply overlay to the reference pose
+                {
+                    Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                }
+            }
+        }
+
+        //-------------------------------------------------------------------------
 
         ReleaseDependencyPoseBuffer( context, 0 );
         MarkTaskComplete( context );
     }
-
-    void GlobalBlendTask::Serialize( TaskSerializer& serializer ) const
-    {
-        serializer.WriteDependencyIndex( m_dependencies[0] );
-        serializer.WriteDependencyIndex( m_dependencies[1] );
-        serializer.WriteNormalizedFloat8Bit( m_layerWeight );
-
-        // Bone Mask Task List
-        bool const hasBoneMaskTasks = m_boneMaskTaskList.HasTasks();
-        serializer.WriteBool( hasBoneMaskTasks );
-        if ( hasBoneMaskTasks )
-        {
-            m_boneMaskTaskList.Serialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
-        }
-    }
-
-    void GlobalBlendTask::Deserialize( TaskSerializer& serializer )
-    {
-        m_dependencies.resize( 2 );
-        m_dependencies[0] = serializer.ReadDependencyIndex();
-        m_dependencies[1] = serializer.ReadDependencyIndex();
-        m_layerWeight = serializer.ReadNormalizedFloat8Bit();
-
-        // Bone Mask Task List
-        bool const hasBoneMaskTasks = serializer.ReadBool();
-        if ( hasBoneMaskTasks )
-        {
-            m_boneMaskTaskList.Deserialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
-        }
-    }
-
-    #if EE_DEVELOPMENT_TOOLS
-    void GlobalBlendTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Pose const* pRecordedPose, bool isDetailedViewEnabled ) const
-    {
-        TBitFlags<Pose::DrawFlags> drawFlags;
-        if ( isDetailedViewEnabled )
-        {
-            if ( m_debugBoneMask.IsValid() )
-            {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
-            }
-            else
-            {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
-            }
-        }
-
-        pRecordedPose->DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
-    }
-    #endif
 }

@@ -2,8 +2,8 @@
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/Events/AnimationEventTimeline.h"
-#include "EngineTools/RawAssets/RawAssetReader.h"
-#include "EngineTools/RawAssets/RawAnimation.h"
+#include "EngineTools/Import/Importer.h"
+#include "EngineTools/Import/ImportedAnimation.h"
 #include "EngineTools/Core/Timeline/Timeline.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationClip.h"
@@ -50,14 +50,42 @@ namespace EE::Animation
             return Resource::CompilationResult::Failure;
         }
 
+        int32_t const numSecondaryAnims = (int32_t) resourceDescriptor.m_secondaryAnimations.size();
+
         // Read animation data
         //-------------------------------------------------------------------------
 
-        TUniquePtr<RawAssets::RawAnimation> pRawAnimation = nullptr;
-        result = CombineResultCode( result, ReadRawAnimation( ctx, resourceDescriptor, pRawAnimation ) );
+        TUniquePtr<Import::ImportedAnimation> ImportedAnimationPtr = nullptr;
+        TVector<TUniquePtr<Import::ImportedAnimation>> secondaryAnimations;
+        result = CombineResultCode( result, ReadImportedAnimation( resourceDescriptor.m_skeleton.GetResourcePath(), resourceDescriptor.m_animationPath, ImportedAnimationPtr ) );
         if ( result == Resource::CompilationResult::Failure )
         {
             return Error( "Failed to read raw animation data!" );
+        }
+
+        for ( int32_t i = 0; i < numSecondaryAnims; i++ )
+        {
+            // Ensure that the secondary skeleton is different from the parent skeleton
+            if ( resourceDescriptor.m_secondaryAnimations[i].m_skeleton == resourceDescriptor.m_skeleton )
+            {
+                return Error( "Secondary animations are not allowed to be on the same skeleton as the parent" );
+            }
+
+            // Ensure that all secondary skeletons are unique
+            for ( int32_t j = i - 1; j >= 0; j-- )
+            {
+                if ( resourceDescriptor.m_secondaryAnimations[i].m_skeleton == resourceDescriptor.m_secondaryAnimations[j].m_skeleton )
+                {
+                    return Error( "More than one secondary animation with the same skeleton, this is not allowed!" );
+                }
+            }
+
+            // Read raw animation data
+            result = CombineResultCode( result, ReadImportedAnimation( resourceDescriptor.m_secondaryAnimations[i].m_skeleton.GetResourcePath(), resourceDescriptor.m_secondaryAnimations[i].m_animationPath, secondaryAnimations.emplace_back() ) );
+            if ( result == Resource::CompilationResult::Failure )
+            {
+                return Error( "Failed to read secondary animation data!" );
+            }
         }
 
         // Validate frame limit
@@ -65,13 +93,13 @@ namespace EE::Animation
 
         if ( resourceDescriptor.m_limitFrameRange.IsSet() )
         {
-            if ( pRawAnimation->GetNumFrames() == 1 )
+            if ( ImportedAnimationPtr->GetNumFrames() == 1 )
             {
                 return Error( "Having a frame limit range on a single frame animation doesnt make sense!" );
             }
 
-            resourceDescriptor.m_limitFrameRange.m_begin = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_begin, 0, (int32_t) pRawAnimation->GetNumFrames() - 1 );
-            resourceDescriptor.m_limitFrameRange.m_end = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_end, 0, (int32_t) pRawAnimation->GetNumFrames() - 1 ); // Inclusive range so we need to increment the index
+            resourceDescriptor.m_limitFrameRange.m_begin = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_begin, 0, (int32_t) ImportedAnimationPtr->GetNumFrames() - 1 );
+            resourceDescriptor.m_limitFrameRange.m_end = Math::Clamp( resourceDescriptor.m_limitFrameRange.m_end, 0, (int32_t) ImportedAnimationPtr->GetNumFrames() - 1 ); // Inclusive range so we need to increment the index
 
             if ( !resourceDescriptor.m_limitFrameRange.IsValid() )
             {
@@ -86,7 +114,7 @@ namespace EE::Animation
         {
             {
                 ScopedTimer<PlatformClock> timer( timeTaken );
-                result = CombineResultCode( result, RegenerateRootMotion( resourceDescriptor, pRawAnimation.get() ) );
+                result = CombineResultCode( result, RegenerateRootMotion( resourceDescriptor, ImportedAnimationPtr.get() ) );
                 if ( result == Resource::CompilationResult::Failure )
                 {
                     return Error( "Failed to generate root motion data!" );
@@ -102,27 +130,50 @@ namespace EE::Animation
         {
             {
                 ScopedTimer<PlatformClock> timer( timeTaken );
-                result = CombineResultCode( result, MakeAdditive( ctx, resourceDescriptor, *pRawAnimation ) );
+                result = CombineResultCode( result, MakeAdditive( ctx, resourceDescriptor, *ImportedAnimationPtr, false ) );
                 if ( result == Resource::CompilationResult::Failure )
                 {
                     return Error( "Failed to generate additive animation data!" );
                 }
+
+                for ( int32_t i = 0; i < numSecondaryAnims; i++ )
+                {
+                    result = CombineResultCode( result, MakeAdditive( ctx, resourceDescriptor, *secondaryAnimations[i], true ) );
+                    if ( result == Resource::CompilationResult::Failure )
+                    {
+                        return Error( "Failed to generate additive animation data!" );
+                    }
+                }
             }
+
             Message( "Additive Generation: %.3fms", timeTaken.ToFloat() );
         }
 
-        // Reflect raw animation data into runtime format
+        // Compress raw animation data into runtime format
         //-------------------------------------------------------------------------
 
         AnimationClip animData;
-        animData.m_skeleton = resourceDescriptor.m_skeleton;
+        TVector<AnimationClip> secondaryAnimData;
 
         {
             ScopedTimer<PlatformClock> timer( timeTaken );
-            result = CombineResultCode( result, TransferAndCompressAnimationData( *pRawAnimation, animData, resourceDescriptor.m_limitFrameRange ) );
+            animData.m_skeleton = resourceDescriptor.m_skeleton;
+            result = CombineResultCode( result, TransferAndCompressAnimationData( *ImportedAnimationPtr, animData, resourceDescriptor.m_limitFrameRange, false ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to compress animation!" );
+            }
+
+            IntRange const parentFrameRange( 0, animData.GetNumFrames() - 1 ); // Inclusive frame index range
+            for ( int32_t i = 0; i < numSecondaryAnims; i++ )
+            {
+                secondaryAnimData.emplace_back();
+                secondaryAnimData[i].m_skeleton = resourceDescriptor.m_secondaryAnimations[i].m_skeleton;
+                result = CombineResultCode( result, TransferAndCompressAnimationData( *secondaryAnimations[i], secondaryAnimData[i], parentFrameRange, true ) );
+                if ( result == Resource::CompilationResult::Failure )
+                {
+                    return Error( "Failed to compress secondary animation!" );
+                }
             }
         }
         Message( "Compression: %.3fms", timeTaken.ToFloat() );
@@ -133,7 +184,7 @@ namespace EE::Animation
         AnimationClipEventData eventData;
         {
             ScopedTimer<PlatformClock> timer( timeTaken );
-            result = CombineResultCode( result, ReadEventsData( ctx, descriptorDocument, *pRawAnimation, eventData ) );
+            result = CombineResultCode( result, ReadEventsData( ctx, descriptorDocument, *ImportedAnimationPtr, eventData ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to read animation events!" );
@@ -147,14 +198,26 @@ namespace EE::Animation
         Resource::ResourceHeader hdr( s_version, AnimationClip::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.AddInstallDependency( resourceDescriptor.m_skeleton.GetResourceID() );
 
+        // Add secondary animation skeletons as install dependencies
+        for ( int32_t i = 0; i < numSecondaryAnims; i++ )
+        {
+            hdr.AddInstallDependency( resourceDescriptor.m_secondaryAnimations[i].m_skeleton.GetResourceID() );
+        }
+
         Serialization::BinaryOutputArchive archive;
         archive << hdr << animData;
         archive << eventData.m_syncEventMarkers;
         archive << eventData.m_collection;
 
+        archive << numSecondaryAnims;
+        for ( int32_t i = 0; i < numSecondaryAnims; i++ )
+        {
+            archive << secondaryAnimData[i];
+        }
+
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
-            if ( pRawAnimation->HasWarnings() || result == Resource::CompilationResult::SuccessWithWarnings )
+            if ( ImportedAnimationPtr->HasWarnings() || result == Resource::CompilationResult::SuccessWithWarnings )
             {
                 return CompilationSucceededWithWarnings( ctx );
             }
@@ -171,10 +234,10 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    Resource::CompilationResult AnimationClipCompiler::ReadRawAnimation( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, TUniquePtr<RawAssets::RawAnimation>& pOutAnimation ) const
+    Resource::CompilationResult AnimationClipCompiler::ReadImportedAnimation( ResourcePath const& skeletonPath, ResourcePath const& animationPath, TUniquePtr<Import::ImportedAnimation>& outAnimation, String const& animationName ) const
     {
         Timer<PlatformClock> timer;
-        EE_ASSERT( pOutAnimation == nullptr );
+        EE_ASSERT( outAnimation == nullptr );
 
         // Read Skeleton Data
         //-------------------------------------------------------------------------
@@ -182,7 +245,7 @@ namespace EE::Animation
         timer.Start();
 
         SkeletonResourceDescriptor skeletonResourceDescriptor;
-        if ( !TryLoadResourceDescriptor( resourceDescriptor.m_skeleton.GetResourcePath(), skeletonResourceDescriptor ) )
+        if ( !TryLoadResourceDescriptor( skeletonPath, skeletonResourceDescriptor ) )
         {
             return Error( "Failed to load skeleton descriptor!" );
         }
@@ -193,14 +256,14 @@ namespace EE::Animation
             return Error( "Invalid skeleton FBX data path: %s", skeletonResourceDescriptor.m_skeletonPath.GetString().c_str() );
         }
 
-        RawAssets::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        auto pRawSkeleton = RawAssets::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName, skeletonResourceDescriptor.m_highLODBones );
-        if ( pRawSkeleton == nullptr || !pRawSkeleton->IsValid() )
+        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
+        auto pImportedSkeleton = Import::ReadSkeleton( readerCtx, skeletonFilePath, skeletonResourceDescriptor.m_skeletonRootBoneName, skeletonResourceDescriptor.m_highLODBones );
+        if ( pImportedSkeleton == nullptr || !pImportedSkeleton->IsValid() )
         {
             return Error( "Failed to read skeleton file: %s", skeletonFilePath.ToString().c_str() );
         }
 
-        Message( "Read Raw Skeleton Data: %.3fms", timer.GetElapsedTimeMilliseconds().ToFloat() );
+        Message( "Read Source Skeleton Data: %.3fms", timer.GetElapsedTimeMilliseconds().ToFloat() );
 
         // Read animation data
         //-------------------------------------------------------------------------
@@ -208,9 +271,9 @@ namespace EE::Animation
         timer.Start();
 
         FileSystem::Path animationFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_animationPath, animationFilePath ) )
+        if ( !ConvertResourcePathToFilePath( animationPath, animationFilePath ) )
         {
-            return Error( "Invalid animation data path: %s", resourceDescriptor.m_animationPath.c_str() );
+            return Error( "Invalid animation data path: %s", animationPath.c_str() );
         }
 
         if ( !FileSystem::Exists( animationFilePath ) )
@@ -218,34 +281,51 @@ namespace EE::Animation
             return Error( "Invalid animation file path: %s", animationFilePath.ToString().c_str() );
         }
 
-        pOutAnimation = RawAssets::ReadAnimation( readerCtx, animationFilePath, *pRawSkeleton, resourceDescriptor.m_animationName, resourceDescriptor.m_rootMotionBoneID );
-        if ( pOutAnimation == nullptr )
+        outAnimation = Import::ReadAnimation( readerCtx, animationFilePath, *pImportedSkeleton, animationName );
+        if ( outAnimation == nullptr )
         {
             return Error( "Failed to read animation from source file" );
         }
 
-        Message( "Read Raw Animation Data: %.3fms", timer.GetElapsedTimeMilliseconds().ToFloat() );
+        Message( "Read Source Animation Data: %.3fms", timer.GetElapsedTimeMilliseconds().ToFloat() );
 
         //-------------------------------------------------------------------------
 
         return Resource::CompilationResult::Success;
     }
 
-    Resource::CompilationResult AnimationClipCompiler::MakeAdditive( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation& rawAnimData ) const
+    Resource::CompilationResult AnimationClipCompiler::MakeAdditive( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, Import::ImportedAnimation& rawAnimData, bool isSecondaryAnimation ) const
     {
         EE_ASSERT( resourceDescriptor.m_additiveType != AnimationClipResourceDescriptor::AdditiveType::None );
 
-        if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToSkeleton )
+        //-------------------------------------------------------------------------
+
+        AnimationClipResourceDescriptor::AdditiveType actualAdditiveType = resourceDescriptor.m_additiveType;
+        int32_t actualBaseFrameIdx = (int32_t) resourceDescriptor.m_additiveBaseFrameIndex;
+
+        // Handle secondary animations separately
+        if ( isSecondaryAnimation && actualAdditiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToAnimationClip )
+        {
+            Warning( "Cant make a secondary animation additive based on another animation clip. Additive data will be relative to the first frame pose" );
+            actualAdditiveType = AnimationClipResourceDescriptor::AdditiveType::RelativeToFrame;
+            actualBaseFrameIdx = 0;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( actualAdditiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToSkeleton )
         {
             rawAnimData.MakeAdditiveRelativeToSkeleton();
         }
-        else if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToFrame )
+        else if ( actualAdditiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToFrame )
         {
-            int32_t const baseFrameIdx = Math::Clamp( (int32_t) resourceDescriptor.m_additiveBaseFrameIndex, 0, rawAnimData.GetNumFrames() - 1 );
+            int32_t const baseFrameIdx = Math::Clamp( actualBaseFrameIdx, 0, rawAnimData.GetNumFrames() - 1 );
             rawAnimData.MakeAdditiveRelativeToFrame( baseFrameIdx );
         }
-        else if ( resourceDescriptor.m_additiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToAnimationClip )
+        else if ( actualAdditiveType == AnimationClipResourceDescriptor::AdditiveType::RelativeToAnimationClip )
         {
+            EE_ASSERT( !isSecondaryAnimation );
+
             AnimationClipResourceDescriptor baseAnimResourceDescriptor;
             if ( !TryLoadResourceDescriptor( resourceDescriptor.m_additiveBaseAnimation.GetResourcePath(), baseAnimResourceDescriptor ) )
             {
@@ -257,13 +337,13 @@ namespace EE::Animation
                 return Error( "Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
             }
 
-            TUniquePtr<RawAssets::RawAnimation> pBaseRawAnimation = nullptr;
-            if ( ReadRawAnimation( ctx, baseAnimResourceDescriptor, pBaseRawAnimation ) == Resource::CompilationResult::Failure )
+            TUniquePtr<Import::ImportedAnimation> pBaseImportedAnimation = nullptr;
+            if ( ReadImportedAnimation( baseAnimResourceDescriptor.m_skeleton.GetResourcePath(), baseAnimResourceDescriptor.m_animationPath, pBaseImportedAnimation ) == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to load base animation data!" );
             }
 
-            rawAnimData.MakeAdditiveRelativeToAnimation( *pBaseRawAnimation.get() );
+            rawAnimData.MakeAdditiveRelativeToAnimation( *pBaseImportedAnimation.get() );
         }
 
         //-------------------------------------------------------------------------
@@ -271,9 +351,9 @@ namespace EE::Animation
         return Resource::CompilationResult::Success;
     }
 
-    Resource::CompilationResult AnimationClipCompiler::RegenerateRootMotion( AnimationClipResourceDescriptor const& resourceDescriptor, RawAssets::RawAnimation* pRawAnimation ) const
+    Resource::CompilationResult AnimationClipCompiler::RegenerateRootMotion( AnimationClipResourceDescriptor const& resourceDescriptor, Import::ImportedAnimation* pImportedAnimation ) const
     {
-        EE_ASSERT( pRawAnimation != nullptr && pRawAnimation->IsValid() );
+        EE_ASSERT( pImportedAnimation != nullptr && pImportedAnimation->IsValid() );
 
         // Validate Root Motion Generation settings
         //-------------------------------------------------------------------------
@@ -283,7 +363,7 @@ namespace EE::Animation
         {
             if ( resourceDescriptor.m_rootMotionGenerationBoneID.IsValid() )
             {
-                rootMotionGenerationBoneIdx = pRawAnimation->GetSkeleton().GetBoneIndex( resourceDescriptor.m_rootMotionGenerationBoneID );
+                rootMotionGenerationBoneIdx = pImportedAnimation->GetSkeleton().GetBoneIndex( resourceDescriptor.m_rootMotionGenerationBoneID );
                 if ( rootMotionGenerationBoneIdx == InvalidIndex )
                 {
                     return Error( "Root Motion Generation: Skeleton doesnt contain specified bone: %s", resourceDescriptor.m_rootMotionGenerationBoneID.c_str() );
@@ -298,16 +378,16 @@ namespace EE::Animation
         // Calculate root position based on specified bone
         //-------------------------------------------------------------------------
 
-        auto const& sourceBoneTrackData = pRawAnimation->GetTrackData()[rootMotionGenerationBoneIdx];
-        auto& rootTrackData = pRawAnimation->GetTrackData()[0];
+        auto const& sourceBoneTrackData = pImportedAnimation->GetTrackData()[rootMotionGenerationBoneIdx];
+        auto& rootTrackData = pImportedAnimation->GetTrackData()[0];
         Quaternion const preRotation( resourceDescriptor.m_rootMotionGenerationPreRotation );
 
         // Get the Z value for the root on the first frame, use this as the starting point for the root motion track
-        auto& rootMotion = pRawAnimation->GetRootMotion();
+        auto& rootMotion = pImportedAnimation->GetRootMotion();
         float const flatZ = rootMotion.front().GetTranslation().GetZ();
         float const offsetZ = ( rootMotion.front().GetTranslation() - sourceBoneTrackData.m_globalTransforms[0].GetTranslation() ).GetZ();
 
-        int32_t const numFrames = pRawAnimation->GetNumFrames();
+        int32_t const numFrames = pImportedAnimation->GetNumFrames();
         for ( auto i = 0; i < numFrames; i++ )
         {
             Transform const& rootMotionTransform = sourceBoneTrackData.m_globalTransforms[i];
@@ -335,15 +415,15 @@ namespace EE::Animation
         }
 
         // Regenerate the local transforms taking into account the new root position
-        pRawAnimation->RegenerateLocalTransforms();
-        pRawAnimation->Finalize( resourceDescriptor.m_rootMotionBoneID );
+        pImportedAnimation->RegenerateLocalTransforms();
+        pImportedAnimation->Finalize();
 
         //-------------------------------------------------------------------------
 
         return Resource::CompilationResult::Success;
     }
 
-    Resource::CompilationResult AnimationClipCompiler::TransferAndCompressAnimationData( RawAssets::RawAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange ) const
+    Resource::CompilationResult AnimationClipCompiler::TransferAndCompressAnimationData( Import::ImportedAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange, bool isSecondaryAnimation ) const
     {
         Resource::CompilationResult result = Resource::CompilationResult::Success;
         auto const& rawTrackData = rawAnimData.GetTrackData();
@@ -361,11 +441,18 @@ namespace EE::Animation
         {
             if( limitRange.m_end >= numOriginalFrames )
             {
-                result = Warning( "Frame range limit exceed available frames, clamping to end of animation!" );
+                if ( isSecondaryAnimation )
+                {
+                    result = Warning( "Secondary animation is shorter than the parent animations, last frame in the secondary animation will be repeated!" );
+                }
+                else
+                {
+                    result = Warning( "Frame range limit exceed available frames, clamping to end of animation!" );
+                }
             }
 
             frameIdxStart = Math::Max( limitRange.m_begin, 0 );
-            frameIdxEnd = Math::Min( limitRange.m_end + 1, numOriginalFrames );
+            frameIdxEnd = isSecondaryAnimation ? limitRange.m_end + 1 : Math::Min( limitRange.m_end + 1, numOriginalFrames );
         }
 
         animClip.m_numFrames = ( frameIdxEnd == frameIdxStart ) ? 1 : frameIdxEnd - frameIdxStart;
@@ -377,17 +464,25 @@ namespace EE::Animation
         animClip.m_duration = ( animClip.IsSingleFrameAnimation() ) ? Seconds( 0.0f ) : Seconds( ( animClip.m_numFrames - 1 ) / FPS );
         animClip.m_isAdditive = rawAnimData.IsAdditive();
 
-        // Transfer root motion
+        // Transfer root motion (and duplicate frames if needed)
         //-------------------------------------------------------------------------
 
-        if ( limitRange.IsSetAndValid() )
+        RootMotionData& rootMotionData = animClip.m_rootMotion;
+        rootMotionData.m_numFrames = animClip.m_numFrames;
+
+        bool const shouldRepeatLastFrame = isSecondaryAnimation && frameIdxEnd >= numOriginalFrames;
+
+        for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
         {
-            animClip.m_rootMotion.m_transforms.clear();
-            animClip.m_rootMotion.m_transforms.insert( animClip.m_rootMotion.m_transforms.end(), rawAnimData.GetRootMotion().begin() + frameIdxStart, rawAnimData.GetRootMotion().begin() + frameIdxEnd );
-        }
-        else
-        {
-            animClip.m_rootMotion.m_transforms = rawAnimData.GetRootMotion();
+            int32_t actualFrameIdx = frameIdx;
+
+            // Repeat last frame for secondary animations that are shorter than their parents
+            if ( shouldRepeatLastFrame && frameIdx >= numOriginalFrames )
+            {
+                actualFrameIdx = numOriginalFrames - 1;
+            }
+
+            animClip.m_rootMotion.m_transforms.emplace_back( rawAnimData.GetRootMotion()[actualFrameIdx] );
         }
 
         // Calculate root motion extra data
@@ -395,19 +490,21 @@ namespace EE::Animation
 
         if ( animClip.IsSingleFrameAnimation() )
         {
-            animClip.m_rootMotion.m_totalDelta = Transform::Identity;
-            animClip.m_rootMotion.m_averageLinearVelocity = 0.0f;
-            animClip.m_rootMotion.m_averageAngularVelocity = 0.0f;
+            rootMotionData.m_transforms.clear();
+            rootMotionData.m_totalDelta = Transform::Identity;
+            rootMotionData.m_averageLinearVelocity = 0.0f;
+            rootMotionData.m_averageAngularVelocity = 0.0f;
         }
-        else
+        else // Calculate extra info
         {
             float totalDistance = 0.0f;
             float totalRotation = 0.0f;
+            bool containsRootMotion = false;
 
-            for ( uint32_t i = 1u; i < animClip.m_numFrames; i++ )
+            for ( int32_t i = 1; i < animClip.m_numFrames; i++ )
             {
                 // Track deltas
-                Transform const deltaRoot = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms[i - 1], animClip.m_rootMotion.m_transforms[i] );
+                Transform const deltaRoot = Transform::DeltaNoScale( rootMotionData.m_transforms[i - 1], rootMotionData.m_transforms[i] );
                 totalDistance += deltaRoot.GetTranslation().GetLength3();
 
                 // If we have a rotation delta, accumulate the yaw value
@@ -417,11 +514,85 @@ namespace EE::Animation
                     Radians const deltaAngle = Math::GetYawAngleBetweenVectors( deltaForward2D, Vector::WorldBackward ).GetClamped360();
                     totalRotation += Math::Abs( (float) deltaAngle );
                 }
+
+                // Check for equality - if two transforms differ then we have root motion present
+                if ( !rootMotionData.m_transforms[i].IsNearEqual( rootMotionData.m_transforms[i - 1] ) )
+                {
+                    containsRootMotion = true;
+                }
             }
 
-            animClip.m_rootMotion.m_totalDelta = Transform::DeltaNoScale( animClip.m_rootMotion.m_transforms.front(), animClip.m_rootMotion.m_transforms.back() );
-            animClip.m_rootMotion.m_averageLinearVelocity = totalDistance / animClip.GetDuration();
-            animClip.m_rootMotion.m_averageAngularVelocity = totalRotation / animClip.GetDuration();
+            if ( containsRootMotion )
+            {
+                rootMotionData.m_totalDelta = Transform::DeltaNoScale( rootMotionData.m_transforms[0], rootMotionData.m_transforms.back() );
+                rootMotionData.m_averageLinearVelocity = totalDistance / animClip.GetDuration();
+                rootMotionData.m_averageAngularVelocity = totalRotation / animClip.GetDuration();
+            }
+            else // No root motion, so clear all the identical transforms
+            {
+                rootMotionData.m_transforms.clear();
+                rootMotionData.m_totalDelta = Transform::Identity;
+                rootMotionData.m_averageLinearVelocity = 0;
+                rootMotionData.m_averageAngularVelocity = 0;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+        // Calculate track data ranges
+        //-------------------------------------------------------------------------
+
+        struct TrackRangeData
+        {
+            FloatRange                         m_translationValueRangeX;
+            FloatRange                         m_translationValueRangeY;
+            FloatRange                         m_translationValueRangeZ;
+            FloatRange                         m_scaleValueRange;
+            bool                               m_isRotationConstant = false;
+        };
+
+        TVector<TrackRangeData> trackRanges;
+        trackRanges.resize( numBones );
+
+        for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+        {
+            // Initialize range data
+            TrackRangeData& trackRangeData = trackRanges[boneIdx];
+            trackRangeData.m_translationValueRangeX = FloatRange();
+            trackRangeData.m_translationValueRangeY = FloatRange();
+            trackRangeData.m_translationValueRangeZ = FloatRange();
+            trackRangeData.m_scaleValueRange = FloatRange();
+            trackRangeData.m_isRotationConstant = true;
+
+            // Calculate ranges for the frame range that we are compiling
+            Import::ImportedAnimation::TrackData const& trackTransformData = rawTrackData[boneIdx];
+            Quaternion previousRotation = trackTransformData.m_localTransforms[frameIdxStart].GetRotation();
+            for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
+            {
+                int32_t actualFrameIdx = frameIdx;
+
+                // Repeat last frame for secondary animations that are shorter than their parents
+                if ( shouldRepeatLastFrame && frameIdx >= numOriginalFrames )
+                {
+                    actualFrameIdx = numOriginalFrames - 1;
+                }
+
+                Transform const& boneTransform = trackTransformData.m_localTransforms[actualFrameIdx];
+
+                // Rotation
+                if ( Quaternion::Distance( previousRotation, boneTransform.GetRotation() ) > Math::LargeEpsilon )
+                {
+                    trackRangeData.m_isRotationConstant = false;
+                }
+
+                // Translation
+                Float3 const& translation = boneTransform.GetTranslation().ToFloat3();
+                trackRangeData.m_translationValueRangeX.GrowRange( translation.m_x );
+                trackRangeData.m_translationValueRangeY.GrowRange( translation.m_y );
+                trackRangeData.m_translationValueRangeZ.GrowRange( translation.m_z );
+
+                // Scale
+                trackRangeData.m_scaleValueRange.GrowRange( boneTransform.GetScale() );
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -432,18 +603,19 @@ namespace EE::Animation
 
         for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
+            TrackRangeData const& trackRangeData = trackRanges[boneIdx];
             TrackCompressionSettings trackSettings;
 
             //-------------------------------------------------------------------------
 
-            trackSettings.m_isRotationStatic = rawTrackData[boneIdx].m_isRotationConstant;
-            trackSettings.m_constantRotation = trackSettings.m_isRotationStatic ? rawTrackData[boneIdx].m_localTransforms.front().GetRotation() : Quaternion::Identity;
+            trackSettings.m_isRotationStatic = trackRangeData.m_isRotationConstant;
+            trackSettings.m_constantRotation = trackSettings.m_isRotationStatic ? rawTrackData[boneIdx].m_localTransforms[0].GetRotation() : Quaternion::Identity;
 
             //-------------------------------------------------------------------------
 
-            auto const& rawTranslationValueRangeX = rawTrackData[boneIdx].m_translationValueRangeX;
-            auto const& rawTranslationValueRangeY = rawTrackData[boneIdx].m_translationValueRangeY;
-            auto const& rawTranslationValueRangeZ = rawTrackData[boneIdx].m_translationValueRangeZ;
+            auto const& rawTranslationValueRangeX = trackRangeData.m_translationValueRangeX;
+            auto const& rawTranslationValueRangeY = trackRangeData.m_translationValueRangeY;
+            auto const& rawTranslationValueRangeZ = trackRangeData.m_translationValueRangeZ;
 
             float const& rawTranslationValueRangeLengthX = rawTranslationValueRangeX.GetLength();
             float const& rawTranslationValueRangeLengthY = rawTranslationValueRangeY.GetLength();
@@ -470,7 +642,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            FloatRange const& rawScaleValueRange = rawTrackData[boneIdx].m_scaleValueRange;
+            FloatRange const& rawScaleValueRange = trackRangeData.m_scaleValueRange;
             float const rawScaleValueRangeLengthX = rawScaleValueRange.GetLength();
 
             // We could arguably compress more by saving each component individually at the cost of sampling performance. If we absolutely need more compression, we can do it here
@@ -497,7 +669,15 @@ namespace EE::Animation
 
         for ( int32_t frameIdx = frameIdxStart; frameIdx < frameIdxEnd; frameIdx++ )
         {
-            animClip.m_compressedPoseOffsets.emplace_back( (int32_t) animClip.m_compressedPoseData2.size() );
+            int32_t actualFrameIdx = frameIdx;
+
+            // Repeat last frame for secondary animations that are shorter than their parents
+            if ( shouldRepeatLastFrame && frameIdx >= numOriginalFrames )
+            {
+                actualFrameIdx = numOriginalFrames - 1;
+            }
+
+            animClip.m_compressedPoseOffsets.emplace_back( (int32_t) animClip.m_compressedPoseData.size() );
 
             // Record all bone rotations
             for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
@@ -506,40 +686,34 @@ namespace EE::Animation
 
                 if ( !trackSettings.IsRotationTrackStatic() )
                 {
-                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
+                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[actualFrameIdx];
                     Quaternion const rotation = rawBoneTransform.GetRotation();
 
                     Quantization::EncodedQuaternion const encodedQuat( rotation );
-                    animClip.m_compressedPoseData2.push_back( encodedQuat.GetData0() );
-                    animClip.m_compressedPoseData2.push_back( encodedQuat.GetData1() );
-                    animClip.m_compressedPoseData2.push_back( encodedQuat.GetData2() );
+                    animClip.m_compressedPoseData.push_back( encodedQuat.GetData0() );
+                    animClip.m_compressedPoseData.push_back( encodedQuat.GetData1() );
+                    animClip.m_compressedPoseData.push_back( encodedQuat.GetData2() );
                 }
-            }
-
-            // Record all bone translation and scale
-            for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
-            {
-                TrackCompressionSettings const& trackSettings = animClip.m_trackCompressionSettings[boneIdx];
 
                 if ( !trackSettings.IsTranslationTrackStatic() )
                 {
-                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
+                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[actualFrameIdx];
                     Vector const& translation = rawBoneTransform.GetTranslation();
 
                     uint16_t const m_x = Quantization::EncodeFloat( translation.GetX(), trackSettings.m_translationRangeX.m_rangeStart, trackSettings.m_translationRangeX.m_rangeLength );
                     uint16_t const m_y = Quantization::EncodeFloat( translation.GetY(), trackSettings.m_translationRangeY.m_rangeStart, trackSettings.m_translationRangeY.m_rangeLength );
                     uint16_t const m_z = Quantization::EncodeFloat( translation.GetZ(), trackSettings.m_translationRangeZ.m_rangeStart, trackSettings.m_translationRangeZ.m_rangeLength );
 
-                    animClip.m_compressedPoseData2.push_back( m_x );
-                    animClip.m_compressedPoseData2.push_back( m_y );
-                    animClip.m_compressedPoseData2.push_back( m_z );
+                    animClip.m_compressedPoseData.push_back( m_x );
+                    animClip.m_compressedPoseData.push_back( m_y );
+                    animClip.m_compressedPoseData.push_back( m_z );
                 }
 
                 if ( !trackSettings.IsScaleTrackStatic() )
                 {
-                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[frameIdx];
+                    Transform const& rawBoneTransform = rawTrackData[boneIdx].m_localTransforms[actualFrameIdx];
                     uint16_t const m_x = Quantization::EncodeFloat( rawBoneTransform.GetScale(), trackSettings.m_scaleRange.m_rangeStart, trackSettings.m_scaleRange.m_rangeLength );
-                    animClip.m_compressedPoseData2.push_back( m_x );
+                    animClip.m_compressedPoseData.push_back( m_x );
                 }
             }
         }
@@ -549,7 +723,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    Resource::CompilationResult AnimationClipCompiler::ReadEventsData( Resource::CompileContext const& ctx, rapidjson::Document const& document, RawAssets::RawAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const
+    Resource::CompilationResult AnimationClipCompiler::ReadEventsData( Resource::CompileContext const& ctx, rapidjson::Document const& document, Import::ImportedAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const
     {
         EE_ASSERT( document.IsObject() );
 
@@ -694,21 +868,34 @@ namespace EE::Animation
 
     bool AnimationClipCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        // Try read event tracks
+        // Try read descriptor
         //-------------------------------------------------------------------------
 
         FileSystem::Path const descriptorFilePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
-
-        Serialization::TypeArchiveReader typeReader( *m_pTypeRegistry );
-        if ( !typeReader.ReadFromFile( descriptorFilePath ) )
+        rapidjson::Document descriptorDocument;
+        AnimationClipResourceDescriptor resourceDescriptor;
+        if ( !TryLoadResourceDescriptor( descriptorFilePath, resourceDescriptor, &descriptorDocument ) )
         {
             Error( "Failed to read resource descriptor file: %s", descriptorFilePath.c_str() );
             return false;
         }
 
-        auto& document = typeReader.GetDocument();
+        // Add skeletons
+        //-------------------------------------------------------------------------
+
+        outReferencedResources.emplace_back( resourceDescriptor.m_skeleton.GetResourceID() );
+        
+        // Add secondary animation skeletons as install dependencies
+        for ( auto const& secondaryAnim : resourceDescriptor.m_secondaryAnimations )
+        {
+            VectorEmplaceBackUnique( outReferencedResources, secondaryAnim.m_skeleton.GetResourceID() );
+        }
+
+        // Try read event tracks
+        //-------------------------------------------------------------------------
+
         EventTimeline eventTimeline( *m_pTypeRegistry );
-        if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
+        if ( !eventTimeline.Serialize( *m_pTypeRegistry, descriptorDocument ) )
         {
             Error( "Malformed event track data" );
             return false;

@@ -142,9 +142,6 @@ namespace EE::Timeline
         // Update and draw the timeline
         void UpdateAndDraw( Seconds deltaTime );
 
-        // Allow any users to handle the default keyboard inputs at a global level in their workspace
-        void HandleGlobalKeyboardInputs();
-
         // Playhead position
         //-------------------------------------------------------------------------
 

@@ -246,7 +246,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT();
+        EE_REFLECT( "ShowAsStaticArray" : true );
         TVector<float>              m_pinValues;
 
         EE_REFLECT();

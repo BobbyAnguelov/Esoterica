@@ -18,12 +18,21 @@ namespace EE::Physics
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return CollisionMesh::GetStaticResourceTypeID(); }
 
-        virtual void GetCompileDependencies( TVector<ResourceID>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
         {
             if ( m_sourcePath.IsValid() )
             {
                 outDependencies.emplace_back( m_sourcePath );
             }
+        }
+
+        virtual void Clear() override
+        {
+            m_sourcePath.Clear();
+            m_meshesToInclude.clear();
+            m_collisionSettings.Clear();
+            m_isConvexMesh = false;
+            m_scale = Float3( 1.0f, 1.0f, 1.0f );
         }
 
     public:

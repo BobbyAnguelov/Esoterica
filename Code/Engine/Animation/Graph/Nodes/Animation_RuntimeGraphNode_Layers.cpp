@@ -174,7 +174,7 @@ namespace EE::Animation::GraphNodes
             // We need to register a task at the base layer in all cases - since we blend the layers tasks on top of it
             if ( !result.HasRegisteredTasks() )
             {
-                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::DefaultPoseTask>( GetNodeIndex(), Pose::Type::ReferencePose );
+                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
             }
 
             UpdateLayers( context, result );
@@ -300,7 +300,7 @@ namespace EE::Animation::GraphNodes
                     {
                         case PoseBlendMode::Overlay:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::OverlayBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
 
@@ -341,7 +341,7 @@ namespace EE::Animation::GraphNodes
                 else // Layer is off
                 {
                     // Flag all events as ignored
-                    context.m_sampledEventsBuffer.MarkEventsAsIgnored( layerResult.m_sampledEventRange );
+                    context.m_pSampledEventsBuffer->MarkEventsAsIgnored( layerResult.m_sampledEventRange );
 
                     // Remove any registered pose tasks
                     EE_ASSERT( pSettings->m_layerSettings[i].m_isStateMachineLayer ); // Cannot occur for local layers
@@ -362,12 +362,12 @@ namespace EE::Animation::GraphNodes
             if ( numLayerEvents > 0 )
             {
                 // Update events
-                context.m_sampledEventsBuffer.UpdateWeights( layerEventRange, m_layers[i].m_weight );
+                context.m_pSampledEventsBuffer->UpdateWeights( layerEventRange, m_layers[i].m_weight );
 
                 // Mark events as ignored if requested
                 if ( pSettings->m_layerSettings[i].m_ignoreEvents )
                 {
-                    context.m_sampledEventsBuffer.MarkEventsAsIgnored( layerEventRange );
+                    context.m_pSampledEventsBuffer->MarkEventsAsIgnored( layerEventRange );
                 }
 
                 // Merge layer sampled event into the layer's nodes range

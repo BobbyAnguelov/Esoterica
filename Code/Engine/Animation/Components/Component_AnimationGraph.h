@@ -29,7 +29,6 @@ namespace EE::Animation
 
         inline bool HasGraph() const { return m_pGraphVariation != nullptr; }
         inline bool HasGraphInstance() const { return m_pGraphInstance != nullptr; }
-        Pose const* GetPose() const;
 
         // Does this component require a manual update via a custom entity system?
         inline bool RequiresManualUpdate() const { return m_requiresManualUpdate; }
@@ -50,14 +49,31 @@ namespace EE::Animation
         // This function will change the graph and data-set used! Note: this can only be called for unloaded components
         void SetGraphVariation( ResourceID graphResourceID );
 
-        // Skeleton
+        // Poses and Skeleton
         //-------------------------------------------------------------------------
 
-        Skeleton const* GetSkeleton() const;
+        Skeleton const* GetPrimarySkeleton() const;
 
+        // Set the secondary skeleton that we will try to animate with the graph
+        void SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons );
+
+        // Set the level of detail for all pose operations
         EE_FORCE_INLINE void SetSkeletonLOD( Skeleton::LOD lod ) { m_skeletonLOD = lod; }
 
+        // Get the current level of detail for all pose operations
         EE_FORCE_INLINE Skeleton::LOD GetSkeletonLOD() const { return m_skeletonLOD; }
+
+        // Get the primary pose from the graph
+        Pose const* GetPrimaryPose() const;
+
+        // Do we have any secondary poses
+        EE_FORCE_INLINE bool HasSecondaryPoses() const { return !m_pGraphInstance->HasSecondaryPoses(); }
+
+        // Get the number of secondary poses
+        EE_FORCE_INLINE int32_t GetNumSecondaryPoses() const { return m_pGraphInstance->GetNumSecondaryPoses(); }
+
+        // Get the primary pose from the graph
+        TInlineVector<Pose const*, 1> GetSecondaryPoses() const;
 
         // Graph evaluation
         //-------------------------------------------------------------------------
@@ -143,6 +159,7 @@ namespace EE::Animation
         EE_REFLECT() TResourcePtr<GraphVariation>               m_pGraphVariation = nullptr;
 
         GraphInstance*                                          m_pGraphInstance = nullptr;
+        SecondarySkeletonList                                   m_secondarySkeletons;
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
         Skeleton::LOD                                           m_skeletonLOD = Skeleton::LOD::High;

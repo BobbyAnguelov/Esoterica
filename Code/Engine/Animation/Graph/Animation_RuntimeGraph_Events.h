@@ -73,24 +73,24 @@ namespace EE::Animation
 
     public:
 
-        explicit SampledEvent( int16_t sourceNodeIdx, float weight, bool isFromActiveBranch, StateEventType eventType, StringID eventID )
+        explicit SampledEvent( float weight, bool isFromActiveBranch, StateEventType eventType, StringID eventID )
             : m_weight( weight )
-            , m_sourceNodeIdx( sourceNodeIdx )
             , m_isFromActiveBranch( isFromActiveBranch )
             , m_isIgnored( false )
             , m_isStateEvent( true )
+            //, m_sourceNodeIdx( sourceNodeIdx )
         {
             EE_ASSERT( eventID.IsValid() );
             m_stateData.m_ID = eventID;
             m_stateData.m_type = eventType;
         }
 
-        explicit SampledEvent( int16_t sourceNodeIdx, float weight, bool isFromActiveBranch, Event const* pEvent, Percentage percentageThrough )
+        explicit SampledEvent( float weight, bool isFromActiveBranch, Event const* pEvent, Percentage percentageThrough )
             : m_weight( weight )
-            , m_sourceNodeIdx( sourceNodeIdx )
             , m_isFromActiveBranch( isFromActiveBranch )
             , m_isIgnored( false )
             , m_isStateEvent( false )
+            //, m_sourceNodeIdx( sourceNodeIdx )
         {
             EE_ASSERT( pEvent != nullptr );
             EE_ASSERT( percentageThrough >= 0 && percentageThrough <= 1.0f );
@@ -101,7 +101,10 @@ namespace EE::Animation
         // Sampled Event
         //-------------------------------------------------------------------------
 
+        #if EE_DEVELOPMENT_TOOLS
+        inline void SetSourceNodeIndex( int16_t nodeIdx ) { m_sourceNodeIdx = nodeIdx; }
         inline int16_t GetSourceNodeIndex() const { return m_sourceNodeIdx; }
+        #endif
 
         inline bool IsAnimationEvent() const { return !m_isStateEvent; }
         inline bool IsStateEvent() const { return m_isStateEvent; }
@@ -145,10 +148,13 @@ namespace EE::Animation
     private:
 
         float                               m_weight = 1.0f;                // The weight of the event when sampled
-        int16_t                             m_sourceNodeIdx = InvalidIndex; // The index of the node that this event was sampled from
         bool                                m_isFromActiveBranch : 1;
         bool                                m_isIgnored : 1;
         bool                                m_isStateEvent : 1;
+
+        #if EE_DEVELOPMENT_TOOLS
+        int16_t                             m_sourceNodeIdx = InvalidIndex; // The index of the node that this event was sampled from
+        #endif
 
         union
         {
@@ -185,6 +191,8 @@ namespace EE::Animation
 
     class EE_ENGINE_API SampledEventsBuffer
     {
+        friend class AnimationDebugView;
+
     public:
 
         // Empty the buffer
@@ -195,6 +203,12 @@ namespace EE::Animation
 
         // Get the total number of sampled events (for both anim and state events )
         inline TVector<SampledEvent> const& GetSampledEvents() const { return m_sampledEvents; }
+
+        // Get the event at specified index
+        EE_FORCE_INLINE SampledEvent& GetEvent( uint32_t i ) { EE_ASSERT( i < m_sampledEvents.size() ); return m_sampledEvents[i]; }
+
+        // Get the event at specified index
+        EE_FORCE_INLINE SampledEvent const& GetEvent( uint32_t i ) const { EE_ASSERT( i < m_sampledEvents.size() ); return m_sampledEvents[i]; }
 
         // Is the supplied range valid for the current state of the buffer?
         inline bool IsValidRange( SampledEventRange range ) const
@@ -270,10 +284,14 @@ namespace EE::Animation
         // Animation Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceAnimationEvent( int16_t sourceNodeIdx, Event const* pEvent, Percentage percentageThrough, bool isFromActiveBranch = true )
+        inline SampledEvent& EmplaceAnimationEvent( Event const* pEvent, Percentage percentageThrough, bool isFromActiveBranch = true )
         {
+            #if EE_DEVELOPMENT_TOOLS
+            m_eventDebugGraphPaths.emplace_back( m_debugGraphPath );
+            #endif
+
             m_numAnimEventsSampled++;
-            return m_sampledEvents.emplace_back( sourceNodeIdx, 1.0f, isFromActiveBranch, pEvent, percentageThrough );
+            return m_sampledEvents.emplace_back( 1.0f, isFromActiveBranch, pEvent, percentageThrough );
         }
 
         inline int16_t GetNumAnimationEventsSampled() const { return m_numAnimEventsSampled; }
@@ -281,10 +299,14 @@ namespace EE::Animation
         // State Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceStateEvent( int16_t sourceNodeIdx, StateEventType type, StringID ID, bool isFromActiveBranch )
+        inline SampledEvent& EmplaceStateEvent( StateEventType type, StringID ID, bool isFromActiveBranch )
         {
+            #if EE_DEVELOPMENT_TOOLS
+            m_eventDebugGraphPaths.emplace_back( m_debugGraphPath );
+            #endif
+
             m_numStateEventsSampled++;
-            return m_sampledEvents.emplace_back( sourceNodeIdx, 1.0f, isFromActiveBranch, type, ID );
+            return m_sampledEvents.emplace_back( 1.0f, isFromActiveBranch, type, ID );
         }
 
         inline int16_t GetNumStateEventsSampled() const { return m_numStateEventsSampled; }
@@ -314,13 +336,32 @@ namespace EE::Animation
         EE_FORCE_INLINE TVector<SampledEvent>::iterator end() { return m_sampledEvents.end(); }
         EE_FORCE_INLINE TVector<SampledEvent>::const_iterator begin() const { return m_sampledEvents.begin(); }
         EE_FORCE_INLINE TVector<SampledEvent>::const_iterator end() const{ return m_sampledEvents.end(); }
-        EE_FORCE_INLINE SampledEvent& operator[]( uint32_t i ) { EE_ASSERT( i < m_sampledEvents.size() ); return m_sampledEvents[i]; }
-        EE_FORCE_INLINE SampledEvent const& operator[]( uint32_t i ) const { EE_ASSERT( i < m_sampledEvents.size() ); return m_sampledEvents[i]; }
+        EE_FORCE_INLINE SampledEvent& operator[]( uint32_t i ) { return GetEvent(i); }
+        EE_FORCE_INLINE SampledEvent const& operator[]( uint32_t i ) const { return GetEvent( i ); }
+
+        // Debug
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        // Are we current in an external/child graph
+        bool IsCurrentDebugGraphPathEmpty() const { return m_debugGraphPath.empty(); }
+
+        // Add a new path element to add extra information about the source of events (this should only be called from child/external graph nodes)
+        void PushDebugGraphPathElement( int16_t nodeIdx ) { m_debugGraphPath.emplace_back( nodeIdx ); }
+
+        // Pop a path element from the current path
+        void PopDebugGraphPathElement() { EE_ASSERT( !m_debugGraphPath.empty() ); m_debugGraphPath.pop_back(); }
+        #endif
 
     public:
 
         TVector<SampledEvent>                       m_sampledEvents;
         int16_t                                     m_numAnimEventsSampled = 0;
         int16_t                                     m_numStateEventsSampled = 0;
+
+        #if EE_DEVELOPMENT_TOOLS
+        TInlineVector<int16_t, 5>                   m_debugGraphPath;
+        TVector<TInlineVector<int16_t, 5>>          m_eventDebugGraphPaths;
+        #endif
     };
 }

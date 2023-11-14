@@ -40,6 +40,9 @@ namespace EE::FileSystem
     // Is this file directory read only
     EE_BASE_API bool IsReadOnly( char const* pPath );
 
+    // Find the start idx for the extension for a given path - returns String::npos if no extension is found
+    EE_BASE_API size_t FindExtensionStartIdx( String const& path, char const pathDelimiter = Settings::s_pathDelimiter, bool supportMultiExtensionPaths = false );
+
     // File functions
     //-------------------------------------------------------------------------
     // These function also perform additional validation based on the path type

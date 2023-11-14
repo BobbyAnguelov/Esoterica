@@ -18,6 +18,14 @@ namespace EE::Resource
         SuccessWithWarnings = 2,
     };
 
+    // Log Delimiter
+    //-------------------------------------------------------------------------
+
+    struct EE_ENGINETOOLS_API CompilationLog
+    {
+        constexpr static char const* const s_delimiter = "Esoterica Resource Compiler\n";
+    };
+
     // Context for a single compilation operation
     //-------------------------------------------------------------------------
 
@@ -97,7 +105,22 @@ namespace EE::Resource
             }
             else
             {
-                Error( "ResourceCompiler", "Invalid data path encountered: '%s'", resourcePath.c_str() );
+                Error( "ResourceCompiler", "Failed to convert resource path to file system path: '%s'", resourcePath.c_str() );
+                return false;
+            }
+        }
+
+        // Converts a file path to a resource path
+        inline bool ConvertFilePathToResourcePath( FileSystem::Path const& filePath, ResourcePath& resourcePath ) const
+        {
+            if ( resourcePath.IsValid() )
+            {
+                resourcePath = ResourcePath::FromFileSystemPath( m_rawResourceDirectoryPath, filePath );
+                return true;
+            }
+            else
+            {
+                Error( "ResourceCompiler", "Failed to convert file system path to resource path: '%s'", filePath.c_str() );
                 return false;
             }
         }

@@ -33,7 +33,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline bool HasAnimationSet() const { return m_pAnimation != nullptr; }
-        Pose const* GetPose() const { return m_pPose; }
 
         // Does this component require a manual update via a custom entity system?
         inline bool RequiresManualUpdate() const { return m_requiresManualUpdate; }
@@ -48,8 +47,37 @@ namespace EE::Animation
         // Skeleton
         //-------------------------------------------------------------------------
 
-        Skeleton const* GetSkeleton() const;
-        void SetSkeletonLOD( Skeleton::LOD lod ) { m_skeletonLOD = lod; }
+        // Get the primary skeleton we are animating
+        inline Skeleton const* GetPrimarySkeleton() const { return ( m_pAnimation != nullptr ) ? m_pAnimation->GetSkeleton() : nullptr; }
+
+        // Get the list of secondary skeletons we can animate
+        inline TInlineVector<Skeleton const*, 1> GetSecondarySkeletons() { return ( m_pAnimation != nullptr ) ? m_pAnimation->GetSecondarySkeletons() : TInlineVector<Skeleton const*, 1 >(); }
+
+        // Set the level of detail for all pose operations
+        EE_FORCE_INLINE void SetSkeletonLOD( Skeleton::LOD lod ) { m_skeletonLOD = lod; }
+
+        // Get the current level of detail for all pose operations
+        EE_FORCE_INLINE Skeleton::LOD GetSkeletonLOD() const { return m_skeletonLOD; }
+
+        // Poses
+        //-------------------------------------------------------------------------
+
+        // Get the main the pose
+        Pose const* GetPrimaryPose() const { return m_pPose; }
+
+        // Do we have any secondary poses
+        inline bool HasSecondaryPoses() const { return !m_secondaryPoses.empty(); }
+
+        // Get the number of secondary poses
+        inline int32_t GetNumSecondaryPoses() const { return (int32_t) m_secondaryPoses.size(); }
+
+        // Get all sampled secondary poses
+        inline TInlineVector<Pose const*, 1> GetSecondaryPoses() const
+        {
+            TInlineVector<Pose const*, 1> secondaryConstPoses;
+            for ( auto pPose : m_secondaryPoses ) { secondaryConstPoses.emplace_back( pPose ); }
+            return secondaryConstPoses;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -95,9 +123,10 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Skeleton::LOD                           m_skeletonLOD = Skeleton::LOD::High;
-        Pose*                                   m_pPose = nullptr;
         Percentage                              m_previousAnimTime = Percentage( 0.0f );
         Percentage                              m_animTime = Percentage( 0.0f );
         Transform                               m_rootMotionDelta = Transform::Identity;
+        Pose*                                   m_pPose = nullptr;
+        TInlineVector<Pose*, 1>                 m_secondaryPoses;
     };
 }

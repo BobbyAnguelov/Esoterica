@@ -38,8 +38,8 @@ namespace EE::Player
 
         bool                                    m_sprintFlag = false;
         bool                                    m_crouchFlag = false;
-        EE_REFLECT() FloatCurve                    m_jumpCurve;
-        EE_REFLECT() FloatCurve                    m_angularVelocityLimitCurve;
+        EE_REFLECT() FloatCurve                 m_jumpCurve;
+        EE_REFLECT() FloatCurve                 m_angularVelocityLimitCurve;
 
         // HACK!!! - Just to test out the external graph feature for now
         Animation::GraphVariation const*        m_pAvailableInteraction = nullptr;

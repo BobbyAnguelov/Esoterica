@@ -17,10 +17,33 @@ namespace EE::Animation::Tasks
     void SampleTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
+
         EE_ASSERT( m_pAnimation != nullptr );
 
         auto pResultBuffer = GetNewPoseBuffer( context );
-        m_pAnimation->GetPose( m_time, &pResultBuffer->m_pose );
+
+        // Sample primary pose
+        //-------------------------------------------------------------------------
+
+        m_pAnimation->GetPose( m_time, pResultBuffer->GetPrimaryPose() );
+
+        // Sample secondary poses
+        //-------------------------------------------------------------------------
+
+        int32_t const numPoses = (int32_t) pResultBuffer->m_poses.size();
+        for ( auto i = 1; i < numPoses; i++ )
+        {
+            AnimationClip const* pSecondaryAnimation = m_pAnimation->GetSecondaryAnimation( pResultBuffer->m_poses[i].GetSkeleton() );
+            if ( pSecondaryAnimation != nullptr )
+            {
+                pSecondaryAnimation->GetPose( m_time, &pResultBuffer->m_poses[i] );
+            }
+            else
+            {
+                pResultBuffer->m_poses[i].Reset( Pose::Type::None );
+            }
+        }
+
         MarkTaskComplete( context );
     }
 

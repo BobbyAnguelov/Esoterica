@@ -105,6 +105,7 @@ namespace EE::TypeSystem
         #if EE_DEVELOPMENT_TOOLS
         bool                        m_isForDevelopmentUseOnly = false;      // Whether this property only exists in development builds
         bool                        m_isToolsReadOnly = false;              // Whether this property can be modified by any tools or if it's just a serializable value
+        bool                        m_showInRestrictedMode = false;         // Has different semantics for different types e.g. for dynamic array disallows size manipulation
         String                      m_friendlyName;
         String                      m_category;
         String                      m_description;                          // Generated from the comments for the property

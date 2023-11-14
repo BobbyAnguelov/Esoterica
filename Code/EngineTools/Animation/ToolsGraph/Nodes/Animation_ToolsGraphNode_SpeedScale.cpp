@@ -119,11 +119,29 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
+                if ( m_desiredDuration < 0.0f )
+                {
+                    context.LogError( this, "Invalid desired duration for duration scale node! Duration must be > 0.0f." );
+                    return InvalidIndex;
+                }
             }
         }
+
+        //-------------------------------------------------------------------------
+
+        pSettings->m_desiredDuration = m_desiredDuration;
         return pSettings->m_nodeIdx;
+    }
+
+    void DurationScaleToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        auto pDurationInputNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+        if ( pDurationInputNode == nullptr )
+        {
+            BeginDrawInternalRegion( ctx );
+            ImGui::Text( "Duration = %.2f", m_desiredDuration );
+            EndDrawInternalRegion( ctx );
+        }
     }
 
     //-------------------------------------------------------------------------

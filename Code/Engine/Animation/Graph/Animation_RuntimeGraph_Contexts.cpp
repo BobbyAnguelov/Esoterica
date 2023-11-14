@@ -36,21 +36,21 @@ namespace EE::Animation
     GraphContext::~GraphContext()
     {
         EE_ASSERT( m_pTaskSystem == nullptr );
-        EE_ASSERT( m_pPreviousPose == nullptr );
     }
 
-    void GraphContext::Initialize( TaskSystem* pTaskSystem )
+    void GraphContext::Initialize( TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer )
     {
-        EE_ASSERT( m_pTaskSystem == nullptr && m_pPreviousPose == nullptr );
+        EE_ASSERT( m_pTaskSystem == nullptr && m_pSampledEventsBuffer == nullptr );
         EE_ASSERT( pTaskSystem != nullptr );
+        EE_ASSERT( pSampledEventsBuffer != nullptr );
         m_pTaskSystem = pTaskSystem;
-        m_pPreviousPose = pTaskSystem->GetPose();
+        m_pSampledEventsBuffer = pSampledEventsBuffer;
+        m_pPreviousPose = pTaskSystem->GetPrimaryPose();
     }
 
     void GraphContext::Shutdown()
     {
         m_pTaskSystem = nullptr;
-        m_pPreviousPose = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
         m_pActiveNodes = nullptr;
@@ -67,7 +67,16 @@ namespace EE::Animation
         m_worldTransformInverse = m_worldTransform.GetInverse();
         m_pPhysicsWorld = pPhysicsWorld;
         m_branchState = BranchState::Active;
-        m_sampledEventsBuffer.Clear();
+    }
+
+    PoseBuffer const* GraphContext::GetPreviousPoseBuffer() const
+    {
+        return m_pTaskSystem->GetPoseBuffer();
+    }
+
+    Pose const* GraphContext::GetPreviousPrimaryPose() const
+    {
+        return m_pTaskSystem->GetPrimaryPose();
     }
 
     #if EE_DEVELOPMENT_TOOLS

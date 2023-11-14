@@ -34,14 +34,6 @@ namespace EE::Animation
 
     GraphController::~GraphController()
     {
-        for ( auto pController : m_subGraphControllers )
-        {
-            EE::Delete( pController );
-        }
-        m_subGraphControllers.clear();
-
-        //-------------------------------------------------------------------------
-
         for ( auto pController : m_externalGraphControllers )
         {
             // If we have any controllers that dont require auto destruction, this signifies a leak
@@ -60,11 +52,6 @@ namespace EE::Animation
 
     void GraphController::PreGraphUpdate( Seconds deltaTime )
     {
-        for ( auto pController : m_subGraphControllers )
-        {
-            pController->PreGraphUpdate( deltaTime );
-        }
-
         for ( auto pController : m_externalGraphControllers )
         {
             pController->PreGraphUpdate( deltaTime );
@@ -73,11 +60,6 @@ namespace EE::Animation
 
     void GraphController::PostGraphUpdate( Seconds deltaTime )
     {
-        for ( auto pController : m_subGraphControllers )
-        {
-            pController->PostGraphUpdate( deltaTime );
-        }
-
         for ( auto& pController : m_externalGraphControllers )
         {
             pController->PostGraphUpdate( deltaTime );

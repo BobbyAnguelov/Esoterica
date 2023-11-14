@@ -4,6 +4,13 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE::Animation
+{
+    class GraphInstance;
+}
+
+//-------------------------------------------------------------------------
+
 namespace EE::Animation::GraphNodes
 {
     //-------------------------------------------------------------------------
@@ -12,6 +19,8 @@ namespace EE::Animation::GraphNodes
 
     class EE_ENGINE_API ControlParameterBoolNode final : public BoolValueNode
     {
+        friend GraphInstance;
+
     public:
 
         struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
@@ -22,8 +31,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        EE_FORCE_INLINE void DirectlySetValue( bool value ) { m_value = value; }
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(bool*) pInValue; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -39,6 +49,8 @@ namespace EE::Animation::GraphNodes
 
     class EE_ENGINE_API ControlParameterIDNode final : public IDValueNode
     {
+        friend GraphInstance;
+
     public:
 
         struct EE_ENGINE_API Settings final : public IDValueNode::Settings
@@ -49,8 +61,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        EE_FORCE_INLINE void DirectlySetValue( StringID value ) { m_value = value; }
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(StringID*) pInValue; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -66,6 +79,8 @@ namespace EE::Animation::GraphNodes
 
     class EE_ENGINE_API ControlParameterFloatNode final : public FloatValueNode
     {
+        friend GraphInstance;
+
     public:
 
         struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
@@ -76,8 +91,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        EE_FORCE_INLINE void DirectlySetValue( float value ) { m_value = value; }
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(float*) pInValue; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -93,6 +109,8 @@ namespace EE::Animation::GraphNodes
 
     class EE_ENGINE_API ControlParameterVectorNode final : public VectorValueNode
     {
+        friend GraphInstance;
+
     public:
 
         struct EE_ENGINE_API Settings final : public VectorValueNode::Settings
@@ -103,8 +121,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        EE_FORCE_INLINE void DirectlySetValue( Vector const& value ) { m_value = value; }
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(Vector*) pInValue; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -120,6 +139,8 @@ namespace EE::Animation::GraphNodes
 
     class EE_ENGINE_API ControlParameterTargetNode final : public TargetValueNode
     {
+        friend GraphInstance;
+
     public:
 
         struct EE_ENGINE_API Settings final : public TargetValueNode::Settings
@@ -130,8 +151,9 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        EE_FORCE_INLINE void DirectlySetValue( Target const& value ) { m_value = value; }
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override;
+        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(Target*) pInValue; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;

@@ -25,7 +25,7 @@ namespace EE::Animation
 
         inline bool IsValid() const { return m_variationID.IsValid() && m_skeleton.IsLoaded(); }
 
-        inline Skeleton const* GetSkeleton() const { return m_skeleton.GetPtr(); }
+        inline Skeleton const* GetPrimarySkeleton() const { return m_skeleton.GetPtr(); }
 
         template<typename T>
         inline T const* GetResource( int16_t const& slotIdx ) const
