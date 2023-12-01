@@ -350,6 +350,12 @@ namespace EE::Resource
     {
         String clipboardText = ImGui::GetClipboardText();
 
+        if ( clipboardText.length() > 256 )
+        {
+            EE_LOG_WARNING( "Resource", "ResourcePicker", "Pasting invalid length string" );
+            return false;
+        }
+
         // Check for a valid file path if the resource path is bad
         //-------------------------------------------------------------------------
 
@@ -458,6 +464,12 @@ namespace EE::Resource
                     if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
                     {
                         String clipboardText = ImGui::GetClipboardText();
+                        if ( clipboardText.length() > 256 )
+                        {
+                            EE_LOG_WARNING( "Resource", "ResourcePicker", "Pasting invalid length string" );
+                            clipboardText.clear();
+                        }
+
                         if ( ResourcePath::IsValidPath( clipboardText ) )
                         {
                             m_resourcePath = ResourcePath( clipboardText );

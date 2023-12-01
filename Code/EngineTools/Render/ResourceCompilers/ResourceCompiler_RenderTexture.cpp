@@ -89,6 +89,7 @@ namespace EE::Render
                 default:
                 {
                     EE_UNREACHABLE_CODE();
+                    return 0;
                 }
             }
         };

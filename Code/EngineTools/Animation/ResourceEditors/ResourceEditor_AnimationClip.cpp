@@ -122,6 +122,7 @@ namespace EE::Animation
             m_pMeshComponent->SetSkeleton( pPrimarySkeleton->GetResourceID() );
             m_pMeshComponent->SetMesh( pPrimarySkeleton->GetPreviewMeshID() );
             m_pMeshComponent->SetWorldTransform( m_characterTransform );
+            m_pMeshComponent->SetVisible( m_showMesh );
             m_pPreviewEntity->AddComponent( m_pMeshComponent );
 
             // If we have secondary anims then create the secondary preview components
@@ -291,6 +292,18 @@ namespace EE::Animation
 
         if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
         {
+            ImGui::BeginDisabled( m_pMeshComponent == nullptr );
+            if ( ImGui::Checkbox( "Show Mesh", &m_showMesh ) )
+            {
+                m_pMeshComponent->SetVisible( m_showMesh );
+            }
+            ImGui::EndDisabled();
+
+            if ( ImGui::Checkbox( "Show Floor", &m_showFloor ) )
+            {
+                SetFloorVisibility( m_showFloor );
+            }
+
             ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
 
             ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );

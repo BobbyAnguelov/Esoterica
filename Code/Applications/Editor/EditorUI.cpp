@@ -914,7 +914,6 @@ namespace EE
         IM_ASSERT( beginCount == 2 );
 
         ImGuiID const dockspaceID = pEditorTool->m_currentDockspaceID;
-        ImVec2 const dockspaceSize = ImGui::GetContentRegionAvail();
 
         // Fork settings when extracting to a new location, or Overwrite settings when docking back into an existing location
         if ( pEditorTool->m_previousLocationID != 0 && pEditorTool->m_previousLocationID != pEditorTool->m_currentLocationID )
@@ -973,6 +972,10 @@ namespace EE
         }
         else if ( ImGui::DockBuilderGetNode( pEditorTool->m_currentDockspaceID ) == nullptr )
         {
+            ImVec2 dockspaceSize = ImGui::GetContentRegionAvail();
+            dockspaceSize.x = Math::Max( dockspaceSize.x, 1.0f );
+            dockspaceSize.y = Math::Max( dockspaceSize.y, 1.0f );
+
             ImGui::DockBuilderAddNode( pEditorTool->m_currentDockspaceID, ImGuiDockNodeFlags_DockSpace );
             ImGui::DockBuilderSetNodeSize( pEditorTool->m_currentDockspaceID, dockspaceSize );
             if ( !pEditorTool->IsSingleWindowTool() )
@@ -1006,7 +1009,7 @@ namespace EE
             if ( !pEditorTool->IsSingleWindowTool() )
             {
                 // Keep alive document dockspace so windows that are docked into it but which visibility are not linked to the dockspace visibility won't get undocked.
-                ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_KeepAliveOnly, &pEditorTool->m_toolWindowClass );
+                ImGui::DockSpace( dockspaceID, ImVec2( 0, 0 ), ImGuiDockNodeFlags_KeepAliveOnly, &pEditorTool->m_toolWindowClass);
             }
 
             ImGui::End();
@@ -1044,7 +1047,7 @@ namespace EE
         }
         else
         {
-            ImGui::DockSpace( dockspaceID, dockspaceSize, ImGuiDockNodeFlags_None, &pEditorTool->m_toolWindowClass );
+            ImGui::DockSpace( dockspaceID, ImVec2( 0, 0 ), ImGuiDockNodeFlags_None, &pEditorTool->m_toolWindowClass );
         }
         ImGui::End();
 

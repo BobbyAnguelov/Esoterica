@@ -392,7 +392,18 @@ namespace EE::Resource
 
             for ( auto pChildFile : pDirectoryEntry->m_files )
             {
-                if ( !pChildFile->HasDescriptor() && Import::IsImportableFileType( pChildFile->m_filePath.GetExtension() ) )
+                if ( pChildFile->HasDescriptor() )
+                {
+                    continue;
+                }
+
+                TInlineString<6> const extension = pChildFile->m_filePath.GetExtensionAsString();
+                if ( extension.empty() )
+                {
+                    continue;
+                }
+
+                if ( Import::IsImportableFileType( extension ) )
                 {
                     CreateChild<ImporterTreeItem>( m_toolsContext, pChildFile );
                 }

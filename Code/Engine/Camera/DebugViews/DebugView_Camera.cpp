@@ -14,40 +14,6 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
-    void CameraDebugView::DrawDebugCameraOptions( EntityWorld const* pWorld )
-    {
-        EE_ASSERT( pWorld != nullptr );
-        auto pCameraManager = pWorld->GetWorldSystem<CameraManager>();
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Speed:" );
-
-        ImGui::SameLine();
-
-        DebugCameraComponent* pDebugCamera = pCameraManager->GetDebugCamera();
-        if ( pDebugCamera != nullptr )
-        {
-            float cameraSpeed = pDebugCamera->GetMoveSpeed();
-            ImGui::SetNextItemWidth( 125 );
-            if ( ImGui::SliderFloat( "##CameraSpeed", &cameraSpeed, DebugCameraComponent::s_minSpeed, DebugCameraComponent::s_maxSpeed ) )
-            {
-                pDebugCamera->SetMoveSpeed( cameraSpeed );
-            }
-
-            if ( ImGui::MenuItem( EE_ICON_RUN_FAST" Reset Camera Speed" ) )
-            {
-                pDebugCamera->ResetMoveSpeed();
-            }
-
-            if ( ImGui::MenuItem( EE_ICON_EYE_REFRESH_OUTLINE" Reset View" ) )
-            {
-                pDebugCamera->ResetView();
-            }
-        }
-    }
-
-    //-------------------------------------------------------------------------
-
     void CameraDebugView::Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld )
     {
         DebugView::Initialize( systemRegistry, pWorld );

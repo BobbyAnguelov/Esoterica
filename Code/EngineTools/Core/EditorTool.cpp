@@ -4,6 +4,7 @@
 #include "EngineTools/Resource/ResourceCompiler.h"
 #include "EngineTools/Resource/ResourceToolDefines.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
+#include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Camera/DebugViews/DebugView_Camera.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Camera/Systems/EntitySystem_DebugCameraController.h"
@@ -76,8 +77,7 @@ namespace EE
             // Load the editor map
             if ( ShouldLoadDefaultEditorMap() )
             {
-                // TODO: make this is a setting
-                m_pWorld->LoadMap( ResourcePath( "data://Editor/EditorMap.map" ) );
+                m_pWorld->LoadMap( GetDefaultEditorMapPath() );
             }
 
             //-------------------------------------------------------------------------
@@ -580,6 +580,25 @@ namespace EE
         pEntity = nullptr;
     }
 
+    // Default Editor Map
+    //-------------------------------------------------------------------------
+
+    void EditorTool::SetFloorVisibility( bool showFloorMesh )
+    {
+        StringID const floorID( "Floor" );
+        StringID const floorMeshID( "FloorMesh" );
+
+        // HACK
+        auto pFloorEntity = m_pWorld->GetFirstNonPersistentMap()->FindEntityByName( floorID );
+        if ( pFloorEntity != nullptr )
+        {
+            if ( auto pMeshComponent = TryCast<Render::StaticMeshComponent>( pFloorEntity->FindComponentByName( floorMeshID ) ) )
+            {
+                pMeshComponent->SetVisible( showFloorMesh );
+            }
+        }
+    }
+
     // Viewport
     //-------------------------------------------------------------------------
 
@@ -649,7 +668,53 @@ namespace EE
 
         auto CameraOptions = [this] ()
         {
-            CameraDebugView::DrawDebugCameraOptions( GetEntityWorld() );
+            ImGuiX::TextSeparator( "Speed" );
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "Speed:" );
+
+            ImGui::SameLine();
+
+            float cameraSpeed = m_pCamera->GetMoveSpeed();
+            ImGui::SetNextItemWidth( 125 );
+            if ( ImGui::SliderFloat( "##CameraSpeed", &cameraSpeed, DebugCameraComponent::s_minSpeed, DebugCameraComponent::s_maxSpeed ) )
+            {
+                m_pCamera->SetMoveSpeed( cameraSpeed );
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_RUN_FAST" Reset Camera Speed" ) )
+            {
+                m_pCamera->ResetMoveSpeed();
+            }
+
+            ImGuiX::TextSeparator( "Transform" );
+
+            if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY" Copy Camera Transform" ) )
+            {
+                Transform const& cameraWorldTransform = m_pCamera->GetWorldTransform();
+
+                String cameraTransformStr;
+                if ( TypeSystem::Conversion::ConvertNativeTypeToString( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), &cameraWorldTransform, cameraTransformStr ) )
+                {
+                    ImGui::SetClipboardText( cameraTransformStr.c_str() );
+                }
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_CONTENT_PASTE" Paste Camera Transform" ) )
+            {
+                String const cameraTransformStr = ImGui::GetClipboardText();
+
+                Transform cameraWorldTransform;
+                if ( TypeSystem::Conversion::ConvertStringToNativeType( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), cameraTransformStr, &cameraWorldTransform ) )
+                {
+                    m_pCamera->SetWorldTransform( cameraWorldTransform );
+                }
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_EYE_REFRESH_OUTLINE" Reset View" ) )
+            {
+                m_pCamera->ResetView();
+            }
         };
 
         DrawViewportToolbarComboIcon( "##CameraOptions", EE_ICON_CCTV, "Camera", CameraOptions );

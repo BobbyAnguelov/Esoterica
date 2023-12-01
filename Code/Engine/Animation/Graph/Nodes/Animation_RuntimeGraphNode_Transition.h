@@ -87,10 +87,10 @@ namespace EE::Animation::GraphNodes
         // Secondary initialization
         //-------------------------------------------------------------------------
 
-        // Start a transition from a state source node - will initialize the target state. Pass by value of the source node result is intentional
+        // Start a transition from a state source node - will initialize the target state.
         GraphPoseNodeResult StartTransitionFromState( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, StateNode* SourceState, bool startCachingSourcePose );
 
-        // Start a transition from a transition source node - will initialize the target state. Pass by value of the source node result is intentional
+        // Start a transition from a transition source node - will initialize the target state.
         GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* SourceTransition, bool startCachingSourcePose );
 
         // Forceable transitions

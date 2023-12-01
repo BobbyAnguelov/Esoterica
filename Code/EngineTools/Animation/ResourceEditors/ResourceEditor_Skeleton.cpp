@@ -67,6 +67,7 @@ namespace EE::Animation
 
     void SkeletonEditor::Shutdown( UpdateContext const& context )
     {
+        DestroyPreviewEntity();
         DestroySkeletonTree();
         TResourceEditor<Skeleton>::Shutdown( context );
     }
@@ -74,17 +75,28 @@ namespace EE::Animation
     void SkeletonEditor::CreatePreviewEntity()
     {
         EE_ASSERT( m_pPreviewEntity == nullptr );
+        EE_ASSERT( m_pPreviewMeshComponent == nullptr );
         EE_ASSERT( m_editedResource.IsLoaded() );
 
         if ( m_editedResource->GetPreviewMeshID().IsValid() )
         {
-            auto pMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-            pMeshComponent->SetSkeleton( GetDescriptorID() );
-            pMeshComponent->SetMesh( m_editedResource->GetPreviewMeshID() );
+            m_pPreviewMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
+            m_pPreviewMeshComponent->SetSkeleton( GetDescriptorID() );
+            m_pPreviewMeshComponent->SetMesh( m_editedResource->GetPreviewMeshID() );
 
             m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
-            m_pPreviewEntity->AddComponent( pMeshComponent );
+            m_pPreviewEntity->AddComponent( m_pPreviewMeshComponent );
             AddEntityToWorld( m_pPreviewEntity );
+        }
+    }
+
+    void SkeletonEditor::DestroyPreviewEntity()
+    {
+        if ( m_pPreviewEntity != nullptr )
+        {
+            DestroyEntityInWorld( m_pPreviewEntity );
+            m_pPreviewEntity = nullptr;
+            m_pPreviewMeshComponent = nullptr;
         }
     }
 
@@ -130,12 +142,8 @@ namespace EE::Animation
     {
         if ( pResourcePtr == &m_editedResource )
         {
+            DestroyPreviewEntity();
             DestroySkeletonTree();
-
-            if ( m_pPreviewEntity != nullptr )
-            {
-                DestroyEntityInWorld( m_pPreviewEntity );
-            }
         }
     }
 
@@ -172,6 +180,20 @@ namespace EE::Animation
         PrintAnimDetails( Colors::Yellow );
 
         ImGui::Unindent();
+    }
+
+    void SkeletonEditor::DrawMenu( UpdateContext const& context )
+    {
+        TResourceEditor<Skeleton>::DrawMenu( context );
+
+        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
+        {
+            if ( ImGui::Checkbox( "Show Preview Mesh", &m_showPreviewMesh ) )
+            {
+                m_pPreviewMeshComponent->SetVisible( m_showPreviewMesh );
+            }
+            ImGui::EndMenu();
+        }
     }
 
     void SkeletonEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )

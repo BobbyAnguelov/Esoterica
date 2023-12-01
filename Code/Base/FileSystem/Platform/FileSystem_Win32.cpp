@@ -16,6 +16,8 @@ namespace EE::FileSystem
 {
     char const Settings::s_pathDelimiter = '\\';
 
+    constexpr static DWORD const g_maxPathBufferLength = 1024;
+
     //-------------------------------------------------------------------------
 
     bool GetFullPathString( char const* pPath, String& outPath )
@@ -23,9 +25,9 @@ namespace EE::FileSystem
         if ( pPath != nullptr && pPath[0] != 0 )
         {
             // Warning: this function is slow, so use sparingly
-            outPath.reserve( MAX_PATH );
-            DWORD const length = GetFullPathNameA( pPath, MAX_PATH, outPath.data(), nullptr);
-            EE_ASSERT( length != 0 && length != MAX_PATH );
+            outPath.reserve( g_maxPathBufferLength );
+            DWORD const length = GetFullPathNameA( pPath, g_maxPathBufferLength, outPath.data(), nullptr);
+            EE_ASSERT( length != 0 && length != g_maxPathBufferLength );
             outPath.force_size( length );
 
             // Ensure directory paths have the final slash appended
@@ -48,9 +50,9 @@ namespace EE::FileSystem
         HANDLE hFile = CreateFile( pPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
         if ( hFile != INVALID_HANDLE_VALUE )
         {
-            char buffer[MAX_PATH];
-            DWORD dwRet = GetFinalPathNameByHandle( hFile, buffer, MAX_PATH, FILE_NAME_NORMALIZED );
-            if ( dwRet < MAX_PATH )
+            char buffer[g_maxPathBufferLength];
+            DWORD dwRet = GetFinalPathNameByHandle( hFile, buffer, g_maxPathBufferLength, FILE_NAME_NORMALIZED );
+            if ( dwRet < g_maxPathBufferLength )
             {
                 outPath = buffer + 4;
             }

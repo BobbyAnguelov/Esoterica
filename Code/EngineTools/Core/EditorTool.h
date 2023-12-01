@@ -222,9 +222,6 @@ namespace EE
         // Entity World
         //-------------------------------------------------------------------------
 
-        // Should we load the default editor map for this tool?
-        virtual bool ShouldLoadDefaultEditorMap() const { return true; }
-
         // Does this tool have a preview world
         inline bool HasEntityWorld() const { return m_pWorld != nullptr; }
 
@@ -236,6 +233,19 @@ namespace EE
         void SetWorldTimeScale( float newTimeScale );
 
         void ResetWorldTimeScale();
+        
+        // Default Editor Map
+        //-------------------------------------------------------------------------
+
+        // Should we load the default editor map for this tool?
+        virtual bool ShouldLoadDefaultEditorMap() const { return true; }
+
+        // Get the resource path for the default map to load in editor tools
+        // TODO: make this a setting
+        inline ResourcePath GetDefaultEditorMapPath() const { return ResourcePath( "data://Editor/EditorMap.map" ); }
+
+        // Set the visibility of the default editor map floor
+        void SetFloorVisibility( bool showFloorMesh );
 
         // Viewport
         //-------------------------------------------------------------------------

@@ -1023,7 +1023,7 @@ namespace EE::TypeSystem::Conversion
             }
         }
 
-        return false;
+        return true;
     }
 
     bool ConvertNativeTypeToBinary( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, void const* pValue, Blob& byteArray )

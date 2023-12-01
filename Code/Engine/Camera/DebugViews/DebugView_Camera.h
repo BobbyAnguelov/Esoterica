@@ -17,10 +17,6 @@ namespace EE
 
     public:
 
-        static void DrawDebugCameraOptions( EntityWorld const* pWorld );
-
-    public:
-
         CameraDebugView() : DebugView( "Engine/Camera" ) {}
 
     private:

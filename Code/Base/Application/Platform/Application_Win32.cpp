@@ -401,16 +401,6 @@ namespace EE
         EE_ASSERT( ( m_windowRect.bottom - m_windowRect.top ) > 0 );
 
         layoutIni.TryGetBool( "WindowSettings:WasMaximized", m_wasMaximized );
-
-        //-------------------------------------------------------------------------
-
-        uint32_t flags = 0;
-
-        layoutIni.TryGetUInt( "Layout:UserFlags0", flags );
-        m_userFlags = flags;
-
-        layoutIni.TryGetUInt( "Layout:UserFlags1", flags );
-        m_userFlags |= uint64_t( flags ) << 32;
     }
 
     void Win32Application::WriteLayoutSettings()
@@ -432,11 +422,6 @@ namespace EE
             layoutIni.SetInt( "WindowSettings:Top", (int32_t) wndPlacement.rcNormalPosition.top );
             layoutIni.SetInt( "WindowSettings:Bottom", (int32_t) wndPlacement.rcNormalPosition.bottom );
             layoutIni.SetBool( "WindowSettings:WasMaximized", wndPlacement.showCmd == SW_MAXIMIZE );
-
-            // Save user flags
-            layoutIni.CreateSection( "Layout" );
-            layoutIni.SetInt( "Layout:UserFlags0", (uint32_t) m_userFlags );
-            layoutIni.SetInt( "Layout:UserFlags1", (uint32_t) ( m_userFlags >> 32 ) );
 
             FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
             layoutIni.SaveToFile( layoutIniFilePath );

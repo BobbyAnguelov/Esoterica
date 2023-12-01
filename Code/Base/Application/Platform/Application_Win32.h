@@ -99,9 +99,6 @@ namespace EE
         HWND                            m_windowHandle = nullptr;
         RECT                            m_windowRect = { 0, 0, 640, 480 };
 
-        // Custom flags that user applications can set to specify what modes were enabled or what windows were open (saved in the layout.ini)
-        uint64_t                        m_userFlags = 0;
-
     private:
 
         bool                            m_wasMaximized = false; // Read from the layout settings

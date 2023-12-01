@@ -51,6 +51,7 @@ namespace EE::Animation
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual void DrawMenu( UpdateContext const& context ) override;
 
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
@@ -62,6 +63,7 @@ namespace EE::Animation
         virtual void OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr ) override;
 
         void CreatePreviewEntity();
+        void DestroyPreviewEntity();
 
         // Skeleton
         //-------------------------------------------------------------------------
@@ -117,6 +119,8 @@ namespace EE::Animation
     private:
 
         Entity*                         m_pPreviewEntity = nullptr;
+        Render::SkeletalMeshComponent*  m_pPreviewMeshComponent = nullptr;
+        bool                            m_showPreviewMesh = true;
 
         // Skeleton View
         BoneInfo*                       m_pSkeletonTreeRoot = nullptr;

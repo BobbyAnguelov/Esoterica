@@ -85,6 +85,8 @@ namespace EE::Animation
         Transform                       m_characterTransform = Transform::Identity;
         ResourceID                      m_previewMeshOverride;
         Percentage                      m_currentAnimTime = 0.0f;
+        bool                            m_showMesh = true;
+        bool                            m_showFloor = true;
         bool                            m_isRootMotionEnabled = true;
         bool                            m_isPoseDrawingEnabled = true;
         bool                            m_shouldDrawBoneNames = false;
