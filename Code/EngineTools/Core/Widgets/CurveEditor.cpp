@@ -451,7 +451,7 @@ namespace EE
     {
         if ( ImGui::BeginPopup( s_gridContextMenuName ) )
         {
-            ImGuiX::TextSeparator( "Editing" );
+            ImGui::SeparatorText( "Editing" );
 
             if ( ImGui::MenuItem( EE_ICON_PLUS" Create Point" ) )
             {
@@ -461,7 +461,7 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Zoom" );
+            ImGui::SeparatorText( "Zoom" );
 
             if ( ImGui::MenuItem( EE_ICON_FIT_TO_PAGE_OUTLINE" Fit entire curve" ) )
             {
@@ -482,7 +482,7 @@ namespace EE
 
             if( isMiniView )
             {
-                ImGuiX::TextSeparator( "Editing" );
+                ImGui::SeparatorText( "Editing" );
 
                 if ( ImGui::MenuItem( EE_ICON_PLAYLIST_EDIT" Open Full Curve Editor" ) )
                 {

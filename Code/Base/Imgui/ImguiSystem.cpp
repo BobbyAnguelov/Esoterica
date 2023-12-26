@@ -2,6 +2,8 @@
 
 #if EE_DEVELOPMENT_TOOLS
 #include "ImguiXNotifications.h"
+#include "ImguiFont.h"
+#include "MaterialDesignIcons.h"
 #include "Base/Render/RenderDevice.h"
 #include "Base/Fonts/FontDecompressor.h"
 #include "Base/Fonts/FontData_Lexend.h"

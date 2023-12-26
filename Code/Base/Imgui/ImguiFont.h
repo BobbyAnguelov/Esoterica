@@ -64,6 +64,8 @@ namespace EE::ImGuiX
         ImGui::PushFont( SystemFonts::s_fonts[(int8_t) font] ); 
     }
 
+    EE_FORCE_INLINE void PopFont() { ImGui::PopFont(); }
+
     EE_BASE_API inline void PushFontAndColor( Font font, Color const& color )
     {
         ImGui::PushFont( SystemFonts::s_fonts[(int8_t) font] );

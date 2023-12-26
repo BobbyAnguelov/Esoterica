@@ -561,7 +561,7 @@ namespace EE::Animation
             componentName.sprintf( "%s (%s)", pGraphComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
             if ( ImGui::BeginMenu( componentName.c_str() ) )
             {
-                ImGuiX::TextSeparator( "Graph" );
+                ImGui::SeparatorText( "Graph" );
 
                 if ( ImGui::MenuItem( "Show Control Parameters" ) )
                 {
@@ -599,7 +599,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                ImGuiX::TextSeparator( "Root Motion debug" );
+                ImGui::SeparatorText( "Root Motion debug" );
                 {
                     RootMotionDebugMode const debugMode = pGraphComponent->GetRootMotionDebugMode();
 
@@ -630,7 +630,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                ImGuiX::TextSeparator( "Tasks" );
+                ImGui::SeparatorText( "Tasks" );
 
                 if ( ImGui::MenuItem( "Show Active Tasks" ) )
                 {
@@ -651,7 +651,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                ImGuiX::TextSeparator( "Pose Debug" );
+                ImGui::SeparatorText( "Pose Debug" );
                 {
                     TaskSystemDebugMode const debugMode = pGraphComponent->GetTaskSystemDebugMode();
 

@@ -187,7 +187,7 @@ namespace EE::ImGuiX
             }
             else
             {
-                ImGuiX::TextSeparator( option.m_label.c_str() );
+                ImGui::SeparatorText( option.m_label.c_str() );
             }
 
             return false;

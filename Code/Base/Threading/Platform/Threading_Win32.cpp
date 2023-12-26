@@ -83,6 +83,15 @@ namespace EE
             EE_ASSERT( m_pNativeHandle != nullptr );
         }
 
+        SyncEvent::~SyncEvent()
+        {
+            if ( m_pNativeHandle != nullptr )
+            {
+                CloseHandle( m_pNativeHandle );
+                m_pNativeHandle = nullptr;
+            }
+        }
+
         void SyncEvent::Signal()
         {
             EE_ASSERT( m_pNativeHandle != nullptr );

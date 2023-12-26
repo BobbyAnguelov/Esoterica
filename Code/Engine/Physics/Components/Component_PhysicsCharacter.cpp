@@ -410,7 +410,7 @@ namespace EE::Physics
 
     void CharacterComponent::DrawDebugUI()
     {
-        ImGuiX::TextSeparator( "Capsule" );
+        ImGui::SeparatorText( "Capsule" );
         ImGui::Checkbox( "Debug Capsule", &m_debugCapsule );
 
         if ( m_debugCapsule )
@@ -422,7 +422,7 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        ImGuiX::TextSeparator( "Gravity" );
+        ImGui::SeparatorText( "Gravity" );
 
         switch ( m_gravityMode )
         {
@@ -450,7 +450,7 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        ImGuiX::TextSeparator( "Floor" );
+        ImGui::SeparatorText( "Floor" );
 
         ImGui::Checkbox( "Draw floor info", &m_debugFloor );
         ImGui::Text( "Time without floor: %.2fs", m_timeWithoutFloor.GetElapsedTimeSeconds().ToFloat() );

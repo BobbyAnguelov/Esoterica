@@ -4,6 +4,7 @@
 #include "EngineTools/Core/ToolsContext.h"
 #include "Engine/ToolsUI/IDevelopmentToolsUI.h"
 #include "Engine/DebugViews/DebugView_System.h"
+#include "Base/Imgui/ImguiImageCache.h"
 
 //-------------------------------------------------------------------------
 

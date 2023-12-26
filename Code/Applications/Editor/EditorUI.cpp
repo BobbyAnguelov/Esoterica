@@ -184,32 +184,45 @@ namespace EE
 
     void EditorUI::DrawTitleBarMenu( UpdateContext const& context )
     {
-        ImGuiX::Image( m_editorIcon );
+        ImGuiX::Image( m_editorIcon.m_ID, m_editorIcon.m_size );
 
         //-------------------------------------------------------------------------
 
         ImGui::SameLine();
 
-        if ( ImGui::BeginMenu( "Tools" ) )
+        if ( ImGui::BeginMenu( "Editor" ) )
         {
-            ImGuiX::TextSeparator( "Resource" );
+            ImGui::MenuItem( "UI Test Window", nullptr, &m_isUITestWindowOpen, !m_isUITestWindowOpen );
 
+            ImGui::Separator();
+
+            ImGui::MenuItem( "ImGui Demo Window", nullptr, &m_isImguiDemoWindowOpen, !m_isImguiDemoWindowOpen );
+            ImGui::MenuItem( "ImGui Plot Demo Window", nullptr, &m_isImguiPlotDemoWindowOpen, !m_isImguiPlotDemoWindowOpen );
+
+            ImGui::EndMenu();
+        }
+
+        if ( ImGui::BeginMenu( "Resources" ) )
+        {
             bool isResourceBrowserOpen = GetTool<Resource::ResourceBrowserEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "Resource Browser", nullptr, &isResourceBrowserOpen, !isResourceBrowserOpen ) )
             {
                 CreateTool<Resource::ResourceBrowserEditorTool>( this );
             }
-
-            bool isResourceSystemOpen = GetTool<Resource::ResourceSystemEditorTool>() != nullptr;
-            if ( ImGui::MenuItem( "Resource System", nullptr, &isResourceSystemOpen, !isResourceSystemOpen ) )
-            {
-                CreateTool<Resource::ResourceSystemEditorTool>( this );
-            }
-
             bool isResourceImporterOpen = GetTool<Resource::ResourceImporterEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "Resource Importer", nullptr, &isResourceImporterOpen, !isResourceImporterOpen ) )
             {
                 CreateTool<Resource::ResourceImporterEditorTool>( this );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::Separator();
+
+            bool isResourceSystemOpen = GetTool<Resource::ResourceSystemEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Resource System Info", nullptr, &isResourceSystemOpen, !isResourceSystemOpen ) )
+            {
+                CreateTool<Resource::ResourceSystemEditorTool>( this );
             }
 
             if ( ImGui::MenuItem( "Rebuild Resource Database" ) )
@@ -217,10 +230,11 @@ namespace EE
                 m_resourceDB.RequestRebuild();
             }
 
-            //-------------------------------------------------------------------------
+            ImGui::EndMenu();
+        }
 
-            ImGuiX::TextSeparator( "System" );
-
+        if ( ImGui::BeginMenu( "System" ) )
+        {
             bool isLogOpen = GetTool<SystemLogEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "System Log", nullptr, &isLogOpen, !isLogOpen ) )
             {
@@ -231,16 +245,6 @@ namespace EE
             {
                 Profiling::OpenProfiler();
             }
-
-            //-------------------------------------------------------------------------
-
-            ImGuiX::TextSeparator( "Editor" );
-
-            ImGui::MenuItem( "UI Test Window", nullptr, &m_isUITestWindowOpen, !m_isUITestWindowOpen );
-            ImGui::MenuItem( "ImGui Demo Window", nullptr, &m_isImguiDemoWindowOpen, !m_isImguiDemoWindowOpen );
-            ImGui::MenuItem( "ImGui Plot Demo Window", nullptr, &m_isImguiPlotDemoWindowOpen, !m_isImguiPlotDemoWindowOpen );
-
-            //-------------------------------------------------------------------------
 
             ImGui::EndMenu();
         }
@@ -345,7 +349,7 @@ namespace EE
             DrawTitleBarInfoStats( context );
         };
 
-        m_titleBar.Draw( TitleBarLeftContents, 210, TitleBarRightContents, 250 );
+        m_titleBar.Draw( TitleBarLeftContents, 300, TitleBarRightContents, 250 );
 
         //-------------------------------------------------------------------------
         // Create main dock window
@@ -807,13 +811,16 @@ namespace EE
             namePairsBuilder.AddEntry( destinationToolWindowName.c_str(), destinationToolWindowName.length() + 1 );
         }
 
-        // Build the same array with char* pointers at it is the input of DockBuilderCopyDockspace() (may change its signature?)
-        ImVector<const char*> windowRemapPairs;
-        namePairsBuilder.BuildPointerArray( windowRemapPairs );
-
         // Perform the cloning
-        ImGui::DockBuilderCopyDockSpace( sourceToolID, destinationToolID, &windowRemapPairs );
-        ImGui::DockBuilderFinish( destinationToolID );
+        if ( ImGui::DockContextFindNodeByID( ImGui::GetCurrentContext(), sourceToolID ) )
+        {
+            // Build the same array with char* pointers at it is the input of DockBuilderCopyDockspace() (may change its signature?)
+            ImVector<const char*> windowRemapPairs;
+            namePairsBuilder.BuildPointerArray( windowRemapPairs );
+
+            ImGui::DockBuilderCopyDockSpace( sourceToolID, destinationToolID, &windowRemapPairs );
+            ImGui::DockBuilderFinish( destinationToolID );
+        }
     }
 
     bool EditorUI::SubmitToolMainWindow( UpdateContext const& context, EditorTool* pEditorTool, ImGuiID editorDockspaceID )
@@ -1078,7 +1085,13 @@ namespace EE
                 {
                     if ( ImGuiWindow* pWindow = ImGui::FindWindowByName( toolWindowName.c_str() ) )
                     {
-                        if ( pWindow->DockNode == nullptr || ImGui::DockNodeGetRootNode( pWindow->DockNode )->ID != dockspaceID )
+                        ImGuiDockNode* pWindowDockNode = pWindow->DockNode;
+                        if ( pWindowDockNode == nullptr && pWindow->DockId != 0 )
+                        {
+                            pWindowDockNode = ImGui::DockContextFindNodeByID( ImGui::GetCurrentContext(), pWindow->DockId );
+                        }
+                       
+                        if ( pWindowDockNode == nullptr || ImGui::DockNodeGetRootNode( pWindowDockNode )->ID != dockspaceID )
                         {
                             continue;
                         }

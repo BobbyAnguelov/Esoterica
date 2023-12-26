@@ -66,7 +66,7 @@ namespace EE::Physics
             // Object Categories
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Collider Type" );
+            ImGui::SeparatorText( "Collider Type" );
 
             char const* const pPreviewValue = pColliderTypeEnumInfo->GetConstantLabel( (uint8_t) m_value_imgui.m_category ).c_str();
             ImGui::SetNextItemWidth( -1 );
@@ -87,7 +87,7 @@ namespace EE::Physics
             // Response Settings
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Collides With" );
+            ImGui::SeparatorText( "Collides With" );
 
             ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 4 ) );
             if ( ImGui::BeginTable( "FlagsTable", 2, ImGuiTableFlags_SizingFixedFit ) )

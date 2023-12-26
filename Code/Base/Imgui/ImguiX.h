@@ -14,7 +14,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Render { class Texture; class Viewport; }
+namespace EE::Render { class Viewport; }
 
 //-------------------------------------------------------------------------
 // ImGui Extensions
@@ -71,14 +71,17 @@ namespace EE::ImGuiX
     }
 
     //-------------------------------------------------------------------------
-    // Separators
+    // Layout and Separators
     //-------------------------------------------------------------------------
-
-    // Create a labeled separator: --- TEXT ---------------
-    EE_BASE_API void TextSeparator( char const* text, float preWidth = 10.0f, float desiredWidth = 0 );
 
     // Same as the Imgui::SameLine except it also draws a vertical separator.
     EE_BASE_API void SameLineSeparator( float width = 0, Color const& color = Colors::Transparent );
+
+    // Create a collapsible framed child window - Must always call EndCollapsibleChildWindow if you call begin child window
+    EE_BASE_API bool BeginCollapsibleChildWindow( char const* pLabelAndID, bool initiallyOpen = true, Color const& backgroundColor = ImGuiX::Style::s_colorGray7 );
+
+    // End a collapsible framed child window - must always be called if you call begin child window to match ImGui child window behavior
+    EE_BASE_API void EndCollapsibleChildWindow();
 
     //-------------------------------------------------------------------------
     // Basic Widgets
@@ -175,29 +178,14 @@ namespace EE::ImGuiX
     // Images
     //-------------------------------------------------------------------------
 
-    struct ImageInfo
+    EE_FORCE_INLINE void Image( ImTextureID imageID, ImVec2 const& size, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), Color const& tintColor = Colors::White, Color const& borderColor = Colors::Transparent )
     {
-        inline bool IsValid() const { return m_ID != 0; }
-
-    public:
-
-        ImTextureID             m_ID = 0;
-        Render::Texture*        m_pTexture = nullptr;
-        ImVec2                  m_size = ImVec2( 0, 0 );
-    };
-
-    EE_BASE_API ImTextureID ToIm( Render::Texture const& texture );
-
-    EE_BASE_API ImTextureID ToIm( Render::Texture const* pTexture );
-
-    EE_FORCE_INLINE void Image( ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), Color const& tintColor = Colors::White, Color const& borderColor = Colors::Transparent )
-    {
-        ImGui::Image( img.m_ID, img.m_size, uv0, uv1, ImVec4( tintColor ), ImVec4( borderColor ) );
+        ImGui::Image( imageID, size, uv0, uv1, ImVec4( tintColor ), ImVec4( borderColor ) );
     }
 
-    EE_FORCE_INLINE void ImageButton( char const* pButtonID, ImageInfo const& img, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), Color const& backgroundColor = Colors::Transparent, Color const& tintColor = Colors::White )
+    EE_FORCE_INLINE void ImageButton( char const* pButtonID, ImTextureID imageID, ImVec2 const& size, ImVec2 const& uv0 = ImVec2( 0, 0 ), ImVec2 const& uv1 = ImVec2( 1, 1 ), Color const& backgroundColor = Colors::Transparent, Color const& tintColor = Colors::White )
     {
-        ImGui::ImageButton( pButtonID, img.m_ID, img.m_size, uv0, uv1, ImVec4( backgroundColor ), ImVec4( tintColor ) );
+        ImGui::ImageButton( pButtonID, imageID, size, uv0, uv1, ImVec4( backgroundColor ), ImVec4( tintColor ) );
     }
 
     //-------------------------------------------------------------------------

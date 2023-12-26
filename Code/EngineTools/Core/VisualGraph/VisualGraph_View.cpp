@@ -2450,7 +2450,7 @@ namespace EE::VisualGraph
 
             if ( !m_isReadOnly )
             {
-                ImGuiX::TextSeparator( "Connections" );
+                ImGui::SeparatorText( "Connections" );
 
                 // Dynamic Pins
                 if ( pFlowNode->SupportsUserEditableDynamicInputPins() )
@@ -2480,7 +2480,7 @@ namespace EE::VisualGraph
 
             if ( !m_isReadOnly )
             {
-                ImGuiX::TextSeparator( "Node" );
+                ImGui::SeparatorText( "Node" );
 
                 if ( ImGui::BeginMenu( EE_ICON_IDENTIFIER" Node ID" ) )
                 {

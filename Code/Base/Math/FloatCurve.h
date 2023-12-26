@@ -80,14 +80,14 @@ namespace EE
         // Note: this will evaluate the curve to find the actual value range and so is pretty expensive!
         inline FloatRange GetValueRange() const
         {
-            constexpr static float const numPointsToEvaluate = 150;
+            constexpr static int32_t const numPointsToEvaluate = 150;
             FloatRange const parameterRange = GetParameterRange();
             float const stepT = parameterRange.GetLength() / numPointsToEvaluate;
 
             FloatRange valueRange( Evaluate( 0.0f ) );
-            for ( auto i = 1; i < numPointsToEvaluate; i++ )
+            for ( int32_t i = 1; i < numPointsToEvaluate; i++ )
             {
-                float const t = parameterRange.m_begin + ( i * stepT );
+                float const t = parameterRange.m_begin + ( stepT * i );
                 valueRange.GrowRange( Evaluate( t ) );
             }
 

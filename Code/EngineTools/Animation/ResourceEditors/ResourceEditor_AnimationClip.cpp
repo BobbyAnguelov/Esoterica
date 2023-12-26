@@ -318,7 +318,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Capsule Debug" );
+            ImGui::SeparatorText( "Capsule Debug" );
 
             ImGui::Checkbox( "Show Preview Capsule", &m_isPreviewCapsuleDrawingEnabled );
 

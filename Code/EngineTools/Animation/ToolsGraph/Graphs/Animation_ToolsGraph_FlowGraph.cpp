@@ -141,7 +141,7 @@ namespace EE::Animation
 
         if ( category.m_depth == 0 )
         {
-            ImGuiX::TextSeparator( category.m_name.c_str() );
+            ImGui::SeparatorText( category.m_name.c_str() );
         }
         else if ( category.m_depth > 0 )
         {
@@ -214,7 +214,7 @@ namespace EE::Animation
 
         if ( !filterTokens.empty() || pFilterPin != nullptr )
         {
-            ImGuiX::TextSeparator( "Filtered Nodes" );
+            ImGui::SeparatorText( "Filtered Nodes" );
         }
 
         if ( contextMenuItems.GetRootCategory().IsEmpty() )
@@ -385,7 +385,7 @@ namespace EE::Animation
 
         if ( ( sortedVirtualParameters.size() + sortedControlParameters.size() ) > 0 )
         {
-            ImGuiX::TextSeparator( "Parameters" );
+            ImGui::SeparatorText( "Parameters" );
             DrawParameterItems( hasAdvancedFilter, "Control Parameters", sortedControlParameters, pNodeTypeToCreate, pParameterToReference );
             DrawParameterItems( hasAdvancedFilter, "Virtual Parameters", sortedVirtualParameters, pNodeTypeToCreate, pVirtualParameterToReference );
         }

@@ -92,7 +92,6 @@ namespace EE::Resource
 
     void ImportSettings::UpdateDescriptor( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems )
     {
-        EE_ASSERT( sourceFileResourcePath.IsValid() && sourceFileResourcePath.IsFile() );
         m_sourceResourcePath = sourceFileResourcePath;
         GenerateDefaultDescriptorPath();
         UpdateDescriptorInternal( sourceFileResourcePath, selectedItems );
@@ -100,7 +99,7 @@ namespace EE::Resource
 
     void ImportSettings::GenerateDefaultDescriptorPath()
     {
-        if ( m_sourceResourcePath.IsValid() )
+        if ( m_sourceResourcePath.IsValid() && m_sourceResourcePath.IsFile() )
         {
             ResourceDescriptor const* pDesc = GetDescriptor();
             ResourceTypeID const resourceTypeID = pDesc->GetCompiledResourceTypeID();

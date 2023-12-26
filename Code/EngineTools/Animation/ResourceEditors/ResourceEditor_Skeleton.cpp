@@ -375,7 +375,7 @@ namespace EE::Animation
 
             if ( IsEditingBoneMask() )
             {
-                ImGuiX::TextSeparator( "Propagate");
+                ImGui::SeparatorText( "Propagate");
 
                 if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY" Propagate Current Weight" ) )
                 {
@@ -384,7 +384,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                ImGuiX::TextSeparator( "Fully Masked" );
+                ImGui::SeparatorText( "Fully Masked" );
 
                 if ( boneIdx != 0 && ImGui::MenuItem( EE_ICON_NUMERIC_0_BOX_MULTIPLE_OUTLINE" Set bone and all children to 0" ) )
                 {
@@ -398,7 +398,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                ImGuiX::TextSeparator( "No Mask" );
+                ImGui::SeparatorText( "No Mask" );
 
                 if ( boneIdx != 0 && ImGui::MenuItem( EE_ICON_NUMERIC_1_BOX_MULTIPLE_OUTLINE" Set bone and all children to 1" ) )
                 {
@@ -412,7 +412,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                ImGuiX::TextSeparator( "Clear" );
+                ImGui::SeparatorText( "Clear" );
 
                 if ( boneIdx != 0 && ImGui::MenuItem( EE_ICON_CLOSE_CIRCLE_MULTIPLE_OUTLINE" Unset bone and all children" ) )
                 {
@@ -547,12 +547,12 @@ namespace EE::Animation
             }
 
             ImGui::NewLine();
-            ImGuiX::TextSeparator( "Local Transform" );
+            ImGui::SeparatorText( "Local Transform" );
             Transform const& localBoneTransform = pSkeleton->GetLocalReferencePose()[selectedBoneIdx];
             DrawTransform( localBoneTransform );
 
             ImGui::NewLine();
-            ImGuiX::TextSeparator( "Global Transform" );
+            ImGui::SeparatorText( "Global Transform" );
             Transform const& globalBoneTransform = pSkeleton->GetGlobalReferencePose()[selectedBoneIdx];
             DrawTransform( globalBoneTransform );
         }

@@ -134,6 +134,7 @@ namespace EE::Timeline
         if ( m_viewRange.GetLength() != maxVisibleUnits )
         {
             m_viewRange.m_end = m_viewRange.m_begin + maxVisibleUnits;
+            EE_ASSERT( m_viewRange.IsSetAndValid() );
         }
 
         // Process any update requests
@@ -147,6 +148,7 @@ namespace EE::Timeline
                 m_pixelsPerFrame = Math::Max( 1.0f, Math::Floor( m_timelineRect.GetWidth() / viewRangeLength ) );
                 m_viewRange = FloatRange( 0.0f, viewRangeLength );
                 m_viewUpdateMode = ViewUpdateMode::None;
+                EE_ASSERT( m_viewRange.IsSetAndValid() );
             }
             break;
 
@@ -156,6 +158,7 @@ namespace EE::Timeline
                 m_viewRange.m_end = maxVisibleUnits;
                 m_playheadTime = 0;
                 m_viewUpdateMode = ViewUpdateMode::None;
+                EE_ASSERT( m_viewRange.IsSetAndValid() );
             }
             break;
 
@@ -165,6 +168,7 @@ namespace EE::Timeline
                 m_viewRange.m_end = m_viewRange.m_begin + maxVisibleUnits;
                 m_playheadTime = m_context.m_timelineLength;
                 m_viewUpdateMode = ViewUpdateMode::None;
+                EE_ASSERT( m_viewRange.IsSetAndValid() );
             }
             break;
 
@@ -183,6 +187,8 @@ namespace EE::Timeline
                         m_viewRange.m_begin = Math::Round( m_playheadTime );
                         m_viewRange.m_end = m_viewRange.m_begin + maxVisibleUnits;
                     }
+
+                    EE_ASSERT( m_viewRange.IsSetAndValid() );
                 }
             }
             break;
@@ -825,7 +831,7 @@ namespace EE::Timeline
             ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
             if ( ImGui::BeginChild( "TrackItemArea", itemAreaRect.GetSize(), ImGuiChildFlags_AlwaysUseWindowPadding, itemAreaFlags ) )
             {
-                float const contentRegionWidth = ImGui::GetContentRegionAvail().x;
+                float const contentRegionWidth = Math::Max( ImGui::GetContentRegionAvail().x, 0.0f );
 
                 // Create dummy to let imgui know the actual size that we want.
                 ImGui::Dummy( m_desiredTrackAreaSize );
@@ -848,6 +854,8 @@ namespace EE::Timeline
                     m_viewRange.m_begin = 0.0f;
                     m_viewRange.m_end = viewRangeLength;
                 }
+
+                EE_ASSERT( m_viewRange.IsSetAndValid() );
 
                 //-------------------------------------------------------------------------
 

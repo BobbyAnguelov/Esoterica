@@ -64,17 +64,18 @@ namespace EE::Resource
         void RebuildTreeView( TreeListViewItem* pRootItem );
         void OnResourceDatabaseUpdated();
 
-        void DrawImporterWindow( UpdateContext const& context, bool isFocused );
-        void DrawFileTree( UpdateContext const& context );
-        void DrawFileInfo( UpdateContext const& context );
-        void DrawImportSettings( UpdateContext const& context );
-        void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
-
         void UpdateSelectedFile( ImporterTreeItem const* pSelectedItem );
 
         void HandleItemSelection( Import::ImportableItem* pItem, bool isMultiSelectionEnabled );
         void SelectAllItems( TVector<Import::ImportableItem*> itemsToSelect );
         void OnSelectionChanged();
+
+        void DrawImporterWindow( UpdateContext const& context, bool isFocused );
+        void DrawFileTree( UpdateContext const& context );
+        void DrawFileInfo( UpdateContext const& context );
+
+        void DrawImportSettings( UpdateContext const& context );
+        void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
 
     private:
 

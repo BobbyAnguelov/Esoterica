@@ -66,6 +66,7 @@ namespace EE
         public:
 
             SyncEvent();
+            ~SyncEvent();
 
             void Signal();
             void Reset();

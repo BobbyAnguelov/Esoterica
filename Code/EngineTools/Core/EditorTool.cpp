@@ -668,7 +668,7 @@ namespace EE
 
         auto CameraOptions = [this] ()
         {
-            ImGuiX::TextSeparator( "Speed" );
+            ImGui::SeparatorText( "Speed" );
 
             ImGui::AlignTextToFramePadding();
             ImGui::Text( "Speed:" );
@@ -687,7 +687,7 @@ namespace EE
                 m_pCamera->ResetMoveSpeed();
             }
 
-            ImGuiX::TextSeparator( "Transform" );
+            ImGui::SeparatorText( "Transform" );
 
             if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY" Copy Camera Transform" ) )
             {

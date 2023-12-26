@@ -45,15 +45,15 @@ namespace EE::Render
 
     void RenderDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
-        ImGuiX::TextSeparator( "Visualization" );
+        ImGui::SeparatorText( "Visualization" );
 
         DrawRenderVisualizationModesMenu( m_pWorld );
 
-        ImGuiX::TextSeparator( "Static Meshes" );
+        ImGui::SeparatorText( "Static Meshes" );
 
         ImGui::Checkbox( "Show Static Mesh Bounds", &m_pWorldRendererSystem->m_showStaticMeshBounds );
 
-        ImGuiX::TextSeparator( "Skeletal Meshes" );
+        ImGui::SeparatorText( "Skeletal Meshes" );
 
         ImGui::Checkbox( "Show Skeletal Mesh Bounds", &m_pWorldRendererSystem->m_showSkeletalMeshBounds );
         ImGui::Checkbox( "Show Skeletal Mesh Bones", &m_pWorldRendererSystem->m_showSkeletalMeshBones );

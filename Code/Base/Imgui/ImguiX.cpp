@@ -11,20 +11,6 @@
 namespace EE::ImGuiX
 {
     //-------------------------------------------------------------------------
-    // Conversion
-    //-------------------------------------------------------------------------
-
-    ImTextureID ToIm( Render::Texture const& texture )
-    {
-        return (void*) &texture.GetShaderResourceView();
-    }
-
-    ImTextureID ToIm( Render::Texture const* pTexture )
-    {
-        return (void*) &pTexture->GetShaderResourceView();
-    }
-
-    //-------------------------------------------------------------------------
     // General helpers
     //-------------------------------------------------------------------------
 
@@ -95,89 +81,39 @@ namespace EE::ImGuiX
     }
 
     //-------------------------------------------------------------------------
-    // Separators
+    // Layout and Separators
     //-------------------------------------------------------------------------
 
-    static void CenteredSeparator( float width )
+    bool BeginCollapsibleChildWindow( char const* pLabelAndID, bool initiallyOpen, Color const& backgroundColor )
     {
-        ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if ( window->SkipItems )
+        ImGui::PushStyleColor( ImGuiCol_ChildBg, backgroundColor );
+        ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 8 );
+        bool const drawChildWindow = ImGui::BeginChild( pLabelAndID, ImVec2( 0, 0 ), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AlwaysUseWindowPadding, 0 );
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        if ( drawChildWindow )
         {
-            return;
+            ImGui::PushStyleColor( ImGuiCol_Header, backgroundColor );
+            ImGui::PushStyleColor( ImGuiCol_HeaderActive, backgroundColor );
+            ImGui::PushStyleColor( ImGuiCol_HeaderHovered, backgroundColor );
+            ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 2, 4 ) );
+            ImGui::SetNextItemOpen( initiallyOpen, ImGuiCond_FirstUseEver );
+            ImGuiX::PushFont( Font::MediumBold );
+            bool const drawContents = ImGui::CollapsingHeader( pLabelAndID );
+            ImGuiX::PopFont();
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor( 3 );
+
+            return drawContents;
         }
 
-        ImGuiContext& g = *GImGui;
-
-        // Horizontal Separator
-        float x1, x2;
-        if ( window->DC.CurrentColumns == nullptr && ( width == 0 ) )
-        {
-            // Span whole window
-            x1 = window->DC.CursorPos.x;
-            x2 = x1 + window->Size.x;
-        }
-        else
-        {
-            // Start at the cursor
-            x1 = window->DC.CursorPos.x;
-            if ( width != 0 )
-            {
-                x2 = x1 + width;
-            }
-            else
-            {
-                x2 = window->ClipRect.Max.x;
-
-                // Pad right side of columns (except the last one)
-                if ( window->DC.CurrentColumns && ( window->DC.CurrentColumns->Current < window->DC.CurrentColumns->Count - 1 ) )
-                {
-                    x2 -= g.Style.ItemSpacing.x;
-                }
-            }
-        }
-        float y1 = window->DC.CursorPos.y + int( window->DC.CurrLineSize.y / 2.0f );
-        float y2 = y1 + 1.0f;
-
-        window->DC.CursorPos.x += width; //+ g.Style.ItemSpacing.x;
-        x1 += window->DC.GroupOffset.x;
-
-        const ImRect bb( ImVec2( x1, y1 ), ImVec2( x2, y2 ) );
-        ImGui::ItemSize( ImVec2( 0.0f, 0.0f ) ); // NB: we don't provide our width so that it doesn't get feed back into AutoFit, we don't provide height to not alter layout.
-        if ( !ImGui::ItemAdd( bb, NULL ) )
-        {
-            return;
-        }
-
-        window->DrawList->AddLine( bb.Min, ImVec2( bb.Max.x, bb.Min.y ), ImGui::GetColorU32( ImGuiCol_Separator ) );
+        return false;
     }
 
-    void TextSeparator( char const* text, float preWidth, float desiredWidth )
+    void EndCollapsibleChildWindow()
     {
-        float const availableWidth = ImGui::GetContentRegionAvail().x;
-        float const textWidth = ImGui::CalcTextSize( text ).x;
-        float const totalWidth = Math::Min( preWidth + textWidth + ( ImGui::GetStyle().ItemSpacing.x * 2 ), availableWidth );
-
-        ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if ( window->DC.CurrLineSize.y == 0 )
-        {
-            window->DC.CurrLineSize.y = ImGui::GetTextLineHeight();
-        }
-        CenteredSeparator( preWidth );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-        ImGui::Text( text );
-
-        //-------------------------------------------------------------------------
-
-        // If we have a total width specified, calculate the post separator width
-        float const remainingWidth = ( desiredWidth != 0 ) ? desiredWidth - totalWidth :  availableWidth - totalWidth;
-        if ( remainingWidth > 0 )
-        {
-            ImGui::SameLine();
-            CenteredSeparator( remainingWidth );
-        }
+        ImGui::EndChild();
     }
 
     void SameLineSeparator( float width, Color const& color )

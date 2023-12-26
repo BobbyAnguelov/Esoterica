@@ -342,13 +342,13 @@ namespace EE::Physics
 
         if ( ImGui::BeginMenu( EE_ICON_RUN" Visualization" ) )
         {
-            ImGuiX::TextSeparator( "Editing" );
+            ImGui::SeparatorText( "Editing" );
 
             ImGui::MenuItem( "Show Skeleton", nullptr, &m_drawSkeleton );
             ImGui::MenuItem( "Show Body Axes", nullptr, &m_drawBodyAxes );
             ImGui::MenuItem( "Show Only Selected Bodies", nullptr, &m_isolateSelectedBody );
 
-            ImGuiX::TextSeparator( "Preview" );
+            ImGui::SeparatorText( "Preview" );
 
             ImGui::MenuItem( "Draw Ragdoll", nullptr, &m_drawRagdoll );
             ImGui::MenuItem( "Draw Anim Pose", nullptr, &m_drawAnimationPose );

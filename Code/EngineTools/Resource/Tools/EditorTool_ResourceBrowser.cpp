@@ -447,10 +447,8 @@ namespace EE::Resource
     void ResourceBrowserEditorTool::DrawCreationControls( UpdateContext const& context )
     {
         ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-        float const availableWidth = ImGui::GetContentRegionAvail().x;
-        float const buttonWidth = ( availableWidth - 4.0f ) / 2.0f;
 
-        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS" CREATE", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS" CREATE", ImVec2( -1, 0 ) ) )
         {
             ImGui::OpenPopup( "CreateNewDescriptor" );
         }
@@ -462,22 +460,6 @@ namespace EE::Resource
             ImGui::EndPopup();
         }
         ImGuiX::ItemTooltip( "Create a resource descriptor based on a source file. This will pop up a helper window to help you with the creation." );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine( 0, 4 );
-        if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, EE_ICON_FILE_IMPORT" IMPORT", ImVec2( buttonWidth, 0 ) ) )
-        {
-            auto const selectedFile = pfd::open_file( "Import File", m_pToolsContext->GetRawResourceDirectory().c_str() ).result();
-            if ( !selectedFile.empty() )
-            {
-                FileSystem::Path selectedFilePath( selectedFile[0].data() );
-                if ( !selectedFilePath.IsUnderDirectory( m_pToolsContext->GetRawResourceDirectory() ) )
-                {
-                    pfd::message( "Import Error", "File to import must be within the raw resource folder!", pfd::choice::ok, pfd::icon::error );
-                }
-            }
-        }
     }
 
     void ResourceBrowserEditorTool::DrawFilterOptions( UpdateContext const& context )

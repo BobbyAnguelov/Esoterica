@@ -492,11 +492,11 @@ namespace EE::Player
     #if EE_DEVELOPMENT_TOOLS
     void LocomotionAction::DrawDebugUI()
     {
-        ImGuiX::TextSeparator( "Options" );
+        ImGui::SeparatorText( "Options" );
 
         ImGui::Checkbox( "Enable 3D Visualization", &m_areVisualizationsEnabled );
 
-        ImGuiX::TextSeparator( "State Info" );
+        ImGui::SeparatorText( "State Info" );
 
         ImGui::Text( "Current State:" );
         ImGui::SameLine();

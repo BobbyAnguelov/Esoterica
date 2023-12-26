@@ -1496,7 +1496,7 @@ namespace EE::Animation
 
         auto DrawDebugOptions = [this] ()
         {
-            ImGuiX::TextSeparator( "Graph Debug" );
+            ImGui::SeparatorText( "Graph Debug" );
 
             bool isGraphDebugEnabled = ( m_graphDebugMode == GraphDebugMode::On );
             if ( ImGui::Checkbox( "Enable Graph Debug", &isGraphDebugEnabled ) )
@@ -1504,7 +1504,7 @@ namespace EE::Animation
                 m_graphDebugMode = isGraphDebugEnabled ? GraphDebugMode::On : GraphDebugMode::Off;
             }
 
-            ImGuiX::TextSeparator( "Root Motion Debug" );
+            ImGui::SeparatorText( "Root Motion Debug" );
 
             bool const isRootVisualizationOff = m_rootMotionDebugMode == RootMotionDebugMode::Off;
             if ( ImGui::RadioButton( "No Visualization##Root", isRootVisualizationOff ) )
@@ -1532,7 +1532,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Pose Debug" );
+            ImGui::SeparatorText( "Pose Debug" );
 
             bool const isVisualizationOff = m_taskSystemDebugMode == TaskSystemDebugMode::Off;
             if ( ImGui::RadioButton( "No Visualization##Tasks", isVisualizationOff ) )
@@ -1560,7 +1560,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Capsule Debug" );
+            ImGui::SeparatorText( "Capsule Debug" );
 
             ImGui::Checkbox( "Show Preview Capsule", &m_showPreviewCapsule );
 
@@ -1590,7 +1590,7 @@ namespace EE::Animation
 
         auto DrawPreviewOptions = [this]()
         {
-            ImGuiX::TextSeparator( "Preview Settings" );
+            ImGui::SeparatorText( "Preview Settings" );
             ImGui::Checkbox( "Start Paused", &m_startPaused );
 
             if ( ImGui::Checkbox( "Camera Follows Character", &m_isCameraTrackingEnabled ) )
@@ -1601,7 +1601,7 @@ namespace EE::Animation
                 }
             }
 
-            ImGuiX::TextSeparator( "Start Transform" );
+            ImGui::SeparatorText( "Start Transform" );
             ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, 250.0f );
 
             if ( ImGui::Button( "Reset Start Transform", ImVec2( -1, 0 ) ) )
@@ -1609,7 +1609,7 @@ namespace EE::Animation
                 m_previewStartTransform = Transform::Identity;
             }
 
-            ImGuiX::TextSeparator( "Start Sync Time" );
+            ImGui::SeparatorText( "Start Sync Time" );
             
             ImGui::Checkbox( "Init Graph", &m_initializeGraphToSpecifiedSyncTime );
 
@@ -4458,7 +4458,7 @@ namespace EE::Animation
 
         if ( ImGui::BeginPopup( "AddParameterPopup" ) )
         {
-            ImGuiX::TextSeparator( "Control Parameters" );
+            ImGui::SeparatorText( "Control Parameters" );
 
             if ( ImGui::MenuItem( "Control Parameter - Bool" ) )
             {
@@ -4487,7 +4487,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Virtual Parameters" );
+            ImGui::SeparatorText( "Virtual Parameters" );
 
             if ( ImGui::MenuItem( "Virtual Parameter - Bool" ) )
             {

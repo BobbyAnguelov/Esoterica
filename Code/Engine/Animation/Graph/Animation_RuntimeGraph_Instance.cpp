@@ -324,6 +324,7 @@ namespace EE::Animation
             m_pRootNode->Shutdown( m_graphContext );
         }
 
+        m_graphContext.m_updateID++; // Bump the update ID to ensure that any initialization code that relies on it is dirtied.
         m_graphContext.m_pLayerInitializationInfo = pLayerInitInfo;
         m_pRootNode->Initialize( m_graphContext, initTime );
         m_graphContext.m_pLayerInitializationInfo = nullptr;

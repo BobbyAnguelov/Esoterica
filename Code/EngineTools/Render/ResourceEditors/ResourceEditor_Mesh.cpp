@@ -193,7 +193,7 @@ namespace EE::Render
 
         {
             ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-            ImGuiX::TextSeparator( "Mesh Data" );
+            ImGui::SeparatorText( "Mesh Data" );
         }
 
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
@@ -240,7 +240,7 @@ namespace EE::Render
 
         {
             ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
-            ImGuiX::TextSeparator( "Geometry Sections" );
+            ImGui::SeparatorText( "Geometry Sections" );
         }
 
         DrawGeometrySectionUI( GetDescriptor<MeshResourceDescriptor>(), m_pMeshComponent, pMesh );
@@ -479,7 +479,7 @@ namespace EE::Render
             // Draw Mesh Data
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Mesh Data" );
+            ImGui::SeparatorText( "Mesh Data" );
 
             ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 2 ) );
             if ( ImGui::BeginTable( "MeshInfoTable", 2, ImGuiTableFlags_Borders ) )
@@ -529,7 +529,7 @@ namespace EE::Render
             // Sections
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Geometry Sections" );
+            ImGui::SeparatorText( "Geometry Sections" );
 
             DrawGeometrySectionUI( GetDescriptor<MeshResourceDescriptor>(), m_pMeshComponent, pSkeletalMesh );
         }

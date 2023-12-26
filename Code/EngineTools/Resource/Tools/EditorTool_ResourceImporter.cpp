@@ -322,7 +322,7 @@ namespace EE::Resource
     {
         using TImportSettings::TImportSettings;
 
-        virtual char const* GetName() override { return "Collision"; }
+        virtual char const* GetName() override { return "Collision Mesh"; }
 
         virtual bool IsVisible() const override
         {
@@ -680,18 +680,28 @@ namespace EE::Resource
         UpdateVisibility();
     }
 
-    void ResourceImporterEditorTool::UpdateSelectedFile( ImporterTreeItem const* pSelectedItem )
+    void ResourceImporterEditorTool::UpdateSelectedFile( ImporterTreeItem const* pSelectedFileItem )
     {
-        m_selectedFile.Clear();
+        // Try to maintain selection via type ID
+        TypeSystem::TypeID previouslySelectedTypeID;
+        if ( !m_selectedImportableItems.empty() )
+        {
+            previouslySelectedTypeID = m_selectedImportableItems[0]->GetTypeID();
+        }
 
+        m_selectedFile.Clear();
+        m_selectedImportableItems.clear();
+
+        // Switch File
         //-------------------------------------------------------------------------
 
-        if ( pSelectedItem != nullptr )
+        if ( pSelectedFileItem != nullptr )
         {
-            m_selectedFile.m_resourcePath = pSelectedItem->GetResourcePath();
-            m_selectedFile.m_filePath = pSelectedItem->GetFilePath();
+            // Update selected file
+            m_selectedFile.m_resourcePath = pSelectedFileItem->GetResourcePath();
+            m_selectedFile.m_filePath = pSelectedFileItem->GetFilePath();
             m_selectedFile.m_extension = m_selectedFile.m_filePath.GetExtension();
-            m_selectedFile.m_dependentResources = m_pToolsContext->m_pResourceDatabase->GetAllDependentResources( pSelectedItem->GetResourcePath() );
+            m_selectedFile.m_dependentResources = m_pToolsContext->m_pResourceDatabase->GetAllDependentResources( pSelectedFileItem->GetResourcePath() );
 
             Import::InspectorContext ctx;
             ctx.m_rawResourceDirectoryPath = m_pToolsContext->GetRawResourceDirectory();
@@ -700,11 +710,27 @@ namespace EE::Resource
 
             m_selectedFile.m_inspectionResult = InspectFile( ctx, m_selectedFile.m_filePath, m_selectedFile.m_importableItems );
 
-            for ( auto pItem : m_selectedFile.m_importableItems )
+            // Restore selection and perform validation
+            bool selectionRestored = false;
+            for ( auto pImportableItem : m_selectedFile.m_importableItems )
             {
-                EE_ASSERT( pItem != nullptr && pItem->IsValid() );
+                EE_ASSERT( pImportableItem != nullptr && pImportableItem->IsValid() );
+
+                if ( !selectionRestored && pImportableItem->GetTypeInfo()->IsDerivedFrom( previouslySelectedTypeID ) )
+                {
+                    m_selectedImportableItems.emplace_back( pImportableItem );
+                    selectionRestored = true;
+                }
             }
         }
+        else
+        {
+            m_selectedImportableItems.clear();
+        }
+
+        //-------------------------------------------------------------------------
+
+        OnSelectionChanged();
     }
 
     void ResourceImporterEditorTool::UpdateVisibility()
@@ -718,6 +744,70 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_treeview.UpdateItemVisibility( VisibilityFunc );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ResourceImporterEditorTool::HandleItemSelection( Import::ImportableItem* pItem, bool isMultiSelectionEnabled )
+    {
+        if ( !m_selectedImportableItems.empty() && ImGui::GetIO().KeyCtrl )
+        {
+            // If we have a type info mismatch, set the selection to the new item
+            if ( pItem->GetTypeInfo() != m_selectedImportableItems[0]->GetTypeInfo() )
+            {
+                m_selectedImportableItems.clear();
+                m_selectedImportableItems.emplace_back( pItem );
+            }
+            else // Try to modify the selection
+            {
+                if ( VectorContains( m_selectedImportableItems, pItem ) )
+                {
+                    m_selectedImportableItems.erase_first( pItem );
+                }
+                else
+                {
+                    m_selectedImportableItems.emplace_back( pItem );
+                }
+            }
+        }
+        else // Set selection to new item
+        {
+            m_selectedImportableItems.clear();
+            m_selectedImportableItems.emplace_back( pItem );
+        }
+
+        OnSelectionChanged();
+    }
+
+    void ResourceImporterEditorTool::SelectAllItems( TVector<Import::ImportableItem*> itemsToSelect )
+    {
+        m_selectedImportableItems.clear();
+
+        // Perform validation
+        if ( !itemsToSelect.empty() )
+        {
+            TypeSystem::TypeInfo const* pTypeInfo = itemsToSelect[0]->GetTypeInfo();
+            for ( auto pItem : itemsToSelect )
+            {
+                if ( pItem->GetTypeInfo() != pTypeInfo )
+                {
+                    OnSelectionChanged();
+                    return;
+                }
+            }
+        }
+
+        // Update selection
+        m_selectedImportableItems.insert( m_selectedImportableItems.end(), itemsToSelect.begin(), itemsToSelect.end() );
+        OnSelectionChanged();
+    }
+
+    void ResourceImporterEditorTool::OnSelectionChanged()
+    {
+        for ( auto pImportSettings : m_importSettings )
+        {
+            pImportSettings->UpdateDescriptor( m_selectedFile.m_resourcePath, m_selectedImportableItems );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -880,6 +970,7 @@ namespace EE::Resource
             return;
         }
 
+        //-------------------------------------------------------------------------
         // Draw warnings and errors
         //-------------------------------------------------------------------------
 
@@ -928,53 +1019,56 @@ namespace EE::Resource
             DrawIconBox( EE_ICON_CLOSE_CIRCLE, m_selectedFile.m_errors.c_str(), Colors::FireBrick, Colors::White );
         }
 
+        //-------------------------------------------------------------------------
         // Draw any resources that are referencing this file
         //-------------------------------------------------------------------------
 
         if ( !m_selectedFile.m_dependentResources.empty() )
         {
-            ImGuiX::TextSeparator( "Dependent Resources" );
-
-            ImVec2 const tableSize( ImGui::GetContentRegionAvail().x, 0 );
-            if ( ImGui::BeginTable( "Info", 2, 0, tableSize ) )
+            if ( ImGuiX::BeginCollapsibleChildWindow( EE_ICON_LINK" Referenced By" ) )
             {
-                ImGui::TableSetupColumn( "path", ImGuiTableColumnFlags_WidthStretch, 1.0f );
-                ImGui::TableSetupColumn( "button", ImGuiTableColumnFlags_WidthFixed, 210 );
-
-                //-------------------------------------------------------------------------
-
-                for ( auto const& path : m_selectedFile.m_dependentResources )
+                ImVec2 const tableSize( ImGui::GetContentRegionAvail().x, 0 );
+                if ( ImGui::BeginTable( "Info", 2, 0, tableSize ) )
                 {
-                    ImGui::PushID( &path );
+                    ImGui::TableSetupColumn( "path", ImGuiTableColumnFlags_WidthStretch, 1.0f );
+                    ImGui::TableSetupColumn( "button", ImGuiTableColumnFlags_WidthFixed, 210 );
 
-                    ImGui::TableNextRow();
-                    ImGui::TableNextColumn();
-                    {
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::SetNextItemWidth( -1 );
-                        ImGui::InputText( "##ID", const_cast<char*>( path.c_str() ), path.GetString().length(), ImGuiInputTextFlags_ReadOnly );
-                    }
+                    //-------------------------------------------------------------------------
 
-                    ImGui::TableNextColumn();
+                    for ( auto const& path : m_selectedFile.m_dependentResources )
                     {
-                        if ( ImGuiX::ColoredIconButton( Colors::DarkOrange, Colors::White, Colors::White, EE_ICON_FILE_FIND_OUTLINE, "Browse To", ImVec2( 100, 0 ) ) )
+                        ImGui::PushID( &path );
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
                         {
-                            m_pToolsContext->TryFindInResourceBrowser( ResourceID( path ) );
+                            ImGui::AlignTextToFramePadding();
+                            ImGui::SetNextItemWidth( -1 );
+                            ImGui::InputText( "##ID", const_cast<char*>( path.c_str() ), path.GetString().length(), ImGuiInputTextFlags_ReadOnly );
                         }
 
-                        ImGui::SameLine();
-
-                        if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_OPEN_IN_NEW, "Open", ImVec2( 100, 0 ) ) )
+                        ImGui::TableNextColumn();
                         {
-                            m_pToolsContext->TryOpenResource( ResourceID( path ) );
+                            if ( ImGuiX::ColoredIconButton( Colors::DarkOrange, Colors::White, Colors::White, EE_ICON_FILE_FIND_OUTLINE, "Browse To", ImVec2( 100, 0 ) ) )
+                            {
+                                m_pToolsContext->TryFindInResourceBrowser( ResourceID( path ) );
+                            }
+
+                            ImGui::SameLine();
+
+                            if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_OPEN_IN_NEW, "Open", ImVec2( 100, 0 ) ) )
+                            {
+                                m_pToolsContext->TryOpenResource( ResourceID( path ) );
+                            }
                         }
+
+                        ImGui::PopID();
                     }
 
-                    ImGui::PopID();
+                    ImGui::EndTable();
                 }
-
-                ImGui::EndTable();
             }
+            ImGuiX::EndCollapsibleChildWindow();
         }
 
         if ( hasErrors )
@@ -982,87 +1076,122 @@ namespace EE::Resource
             return;
         }
 
+        //-------------------------------------------------------------------------
         // Draw Importable Items
         //-------------------------------------------------------------------------
 
-        ImGuiX::TextSeparator( "File Contents" );
+        enum ImportableItemTypes{ Skeletons = 0, Animations, Images, Meshes, NumImportableTypes };
+        TypeSystem::TypeInfo const* const importableItemTypes[NumImportableTypes] = { Import::ImportableSkeleton::s_pTypeInfo, Import::ImportableAnimation::s_pTypeInfo, Import::ImportableImage::s_pTypeInfo, Import::ImportableMesh::s_pTypeInfo };
 
-        if ( ImGui::BeginTable( "InfoTable", 2, ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
+        TVector<Import::ImportableItem*> validItems;
+
+        for ( auto i = 0; i < NumImportableTypes; i++ )
         {
-            ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide );
-            ImGui::TableSetupColumn( "Info", ImGuiTableColumnFlags_WidthStretch, 0.8f );
+            // Filter valid items
+            //-------------------------------------------------------------------------
 
-            constexpr static int32_t const numImportableTypes = 4;
-            constexpr static char const * const headings[numImportableTypes] = { "Animations", "Images", "Meshes", "Skeletons" };
-            TypeSystem::TypeInfo const* const importableItemTypes[numImportableTypes] = { Import::ImportableAnimation::s_pTypeInfo, Import::ImportableImage::s_pTypeInfo, Import::ImportableMesh::s_pTypeInfo, Import::ImportableSkeleton::s_pTypeInfo};
+            validItems.clear();
 
-            for ( auto i = 0; i < numImportableTypes; i++ )
+            for ( auto pItem : m_selectedFile.m_importableItems )
             {
-                // Get all valid items for the specified type
-                TVector<Import::ImportableItem*> validItems;
-                for ( auto pItem : m_selectedFile.m_importableItems )
+                if ( !pItem->GetTypeInfo()->IsDerivedFrom( importableItemTypes[i]->m_ID ) )
                 {
-                    if ( !pItem->GetTypeInfo()->IsDerivedFrom( importableItemTypes[i]->m_ID ) )
-                    {
-                        continue;
-                    }
-
-                    validItems.emplace_back( pItem );
+                    continue;
                 }
 
-                //-------------------------------------------------------------------------
+                validItems.emplace_back( pItem );
+            }
 
-                bool hasCreatedHeader = false;
-                bool isHeadingOpen = false;
+            if ( validItems.empty() )
+            {
+                continue;
+            }
 
-                for ( auto pItem : validItems )
+            // Draw Item List Windows
+            //-------------------------------------------------------------------------
+
+            if ( ImGuiX::BeginCollapsibleChildWindow( validItems[0]->GetHeading() ) )
+            {
+                ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 6, 0 ) );
+                ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 8 ) );
+
+                int32_t const numExtraColumns = validItems[0]->GetNumExtraInfoColumns();
+                if ( ImGui::BeginTable( validItems[0]->GetHeading(), 1 + numExtraColumns, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable) )
                 {
-                    // Create Heading
-                    if ( !hasCreatedHeader )
-                    {
-                        hasCreatedHeader = true;
+                    // Setup Columns
+                    //-------------------------------------------------------------------------
 
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-                        isHeadingOpen = ImGui::TreeNodeEx( headings[i], ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow );
-                        
-                        if ( ImGui::IsItemClicked( ImGuiMouseButton_Left ) )
+                    ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide );
+
+                    for ( int32_t c = 0; c < numExtraColumns; c++ )
+                    {
+                        ImGui::TableSetupColumn( validItems[0]->GetExtraInfoColumnName( c ), ImGuiTableColumnFlags_WidthStretch );
+                    }
+
+                    // Header Row
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TableNextRow( ImGuiTableRowFlags_Headers );
+                    for ( int32_t c = 0; c < numExtraColumns + 1; c++ )
+                    {
+                        if ( c == 0 )
                         {
-                            SelectAllItems( validItems );
+                            ImGui::TableNextColumn();
+                        }
+                        else
+                        {
+                            if ( ImGui::TableSetColumnIndex( c ) )
+                            {
+                                ImGui::AlignTextToFramePadding();
+                                ImGui::Text( ImGui::TableGetColumnName( c ) );
+                            }
                         }
                     }
 
-                    // Print Item
-                    if ( isHeadingOpen )
+                    // Draw Item Rows
+                    //-------------------------------------------------------------------------
+
+                    for ( auto pItem : validItems )
                     {
-                        uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                        uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_FramePadding;
+                        Color itemColor = ImGuiX::Style::s_colorText;
                         if ( VectorContains( m_selectedImportableItems, pItem ) )
                         {
                             treeNodeflags |= ImGuiTreeNodeFlags_Selected;
+                            itemColor = ImGuiX::Style::s_colorAccent0;
                         }
 
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
-                        ImGui::TreeNodeEx( pItem->m_nameID.c_str(), treeNodeflags );
-                        
+
+                        {
+                            ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold, itemColor );
+                            ImGui::TreeNodeEx( pItem->m_nameID.c_str(), treeNodeflags );
+                        }
+
                         if ( ImGui::IsItemClicked( ImGuiMouseButton_Left ) )
                         {
                             HandleItemSelection( pItem, ImGui::GetIO().KeyCtrl );
                         }
 
-                        ImGui::TableNextColumn();
-                        ImGui::Text( pItem->GetDescription().c_str() );
+                        for ( int32_t c = 0; c < numExtraColumns; c++ )
+                        {
+                            ImGui::TableNextColumn();
+                            ImGui::Text( pItem->GetExtraInfoColumnValue( c ).c_str() );
+                        }
                     }
+
+                    ImGui::EndTable();
                 }
 
-                // Close header
-                if ( hasCreatedHeader && isHeadingOpen )
+                ImGui::PopStyleVar( 2 );
+
+                if ( ImGui::Button( "Select All" ) )
                 {
-                    ImGui::TreePop();
+                    SelectAllItems( validItems );
                 }
             }
-
-            ImGui::EndTable();
+            ImGuiX::EndCollapsibleChildWindow();
         }
     }
 
@@ -1091,68 +1220,6 @@ namespace EE::Resource
             }
 
             ImGui::EndTabBar();
-        }
-    }
-
-    void ResourceImporterEditorTool::HandleItemSelection( Import::ImportableItem* pItem, bool isMultiSelectionEnabled )
-    {
-        if ( !m_selectedImportableItems.empty() && ImGui::GetIO().KeyCtrl )
-        {
-            // If we have a type info mismatch, set the selection to the new item
-            if ( pItem->GetTypeInfo() != m_selectedImportableItems[0]->GetTypeInfo() )
-            {
-                m_selectedImportableItems.clear();
-                m_selectedImportableItems.emplace_back( pItem );
-            }
-            else // Try to modify the selection
-            {
-                if ( VectorContains( m_selectedImportableItems, pItem ) )
-                {
-                    m_selectedImportableItems.erase_first( pItem );
-                }
-                else
-                {
-                    m_selectedImportableItems.emplace_back( pItem );
-                }
-            }
-        }
-        else // Set selection to new item
-        {
-            m_selectedImportableItems.clear();
-            m_selectedImportableItems.emplace_back( pItem );
-        }
-
-        OnSelectionChanged();
-    }
-
-    void ResourceImporterEditorTool::SelectAllItems( TVector<Import::ImportableItem*> itemsToSelect )
-    {
-        m_selectedImportableItems.clear();
-
-        // Perform validation
-        if ( !itemsToSelect.empty() )
-        {
-            TypeSystem::TypeInfo const* pTypeInfo = itemsToSelect[0]->GetTypeInfo();
-            for ( auto pItem : itemsToSelect )
-            {
-                if ( pItem->GetTypeInfo() != pTypeInfo )
-                {
-                    OnSelectionChanged();
-                    return;
-                }
-            }
-        }
-
-        // Update selection
-        m_selectedImportableItems.insert( m_selectedImportableItems.end(), itemsToSelect.begin(), itemsToSelect.end() );
-        OnSelectionChanged();
-    }
-
-    void ResourceImporterEditorTool::OnSelectionChanged()
-    {
-        for ( auto pImportSettings : m_importSettings )
-        {
-            pImportSettings->UpdateDescriptor( m_selectedFile.m_resourcePath, m_selectedImportableItems );
         }
     }
 }

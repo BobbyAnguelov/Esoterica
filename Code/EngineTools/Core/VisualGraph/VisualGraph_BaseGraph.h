@@ -614,7 +614,15 @@ namespace EE::VisualGraph
                 // Ensure unique name
                 if ( pNode->IsRenameable() )
                 {
-                    pNode->SetName( GetUniqueNameForRenameableNode( pNode->GetName() ) );
+                    String nodeName = pNode->GetName();
+                    if ( nodeName.empty() )
+                    {
+                        nodeName = pNode->GetTypeName();
+                    }
+
+                    EE_ASSERT( !nodeName.empty() );
+
+                    pNode->SetName( GetUniqueNameForRenameableNode( nodeName ) );
                 }
 
                 // Add to the graph

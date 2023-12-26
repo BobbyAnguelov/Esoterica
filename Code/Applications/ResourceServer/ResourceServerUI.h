@@ -1,6 +1,7 @@
 #pragma once
 #include "Base/Math/Rectangle.h"
 #include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiImageCache.h"
 
 //-------------------------------------------------------------------------
 

@@ -197,10 +197,6 @@ namespace EE::Animation::GraphNodes
 
             // Update sampled event range
             result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
-            if ( result.m_sampledEventRange.GetLength() > 0 )
-            {
-                EE_LOG_INFO( "Anim", "CG", "Start: %d, End: %d", result.m_sampledEventRange.m_startIdx, result.m_sampledEventRange.m_endIdx );
-            }
 
             // Transfer root motion debug
             #if EE_DEVELOPMENT_TOOLS

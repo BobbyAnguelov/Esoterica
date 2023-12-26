@@ -1,5 +1,6 @@
 #include "ResourceEditor_Texture.h"
 #include "Engine/Entity/EntityWorld.h"
+#include "Base/Imgui/ImguiImageCache.h"
 
 //-------------------------------------------------------------------------
 
@@ -49,7 +50,7 @@ namespace EE::Render
     {
         if ( IsResourceLoaded() )
         {
-            ImGui::Image( ImGuiX::ToIm( m_editedResource.GetPtr() ), Float2( m_editedResource->GetDimensions() ) );
+            ImGui::Image( ImGuiX::GetImTextureID( m_editedResource.GetPtr() ), Float2( m_editedResource->GetDimensions() ) );
         }
     }
 }

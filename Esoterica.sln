@@ -59,8 +59,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "6. Docs", "6. Docs", "{B55AC5BF-0153-4FCB-B9E7-2F58B628B51E}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
+		CodingGuidelines.md = CodingGuidelines.md
 		ToDo_Engine.md = ToDo_Engine.md
-		ToDo_Rendering.md = ToDo_Rendering.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "7. Misc", "7. Misc", "{8E9AF613-7A92-4B6D-A33D-E1C858BBAD9B}"

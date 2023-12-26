@@ -16,6 +16,7 @@ namespace EE::Render
     {
         m_size = Float2( dimensions );
         m_topLeftPosition = Float2( topLeftPosition );
+        EE_ASSERT( IsValid() );
     }
 
     void Viewport::Resize( Math::Rectangle const& rect )

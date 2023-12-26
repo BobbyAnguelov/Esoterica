@@ -49,7 +49,7 @@ namespace EE::Resource
         auto DrawTitleBarContents = [this] ()
         {
             ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( 0, 4 ) );
-            ImGuiX::Image( m_resourceServerIcon );
+            ImGuiX::Image( m_resourceServerIcon.m_ID, m_resourceServerIcon.m_size );
             ImGui::SameLine();
             ImGui::SetCursorPos( ImGui::GetCursorPos() + ImVec2( -8, -2 ) );
             ImGui::AlignTextToFramePadding();
@@ -433,7 +433,7 @@ namespace EE::Resource
     {
         if ( ImGui::Begin( g_serverControlsWindowName ) )
         {
-            ImGuiX::TextSeparator( "Info" );
+            ImGui::SeparatorText( "Info" );
 
             ImGui::Text( "Raw Resource Path: %s", m_resourceServer.GetRawResourceDir().c_str() );
             ImGui::Text( "Compiled Resource Path: %s", m_resourceServer.GetCompiledResourceDir().c_str() );
@@ -441,7 +441,7 @@ namespace EE::Resource
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Tools" );
+            ImGui::SeparatorText( "Tools" );
 
             ImVec2 buttonSize( 155, 0 );
             float const fieldWidth = ImGui::GetContentRegionAvail().x - buttonSize.x - ImGui::GetStyle().ItemSpacing.x - 28;
@@ -463,11 +463,11 @@ namespace EE::Resource
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( "Registered Compilers" );
+            ImGui::SeparatorText( "Registered Compilers" );
 
             if ( ImGui::BeginTable( "Registered Compilers Table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
             {
-                ImGuiX::TextSeparator( "Info" );
+                ImGui::SeparatorText( "Info" );
                 ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 150 );
                 ImGui::TableSetupColumn( "Ver", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 25 );
                 ImGui::TableSetupColumn( "Output Types", ImGuiTableColumnFlags_WidthStretch );
@@ -624,7 +624,7 @@ namespace EE::Resource
 
             if ( packagingStage != ResourceServer::PackagingStage::None )
             {
-                ImGuiX::TextSeparator( "Selected Maps");
+                ImGui::SeparatorText( "Selected Maps");
 
                 auto const& mapsToBePackaged = m_resourceServer.GetMapsQueuedForPackaging();
                 for ( auto const& mapID : mapsToBePackaged )
@@ -632,7 +632,7 @@ namespace EE::Resource
                     ImGui::BulletText( mapID.c_str() );
                 }
 
-                ImGuiX::TextSeparator( "Progress" );
+                ImGui::SeparatorText( "Progress" );
 
                 if ( packagingStage != ResourceServer::PackagingStage::Complete )
                 {

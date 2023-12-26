@@ -167,7 +167,7 @@ namespace EE::Player
                 }
             };
 
-            ImGuiX::TextSeparator( "Recorded Data" );
+            ImGui::SeparatorText( "Recorded Data" );
 
             // Timeline
             ImGui::BeginDisabled( m_isRecording );
@@ -275,7 +275,7 @@ namespace EE::Player
                 ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
                 if ( ImGui::CollapsingHeader( "Parameter Data" ) )
                 {
-                    ImGuiX::TextSeparator( "Parameter Data" );
+                    ImGui::SeparatorText( "Parameter Data" );
 
                     if ( ImPlot::BeginPlot( "Recorded Parameter Data", ImVec2( -1, 200 ), ImPlotFlags_NoMenus | ImPlotFlags_NoMouseText | ImPlotFlags_NoLegend | ImPlotFlags_NoBoxSelect ) )
                     {

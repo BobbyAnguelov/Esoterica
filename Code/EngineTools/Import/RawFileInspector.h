@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
+#include "Base/Imgui/MaterialDesignIcons.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Memory/Pointers.h"
 #include "Base/Types/Function.h"
@@ -32,7 +33,11 @@ namespace EE::Import
         ImportableItem( ResourcePath const& path, StringID nameID ) : m_sourceFile ( path ), m_nameID( nameID ) {}
 
         inline bool IsValid() const { return m_sourceFile.IsValid() && m_nameID.IsValid(); }
-        virtual InlineString GetDescription() const { return InlineString(); }
+
+        virtual char const* GetHeading() const { return ""; }
+        virtual int32_t GetNumExtraInfoColumns() const { return 0; }
+        virtual char const* GetExtraInfoColumnName( int32_t columnIdx ) const { return ""; }
+        virtual InlineString GetExtraInfoColumnValue( int32_t columnIdx ) const { return ""; }
 
     public:
 
@@ -43,16 +48,15 @@ namespace EE::Import
     //-------------------------------------------------------------------------
     // Importable Data
     //-------------------------------------------------------------------------
-    // TODO: Make this extensible once we have a lot of different types
 
     struct ImportableMesh : public ImportableItem
     {
         EE_REFLECT_TYPE( ImportableMesh );
 
-        virtual InlineString GetDescription() const override 
-        {
-            return InlineString( m_materialID.IsValid() ? m_materialID.c_str() : "No Material Set" );
-        }
+        virtual char const* GetHeading() const override { return EE_ICON_HOME_CITY" Meshes"; }
+        virtual int32_t GetNumExtraInfoColumns() const override { return 1; }
+        virtual char const* GetExtraInfoColumnName( int32_t columnIdx ) const override { return "Material"; }
+        virtual InlineString GetExtraInfoColumnValue( int32_t columnIdx ) const override { return m_materialID.IsValid() ? m_materialID.c_str() : "No Material Set"; }
 
         StringID                        m_materialID;
         String                          m_extraInfo;
@@ -68,10 +72,10 @@ namespace EE::Import
         inline bool IsNullOrLocatorNode() const { return !m_childSkeletonRoots.empty(); }
         inline bool IsSkeletonNode() const { return m_childSkeletonRoots.empty(); }
 
-        virtual InlineString GetDescription() const override 
-        {
-            return InlineString( IsNullOrLocatorNode() ? "Null/Locator" : "Skeleton Node" );
-        }
+        virtual char const* GetHeading() const override { return EE_ICON_SKULL" Skeletons"; }
+        virtual int32_t GetNumExtraInfoColumns() const override { return 1; }
+        virtual char const* GetExtraInfoColumnName( int32_t columnIdx ) const override { return "Type"; }
+        virtual InlineString GetExtraInfoColumnValue( int32_t columnIdx ) const override { return IsNullOrLocatorNode() ? "Null/Locator" : "Skeleton Node"; }
 
     public:
 
@@ -84,10 +88,50 @@ namespace EE::Import
     {
         EE_REFLECT_TYPE( ImportableAnimation );
 
-        virtual InlineString GetDescription() const override 
+        virtual char const* GetHeading() const override { return EE_ICON_RUN" Animations"; }
+        virtual int32_t GetNumExtraInfoColumns() const override { return 3; }
+
+        virtual char const* GetExtraInfoColumnName( int32_t columnIdx ) const override 
         {
-            float const numFrames = m_duration.ToFloat() * m_frameRate;
-            return InlineString( InlineString::CtorSprintf(), "%.2f Frames, %.2fs, %.2f fps", numFrames, m_duration.ToFloat(), m_frameRate ); 
+            if ( columnIdx == 0 )
+            {
+                return "Frames";
+            }
+
+            if ( columnIdx == 1 )
+            {
+                return "Duration";
+            }
+
+            if ( columnIdx == 2 )
+            {
+                return "FPS";
+            }
+
+            return "";
+        }
+        
+        virtual InlineString GetExtraInfoColumnValue( int32_t columnIdx ) const override
+        {
+            InlineString str;
+
+            if ( columnIdx == 0 )
+            {
+                float const numFrames = m_duration.ToFloat() * m_frameRate;
+                return str.sprintf( "%.2f", numFrames, m_duration.ToFloat(), m_frameRate );
+            }
+
+            if ( columnIdx == 1 )
+            {
+                return str.sprintf( "%.2f", m_duration.ToFloat() );
+            }
+
+            if ( columnIdx == 2 )
+            {
+                return str.sprintf( "%.2f", m_frameRate );
+            }
+
+            return str;
         }
 
     public:
@@ -102,9 +146,39 @@ namespace EE::Import
     {
         EE_REFLECT_TYPE( ImportableImage );
 
-        virtual InlineString GetDescription() const override 
-        { 
-            return InlineString( InlineString::CtorSprintf(), "%d x %d, channels: %d", m_dimensions.m_x, m_dimensions.m_y, m_numChannels );
+        virtual char const* GetHeading() const override { return EE_ICON_IMAGE" Images"; }
+        virtual int32_t GetNumExtraInfoColumns() const override { return 2; }
+
+        virtual char const* GetExtraInfoColumnName( int32_t columnIdx ) const override
+        {
+            if ( columnIdx == 0 )
+            {
+                return "Dimensions";
+            }
+
+            if ( columnIdx == 1 )
+            {
+                return "Channels";
+            }
+
+            return "";
+        }
+
+        virtual InlineString GetExtraInfoColumnValue( int32_t columnIdx ) const override
+        {
+            InlineString str;
+
+            if ( columnIdx == 0 )
+            {
+                return str.sprintf( "%d x %d", m_dimensions.m_x, m_dimensions.m_y );
+            }
+
+            if ( columnIdx == 1 )
+            {
+                return str.sprintf( "%d", m_numChannels );
+            }
+
+            return str;
         }
 
     public:

@@ -92,7 +92,7 @@ namespace EE::Animation
             return true;
         };
 
-        ImGuiX::TextSeparator( "States" );
+        ImGui::SeparatorText( "States" );
 
         if ( ImGui::MenuItem( "Blend Tree State" ) )
         {

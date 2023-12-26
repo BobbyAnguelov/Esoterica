@@ -213,7 +213,7 @@ namespace EE::EntityModel
             // Navmesh
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( EE_ICON_WALK" Navmesh" );
+            ImGui::SeparatorText( EE_ICON_WALK" Navmesh" );
             
             auto const& navmeshComponents = m_pWorld->GetAllRegisteredComponentsOfType<Navmesh::NavmeshComponent>();
             bool const hasNavmeshComponent = !navmeshComponents.empty();
@@ -247,7 +247,7 @@ namespace EE::EntityModel
 
         if ( ImGui::BeginMenu( EE_ICON_MONITOR_EYE" Visualize" ) )
         {
-            ImGuiX::TextSeparator( EE_ICON_MATH_COMPASS" Physics" );
+            ImGui::SeparatorText( EE_ICON_MATH_COMPASS" Physics" );
 
             //auto pPhysicsWorldSystem = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>();
             bool isDebugEnabled = false;// pPhysicsWorldSystem->IsDebugDrawingEnabled();
@@ -258,14 +258,14 @@ namespace EE::EntityModel
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( EE_ICON_WALK" Navmesh" );
+            ImGui::SeparatorText( EE_ICON_WALK" Navmesh" );
 
             //auto pNavmeshWorldSystem = m_pWorld->GetWorldSystem<Navmesh::NavmeshWorldSystem>();
             //Navmesh::NavmeshDebugView::DrawNavmeshRuntimeSettings( pNavmeshWorldSystem );
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::TextSeparator( EE_ICON_CUBE_OUTLINE" Volumes" );
+            ImGui::SeparatorText( EE_ICON_CUBE_OUTLINE" Volumes" );
 
             for ( auto pVolumeTypeInfo : m_volumeTypes )
             {

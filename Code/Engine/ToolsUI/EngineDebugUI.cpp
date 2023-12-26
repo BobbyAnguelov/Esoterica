@@ -473,7 +473,7 @@ namespace EE
         ImGui::PopStyleColor();
         if ( drawDebugMenu )
         {
-            ImGuiX::TextSeparator( EE_ICON_CLOCK" Time Controls" );
+            ImGui::SeparatorText( EE_ICON_CLOCK" Time Controls" );
             {
                 ImVec2 const buttonSize( 24, 0 );
 
